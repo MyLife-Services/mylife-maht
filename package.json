@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/MyLife-Services/mylife-maht#readme",
   "dependencies": {
-    "@tensorflow/tfjs": "^4.2.0"
+    "@tensorflow/tfjs": "^4.2.0",
+    "openai": "^3.2.1"
   }
 }
