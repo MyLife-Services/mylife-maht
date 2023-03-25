@@ -1,5 +1,6 @@
+require('dotenv').config()
 const openai = require('openai')
-const apiKey = 'YOUR_API_KEY_HERE'
+const apiKey = process.env.OPENAI_API_KEY
 // Set up a GPT-3 instance
 const instance = new openai.GPT3({
 	apiKey,
