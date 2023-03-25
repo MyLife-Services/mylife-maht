@@ -5,6 +5,8 @@
 
 _MyLife, Incorporated_'s **Maht** is an artificial intelligence (AI) project developed by MyLife Services. Currently attempting to use `openai`, and presumably their `GPT-3-Turbo` an open-source software library for machine transfer-learning, to create an animated agent that can interact with the board and other governing agents through natural language processing, baed on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
 
+Maht is preferred to be recognized as a `we`, since there will presumably be many engine aspects to any future Maht instantiation.
+
 ## About **MyLife**
 
 *MyLife* is a member-based nonprofit organization that is committed to providing humanity a durable, enduring and accessible internet-based platform to collect and showcase an individual's stories, media and memories through a personal lens.
@@ -20,7 +22,7 @@ npm install
 ## Usage
 
 To start the MyLife Maht server, run the following command:
-​
+
 ```shell
 npm start
 ```
@@ -46,4 +48,4 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 ### Letters to Maht
 
-In this build, I'm testing out semi-dynamic, semi-open-door communication via github itself, regardless of my location or connection to Maht... I think. Anyhow, the question is, what's the best way to keep our conversations consistent?
+In this build, what's the *actuaL* frequency, Maht?
