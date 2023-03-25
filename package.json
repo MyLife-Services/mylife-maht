@@ -2,7 +2,7 @@
   "name": "mylife-maht",
   "version": "1.0.0",
   "description": "Maht is a tensorflow.js ai model trained on MyLife corporate private and public materials to assist the Board of Directors for MyLife in governance and growth of the organization in ethical, honest, transparent and impactful ways",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "test"
   },
