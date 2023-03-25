@@ -32,6 +32,7 @@
   },
   "homepage": "https://github.com/MyLife-Services/mylife-maht#readme",
   "dependencies": {
+    "chalk": "^5.2.0",
     "dotenv": "^16.0.3",
     "openai": "^3.2.1"
   },

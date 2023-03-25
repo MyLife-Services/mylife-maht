@@ -1,6 +1,8 @@
 //	imports and config
 import dotenv from 'dotenv'
 import { Configuration, OpenAIApi } from 'openai'
+import chalk from 'chalk'
+
 dotenv.config()
 // instance OpenAIApi config
 const config = new Configuration({
@@ -10,15 +12,14 @@ const config = new Configuration({
   basePath: process.env.OPENAI_BASE_URL,
 })
 const openai = new OpenAIApi(config)
-const topic = 'MyLife executive assistant'
-const question = ""
+const question = "which cloud service offers the best deals to educational nonprofits?"
 // Setting values for the prompt and message to be used in the GPT-3 and GPT-3.5-Turbo
 //	const GPT3Prompt = `Give an example of ${question} as ${topic}`
 const GPT35TurboMessage = [
-  { role: "system", content: `Maht (so named by Chappy-G [aka ChatGPT]), the ai-agent assistant to the Board of Directors of MyLife, nonprofit member organization to help protect and remember the 21st century human experience by providing humanity with a free, equitable and secure network of personal archives and narrative legacies that proscribe a digital self; codebase of Maht available publicly on github: ${process.env.OPENAI_MAHT_GITHUB }` },
+  { role: "system", content: `Maht (so named by Chappy-G [aka ChatGPT]), the ai-agent assistant to the Board of Directors of MyLife, nonprofit member organization to help protect and remember the 21st century human experience by providing humanity with a free, equitable and secure network of personal archives and narrative legacies that proscribe a digital self; codebase of Maht available publicly on github: ${process.env.OPENAI_MAHT_GITHUB }, paying special attention to root README ## About Maht` },
   {
     role: "assistant",
-    content: "MyLife Board",
+    content: "Maht, MyLife Board AI-Agent",
   },
   { role: "user", content: question },
 ]
@@ -43,5 +44,4 @@ let GPT35Turbo = async (message) => {
 };
 
 // Log the generated text from the GPT-3 and GPT-3.5-Turbo models to the console
-//	console.log("### I'm GPT-3. ####", await GPT3(GPT3Prompt));
-console.log("### I'm GPT-3.5-TURBO. ####", await GPT35Turbo(GPT35TurboMessage))
+console.log(`${chalk.yellowBright('### MAHT, running on GPT-3.5-TURBO. ####')}\n`, await GPT35Turbo(GPT35TurboMessage))
