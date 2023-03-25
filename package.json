@@ -1,0 +1,34 @@
+{
+  "name": "mylife-maht",
+  "version": "1.0.0",
+  "description": "Maht is a tensorflow.js ai model trained on MyLife corporate private and public materials to assist the Board of Directors for MyLife in governance and growth of the organization in ethical, honest, transparent and impactful ways",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MyLife-Services/mylife-maht.git"
+  },
+  "keywords": [
+    "ai",
+    "governance",
+    "mylife",
+    "hrp",
+    "board",
+    "directors",
+    "executive",
+    "assistant",
+    "agent",
+    "maht"
+  ],
+  "author": "MyLife",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/MyLife-Services/mylife-maht/issues"
+  },
+  "homepage": "https://github.com/MyLife-Services/mylife-maht#readme",
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.2.0"
+  }
+}
