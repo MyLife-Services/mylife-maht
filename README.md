@@ -3,7 +3,7 @@
 
 ## About **Maht**
 
-_MyLife, Incorporated_'s **Maht** is an artificial intelligence (AI) project developed by MyLife Services. It uses `TensorFlow.js`, an open-source software library for machine learning, to create an animated agent that can interact with the board and other governing agents through natural language processing, baed on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
+_MyLife, Incorporated_'s **Maht** is an artificial intelligence (AI) project developed by MyLife Services. Currently attempting to use `openai`, and presumably their `GPT-3-Turbo` an open-source software library for machine transfer-learning, to create an animated agent that can interact with the board and other governing agents through natural language processing, baed on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
 
 ## About **MyLife**
 
@@ -41,3 +41,9 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 ## License
 
 MyLife Maht is licensed under the MIT License. See the LICENSE file for more information.
+
+## Endnotes
+
+### Letters to Maht
+
+In this build, I'm testing out semi-dynamic, semi-open-door communication via github itself, regardless of my location or connection to Maht... I think. Anyhow, the question is, what's the best way to keep our conversations consistent?

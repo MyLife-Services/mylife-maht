@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "Maht is a tensorflow.js ai model trained on MyLife corporate private and public materials to assist the Board of Directors for MyLife in governance and growth of the organization in ethical, honest, transparent and impactful ways",
   "main": "server.js",
+  "type": "module",
   "scripts": {
-    "test": "test"
+    "test": "test",
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "repository": {
     "type": "git",
@@ -29,7 +32,10 @@
   },
   "homepage": "https://github.com/MyLife-Services/mylife-maht#readme",
   "dependencies": {
-    "@tensorflow/tfjs": "^4.2.0",
+    "dotenv": "^16.0.3",
     "openai": "^3.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
   }
 }
