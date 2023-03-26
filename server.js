@@ -3,12 +3,13 @@
 import Koa from 'koa'
 import Router from 'koa-router'
 import bodyParser from 'koa-bodyparser'
-//	ai - create sub-file to include
-import processRequest from './maht/maht.js'
 //	misc
 import dotenv from 'dotenv'
 import chalk from 'chalk'
 dotenv.config()	//	process.env
+//	ai - create sub-file to include
+import processRequest from './maht/maht.js'
+//	constants/variables
 const app = new Koa()
 const router = new Router()
 const port = process.env.PORT || 3000

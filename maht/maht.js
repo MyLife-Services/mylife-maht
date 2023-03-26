@@ -1,8 +1,5 @@
 //	ai - create sub-file to include
 import { OpenAIApi, Configuration } from 'openai'
-//	misc
-import dotenv from 'dotenv'
-dotenv.config({ path: '../.env' })	//	process.env
 // instance OpenAIApi config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
