@@ -3,6 +3,10 @@
 import Koa from 'koa'
 import Router from 'koa-router'
 import bodyParser from 'koa-bodyparser'
+import serve from 'koa-static'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
 //	misc
 import koaenv from 'dotenv'
 koaenv.config()
@@ -12,14 +16,17 @@ import processRequest from './maht/maht.js'
 const app = new Koa()
 const router = new Router()
 const port = process.env.PORT || 3000
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 //	routes
 router.get('/chat', async ctx => {
 	const { message } = ctx.request.query
 	await mahtModule.processRequest({ message })
-	const answer = response.data.choices[0].text.trim()
+	const answer = response.trim()
 	ctx.body = { answer }
 })
 
+app.use(serve(__dirname))
 app.use(bodyParser())
 app.use(router.routes())
 
