@@ -1,5 +1,7 @@
 //	ai - create sub-file to include
 import { OpenAIApi, Configuration } from 'openai'
+import ai_dotenv from 'dotenv'
+ai_dotenv.config()
 // instance OpenAIApi config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -7,7 +9,7 @@ const config = new Configuration({
 	timeoutMs: process.env.OPENAI_TIMEOUT,
 	basePath: process.env.OPENAI_BASE_URL,
 })
-console.log('here',process.env.OPENAI_TIMEOUT)
+console.log('here',process.env.OPENAI_API_KEY)
 const openai = new OpenAIApi(config)
 
 async function processRequest(_question){
