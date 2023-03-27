@@ -19,19 +19,31 @@ const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 //	routes
-router.get('/chat', async ctx => {
-	const { message } = ctx.request.query
-	await mahtModule.processRequest({ message })
-	const answer = response.trim()
-	ctx.body = { answer }
-})
+router.get(
+	'/chat',
+	async ctx => {
+		const { message } = ctx.request.query
+		await processRequest({ message })
+		const answer = response.trim()
+		ctx.body = { answer }
+	}
+)
 
-app.use(serve(__dirname))
+router.post(
+	'myName',
+	'/chat',
+	async ctx => {
+		console.log(ctx.request.body.message)
+		const _message = ctx.request.body.message
+		const _response = await processRequest(_message)
+		ctx.body = { 'answer': _response }
+	}
+)
+//	app bootup
+app.use(serve(path.join(__dirname, 'client')))	// define a route for the index page and browsable directory
 app.use(bodyParser())
 app.use(router.routes())
-
+//	full operable
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`)
+  console.log(`server available and listening on port ${port}`)
 })
-
-console.log(`${chalk.yellowBright('### MAHT - running on GPT-3.5-TURBO. ####')}\n`, await processRequest('as a system assistant do you have access to the public github for Maht?'))

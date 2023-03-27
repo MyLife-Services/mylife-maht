@@ -40,6 +40,18 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 5. Push the new branch to your GitHub account.
 6. Submit a pull request from your new branch to the main branch of the original repository.
 
+## Tech Resources
+
+- [OpenAI's API documentation](https://platform.openai.com/docs/api-reference)
+- [OpenAI's GPT-3 page](https://openai.com/gpt-3/)
+- [GPT-3 Sandbox](https://beta.openai.com/signup/)
+- [GPT-3 playground](https://gpt3.org/)
+- [AI Dungeon](https://play.aidungeon.io/)
+- [AI Writer](https://ai-writer.com/)
+- [Copysmith](https://ai-writer.com/)
+- [NLP Cloud](https://nlpcloud.com/)
+- [The Neural Network Zoo](https://www.asimovinstitute.org/neural-network-zoo/)
+
 ## License
 
 MyLife Maht is licensed under the MIT License. See the LICENSE file for more information.
