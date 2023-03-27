@@ -4,6 +4,7 @@ import Koa from 'koa'
 import Router from 'koa-router'
 import bodyParser from 'koa-bodyparser'
 import serve from 'koa-static'
+import session from 'koa-session'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
@@ -37,12 +38,20 @@ router.post(
 		const _message = ctx.request.body.message
 		const _response = await processRequest(_message)
 		ctx.body = { 'answer': _response }
+
 	}
 )
 //	app bootup
 app.use(serve(path.join(__dirname, 'client')))	// define a route for the index page and browsable directory
 app.use(bodyParser())
 app.use(router.routes())
+app.keys = ['Shh, its a secret!']
+app.use(session(app))	 // Include the session middleware
+//	session functionality -- not sure yet how to incorporate
+app.use(function *(){
+   let n = this.session.views || 0
+   this.session.views = ++n
+})
 //	full operable
 app.listen(port, () => {
   console.log(`server available and listening on port ${port}`)
