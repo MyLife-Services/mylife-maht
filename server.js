@@ -8,6 +8,7 @@ import session from 'koa-session'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
+//	import { Transform } from 'stream'
 //	misc
 import koaenv from 'dotenv'
 koaenv.config()
@@ -20,32 +21,20 @@ const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 //	routes
-router.get(
-	'/chat',
-	async ctx => {
-		const { message } = ctx.request.query
-		await processRequest({ message })
-		const answer = response.trim()
-		ctx.body = { answer }
-	}
-)
-
 router.post(
 	'myName',
 	'/chat',
 	async ctx => {
-		console.log(ctx.request.body.message)
 		const _message = ctx.request.body.message
 		const _response = await processRequest(_message)
 		ctx.body = { 'answer': _response }
-
 	}
 )
 //	app bootup
 app.use(serve(path.join(__dirname, 'client')))	// define a route for the index page and browsable directory
 app.use(bodyParser())
 app.use(router.routes())
-app.keys = ['Shh, its a secret!']
+app.keys = [process.env.SECRETKEY]
 app.use(session(app))	 // Include the session middleware
 //	session functionality -- not sure yet how to incorporate
 app.use(function *(){
