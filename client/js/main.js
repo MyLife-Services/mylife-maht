@@ -9,13 +9,15 @@ chatForm.addEventListener(
 		event.preventDefault()
 		//awaitDiv.innerHTML='Connecting with Maht...'	//	could shift for fun
 		awaitDiv.style.display='block'
-    	await fetch('http://localhost:3000/chat', {	//	fetch is not working, I need a full url
+		const url = 'http://localhost:3000/chat'
+		const options = {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 			},
-			body: JSON.stringify({ 'message': messageInput.value }),
-		})
+			body: JSON.stringify({ message: messageInput.value }),
+		}
+    	await fetch(url,options)
 			.then( async response => {
 				awaitDiv.style.display='none'
 				const data = await response.json()
