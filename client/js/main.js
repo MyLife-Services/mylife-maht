@@ -9,7 +9,7 @@ chatForm.addEventListener(
 		event.preventDefault()
 		//awaitDiv.innerHTML='Connecting with Maht...'	//	could shift for fun
 		awaitDiv.style.display='block'
-		const url = 'http://localhost:3000/chat'
+		const url = new URL(window.location.href).origin+'/chat'
 		const options = {
 			method: 'POST',
 			headers: {
