@@ -12,6 +12,7 @@ import { dirname } from 'path'
 //	misc
 import chalk from 'chalk'
 import processRequest from './maht/maht.js'
+import mahtError from './inc/js/error.js'
 //	constants/variables
 const app = new Koa()
 const router = new Router()
@@ -24,7 +25,12 @@ router.post(
 	'/chat',
 	async ctx => {
 		const _message = ctx.request.body.message
-		const _response = await processRequest(_message)
+		const _response = 
+			await processRequest(_message)
+				.then()
+				.catch(err=>{
+					mahtError.handleError(err)
+				})
 		ctx.body = { 'answer': _response }
 	}
 )
