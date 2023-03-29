@@ -9,7 +9,7 @@ chatForm.addEventListener(
 		event.preventDefault()
 		awaitDiv.getElementsByTagName('p')[0].innerText='Connecting with Maht...'	//	could shift for fun
 		awaitDiv.style.display='block'
-		const url = `${window.location.origin}/chat`
+    const url = `${window.location.origin}/chat`
 		const options = {
 			method: 'POST',
 			headers: {
