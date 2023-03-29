@@ -7,9 +7,9 @@ chatForm.addEventListener(
 	'submit', 
 	async (event) => {
 		event.preventDefault()
-		//awaitDiv.innerHTML='Connecting with Maht...'	//	could shift for fun
+		awaitDiv.getElementsByTagName('p')[0].innerText='Connecting with Maht...'	//	could shift for fun
 		awaitDiv.style.display='block'
-		const url = new URL(window.location.href).origin+'/chat'
+    const url = `${window.location.origin}/chat`
 		const options = {
 			method: 'POST',
 			headers: {
