@@ -47,5 +47,5 @@ app.use(function *(){
 })
 //	full operable
 app.listen(port, () => {
-  console.log(`server available and listening on port ${port}`)
+  console.log(chalk.yellow(`server available and listening on port ${port}`))
 })
