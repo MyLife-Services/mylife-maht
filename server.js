@@ -10,8 +10,6 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 //	import { Transform } from 'stream'
 //	misc
-import koaenv from 'dotenv'
-koaenv.config()
 import chalk from 'chalk'
 import processRequest from './maht/maht.js'
 import mahtError from './inc/js/error.js'
@@ -49,5 +47,5 @@ app.use(function *(){
 })
 //	full operable
 app.listen(port, () => {
-  console.log(`server available and listening on port ${port}`)
+  console.log(chalk.yellow(`server available and listening on port ${port}`))
 })
