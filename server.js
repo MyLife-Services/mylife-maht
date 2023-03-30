@@ -10,6 +10,8 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 //	import { Transform } from 'stream'
 //	misc
+import koaenv from 'dotenv'
+koaenv.config()
 import chalk from 'chalk'
 import processRequest from './maht/maht.js'
 import mahtError from './inc/js/error.js'
