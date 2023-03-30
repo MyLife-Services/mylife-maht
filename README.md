@@ -52,6 +52,10 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 - [NLP Cloud](https://nlpcloud.com/)
 - [The Neural Network Zoo](https://www.asimovinstitute.org/neural-network-zoo/)
 
+## Status
+
+[![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
+
 ## License
 
 MyLife Maht is licensed under the MIT License. See the LICENSE file for more information.
