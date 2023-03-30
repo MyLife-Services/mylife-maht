@@ -1,6 +1,8 @@
 
 # Maht: MyLife Executive AI-Agent
 
+[![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
+
 ## About **Maht**
 
 _MyLife, Incorporated_'s **Maht** is an artificial intelligence (AI) project developed by MyLife Services. Currently attempting to use `openai`, and presumably their `GPT-3-Turbo` an open-source software library for machine transfer-learning, to create an animated agent that can interact with the board and other governing agents through natural language processing, baed on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
@@ -51,10 +53,6 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 - [Copysmith](https://ai-writer.com/)
 - [NLP Cloud](https://nlpcloud.com/)
 - [The Neural Network Zoo](https://www.asimovinstitute.org/neural-network-zoo/)
-
-## Status
-
-[![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
 
 ## License
 
