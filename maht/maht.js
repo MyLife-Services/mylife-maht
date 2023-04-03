@@ -12,10 +12,6 @@ const config = new Configuration({
 const openai = new OpenAIApi(config)
 //	PUBLIC functions
 async function processRequest(_question){
-	let question=''	//	enter any dynamic interrupt here
-	if(question.length){
-		_question=question
-	}
 	//	pre-vet, trim, approve(?) input
 
 	// assign histories and roles

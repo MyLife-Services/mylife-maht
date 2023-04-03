@@ -12,6 +12,7 @@ import { dirname } from 'path'
 //	misc
 import koaenv from 'dotenv'
 koaenv.config()
+import xml2js from 'xml2js'
 import chalk from 'chalk'
 import processRequest from './maht/maht.js'
 import mahtError from './inc/js/error.js'
@@ -23,10 +24,11 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 //	routes
 router.post(
-	'myName',
+	'gptTurbo',
 	'/chat',
 	async ctx => {
 		const _message = ctx.request.body.message
+		console.log('processing message',chalk.greenBright(_message))
 		const _response = 
 			await processRequest(_message)
 				.then()
@@ -34,6 +36,14 @@ router.post(
 					mahtError.handleError(err)
 				})
 		ctx.body = { 'answer': _response }
+	}
+)
+router.get(
+	'xml2json',
+	'/xml2json',
+	async ctx => {
+		const xml = fs.readFileSync('./privacy/data.xml', 'utf-8')
+		console.log('xml',xml)
 	}
 )
 //	app bootup
