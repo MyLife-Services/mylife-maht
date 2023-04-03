@@ -8,14 +8,15 @@ import session from 'koa-session'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
+import fs from 'fs'
+import chalk from 'chalk'
 //	import { Transform } from 'stream'
 //	misc
 import koaenv from 'dotenv'
 koaenv.config()
-import xml2js from 'xml2js'
-import chalk from 'chalk'
 import processRequest from './maht/maht.js'
 import mahtError from './inc/js/error.js'
+import { parseXml } from './inc/js/private.js'
 //	constants/variables
 const app = new Koa()
 const router = new Router()
@@ -39,11 +40,12 @@ router.post(
 	}
 )
 router.get(
-	'xml2json',
-	'/xml2json',
+	'xml2js',
+	'/xml2js',
 	async ctx => {
 		const xml = fs.readFileSync('./privacy/data.xml', 'utf-8')
-		console.log('xml',xml)
+		const oMember = parseXml(xml)	//	consider it a class as defined in the xml file, xml being nod to Ben Tremblay
+		ctx.body = { 'answer': oMember.privacy.member.contact.email }
 	}
 )
 //	app bootup
