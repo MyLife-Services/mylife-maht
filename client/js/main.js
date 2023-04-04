@@ -9,6 +9,7 @@ const selectedBoardMember = urlParams.get('boardMember')
 const emulator='Q'
 // Add a 'selected' class to the button that matches the selected board member
 const buttons = document.querySelectorAll('.board-member-button')
+let urlEndpoint = '/chat'
 buttons.forEach(button => {
   if (button.dataset.boardMember === selectedBoardMember) {
     button.classList.add('selected')
@@ -33,7 +34,7 @@ chatForm.addEventListener(
 		event.preventDefault()
 		awaitDiv.getElementsByTagName('p')[0].innerText=`Connecting with ${emulator}...`	//	could shift for fun
 		awaitDiv.style.display='block'
-    const url = `${window.location.origin}/chat`
+    	const url = window.location.origin + urlEndpoint
 		const options = {
 			method: 'POST',
 			headers: {
@@ -62,9 +63,11 @@ function toggleBoard() {
 	if (boardButtons.style.display === "none") {
 		boardButtons.style.display = "block"
 		boardToggle.style.display = "none"
+		urlEndpoint = '/board'
 	} else {
 		boardButtons.style.display = "none"
 		boardToggle.style.display = "block"
+		urlEndpoint = '/chat'
 	}
 }
 
