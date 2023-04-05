@@ -8,11 +8,11 @@ import session from 'koa-session'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
+import chalk from 'chalk'
 //	import { Transform } from 'stream'
 //	misc
 import koaenv from 'dotenv'
 koaenv.config()
-import chalk from 'chalk'
 import processRequest from './maht/maht.js'
 import mahtError from './inc/js/error.js'
 //	constants/variables
@@ -22,13 +22,31 @@ const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 //	routes
+//	MAHT
 router.post(
-	'myName',
+	'gptTurboMaht',
 	'/chat',
 	async ctx => {
 		const _message = ctx.request.body.message
+		console.log('processing message',chalk.greenBright(_message))
 		const _response = 
 			await processRequest(_message)
+				.then()
+				.catch(err=>{
+					mahtError.handleError(err)
+				})
+		ctx.body = { 'answer': _response }
+	}
+)
+//	BOARD
+router.post(
+	'gptTurboBoard',
+	'/board',
+	async ctx => {
+		const _message = ctx.request.body.message
+		console.log('processing board message',chalk.greenBright(_message))
+		const _response = 
+			await processRequest(_message,'board')
 				.then()
 				.catch(err=>{
 					mahtError.handleError(err)

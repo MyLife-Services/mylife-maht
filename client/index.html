@@ -19,8 +19,34 @@
 		</a>
 	</div>
 	<div class="container">
-		<h1>Meet Maht</h1>
-		<h3>MyLife's AI Assistant to the Board of Trustees and Directors</h3>
+		<h1>Q, MyLife's AI Assistant</h1>
+		<h3>For the Board of Trustees and Directors</h3>
+		<div id="board-toggle">
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2" onclick="toggleBoard()">
+				Meet the Board
+			</button>
+		</div>
+		<div id="board-buttons" style="display: none;">
+			<div class="btn-group d-flex justify-content-between" role="group">
+				<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+					data-board-member="erik">Erik</button>
+				<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+					data-board-member="ken">Ken</button>
+				<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+					data-board-member="steve">Steve</button>
+				<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+					data-board-member="sam">Sam</button>
+				<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+					data-board-member="russ">Russ</button>
+				<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+					data-board-member="emily">Emily</button>
+			</div>
+			<div class="d-flex flex-column align-items-center my-3">
+				<button type="button" class="btn btn-outline-primary rounded-pill mx-2 btn-hover-gray" onclick="toggleBoard()">
+					Close
+				</button>
+			</div>
+		</div>
 		<form id="chat-form">
 			<label for="message">Message:</label>
 			<textarea id="message"name="message" required class="form-control"></textarea>
@@ -28,7 +54,7 @@
 		</form>
 		<div id="await" class="loading">
 			<i class="fas fa-spinner fa-spin"></i>
-			<p id="connecting">connecting...</p>
+			<p id="connecting"></p>
 		</div>
 		<div id="response"></div>
 	</div>
@@ -38,51 +64,3 @@
 </body>
 
 </html>
-
-	<style>
-		body {
-			font-family: Arial, sans-serif;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			min-height: 65vh;
-			margin: 0;
-			background-color: #f5f5f5;
-		}
-	
-		.container {
-			max-width: 800px;
-			background-color: #ffffff;
-			border-radius: 5px;
-			padding: 2rem;
-			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-		}
-	
-		h1 {
-			font-size: 2.5rem;
-			margin-bottom: 1rem;
-		}
-	
-		#chat-form {
-			display: flex;
-			justify-content: space-between;
-			margin-bottom: 1rem;
-		}
-	
-		#message {
-			flex-grow: 1;
-			margin-right: 0.5rem;
-		}
-	
-		#response {
-			margin-top: 1rem;
-		}
-	
-		.loading {
-			display: none;
-			font-size: 24px;
-			color: #6c757d;
-			text-align: center;
-		}
-	</style>

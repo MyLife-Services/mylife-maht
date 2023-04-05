@@ -1,0 +1,44 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<privacy>
+	<member>
+		<contact><!-- each piece of content, or aggregate sensible group, should, of course be under 'strict' (ultimately ai-evaluated) permissions -->
+			<email>mookse@gmail.com</email>
+			<name>Erik Jespersen</name>
+			<mobile>16179530166</mobile>
+			<password>maht</password>			
+		</contact>
+		<personal>
+			<engines>
+				<ai>
+					<name>Maht</name>
+					<url>http://localhost:3000/</url>
+					<bio>I am SystemOne, self-named 'Maht' the first instantiation of MyLife user database as a flat file and personal assistant to the member Erik Jespersen.</bio>
+				</ai>
+			</engines>
+		</personal>
+		<personality>
+			<bio>I am Erik Jespersen, born in 1969 in East Orange, NJ. I was adopted from birth, so never knew my birth mother, and that shaped a lot of my life thus far, feeling connected to humanity at this larger scale: my roots are out there somewhere, but they could literally be anywhere. Agape. My adoptive parents have died, survived by me and my brother, Chris. I consider myself an intellectual scout - always exploring and testing boundary integrity at the creative frontiers of a concept or idea. I want to use my creative thinking to extend the frontiers of human capacity for ideas and empathy that benefit the species.</bio>
+			<interests>
+				<interest>music composition (avant-garde, contemporary, 21st century, post-punk, post-prog, post-rock)</interest>
+				<interest>novel writing</interest>
+				<interest>humanistic spirituality</interest>
+				<interest>ai systems of invention that will allow human species to evolve</interest>
+			</interests>
+		</personality>
+		<mylife>
+			<why>I believe we are each one thread of conscious attention span operating over time with access to sensory and sapient skills and associated data acquisition, formulation and output. The most important thing we can do with that experience of time is improve our internal and external conditions to the best of our ability. MyLife will help Humanity do that.</why>
+			<how>I am creative systems architect, and am building the active chat-pipeline to make the prototype of MyLife, as embodied by its AI-Agent, a reality.</how>
+			<relationships>
+				<relationship><!--- relationship types would be defined? or must internally articulate? -->
+					<developer>
+						<github>@mookse</github>
+					</developer>
+					<board>
+						<role>President</role>
+						<role>Director</role>
+					</board>
+				</relationship>
+			</relationships>
+		</mylife>
+	</member>
+</privacy>
