@@ -4,6 +4,7 @@ import fs from 'fs'
 import { parseXml } from './inc/js/private.js'
 import ai_dotenv from 'dotenv'
 ai_dotenv.config()
+
 // instance OpenAIApi config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -116,4 +117,22 @@ function getAI(){
 		},
 	]
 }
+//	Calling stored proc when managing 
+async function createCoreMylifeAccount(mbr_id, payload) {
+  const database = client.database(databaseId)
+  const container = database.container(containerId)
+
+  const { sproc: sprocLink } = await container.storedProcedures.create({
+    id: "createCoreMylifeAccount",
+    body: createCoreMylifeAccount.toString()
+  })
+
+  const { resource } = await container.scripts.storedProcedure(sprocLink).execute({
+    partitionKey: mbr_id,
+    payload: payload
+  })
+
+  return resource
+}
+
 export default processRequest

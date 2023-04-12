@@ -58,6 +58,31 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 
 MyLife Maht is licensed under the MIT License. See the LICENSE file for more information.
 
+## Development Notes
+
+### MyLife to-do list
+
+- assign further look at Azure Cog services for basic database access and look-up, i.e., can it contextualize/tokenize (not personalize, for that, it would need interface to personality kernal)
+- open up pipeline for file uploads
+	- uploads then tokenized
+	- fed nightly to gpt-2
+- Jared: get Connected with ecosystem and account
+	- ask him to tune pipeline
+
+# ewj-worklog
+
+## `20230412`
+
+Switching over to Maht version now, maht has key and access to Cosmos
+
+- sp: createCoreMylifeAccount()
+	- takes full-formed partition key `mbr_id` and creates `"being": "core"` for system
+	- test createCoreMylifeAccount() from server.js ***HERE***
+	- incorporate exec of sp into 
+- [investigate AZure pipelines mentioned](https://medium.com/@imicknl/how-to-create-a-private-chatgpt-with-your-own-data-15754e6378a1)
+	- take-aways, cannot start openai until I have email from MyLife, so stick with OpenAI direct
+	- [Azure Cognitive Search](https://learn.microsoft.com/en-us/azure/search/search-what-is-azure-search) could be used to look through directories and files in interim support/proxy for GPT-2 personal kernal, so long as has direct access to Cosmos
+
 ## Endnotes
 
 ### Letters to Maht
