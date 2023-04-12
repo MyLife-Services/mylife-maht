@@ -1,6 +1,12 @@
-//	variables
-const systemError=(err)=>{
-	console.log('here',err)
+class MylifeSystemError {
+//	public functions
+	constructor(err){
+		this.error = {}
+	}
+	handleError(){
+		//	mylife error wrapper
+		console.log('here',this.error.message)
+	}
 }
 //	exports
-export { systemError }
+export default MylifeSystemError

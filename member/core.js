@@ -1,8 +1,7 @@
-//	ai - create sub-file to include
+//	imports
 import { OpenAIApi, Configuration } from 'openai'
 import fs from 'fs'
-import { parseXml } from './inc/js/private.js'
-// instance OpenAIApi config
+// config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
 	organizationId: process.env.OPENAI_ORG_KEY,
@@ -10,28 +9,35 @@ const config = new Configuration({
 	basePath: process.env.OPENAI_BASE_URL,
 })
 const openai = new OpenAIApi(config)
-//	PUBLIC functions
-async function processRequest(_question,_agent='ai'){
-	//	pre-vet, trim, approve(?) input
-	
-	// assign histories and roles
-	//	assignHistory(_question)
-	const aQuestion = assignRoles(_agent)	//	returns array of objects
-	aQuestion.push(assignQuestion(_question))
-	console.log(aQuestion)
-	const _response = await openai.createChatCompletion({
-		model: "gpt-3.5-turbo",
-		messages: aQuestion,
-//		git: { repo: 'https://github.com/MyLife-Services/mylife-maht' },
-	})
-		.then()
-		.catch(err=>{
-			console.log(err)
-//			throw(err)
+//	define export Classes
+class MemberAgent {
+	constructor(){
+		//	PRIVATE variablesassign to cosmos:/mbr_id.being=core
+		this.Agent = openai
+	}
+	//	PUBLIC functions exposed
+	async processRequest(_question,_agent='ai'){
+		//	pre-vet, trim, approve(?) input
+		
+		// assign histories and roles
+		//	assignHistory(_question)
+		const aQuestion = assignRoles(_agent)	//	returns array of objects
+		aQuestion.push(assignQuestion(_question))
+		console.log(aQuestion)
+		const _response = await this.Agent.createChatCompletion({
+			model: "gpt-3.5-turbo",
+			messages: aQuestion,
+	//		git: { repo: 'https://github.com/MyLife-Services/mylife-maht' },
 		})
-	//	response insertion/alteration points for approval, validation, storage, pruning
-	challengeResponse(_response) //	insertion point: human reviewable
-	return formatResponse(_response)
+			.then()
+			.catch(err=>{
+				console.log(err)
+	//			throw(err)
+			})
+		//	response insertion/alteration points for approval, validation, storage, pruning
+		challengeResponse(_response) //	insertion point: human reviewable
+		return formatResponse(_response)
+	}
 }
 //	PRIVATE functions
 function assignHistory(_question){
@@ -91,4 +97,4 @@ function getMember(oMember){
 	]
 }
 
-export default processRequest
+export default MemberAgent
