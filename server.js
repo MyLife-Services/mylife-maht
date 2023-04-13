@@ -21,7 +21,6 @@ import MemberAgent from './member/core.js'
 koaenv.config()
 //	constants/variables
 const app = new Koa()
-const router = new Router()
 const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
