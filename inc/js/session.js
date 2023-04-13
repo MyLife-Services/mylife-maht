@@ -1,9 +1,11 @@
 class MylifeMemberSession {
-	constructor(){
+	constructor(_core){
 		this.name = 'MylifeMemberSession'
-		this.member = {
-			'core': "core personality doc"
-		}
+		this.member = _core
+	}
+	//	PUBLIC functions
+	getMemberCore(){
+		return this.member
 	}
 }
 export default MylifeMemberSession
