@@ -37,7 +37,7 @@ async function commitRequest(_data={}) {
 }
 //	app definition
 app.use(
-	session(
+	session(	//	session initialization
 		{
 			key: 'mylife-session',   // cookie name
 			maxAge: 86400000,     // session lifetime in milliseconds
@@ -50,7 +50,6 @@ app.use(
 		},
 		app
 	))
-	.use(bodyParser())
 	.use(async (ctx,next) => {
 		if (!ctx.session.MylifeMemberSession) {
 			ctx.session.MylifeMemberSession = new MylifeMemberSession(mylifeDataservices.getCore())
@@ -58,9 +57,10 @@ app.use(
 		}
 		await next()
 	})
+	.use(bodyParser())	//	enable body parsing
 	.use(serve(path.join(__dirname, 'client')))	// define a route for the index page and browsable directory
-	.use(MyLifeMemberRouter.routes())
-	.use(MyLifeRouter.routes())
-	.listen(port, () => {
-		console.log(`server available and listening on port ${port}`)
+	.use(MyLifeMemberRouter.routes())	//	enable member routes
+	.use(MyLifeRouter.routes())	//	enable system routes
+	.listen(port, () => {	//	start the server
+		console.log(chalk.bgGreenBright('server available')+chalk.yellow(`\nlistening on port ${port}`))
 	})
