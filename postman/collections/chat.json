@@ -1,0 +1,22 @@
+{
+	"info": {
+		"_postman_id": "744399ef-9467-46f5-9850-09124a71e501",
+		"name": "chat",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_uid": "4966269-744399ef-9467-46f5-9850-09124a71e501"
+	},
+	"item": [
+		{
+			"name": "chat",
+			"id": "211e5149-7340-45f2-baee-35cc13e54ef9",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	]
+}
