@@ -1,11 +1,7 @@
-class MylifeMemberSession {
+class MylifeMemberSession {	//	bean only, no public functions
 	constructor(_core){
 		this.name = 'MylifeMemberSession'
 		this.member = _core
-	}
-	//	PUBLIC functions
-	getMemberCore(){
-		return this.member
 	}
 }
 export default MylifeMemberSession

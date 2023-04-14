@@ -1,6 +1,5 @@
 //	imports
 import { OpenAIApi, Configuration } from 'openai'
-import fs from 'fs'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -11,20 +10,25 @@ const config = new Configuration({
 const openai = new OpenAIApi(config)
 //	define export Classes
 class MemberAgent {
-	constructor(){
-		//	PRIVATE variablesassign to cosmos:/mbr_id.being=core
-		this.Agent = openai
-		this.name = 'memberAgent'
+	constructor(ctx){	//	receive koa context payload
+		this.aiAgent = openai
+		this.mylifeMemberCoreData = ctx.state.mylifeMemberCoreData
 	}
-	async processRequest(_question,_agent='ai'){
+	//	pseudo-constructor
+	
+	//	PUBLIC functions
+	async processChatRequest(_question){
+		console.log('chat-request-received',_question)	//	turn into emitter for server
 		//	pre-vet, trim, approve(?) input
 		
-		// assign histories and roles
+		//	assign histories and roles
 		//	assignHistory(_question)
-		const aQuestion = assignRoles(_agent)	//	returns array of objects
-		aQuestion.push(assignQuestion(_question))
-		console.log(aQuestion)
-		const _response = await this.Agent.createChatCompletion({
+		const aQuestion = [
+			this._assignSystemRole(),
+			...this._assignPrimingQuestions(),
+			this._assignQuestion(_question)
+		]
+		const _response = await this.aiAgent.createChatCompletion({
 			model: "gpt-3.5-turbo",
 			messages: aQuestion,
 	//		git: { repo: 'https://github.com/MyLife-Services/mylife-maht' },
@@ -35,90 +39,128 @@ class MemberAgent {
 	//			throw(err)
 			})
 		//	response insertion/alteration points for approval, validation, storage, pruning
-		challengeResponse(_response) //	insertion point: human reviewable
-		return formatResponse(_response)
+		//	challengeResponse(_response) //	insertion point: human reviewable
+		return this._formatResponse(_response)
+	}
+	//	PRIVATE functions
+	//	question/answer functions
+	_assignPrimingQuestions(){
+		return [{
+			role: 'user',
+			content: `What is ${this._getOrganizationName()}'s mission?`
+		},
+		{
+			role: 'assistant',
+			content: this._getOrganizationMission()
+		},
+		{
+			role: 'user',
+			content: `What are ${this._getOrganizationName()}'s values and how do they plan to do it?`
+		},
+		{
+			role: 'assistant',
+			content: this._getOrganizationValues()+' '+this._getOrganizationVision()
+		}]
+	}
+	_assignQuestion(_question){
+		return {
+			role: 'user',
+			content: _question
+		}
+	}
+	_assignSystemRole(){
+		switch(this.mylifeMemberCoreData.being){
+//			case 'agent':
+			default:	//	core
+				return {
+						role: "system",
+						content: this._getAgentSystemRole()
+					}
+		}
+	}
+	_formatResponse(_str){
+		//	insert routines for emphasis
+		const _response=this._detokenize(_str.data.choices[0].message.content)
+			.replace(/(\s|^)mylife(\s|$)/gi, "$1<em>MyLife</em>$2")
+		return _response
+	}
+	_getMemberBio(){
+		return [
+			{
+				role: "user",
+				content: `Who is ${this.mylifeMemberCoreData?.agent_name}`
+			},
+		]
+	}
+	//	agent functions
+	_getAgentDescriptor(){
+		return this.mylifeMemberCoreData.agent_descriptor
+	}
+	_getAgentGender(){
+		//	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
+		return	this.mylifeMemberCoreData?.agent_gender
+			?	Array.isArray(this.mylifeMemberCoreData.agent_gender)
+				?	' '+this.mylifeMemberCoreData.agent_gender.join(this.mylifeMemberCoreData?.agent_gender_separatora?this.mylifeMemberCoreData.agent_gender_separator:'/')
+				:	this.mylifeMemberCoreData.agent_gender
+			:	''
+	}
+	_getAgentPronunciation(){
+		return	this.mylifeMemberCoreData?.agent_name_pronunciation
+			?	', pronounced "'+this.mylifeMemberCoreData.agent_name_pronunciation+'", '
+			:	''
+	}
+	_getAgentProxyInformation(){
+		switch(this.mylifeMemberCoreData.form){
+			case 'organization':
+				return this._getOrganizationDescription()
+			default:
+				return this._getMemberBio()
+		}
+	}
+	_getAgentSystemRole(){
+		return `I am ${this._getAgentName(true)}${this._getAgentPronunciation()}${this._getAgentGender()}, ${this._getAgentDescriptor()}. ${this._getAgentProxyInformation()}`
+	}
+	_getAgentName(bTokenize=false){
+		return (bTokenize)
+			?	this._tokenize(this.mylifeMemberCoreData.agent_name)
+			:	this.mylifeMemberCoreData.agent_name
+	}
+	//	member functions
+	_getMemberBio(){
+		return 'not yet implemented'
+	}
+	//	organization functions
+	_getOrganizationDescription(){
+		return this.mylifeMemberCoreData.organization_description
+	}
+	_getOrganizationMission(){
+		return this.mylifeMemberCoreData.organization_mission
+	}
+	_getOrganizationName(){
+		return this.mylifeMemberCoreData.organization_name[0]
+	}
+	_getOrganizationValues(){
+		return this.mylifeMemberCoreData.organization_values
+	}
+	_getOrganizationVision(){
+		return this.mylifeMemberCoreData.organization_vision
+	}
+//	misc
+	_detokenize(_str){
+		return _str.replace(/<\|\|/g,'').replace(/\|\|>/g,'')
+	}
+	_tokenize(_str){
+		return '<||'+_str+'||>'
 	}
 }
-//	PRIVATE functions
+/*
 function assignHistory(_question){
 	//	assignSessionHistory
 	//	assignPersonalHistory
 }
-function assignQuestion(_question){
-	return {
-			role: 'user',
-			content: _question
-		}
-}
-function assignRoles(_agent){
-	switch(_agent){
-		case 'board':
-			const xml = fs.readFileSync('./privacy/data.xml', 'utf-8')
-			const oMember = parseXml(xml)	//	consider it a class as defined in the xml file, xml being nod to Ben Tremblay
-			return getMember(oMember)
-		case 'ai':
-			return getAI()
-		default:
-			throw('agent not recognized')
-	}
-}
 function challengeResponse(){
 
 }
-function formatResponse(_response){
-	//	insert routines for emphasis
-	_response=_response.data.choices[0].message.content
-	_response=_response.replace(/(\s|^)mylife(\s|$)/gi, "$1<em>MyLife</em>$2")
-	return _response
-}
-function getMember(oMember){
-	oMember = oMember.privacy.member
-	return [
-		{
-			role: 'system',
-			content: `I am assistant to: ${oMember.contact.name}. ${oMember.personality.bio}`
-		},
-		{
-			role: "user",
-			content: "What are Erik's interests?"
-		},
-		{
-			role: "assistant",
-			content: oMember.personality.interests.toString()
-		},
-		{
-			role: "user",
-			content: "What is MyLife?"
-		},
-		{
-			role: "assistant",
-			content: "MyLife, founded in 2021, is a nonprofit member-based organization aiming to protect and preserve the authentic and genuine 21st-century human experience. It offers a free, secure, and equitable network for personal archives and narrative legacies, helping individuals define their Digital Selves."
-		},
-	]
-}
-function getAI(){
-	return [
-		{
-			role: "system",
-			content: "Maht [pronounce 'maht'] is an AI-agent assistant for MyLife's Board of Directors. MyLife, founded in 2021, is a nonprofit member-based organization aiming to protect and preserve the authentic and genuine 21st-century human experience. It offers a free, secure, and equitable network for personal archives and narrative legacies, helping individuals define their Digital Selves."
-		},
-		{
-			role: "user",
-			content: "What does MyLife do?"
-		},
-		{
-			role: "assistant",
-			content: "MyLife is developing a humanistic platform that enables you to create, curate, and preserve your Digital Self privately and securely. This Digital Self reflects your 21st-century individuality and conscious experiences, enduring beyond your lifetime with AI assistance. For those interested in afterlife, your MyLife ai-agent serves as a beacon, ensuring that once humanity can revive consciousness you will resurrected from your saved state."
-		},
-		{
-			role: "user",
-			content: "Why does MyLife do this?"
-		},
-		{
-			role: "assistant",
-			content: "MyLife is the aggregation of conscious humankind, and believes that each human individual is a product of Corpus Humanity and contributes to it. Empathy, compassion, transparency consent are MyLife's core ethical values, reflected in development and execution of The Human Remembrance Project."
-		},
-	]
-}
-
+*/
+//	exports
 export default MemberAgent

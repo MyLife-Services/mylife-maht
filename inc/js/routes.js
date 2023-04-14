@@ -7,7 +7,7 @@ router.get(
 	'MemberSession',
 	'/getMemberSession',
 	ctx => {
-		ctx.body = ctx.session.MylifeMemberSession
+		ctx.body = ctx.state.mylifeMemberCoreData
 	}
 )
 //	exports

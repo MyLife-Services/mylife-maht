@@ -50,10 +50,11 @@ app.use(
 		app
 	))
 	.use(async (ctx,next) => {
-		if (!ctx.session.MylifeMemberSession) {
-			ctx.session.MylifeMemberSession = new MylifeMemberSession(mylifeDataservices.getCore())
-			console.log('created-member-session-request',ctx.session.MylifeMemberSession)
+		if (!ctx.session.mylifeMemberSession) {
+			ctx.session.mylifeMemberSession = new MylifeMemberSession(mylifeDataservices.getCore())
+			console.log('created-member-session-request',ctx.session.mylifeMemberSession.member)
 		}
+		ctx.state.mylifeMemberCoreData = ctx.session.mylifeMemberSession.member	//	ctx x-fer session -> state
 		await next()
 	})
 	.use(bodyParser())	//	enable body parsing
