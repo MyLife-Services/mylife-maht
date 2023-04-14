@@ -1,5 +1,6 @@
-
 # Maht: MyLife Executive AI-Agent
+
+[![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
 
 ## About **Maht**
 
@@ -42,6 +43,12 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 
 ## Tech Resources
 
+### Koa
+
+- [Introduction to Backend Development with Koa](https://medium.com/swlh/introduction-to-backend-development-with-koa-139a6b7a14d)
+
+### AI
+
 - [OpenAI's API documentation](https://platform.openai.com/docs/api-reference)
 - [OpenAI's GPT-3 page](https://openai.com/gpt-3/)
 - [GPT-3 Sandbox](https://beta.openai.com/signup/)
@@ -58,6 +65,37 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 ## Endnotes
 
-### Letters to Maht
+### Development Notes
 
-In this build, what's the *actuaL* frequency, Maht?
+#### @Mookse Worklog
+
+- create daily release for Maht
+- assign further look at Azure Cog services for basic database access and look-up, i.e., can it contextualize/tokenize (not personalize, for that, it would need interface to personality kernal)
+- open up pipeline for file uploads
+	- uploads then tokenized
+	- fed nightly to gpt-2
+- Jared: get Connected with ecosystem and account
+	- ask him to tune pipeline
+
+##### `20230413`
+
+- create daily release for Maht
+- incorporate session data into roles
+	- privatize functions in class
+	- move ctx.session -> ctx.state for request duration
+- test session data in ctx.session.mylifeMemberSession
+	- ensure it resides in child as referenceable nodes **TRUE**
+- incorporated basic koa-session functionality
+	- storing getCore() in session object
+
+##### `20230412`
+
+Switching over to Maht version now, maht has key and access to Cosmos
+
+- sp: createCoreMylifeAccount()
+	- takes full-formed partition key `mbr_id` and creates `"being": "core"` for system
+	- test createCoreMylifeAccount() from server.js ***HERE***
+	- incorporate exec of sp into 
+- [investigate AZure pipelines mentioned](https://medium.com/@imicknl/how-to-create-a-private-chatgpt-with-your-own-data-15754e6378a1)
+	- take-aways, cannot start openai until I have email from MyLife, so stick with OpenAI direct
+	- [Azure Cognitive Search](https://learn.microsoft.com/en-us/azure/search/search-what-is-azure-search) could be used to look through directories and files in interim support/proxy for GPT-2 personal kernal, so long as has direct access to Cosmos

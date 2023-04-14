@@ -1,9 +1,12 @@
-const mahtError = {
+class MylifeSystemError {
 //	public functions
-	handleError:
-		function(err){
-			console.log('here',err)
-		}
+	constructor(err){
+		this.error = {}
+	}
+	handleError(){
+		//	mylife error wrapper
+		console.log('here',this.error.message)
+	}
 }
 //	exports
-export default mahtError
+export default MylifeSystemError

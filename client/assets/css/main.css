@@ -3,4 +3,60 @@ body {
 	background-size: 1200px;
 	background-repeat: no-repeat;
 	background-position: top;
+	font-family: Arial, sans-serif;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 65vh;
+	margin: 0;
+	background-color: #f5f5f5;
+}
+
+.selected {
+	background-color: #ffc107;
+	color: #fff;
+}
+.btn-hover-gray:hover {
+	background-color: #dcdcdc;
+}
+
+.container {
+	max-width: 800px;
+	background-color: #ffffff;
+	border-radius: 5px;
+	padding: 2rem;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+	font-size: 2.5rem;
+	margin-bottom: 1rem;
+}
+
+#chat-form {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 12px;
+	margin-top: 12px;
+}
+
+#message {
+	flex-grow: 1;
+	margin-right: 0.5rem;
+}
+
+#response {
+	margin-top: 1rem;
+}
+
+#board-toggle {
+	margin-bottom: 24px;
+}
+
+.loading {
+	display: none;
+	font-size: 24px;
+	color: #6c757d;
+	text-align: center;
 }
