@@ -1,7 +1,6 @@
 //	imports and config
 //	server
 import Koa from 'koa'
-import Router from 'koa-router'
 import bodyParser from 'koa-bodyparser'
 import serve from 'koa-static'
 import session from 'koa-session'
@@ -15,8 +14,6 @@ import Dataservices from './inc/js/mylife-data-service.js'
 import { router as MyLifeMemberRouter } from './member/routes/routes.js'
 import { router as MyLifeRouter } from './inc/js/routes.js'
 import MylifeMemberSession from './inc/js/session.js'
-import MylifeSystemError from './inc/js/error.js'
-import MemberAgent from './member/core.js'
 //	bootstrap
 koaenv.config()
 //	constants/variables
