@@ -1,5 +1,8 @@
 //	imports
+import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
+import Globals from '../inc/js/globals.js'
+import chalk from 'chalk'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -8,159 +11,194 @@ const config = new Configuration({
 	basePath: process.env.OPENAI_BASE_URL,
 })
 const openai = new OpenAIApi(config)
+const globals = await new Globals().init()
+console.log('Global Schemas',globals.schema)
 //	define export Classes
-class MemberAgent {
-	constructor(ctx){	//	receive koa context payload
+class MemberAgent extends EventEmitter {
+	#ctx = null
+	#memberCore = null
+	constructor(_core){	//	receive koa context payload
+		super()
 		this.aiAgent = openai
-		this.mylifeMemberCoreData = ctx.state.mylifeMemberCoreData
+		this.#memberCore = _core
 	}
-	//	pseudo-constructor
-	
-	//	PUBLIC functions
-	async processChatRequest(_question){
-		console.log('chat-request-received',_question)	//	turn into emitter for server
-		//	pre-vet, trim, approve(?) input
-		
-		//	assign histories and roles
-		//	assignHistory(_question)
+	//	getter/setter functions
+	get ctx(){
+		return this.#ctx
+	}
+	get memberCore(){
+		return this.#memberCore
+	}
+	//	public functions
+	async processChatRequest(ctx){
+		//	gatekeeper
+		//	throttle requests
+		//	validate input
+		console.log('chat',globals)
+		this.#setCtx(ctx)
+		const _question = ctx.request.body.message
+		//	log input
+		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`))
 		const aQuestion = [
-			this._assignSystemRole(),
-			...this._assignPrimingQuestions(),
-			this._assignQuestion(_question)
+			this.#assignSystemRole(),	//	assign system role
+			...this.#assignPrimingQuestions(),	//	assign few-shot learning prompts
+			this.#assignQuestion(_question)	//	assign user question
 		]
+		//	why won't anyone think of the tokens!?
+		//	insert ai-sniffer/optimizer
 		const _response = await this.aiAgent.createChatCompletion({
 			model: "gpt-3.5-turbo",
 			messages: aQuestion,
 	//		git: { repo: 'https://github.com/MyLife-Services/mylife-maht' },
 		})
-			.then()
+			.then(
+				(_response)=>{
+					//	response insertion/alteration points for approval, validation, storage, pruning
+					//	challengeResponse(_response) //	insertion point: human reviewable
+					_response = this.#formatResponse(_response)
+					console.log(chalk.bgGray('chat-response-received'),chalk.bgYellowBright(_response))
+					this.#setChatExchange(_question,_response)
+					return _response
+				}
+			)
 			.catch(err=>{
 				console.log(err)
-	//			throw(err)
-			})
-		//	response insertion/alteration points for approval, validation, storage, pruning
-		//	challengeResponse(_response) //	insertion point: human reviewable
-		return this._formatResponse(_response)
+				//	emit for server
+			})		
+	}
+	async setDatabaseObject(){
+
 	}
 	//	PRIVATE functions
 	//	question/answer functions
-	_assignPrimingQuestions(){
+	#assignPrimingQuestions(){
 		return [{
 			role: 'user',
-			content: `What is ${this._getOrganizationName()}'s mission?`
+			content: `What is ${this.#getOrganizationName()}'s mission?`
 		},
 		{
 			role: 'assistant',
-			content: this._getOrganizationMission()
+			content: this.#getOrganizationMission()
 		},
 		{
 			role: 'user',
-			content: `What are ${this._getOrganizationName()}'s values and how do they plan to do it?`
+			content: `What are ${this.#getOrganizationName()}'s values and how do they plan to do it?`
 		},
 		{
 			role: 'assistant',
-			content: this._getOrganizationValues()+' '+this._getOrganizationVision()
+			content: this.#getOrganizationValues()+' '+this.#getOrganizationVision()
 		}]
 	}
-	_assignQuestion(_question){
+	#assignQuestion(_question){
 		return {
 			role: 'user',
 			content: _question
 		}
 	}
-	_assignSystemRole(){
-		switch(this.mylifeMemberCoreData.being){
+	#assignSystemRole(){
+		switch(this.#memberCore.being){
 //			case 'agent':
 			default:	//	core
 				return {
 						role: "system",
-						content: this._getAgentSystemRole()
+						content: this.#getAgentSystemRole()
 					}
 		}
 	}
-	_formatResponse(_str){
+	#formatResponse(_str){
 		//	insert routines for emphasis
-		const _response=this._detokenize(_str.data.choices[0].message.content)
+		const _response=this.#detokenize(_str.data.choices[0].message.content)
 			.replace(/(\s|^)mylife(\s|$)/gi, "$1<em>MyLife</em>$2")
 		return _response
 	}
-	_getMemberBio(){
+	//	agent functions
+	#getAgentDescriptor(){
+		return this.#memberCore.agent_descriptor
+	}
+	#getAgentGender(){
+		//	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
+		return	this.#memberCore?.agent_gender
+			?	Array.isArray(this.#memberCore.agent_gender)
+				?	' '+this.#memberCore.agent_gender.join(this.#memberCore?.agent_gender_separatora?this.#memberCore.agent_gender_separator:'/')
+				:	this.#memberCore.agent_gender
+			:	''
+	}
+	#getAgentPronunciation(){
+		return	this.#memberCore?.agent_name_pronunciation
+			?	', pronounced "'+this.#memberCore.agent_name_pronunciation+'", '
+			:	''
+	}
+	#getAgentProxyInformation(){
+		switch(this.#memberCore.form){
+			case 'organization':
+				return this.#getOrganizationDescription()
+			default:
+				return this.#getMemberBio()
+		}
+	}
+	#getAgentSystemRole(){
+		return `I am ${this.#getAgentName(true)}${this.#getAgentPronunciation()}${this.#getAgentGender()}, ${this.#getAgentDescriptor()}. ${this.#getAgentProxyInformation()}`
+	}
+	#getAgentName(bTokenize=false){
+		return (bTokenize)
+			?	this.#tokenize(this.#memberCore.agent_name)
+			:	this.#memberCore.agent_name
+	}
+	//	member functions
+	#getMemberBio(){
+		return 'not yet implemented'
 		return [
 			{
 				role: "user",
-				content: `Who is ${this.mylifeMemberCoreData?.agent_name}`
+				content: `Who is ${this.#memberCore?.agent_name}`
 			},
 		]
 	}
-	//	agent functions
-	_getAgentDescriptor(){
-		return this.mylifeMemberCoreData.agent_descriptor
-	}
-	_getAgentGender(){
-		//	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
-		return	this.mylifeMemberCoreData?.agent_gender
-			?	Array.isArray(this.mylifeMemberCoreData.agent_gender)
-				?	' '+this.mylifeMemberCoreData.agent_gender.join(this.mylifeMemberCoreData?.agent_gender_separatora?this.mylifeMemberCoreData.agent_gender_separator:'/')
-				:	this.mylifeMemberCoreData.agent_gender
-			:	''
-	}
-	_getAgentPronunciation(){
-		return	this.mylifeMemberCoreData?.agent_name_pronunciation
-			?	', pronounced "'+this.mylifeMemberCoreData.agent_name_pronunciation+'", '
-			:	''
-	}
-	_getAgentProxyInformation(){
-		switch(this.mylifeMemberCoreData.form){
-			case 'organization':
-				return this._getOrganizationDescription()
-			default:
-				return this._getMemberBio()
-		}
-	}
-	_getAgentSystemRole(){
-		return `I am ${this._getAgentName(true)}${this._getAgentPronunciation()}${this._getAgentGender()}, ${this._getAgentDescriptor()}. ${this._getAgentProxyInformation()}`
-	}
-	_getAgentName(bTokenize=false){
-		return (bTokenize)
-			?	this._tokenize(this.mylifeMemberCoreData.agent_name)
-			:	this.mylifeMemberCoreData.agent_name
-	}
-	//	member functions
-	_getMemberBio(){
-		return 'not yet implemented'
-	}
 	//	organization functions
-	_getOrganizationDescription(){
-		return this.mylifeMemberCoreData.organization_description
+	#getOrganizationDescription(){
+		return this.#memberCore.organization_description
 	}
-	_getOrganizationMission(){
-		return this.mylifeMemberCoreData.organization_mission
+	#getOrganizationMission(){
+		return this.#memberCore.organization_mission
 	}
-	_getOrganizationName(){
-		return this.mylifeMemberCoreData.organization_name[0]
+	#getOrganizationName(){
+		return this.#memberCore.organization_name[0]
 	}
-	_getOrganizationValues(){
-		return this.mylifeMemberCoreData.organization_values
+	#getOrganizationValues(){
+		return this.#memberCore.organization_values
 	}
-	_getOrganizationVision(){
-		return this.mylifeMemberCoreData.organization_vision
+	#getOrganizationVision(){
+		return this.#memberCore.organization_vision
+	}
+	async #setChatExchange(_question,_response){
+		//	emit to server for storage after validation
+		console.log('chatExchange',await globals.schemas)
+		return
+		const _chat = globals.schemas
+			.then(_oSchemas=>{ return _oSchemas.chat })	//	chat
+			.catch(err=>{ console.log(err) })
+	}
+	async #setChatSnippet(_role,_content){
+		//	emit to server for storage after validation
+		const _chatSnippet = await globals.schemas
+			.then(_oSchemas=>{ return _oSchemas.chatSnippet })
+			.catch(err=>{ console.log(err) })
+		_chatSnippet.content = _content
+		_chatSnippet.contributor = this.#getAgentName()
+		_chatSnippet.role = _role
+		//	emit to server for storage
+		this.emit('storeBeing',_chatSnippet)
 	}
 //	misc
-	_detokenize(_str){
+	#detokenize(_str){
 		return _str.replace(/<\|\|/g,'').replace(/\|\|>/g,'')
 	}
-	_tokenize(_str){
+	#setCtx(ctx){
+		this.#ctx = ctx
+	}
+	#tokenize(_str){
 		return '<||'+_str+'||>'
 	}
 }
-/*
-function assignHistory(_question){
-	//	assignSessionHistory
-	//	assignPersonalHistory
-}
-function challengeResponse(){
-
-}
-*/
 //	exports
 export default MemberAgent

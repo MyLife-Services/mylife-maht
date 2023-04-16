@@ -1,7 +1,5 @@
 // imports
-import chalk from 'chalk'
 import Router from 'koa-router'
-import MemberAgent from '../core.js'
 // variables
 const router = new Router()
 //	personal routes
@@ -10,9 +8,7 @@ router.post(
 	'gptTurboMaht',
 	'/chat',
 	async ctx => {
-		const _message = ctx.request.body.message
-		console.log('processing message',chalk.greenBright(_message))
-		await new MemberAgent(ctx).processChatRequest(_message)
+		await ctx.session.MemberAgent.processChatRequest(ctx)
 			.then(_response => ctx.body = { 'answer': _response })
 	}
 )

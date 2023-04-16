@@ -1,57 +1,57 @@
-//	imports and config
+//	*imports
+//	native node [less dotenv => azure web app]
+import path from 'path'
+import { fileURLToPath } from 'url'
 //	server
 import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
 import serve from 'koa-static'
-import session from 'koa-session'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
-import chalk from 'chalk'
+import session from 'koa-generic-session'
 //	misc
-import koaenv from 'dotenv'
+import chalk from 'chalk'
+//	local services
+//	import Globals from './inc/js/globals.js'
+//	import { commitRequest } from './inc/js/functions.js'
+//	import MylifeMemberSession from './inc/js/session.js'
 import Dataservices from './inc/js/mylife-data-service.js'
+import MemberAgent from './member/core.js'
 import { router as MyLifeMemberRouter } from './member/routes/routes.js'
 import { router as MyLifeRouter } from './inc/js/routes.js'
-import MylifeMemberSession from './inc/js/session.js'
-//	bootstrap
+//	dotenv
+import koaenv from 'dotenv'
 koaenv.config()
 //	constants/variables
 const app = new Koa()
 const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const __dirname = path.dirname(__filename)
+const MemoryStore = new session.MemoryStore()
 const mylifeDataservices=await new Dataservices().init()	//	initialize the data manager
-//	pseudo-constructor
-//	MemberAgent.emitter.on('commit', commitRequest) // listen for commit requests from the included module
 //	app bootup
-app.keys = [`${process.env.MYLIFE_SESSION_KEY}`,'mylife-session-04']
-//	PRIVATE functions
-async function commitRequest(_data={}) {
-	console.log('received request',chalk.greenBright(_data))
-	await mylifeDataservices.commit(_data)
-}
+app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
 app.use(
 	session(	//	session initialization
 		{
-			key: 'mylife-session',   // cookie name
+			key: 'mylife.sid',   // cookie session id
 			maxAge: 86400000,     // session lifetime in milliseconds
 			autoCommit: true,
 			overwrite: true,
-			httpOnly: true,
+			httpOnly: false,
 			signed: true,
 			rolling: false,
 			renew: false,
+  			store: MemoryStore,
 		},
 		app
 	))
 	.use(async (ctx,next) => {
-		if (!ctx.session.mylifeMemberSession) {
-			ctx.session.mylifeMemberSession = new MylifeMemberSession(mylifeDataservices.getCore())
-			console.log('created-member-session-request',ctx.session.mylifeMemberSession.member)
+		if (!ctx.session?.MemberAgent) {
+			ctx.session.MemberAgent = new MemberAgent(mylifeDataservices.getCore())
+			console.log(chalk.bgBlue('created-member-session-request'))
 		}
-		ctx.state.mylifeMemberCoreData = ctx.session.mylifeMemberSession.member	//	ctx x-fer session -> state
+		const mylifeMemberAgent = ctx.session.MemberAgent
+		mylifeMemberAgent.on('storeBeing',commitRequest)	//	attach event listener
 		await next()
 	})
 	.use(bodyParser())	//	enable body parsing
@@ -61,3 +61,8 @@ app.use(
 	.listen(port, () => {	//	start the server
 		console.log(chalk.bgGreenBright('server available')+chalk.yellow(`\nlistening on port ${port}`))
 	})
+//	app functions
+async function commitRequest(_data={}) {
+	console.log('commitRequest() request',chalk.greenBright(_data))
+//	return await mylifeDataservices?.commit(_data)	//	mylifeDataservices known by includer 
+}

@@ -43,9 +43,22 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 
 ## Tech Resources
 
+### JSON Schema
+
+- [Getting Started with AJV](https://ajv.js.org/guide/getting-started.html)
+- [JSON Schema in 5 minutes](https://json-schema.org/blog/posts/json-schema-in-5-minutes)
+- [Get started with JSON Schema in Node.js](https://json-schema.org/blog/posts/get-started-with-json-schema-in-node-js)
+- [JSON Schema Cheatsheet](https://simonplend.com/wp-content/uploads/2020/12/JSON-Schema-Cheat-Sheet-v1.1.pdf)
+
+### Node
+
+- [EventEmitters](https://www.digitalocean.com/community/tutorials/using-event-emitters-in-node-js)
+
 ### Koa
 
 - [Introduction to Backend Development with Koa](https://medium.com/swlh/introduction-to-backend-development-with-koa-139a6b7a14d)
+- [koa-generic-session](https://github.com/koajs/generic-session)
+	* For datastore look at: [koa-redis](https://www.npmjs.com/package/koa-redis)
 
 ### AI
 
@@ -67,9 +80,13 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 ### Development Notes
 
+//	at some point, a class inside of a network?  or a network being inside of server? Ultimately, mylife is the git codebase and the db and /their/ network, i.e., currently Azure
+
 #### @Mookse Worklog
 
+- could someone learn copilot for me?!?
 - create daily release for Maht
+- move MemberAgent to Session, wherein it must its own necessary singletons, like member data
 - assign further look at Azure Cog services for basic database access and look-up, i.e., can it contextualize/tokenize (not personalize, for that, it would need interface to personality kernal)
 - open up pipeline for file uploads
 	- uploads then tokenized
@@ -77,9 +94,23 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
+##### `20230416`
+
+- JSON Schema -> Class in Globals
+
+##### `20230415`
+
+- [25-store direct chat q&a contents in Cosmos](https://github.com/MyLife-Services/mylife-maht/issues/25)
+	- event emitter on question and answer
+		- While we don’t capture it in this example, the `emit()` function returns `true` if there are listeners for the event. If there are no listeners for an event, it returns `false`.
+* What does it mean when "being": "network", "name": "Dog's Life"?
+	* Infinity approaches again - a person can be a person place or thing: a network or nation or idea with the right productivity tool, and it seems like MyLife is just that...
+
 ##### `20230414`
 
 - [25-store direct chat q&a contents in Cosmos](https://github.com/MyLife-Services/mylife-maht/issues/25)
+	- worked a lot on instantiating 
+		- kind of a rabbit-hole side project, but ultimately will be a great way of implementing
 
 ##### `20230413`
 

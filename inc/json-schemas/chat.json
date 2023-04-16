@@ -1,0 +1,41 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "mylife-services-chat-json-schema",
+	"required": ["mbr_id", "parent_id", "being", "chatExchanges"],
+	"type": "object",
+	"name": "Chat",
+	"properties": {
+		"id": {"type": "string", "maximum": 40, "format": "uuid"},
+		"mbr_id": {"type": "string", "minimum": 40, "$comment": "partition-key for member"},
+		"parent_id": {"type": "string", "format": "uuid", "$comment": "chat must be at least attached to member core"},
+		"being": {"type": "string", "const": "chat", "$comment": "must be chat to fulfill schema"},
+		"form": {"type": "string", "default": "chatML", "$comment": "storage pattern"},
+		"chatExchanges": {"type": "array", "default": [], "uniqueItems":true, "contains": {"$ref": "#/$defs/chatExchange"}, "$comment": "pointer to chat exchanges, array populated by unshift, also if only returning ids, then more operations at various intersections are possible... think: return summary of last three chatExchanges, ergo, save atomically, as if fields were docs/microservices"}
+	},
+	"additionalProperties": true,
+	"$defs": {
+		"chatSnippet": {
+			"type": "object",
+			"name": "ChatSnippet",
+			"required": ["content", "contributor", "role"],
+			"properties": {
+				"content": {"type": "string", "default": "", "$comment": "text of conversation snippet"},
+				"contributor": {"type": "string", "default": "gpt-3-turbo", "$comment": "id of known member contribution, defaults to owner mbr_id; use `gpt-3-turbo` for gpt-3-turbo contribution"},
+				"role": {"type": "string", "default": "assistant", "enum": ["user", "assistant", "system"], "$comment": "role of contributor"}
+			},
+			"additionalProperties": false
+		},
+		"chatExchange": {
+			"type": "object",
+			"name": "ChatExchange",
+			"required": ["content", "contributor", "role"],
+			"properties": {
+				"content": {"type": "string", "default": "", "$comment": "text of conversation snippet"},
+				"contributor": {"type": "string", "default": "gpt-3-turbo", "$comment": "id of known member contribution, defaults to owner mbr_id; use `gpt-3-turbo` for gpt-3-turbo contribution"},
+				"role": {"type": "string", "default": "assistant", "enum": ["user", "assistant", "system"], "$comment": "role of contributor"},
+				"chatSnippets": {"type": "array", "default": [], "contains": {"$ref": "#/$defs/chatSnippet"}, "$comment": "pointer to chat exchanges, array populated by unshift"}
+			},
+			"additionalProperties": false
+		}
+	}
+}
