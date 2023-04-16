@@ -12,15 +12,17 @@ const config = new Configuration({
 })
 const openai = new OpenAIApi(config)
 const globals = await new Globals().init()
-console.log('Global Schemas',globals.schema)
+console.log(chalk.yellow('global schema classes created:'),globals.schema)
 //	define export Classes
 class MemberAgent extends EventEmitter {
-	#ctx = null
-	#memberCore = null
+	#ctx
+	#memberCore
+	#memberChat
 	constructor(_core){	//	receive koa context payload
 		super()
 		this.aiAgent = openai
 		this.#memberCore = _core
+		this.#memberChat = ''
 	}
 	//	getter/setter functions
 	get ctx(){
@@ -34,7 +36,6 @@ class MemberAgent extends EventEmitter {
 		//	gatekeeper
 		//	throttle requests
 		//	validate input
-		console.log('chat',globals)
 		this.#setCtx(ctx)
 		const _question = ctx.request.body.message
 		//	log input
@@ -56,18 +57,16 @@ class MemberAgent extends EventEmitter {
 					//	response insertion/alteration points for approval, validation, storage, pruning
 					//	challengeResponse(_response) //	insertion point: human reviewable
 					_response = this.#formatResponse(_response)
-					console.log(chalk.bgGray('chat-response-received'),chalk.bgYellowBright(_response))
-					this.#setChatExchange(_question,_response)
 					return _response
 				}
 			)
 			.catch(err=>{
 				console.log(err)
 				//	emit for server
-			})		
-	}
-	async setDatabaseObject(){
-
+			})
+		console.log(chalk.bgGray('chat-response-received'),_response)
+		this.#setChatExchange(_question,_response)
+		return _response
 	}
 	//	PRIVATE functions
 	//	question/answer functions

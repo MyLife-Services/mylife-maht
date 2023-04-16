@@ -17,6 +17,7 @@ import Dataservices from './inc/js/mylife-data-service.js'
 import MemberAgent from './member/core.js'
 import { router as MyLifeMemberRouter } from './member/routes/routes.js'
 import { router as MyLifeRouter } from './inc/js/routes.js'
+import { commitRequest } from './inc/js/functions.js'
 //	dotenv
 import koaenv from 'dotenv'
 koaenv.config()
@@ -59,10 +60,5 @@ app.use(
 	.use(MyLifeMemberRouter.routes())	//	enable member routes
 	.use(MyLifeRouter.routes())	//	enable system routes
 	.listen(port, () => {	//	start the server
-		console.log(chalk.bgGreenBright('server available')+chalk.yellow(`\nlistening on port ${port}`))
+		console.log(chalk.bgGreen(`server available on port ${port}`))
 	})
-//	app functions
-async function commitRequest(_data={}) {
-	console.log('commitRequest() request',chalk.greenBright(_data))
-//	return await mylifeDataservices?.commit(_data)	//	mylifeDataservices known by includer 
-}

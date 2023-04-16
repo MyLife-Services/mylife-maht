@@ -84,8 +84,10 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 #### @Mookse Worklog
 
-- could someone learn copilot for me?!?
 - create daily release for Maht
+
+- if little JSON object converter works, someone could put it on npm
+- could someone learn copilot for me?!?
 - move MemberAgent to Session, wherein it must its own necessary singletons, like member data
 - assign further look at Azure Cog services for basic database access and look-up, i.e., can it contextualize/tokenize (not personalize, for that, it would need interface to personality kernal)
 - open up pipeline for file uploads
@@ -97,6 +99,8 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 ##### `20230416`
 
 - JSON Schema -> Class in Globals
+	- primary JSON object stable
+	- $defs instantiated
 
 ##### `20230415`
 

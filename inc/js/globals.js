@@ -5,8 +5,9 @@ import vm from 'vm'
 import { Guid } from 'js-guid'	//	Guid.newGuid().toString()
 // core class
 class Globals extends EventEmitter {
+	#excludeProperties = { 'try': true, 'catch': true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 	#path = './inc/json-schemas'
-	#schemas
+	#schemas	//	when deployed, check against the current prod schemas
 	constructor() {
 		super()
 	}
@@ -18,11 +19,14 @@ class Globals extends EventEmitter {
 	get schema(){	//	proxy for schemas
 		return this.schemas
 	}
+	get schemaList(){	//	proxy for schemas
+		return Object.keys(this.#schemas)
+	}
 	get schemas(){
 		return this.#schemas
 	}
 	//	private functions
-	#assignSchemaPropertyValue(_propertyDefinition,_schema){	//	need schema in case of $def
+	#assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema in case of $def
 		switch (true) {
 			case _propertyDefinition?.const!==undefined:	//	constants
 				return `'${_propertyDefinition.const}'`
@@ -35,7 +39,7 @@ class Globals extends EventEmitter {
 				//	presumption: _propertyDefinition.type is not array [though can be]
 				switch (_propertyDefinition?.type) {
 					case 'array':
-						return []
+						return '[]'
 					case 'boolean':
 						return false
 					case 'integer':
@@ -51,7 +55,7 @@ class Globals extends EventEmitter {
 							case 'email':
 							case 'uri':
 							default:
-								return ''
+								return "''"
 						}
 					case undefined:
 					default:
@@ -59,15 +63,19 @@ class Globals extends EventEmitter {
 				}
 		}
 	}
-	#generateClassFromSchema(_schema,_filename) {
-		//	get core class
-		const className = _schema.name
-		const _properties = _schema.properties
+	#compileClass(_className,_class){
+		// Create a new context and run the class code in it
+        const context = vm.createContext({ exports: {} })
+        vm.runInContext(`exports.${_className} = ${_class}`, context)
+		//	compile class
+        return context.exports[_className]
+	}
+	#generateClassCode(_className,_properties,_schema){
 		//	generate class
-		let classCode = `class ${className} {\n`
+		let classCode = `class ${_className} {\n`
 		//	assign properties
 		for (const _prop in _properties) {	//	assign default values
-			const _value = this.#assignSchemaPropertyValue(_properties[_prop],_schema)
+			const _value = this.#assignClassPropertyValues(_properties[_prop],_schema)
 			classCode += `    #${_prop}${(_value)?'='+_value:''}\n`
 		}
 		//	generate constructor
@@ -78,24 +86,30 @@ class Globals extends EventEmitter {
 		classCode += '  }\n'
 		// Generate getters and setters
 		for (const _prop in _properties) {
-			const type = _properties[_prop].type
+			//	validate
+			if(_prop in this.#excludeProperties){
+				continue
+			}
+			const _type = _properties[_prop].type
 			// Generate getter
-			classCode += `\n  get ${_prop}() {\n    return this.#${_prop}\n  }\n`
+			classCode += `get ${_prop}() {\n	return this.#${_prop}\n	}\n`
 			// Generate setter with type validation
-			classCode += `\n  set ${_prop}(_value) {\n`
-			classCode += `    if (typeof _value !== '${type}') {\n`
-			classCode += `      throw new Error('Invalid type for property ${_prop}. Expected ${type}.')\n`
-			classCode += '    }\n'
-			classCode += `    this.#${_prop} = _value\n  }\n`
+			classCode += `	set ${_prop}(_value) {\n`
+			classCode += `		if (typeof _value !== '${_type}') {\n`
+			classCode += `		throw new Error('Invalid type for property ${_prop}. Expected ${_type}.')\n`
+			classCode += '	}\n'
+			classCode += `	this.#${_prop} = _value\n	}\n`
 		}
-		
-		classCode += '}\n'
-        // Create a new context and run the class code in it
-        const context = vm.createContext({ exports: {} })
-        vm.runInContext(`exports.${className} = ${classCode}`, context)
-		//	compile class
-        const _generatedClass = context.exports[className]
-		return { [_filename]: new _generatedClass() }
+		classCode += '}\n'	//	close class
+		return classCode
+	}
+	#generateClassFromSchema(_schema) {
+		//	get core class
+		const _className = _schema.name
+		const _properties = _schema.properties
+		const _class = this.#generateClassCode(_className,_properties,_schema)
+		//	compile class and return
+		return this.#compileClass(_className,_class)
 	}
 	async #loadSchemas(){	//	returns array of schemas
 		let _filesArray = await fs.readdir(this.#path)
@@ -109,13 +123,23 @@ class Globals extends EventEmitter {
 			.map(async _filename=>{	//	may need to change map since one file could generate x# schemas through $def
 				return await fs.readFile(this.#path+'/'+_filename)	//	read the file
 					.then(_file=>{
+						const _classArray = []
 						_file = _file.toString()
 						_file = JSON.parse(_file)
-						return this.#generateClassFromSchema(_file,_filename.split('.')[0])	//	array
+						_classArray.push({[ _filename.split('.')[0]]: this.#generateClassFromSchema(_file)})	//	primary file class instance
+						if(_file?.$defs){	//	need to generate additional classes from $def
+							for (const _schema in _file.$defs) {
+								_classArray.push({[ _schema ]: this.#generateClassFromSchema(_file.$defs[_schema])})
+							}
+						}
+						return _classArray	//	array of classes
 					})
 			})
 		_filesArray = await Promise.all(_filesArray)	//	wait for all to resolve
-		return Object.assign({}, ..._filesArray)
+		const _obj = _filesArray.reduce((acc, array) => {
+  			return Object.assign(acc, ...array)
+		}, {})
+		return _obj	//	Object.assign({},_filesArray.flat())	//	merge all objects into one, named by class [lowercase, as in ready for eval instancing]
 	}
 }
 //	exports
