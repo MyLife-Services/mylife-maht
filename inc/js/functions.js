@@ -4,5 +4,5 @@ async function commitRequest(_data={}) {
 }
 // exports
 export {
-	commitRequest
+	commitRequest,
 }

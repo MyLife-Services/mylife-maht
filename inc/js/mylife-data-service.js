@@ -1,9 +1,14 @@
 //	imports
 import Datamanager from "./mylife-datamanager.js"
 class Dataservices{
+	Datamanager = new Datamanager()
+	#mbr_id
 	constructor(){
-		this.Datamanager=new Datamanager()
-		this.mbr_id=this.getMemberId()
+		this.#mbr_id=this.getMemberId()
+	}
+	//	getters/setters
+	get memberId(){
+		return this.#mbr_id
 	}
 	//	public functions
 	async init(){
@@ -26,6 +31,21 @@ class Dataservices{
 	getMemberId(){
 		return this.Datamanager.getPartitionId()
 	}
+	async getMemberPrimaryChat(){
+		return await this.Datamanager.find({
+			query: "SELECT u.id,u.mbr_id,u.chatExchanges FROM members u WHERE u.being=@being AND u.mbr_id=@mbr_id",
+			parameters: [
+				{
+					name: "@being",
+					value: 'chat'
+				},
+				{
+					name: "@mbr_id",
+					value: this.#mbr_id
+				}
+			]
+		})
+	}
 	async getQuestions(){
 		return await this.Datamanager.find({
 			query: "select u.id,u.mbr_id from members u where u.being=@type and u.mbr_id=@id",
@@ -36,7 +56,7 @@ class Dataservices{
 				},
 				{
 					name: "@id",
-					value: this.mbr_id
+					value: this.#mbr_id
 				}
 			]
 		})

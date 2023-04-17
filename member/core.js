@@ -22,14 +22,29 @@ class MemberAgent extends EventEmitter {
 		super()
 		this.aiAgent = openai
 		this.#memberCore = _core
-		this.#memberChat = ''
+	}
+	//	initialize
+	async init(){
+		return this
 	}
 	//	getter/setter functions
+	get chat(){
+		return this.#memberChat
+	}
 	get ctx(){
 		return this.#ctx
 	}
 	get memberCore(){
 		return this.#memberCore
+	}
+	get memberCoreSystemName(){
+		return memberId.split('|')[0]
+	}	
+	get memberCoreThread(){
+		return memberId.split('|')[1]
+	}
+	get memberId(){
+		return this.#memberCore.mbr_id
 	}
 	//	public functions
 	async processChatRequest(ctx){
@@ -69,6 +84,11 @@ class MemberAgent extends EventEmitter {
 		return _response
 	}
 	//	PRIVATE functions
+	async #getMemberPrimaryChat(){	//	emit for server
+		//	emit request for data to server
+		console.log('registered emitter', this.emit('getMemberPrimaryChat',this.#memberCore.memberId))
+		const _primaryChat = this.emit('getMemberPrimaryChat',this.#memberCore.memberId)
+	}
 	//	question/answer functions
 	#assignPrimingQuestions(){
 		return [{

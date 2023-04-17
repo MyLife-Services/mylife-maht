@@ -28,6 +28,12 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
 const mylifeDataservices=await new Dataservices().init()	//	initialize the data manager
+const mylifeMemberAgent = await new MemberAgent(mylifeDataservices.getCore()).init()	//	initialize the member agent
+//	attach event listeners
+console.log(await mylifeDataservices.getMemberPrimaryChat())
+mylifeMemberAgent
+	.on('getMemberPrimaryChat',mylifeDataservices.getMemberPrimaryChat.bind(mylifeDataservices))
+	.on('commitRequest',commitRequest)
 //	app bootup
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
@@ -48,11 +54,10 @@ app.use(
 	))
 	.use(async (ctx,next) => {
 		if (!ctx.session?.MemberAgent) {
-			ctx.session.MemberAgent = new MemberAgent(mylifeDataservices.getCore())
+			ctx.session.MemberAgent = mylifeMemberAgent
+			mylifeMemberAgent.emit('getMemberPrimaryChat',mylifeMemberAgent.memberId)
 			console.log(chalk.bgBlue('created-member-session-request'))
 		}
-		const mylifeMemberAgent = ctx.session.MemberAgent
-		mylifeMemberAgent.on('storeBeing',commitRequest)	//	attach event listener
 		await next()
 	})
 	.use(bodyParser())	//	enable body parsing
