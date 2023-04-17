@@ -1,8 +1,10 @@
 //	imports
 import Datamanager from "./mylife-datamanager.js"
 class Dataservices{
+	//	pseudo-constructor
 	Datamanager = new Datamanager()
 	#mbr_id
+	//	constructor
 	constructor(){
 		this.#mbr_id=this.getMemberId()
 	}
@@ -60,6 +62,9 @@ class Dataservices{
 				}
 			]
 		})
+	}
+	async commitRequest(_data={}){
+		return _data
 	}
 }
 //	exports

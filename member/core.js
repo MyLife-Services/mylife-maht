@@ -17,7 +17,11 @@ console.log(chalk.yellow('global schema classes created:'),globals.schema)
 class MemberAgent extends EventEmitter {
 	#ctx
 	#memberCore
-	#memberChat
+	#memberChat = new (globals.schema.chat)(()=>{
+		this.emit('setMemberPrimaryChat',(_data)=>{	//	async-ed in server.js
+			return _data
+		})
+	})	//	roundtrip function to get data from server.js
 	constructor(_core){	//	receive koa context payload
 		super()
 		this.aiAgent = openai
@@ -31,8 +35,14 @@ class MemberAgent extends EventEmitter {
 	get chat(){
 		return this.#memberChat
 	}
+	set chat(_chat){	//	assign chat object
+		this.#memberChat = new (globals.schema.chat)(_chat)
+	}
 	get ctx(){
 		return this.#ctx
+	}
+	get memberChat(){
+		return this.chat
 	}
 	get memberCore(){
 		return this.#memberCore
@@ -55,6 +65,9 @@ class MemberAgent extends EventEmitter {
 		const _question = ctx.request.body.message
 		//	log input
 		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`))
+		//	establish container chat object
+		console.log('memberchat',this.chat)
+		//	transform input
 		const aQuestion = [
 			this.#assignSystemRole(),	//	assign system role
 			...this.#assignPrimingQuestions(),	//	assign few-shot learning prompts
@@ -84,11 +97,6 @@ class MemberAgent extends EventEmitter {
 		return _response
 	}
 	//	PRIVATE functions
-	async #getMemberPrimaryChat(){	//	emit for server
-		//	emit request for data to server
-		console.log('registered emitter', this.emit('getMemberPrimaryChat',this.#memberCore.memberId))
-		const _primaryChat = this.emit('getMemberPrimaryChat',this.#memberCore.memberId)
-	}
 	//	question/answer functions
 	#assignPrimingQuestions(){
 		return [{

@@ -17,7 +17,6 @@ import Dataservices from './inc/js/mylife-data-service.js'
 import MemberAgent from './member/core.js'
 import { router as MyLifeMemberRouter } from './member/routes/routes.js'
 import { router as MyLifeRouter } from './inc/js/routes.js'
-import { commitRequest } from './inc/js/functions.js'
 //	dotenv
 import koaenv from 'dotenv'
 koaenv.config()
@@ -30,10 +29,11 @@ const MemoryStore = new session.MemoryStore()
 const mylifeDataservices=await new Dataservices().init()	//	initialize the data manager
 const mylifeMemberAgent = await new MemberAgent(mylifeDataservices.getCore()).init()	//	initialize the member agent
 //	attach event listeners
-console.log(await mylifeDataservices.getMemberPrimaryChat())
 mylifeMemberAgent
-	.on('getMemberPrimaryChat',mylifeDataservices.getMemberPrimaryChat.bind(mylifeDataservices))
-	.on('commitRequest',commitRequest)
+	.on('setMemberPrimaryChat',async (_callback)=>{
+		_callback(await mylifeDataservices.getMemberPrimaryChat())
+	})
+	.on('commitRequest',mylifeDataservices.commitRequest.bind(mylifeDataservices))
 //	app bootup
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
@@ -55,8 +55,7 @@ app.use(
 	.use(async (ctx,next) => {
 		if (!ctx.session?.MemberAgent) {
 			ctx.session.MemberAgent = mylifeMemberAgent
-			mylifeMemberAgent.emit('getMemberPrimaryChat',mylifeMemberAgent.memberId)
-			console.log(chalk.bgBlue('created-member-session-request'))
+			console.log(chalk.bgBlue('created-member-session-requesting',ctx.session.MemberAgent.chat))
 		}
 		await next()
 	})

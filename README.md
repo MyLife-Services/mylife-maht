@@ -99,8 +99,11 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 ##### `20230416`
 
 - JSON Schema -> Class in Globals
-	- primary JSON object stable
+	- improved roundtrip for emits
+	- db query for core chat
 	- $defs instantiated
+	- primary JSON object stable
+
 
 ##### `20230415`
 
