@@ -9,7 +9,7 @@ const config = new Configuration({
 	organizationId: process.env.OPENAI_ORG_KEY,
 	timeoutMs: process.env.OPENAI_TIMEOUT,
 	basePath: process.env.OPENAI_BASE_URL,
-})
+}) 
 const openai = new OpenAIApi(config)
 const globals = await new Globals().init()
 console.log(chalk.yellow('global schema classes created:'),globals.schema)
@@ -17,18 +17,18 @@ console.log(chalk.yellow('global schema classes created:'),globals.schema)
 class MemberAgent extends EventEmitter {
 	#ctx
 	#memberCore
-	#memberChat = new (globals.schema.chat)(()=>{
-		this.emit('setMemberPrimaryChat',(_data)=>{	//	async-ed in server.js
-			return _data
-		})
-	})	//	roundtrip function to get data from server.js
+	#memberChat
 	constructor(_core){	//	receive koa context payload
 		super()
 		this.aiAgent = openai
 		this.#memberCore = _core
 	}
 	//	initialize
-	async init(){
+	init(){
+		console.log('init.getMemberPrimaryChat() emitter enabled: ',
+			this.emit('getMemberPrimaryChat',(_data)=>{	//	async-ed in server.js
+			this.chat = _data	//	triggers set chat()
+		}))	//	roundtrip function to get data from server.js
 		return this
 	}
 	//	getter/setter functions
@@ -37,6 +37,16 @@ class MemberAgent extends EventEmitter {
 	}
 	set chat(_chat){	//	assign chat object
 		this.#memberChat = new (globals.schema.chat)(_chat)
+	}
+	set chatExchange(_exchange) { // assign chat exchange via shift()
+		if (!(_exchange instanceof globals.schema.classExchange)) {
+			throw new Error('_exchange must be an instance of classExchange')
+		}
+		this.#memberChat.chatExchange.shift(_exchange)	//	add to chatExchange array
+		console.log('setChatExchange',this.#memberChat.chatExchange)
+	}
+	get core(){
+		return this.memberCore
 	}
 	get ctx(){
 		return this.#ctx
@@ -65,8 +75,6 @@ class MemberAgent extends EventEmitter {
 		const _question = ctx.request.body.message
 		//	log input
 		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`))
-		//	establish container chat object
-		console.log('memberchat',this.chat)
 		//	transform input
 		const aQuestion = [
 			this.#assignSystemRole(),	//	assign system role
@@ -93,7 +101,23 @@ class MemberAgent extends EventEmitter {
 				//	emit for server
 			})
 		console.log(chalk.bgGray('chat-response-received'),_response)
-		this.#setChatExchange(_question,_response)
+		//	log output
+		const _chatExchange = new (globals.schema.chatExchange)({ 
+			mbr_id: this.memberId,
+			parent_id: this.chat.id,
+			chatSnippets: [],
+		})
+		this.emit('setItem',_chatExchange,(_data)=>{	//	async-ed in server.js
+			this.chat.chatExchanges.unshift(_data)	//	load to chat reverse chronological order
+			console.log('createChatExchange',this.chat.inspect())
+		})
+		
+/*
+		.shift(new (globals.schema.chatExchange)({	//	no trigger to set
+			role: 'assistant',
+			content: _response
+		}))
+*/
 		return _response
 	}
 	//	PRIVATE functions
@@ -123,7 +147,7 @@ class MemberAgent extends EventEmitter {
 		}
 	}
 	#assignSystemRole(){
-		switch(this.#memberCore.being){
+		switch(this.core.being){
 //			case 'agent':
 			default:	//	core
 				return {
@@ -197,17 +221,9 @@ class MemberAgent extends EventEmitter {
 	#getOrganizationVision(){
 		return this.#memberCore.organization_vision
 	}
-	async #setChatExchange(_question,_response){
-		//	emit to server for storage after validation
-		console.log('chatExchange',await globals.schemas)
-		return
-		const _chat = globals.schemas
-			.then(_oSchemas=>{ return _oSchemas.chat })	//	chat
-			.catch(err=>{ console.log(err) })
-	}
 	async #setChatSnippet(_role,_content){
 		//	emit to server for storage after validation
-		const _chatSnippet = await globals.schemas
+		const _chatSnippet = globals.schemas
 			.then(_oSchemas=>{ return _oSchemas.chatSnippet })
 			.catch(err=>{ console.log(err) })
 		_chatSnippet.content = _content

@@ -3,10 +3,10 @@ import Datamanager from "./mylife-datamanager.js"
 class Dataservices{
 	//	pseudo-constructor
 	Datamanager = new Datamanager()
-	#mbr_id
+	#mbr_id = this.Datamanager.getPartitionId()
 	//	constructor
 	constructor(){
-		this.#mbr_id=this.getMemberId()
+		//	not yet needed
 	}
 	//	getters/setters
 	get memberId(){
@@ -24,18 +24,18 @@ class Dataservices{
 		return await this.Datamanager.getItem(_id)
 	}
 	//	public getters by BEING category
+	async addItem(_data){
+		return await this.Datamanager.addItem(_data)
+	}
 	getBio(){
 		return this.getCore().bio
 	}
 	getCore(){
 		return this.Datamanager.getCore()
 	}
-	getMemberId(){
-		return this.Datamanager.getPartitionId()
-	}
 	async getMemberPrimaryChat(){
 		return await this.Datamanager.find({
-			query: "SELECT u.id,u.mbr_id,u.chatExchanges FROM members u WHERE u.being=@being AND u.mbr_id=@mbr_id",
+			query: "SELECT u.id,u.mbr_id,u.parent_id,u.chatExchanges FROM members u WHERE u.being=@being AND u.mbr_id=@mbr_id",
 			parameters: [
 				{
 					name: "@being",

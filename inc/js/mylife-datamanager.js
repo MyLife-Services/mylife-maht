@@ -1,6 +1,6 @@
 // @ts-check
 // @ts-ignore
-import { DefaultAzureCredential } from "@azure/identity"
+//	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
 import Config from './mylife-datasource-config.js'
 //	define class
@@ -38,10 +38,15 @@ class Datamanager {
 		console.log(`core initialized: ${this.core.resource.id}`)
 		return this
 	}
+	//	getter/setter property functions
+	async addItem(_item) {
+		const { resource: doc } = await this.container.items.upsert(_item)
+		return doc
+	}
 	getCore(){
 		return this.core?.resource
 	}
-	async getItem(_id,_options=this.requestOptions){
+	async getItem(_id,_options=this.requestOptions){	//	quick, inexpensive read; otherwise use find
 		return await this.container
 			.item(_id,this.partitionId)
 			.read(_options)

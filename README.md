@@ -96,6 +96,16 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
+##### `20230417`
+
+- class definitions
+- db storage
+	- chatSnippet
+	- chatExchange (is there really a need for snippets? benefit would be that metadata would be at root level of document for queies... might as well start that way!)
+- db retrieval
+	- chat *in process*
+	- member corechat
+
 ##### `20230416`
 
 - JSON Schema -> Class in Globals
@@ -103,7 +113,6 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 	- db query for core chat
 	- $defs instantiated
 	- primary JSON object stable
-
 
 ##### `20230415`
 

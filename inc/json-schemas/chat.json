@@ -19,6 +19,11 @@
 			"name": "ChatSnippet",
 			"required": ["content", "contributor", "role"],
 			"properties": {
+				"id": {"type": "string", "maximum": 40, "format": "uuid"},
+				"mbr_id": {"type": "string", "minimum": 40, "$comment": "partition-key for member"},
+				"parent_id": {"type": "string", "format": "uuid", "$comment": "chat must be at least attached to member core"},
+				"being": {"type": "string", "const": "ChatSnippet", "$comment": "must be chat to fulfill schema"},
+				"form": {"type": "string", "default": "chatML", "$comment": "storage pattern"},
 				"content": {"type": "string", "default": "", "$comment": "text of conversation snippet"},
 				"contributor": {"type": "string", "default": "gpt-3-turbo", "$comment": "id of known member contribution, defaults to owner mbr_id; use `gpt-3-turbo` for gpt-3-turbo contribution"},
 				"role": {"type": "string", "default": "assistant", "enum": ["user", "assistant", "system"], "$comment": "role of contributor"}
@@ -30,9 +35,11 @@
 			"name": "ChatExchange",
 			"required": ["content", "contributor", "role"],
 			"properties": {
-				"content": {"type": "string", "default": "", "$comment": "text of conversation snippet"},
-				"contributor": {"type": "string", "default": "gpt-3-turbo", "$comment": "id of known member contribution, defaults to owner mbr_id; use `gpt-3-turbo` for gpt-3-turbo contribution"},
-				"role": {"type": "string", "default": "assistant", "enum": ["user", "assistant", "system"], "$comment": "role of contributor"},
+				"id": {"type": "string", "maximum": 40, "format": "uuid"},
+				"mbr_id": {"type": "string", "minimum": 40, "$comment": "partition-key for member"},
+				"parent_id": {"type": "string", "format": "uuid", "$comment": "chat must be at least attached to member core"},
+				"being": {"type": "string", "const": "ChatExchange", "$comment": "must be chat to fulfill schema"},
+				"form": {"type": "string", "default": "chatML", "$comment": "storage pattern"},
 				"chatSnippets": {"type": "array", "default": [], "contains": {"$ref": "#/$defs/chatSnippet"}, "$comment": "pointer to chat exchanges, array populated by unshift"}
 			},
 			"additionalProperties": false

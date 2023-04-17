@@ -26,14 +26,22 @@ const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
-const mylifeDataservices=await new Dataservices().init()	//	initialize the data manager
-const mylifeMemberAgent = await new MemberAgent(mylifeDataservices.getCore()).init()	//	initialize the member agent
+//	assign mylife-specific singletons
+const mylifeDataservices=await new Dataservices()
+	.init()	//	initialize the data manager
+const mylifeMemberAgent = new MemberAgent(mylifeDataservices.getCore())
 //	attach event listeners
 mylifeMemberAgent
-	.on('setMemberPrimaryChat',async (_callback)=>{
-		_callback(await mylifeDataservices.getMemberPrimaryChat())
+	.on('getMemberPrimaryChat',async (_callback)=>{
+		const _chat = await mylifeDataservices.getMemberPrimaryChat()	//	returns array of 1
+		_callback(_chat[0])
+	})
+	.on('setItem',async (_data,_callback)=>{
+		const _chatExchange = _data.inspect()	//	await mylifeDataservices.addItem(_data.inspect())	//	present flat object
+		_callback(_chatExchange)
 	})
 	.on('commitRequest',mylifeDataservices.commitRequest.bind(mylifeDataservices))
+mylifeMemberAgent.init()	//	initialize the member agent after listeners are attached
 //	app bootup
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition

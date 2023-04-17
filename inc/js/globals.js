@@ -5,7 +5,8 @@ import vm from 'vm'
 import { Guid } from 'js-guid'	//	Guid.newGuid().toString()
 // core class
 class Globals extends EventEmitter {
-	#excludeProperties = { 'try': true, 'catch': true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
+	#excludeProperties = { 'none': true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
+	#excludeConstructors = { 'mbr_id': true }
 	#path = './inc/json-schemas'
 	#schemas	//	when deployed, check against the current prod schemas
 	constructor() {
@@ -55,7 +56,7 @@ class Globals extends EventEmitter {
 							case 'email':
 							case 'uri':
 							default:
-								return "''"
+								return null
 						}
 					case undefined:
 					default:
@@ -73,33 +74,51 @@ class Globals extends EventEmitter {
 	#generateClassCode(_className,_properties,_schema){
 		//	generate class
 		let classCode = `class ${_className} {\n`
-		//	assign properties
+		//	properties
 		for (const _prop in _properties) {	//	assign default values
 			const _value = this.#assignClassPropertyValues(_properties[_prop],_schema)
-			classCode += `    #${_prop}${(_value)?'='+_value:''}\n`
+			classCode += `	#${(_value)?`${_prop} = ${_value}`:_prop}\n`
 		}
-		//	generate constructor
-		classCode += '  constructor(obj={}) {\n'	//	could also supply some defaults
+		//	constructor
+		classCode += '	constructor(obj) {\n'	//	overwrite defaults with supplied values
 		for (const _prop in _properties) {
-			classCode += `    this.#${_prop} = (obj?.${_prop})?obj.${_prop}:this.#${_prop}\n`
+			//	mbr_id must be force fed always by obj, as previously undefined
+			if(this.#excludeConstructors?._prop){ continue }
+			classCode += `		if(this?.#${_prop} && obj?.${_prop}){	this.#${_prop} = obj.${_prop}	}\n`
 		}
+		//	mbr_id however must always be supplied
+		classCode += `		this.#mbr_id = obj.mbr_id//	mbr_id must always be supplied\n`
 		classCode += '  }\n'
-		// Generate getters and setters
+		// getters/setters
+		const _inspect = {}
 		for (const _prop in _properties) {
 			//	validate
 			if(_prop in this.#excludeProperties){
 				continue
 			}
 			const _type = _properties[_prop].type
-			// Generate getter
-			classCode += `get ${_prop}() {\n	return this.#${_prop}\n	}\n`
-			// Generate setter with type validation
+			// generate getter
+			classCode += `	get ${_prop}() {\n		return this.#${_prop}\n	}\n`
+			// generate setter with type validation
 			classCode += `	set ${_prop}(_value) {\n`
 			classCode += `		if (typeof _value !== '${_type}') {\n`
-			classCode += `		throw new Error('Invalid type for property ${_prop}. Expected ${_type}.')\n`
-			classCode += '	}\n'
-			classCode += `	this.#${_prop} = _value\n	}\n`
+			classCode += `			throw new Error('Invalid type for property ${_prop}. Expected ${_type}.')\n`
+			classCode += '		}\n'
+			classCode += `		this.#${_prop} = _value\n	}\n`
+			//	add to inspect
+			_inspect[_prop] = `this.#${_prop}`
 		}
+		//	functions
+		//	inspect: returns a object representation of available private properties
+		classCode += '	inspect(){\n'	//	define function
+		classCode += `		const _this = {\n`
+		for (const _prop in _inspect) {
+			classCode += `			${_prop}: this.#${_prop},\n`
+		}
+		classCode += `		}\n`
+		classCode += '		return _this\n'
+		classCode += '	}\n'
+		//	close class
 		classCode += '}\n'	//	close class
 		return classCode
 	}
