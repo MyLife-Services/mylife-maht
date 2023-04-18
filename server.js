@@ -19,7 +19,6 @@ import { router as MyLifeMemberRouter } from './member/routes/routes.js'
 import { router as MyLifeRouter } from './inc/js/routes.js'
 import MylifeMemberSession from './inc/js/session.js'
 import MylifeSystemError from './inc/js/error.js'
-import MemberAgent from './member/core.js'
 //	bootstrap
 //	koaenv.config()
 //	constants/variables
