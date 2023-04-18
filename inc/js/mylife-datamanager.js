@@ -1,10 +1,12 @@
-// @ts-check
-// @ts-ignore
+//	imports
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
 import Config from './mylife-datasource-config.js'
+import chalk from 'chalk'
 //	define class
 class Datamanager {
+	//	spercifications
+	#core = null
 	//	constructor
 	constructor() {
 		const oConfig=new Config()
@@ -26,25 +28,24 @@ class Datamanager {
 		}
 		//	assign database and container
 		this.database=this.client.database(oConfig.db.id)
-		console.log(`database initialized: ${this.database.id}`)
+		console.log(chalk.bgCyan('database initialized:',chalk.bgCyanBright(`${this.database.id}`)))
 		this.container=this.database.container(oConfig.db.container.id)
-		console.log(`container initialized: ${this.container.id}`)
-		this.core = null
+		console.log(chalk.bgCyan('container initialized:',chalk.bgCyanBright(`${this.container.id}`)))
 	}
 	//	init function
 	async init() {
 		//	assign core
-		this.core=await this.container.item(this.partitionKey,this.partitionId).read()
-		console.log(`core initialized: ${this.core.resource.id}`)
+		this.#core=await this.container.item(this.partitionKey,this.partitionId).read()
+		console.log(chalk.bgBlue('core initialized:',chalk.bgBlueBright(`${this.#core.resource.id}`)))
 		return this
 	}
 	//	getter/setter property functions
-	async addItem(_item) {
+	get core(){
+		return this.#core?.resource
+	}
+	async pushItem(_item) {
 		const { resource: doc } = await this.container.items.upsert(_item)
 		return doc
-	}
-	getCore(){
-		return this.core?.resource
 	}
 	async getItem(_id,_options=this.requestOptions){	//	quick, inexpensive read; otherwise use find
 		return await this.container

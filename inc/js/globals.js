@@ -52,7 +52,7 @@ class Globals extends EventEmitter {
 							case 'date-time':
 								return `'${new Date().toDateString()}'`
 							case 'uuid':
-								return `'${new Guid().toString()}'`
+								return `'${Guid.newGuid().toString()}'`
 							case 'email':
 							case 'uri':
 							default:
@@ -82,9 +82,10 @@ class Globals extends EventEmitter {
 		//	constructor
 		classCode += '	constructor(obj) {\n'	//	overwrite defaults with supplied values
 		classCode += '		for(const _key in obj){\n'
+		classCode += "			if(_key ==='id') continue\n"	//	use eval to dynamically assign private props
 		classCode += "			eval(`this.#${_key}=obj[_key]`)\n"	//	use eval to dynamically assign private props
 		classCode += '		}\n'
-		classCode += '		console.log("this",this.inspect())\n'
+//		classCode += '		console.log("this",this.inspect())\n'
 		classCode += '  }\n'
 		// getters/setters
 		const _inspect = {}
@@ -115,6 +116,7 @@ class Globals extends EventEmitter {
 		classCode += `		}\n`
 		classCode += '		return _this\n'
 		classCode += '	}\n'
+		// if id changes are necessary, then use set .id()
 		//	close class
 		classCode += '}\n'	//	close class
 		return classCode
@@ -126,6 +128,9 @@ class Globals extends EventEmitter {
 		const _class = this.#generateClassCode(_className,_properties,_schema)
 		//	compile class and return
 		return this.#compileClass(_className,_class)
+	}
+	get newGuid(){	//	this.newGuid
+		return Guid.newGuid().toString()
 	}
 	async #loadSchemas(){	//	returns array of schemas
 		let _filesArray = await fs.readdir(this.#path)

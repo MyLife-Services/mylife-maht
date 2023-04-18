@@ -29,16 +29,19 @@ const MemoryStore = new session.MemoryStore()
 //	assign mylife-specific singletons
 const mylifeDataservices=await new Dataservices()
 	.init()	//	initialize the data manager
-const mylifeMemberAgent = new MemberAgent(mylifeDataservices.getCore())
+const mylifeMemberAgent = new MemberAgent(mylifeDataservices.core)
 //	attach event listeners
 mylifeMemberAgent
 	.on('getMemberPrimaryChat',async (_callback)=>{
 		const _chat = await mylifeDataservices.getMemberPrimaryChat()	//	returns array of 1
-		_callback(_chat[0])
+		if(_callback)	_callback(_chat[0])
 	})
 	.on('setItem',async (_data,_callback)=>{
-		const _item = await mylifeDataservices.addItem(_data.inspect())	//	present flat object
-		_callback(_item)
+		const _item = await mylifeDataservices.pushItem(_data.inspect())	//	present flat object
+		if(_callback)	_callback(_item)
+	})
+	.on('testEmitter',(_callback)=>{
+		if(_callback)	_callback(true)
 	})
 	.on('commitRequest',mylifeDataservices.commitRequest.bind(mylifeDataservices))
 mylifeMemberAgent.init()	//	initialize the member agent after listeners are attached

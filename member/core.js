@@ -3,6 +3,7 @@ import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
 import Globals from '../inc/js/globals.js'
 import chalk from 'chalk'
+import { abort } from 'process'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -25,10 +26,12 @@ class MemberAgent extends EventEmitter {
 	}
 	//	initialize
 	init(){
-		console.log('init.getMemberPrimaryChat() emitter enabled: ',
-			this.emit('getMemberPrimaryChat',(_data)=>{	//	async-ed in server.js
+		if(!this.#testEmitters()) {
+			throw new Error('emitters not initialized')
+		}
+		this.emit('getMemberPrimaryChat',(_data)=>{	//	async-ed in server.js
 			this.chat = _data	//	triggers set chat()
-		}))	//	roundtrip function to get data from server.js
+		})	//	roundtrip function to get data from server.js
 		return this
 	}
 	//	getter/setter functions
@@ -37,12 +40,14 @@ class MemberAgent extends EventEmitter {
 	}
 	set chat(_chat){	//	assign chat object
 		this.#memberChat = new (globals.schema.chat)(_chat)
+		this.#memberChat.id = _chat.id	//	must assign
 	}
 	set chatExchange(_exchange) { // assign chat exchange via shift()
 		if (!(_exchange instanceof globals.schema.classExchange)) {
 			throw new Error('_exchange must be an instance of classExchange')
 		}
 		this.#memberChat.chatExchange.shift(_exchange)	//	add to chatExchange array
+		console.log(this.#memberChat.chatExchange)
 		console.log('setChatExchange',this.#memberChat.chatExchange)
 	}
 	get core(){
@@ -100,7 +105,6 @@ class MemberAgent extends EventEmitter {
 				console.log(err)
 				//	emit for server
 			})
-//		const _response = '7 is answer.'
 		console.log(chalk.bgGray('chat-response-received'),_response)
 		//	store chat
 		const _chatExchange = new (globals.schema.chatExchange)({ 
@@ -108,7 +112,7 @@ class MemberAgent extends EventEmitter {
 			parent_id: this.chat.id,
 			chatSnippets: [],
 		})
-		console.log('question',_question)
+		_chatExchange.id = globals.newGuid	//	otherwise it reverts to specific, must always provide
 		const _chatSnippetQuestion = new (globals.schema.chatSnippet)({	//	no trigger to set
 			mbr_id: this.memberId,
 			parent_id: _chatExchange.id,
@@ -116,23 +120,31 @@ class MemberAgent extends EventEmitter {
 			role: 'user',
 			contributor: this.memberId,
 		})
+		_chatSnippetQuestion.id = globals.newGuid	//	otherwise it reverts to specific, must always provide
 		const _chatSnippetResponse = new (globals.schema.chatSnippet)({	//	no trigger to set
 			mbr_id: this.memberId,
 			parent_id: _chatExchange.id,
 			content: _response,
 		})
-		//	store question
-		this.emit('setItem',_chatSnippetQuestion,(_data)=>{	//	async-ed in server.js
-			_chatExchange.chatSnippets.unshift(_data)	//	load to chat reverse chronological order
-		})
-		//	store response
+		_chatSnippetResponse.id = globals.newGuid	//	otherwise it reverts to specific, must always provide
+		//	store response [reverse chronological order]
+		_chatExchange.chatSnippets.unshift(_chatSnippetResponse.id)	//	add to exchange
 		this.emit('setItem',_chatSnippetResponse,(_data)=>{	//	async-ed in server.js
-			_chatExchange.chatSnippets.unshift(_data)	//	load to chat reverse chronological order
 		})
+		//	store question
+		_chatExchange.chatSnippets.unshift(_chatSnippetQuestion.id)	//	add to exchange
+		this.emit('setItem',_chatSnippetQuestion,(_data)=>{	//	async-ed in server.js
+		})
+		//	store exchange
+		this.chat.chatExchanges.unshift(_chatExchange.id)	//	add to chat
 		this.emit('setItem',_chatExchange,(_data)=>{	//	async-ed in server.js
-			this.chat.chatExchanges.unshift(_data)	//	load to chat reverse chronological order
 		})
-		//	store response
+//		this.chat.chatExchanges = [].unshift(_chatExchange.id)	//	still fails with type is not array..?
+		//	store chat
+		this.emit('setItem',this.chat,(_data)=>{	//	async-ed in server.js
+			console.log('chat exchange stored',this.chat.chatExchanges)
+		})
+		//	return response
 		return _response
 	}
 	//	PRIVATE functions
@@ -213,12 +225,6 @@ class MemberAgent extends EventEmitter {
 	//	member functions
 	#getMemberBio(){
 		return 'not yet implemented'
-		return [
-			{
-				role: "user",
-				content: `Who is ${this.#memberCore?.agent_name}`
-			},
-		]
 	}
 	//	organization functions
 	#getOrganizationDescription(){
@@ -247,12 +253,18 @@ class MemberAgent extends EventEmitter {
 		//	emit to server for storage
 		this.emit('storeBeing',_chatSnippet)
 	}
-//	misc
+//	misc functions
 	#detokenize(_str){
 		return _str.replace(/<\|\|/g,'').replace(/\|\|>/g,'')
 	}
 	#setCtx(ctx){
 		this.#ctx = ctx
+	}
+	async #testEmitters(){
+		//	test emitters with callbacks
+		this.emit('testEmitter',_response=>{
+			console.log('callback emitters enabled:',_response)
+		})
 	}
 	#tokenize(_str){
 		return '<||'+_str+'||>'

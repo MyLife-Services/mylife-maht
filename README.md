@@ -43,6 +43,10 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 
 ## Tech Resources
 
+### Azure Cosmos
+
+- [Azure Cosmos DB - sample node.js](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/samples-nodejs)
+
 ### JSON Schema
 
 - [Getting Started with AJV](https://ajv.js.org/guide/getting-started.html)

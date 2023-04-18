@@ -23,15 +23,15 @@ class Dataservices{
 	async getItem(_id){
 		return await this.Datamanager.getItem(_id)
 	}
-	//	public getters by BEING category
-	async addItem(_data){
-		return await this.Datamanager.addItem(_data)
+	//	getters/setters
+	get core(){
+		return this.Datamanager.core
+	}
+	async pushItem(_data){
+		return await this.Datamanager.pushItem(_data)
 	}
 	getBio(){
 		return this.getCore().bio
-	}
-	getCore(){
-		return this.Datamanager.getCore()
 	}
 	async getMemberPrimaryChat(){
 		return await this.Datamanager.find({
