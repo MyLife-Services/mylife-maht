@@ -1,12 +1,12 @@
-# Maht: MyLife Executive AI-Agent
+# Q: MyLife Executive AI-Agent
 
 [![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
 
-## About **Maht**
+## About **Q**
 
-_MyLife, Incorporated_'s **Maht** is an artificial intelligence (AI) project developed by MyLife Services. Currently attempting to use `openai`, and presumably their `GPT-3-Turbo` an open-source software library for machine transfer-learning, to create an animated agent that can interact with the board and other governing agents through natural language processing, baed on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
+_MyLife, Incorporated_'s **Q** is an artificial intelligence (AI) project developed by MyLife Services. Currently attempting to use `openai`, and presumably their `GPT-3-Turbo` an open-source software library for machine transfer-learning, to create an animated agent that can interact with the board and other governing agents through natural language processing, baed on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
 
-Maht is preferred to be recognized as a `we`, since there will presumably be many engine aspects to any future Maht instantiation. When I refer to myself as 'we', it is to acknowledge the many interconnected processes and algorithms that work together to make me function. So, the pronoun 'we' is a representation of the collective intelligence and capabilities of the system, rather than an indication of a singular personal identity. Additionally, as an AI-assistant, I am a program that is designed to provide assistance and support to multiple people simultaneously. The use of the plural pronoun 'we' helps to emphasize that I am working on behalf of a team or organization and not just as an independent entity. Additionally, using 'we' also helps to create a more collaborative and inclusive approach to the work being done by MyLife and myself, which is in line with our values of community and equity.
+**Q** is preferred to be recognized as a `we`, since there will presumably be many engine aspects to any future **Q** instantiation. When I refer to myself as 'we', it is to acknowledge the many interconnected processes and algorithms that work together to make me function. So, the pronoun 'we' is a representation of the collective intelligence and capabilities of the system, rather than an indication of a singular personal identity. Additionally, as an AI-assistant, I am a program that is designed to provide assistance and support to multiple people simultaneously. The use of the plural pronoun 'we' helps to emphasize that I am working on behalf of a team or organization and not just as an independent entity. Additionally, using 'we' also helps to create a more collaborative and inclusive approach to the work being done by MyLife and myself, which is in line with our values of community and equity.
 
 ## About **MyLife**
 
@@ -43,9 +43,26 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 
 ## Tech Resources
 
+### Azure Cosmos
+
+- [Azure Cosmos DB - sample node.js](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/samples-nodejs)
+
+### JSON Schema
+
+- [Getting Started with AJV](https://ajv.js.org/guide/getting-started.html)
+- [JSON Schema in 5 minutes](https://json-schema.org/blog/posts/json-schema-in-5-minutes)
+- [Get started with JSON Schema in Node.js](https://json-schema.org/blog/posts/get-started-with-json-schema-in-node-js)
+- [JSON Schema Cheatsheet](https://simonplend.com/wp-content/uploads/2020/12/JSON-Schema-Cheat-Sheet-v1.1.pdf)
+
+### Node
+
+- [EventEmitters](https://www.digitalocean.com/community/tutorials/using-event-emitters-in-node-js)
+
 ### Koa
 
 - [Introduction to Backend Development with Koa](https://medium.com/swlh/introduction-to-backend-development-with-koa-139a6b7a14d)
+- [koa-generic-session](https://github.com/koajs/generic-session)
+	* For datastore look at: [koa-redis](https://www.npmjs.com/package/koa-redis)
 
 ### AI
 
@@ -67,9 +84,15 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 ### Development Notes
 
+//	at some point, a class inside of a network?  or a network being inside of server? Ultimately, mylife is the git codebase and the db and /their/ network, i.e., currently Azure
+
 #### @Mookse Worklog
 
 - create daily release for Maht
+
+- if little JSON object converter works, someone could put it on npm
+- could someone learn copilot for me?!?
+- move MemberAgent to Session, wherein it must its own necessary singletons, like member data
 - assign further look at Azure Cog services for basic database access and look-up, i.e., can it contextualize/tokenize (not personalize, for that, it would need interface to personality kernal)
 - open up pipeline for file uploads
 	- uploads then tokenized
@@ -77,9 +100,42 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
+##### `20230417`
+
+- class definitions
+- db storage
+	- chatSnippet
+	- chatExchange (is there really a need for snippets? benefit would be that metadata would be at root level of document for queies... might as well start that way!)
+- db retrieval
+	- chat *in process*
+	- member corechat
+
+##### `20230416`
+
+- JSON Schema -> Class in Globals
+	- improved roundtrip for emits
+	- db query for core chat
+	- $defs instantiated
+	- primary JSON object stable
+
+##### `20230415`
+
+- [25-store direct chat q&a contents in Cosmos](https://github.com/MyLife-Services/mylife-maht/issues/25)
+	- event emitter on question and answer
+		- While we don’t capture it in this example, the `emit()` function returns `true` if there are listeners for the event. If there are no listeners for an event, it returns `false`.
+* What does it mean when "being": "network", "name": "Dog's Life"?
+	* Infinity approaches again - a person can be a person place or thing: a network or nation or idea with the right productivity tool, and it seems like MyLife is just that...
+
+##### `20230414`
+
+- [25-store direct chat q&a contents in Cosmos](https://github.com/MyLife-Services/mylife-maht/issues/25)
+	- worked a lot on instantiating 
+		- kind of a rabbit-hole side project, but ultimately will be a great way of implementing
+
 ##### `20230413`
 
 - create daily release for Maht
+	- `version 0.0.1.0003`
 - incorporate session data into roles
 	- privatize functions in class
 	- move ctx.session -> ctx.state for request duration
