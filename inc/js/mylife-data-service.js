@@ -1,9 +1,16 @@
 //	imports
 import Datamanager from "./mylife-datamanager.js"
 class Dataservices{
+	//	pseudo-constructor
+	Datamanager = new Datamanager()
+	#mbr_id = this.Datamanager.getPartitionId()
+	//	constructor
 	constructor(){
-		this.Datamanager=new Datamanager()
-		this.mbr_id=this.getMemberId()
+		//	not yet needed
+	}
+	//	getters/setters
+	get memberId(){
+		return this.#mbr_id
 	}
 	//	public functions
 	async init(){
@@ -16,15 +23,30 @@ class Dataservices{
 	async getItem(_id){
 		return await this.Datamanager.getItem(_id)
 	}
-	//	public getters by BEING category
+	//	getters/setters
+	get core(){
+		return this.Datamanager.core
+	}
+	async pushItem(_data){
+		return await this.Datamanager.pushItem(_data)
+	}
 	getBio(){
 		return this.getCore().bio
 	}
-	getCore(){
-		return this.Datamanager.getCore()
-	}
-	getMemberId(){
-		return this.Datamanager.getPartitionId()
+	async getMemberPrimaryChat(){
+		return await this.Datamanager.find({
+			query: "SELECT u.id,u.mbr_id,u.parent_id,u.chatExchanges FROM members u WHERE u.being=@being AND u.mbr_id=@mbr_id",
+			parameters: [
+				{
+					name: "@being",
+					value: 'chat'
+				},
+				{
+					name: "@mbr_id",
+					value: this.#mbr_id
+				}
+			]
+		})
 	}
 	async getQuestions(){
 		return await this.Datamanager.find({
@@ -36,10 +58,13 @@ class Dataservices{
 				},
 				{
 					name: "@id",
-					value: this.mbr_id
+					value: this.#mbr_id
 				}
 			]
 		})
+	}
+	async commitRequest(_data={}){
+		return _data
 	}
 }
 //	exports
