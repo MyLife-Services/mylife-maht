@@ -37,8 +37,8 @@ mylifeMemberAgent
 		_callback(_chat[0])
 	})
 	.on('setItem',async (_data,_callback)=>{
-		const _chatExchange = _data.inspect()	//	await mylifeDataservices.addItem(_data.inspect())	//	present flat object
-		_callback(_chatExchange)
+		const _item = await mylifeDataservices.addItem(_data.inspect())	//	present flat object
+		_callback(_item)
 	})
 	.on('commitRequest',mylifeDataservices.commitRequest.bind(mylifeDataservices))
 mylifeMemberAgent.init()	//	initialize the member agent after listeners are attached

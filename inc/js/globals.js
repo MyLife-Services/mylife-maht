@@ -6,7 +6,7 @@ import { Guid } from 'js-guid'	//	Guid.newGuid().toString()
 // core class
 class Globals extends EventEmitter {
 	#excludeProperties = { 'none': true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
-	#excludeConstructors = { 'mbr_id': true }
+	#excludeConstructors = { 'none': true }
 	#path = './inc/json-schemas'
 	#schemas	//	when deployed, check against the current prod schemas
 	constructor() {
@@ -66,7 +66,7 @@ class Globals extends EventEmitter {
 	}
 	#compileClass(_className,_class){
 		// Create a new context and run the class code in it
-        const context = vm.createContext({ exports: {} })
+        const context = vm.createContext({ exports: {}, console: console })
         vm.runInContext(`exports.${_className} = ${_class}`, context)
 		//	compile class
         return context.exports[_className]
@@ -81,13 +81,10 @@ class Globals extends EventEmitter {
 		}
 		//	constructor
 		classCode += '	constructor(obj) {\n'	//	overwrite defaults with supplied values
-		for (const _prop in _properties) {
-			//	mbr_id must be force fed always by obj, as previously undefined
-			if(this.#excludeConstructors?._prop){ continue }
-			classCode += `		if(this?.#${_prop} && obj?.${_prop}){	this.#${_prop} = obj.${_prop}	}\n`
-		}
-		//	mbr_id however must always be supplied
-		classCode += `		this.#mbr_id = obj.mbr_id//	mbr_id must always be supplied\n`
+		classCode += '		for(const _key in obj){\n'
+		classCode += "			eval(`this.#${_key}=obj[_key]`)\n"	//	use eval to dynamically assign private props
+		classCode += '		}\n'
+		classCode += '		console.log("this",this.inspect())\n'
 		classCode += '  }\n'
 		// getters/setters
 		const _inspect = {}

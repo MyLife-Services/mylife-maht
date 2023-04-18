@@ -100,24 +100,39 @@ class MemberAgent extends EventEmitter {
 				console.log(err)
 				//	emit for server
 			})
+//		const _response = '7 is answer.'
 		console.log(chalk.bgGray('chat-response-received'),_response)
-		//	log output
+		//	store chat
 		const _chatExchange = new (globals.schema.chatExchange)({ 
 			mbr_id: this.memberId,
 			parent_id: this.chat.id,
 			chatSnippets: [],
 		})
+		console.log('question',_question)
+		const _chatSnippetQuestion = new (globals.schema.chatSnippet)({	//	no trigger to set
+			mbr_id: this.memberId,
+			parent_id: _chatExchange.id,
+			content: _question,
+			role: 'user',
+			contributor: this.memberId,
+		})
+		const _chatSnippetResponse = new (globals.schema.chatSnippet)({	//	no trigger to set
+			mbr_id: this.memberId,
+			parent_id: _chatExchange.id,
+			content: _response,
+		})
+		//	store question
+		this.emit('setItem',_chatSnippetQuestion,(_data)=>{	//	async-ed in server.js
+			_chatExchange.chatSnippets.unshift(_data)	//	load to chat reverse chronological order
+		})
+		//	store response
+		this.emit('setItem',_chatSnippetResponse,(_data)=>{	//	async-ed in server.js
+			_chatExchange.chatSnippets.unshift(_data)	//	load to chat reverse chronological order
+		})
 		this.emit('setItem',_chatExchange,(_data)=>{	//	async-ed in server.js
 			this.chat.chatExchanges.unshift(_data)	//	load to chat reverse chronological order
-			console.log('createChatExchange',this.chat.inspect())
 		})
-		
-/*
-		.shift(new (globals.schema.chatExchange)({	//	no trigger to set
-			role: 'assistant',
-			content: _response
-		}))
-*/
+		//	store response
 		return _response
 	}
 	//	PRIVATE functions
