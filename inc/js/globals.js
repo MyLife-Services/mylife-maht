@@ -5,7 +5,7 @@ import vm from 'vm'
 import { Guid } from 'js-guid'	//	Guid.newGuid().toString()
 // core class
 class Globals extends EventEmitter {
-	#excludeProperties = { 'none': true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
+	#excludeProperties = { '$schema': true, '$id': true, '$defs': true, "$comment": true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 	#excludeConstructors = { 'none': true }
 	#path = './inc/json-schemas'
 	#schemas	//	when deployed, check against the current prod schemas
@@ -76,6 +76,7 @@ class Globals extends EventEmitter {
 		let classCode = `class ${_className} {\n`
 		//	properties
 		for (const _prop in _properties) {	//	assign default values
+			if(_prop in this.#excludeProperties){ continue }
 			const _value = this.#assignClassPropertyValues(_properties[_prop],_schema)
 			classCode += `	#${(_value)?`${_prop} = ${_value}`:_prop}\n`
 		}
@@ -91,9 +92,7 @@ class Globals extends EventEmitter {
 		const _inspect = {}
 		for (const _prop in _properties) {
 			//	validate
-			if(_prop in this.#excludeProperties){
-				continue
-			}
+			if(_prop in this.#excludeProperties){ continue }
 			const _type = _properties[_prop].type
 			// generate getter
 			classCode += `	get ${_prop}() {\n		return this.#${_prop}\n	}\n`
