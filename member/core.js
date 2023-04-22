@@ -228,19 +228,20 @@ class MemberAgent extends EventEmitter {
 	}
 	//	organization functions
 	#getOrganizationDescription(){
-		return this.#memberCore.organization_description
+		return this.#memberCore.description
 	}
 	#getOrganizationMission(){
-		return this.#memberCore.organization_mission
+		return this.#memberCore.mission
 	}
 	#getOrganizationName(){
-		return this.#memberCore.organization_name[0]
+		console.log(this.#memberCore)
+		return this.#memberCore.name[0]
 	}
 	#getOrganizationValues(){
-		return this.#memberCore.organization_values
+		return this.#memberCore.values
 	}
 	#getOrganizationVision(){
-		return this.#memberCore.organization_vision
+		return this.#memberCore.vision
 	}
 	async #setChatSnippet(_role,_content){
 		//	emit to server for storage after validation

@@ -1,0 +1,35 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/agent.json",
+	"required": ["id", "mbr_id", "being", "name"],
+	"type": "object",
+	"name": "Agent",
+	"properties": {
+		"id": {
+			"description": "uuid of the human member",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also prtitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"being": {
+			"type": "string",
+			"const": "core",
+			"maximum": 32,
+			"description": "root constructor for human being in MyLife"
+		},
+		"name": {
+			"type": "string",
+			"maximum": 32,
+			"description": "agent name"
+		},
+		"nickname": {
+			"type": "string",
+			"maximum": 64,
+			"description": "agent nickname"
+		}
+	}
+}

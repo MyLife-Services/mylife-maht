@@ -53,6 +53,7 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 - [JSON Schema in 5 minutes](https://json-schema.org/blog/posts/json-schema-in-5-minutes)
 - [Get started with JSON Schema in Node.js](https://json-schema.org/blog/posts/get-started-with-json-schema-in-node-js)
 - [JSON Schema Cheatsheet](https://simonplend.com/wp-content/uploads/2020/12/JSON-Schema-Cheat-Sheet-v1.1.pdf)
+- [Structuring Complex JSON Schemae](https://json-schema.org/understanding-json-schema/structuring.html)
 
 ### Node
 
@@ -63,6 +64,10 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 - [Introduction to Backend Development with Koa](https://medium.com/swlh/introduction-to-backend-development-with-koa-139a6b7a14d)
 - [koa-generic-session](https://github.com/koajs/generic-session)
 	* For datastore look at: [koa-redis](https://www.npmjs.com/package/koa-redis)
+
+### Standards
+
+- [ISO-639](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes#Table_of_all_possible_two_letter_codes)
 
 ### AI
 
@@ -90,15 +95,65 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 - create daily release for Maht
 
+- JSON schema more fragmented - [complex schemas](https://json-schema.org/understanding-json-schema/structuring.html)
+	- JSON schema in repo for ALL types known
+	- core: human (org is so in flux and one-shot for now, hold off... at some point, corp will be )
+	- ergo, agent."core" would be the JSON schema itself
+		- especially once functions can be defined in the schema
+			- or more interestingly, point to repo/.js file to include!
+- AGENT: while Q-Maht would be the main agent, does each individual have a sub-agent that they can customize?
+	- yes, of course, ergo, a member could SWAP OUT agents that are nonetheless defined or referenced in the MyLife eco
+	- this should really clarify the church/state separation... the agent is the church, and the individual is the state, in other words, rather than there just being one agent, agent is a "being" and the prime being is MyLife the system itself v. Erik
+- JOIN: Corporate ONLY for now -- allows registration
+	- for now, just connects with manual list of outreach for actual account, and waiting list otherwise
+	- you get an AI, and YOU get an AI... all shadow-play for now, but really effective
+- QUESTION: (I'd/agent like to talk about something specific)
+	- list of q's (from cosmos)
+	- q-sandbox
+	- agent would add properties to doc all on its own -- should be prefaced with unique identifier, i.e., `MLq-` or source field
+		- would system keep own growing list of props? Yes?
+- sysname should not render down to any boolean version of false
 - if little JSON object converter works, someone could put it on npm
 - could someone learn copilot for me?!?
-- move MemberAgent to Session, wherein it must its own necessary singletons, like member data
 - assign further look at Azure Cog services for basic database access and look-up, i.e., can it contextualize/tokenize (not personalize, for that, it would need interface to personality kernal)
 - open up pipeline for file uploads
 	- uploads then tokenized
 	- fed nightly to gpt-2
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
+
+##### `20230420`
+
+- generate js classes for core objects and store in session
+	- human
+	- organization
+	- agent
+- REFACTOR: agent is now a class of .being and parent_id is .core
+	
+```
+To achieve this, you will need to modify your existing code structure to accommodate these changes. You will also need to create a new class for agents and refactor the 'corporation' part of the code to attach an agent.
+```
+
+- build Questions
+	- list of active questions
+	- list of updated questions
+	- question base sandbox
+
+##### `20230419`
+
+- built new MyLife org partition
+- JSON schema in repo for ALL types known
+	- human.json
+	- organization.json
+	- agent.json
+
+##### `20230418`
+
+- MyLife board meeting
+	- showed off Maht 
+		- focus on personalization next
+- pushed build `v..1.0004`
+- finished storage write for base chat
 
 ##### `20230417`
 

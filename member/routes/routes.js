@@ -5,7 +5,7 @@ const router = new Router()
 //	personal routes
 //	SYSTEM ONE
 router.post(
-	'gptTurboMaht',
+	'agentChat',
 	'/chat',
 	async ctx => {
 		await ctx.session.MemberAgent.processChatRequest(ctx)
@@ -13,14 +13,14 @@ router.post(
 	}
 )
 router.post(
-	'MemberAgentQuestion',
-	'/question',
+	'agentQuestion',
+	'/questions',
 	async ctx => {
 		ctx.body = { 'answer': _response }
 	}
 )
 router.get(
-	'MemberAgentAssistant',
+	'agentInfo',
 	'/getAssistant',
 	ctx => {
 		ctx.body = { 'answer': memberAgent.getAssistant() }
