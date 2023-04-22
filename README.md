@@ -55,9 +55,10 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 - [JSON Schema Cheatsheet](https://simonplend.com/wp-content/uploads/2020/12/JSON-Schema-Cheat-Sheet-v1.1.pdf)
 - [Structuring Complex JSON Schemae](https://json-schema.org/understanding-json-schema/structuring.html)
 
-### Node
+### Node/js
 
 - [EventEmitters](https://www.digitalocean.com/community/tutorials/using-event-emitters-in-node-js)
+- [bind-mechanics](https://javascript.info/bind)
 
 ### Koa
 
@@ -95,6 +96,11 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 - create daily release for Maht
 
+- build Questions
+	- list of active questions
+	- list of updated questions
+	- question base sandbox
+
 - JSON schema more fragmented - [complex schemas](https://json-schema.org/understanding-json-schema/structuring.html)
 	- JSON schema in repo for ALL types known
 	- core: human (org is so in flux and one-shot for now, hold off... at some point, corp will be )
@@ -122,6 +128,24 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
+##### `20230422`
+
+- create daily release for Maht
+- build Questions
+	- list of active questions
+	- list of updated questions
+	- question base sandbox
+
+##### `20230421`
+
+- fix bug in data saving routine for chat [creating phantom entities, etc] **DONE**
+- inspect() should return public and private properties **DONE**
+- create Name param in shadow class **DONE**
+- error storing data in cosmos **fixed**
+- remove error from new pipeline, looks like it is down to an error in instantiating agent() on constructor
+  - add try/catch to shadow-constructor
+- huge upgrade to class constructor code
+
 ##### `20230420`
 
 - generate js classes for core objects and store in session
@@ -131,13 +155,8 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - REFACTOR: agent is now a class of .being and parent_id is .core
 	
 ```
-To achieve this, you will need to modify your existing code structure to accommodate these changes. You will also need to create a new class for agents and refactor the 'corporation' part of the code to attach an agent.
+To achieve this, you will need to modify your existing code structure to accommodate these changes. You will also need to create a new class for agents and refactor the 'organization' part of the code to attach an agent.
 ```
-
-- build Questions
-	- list of active questions
-	- list of updated questions
-	- question base sandbox
 
 ##### `20230419`
 

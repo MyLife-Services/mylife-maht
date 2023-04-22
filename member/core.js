@@ -1,9 +1,11 @@
 //	imports
 import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
-import Globals from '../inc/js/globals.js'
 import chalk from 'chalk'
 import { abort } from 'process'
+import { _ } from 'ajv'
+//	import { _ } from 'ajv'
+//	import Globals from '../inc/js/globals.js'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -12,64 +14,86 @@ const config = new Configuration({
 	basePath: process.env.OPENAI_BASE_URL,
 }) 
 const openai = new OpenAIApi(config)
-const globals = await new Globals().init()
-console.log(chalk.yellow('global schema classes created:'),globals.schema)
 //	define export Classes
-class MemberAgent extends EventEmitter {
+class Member extends EventEmitter {
+	#agent
+	#chat
+	#core
 	#ctx
-	#memberCore
-	#memberChat
-	constructor(_core){	//	receive koa context payload
+	#dataservice
+	#excludeProperties = { '_none':true }
+	#mbr_id
+	#personalityKernal
+	#globals
+	constructor(_dataservice,_globals){	//	_core is a flat object
 		super()
-		this.aiAgent = openai
-		this.#memberCore = _core
+		this.#dataservice = _dataservice
+		this.#personalityKernal = openai
+		this.#globals = _globals
+		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
+			.filter((_prop)=>{	//	filter out excluded properties
+				const _charExlusions = ['_','@','$','%','!','*',' ']
+				return !(
+						(_prop[0] in this.#excludeProperties)
+					||	!(_charExlusions.indexOf(_prop[0].charAt()))
+				)
+				})
+			.map(_prop=>{	//	map to object
+				return { [_prop[0]]:_prop[1] }
+			})
+		this.#core = Object.assign({},...this.#core)	//	merge to single object
+		this.#mbr_id = this.#core.mbr_id
 	}
 	//	initialize
-	init(){
+	async init(){
+		if(!this.#agent) {
+			const _agentProperties = await this.#dataservice.getAgent()
+			this.#agent = await new (this.#globals.schema.agent)(_agentProperties)	//	agent
+		}
+		if(!this.#chat){
+			const _chatProperties = await this.#dataservice.getChat()
+			this.#chat = await new (this.#globals.schema.chat)(_chatProperties)	//	chat
+			this.#chat.name = `${ this.#chat.being }_${ this.#mbr_id }`
+		}
 		if(!this.#testEmitters()) {
 			throw new Error('emitters not initialized')
 		}
-		this.emit('getMemberPrimaryChat',(_data)=>{	//	async-ed in server.js
-			this.chat = _data	//	triggers set chat()
-		})	//	roundtrip function to get data from server.js
 		return this
 	}
 	//	getter/setter functions
+	get agent(){
+		return this.#agent
+	}
 	get chat(){
-		return this.#memberChat
+		return this.#chat
 	}
 	set chat(_chat){	//	assign chat object
-		this.#memberChat = new (globals.schema.chat)(_chat)
-		this.#memberChat.id = _chat.id	//	must assign
+		this.#chat = new (this.#globals.schema.chat)(_chat)
+		this.#chat.id = _chat.id	//	must assign
 	}
 	set chatExchange(_exchange) { // assign chat exchange via shift()
-		if (!(_exchange instanceof globals.schema.classExchange)) {
+		if (!(_exchange instanceof this.#globals.schema.classExchange)) {
 			throw new Error('_exchange must be an instance of classExchange')
 		}
-		this.#memberChat.chatExchange.shift(_exchange)	//	add to chatExchange array
-		console.log(this.#memberChat.chatExchange)
-		console.log('setChatExchange',this.#memberChat.chatExchange)
+		this.#chat.chatExchange.shift(_exchange)	//	add to chatExchange array
 	}
 	get core(){
-		return this.memberCore
+		return this.#core
 	}
 	get ctx(){
 		return this.#ctx
 	}
-	get memberChat(){
-		return this.chat
+	get member(){
+		return this.core
 	}
-	get memberCore(){
-		return this.#memberCore
-	}
-	get memberCoreSystemName(){
-		return memberId.split('|')[0]
+	get sysname(){
+		return mbr_id.split('|')[0]
 	}	
-	get memberCoreThread(){
-		return memberId.split('|')[1]
+	get sysid(){
+		return mbr_id.split('|')[1]
 	}
-	get memberId(){
-		return this.#memberCore.mbr_id
+	get mbr_id(){
+		return this.core.mbr_id
 	}
 	//	public functions
 	async processChatRequest(ctx){
@@ -88,7 +112,7 @@ class MemberAgent extends EventEmitter {
 		]
 		//	why won't anyone think of the tokens!?
 		//	insert ai-sniffer/optimizer
-		const _response = await this.aiAgent.createChatCompletion({
+		const _response = await this.#personalityKernal.createChatCompletion({
 			model: "gpt-3.5-turbo",
 			messages: aQuestion,
 	//		git: { repo: 'https://github.com/MyLife-Services/mylife-maht' },
@@ -107,43 +131,41 @@ class MemberAgent extends EventEmitter {
 			})
 		console.log(chalk.bgGray('chat-response-received'),_response)
 		//	store chat
-		const _chatExchange = new (globals.schema.chatExchange)({ 
-			mbr_id: this.memberId,
+		const _chatExchange = new (this.#globals.schema.chatExchange)({ 
+			mbr_id: this.mbr_id,
 			parent_id: this.chat.id,
 			chatSnippets: [],
 		})
-		_chatExchange.id = globals.newGuid	//	otherwise it reverts to specific, must always provide
-		const _chatSnippetQuestion = new (globals.schema.chatSnippet)({	//	no trigger to set
-			mbr_id: this.memberId,
+		_chatExchange.id = this.#globals.newGuid	//	otherwise it reverts to specific, must always provide
+		_chatExchange.name = `${ _chatExchange.being }_${ this.#mbr_id }`
+		const _chatSnippetQuestion = new (this.#globals.schema.chatSnippet)({	//	no trigger to set
+			mbr_id: this.mbr_id,
 			parent_id: _chatExchange.id,
 			content: _question,
 			role: 'user',
-			contributor: this.memberId,
+			contributor: this.mbr_id,
 		})
-		_chatSnippetQuestion.id = globals.newGuid	//	otherwise it reverts to specific, must always provide
-		const _chatSnippetResponse = new (globals.schema.chatSnippet)({	//	no trigger to set
-			mbr_id: this.memberId,
+		_chatSnippetQuestion.id = this.#globals.newGuid	//	otherwise it reverts to specific, must always provide
+		_chatSnippetQuestion.name = `${ _chatSnippetQuestion.being }_${ this.#mbr_id }`
+		const _chatSnippetResponse = new (this.#globals.schema.chatSnippet)({	//	no trigger to set
+			mbr_id: this.mbr_id,
 			parent_id: _chatExchange.id,
 			content: _response,
 		})
-		_chatSnippetResponse.id = globals.newGuid	//	otherwise it reverts to specific, must always provide
+		_chatSnippetResponse.id = this.#globals.newGuid	//	otherwise it reverts to specific, must always provide
+		_chatSnippetResponse.name = `${ _chatSnippetResponse.being }_${ this.#mbr_id }`
 		//	store response [reverse chronological order]
 		_chatExchange.chatSnippets.unshift(_chatSnippetResponse.id)	//	add to exchange
-		this.emit('setItem',_chatSnippetResponse,(_data)=>{	//	async-ed in server.js
-		})
+		await this.#dataservice.pushItem(_chatSnippetResponse.inspect(true))
 		//	store question
 		_chatExchange.chatSnippets.unshift(_chatSnippetQuestion.id)	//	add to exchange
-		this.emit('setItem',_chatSnippetQuestion,(_data)=>{	//	async-ed in server.js
-		})
+		await this.#dataservice.pushItem(_chatSnippetQuestion.inspect(true))
 		//	store exchange
 		this.chat.chatExchanges.unshift(_chatExchange.id)	//	add to chat
-		this.emit('setItem',_chatExchange,(_data)=>{	//	async-ed in server.js
-		})
+		await this.#dataservice.pushItem(_chatExchange.inspect(true))
 //		this.chat.chatExchanges = [].unshift(_chatExchange.id)	//	still fails with type is not array..?
 		//	store chat
-		this.emit('setItem',this.chat,(_data)=>{	//	async-ed in server.js
-			console.log('chat exchange stored',this.chat.chatExchanges)
-		})
+		await this.#dataservice.pushItem(this.chat.inspect(true))
 		//	return response
 		return _response
 	}
@@ -191,23 +213,23 @@ class MemberAgent extends EventEmitter {
 	}
 	//	agent functions
 	#getAgentDescriptor(){
-		return this.#memberCore.agent_descriptor
+		return this.core.agent_descriptor
 	}
 	#getAgentGender(){
 		//	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
-		return	this.#memberCore?.agent_gender
-			?	Array.isArray(this.#memberCore.agent_gender)
-				?	' '+this.#memberCore.agent_gender.join(this.#memberCore?.agent_gender_separatora?this.#memberCore.agent_gender_separator:'/')
-				:	this.#memberCore.agent_gender
+		return	this.core?.agent_gender
+			?	Array.isArray(this.core.agent_gender)
+				?	' '+this.core.agent_gender.join(this.core?.agent_gender_separatora?this.core.agent_gender_separator:'/')
+				:	this.core.agent_gender
 			:	''
 	}
 	#getAgentPronunciation(){
-		return	this.#memberCore?.agent_name_pronunciation
-			?	', pronounced "'+this.#memberCore.agent_name_pronunciation+'", '
+		return	this.core?.agent_name_pronunciation
+			?	', pronounced "'+this.core.agent_name_pronunciation+'", '
 			:	''
 	}
 	#getAgentProxyInformation(){
-		switch(this.#memberCore.form){
+		switch(this.core.form){
 			case 'organization':
 				return this.#getOrganizationDescription()
 			default:
@@ -219,8 +241,8 @@ class MemberAgent extends EventEmitter {
 	}
 	#getAgentName(bTokenize=false){
 		return (bTokenize)
-			?	this.#tokenize(this.#memberCore.agent_name)
-			:	this.#memberCore.agent_name
+			?	this.#tokenize(this.core.agent_name)
+			:	this.core.agent_name
 	}
 	//	member functions
 	#getMemberBio(){
@@ -228,31 +250,19 @@ class MemberAgent extends EventEmitter {
 	}
 	//	organization functions
 	#getOrganizationDescription(){
-		return this.#memberCore.description
+		return this.core.description
 	}
 	#getOrganizationMission(){
-		return this.#memberCore.mission
+		return this.core.mission
 	}
 	#getOrganizationName(){
-		console.log(this.#memberCore)
-		return this.#memberCore.name[0]
+		return this.core.name[0]
 	}
 	#getOrganizationValues(){
-		return this.#memberCore.values
+		return this.core.values
 	}
 	#getOrganizationVision(){
-		return this.#memberCore.vision
-	}
-	async #setChatSnippet(_role,_content){
-		//	emit to server for storage after validation
-		const _chatSnippet = globals.schemas
-			.then(_oSchemas=>{ return _oSchemas.chatSnippet })
-			.catch(err=>{ console.log(err) })
-		_chatSnippet.content = _content
-		_chatSnippet.contributor = this.#getAgentName()
-		_chatSnippet.role = _role
-		//	emit to server for storage
-		this.emit('storeBeing',_chatSnippet)
+		return this.core.vision
 	}
 //	misc functions
 	#detokenize(_str){
@@ -272,4 +282,4 @@ class MemberAgent extends EventEmitter {
 	}
 }
 //	exports
-export default MemberAgent
+export default Member
