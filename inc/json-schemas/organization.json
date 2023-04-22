@@ -1,0 +1,74 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/organization.json",
+	"required": ["id", "mbr_id", "being", "form", "type", "description", "mission", "name"],
+	"type": "object",
+	"name": "Organization",
+	"properties": {
+		"id": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"$comment": "sysname+uuid; note: sysname should not render down to any boolean version of false"
+		},
+		"being": {
+			"type": "string",
+			"const": "core"
+		},
+		"form": {
+			"type": "string",
+			"const": "organization",
+			"$comment": "as a core entity, should only be one (MyLife, i.e., this record for organizations"
+		},
+		"type": {
+			"type": "string",
+			"enum": ["corporation", "foundation", "political", "organization", "club", "group", "collective", "other"],
+			"default": "organization",
+			"$comment": "I see this as the root descriptor for the organization - i.e., MyLife is a nonprofit, educational _corporation_"
+		},
+		"board": {
+
+		},
+		"categories": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"enum": ["business", "community", "education", "educational", "government", "healthcare", "nonprofit", "philanthropy", "religion", "science", "research", "technology", "corporation", "political", "foundation", "animal welfare", "startup", "member", "artist", "other"],
+				"$comment": "I see this as the root descriptor for the organization - i.e., MyLife is a _nonprofit, member, educational_ corporation"
+			}
+		},
+		"description": {
+			"type": "string"
+		},
+		"governance": {
+			"type": "string"
+		},
+		"mission": {
+			"type": "string"
+		},
+		"moonshot": {
+			"type": "string"
+		},
+		"name": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"$comment": "Is array to cover multiple variants of the name (e.g., MyLife, MyLife, Inc., etc.)"
+		},
+		"roadmap": {
+			"type": "string"
+		},
+		"philosophy": {
+			"type": "string"
+		},
+		"values": {
+			"type": "string"
+		},
+		"vision": {
+			"type": "string"
+		}
+	}
+}
