@@ -30,7 +30,7 @@
 			"default": [],
 			"items": {
 				"type": "string",
-				"maximum": 32,
+				"maximum": 16,
 				"default": "eng",
 				"enum": ["eng","deu","dan","spa","fra","ita","jpn","kor","nld","por","rus","swe","zho"],
 				"$comment": "ISO 639-2T language codes"

@@ -24,7 +24,7 @@
 		},
 		"type": {
 			"type": "string",
-			"enum": ["corporation", "foundation", "political", "organization", "club", "group", "other"],
+			"enum": ["corporation", "foundation", "political", "organization", "club", "group", "collective", "other"],
 			"default": "organization",
 			"$comment": "I see this as the root descriptor for the organization - i.e., MyLife is a nonprofit, educational _corporation_"
 		},
@@ -35,7 +35,7 @@
 			"type": "array",
 			"items": {
 				"type": "string",
-				"enum": ["business", "community", "education", "educational", "government", "healthcare", "nonprofit", "philanthropy", "religion", "science", "research", "technology", "corporation", "political", "foundation", "animal welfare", "startup", "member", "other"],
+				"enum": ["business", "community", "education", "educational", "government", "healthcare", "nonprofit", "philanthropy", "religion", "science", "research", "technology", "corporation", "political", "foundation", "animal welfare", "startup", "member", "artist", "other"],
 				"$comment": "I see this as the root descriptor for the organization - i.e., MyLife is a _nonprofit, member, educational_ corporation"
 			}
 		},
