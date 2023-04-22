@@ -1,0 +1,63 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/agent.json",
+	"required": ["id", "mbr_id", "being", "name"],
+	"type": "object",
+	"name": "Agent",
+	"properties": {
+		"id": {
+			"description": "uuid of agent",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "parent id of agent"
+		},
+		"being": {
+			"type": "string",
+			"const": "agent",
+			"description": "root constructor for human being in MyLife"
+		},
+		"description": {
+			"type": "string",
+			"description": "agent description"
+		},
+		"developers": {
+			"type": "array",
+			"description": "endpoint developers"
+		},
+		"name": {
+			"type": "string",
+			"maximum": 32,
+			"minimum": 1,
+			"description": "agent system name",
+			"$comment": "; NOTE: this is the name of the *agent*, not the member"
+		},
+		"names": {
+			"type": "array",
+			"description": "agent names array",
+			"items": {
+				"type": "string",
+				"maximum": 32,
+				"minimum": 1,
+				"description": "agent name"
+			},
+			"maxItems": 128,
+			"minItems": 1,
+			"uniqueItems": true,
+			"$comment": "Can item contents reference the schema of the name property?"
+		},
+		"nickname": {
+			"type": "string",
+			"maximum": 64,
+			"description": "agent nickname"
+		}
+	}
+}

@@ -3,3 +3,4 @@ package-lock.json
 /node_modules/
 .env*
 .vscode/
+__*/ # ignore all folders starting with an underscore

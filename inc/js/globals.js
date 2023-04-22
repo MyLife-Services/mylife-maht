@@ -3,19 +3,26 @@ import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
 import { Guid } from 'js-guid'	//	Guid.newGuid().toString()
+import chalk from 'chalk'
 // core class
 class Globals extends EventEmitter {
-	#excludeProperties = { 'none': true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
-	#excludeConstructors = { 'none': true }
+	#excludeProperties = { '$schema': true, '$id': true, '$defs': true, "$comment": true, "name": true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
+	#excludeConstructors = { 'id': true }
 	#path = './inc/json-schemas'
 	#schemas	//	when deployed, check against the current prod schemas
 	constructor() {
 		super()
 	}
-	//	public functions
+	//	initialize
 	async init(){
 		this.#schemas = await this.#loadSchemas()
+		console.log(chalk.yellow('global schema classes created:'),this.schema)
 		return this
+	}
+	//	private functions
+   toString(_obj){
+		console.log("object",_obj)
+		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
 	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
@@ -64,70 +71,103 @@ class Globals extends EventEmitter {
 				}
 		}
 	}
-	#compileClass(_className,_class){
-		// Create a new context and run the class code in it
-        const context = vm.createContext({ exports: {}, console: console })
-        vm.runInContext(`exports.${_className} = ${_class}`, context)
-		//	compile class
-        return context.exports[_className]
+	#compileClass(_className, classCode) {
+		// Create a global vm context and run the class code in it
+		const context = vm.createContext({
+			exports: {},
+			console: console,
+			import: async _module => await import(_module),
+//			utils: utils,
+//			sharedData: sharedData,
+//			customModule: customModule,
+//			eventEmitter: EventEmitter,
+		})
+		vm.runInContext(classCode, context)
+		// Return the compiled class
+		return context.exports[_className]
 	}
 	#generateClassCode(_className,_properties,_schema){
-		//	generate class
-		let classCode = `class ${_className} {\n`
-		//	properties
-		for (const _prop in _properties) {	//	assign default values
+		//	delete known excluded _properties in source
+		for(const _prop in _properties){
+			if(_prop in this.#excludeProperties){ delete _properties[_prop] }
+		}
+		// Generate class
+		let classCode = `
+// Code will run in vm and pass-back class
+class ${_className} {
+	// private properties
+	#excludeConstructors = ${ '['+Object.keys(this.#excludeProperties).map(key => "'" + key + "'").join(',')+']' }
+	#name
+`
+		for (const _prop in _properties) {	//	assign default values as animated from schema
 			const _value = this.#assignClassPropertyValues(_properties[_prop],_schema)
 			classCode += `	#${(_value)?`${_prop} = ${_value}`:_prop}\n`
 		}
-		//	constructor
-		classCode += '	constructor(obj) {\n'	//	overwrite defaults with supplied values
-		classCode += '		for(const _key in obj){\n'
-		classCode += "			if(_key ==='id') continue\n"	//	use eval to dynamically assign private props
-		classCode += "			eval(`this.#${_key}=obj[_key]`)\n"	//	use eval to dynamically assign private props
-		classCode += '		}\n'
-//		classCode += '		console.log("this",this.inspect())\n'
-		classCode += '  }\n'
-		// getters/setters
-		const _inspect = {}
-		for (const _prop in _properties) {
-			//	validate
-			if(_prop in this.#excludeProperties){
-				continue
+		classCode += `
+	// class constructor
+	constructor(obj){
+		try{
+			for(const _key in obj){
+				//	exclude known private properties and db properties beginning with '_'
+				if(this.#excludeConstructors.filter(_prop=>{ return (_prop==_key || _key.charAt(0)=='_')}).length) { continue }
+				try{
+					eval(\`this.\#\${_key}=obj[_key]\`)
+				} catch(err){
+					eval(\`this.\${_key}=obj[_key]\`)	//	implicit getters/setters
+				}
 			}
+			console.log('${ _className } class constructed')
+		} catch(err) {
+			console.log(\`FATAL ERROR CREATING \${obj.being}\`)
+			console.log(err)
+			throw(err)
+		}
+	}
+	// if id changes are necessary, then use set .id() to trigger the change
+	// getters/setters for private vars
+	set name(_value) {
+		if (typeof _value !== 'string') {
+			throw new Error('Invalid type for property name. Expected string.')
+		}
+		this.#name = _value
+	}`
+		// getters/setters
+		for (const _prop in _properties) {
 			const _type = _properties[_prop].type
 			// generate getter
-			classCode += `	get ${_prop}() {\n		return this.#${_prop}\n	}\n`
-			// generate setter with type validation
-			classCode += `	set ${_prop}(_value) {\n`
-			classCode += `		if (typeof _value !== '${_type}') {\n`
-			classCode += `			throw new Error('Invalid type for property ${_prop}. Expected ${_type}.')\n`
-			classCode += '		}\n'
-			classCode += `		this.#${_prop} = _value\n	}\n`
-			//	add to inspect
-			_inspect[_prop] = `this.#${_prop}`
+			classCode += `
+	get ${_prop}() {
+		return this.#${_prop}
+	}
+	set ${_prop}(_value) {	// setter with type validation
+		if (typeof _value !== '${_type}') {
+			throw new Error('Invalid type for property ${_prop}. Expected ${_type}.')
+		}
+		this.#${_prop} = _value
+	}`
 		}
 		//	functions
 		//	inspect: returns a object representation of available private properties
-		classCode += '	inspect(){\n'	//	define function
-		classCode += `		const _this = {\n`
-		for (const _prop in _inspect) {
+		classCode += `	// public functions
+	inspect(_all=false){
+		let _this = (_all)?{`
+		for (const _prop in _properties) {
 			classCode += `			${_prop}: this.#${_prop},\n`
 		}
-		classCode += `		}\n`
-		classCode += '		return _this\n'
-		classCode += '	}\n'
-		// if id changes are necessary, then use set .id()
-		//	close class
-		classCode += '}\n'	//	close class
+		classCode += `		}:{}
+		return {...this,..._this,...{ name: this.#name }}
+	}
+}
+exports.${_className} = ${_className}`
 		return classCode
 	}
 	#generateClassFromSchema(_schema) {
 		//	get core class
 		const _className = _schema.name
 		const _properties = _schema.properties
-		const _class = this.#generateClassCode(_className,_properties,_schema)
+		const _classCode = this.#generateClassCode(_className,_properties,_schema)
 		//	compile class and return
-		return this.#compileClass(_className,_class)
+		return this.#compileClass(_className,_classCode)
 	}
 	get newGuid(){	//	this.newGuid
 		return Guid.newGuid().toString()
