@@ -1,17 +1,19 @@
 //	imports
 import Datamanager from "./mylife-datamanager.js"
-class Dataservices{
+class Dataservices{	//	convert to extension of Datamanager
 	//	pseudo-constructor
-	#Datamanager = new Datamanager()
-	#mbr_id = this.#Datamanager.getPartitionId()
+	#Datamanager
+	#mbr_id
 	//	constructor
-	constructor(){
+	constructor(_mbr_id){
+		this.#mbr_id = _mbr_id
 		//	NOTE: init() required, as population is async
 		//	agent and chat required
 	}
 	//	init function
 	async init(){
-		await this.#Datamanager.init()	//	init datamanager
+		this.#Datamanager=await new Datamanager(this.#mbr_id)
+			.init()	//	init datamanager
 		return this
 	}
 	//	getters/setters

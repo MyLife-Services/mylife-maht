@@ -1,9 +1,8 @@
 // imports
 import Router from 'koa-router'
-// variables
 const router = new Router()
+//	root get() route in server
 //	personal routes
-//	SYSTEM ONE
 router.post(
 	'agentChat',
 	'/chat',

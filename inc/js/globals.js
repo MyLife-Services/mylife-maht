@@ -21,7 +21,6 @@ class Globals extends EventEmitter {
 	}
 	//	private functions
    toString(_obj){
-		console.log("object",_obj)
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
 	}
 	get schema(){	//	proxy for schemas
@@ -116,7 +115,7 @@ class ${_className} {
 					eval(\`this.\${_key}=obj[_key]\`)	//	implicit getters/setters
 				}
 			}
-			console.log('${ _className } class constructed')
+			console.log('vm ${ _className } class constructed')
 		} catch(err) {
 			console.log(\`FATAL ERROR CREATING \${obj.being}\`)
 			console.log(err)

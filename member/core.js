@@ -3,9 +3,7 @@ import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
 import { abort } from 'process'
-import { _ } from 'ajv'
 //	import { _ } from 'ajv'
-//	import Globals from '../inc/js/globals.js'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -25,11 +23,11 @@ class Member extends EventEmitter {
 	#mbr_id
 	#personalityKernal
 	#globals
-	constructor(_dataservice,_globals){	//	_core is a flat object
+	constructor(_dataservice){
 		super()
-		this.#dataservice = _dataservice
+		this.#dataservice = _dataservice	//	individual cosmos dataservice by mbr_id
 		this.#personalityKernal = openai
-		this.#globals = _globals
+		this.#globals = global.Globals
 		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']
@@ -61,8 +59,17 @@ class Member extends EventEmitter {
 		return this
 	}
 	//	getter/setter functions
+	get _agent(){	//	introspected agent
+		return this.agent.inspect(true)
+	}
 	get agent(){
 		return this.#agent
+	}
+	get agentCommand(){
+		return this.#agent.command_word
+	}
+	get agentName(){
+		return this.agent.names[0]
 	}
 	get chat(){
 		return this.#chat
@@ -83,6 +90,12 @@ class Member extends EventEmitter {
 	get ctx(){
 		return this.#ctx
 	}
+	get email(){
+		return this.core.email
+	}
+	get mbr_id(){
+		return this.core.mbr_id
+	}
 	get member(){
 		return this.core
 	}
@@ -91,9 +104,6 @@ class Member extends EventEmitter {
 	}	
 	get sysid(){
 		return mbr_id.split('|')[1]
-	}
-	get mbr_id(){
-		return this.core.mbr_id
 	}
 	//	public functions
 	async processChatRequest(ctx){

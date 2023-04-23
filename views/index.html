@@ -1,0 +1,39 @@
+<div class="container">
+	<div id="board-toggle">
+		<button type="button" class="btn btn-outline-primary rounded-pill mx-2" onclick="toggleBoard()">
+			Meet the Board
+		</button>
+	</div>
+	<div id="board-buttons" style="display: none;">
+		<div class="btn-group d-flex justify-content-between" role="group">
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+				data-board-member="erik">Erik</button>
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+				data-board-member="ken">Ken</button>
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+				data-board-member="steve">Steve</button>
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+				data-board-member="sam">Sam</button>
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+				data-board-member="russ">Russ</button>
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
+				data-board-member="emily">Emily</button>
+		</div>
+		<div class="d-flex flex-column align-items-center my-3">
+			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 btn-hover-gray" onclick="toggleBoard()">
+				Close
+			</button>
+		</div>
+	</div>
+	<form id="chat-form">
+		<label for="message">Message:</label>
+		<textarea id="message"name="message" required class="form-control"></textarea>
+		<button type="submit" class="btn btn-primary mt-2">Submit</button>
+	</form>
+	<div id="await" class="loading">
+		<i class="fas fa-spinner fa-spin"></i>
+		<p id="connecting"></p>
+	</div>
+	<div id="response"></div>
+</div>
+<script src="js/main.js"></script>

@@ -1,8 +1,26 @@
-async function test(_data={}) {
-	console.log('received request',chalk.greenBright(_data))
-	return await mylifeDataservices?.commit(_data)	//	mylifeDataservices known by parent 
+async function about(ctx){
+	await ctx.render('about', {	//	about
+		title: 'About MyLife',
+		subtitle: 'Learn more about MyLife and your superintelligent future',
+	})
+}
+async function index(ctx){
+	await ctx.render('index', {
+		title: `Meet ${ global.ServerAgent.agentName }`,
+		subtitle: `AI-Agent for MyLife's membership and board of directors`,
+		board: ['Erik','Steve','Ken','Emily','Russ','Sam'],
+	})
+}
+async function register(ctx){
+	await ctx.render('register', {	//	register
+		title: 'Register',
+		subtitle: 'Register for MyLife',
+		registerEmail: global.ServerAgent.email,
+	})
 }
 // exports
 export {
-	test,
+	about,
+	index,
+	register,
 }
