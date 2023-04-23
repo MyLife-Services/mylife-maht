@@ -18,7 +18,7 @@ import chalk from 'chalk'
 import Globals from './inc/js/globals.js'
 import Dataservices from './inc/js/mylife-data-service.js'
 import Menu from './inc/js/menu.js'
-import Member from './member/core.js'
+import { Member, MyLife } from './member/core.js'
 import { router as MyLifeMemberRouter } from './member/routes/routes.js'
 import { router as MyLifeRouter } from './inc/js/routes.js'
 //	dotenv
@@ -34,7 +34,7 @@ const MemoryStore = new session.MemoryStore()
 //	Maht Singleton for server scope
 global.Globals = await new Globals()
 	.init()
-const _Maht = new Member(
+const _Maht = new MyLife(
 	(await new Dataservices(process.env.MYLIFE_SERVER_MBR_ID).init())
 )
 _Maht	//	attach event listeners
@@ -42,7 +42,7 @@ _Maht	//	attach event listeners
 		if(_callback)	_callback(true)
 	})
 await _Maht.init()	//	initialize member after event listeners are attached
-global.ServerAgent = _Maht	//	if human, this is the root, if core is org, it can proxy anyone in session
+global.Maht = _Maht	//	if human, this is the root, if core is org, it can proxy anyone in session
 global.Menu = new Menu().menu
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	koa-ejs
@@ -72,10 +72,11 @@ app.use(
 		},
 		app
 	))
-	.use(async (ctx,next) => {	//	login
-		if (!ctx.session?.MemberAgent) {
-			ctx.session.MemberAgent = await new Member(
-				await new Dataservices(process.env.MYLIFE_MEMBER_MBR_ID)
+	.use(async (ctx,next) => {	//	member login
+		if (!ctx.session?.MemberAgent) {	//	check if already logged in
+			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]
+			ctx.session.MemberAgent = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
+				await new Dataservices(_mbr_id)
 					.init()
 			)
 				.init()

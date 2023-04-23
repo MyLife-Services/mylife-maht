@@ -3,6 +3,9 @@ import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
 import { abort } from 'process'
+import { _ } from 'ajv'
+// core
+import Dataservices from '../inc/js/mylife-data-service.js'
 //	import { _ } from 'ajv'
 // config
 const config = new Configuration({
@@ -10,9 +13,9 @@ const config = new Configuration({
 	organizationId: process.env.OPENAI_ORG_KEY,
 	timeoutMs: process.env.OPENAI_TIMEOUT,
 	basePath: process.env.OPENAI_BASE_URL,
-}) 
+})
 const openai = new OpenAIApi(config)
-//	define export Classes
+//	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#agent
 	#chat
@@ -65,8 +68,15 @@ class Member extends EventEmitter {
 	get agent(){
 		return this.#agent
 	}
+	set agent(_){
+		throw new Error(`agent is read-only: ${_}`)
+	}
 	get agentCommand(){
-		return this.#agent.command_word
+		return this.agent.command_word
+	}
+	get agentDescription(){	//	agent description (not required)
+		if(!this.agent?.description) this.#agent.description = `AI-Agent for ${ this.name }`
+		return this.agent.description
 	}
 	get agentName(){
 		return this.agent.names[0]
@@ -90,6 +100,9 @@ class Member extends EventEmitter {
 	get ctx(){
 		return this.#ctx
 	}
+	get dataservice(){
+		return this.#dataservice
+	}
 	get email(){
 		return this.core.email
 	}
@@ -99,6 +112,9 @@ class Member extends EventEmitter {
 	get member(){
 		return this.core
 	}
+	get name(){
+		return this.core.name
+	}
 	get sysname(){
 		return mbr_id.split('|')[0]
 	}	
@@ -106,6 +122,13 @@ class Member extends EventEmitter {
 		return mbr_id.split('|')[1]
 	}
 	//	public functions
+	async getBoardAgent(){
+		//	get agent from pool based on incoming parent_id, or create
+	}
+	async setBoardAgent(_parent_id){
+		//	set agent for pool based on incoming parent_id
+		
+	}
 	async processChatRequest(ctx){
 		//	gatekeeper
 		//	throttle requests
@@ -291,5 +314,45 @@ class Member extends EventEmitter {
 		return '<||'+_str+'||>'
 	}
 }
+class MyLife extends Member {
+	#board
+	constructor(_dataservice){
+		super(_dataservice)
+	}
+	async init(){
+		//	assign board array
+		//this.board.push( await this.#dataservice.getBoard() )
+		await super.init()
+		const _board = await this.dataservice.getBoard()
+		this.#board = await this.#populateBoard(_board)	//	array of objects { mbr_id: agent }
+		return this
+	}
+	get board(){	//	board is dataservice query
+		return this.#board
+	}
+	get boardAgents(){
+		return this.#board
+	}
+	//	private functions
+	async #populateBoard(_board){
+		//	convert promises to array of agents
+		const _boardAgents = await Promise.all(
+			await _board.members
+				.map(async _boardMemberMbr_id=>{	//	find agent in board -- search for parent_id = board.id
+					return await new Member( (await new Dataservices(_boardMemberMbr_id).init()) )
+						.init()
+				})
+		)
+		//	set agent to board agent version of member, or create
+		_boardAgents.forEach(async _boardAgent=>{
+			await _boardAgent.setBoardAgent(_board.id)	//	parent_id = board.id
+		})
+		console.log('boardAgents:',_board)
+		return _boardAgents	//	returns array of agents that can be filtered
+	}
+}
 //	exports
-export default Member
+export {
+	Member,
+	MyLife,
+}
