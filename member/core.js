@@ -46,10 +46,11 @@ class Member extends EventEmitter {
 		this.#mbr_id = this.#core.mbr_id
 	}
 	//	initialize
-	async init(){
+	async init(_agent_parent_id=this.#mbr_id){
 		if(!this.#agent) {
-			const _agentProperties = await this.#dataservice.getAgent()
+			const _agentProperties = await this.#dataservice.getAgent(_agent_parent_id)
 			this.#agent = await new (this.#globals.schema.agent)(_agentProperties)	//	agent
+			this.#agent.name = `agent_${ this.agentName }_${ this.#mbr_id }`
 		}
 		if(!this.#chat){
 			const _chatProperties = await this.#dataservice.getChat()
@@ -112,6 +113,9 @@ class Member extends EventEmitter {
 	get member(){
 		return this.core
 	}
+	get memberName(){
+		return this.core.names[0]
+	}
 	get name(){
 		return this.core.name
 	}
@@ -122,13 +126,6 @@ class Member extends EventEmitter {
 		return mbr_id.split('|')[1]
 	}
 	//	public functions
-	async getBoardAgent(){
-		//	get agent from pool based on incoming parent_id, or create
-	}
-	async setBoardAgent(_parent_id){
-		//	set agent for pool based on incoming parent_id
-		
-	}
 	async processChatRequest(ctx){
 		//	gatekeeper
 		//	throttle requests
@@ -323,15 +320,18 @@ class MyLife extends Member {
 		//	assign board array
 		//this.board.push( await this.#dataservice.getBoard() )
 		await super.init()
-		const _board = await this.dataservice.getBoard()
+		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
 		this.#board = await this.#populateBoard(_board)	//	array of objects { mbr_id: agent }
 		return this
 	}
-	get board(){	//	board is dataservice query
+	get board(){	//	#board is array of Member objects
 		return this.#board
 	}
 	get boardAgents(){
-		return this.#board
+		return this.board.map(_boardMember=>{ return _boardMember.agent })
+	}
+	get boardListing(){
+		return this.board.map(_boardMember=>{ return _boardMember.memberName })
 	}
 	//	private functions
 	async #populateBoard(_board){
@@ -340,15 +340,11 @@ class MyLife extends Member {
 			await _board.members
 				.map(async _boardMemberMbr_id=>{	//	find agent in board -- search for parent_id = board.id
 					return await new Member( (await new Dataservices(_boardMemberMbr_id).init()) )
-						.init()
+						.init(_board.id)	//	parent_id
 				})
 		)
-		//	set agent to board agent version of member, or create
-		_boardAgents.forEach(async _boardAgent=>{
-			await _boardAgent.setBoardAgent(_board.id)	//	parent_id = board.id
-		})
-		console.log('boardAgents:',_board)
-		return _boardAgents	//	returns array of agents that can be filtered
+		//	console.log('_boardAgents',_boardAgents[3]?.agent.inspect(true))
+		return _boardAgents	//	returns a filterable array of agents
 	}
 }
 //	exports

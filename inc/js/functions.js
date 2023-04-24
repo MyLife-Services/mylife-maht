@@ -5,12 +5,11 @@ async function about(ctx){
 	})
 }
 async function board(ctx){
-	const _boardAgent = ''	//	get from url-param (get or post) load 
+	ctx.session.MemberAgent = await global.Maht.board[ctx.query?.bid]	//	resolves to zero
 	await ctx.render('board', {	//	board
 		title: 'Board of Directors',
 		subtitle: 'Meet the MyLife board of directors',
-		board: global.Maht.board,	//	array of nav objects by mbr_id
-		boardAgent: _boardAgent,	//	agent object
+		board: global.Maht.boardListing,	//	array of plain objects by mbr_id
 	})
 }
 async function index(ctx){
