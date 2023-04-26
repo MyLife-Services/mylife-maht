@@ -1,0 +1,35 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/organization.json",
+	"required": ["id", "mbr_id", "parent_id", "being"],
+	"type": "object",
+	"name": "Board",
+	"properties": {
+		"id": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"$comment": "sysname+uuid; note: sysname should not render down to any boolean version of false"
+		},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid",
+			"$comment": "uuid of parent core organization entry"
+		},
+		"being": {
+			"type": "string",
+			"const": "board"
+		},
+		"members": {
+			"type": "array",
+			"minItems": 1,
+			"items": {
+				"type": "string",
+				"format": "uuid",
+				"$comment": "uuid of associated upserted agent--when org<-->person, management scheme is defined in Agent, if member<-->member, it would establish its own mbr_id, and is a full sandbox buildout for social, and would have its own MyLife-based algorithms [i.e., creating amalgum of permissions from both individuals in the relationship]"
+			}
+		}
+	}
+}

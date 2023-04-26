@@ -21,6 +21,10 @@
 			"const": "core",
 			"description": "root constructor for human being in MyLife"
 		},
+		"bio": {
+			"type": "string",
+			"description": "human member biography"
+		},
 		"form": {
 			"type": "string",
 			"const": "human"
@@ -37,7 +41,7 @@
 			},
 			"$comment": "uses ISO 639-2 for list of languages in array order of preference"
 		},
-		"name": {
+		"names": {
 			"type": "array",
 			"items": {
 				"type": "string",

@@ -4,32 +4,32 @@ import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
 import { abort } from 'process'
 import { _ } from 'ajv'
+// core
+import Dataservices from '../inc/js/mylife-data-service.js'
 //	import { _ } from 'ajv'
-//	import Globals from '../inc/js/globals.js'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
 	organizationId: process.env.OPENAI_ORG_KEY,
 	timeoutMs: process.env.OPENAI_TIMEOUT,
 	basePath: process.env.OPENAI_BASE_URL,
-}) 
+})
 const openai = new OpenAIApi(config)
-//	define export Classes
+//	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#agent
 	#chat
 	#core
-	#ctx
 	#dataservice
 	#excludeProperties = { '_none':true }
 	#mbr_id
 	#personalityKernal
 	#globals
-	constructor(_dataservice,_globals){	//	_core is a flat object
+	constructor(_dataservice){
 		super()
-		this.#dataservice = _dataservice
+		this.#dataservice = _dataservice	//	individual cosmos dataservice by mbr_id
 		this.#personalityKernal = openai
-		this.#globals = _globals
+		this.#globals = global.Globals
 		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']
@@ -45,10 +45,11 @@ class Member extends EventEmitter {
 		this.#mbr_id = this.#core.mbr_id
 	}
 	//	initialize
-	async init(){
+	async init(_agent_parent_id=this.#globals.extractId(this.mbr_id)){
 		if(!this.#agent) {
-			const _agentProperties = await this.#dataservice.getAgent()
+			const _agentProperties = await this.#dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
 			this.#agent = await new (this.#globals.schema.agent)(_agentProperties)	//	agent
+			this.#agent.name = `agent_${ this.agentName }_${ this.#mbr_id }`
 		}
 		if(!this.#chat){
 			const _chatProperties = await this.#dataservice.getChat()
@@ -61,8 +62,53 @@ class Member extends EventEmitter {
 		return this
 	}
 	//	getter/setter functions
+	get _agent(){	//	introspected agent
+		return this.agent.inspect(true)
+	}
 	get agent(){
 		return this.#agent
+	}
+	set agent(_){
+		throw new Error(`agent is read-only: ${_}`)
+	}
+	get agentCommand(){
+		return this.agent.command_word
+	}
+	get agentDescription(){	//	agent description (not required)
+		if(!this.agent?.description) this.#agent.description = `I am ${ this.agentName }, AI-Agent for ${ this.name }`
+		return this.agent.description
+	}
+	get agentName(){
+		return this.agent.names[0]
+	}
+	get agentName_tokenized(){
+		return this.#tokenize(this.agentName)
+	}
+	get agentProxy(){
+		switch(this.form){	//	need switch because I could not overload class function
+			case 'organization':
+				return this.description
+			default:
+				return this.bio
+		}
+	}
+	get agentRole(){
+		switch(this.being){
+//			case 'agent':
+			default:	//	core
+				const regex = new RegExp(this.agentName, 'g')
+				const replacedDescription = this.agentDescription.replace(regex, this.agentName_tokenized)
+				return {
+						role: "system",
+						content: replacedDescription + ' ' + this.agentProxy
+					}
+		}
+	}
+	get being(){
+		return this.core.being
+	}
+	get bio(){
+		return this.core.bio
 	}
 	get chat(){
 		return this.#chat
@@ -80,11 +126,50 @@ class Member extends EventEmitter {
 	get core(){
 		return this.#core
 	}
-	get ctx(){
-		return this.#ctx
+	get dataservice(){
+		return this.#dataservice
+	}
+	get description(){
+		return this.core.description
+	}
+	get email(){
+		return this.core.email
+	}
+	get form(){
+		return this.core.form
+	}
+	get globals(){
+		return this.#globals
+	}
+	get humanQuestions(){
+		return [{
+			role: 'user',
+			content: `Why is ${ this.memberName } interested in MyLife?`
+		},
+		{
+			role: 'assistant',
+			content: this.agent.participation
+		},
+		{
+			role: 'user',
+			content: `How has ${ this.memberName } contributed to MyLife?`
+		},
+		{
+			role: 'assistant',
+			content: this.agent.contribution
+		}]
+	}
+	get mbr_id(){
+		return this.core.mbr_id
 	}
 	get member(){
 		return this.core
+	}
+	get memberName(){
+		return this.core.names[0]
+	}
+	get name(){
+		return this.core.name
 	}
 	get sysname(){
 		return mbr_id.split('|')[0]
@@ -92,24 +177,21 @@ class Member extends EventEmitter {
 	get sysid(){
 		return mbr_id.split('|')[1]
 	}
-	get mbr_id(){
-		return this.core.mbr_id
-	}
 	//	public functions
 	async processChatRequest(ctx){
 		//	gatekeeper
 		//	throttle requests
 		//	validate input
-		this.#setCtx(ctx)
 		const _question = ctx.request.body.message
 		//	log input
 		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`))
 		//	transform input
 		const aQuestion = [
-			this.#assignSystemRole(),	//	assign system role
+			this.agentRole,	//	assign system role
 			...this.#assignPrimingQuestions(),	//	assign few-shot learning prompts
-			this.#assignQuestion(_question)	//	assign user question
+			this.#formatQuestion(_question)	//	assign user question
 		]
+		console.log(aQuestion)
 		//	why won't anyone think of the tokens!?
 		//	insert ai-sniffer/optimizer
 		const _response = await this.#personalityKernal.createChatCompletion({
@@ -130,8 +212,9 @@ class Member extends EventEmitter {
 				//	emit for server
 			})
 		console.log(chalk.bgGray('chat-response-received'),_response)
+		return _response
 		//	store chat
-		const _chatExchange = new (this.#globals.schema.chatExchange)({ 
+		const _chatExchange = new (this.globals.schema.chatExchange)({ 
 			mbr_id: this.mbr_id,
 			parent_id: this.chat.id,
 			chatSnippets: [],
@@ -172,37 +255,18 @@ class Member extends EventEmitter {
 	//	PRIVATE functions
 	//	question/answer functions
 	#assignPrimingQuestions(){
-		return [{
-			role: 'user',
-			content: `What is ${this.#getOrganizationName()}'s mission?`
-		},
-		{
-			role: 'assistant',
-			content: this.#getOrganizationMission()
-		},
-		{
-			role: 'user',
-			content: `What are ${this.#getOrganizationName()}'s values and how do they plan to do it?`
-		},
-		{
-			role: 'assistant',
-			content: this.#getOrganizationValues()+' '+this.#getOrganizationVision()
-		}]
+		switch (this.form) {
+			case 'organization':
+				return this.corporateQuestions
+			default:
+				return this.humanQuestions
+		}
+		//	note: even if I just rotated 3 from a group of similarly worded questions (to elicit different vocab etc)
 	}
-	#assignQuestion(_question){
+	#formatQuestion(_question){
 		return {
 			role: 'user',
 			content: _question
-		}
-	}
-	#assignSystemRole(){
-		switch(this.core.being){
-//			case 'agent':
-			default:	//	core
-				return {
-						role: "system",
-						content: this.#getAgentSystemRole()
-					}
 		}
 	}
 	#formatResponse(_str){
@@ -211,10 +275,7 @@ class Member extends EventEmitter {
 			.replace(/(\s|^)mylife(\s|$)/gi, "$1<em>MyLife</em>$2")
 		return _response
 	}
-	//	agent functions
-	#getAgentDescriptor(){
-		return this.core.agent_descriptor
-	}
+/*
 	#getAgentGender(){
 		//	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
 		return	this.core?.agent_gender
@@ -223,53 +284,10 @@ class Member extends EventEmitter {
 				:	this.core.agent_gender
 			:	''
 	}
-	#getAgentPronunciation(){
-		return	this.core?.agent_name_pronunciation
-			?	', pronounced "'+this.core.agent_name_pronunciation+'", '
-			:	''
-	}
-	#getAgentProxyInformation(){
-		switch(this.core.form){
-			case 'organization':
-				return this.#getOrganizationDescription()
-			default:
-				return this.#getMemberBio()
-		}
-	}
-	#getAgentSystemRole(){
-		return `I am ${this.#getAgentName(true)}${this.#getAgentPronunciation()}${this.#getAgentGender()}, ${this.#getAgentDescriptor()}. ${this.#getAgentProxyInformation()}`
-	}
-	#getAgentName(bTokenize=false){
-		return (bTokenize)
-			?	this.#tokenize(this.core.agent_name)
-			:	this.core.agent_name
-	}
-	//	member functions
-	#getMemberBio(){
-		return 'not yet implemented'
-	}
-	//	organization functions
-	#getOrganizationDescription(){
-		return this.core.description
-	}
-	#getOrganizationMission(){
-		return this.core.mission
-	}
-	#getOrganizationName(){
-		return this.core.name[0]
-	}
-	#getOrganizationValues(){
-		return this.core.values
-	}
-	#getOrganizationVision(){
-		return this.core.vision
-	}
+*/
 //	misc functions
 	#detokenize(_str){
 		return _str.replace(/<\|\|/g,'').replace(/\|\|>/g,'')
-	}
-	#setCtx(ctx){
-		this.#ctx = ctx
 	}
 	async #testEmitters(){
 		//	test emitters with callbacks
@@ -281,5 +299,79 @@ class Member extends EventEmitter {
 		return '<||'+_str+'||>'
 	}
 }
+class MyLife extends Member {
+	#board
+	constructor(_dataservice){
+		super(_dataservice)
+	}
+	async init(){
+		//	assign board array
+		//this.board.push( await this.#dataservice.getBoard() )
+		await super.init()
+		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
+		this.#board = await new (this.globals.schema.board)(_board)
+		this.#board.members = await this.#populateBoard(_board)	//	should convert board.members to array of Member objects
+		return this
+	}
+	//	organization functions
+	get board(){	//	#board is array of Member objects
+		return this.#board
+	}
+	get boardListing(){
+		return this.board.members.map(_boardMember=>{ return _boardMember.memberName })
+	}
+	get boardMembers(){
+		return this.board.members	//	#board.members is an ordered array of Member objects
+	}
+	get corporateQuestions(){
+		return [{
+			role: 'user',
+			content: `What is ${ this.name }'s mission?`
+		},
+		{
+			role: 'assistant',
+			content: this.mission
+		},
+		{
+			role: 'user',
+			content: `What are ${ this.name }'s values and how do they plan to do it?`
+		},
+		{
+			role: 'assistant',
+			content: this.values+' '+this.vision
+		}]
+	}
+	get description(){
+		return this.core.description
+	}
+	get mission(){
+		return this.core.mission
+	}
+	get name(){
+		return this.core.names[0]
+	}
+	get values(){
+		return this.core.values
+	}
+	get vision(){
+		return this.core.vision
+	}
+	//	private functions
+	async #populateBoard(_board){
+		//	convert promises to array of agents
+		const _boardAgents = await Promise.all(
+			await _board.members
+				.map(async _boardMemberMbr_id=>{	//	find agent in board -- search for parent_id = board.id
+					return await new Member( (await new Dataservices(_boardMemberMbr_id).init()) )	//	init service with mbr_id
+						.init(_board.id)	//	request parent_id agent
+				})
+		)
+		return _boardAgents	//	returns filterable array of member.agent(s)
+	}
+	//	had wanted to overload assignPrimingQuestions, but there is no true overload in js
+}
 //	exports
-export default Member
+export {
+	Member,
+	MyLife,
+}
