@@ -212,7 +212,6 @@ class Member extends EventEmitter {
 				//	emit for server
 			})
 		console.log(chalk.bgGray('chat-response-received'),_response)
-		return _response
 		//	store chat
 		const _chatExchange = new (this.globals.schema.chatExchange)({ 
 			mbr_id: this.mbr_id,
