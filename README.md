@@ -96,11 +96,21 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 - create daily release for Maht
 
+- give MAHT the ability to self-install HRP modules or internal MyLife nodes
+  - "verbal" command would map to search of ecosystem, followed by animation of a JSON schema and saving it in its members partition... it should be as easy as that! zoinks?!
+- give MAHT/${Member} DOM access
+  - branding and styling engine
+  - each relationship sandbox (of course, any endpoint, if one wanted, I presume) could have its own collaborative styling profile that would incorporate cooperative feedback
+  - magic personalization
+	- make my background blue
+	- no, revert
+	- revert to original
+	- make my text red and create indent
 - build Questions
 	- list of active questions
 	- list of updated questions
 	- question base sandbox
-
+- cosmos stored procedures for aggregating individual chat logs for consumption by gpt-3-turbo
 - JSON schema more fragmented - [complex schemas](https://json-schema.org/understanding-json-schema/structuring.html)
 	- JSON schema in repo for ALL types known
 	- core: human (org is so in flux and one-shot for now, hold off... at some point, corp will be )
@@ -128,13 +138,30 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
-##### `20230422`
+##### `20230425`
 
-- create daily release for Maht
+Remember, any board questions would get attached (parent_id) to /board/ agent not core chat
+
+- ask system role to "emulate" writing of assistant speak like EWJ for personal digital assistant
+- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41)
+- require member openai sk-code to be stored in cosmos (can all be linked to one 'account' for now)
 - build Questions
 	- list of active questions
 	- list of updated questions
 	- question base sandbox
+
+##### `20230424`
+
+- fix oddity around multiple class creations from VM for one board member, must be calling the wrong function **DONE**
+
+##### `20230423`
+
+- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41)
+
+##### `20230422`
+
+- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41)
+- create daily release for Maht **DONE**
 
 ##### `20230421`
 

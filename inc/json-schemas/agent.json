@@ -25,6 +25,13 @@
 			"const": "agent",
 			"description": "root constructor for human being in MyLife"
 		},
+		"command_word": {
+			"type": "string",
+			"minimum": 2,
+			"maximum": 16,
+			"default": "agent",
+			"description": "trigger for command mode"
+		},
 		"description": {
 			"type": "string",
 			"description": "agent description"
@@ -57,6 +64,7 @@
 		"nickname": {
 			"type": "string",
 			"maximum": 64,
+			"default": "agent",
 			"description": "agent nickname"
 		}
 	}
