@@ -28,7 +28,7 @@ class Dataservices{	//	convert to extension of Datamanager
 		return this.#mbr_id
 	}
 	//	public functions
-	async getAgent(_parent_id=this.#mbr_id){	//	get specificed (or default) agent; one per parent_id, most recent only
+	async getAgent(_parent_id){	//	get specificed (or default) agent; one per parent_id, most recent only
 		const _agentsArray = (await this.getAgents())
 			.filter(_agent=>{
 				return _agent.parent_id === _parent_id

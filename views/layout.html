@@ -8,8 +8,6 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
 		integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
 		crossorigin="anonymous" referrerpolicy="no-referrer">
-	<link rel="stylesheet" href="assets/css/main.css">
-	<!--<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>-->
 	<title>MyLife.org</title>
 </head>
 <body>
@@ -17,8 +15,8 @@
 		<% include assets/html/_navbar %>
 	</div>
 	<div class="container">
-		<h1><%= title %></h1> <!-- koa-ejs title inclusion -->
-		<h2><%= subtitle %></h2> <!-- koa-ejs title inclusion -->
+		<% if(title!==undefined){ %><h1><%= title %></h1><% } %><!-- koa-ejs title inclusion -->
+		<% if(locals.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs title inclusion -->
 		<%- body %><!-- koa-ejs body inclusion -->
 	</div>
 </body>

@@ -1,39 +1,56 @@
 <div class="container">
-	<div id="board-toggle">
-		<button type="button" class="btn btn-outline-primary rounded-pill mx-2" onclick="toggleBoard()">
-			Meet the Board
-		</button>
-	</div>
-	<div id="board-buttons" style="display: none;">
-		<div class="btn-group d-flex justify-content-between" role="group">
-			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
-				data-board-member="erik">Erik</button>
-			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
-				data-board-member="ken">Ken</button>
-			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
-				data-board-member="steve">Steve</button>
-			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
-				data-board-member="sam">Sam</button>
-			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
-				data-board-member="russ">Russ</button>
-			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 board-member-button"
-				data-board-member="emily">Emily</button>
-		</div>
-		<div class="d-flex flex-column align-items-center my-3">
-			<button type="button" class="btn btn-outline-primary rounded-pill mx-2 btn-hover-gray" onclick="toggleBoard()">
-				Close
-			</button>
-		</div>
-	</div>
 	<form id="chat-form">
 		<label for="message">Message:</label>
 		<textarea id="message"name="message" required class="form-control"></textarea>
-		<button type="submit" class="btn btn-primary mt-2">Submit</button>
+		<button id="submit" type="submit" class="btn btn-primary mt-2">Submit</button>
+		<button id="await" name="await" class="btn btn-primary" type="button" disabled>
+			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+			Connecting with <%= agent.agentName %>...
+		</button>
 	</form>
-	<div id="await" class="loading">
-		<i class="fas fa-spinner fa-spin"></i>
-		<p id="connecting"></p>
-	</div>
 	<div id="response"></div>
 </div>
-<script src="js/main.js"></script>
+<script>
+// set vars and constants
+const awaitButton = document.getElementById('await');
+const chatForm = document.getElementById('chat-form');
+const messageInput = document.getElementById('message');
+const responseDiv = document.getElementById('response');
+const submitButton = document.getElementById('submit');
+awaitButton.style.display = 'none';
+// event listeners
+submitButton.addEventListener('click', (event) => {
+	submit(event);
+});
+// page functions
+async function submit(event) {
+	if (!messageInput.value) return alert('Please enter text to start chat!');
+	event.preventDefault();
+	console.log('submitChatQuestion');
+	submitButton.style.display = 'none';
+	awaitButton.style.display = 'block';
+	const url = window.location.origin;
+	const options = {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({message: messageInput.value }),
+	};
+	const _gptChat = await submitChat(url, options);
+	responseDiv.innerHTML = _gptChat.answer;
+	awaitButton.style.display = 'none';
+	submitButton.style.display = 'block';
+}
+async function submitChat(url, options) {
+	try {
+		const response = await fetch(url, options);
+		console.log('fetched response', response);
+		const jsonResponse = await response.json();
+		return jsonResponse;
+	} catch (err) {
+		console.log('fatal error', err);
+		return alert(`Error: ${err.message}`);
+	}
+}
+</script>

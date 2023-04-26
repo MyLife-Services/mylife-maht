@@ -19,10 +19,17 @@ class Globals extends EventEmitter {
 		console.log(chalk.yellow('global schema classes created:'),this.schema)
 		return this
 	}
-	//	private functions
-   toString(_obj){
+	//	public utility functions
+	extractId(_mbr_id){
+		return _mbr_id.split('|')[1]
+	}
+	extractSysName(_mbr_id){
+		return _mbr_id.split('|')[0]
+	}
+	toString(_obj){
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
 	}
+	//	getters/setters
 	get schema(){	//	proxy for schemas
 		return this.schemas
 	}
@@ -92,10 +99,11 @@ class Globals extends EventEmitter {
 		}
 		// Generate class
 		let classCode = `
-// Code will run in vm and pass-back class
+// Code will run in vm and pass back class
 class ${_className} {
 	// private properties
 	#excludeConstructors = ${ '['+Object.keys(this.#excludeProperties).map(key => "'" + key + "'").join(',')+']' }
+	#globals
 	#name
 `
 		for (const _prop in _properties) {	//	assign default values as animated from schema
@@ -115,6 +123,7 @@ class ${_className} {
 					eval(\`this.\${_key}=obj[_key]\`)	//	implicit getters/setters
 				}
 			}
+			//	this.#globals = global.Globals //	would have to be infused in the vm context
 			console.log('vm ${ _className } class constructed')
 		} catch(err) {
 			console.log(\`FATAL ERROR CREATING \${obj.being}\`)
@@ -130,17 +139,18 @@ class ${_className} {
 		}
 		this.#name = _value
 	}`
-		// getters/setters
 		for (const _prop in _properties) {
 			const _type = _properties[_prop].type
-			// generate getter
+			// generate getters/setters
 			classCode += `
 	get ${_prop}() {
 		return this.#${_prop}
 	}
 	set ${_prop}(_value) {	// setter with type validation
 		if (typeof _value !== '${_type}') {
-			throw new Error('Invalid type for property ${_prop}. Expected ${_type}.')
+			if(!('${_type}'==='array' && Array.isArray(_value))){
+				throw new Error('Invalid type for property ${_prop}: expected ${_type}')
+			}
 		}
 		this.#${_prop} = _value
 	}`

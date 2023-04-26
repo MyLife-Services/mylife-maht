@@ -9,7 +9,6 @@ import bodyParser from 'koa-bodyparser'
 import render from 'koa-ejs'
 import session from 'koa-generic-session'
 import Router from 'koa-router'
-//	import serve from 'koa-static'	//	serve json schemas
 //	misc
 import chalk from 'chalk'
 //	local services
@@ -72,20 +71,19 @@ app.use(
 		},
 		app
 	))
-	.use(async (ctx,next) => {	//	member login
-		if (!ctx.session?.MemberAgent) {	//	check if already logged in
-			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]
-			ctx.session.MemberAgent = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
+	.use(async (ctx,next) => {	//	SESSION: member login
+		if (!ctx.session?.Member) {	//	check if already logged in
+			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]	//	root host id
+			ctx.session.Member = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
 				await new Dataservices(_mbr_id)
 					.init()
 			)
 				.init()
-			console.log(chalk.bgBlue('created-member-agent:', chalk.bgRedBright(ctx.session.MemberAgent.agentName )))
+			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(ctx.session.Member.agentName )))
 		}
 		await next()
 	})
 	.use(bodyParser())	//	enable body parsing
-//	.use(serve(path.join(__dirname, 'client')))	// define a route for the index page and browsable directory
 	.use(router.routes())	//	enable routes
 	.use(router.allowedMethods())	//	enable routes
 	.use(MyLifeMemberRouter.routes())	//	enable member routes

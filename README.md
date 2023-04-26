@@ -98,7 +98,7 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 - give MAHT the ability to self-install HRP modules or internal MyLife nodes
   - "verbal" command would map to search of ecosystem, followed by animation of a JSON schema and saving it in its members partition... it should be as easy as that! zoinks?!
-- give MAHT/${MEMBERAGENT} DOM access
+- give MAHT/${Member} DOM access
   - branding and styling engine
   - each relationship sandbox (of course, any endpoint, if one wanted, I presume) could have its own collaborative styling profile that would incorporate cooperative feedback
   - magic personalization
@@ -138,17 +138,21 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
-##### `20230424`
+##### `20230425`
 
-Remember, the board question would get attached (parent_id) to /board/ agent not core chat
+Remember, any board questions would get attached (parent_id) to /board/ agent not core chat
 
-- fix oddity around multiple class creations from VM for one board member, must be calling the wrong function
+- ask system role to "emulate" writing of assistant speak like EWJ for personal digital assistant
 - [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41)
 - require member openai sk-code to be stored in cosmos (can all be linked to one 'account' for now)
 - build Questions
 	- list of active questions
 	- list of updated questions
 	- question base sandbox
+
+##### `20230424`
+
+- fix oddity around multiple class creations from VM for one board member, must be calling the wrong function **DONE**
 
 ##### `20230423`
 
