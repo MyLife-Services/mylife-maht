@@ -10,8 +10,8 @@ class Datamanager {
 	#coreId
 	#partitionId
 	//	constructor
-	constructor() {
-		const oConfig=new Config()
+	constructor(_root) {
+		const oConfig=new Config(_root)
 		const oOptions={
 			endpoint: oConfig.endpoint,
 			key: oConfig.rw_id,
