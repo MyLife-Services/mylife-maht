@@ -80,6 +80,9 @@ class Dataservices{	//	convert to extension of Datamanager
 		})
 
 	}
+	async patchItem(_id,_dataArray){
+		return await this.datamanager.patchItem(_id,_dataArray)
+	}
 	async pushItem(_data){
 		return await this.datamanager.pushItem(_data)
 	}

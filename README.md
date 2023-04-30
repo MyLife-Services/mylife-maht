@@ -94,6 +94,11 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 #### @Mookse Worklog
 
+- NOTE: Osiris is HRP db - i.e., the collection of personality databases that "compete" with MyLife (as opposed to extensions of MyLife, which are the MyLife nodes)
+- can sell custom guids to initial angel investors, later available as a premium feature
+  - ergo, reserve the obvious ones for higher gains, I'm happy with my given guid, otherwise I'd of course go with emptyGuid
+    - okay, so then! propose empty guid as something that gets passed around like a torch or baton to most recent highest donor/contributor...
+
 - create daily release for Maht
 
 - give MAHT the ability to self-install HRP modules or internal MyLife nodes
@@ -138,17 +143,60 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
-##### `20230425`
+##### `20230430`
 
-Remember, any board questions would get attached (parent_id) to /board/ agent not core chat
+- **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
+
+- primitive easter-eggs (epiphanies) for Maht
+- put command icon next to chat bubbles (exclamation point, or whatever)
+- on session end, ask gpt-turbo for summaries and save to chat object
+  - [chatSummary]
+
+- Create right-hand bar for:
+  - prompt questions
+  - corporate info
+  - personal bio
+
+- get bios in place for other members
+  - Steve started as `"ned|806d8f6a-f0ba-4352-bd12-252025fcd87d"`
 
 - ask system role to "emulate" writing of assistant speak like EWJ for personal digital assistant
-- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41)
 - require member openai sk-code to be stored in cosmos (can all be linked to one 'account' for now)
 - build Questions
 	- list of active questions
 	- list of updated questions
 	- question base sandbox
+	- Remember, any board question endpoints would get attached (parent_id) to /board/ agent not core chat
+
+##### `20230428`
+
+
+- establish rotation of few-shot q's based on assessment of category of active user input
+	- use text-babbge-01
+		- store categorization choices in db field, so that I can see how it's doing
+		- (this typeof) categorization data (for as long as needed) should be stored in agent priomarily (here Q - it will endure for now in global), as these are the sorts of actions that would differ from vantage point, i.e., each agent would have its own categorization data or way of seeing the core personality
+		- look into later possibly use ada embeddings? https://platform.openai.com/docs/guides/embeddings/use-cases
+
+```
+Give best category for Phrase about the nonprofit company MyLife.org
+Categories: Products, Services, Customer Support, Security, Business Info, Technology, Other
+Phrase: `user input`
+Category:
+```
+
+##### `20230427`
+
+- fe chat bubbles
+
+##### `20230426`
+
+- Deploy v..1.0006
+- get bios in place for other members
+  - Steve started as `"ned|806d8f6a-f0ba-4352-bd12-252025fcd87d"`
+
+##### `20230425`
+
+- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41) **DONE**
 
 ##### `20230424`
 
