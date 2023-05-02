@@ -123,7 +123,6 @@ class ${_className} {
 					eval(\`this.\${_key}=obj[_key]\`)	//	implicit getters/setters
 				}
 			}
-			//	this.#globals = global.Globals //	would have to be infused in the vm context
 			console.log('vm ${ _className } class constructed')
 		} catch(err) {
 			console.log(\`FATAL ERROR CREATING \${obj.being}\`)
@@ -132,13 +131,7 @@ class ${_className} {
 		}
 	}
 	// if id changes are necessary, then use set .id() to trigger the change
-	// getters/setters for private vars
-	set name(_value) {
-		if (typeof _value !== 'string') {
-			throw new Error('Invalid type for property name. Expected string.')
-		}
-		this.#name = _value
-	}`
+	// getters/setters for private vars`
 		for (const _prop in _properties) {
 			const _type = _properties[_prop].type
 			// generate getters/setters
@@ -164,7 +157,7 @@ class ${_className} {
 			classCode += `			${_prop}: this.#${_prop},\n`
 		}
 		classCode += `		}:{}
-		return {...this,..._this,...{ name: this.#name }}
+		return {...this,..._this}
 	}
 }
 exports.${_className} = ${_className}`
