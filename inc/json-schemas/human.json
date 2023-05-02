@@ -1,7 +1,7 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/human.json",
-	"required": ["id", "mbr_id", "being", "language", "agent", "chatExchanges"],
+	"required": ["id", "mbr_id", "being", "language", "agent"],
 	"type": "object",
 	"name": "Human",
 	"properties": {
@@ -64,14 +64,6 @@
 			"format": "uuid",
 			"description": "uuid of the agent representing this human member",
 			"$comment": "could later scale to array? Why not?"
-		},
-		"chatExchanges": {
-			"type": "array",
-			"default": [],
-			"items": {
-				"type": "string",
-				"format": "uuid"
-			}
 		}
 	}
 }

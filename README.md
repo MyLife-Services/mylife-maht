@@ -145,6 +145,19 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 ##### `20230430`
 
+- deploy to azure **DONE**
+- [Issue #47](https://github.com/MyLife-Services/mylife-maht/issues/47)
+-  move chat -> agent before further release
+-  convert chatExchange to conversation
+-  should also be patched when not upserted
+-  quote (with you in it) referring to machine ai-agent, human, or other?
+-  use intermediary engine
+-  which category for quote: "${ _question }"
+-  categories: greet, query, sharing, other
+
+- as with issue #49, going to rely more on babbage categorization, but concerned about scaling, so bring up with board
+- Need to move logic out from core -> agent
+
 - **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
 
 - primitive easter-eggs (epiphanies) for Maht
@@ -162,15 +175,16 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 - ask system role to "emulate" writing of assistant speak like EWJ for personal digital assistant
 - require member openai sk-code to be stored in cosmos (can all be linked to one 'account' for now)
-- build Questions
-	- list of active questions
+- build Ideas [is there a difference? Simplest to say no, that questions develop around ideas; ai could help combine ideas *into* formulations]
+  - list of active ideas
+  	- list of active questions
 	- list of updated questions
-	- question base sandbox
-	- Remember, any board question endpoints would get attached (parent_id) to /board/ agent not core chat
+  - idea base sandbox
+  - Remember, any board question endpoints would get attached (parent_id) to /board/ agent not core chat
 
 ##### `20230428`
 
-
+- [Issue #49](https://github.com/MyLife-Services/mylife-maht/issues/49)
 - establish rotation of few-shot q's based on assessment of category of active user input
 	- use text-babbge-01
 		- store categorization choices in db field, so that I can see how it's doing
