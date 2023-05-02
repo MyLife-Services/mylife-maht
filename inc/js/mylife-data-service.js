@@ -24,6 +24,9 @@ class Dataservices{	//	convert to extension of Datamanager
 	get datamanager(){
 		return this.#Datamanager
 	}
+	get id(){
+		return this.mbr_id.split('|')[1]
+	}
 	get mbr_id(){
 		return this.#mbr_id
 	}
@@ -54,31 +57,44 @@ class Dataservices{	//	convert to extension of Datamanager
 	}
 	async getBoards(){
 		//	board -> mbr_id but with board.id as "parent_id", if not exists, then create]
-		return await this.getItems('board',this.#rootSelect + ', u.members')
+		return await this.getItems('board','u.members')
 	}
 	getBio(){
 		return this.getCore().bio
 	}
-	async getChat(){
-		return (await this.getChats())[0]
+	async getChat(parent_id=this.id){
+		const _response = await this.getChats(parent_id)
+		return _response[0]	//	separate out [0] dimension here as it cannot be embedded in await
 	}
-	async getChats(){
-		return await this.getItems('chat',this.#rootSelect + ', u.chatExchanges')
+	async getChats(parent_id){
+		let _chats = await this.getItems('conversation','u.exchanges',[{ name: '@parent_id', value: parent_id }])
+		if(!_chats.length) _chats = await this.pushItem({	//	create chat
+			id: global.Globals.newGuid,
+			mbr_id: this.mbr_id,
+			parent_id: parent_id,
+			being: 'conversation',
+			exchanges: [],
+			name: `conversation_${ this.mbr_id }`,
+		})
+		return _chats
 	}
 	async getItem(_id){
 		return await this.datamanager.getItem(_id)
 	}
-	async getItems(_being,_selects=this.#rootSelect){	//	if any prop missing in db, is just not returned
-		return await this.datamanager.getItems({
-			query: `select ${_selects} from members u where u.being=@type`,
-			parameters: [
-				{
-					name: "@type",
-					value: _being
-				}
-			]
+	async getItems(_being,_selects='*',_paramsArray=[]){	//	_params is array of objects { name: '${varName}' }
+		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
+		if(_selects!='*') _selects = this.#rootSelect+', '+_selects
+		let _query = `select ${_selects} from members u`	//	@being is required
+		_paramsArray	//	iterate through parameters
+			.forEach(_param=>{	//	param is an object of name, value pairs
+				_query += (_param.name==='@being')
+					?	` where u.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
+					:	` and u.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
 		})
-
+		return await this.datamanager.getItems({
+			query: _query,
+			parameters: _paramsArray
+		})
 	}
 	async patchItem(_id,_dataArray){
 		return await this.datamanager.patchItem(_id,_dataArray)

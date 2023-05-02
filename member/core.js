@@ -6,7 +6,6 @@ import { abort } from 'process'
 import { _ } from 'ajv'
 // core
 import Dataservices from '../inc/js/mylife-data-service.js'
-import def from 'ajv/dist/vocabularies/applicator/additionalItems.js'
 //	import { _ } from 'ajv'
 // config
 const config = new Configuration({
@@ -19,19 +18,17 @@ const openai = new OpenAIApi(config)
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#agent
-	#categories = ['Biology','Interests','Professional','Skills','Other']	//	base human categories of personal definitions for inc q's (per agent) for infusion
-	#chat
+	#categories = ['Interests','Abilities','Preferences','Artifacts','Beliefs','Facts','Other']	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#core
 	#dataservice
 	#excludeProperties = { '_none':true }
 	#globals
 	#mbr_id
 	#personalityKernal
-	#requireQuestionType = false
 	constructor(_dataservice){
 		super()
 		this.#dataservice = _dataservice	//	individual cosmos dataservice by mbr_id
-		this.#personalityKernal = openai
+		this.#personalityKernal = openai	//	alterable, though would require different options and subelements, so should build into utility class
 		this.#globals = global.Globals
 		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
@@ -50,15 +47,13 @@ class Member extends EventEmitter {
 	//	initialize
 	async init(_agent_parent_id=this.#globals.extractId(this.mbr_id)){
 		if(!this.#agent) {
-			const _agentProperties = await this.#dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
+			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
 			this.#agent = await new (this.#globals.schema.agent)(_agentProperties)	//	agent
-			this.#agent.name = `agent_${ this.agentName }_${ this.#mbr_id }`
-			this.#agent.categories = this.#agent?.categories??this.#categories	//	assign categories
-		}
-		if(!this.#chat){
-			const _chatProperties = await this.#dataservice.getChat()
-			this.#chat = await new (this.#globals.schema.chat)(_chatProperties)	//	chat
-			this.#chat.name = `${ this.#chat.being }_${ this.#mbr_id }`
+			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
+			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
+			console.log('agent-chat-init',this.agent.description)
+			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
+			this.agent.chat = await new (this.#globals.schema.conversation)(_conversation)	//	agent chat assignment
 		}
 		if(!this.testEmitters()) {
 			throw new Error('emitters not initialized')
@@ -68,6 +63,9 @@ class Member extends EventEmitter {
 	//	getter/setter functions
 	get _agent(){	//	introspected agent
 		return this.agent.inspect(true)
+	}
+	get abilities(){
+		return this.core.abilities
 	}
 	get agent(){
 		return this.#agent
@@ -114,21 +112,17 @@ class Member extends EventEmitter {
 	get being(){
 		return this.core.being
 	}
+	get beliefs(){
+		return this.core.beliefs
+	}
 	get bio(){
 		return this.core.bio
 	}
+	get categories(){
+		return this.agent.categories
+	}
 	get chat(){
-		return this.#chat
-	}
-	set chat(_chat){	//	assign chat object
-		this.#chat = new (this.#globals.schema.chat)(_chat)
-		this.#chat.id = _chat.id	//	must assign
-	}
-	set chatExchange(_exchange) { // assign chat exchange via shift()
-		if (!(_exchange instanceof this.#globals.schema.classExchange)) {
-			throw new Error('_exchange must be an instance of classExchange')
-		}
-		this.#chat.chatExchange.shift(_exchange)	//	add to chatExchange array
+		return this.agent.chat
 	}
 	get core(){
 		return this.#core
@@ -142,29 +136,20 @@ class Member extends EventEmitter {
 	get email(){
 		return this.core.email
 	}
+	get facts(){
+		return this.core.facts
+	}
 	get form(){
 		return this.core.form
 	}
 	get globals(){
 		return this.#globals
 	}
-	get humanQuestions(){
-		return [{
-			role: 'user',
-			content: `Why is ${ this.memberName } interested in MyLife?`
-		},
-		{
-			role: 'assistant',
-			content: this.agent.participation
-		},
-		{
-			role: 'user',
-			content: `How has ${ this.memberName } contributed to MyLife?`
-		},
-		{
-			role: 'assistant',
-			content: this.agent.contribution
-		}]
+	get hobbies(){
+		return this.core.hobbies
+	}
+	get interests(){
+		return this.core.interests
 	}
 	get mbr_id(){
 		return this.core.mbr_id
@@ -181,11 +166,20 @@ class Member extends EventEmitter {
 	get personality(){
 		return this.#personalityKernal
 	}
+	get preferences(){
+		return this.core.preferences
+	}
+	get skills(){
+		return this.core.skills
+	}
 	get sysname(){
 		return mbr_id.split('|')[0]
 	}	
 	get sysid(){
 		return mbr_id.split('|')[1]
+	}
+	get values(){
+		return this.core.values
 	}
 	//	public functions
 	async processChatRequest(ctx){
@@ -193,14 +187,22 @@ class Member extends EventEmitter {
 		//	throttle requests
 		//	validate input
 		const _question = ctx.request.body.message
+		//	store question
+		const _chatSnippetQuestion = new (this.#globals.schema.chatSnippet)({	//	no trigger to set
+			content: _question,
+			contributor: this.mbr_id,
+			role: 'user',
+			timestamp: new Date().toISOString(),
+		})
 		//	log input
-		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`))
+		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`),_chatSnippetQuestion)
 		//	transform input
 		const aQuestion = [
 			this.agentRole,	//	assign system role
 			...await this.assignPrimingQuestions(_question),	//	assign few-shot learning prompts
 			this.formatQuestion(_question)	//	assign user question
 		]
+		console.log('aQuestion',aQuestion)
 		//	insert ai-sniffer/optimizer	//	why won't anyone think of the tokens!?
 		const _model = 'gpt-3.5-turbo'
 		const _response = await this.personality.createChatCompletion({
@@ -221,55 +223,160 @@ class Member extends EventEmitter {
 				//	emit for server
 			})
 		console.log(chalk.bgGray('chat-response-received'),_response)
-		//	store chat
-		const _chatExchange = new (this.globals.schema.chatExchange)({ 
-			mbr_id: this.mbr_id,
-			parent_id: this.chat.id,
-			chatSnippets: [],
-		})
-		_chatExchange.id = this.#globals.newGuid	//	otherwise it reverts to specific, must always provide
-		_chatExchange.name = `${ _chatExchange.being }_${ this.#mbr_id }`
-		const _chatSnippetQuestion = new (this.#globals.schema.chatSnippet)({	//	no trigger to set
-			mbr_id: this.mbr_id,
-			parent_id: _chatExchange.id,
-			content: _question,
-			role: 'user',
-			contributor: this.mbr_id,
-		})
-		_chatSnippetQuestion.id = this.#globals.newGuid	//	otherwise it reverts to specific, must always provide
-		_chatSnippetQuestion.name = `${ _chatSnippetQuestion.being }_${ this.#mbr_id }`
+		//	store response
 		const _chatSnippetResponse = new (this.#globals.schema.chatSnippet)({	//	no trigger to set
-			mbr_id: this.mbr_id,
-			parent_id: _chatExchange.id,
 			content: _response,
+			timestamp: new Date().toISOString(),
 		})
-		_chatSnippetResponse.id = this.#globals.newGuid	//	otherwise it reverts to specific, must always provide
-		_chatSnippetResponse.name = `${ _chatSnippetResponse.being }_${ this.#mbr_id }`
-		//	store response [reverse chronological order]
-		_chatExchange.chatSnippets.unshift(_chatSnippetResponse.id)	//	add to exchange
-		this.#dataservice.pushItem(_chatSnippetResponse.inspect(true))	//	no need to await, can happen async: baby's first fire and forget!
-		//	store question
-		_chatExchange.chatSnippets.unshift(_chatSnippetQuestion.id)	//	add to exchange
-		this.#dataservice.pushItem(_chatSnippetQuestion.inspect(true))
-		//	store exchange
-		this.chat.chatExchanges.unshift(_chatExchange.id)	//	add to chat
-		this.#dataservice.pushItem(_chatExchange.inspect(true))
-//		this.chat.chatExchanges = [].unshift(_chatExchange.id)	//	still fails with type is not array..?
-		//	store chat
-		this.#dataservice.pushItem(this.chat.inspect(true))
+		//	this.chat.exchanges.unshift(_chatSnippetResponse.inspect(true),_chatSnippetQuestion.inspect(true))	//	add to conversation [reverse chronological order]
+		this.#dataservice.patchItem(
+			this.chat.id,
+			[
+				{ op: 'add', path: `/exchanges/0`, value: _chatSnippetQuestion.inspect(true) },
+				{ op: 'add', path: `/exchanges/0`, value: _chatSnippetResponse.inspect(true) },
+			]	//	add array value)
+		)
 		//	return response
 		return _response
 	}
-	//	PRIVATE functions
 	//	question/answer functions
 	async assignPrimingQuestions(_question){
-		return []
+		return this.buildFewShotQuestions(
+			await this.fetchEnquiryMetadata(_question)	//	what question type category is this?
+		)
+	}
+	buildFewShotQuestions(_category){
+		const _fewShotQuestions = []
+		switch(_category){
+			case 'abilities':	//	abilities & skills
+				_fewShotQuestions.push(
+					this.chatObjectify(`${ this.memberName }'s abilities?`,false),
+					this.chatObjectify(this.abilities),
+					this.chatObjectify(`${ this.memberName }'s skills?`,false),
+					this.chatObjectify(this.skills),
+				)
+				break
+			case 'artifacts':	//	artifacts & possessions
+			case 'beliefs':	//	beliefs & values
+				_fewShotQuestions.push(
+					this.chatObjectify(`${ this.memberName }'s beliefs?`,false),
+					this.chatObjectify(this.beliefs),
+					this.chatObjectify(`${ this.memberName }'s values?`,false),
+					this.chatObjectify(this.values),
+				)
+				break
+			case 'facts':	//	biological and historical facts
+				_fewShotQuestions.push(
+					this.chatObjectify(`Some of ${ this.memberName }'s biological facts?`,false),
+					this.chatObjectify(this.facts.biological),
+					this.chatObjectify(`Some of ${ this.memberName }'s historical facts?`,false),
+					this.chatObjectify(this.facts.historical),
+				)
+				break
+			case 'interests':	//	interests & hobbies
+				_fewShotQuestions.push(
+					this.chatObjectify(`${ this.memberName }'s interests?`,false),
+					this.chatObjectify(this.interests),
+					this.chatObjectify(`${ this.memberName }'s hobbies?`,false),
+					this.chatObjectify(this.hobbies),
+				)
+				break
+			case 'preferences':	//	preferences & beliefs
+				_fewShotQuestions.push(
+					this.chatObjectify(`${ this.memberName }'s preferences?`,false),
+					this.chatObjectify(this.preferences),
+					this.chatObjectify(`${ this.memberName }'s beliefs?`,false),
+					this.chatObjectify(this.beliefs),
+				)
+				break
+			case 'relations':
+			case 'other':
+			default:	//	motivations & beliefs
+				_fewShotQuestions.push(
+					this.chatObjectify(`${ this.memberName }'s motivations?`,false),
+					this.chatObjectify(this.motivations),
+					this.chatObjectify(`${ this.memberName }'s beliefs?`,false),
+					this.chatObjectify(this.beliefs),
+				)
+				break
+		}
+		return _fewShotQuestions
 	}
 	chatObjectify(_content,_bAgent=true){
 		return {
 			role: (_bAgent)?'assistant':'user',
 			content: _content
 		}
+	}
+	async encodeQuestion(_question){
+		const _model = 'text-davinci-001'
+		const _youReference = await this.personality.createCompletion({
+			model: _model,
+			prompt: `Is "you" in quote likely referring to ai-agent, human, or unknown?\nQuote: "${_question}"\nRefers to:`,
+			temperature: 0,
+			max_tokens: 60,
+			top_p: 1,
+			frequency_penalty: 0.5,
+			presence_penalty: 0,
+		})
+			.then(
+				(_response)=>{
+					//	response insertion/alteration points for approval, validation, storage, pruning
+					//	challengeResponse(_response) //	insertion point: human reviewable
+					return _response.data.choices[0].text.trim().toLowerCase()
+				}
+			)
+			.catch(err=>{
+				console.log(err)
+				return 'unknown'	//	emit for server
+			})
+		//	youReference contains human
+		if(_youReference.includes('human')){
+			_question = _question.replace(/your/gi,`${this.memberName}'s`)	//	replace your with memberName's
+			_question = _question.replace(/you/gi,this.memberName)	//	replace you with memberName
+		}
+		console.log('youReference:',_youReference, _question)
+		return _youReference
+	} 
+	async fetchEnquiryMetadata(_question){	// human core
+		//	does _question contain string 'you'?
+		if(_question.toLowerCase().includes('you')) _question = this.encodeQuestion(_question)
+		//	what is the best category for this question?
+		const _model = 'text-davinci-001'
+		const _category = await this.personality.createCompletion({
+			model: _model,
+			prompt: `What is the best category for this quote?\nCategories: ${ this.categories.toString() }\nQuote: \"${ _question }\"\nCategory:`,	//	user array of human categories
+			temperature: 0,
+			max_tokens: 60,
+			top_p: 1,
+			frequency_penalty: 0.5,
+			presence_penalty: 0,
+		})
+			.then(
+				(_response)=>{
+					//	response insertion/alteration points for approval, validation, storage, pruning
+					//	challengeResponse(_response) //	insertion point: human reviewable
+					return _response.data.choices[0].text.trim().toLowerCase()
+				}
+			)
+			.catch(err=>{
+				console.log(err)
+				//	emit for server
+			})
+		const _categoryModeler = await this.dataservice.getItems('categorization','*')
+		if(_categoryModeler.length){	//	if storage easily accessible, use it
+			const _update = (_categoryModeler[0]?.[_model])
+				?	[{ op: 'add', path: `/${ _model }/-`, value: { [_category]: _question } }]	//	add array value
+				:	[{ op: 'add', path: `/${ _model }`, value: [{ [_category]: _question }] }]	//	create array
+			this.dataservice.patchItem(	//	temporary log; move to different db and perform async
+	//	Error: PartitionKey extracted from document doesn't match the one specified in the header
+				_categoryModeler[0].id,
+				_update
+			)
+			console.log(chalk.bold.blueBright(_model,_category))
+		}
+		console.log(314,this.categories.toString(),_category)
+		return _category
 	}
 	formatQuestion(_question){
 		return {
@@ -283,16 +390,6 @@ class Member extends EventEmitter {
 			.replace(/(\s|^)mylife(\s|$)/gi, "$1<em>MyLife</em>$2")
 		return _response
 	}
-/*
-	#getAgentGender(){
-		//	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining
-		return	this.core?.agent_gender
-			?	Array.isArray(this.core.agent_gender)
-				?	' '+this.core.agent_gender.join(this.core?.agent_gender_separatora?this.core.agent_gender_separator:'/')
-				:	this.core.agent_gender
-			:	''
-	}
-*/
 //	misc functions
 	detokenize(_str){
 		return _str.replace(/<\|\|/g,'').replace(/\|\|>/g,'')
@@ -328,7 +425,6 @@ class MyLife extends Member {	//	form=organization
 	}
 	buildFewShotQuestions(_questionType){
 		//	cascade through, only apply other if no length currently [either failed in assigned case or was innately other]
-		console.log(_questionType)
 		const _fewShotQuestions = []
 		switch(_questionType){
 			case 'products': case 'services':	//	 services & roadmap 
@@ -390,14 +486,13 @@ class MyLife extends Member {	//	form=organization
 					)
 				}
 		}
-		console.log('buildFewShotQuestions:_fewShotQuestions',_fewShotQuestions)
 		return _fewShotQuestions
 	}
 	async fetchEnquiryType(_question){	//	categorize, log and return
 		const _model = 'text-babbage-001'
 		const _category = await this.personality.createCompletion({
 			model: _model,
-			prompt: `Give best category for Phrase about the nonprofit company MyLife.org\nCategories: Products, Services, Customer Support, Security, Business Info, Technology, Other\nPhrase: \"${ _question }\"\nCategory:`,
+			prompt: `Give best category for Phrase about the nonprofit company MyLife.org\nCategories: ${ this.categories.toString() }\nPhrase: \"${ _question }\"\nCategory:`,
 			temperature: 0,
 			max_tokens: 32,
 			top_p: 1,
@@ -413,6 +508,7 @@ class MyLife extends Member {	//	form=organization
 			)
 			.catch(err=>{
 				console.log(err)
+				return 'other'
 				//	emit for server
 			})
 		const _categoryModeler = await this.dataservice.getItems('categorization','*')
@@ -428,6 +524,10 @@ class MyLife extends Member {	//	form=organization
 			console.log(chalk.bold.blueBright(_model,_category))
 		}
 		return _category
+	}
+	formatQuestion(_question){
+		//	question formatting
+		return super.formatQuestion(_question)
 	}
 	//	organization functions
 	get board(){	//	#board is array of Member objects
@@ -487,7 +587,6 @@ class MyLife extends Member {	//	form=organization
 		)
 		return _boardAgents	//	returns filterable array of member.agent(s)
 	}
-	//	had wanted to overload assignPrimingQuestions, but there is no true overload in js
 }
 //	exports
 export {

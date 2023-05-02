@@ -64,6 +64,7 @@ class Datamanager {
 		return resources
 	}
 	async patchItem(_id,_item) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		const { resource: _update } = await this.container
 			.item(_id,this.#partitionId)
 			.patch(_item)	//	see below for filter-patch example
