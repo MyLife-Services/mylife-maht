@@ -418,6 +418,13 @@ class MyLife extends Member {	//	form=organization
 		this.#board.members = await this.#populateBoard(_board)	//	should convert board.members to array of Member objects
 		return this
 	}
+	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
+		if(!ctx.session?.bInitialized) {
+			await this.#isQuestion(ctx.request.body.message)
+			ctx.session.bInitialized = true
+		}
+		return await super.processChatRequest(ctx)
+	}
 	async assignPrimingQuestions(_question){	//	corporate version
 		return this.buildFewShotQuestions(
 			await this.fetchEnquiryType(_question)	//	what question type is this?
@@ -576,6 +583,27 @@ class MyLife extends Member {	//	form=organization
 		return this.core.vision
 	}
 	//	private functions
+	async #isQuestion(_question){	//	question or statement, gpt-ada-
+		const _model = 'curie-instruct-beta'
+		await openai.createCompletion({
+			model: _model,
+			prompt: `Is the phrase: \"${_question}\", a question (yes/no)?`,
+			temperature: 0,
+			max_tokens: 12,
+			top_p: 0.52,
+			best_of: 3,
+			frequency_penalty: 0,
+			presence_penalty: 0,
+		})
+			.then(
+				(_response)=>{
+					//	response insertion/alteration points for approval, validation, storage, pruning
+					//	challengeResponse(_response) //	insertion point: human reviewable
+					//	add relevence question
+					if(_response.data.choices[0].text.trim().toLowerCase().replace('\n','').includes('no')) _question += ', how can MyLife help?'
+				})
+		return _question
+	}
 	async #populateBoard(_board){
 		//	convert promises to array of agents
 		const _boardAgents = await Promise.all(

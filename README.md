@@ -143,36 +143,21 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
-##### `20230430`
-
-- deploy to azure **DONE**
-- [Issue #47](https://github.com/MyLife-Services/mylife-maht/issues/47)
--  move chat -> agent before further release
--  convert chatExchange to conversation
--  should also be patched when not upserted
--  quote (with you in it) referring to machine ai-agent, human, or other?
--  use intermediary engine
--  which category for quote: "${ _question }"
--  categories: greet, query, sharing, other
-
-- as with issue #49, going to rely more on babbage categorization, but concerned about scaling, so bring up with board
-- Need to move logic out from core -> agent
+##### `20230502`
 
 - **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
 
+- [issue #57](https://github.com/MyLife-Services/mylife-maht/issues/57)
+- [issue #54](https://github.com/MyLife-Services/mylife-maht/issues/54)
+  - while on AMS calls, begin categorization of personal agent (not board) to render new categories
+    - ensure that it picks up these unique categories
+  - populate with personal, perhaps even Adam (since I have rich amounts)
+
+- secret word for login?
 - primitive easter-eggs (epiphanies) for Maht
 - put command icon next to chat bubbles (exclamation point, or whatever)
-- on session end, ask gpt-turbo for summaries and save to chat object
+- on session end, ask gpt-turbo for summaries and save to chat object -- this could be the manner to progress to archival storage and quick-access memory in addition to whatever innate mechanism (via tokenization) is assessed inside LLM itself
   - [chatSummary]
-
-- Create right-hand bar for:
-  - prompt questions
-  - corporate info
-  - personal bio
-
-- get bios in place for other members
-  - Steve started as `"ned|806d8f6a-f0ba-4352-bd12-252025fcd87d"`
-
 - ask system role to "emulate" writing of assistant speak like EWJ for personal digital assistant
 - require member openai sk-code to be stored in cosmos (can all be linked to one 'account' for now)
 - build Ideas [is there a difference? Simplest to say no, that questions develop around ideas; ai could help combine ideas *into* formulations]
@@ -181,6 +166,28 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 	- list of updated questions
   - idea base sandbox
   - Remember, any board question endpoints would get attached (parent_id) to /board/ agent not core chat
+- Create right-hand bar for:
+  - prompt questions
+  - corporate info
+  - personal bio
+
+##### `20230501`
+
+- [Issue #47](https://github.com/MyLife-Services/mylife-maht/issues/47) **DONE**
+
+##### `20230430`
+
+- [Issue #47](https://github.com/MyLife-Services/mylife-maht/issues/47)
+-  move chat -> agent before further release
+-  convert chatExchange to conversation
+-  should also be patched when not upserted
+-  quote (with you in it) referring to machine ai-agent, human, or other?
+-  use intermediary engine
+-  which category for quote: "${ _question }"
+-  categories: greet, query, sharing, other
+- deploy to azure **DONE**
+- as with issue #49, going to rely more on babbage categorization, but concerned about scaling, so bring up with board
+- Need to move logic out from core -> agent
 
 ##### `20230428`
 
