@@ -200,7 +200,7 @@ class Member extends EventEmitter {
 		const aQuestion = [
 			this.agentRole,	//	assign system role
 			...await this.assignPrimingQuestions(_question),	//	assign few-shot learning prompts
-			this.formatQuestion(_question)	//	assign user question
+			await this.formatQuestion(_question)	//	assign user question
 		]
 		console.log('aQuestion',aQuestion)
 		//	insert ai-sniffer/optimizer	//	why won't anyone think of the tokens!?
@@ -335,12 +335,9 @@ class Member extends EventEmitter {
 			_question = _question.replace(/your/gi,`${this.memberName}'s`)	//	replace your with memberName's
 			_question = _question.replace(/you/gi,this.memberName)	//	replace you with memberName
 		}
-		console.log('youReference:',_youReference, _question)
-		return _youReference
+		return _question
 	} 
 	async fetchEnquiryMetadata(_question){	// human core
-		//	does _question contain string 'you'?
-		if(_question.toLowerCase().includes('you')) _question = this.encodeQuestion(_question)
 		//	what is the best category for this question?
 		const _model = 'text-davinci-001'
 		const _category = await this.personality.createCompletion({
@@ -378,7 +375,8 @@ class Member extends EventEmitter {
 		console.log(314,this.categories.toString(),_category)
 		return _category
 	}
-	formatQuestion(_question){
+	async formatQuestion(_question){
+		if(this.form==='human') _question = await this.encodeQuestion(_question)
 		return {
 			role: 'user',
 			content: _question
@@ -417,6 +415,13 @@ class MyLife extends Member {	//	form=organization
 		this.#board = await new (this.globals.schema.board)(_board)
 		this.#board.members = await this.#populateBoard(_board)	//	should convert board.members to array of Member objects
 		return this
+	}
+	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
+		if(!ctx.session?.bInitialized) {
+			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
+			ctx.session.bInitialized = true
+		}
+		return await super.processChatRequest(ctx)
 	}
 	async assignPrimingQuestions(_question){	//	corporate version
 		return this.buildFewShotQuestions(
@@ -525,7 +530,7 @@ class MyLife extends Member {	//	form=organization
 		}
 		return _category
 	}
-	formatQuestion(_question){
+	async formatQuestion(_question){
 		//	question formatting
 		return super.formatQuestion(_question)
 	}
@@ -576,6 +581,27 @@ class MyLife extends Member {	//	form=organization
 		return this.core.vision
 	}
 	//	private functions
+	async #isQuestion(_question){	//	question or statement?
+		const _model = 'curie-instruct-beta'
+		await openai.createCompletion({
+			model: _model,
+			prompt: `Is the phrase: \"${_question}\", a question (yes/no)?`,
+			temperature: 0,
+			max_tokens: 12,
+			top_p: 0.52,
+			best_of: 3,
+			frequency_penalty: 0,
+			presence_penalty: 0,
+		})
+			.then(
+				(_response)=>{
+					//	response insertion/alteration points for approval, validation, storage, pruning
+					//	challengeResponse(_response) //	insertion point: human reviewable
+					//	add relevence question
+					if(_response.data.choices[0].text.trim().toLowerCase().replace('\n','').includes('no')) _question += ', how can MyLife help?'
+				})
+		return _question
+	}
 	async #populateBoard(_board){
 		//	convert promises to array of agents
 		const _boardAgents = await Promise.all(

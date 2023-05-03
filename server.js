@@ -60,7 +60,7 @@ app.use(
 	session(	//	session initialization
 		{
 			key: 'mylife.sid',   // cookie session id
-			maxAge: 86400000,     // session lifetime in milliseconds
+			maxAge: process.env.MYLIFE_SESSION_TIMEOUT_MS,     // session lifetime in milliseconds
 			autoCommit: true,
 			overwrite: true,
 			httpOnly: false,
@@ -72,7 +72,7 @@ app.use(
 		app
 	))
 	.use(async (ctx,next) => {	//	SESSION: member login
-		if (!ctx.session?.Member) {	//	check if already logged in
+		if(!ctx.session?.Member){	//	check if already logged in
 			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]	//	root host id
 			ctx.session.Member = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
 				await new Dataservices(_mbr_id)
