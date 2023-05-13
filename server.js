@@ -54,6 +54,8 @@ render(app, {
 })
 //	default root routes
 //	app bootup
+//	app context (ctx) modification
+app.context.MyLife = _Maht
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
 app.use(bodyParser())	//	enable body parsing
@@ -73,7 +75,8 @@ app.use(bodyParser())	//	enable body parsing
 			app
 		))
 	.use(async (ctx,next) => {	//	SESSION: member login
-		if(!ctx.session?.MyLife) ctx.session.MyLife = _Maht	//	attach Maht as root OS to session
+/*
+//	NOTE: Not yet required, only when member login is enabled
 		if(!ctx.session?.Member){	//	check if already logged in
 			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]	//	root host id
 			ctx.session.Member = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
@@ -84,11 +87,14 @@ app.use(bodyParser())	//	enable body parsing
 				.init()
 			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(ctx.session.Member.agentName )))
 		}
+*/
+		//	systen context
+		ctx.state.board = ctx.MyLife.boardListing	//	array of plain objects by full name
+		ctx.state.menu = new Menu(ctx.MyLife).menu
 		//	by default, will use system agent, but can be overridden by toggle on routing or other business logic
-		const _requestMemberAgent = ctx.session.MyLife
-		ctx.state.menu = new Menu(_requestMemberAgent).menu
-		ctx.state.member = _requestMemberAgent
-		ctx.state.agent = _requestMemberAgent.agent
+		if(!ctx.session?.member) ctx.session.member = ctx.MyLife
+		ctx.state.member = ctx.session.member
+		ctx.state.agent = ctx.state.member.agent
 		await next()
 	})
 	.use(MyLifeMemberRouter.routes())	//	enable member routes

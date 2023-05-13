@@ -44,12 +44,11 @@ class Member extends EventEmitter {
 			})
 		this.#core = Object.assign({},...this.#core)	//	merge to single object
 		this.#mbr_id = this.#core.mbr_id
-		console.log(this.#mbr_id,this.id)
 		this.agentBeacons.push(this.id)
 	}
 	//	initialize
 	async init(_agent_parent_id=this.globals.extractId(this.mbr_id)){
-		if(!this?.agent) {
+		if(!this?.agent) {	//	create agent
 			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
 			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
 			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
@@ -57,9 +56,7 @@ class Member extends EventEmitter {
 			console.log('agent-chat-init',this.agent.description)
 			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
 			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
-		}
-		if(!this.testEmitters()) {
-			throw new Error('emitters not initialized')
+			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		}
 		return this
 	}
@@ -236,6 +233,7 @@ class Member extends EventEmitter {
 			timestamp: new Date().toISOString(),
 		})
 		//	this.chat.exchanges.unshift(_chatSnippetResponse.inspect(true),_chatSnippetQuestion.inspect(true))	//	add to conversation [reverse chronological order]
+		console.log('chat.id',this.chat.id)
 		this.#dataservice.patchItem(
 			this.chat.id,
 			[
@@ -379,7 +377,6 @@ class Member extends EventEmitter {
 			)
 			console.log(chalk.bold.blueBright(_model,_category))
 		}
-		console.log(314,this.categories.toString(),_category)
 		return _category
 	}
 	async formatQuestion(_question){
@@ -408,15 +405,11 @@ class Member extends EventEmitter {
 	tokenize(_str){
 		return '<||'+_str+'||>'
 	}
-	async toggleResponseAgent(_agent_id){
-		this.responseAgent = _agent_id
-	}
 	//	private functions
 	#hasAgentAccess(_agent){
 		return (
 			this.agentBeacons	//	agent must be on beacon list
-				.filter(_=>{ 
-					console.log('_',_,this.agentBeacons,_===_agent.parent_id,_agent.parent_id)
+				.filter(_=>{
 					return _===_agent?.parent_id || this.mbr_id===_agent.mbr_id 
 				})	//	member must have rights to agent, cooperative or core
 				.length
@@ -428,13 +421,14 @@ class MyLife extends Member {	//	form=organization
 	constructor(_Dataservice,_Globals){
 		super(_Dataservice,_Globals)
 	}
+	//	public functions
 	async init(){
 		//	assign board array
 		await super.init()
 		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
 		this.board = await new (this.globals.schema.board)(_board)
 		this.agentBeacons.push(this.board.id)	//	board can host agents
-		this.board.members = await this.#populateBoard(_board)	//	should convert board.members to array of Member objects
+		this.board.members = await this.#populateBoard(_board)	//	convert board.members to array of Member objects
 		return this
 	}
 	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
@@ -555,9 +549,13 @@ class MyLife extends Member {	//	form=organization
 		//	question formatting
 		return super.formatQuestion(_question)
 	}
-	//	organization functions
+	toggleBoardMember(ctx){	//	id in array
+		this.agent = this.boardMembers[ctx.params.bid].agent
+		console.log(ctx.MyLife.agent.inspect(true))
+	}
+	//	getters/setters
 	get board(){	//	board is array of Member objects
-		return this.board
+		return this.board 
 	}
 	get boardListing(){
 		return this.board.members.map(_boardMember=>{ return _boardMember.memberName })

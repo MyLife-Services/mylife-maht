@@ -143,13 +143,10 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
+##### `20230513`
 
-
-##### `20230506`
-
-- [issue [#60](https://github.com/MyLife-Services/mylife-maht/issues/60) **DONE**
-
-- **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
+- almost done with #60, but chat is not saving to cosmos? Might well be, just need to refresh in order for document to show up altered based on patch
+- [issue #60](https://github.com/MyLife-Services/mylife-maht/issues/60) **DONE**
 
 - [issue #59](https://github.com/MyLife-Services/mylife-maht/issues/59)
   - Build content into board agent db entry, but 
@@ -157,6 +154,8 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 	- "BOARD" JSON schema would hold structure for itself, which includes a default of the required new agent fields, and an agent extension (i.e., inheritor) would be defined in 
   - i.e., extra data nodes attached to that style of agent specifically
   - thinking that any unique data values to be require/infused into agents would be first ascribed to the object itself: and yes, the requirement would be in JSON schema, and then $defs could handle the agent-specific "fields" that are needed/defaulted/required, yes -- they just need unique name (or directory I guess) to suss out
+
+- **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
 
 - [issue #54](https://github.com/MyLife-Services/mylife-maht/issues/54)
   - while on AMS calls, begin categorization of personal agent (not board) to render new categories
@@ -180,6 +179,10 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
   - prompt questions
   - corporate info
   - personal bio
+
+##### `20230506`
+
+- [issue [#60](https://github.com/MyLife-Services/mylife-maht/issues/60)
 
 ##### `20230502`
 
