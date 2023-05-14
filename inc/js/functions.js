@@ -31,6 +31,14 @@ async function index(ctx){
 		agent: global.Maht,
 	})
 }
+async function members(ctx){
+	const _mid = ctx.params?.mid??false	//	member id
+	await ctx.render('members', {	//	member
+		title: 'MyLife Member Home',
+		subtitle: ctx.session.Session.subtitle,
+		agent: ctx.session.Member.agent,
+	})
+}
 async function register(ctx){
 	await ctx.render('register', {	//	register
 		title: 'Register',
@@ -44,5 +52,6 @@ export {
 	chat,
 	board,
 	index,
+	members,
 	register,
 }

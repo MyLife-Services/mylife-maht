@@ -17,6 +17,7 @@ import chalk from 'chalk'
 import Globals from './inc/js/globals.js'
 import Dataservices from './inc/js/mylife-data-service.js'
 import Menu from './inc/js/menu.js'
+import MylifeMemberSession from './inc/js/session.js'
 import { Member, MyLife } from './member/core.js'
 import { router as MyLifeMemberRouter } from './member/routes/routes.js'
 import { router as MyLifeRouter } from './inc/js/routes.js'
@@ -72,15 +73,11 @@ app.use(
 		app
 	))
 	.use(async (ctx,next) => {	//	SESSION: member login
-		if(!ctx.session?.Member){	//	check if already logged in
-			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]	//	root host id
-			ctx.session.Member = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
-				await new Dataservices(_mbr_id)
-					.init()
-			)
-				.init()
-			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(ctx.session.Member.agentName )))
-		}
+		if(!ctx.session?.Session) ctx.session.Session = new MylifeMemberSession(process.env.MYLIFE_HOSTED_MBR_ID[0])
+		ctx.session.Member = 
+			(ctx.session.Session?.locked)	//	if locked, divert to Maht
+			?	_Maht
+			:	ctx.session.Session.member
 		await next()
 	})
 	.use(bodyParser())	//	enable body parsing

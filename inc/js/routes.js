@@ -1,6 +1,6 @@
 // imports
 import Router from 'koa-router'
-import { about, board, chat, index, register } from './functions.js'
+import { about, board, chat, index, members, register } from './functions.js'
 // variables
 const router = new Router()
 //	top-level system routes
@@ -25,6 +25,8 @@ router.post(
 	}
 )
 router.get('/board/:bid', board)
+router.get('/members', members)
+router.get('/members/:mid', members)
 router.get('/register', register)
 //	exports
 export { router }
