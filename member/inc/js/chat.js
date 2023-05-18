@@ -1,1 +1,0 @@
-//	global schema requirement

@@ -8,19 +8,11 @@ import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
 import render from 'koa-ejs'
 import session from 'koa-generic-session'
-import Router from 'koa-router'
+//	import Router from 'koa-router'
 //	misc
 import chalk from 'chalk'
 //	local services
-//	import { commitRequest } from './inc/js/functions.js'
-//	import MylifeMemberSession from './inc/js/session.js'
 import Globals from './inc/js/globals.js'
-import Dataservices from './inc/js/mylife-data-service.js'
-import Menu from './inc/js/menu.js'
-import MylifeMemberSession from './inc/js/session.js'
-import { Member, MyLife } from './member/core.js'
-import { router as MyLifeMemberRouter } from './member/routes/routes.js'
-import { router as MyLifeRouter } from './inc/js/routes.js'
 //	dotenv
 import koaenv from 'dotenv'
 koaenv.config()
@@ -29,21 +21,12 @@ const app = new Koa()
 const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const router = new Router()
 const MemoryStore = new session.MemoryStore()
-//	Maht Singleton for server scope
-global.Globals = await new Globals()
+const _Globals = await new Globals()
 	.init()
-const _Maht = new MyLife(
-	(await new Dataservices(process.env.MYLIFE_SERVER_MBR_ID).init())
-)
-_Maht	//	attach event listeners
-	.on('testEmitter',(_callback)=>{
-		if(_callback)	_callback(true)
-	})
-await _Maht.init()	//	initialize member after event listeners are attached
-global.Maht = _Maht	//	if human, this is the root, if core is org, it can proxy anyone in session
-global.Menu = new Menu().menu
+//	Maht Singleton for server scope
+const _Maht = await _Globals.getServer(process.env.MYLIFE_SERVER_MBR_ID)
+const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	koa-ejs
 render(app, {
@@ -55,38 +38,41 @@ render(app, {
 })
 //	default root routes
 //	app bootup
+//	app context (ctx) modification
+app.context.MyLife = _Maht
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
-app.use(
-	session(	//	session initialization
-		{
-			key: 'mylife.sid',   // cookie session id
-			maxAge: process.env.MYLIFE_SESSION_TIMEOUT_MS,     // session lifetime in milliseconds
-			autoCommit: true,
-			overwrite: true,
-			httpOnly: false,
-			signed: true,
-			rolling: false,
-			renew: false,
-  			store: MemoryStore,
-		},
-		app
-	))
+app.use(bodyParser())	//	enable body parsing
+	.use(
+		session(	//	session initialization
+			{
+				key: 'mylife.sid',   // cookie session id
+				maxAge: process.env.MYLIFE_SESSION_TIMEOUT_MS,     // session lifetime in milliseconds
+				autoCommit: true,
+				overwrite: true,
+				httpOnly: false,
+				signed: true,
+				rolling: false,
+				renew: false,
+				store: MemoryStore,
+			},
+			app
+		))
 	.use(async (ctx,next) => {	//	SESSION: member login
-		if(!ctx.session?.Session) ctx.session.Session = new MylifeMemberSession(process.env.MYLIFE_HOSTED_MBR_ID[0])
-		ctx.session.Member = 
-			(ctx.session.Session?.locked)	//	if locked, divert to Maht
-			?	_Maht
-			:	ctx.session.Session.member
+		//	systen context
+		if(!ctx.session?.MemberSession) ctx.session.MemberSession = new (_Globals.schemas.session)(JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0], _Maht.challengeAccess.bind(_Maht))	//	inject functionality into session object
+		ctx.state.board = ctx.MyLife.boardListing	//	array of plain objects by full name
+		ctx.state.menu = _Maht.menu
+		ctx.state.blocked = ctx.session.MemberSession.locked
+		ctx.state.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
+		ctx.state.member = ctx.session.MemberSession?.member
+		ctx.state.agent = ctx.state.member?.agent
 		await next()
 	})
-	.use(bodyParser())	//	enable body parsing
-	.use(router.routes())	//	enable routes
-	.use(router.allowedMethods())	//	enable routes
-	.use(MyLifeMemberRouter.routes())	//	enable member routes
-	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
-	.use(MyLifeRouter.routes())	//	enable system routes
-	.use(MyLifeRouter.allowedMethods())	//	enable system routes
+//	.use(MyLifeMemberRouter.routes())	//	enable member routes
+//	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
+	.use(serverRouter.routes())	//	enable system routes
+	.use(serverRouter.allowedMethods())	//	enable system routes
 	.listen(port, () => {	//	start the server
 		console.log(chalk.bgGreen(`server available on port ${port}`))
 	})

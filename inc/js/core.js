@@ -3,10 +3,10 @@ import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
 import { abort } from 'process'
-import { _ } from 'ajv'
-// core
-import Dataservices from '../inc/js/mylife-data-service.js'
 //	import { _ } from 'ajv'
+import Dataservices from './mylife-data-service.js'
+//	server-specific imports
+import initRouter from './routes.js'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -18,6 +18,7 @@ const openai = new OpenAIApi(config)
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#agent
+	agentBeacons = []
 	#categories = ['Interests','Abilities','Preferences','Artifacts','Beliefs','Facts','Other']	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#core
 	#dataservice
@@ -25,11 +26,11 @@ class Member extends EventEmitter {
 	#globals
 	#mbr_id
 	#personalityKernal
-	constructor(_dataservice){
+	constructor(_Dataservice,_Globals){
 		super()
-		this.#dataservice = _dataservice	//	individual cosmos dataservice by mbr_id
+		this.#dataservice = _Dataservice	//	individual cosmos dataservice by mbr_id
 		this.#personalityKernal = openai	//	alterable, though would require different options and subelements, so should build into utility class
-		this.#globals = global.Globals
+		this.#globals = _Globals
 		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']
@@ -43,20 +44,19 @@ class Member extends EventEmitter {
 			})
 		this.#core = Object.assign({},...this.#core)	//	merge to single object
 		this.#mbr_id = this.#core.mbr_id
+		this.agentBeacons.push(this.id)
 	}
 	//	initialize
-	async init(_agent_parent_id=this.#globals.extractId(this.mbr_id)){
-		if(!this.#agent) {
+	async init(_agent_parent_id=this.globals.extractId(this.mbr_id)){
+		if(!this?.agent) {	//	create agent
 			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
-			this.#agent = await new (this.#globals.schema.agent)(_agentProperties)	//	agent
+			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
 			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
 			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
 			console.log('agent-chat-init',this.agent.description)
 			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
-			this.agent.chat = await new (this.#globals.schema.conversation)(_conversation)	//	agent chat assignment
-		}
-		if(!this.testEmitters()) {
-			throw new Error('emitters not initialized')
+			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
+			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		}
 		return this
 	}
@@ -70,8 +70,9 @@ class Member extends EventEmitter {
 	get agent(){
 		return this.#agent
 	}
-	set agent(_){
-		throw new Error(`wtf-agent is read-only: ${_}`)
+	set agent(_agent){	//	must be instance of agent already
+		if(!this.#hasAgentAccess(_agent)) throw new Error('agent not known or not available to member')
+		this.#agent = _agent
 	}
 	get agentCategories(){
 		return this.agent.categories
@@ -151,6 +152,9 @@ class Member extends EventEmitter {
 	get interests(){
 		return this.core.interests
 	}
+	get id(){
+		return this.sysid
+	}
 	get mbr_id(){
 		return this.core.mbr_id
 	}
@@ -173,22 +177,21 @@ class Member extends EventEmitter {
 		return this.core.skills
 	}
 	get sysname(){
-		return mbr_id.split('|')[0]
+		return this.mbr_id.split('|')[0]
 	}	
 	get sysid(){
-		return mbr_id.split('|')[1]
+		return this.mbr_id.split('|')[1]
 	}
 	get values(){
 		return this.core.values
 	}
 	//	public functions
-	async processChatRequest(ctx){
+	async processChatRequest(_question){
 		//	gatekeeper
 		//	throttle requests
 		//	validate input
-		const _question = ctx.request.body.message
 		//	store question
-		const _chatSnippetQuestion = new (this.#globals.schema.chatSnippet)({	//	no trigger to set
+		const _chatSnippetQuestion = new (this.globals.schema.chatSnippet)({	//	no trigger to set
 			content: _question,
 			contributor: this.mbr_id,
 			role: 'user',
@@ -224,7 +227,7 @@ class Member extends EventEmitter {
 			})
 		console.log(chalk.bgGray('chat-response-received'),_response)
 		//	store response
-		const _chatSnippetResponse = new (this.#globals.schema.chatSnippet)({	//	no trigger to set
+		const _chatSnippetResponse = new (this.globals.schema.chatSnippet)({	//	no trigger to set
 			content: _response,
 			timestamp: new Date().toISOString(),
 		})
@@ -372,7 +375,6 @@ class Member extends EventEmitter {
 			)
 			console.log(chalk.bold.blueBright(_model,_category))
 		}
-		console.log(314,this.categories.toString(),_category)
 		return _category
 	}
 	async formatQuestion(_question){
@@ -401,27 +403,40 @@ class Member extends EventEmitter {
 	tokenize(_str){
 		return '<||'+_str+'||>'
 	}
+	//	private functions
+	#hasAgentAccess(_agent){
+		return (
+			this.agentBeacons	//	agent must be on beacon list
+				.filter(_=>{
+					return _===_agent?.parent_id || this.mbr_id===_agent.mbr_id 
+				})	//	member must have rights to agent, cooperative or core
+				.length
+		)	
+	}
 }
 class MyLife extends Member {	//	form=organization
-	#board
-	constructor(_dataservice){
-		super(_dataservice)
+	#Menu
+	#Router
+	board
+	constructor(_Dataservice,_Globals){
+		super(_Dataservice,_Globals)
 	}
+	//	public functions
 	async init(){
 		//	assign board array
-		//this.board.push( await this.#dataservice.getBoard() )
 		await super.init()
 		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
-		this.#board = await new (this.globals.schema.board)(_board)
-		this.#board.members = await this.#populateBoard(_board)	//	should convert board.members to array of Member objects
+		this.board = await new (this.globals.schema.board)(_board)
+		this.agentBeacons.push(this.board.id)	//	board can host agents
+		this.board.members = await this.#populateBoard(_board)	//	convert board.members to array of Member objects
 		return this
 	}
-	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
-		if(!ctx.session?.bInitialized) {
-			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
+	async processChatRequest(_chatRequest){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
+		if(!ctx.session?.bInitialized){
+			_chatRequest = await this.#isQuestion(_chatRequest)
 			ctx.session.bInitialized = true
 		}
-		return await super.processChatRequest(ctx)
+		return await super.processChatRequest(_chatRequest)
 	}
 	async assignPrimingQuestions(_question){	//	corporate version
 		return this.buildFewShotQuestions(
@@ -493,6 +508,10 @@ class MyLife extends Member {	//	form=organization
 		}
 		return _fewShotQuestions
 	}
+	async challengeAccess(_mbr_id,_passphrase){	//	if possible (async) injected into session object
+		//	ask global data service (stored proc) for passphrase
+		return await this.dataservice.challengeAccess(_mbr_id,_passphrase)
+	}
 	async fetchEnquiryType(_question){	//	categorize, log and return
 		const _model = 'text-babbage-001'
 		const _category = await this.personality.createCompletion({
@@ -534,15 +553,19 @@ class MyLife extends Member {	//	form=organization
 		//	question formatting
 		return super.formatQuestion(_question)
 	}
-	//	organization functions
-	get board(){	//	#board is array of Member objects
-		return this.#board
+	toggleBoardMember(ctx){	//	id in array
+		this.agent = this.boardMembers[ctx.params.bid].agent
+		console.log(ctx.MyLife.agent.inspect(true))
+	}
+	//	getters/setters
+	get board(){	//	board is array of Member objects
+		return this.board 
 	}
 	get boardListing(){
 		return this.board.members.map(_boardMember=>{ return _boardMember.memberName })
 	}
 	get boardMembers(){
-		return this.board.members	//	#board.members is an ordered array of Member objects
+		return this.board.members	//	board.members is an ordered array of Member objects
 	}
 	get description(){
 		return this.core.description
@@ -552,6 +575,12 @@ class MyLife extends Member {	//	form=organization
 	}
 	get membership(){
 		return this.core.membership
+	}
+	get menu(){
+		if(!this.#Menu){
+			this.#Menu = new (this.globals.schemas.menu)(this).menu
+		}
+		return this.#Menu
 	}
 	get mission(){
 		return this.core.mission
@@ -567,6 +596,12 @@ class MyLife extends Member {	//	form=organization
 	}
 	get roadmap(){
 		return this.core.roadmap
+	}
+	get router(){
+		if(!this.#Router){
+			this.#Router = initRouter(this, new (this.globals.schemas.menu)(this))
+		}
+		return this.#Router
 	}
 	get security(){
 		return this.core.security
@@ -607,7 +642,7 @@ class MyLife extends Member {	//	form=organization
 		const _boardAgents = await Promise.all(
 			await _board.members
 				.map(async _boardMemberMbr_id=>{	//	find agent in board -- search for parent_id = board.id
-					return await new Member( (await new Dataservices(_boardMemberMbr_id).init()) )	//	init service with mbr_id
+					return await new Member( (await new Dataservices(_boardMemberMbr_id).init()),this.globals )	//	init service with mbr_id
 						.init(_board.id)	//	request parent_id agent
 				})
 		)

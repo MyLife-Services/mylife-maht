@@ -15,8 +15,8 @@
 		<% include assets/html/_navbar %>
 	</div>
 	<div class="container">
-		<% if(title!==undefined){ %><h1><%= title %></h1><% } %><!-- koa-ejs title inclusion -->
-		<% if(locals.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs title inclusion -->
+		<% if(locals?.title){ %><h1><%= title %></h1><% } %><!-- koa-ejs title inclusion -->
+		<% if(locals?.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs title inclusion -->
 		<%- body %><!-- koa-ejs body inclusion -->
 	</div>
 </body>

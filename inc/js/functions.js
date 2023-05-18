@@ -1,54 +1,61 @@
+//	need to process any session actions at a layer higher than this, preferably session emitter to all objects?
 async function about(ctx){
-	await ctx.render('about', {	//	about
-		title: 'About MyLife',
-		subtitle: 'Learn more about MyLife and your superintelligent future',
-		board: global.Maht.boardListing,	//	array of plain objects by full name
-	})
+	ctx.state.member = ctx.MyLife.member
+	ctx.state.agent = ctx.state.member.agent
+	ctx.state.title = `About MyLife`
+	ctx.state.subtitle = `Learn more about MyLife and your superintelligent future`
+	await ctx.render('about')	//	about
 }
 async function board(ctx){
-	//	parent id SHOULD be '2f5e98b7-4065-4378-8e34-1a9a41c42ab9'
-	const _bid = ctx.params?.bid??0
-	if(	ctx.session?.Member.agent.id !== await global.Maht.boardMembers[_bid].agent.id ){	//	check session agent against global
-		ctx.session.Member = global.Maht.boardMembers[_bid]	//	set session agent to global
-		console.log('switching-session-member', ctx.session.Member.agentName)
-	}
-	await ctx.render('board', {	//	board
-		title: 'Board of Directors',
-		board: global.Maht.boardListing,	//	array of plain objects by mbr_id
-		agent: ctx.session.Member.agent,
-	})
+	ctx.state.member = ctx.MyLife.boardMembers[ctx.params.bid]
+	ctx.state.agent = ctx.state.member.agent
+	ctx.state.title = `Board of Directors`
+	await ctx.render('board')	//	board
 }
-async function chat(){
-	async ctx => {
-		await ctx.session.Member.processChatRequest(ctx)
-			.then(_response => ctx.body = { 'answer': _response })
-	}
+async function challenge(ctx){
+	//	send challenge processing to member: currently session, as state is only for page variable representation
+	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
+}
+async function chat(ctx){
+	//	move chat processing to member's agent
+	const _response = await ctx.session.member.processChatRequest(ctx.request.body.message)
+	ctx.body = { 'answer': _response }
 }
 async function index(ctx){
-	await ctx.render('index', {
-		title: `Meet ${ global.Maht.agentName }`,
-		subtitle: `${global.Maht.agentDescription}`,
-		agent: global.Maht,
-	})
+	ctx.state.title = `Meet ${ ctx.MyLife.member.agentName }`
+	ctx.state.subtitle = `${ctx.MyLife.member.agentDescription}`
+	await ctx.render('index')
 }
 async function members(ctx){
-	const _mid = ctx.params?.mid??false	//	member id
-	await ctx.render('members', {	//	member
-		title: 'MyLife Member Home',
-		subtitle: ctx.session.Session.subtitle,
-		agent: ctx.session.Member.agent,
-	})
+	ctx.state.mid = ctx.params?.mid??false	//	member id
+	ctx.state.title = `Your MyLife Digital Home`
+	switch (true) {
+		case !ctx.state.mid:
+			ctx.state.subtitle = `Select your membership to continue:`
+			await ctx.render('members-select')
+			break
+		case ctx.state.blocked:	//	should emit to server.js to manage ctx session, not here
+			ctx.session.MemberSession
+			ctx.session.MemberSession.mbr_id = ctx.state.mid	//	initialize member session with 'new' member id
+			ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.state.mid.split('|')[0] }]:`
+			await ctx.render('members-challenge')
+			break
+		default:
+			ctx.state.subtitle = `Welcome ${ctx.state.member.agentName}`
+			await ctx.render('members')
+			break
+	}
 }
 async function register(ctx){
-	await ctx.render('register', {	//	register
-		title: 'Register',
-		subtitle: 'Register for MyLife',
-		registerEmail: global.Maht.email,
-	})
+	ctx.state.title = `Register`
+	ctx.state.subtitle = `Register for MyLife`
+	ctx.state.registerEmail = ctx.state.agent.email
+	await ctx.render('register')	//	register
 }
 // exports
 export {
 	about,
+	challenge,
 	chat,
 	board,
 	index,
