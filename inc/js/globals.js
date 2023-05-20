@@ -27,14 +27,14 @@ class Globals extends EventEmitter {
 	}
 	//	public utility functions
 	async getMember(_mbr_id){
-		const _r =  await new (this.schemas.member)()
-			.init(_mbr_id)
+		const _r =  await new (this.schemas.member)(await new (this.schema.dataservices)(_mbr_id).init(),this)
+			.init()
 		return _r
 	}
 	async getServer(_mbr_id){
 		const _r = await new (this.schemas.server)(await new (this.schema.dataservices)(_mbr_id).init(),this)
 			.on('testEmitter',(_callback)=>{
-				if(_callback)	_callback(true)
+				if(_callback) _callback(true)
 			})
 			.init()
 		return _r

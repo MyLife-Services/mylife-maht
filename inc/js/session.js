@@ -1,12 +1,14 @@
 import chalk from 'chalk'
 class MylifeMemberSession {	//	bean only, no public functions aside from init and constructor
 	#fxValidate
+	#globals
 	#mbr_id
 	#Member
 	#locked = true	//	locked by default
 	name
-	constructor(_mbr_id,_fxValidate){	//	who is injected to return an answer about passphrase? Can I send in a function?
+	constructor(_mbr_id,_globals,_fxValidate){	//	who is injected to return an answer about passphrase? Can I send in a function?
 		this.#mbr_id = _mbr_id
+		this.#globals = _globals
 		this.#fxValidate = _fxValidate
 		this.name = 'MylifeMemberSession'
 	}
@@ -16,11 +18,7 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 			return false
 		}
 		if(this.#Member?.mbr_id !== _mbr_id) {	//	only create if not already created or alternate Member
-			this.#Member = await new Member(
-					await new Dataservices(_mbr_id)
-						.init()
-				)
-					.init()
+			this.#Member = await this.#globals.getMember(_mbr_id)
 			this.#mbr_id = _mbr_id
 			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(this.#Member.agentName )))
 		}

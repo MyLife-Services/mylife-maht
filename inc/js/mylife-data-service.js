@@ -76,7 +76,7 @@ class Dataservices{	//	convert to extension of Datamanager
 	async getChats(parent_id){
 		let _chats = await this.getItems('conversation','u.exchanges',[{ name: '@parent_id', value: parent_id }])
 		if(!_chats.length) _chats = await this.pushItem({	//	create chat
-			id: global.Globals.newGuid,
+//	id: global.Globals.newGuid,
 			mbr_id: this.mbr_id,
 			parent_id: parent_id,
 			being: 'conversation',

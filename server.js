@@ -60,12 +60,15 @@ app.use(bodyParser())	//	enable body parsing
 		))
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	systen context
-		if(!ctx.session?.MemberSession) ctx.session.MemberSession = new (_Globals.schemas.session)(JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0], _Maht.challengeAccess.bind(_Maht))	//	inject functionality into session object
+		if(!ctx.session?.MemberSession) ctx.session.MemberSession = new (_Globals.schemas.session)(JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0], _Globals, ctx.MyLife.challengeAccess.bind(_Maht))	//	inject MAHT-specific functionality into session object
 		ctx.state.board = ctx.MyLife.boardListing	//	array of plain objects by full name
-		ctx.state.menu = _Maht.menu
+		ctx.state.menu = ctx.MyLife.menu
 		ctx.state.blocked = ctx.session.MemberSession.locked
 		ctx.state.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
-		ctx.state.member = ctx.session.MemberSession?.member
+		ctx.state.member = 
+			(ctx?.request?.body?.agent==='member')
+			?	ctx.session.MemberSession?.member
+			:	ctx.MyLife
 		ctx.state.agent = ctx.state.member?.agent
 		await next()
 	})

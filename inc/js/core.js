@@ -53,7 +53,7 @@ class Member extends EventEmitter {
 			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
 			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
 			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			console.log('agent-chat-init',this.agent.description)
+			console.log('agent-chat-init',this.agent.description, this.agent.inspect(true))
 			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
 			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
 			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
@@ -186,11 +186,12 @@ class Member extends EventEmitter {
 		return this.core.values
 	}
 	//	public functions
-	async processChatRequest(_question){
+	async processChatRequest(ctx){
 		//	gatekeeper
 		//	throttle requests
 		//	validate input
 		//	store question
+		let _question = ctx.request.body.message
 		const _chatSnippetQuestion = new (this.globals.schema.chatSnippet)({	//	no trigger to set
 			content: _question,
 			contributor: this.mbr_id,
@@ -431,12 +432,12 @@ class MyLife extends Member {	//	form=organization
 		this.board.members = await this.#populateBoard(_board)	//	convert board.members to array of Member objects
 		return this
 	}
-	async processChatRequest(_chatRequest){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
+	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
 		if(!ctx.session?.bInitialized){
-			_chatRequest = await this.#isQuestion(_chatRequest)
+			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
 			ctx.session.bInitialized = true
 		}
-		return await super.processChatRequest(_chatRequest)
+		return await super.processChatRequest(ctx)
 	}
 	async assignPrimingQuestions(_question){	//	corporate version
 		return this.buildFewShotQuestions(

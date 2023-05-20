@@ -5,7 +5,6 @@ class MylifeSystemError {
 	}
 	handleError(){
 		//	mylife error wrapper
-		console.log('here',this.error.message)
 	}
 }
 //	exports

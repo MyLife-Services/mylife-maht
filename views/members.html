@@ -95,7 +95,7 @@ async function submit(_event, _message) {
 		headers: {
 			'Content-Type': 'application/json',
 		},
-		body: JSON.stringify({message: _message }),
+		body: JSON.stringify({ message: _message, agent: 'member' }),
 	};
 	const _gptChat = await submitChat(url, options);
 	addMessageToColumn(_gptChat.answer, chatColumn, 'agent-bubble');

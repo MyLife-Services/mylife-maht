@@ -17,13 +17,12 @@ async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	//	move chat processing to member's agent
-	const _response = await ctx.session.member.processChatRequest(ctx.request.body.message)
+	const _response = await ctx.state.member.processChatRequest(ctx)
 	ctx.body = { 'answer': _response }
 }
 async function index(ctx){
-	ctx.state.title = `Meet ${ ctx.MyLife.member.agentName }`
-	ctx.state.subtitle = `${ctx.MyLife.member.agentDescription}`
+	ctx.state.title = `Meet ${ ctx.state.member.agentName }`
+	ctx.state.subtitle = `${ctx.state.member.agentDescription}`
 	await ctx.render('index')
 }
 async function members(ctx){
@@ -41,7 +40,7 @@ async function members(ctx){
 			await ctx.render('members-challenge')
 			break
 		default:
-			ctx.state.subtitle = `Welcome ${ctx.state.member.agentName}`
+			ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
 			await ctx.render('members')
 			break
 	}
