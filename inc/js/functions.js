@@ -7,8 +7,7 @@ async function about(ctx){
 	await ctx.render('about')	//	about
 }
 async function board(ctx){
-	ctx.state.member = ctx.MyLife.boardMembers[ctx.params.bid]
-	ctx.state.agent = ctx.state.member.agent
+	ctx.session.bid = ctx.params?.bid??0	//	set board member id for session info to use
 	ctx.state.title = `Board of Directors`
 	await ctx.render('board')	//	board
 }
@@ -17,6 +16,7 @@ async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
+	//	best way to turn to any agent? build into ctx? get state.member right
 	const _response = await ctx.state.member.processChatRequest(ctx)
 	ctx.body = { 'answer': _response }
 }

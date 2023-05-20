@@ -554,16 +554,12 @@ class MyLife extends Member {	//	form=organization
 		//	question formatting
 		return super.formatQuestion(_question)
 	}
-	toggleBoardMember(ctx){	//	id in array
-		this.agent = this.boardMembers[ctx.params.bid].agent
-		console.log(ctx.MyLife.agent.inspect(true))
-	}
 	//	getters/setters
 	get board(){	//	board is array of Member objects
 		return this.board 
 	}
 	get boardListing(){
-		return this.board.members.map(_boardMember=>{ return _boardMember.memberName })
+		return this.boardMembers.map(_boardMember=>{ return _boardMember.memberName })
 	}
 	get boardMembers(){
 		return this.board.members	//	board.members is an ordered array of Member objects
