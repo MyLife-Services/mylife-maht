@@ -59,17 +59,18 @@ app.use(bodyParser())	//	enable body parsing
 			app
 		))
 	.use(async (ctx,next) => {	//	SESSION: member login
-		//	systen context
+		//	systen context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession) ctx.session.MemberSession = new (_Globals.schemas.session)(JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0], _Globals, ctx.MyLife.challengeAccess.bind(_Maht))	//	inject MAHT-specific functionality into session object
 		ctx.state.board = ctx.MyLife.boardListing	//	array of plain objects by full name
 		ctx.state.menu = ctx.MyLife.menu
 		ctx.state.blocked = ctx.session.MemberSession.locked
 		ctx.state.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
 		ctx.state.member = 
-			(ctx?.request?.body?.agent==='member')
-			?	ctx.session.MemberSession?.member
+			(ctx.request.body?.agent==='member' || ctx.request.url.split('/')[1]==='members')	//	to-do: find better way to ascertain
+			?	ctx.session.MemberSession.member	//	has key .member (even if `undefined`)
 			:	ctx.MyLife
 		ctx.state.agent = ctx.state.member?.agent
+		console.log(chalk.bgBlue('ctx.state.agent:', chalk.bgRedBright(ctx.state.agent.agentName)))
 		await next()
 	})
 //	.use(MyLifeMemberRouter.routes())	//	enable member routes

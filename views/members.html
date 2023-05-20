@@ -25,7 +25,7 @@
 				<button id="submitButton" type="submit" class="btn btn-primary">Submit</button>
 				<button id="awaitButton" name="awaitButton" class="btn btn-primary" type="button" disabled>
 					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-					Connecting with <%= agent.agentName %>...
+					Connecting with <%= member.agentName %>...
 				</button>
 			</form>
 		</div>
@@ -38,8 +38,8 @@ const chatColumn = document.getElementById('chat');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message');
 const submitButton = document.getElementById('submitButton');
-const _prompter = `Hi, I'm <%= agent.agentName %>, so nice to meet you!`;
-const _followon = `To get started, tell me a little bit about something or someone that is really important to you--or ask me a question about MyLife.`;
+const _prompter = `Hi, I'm <%= member.agentName %>, so nice to meet you!`;
+const _followon = `I'm here to collaborate with you on behalf of <%= member.memberName %>, feel free to ask me anything about him to get started.`;
 let _chatBubbleCount = 0;
 //	bootup
 awaitButton.style.display = 'none';

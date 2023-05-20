@@ -53,7 +53,7 @@ class Member extends EventEmitter {
 			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
 			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
 			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			console.log('agent-chat-init',this.agent.description, this.agent.inspect(true))
+			console.log(chalk.bgCyanBright('agent-chat-init'),chalk.cyanBright(this.agent.description))
 			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
 			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
 			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
