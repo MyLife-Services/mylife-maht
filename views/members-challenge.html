@@ -1,0 +1,69 @@
+<div class="container mt-5">
+	<label for="member-challenge" class="visually-hidden">Enter your passphrase:</label>
+	<input type="text" id="member-challenge" name="member-challenge" placeholder="passphrase" />
+	<button id="submitButton" name="submitButton" class="btn btn-primary" onclick="submit(event)" type="button">Enter MyLife</button>
+	<div id="error"></div>
+</div>
+<script>
+async function submit(_event) {
+	_event.preventDefault();
+	const _submitButton = document.getElementById('submitButton');
+	_submitButton.style.disabled = true;
+	const _passphrase = document.getElementById('member-challenge').value;
+	if(!_passphrase.length) return
+	//	test passphrase against url
+	const url = window.location.origin+'/challenge';
+	const options = {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({passphrase: _passphrase }),
+	};
+	const _validatePassphrase = await submitPassphrase(url, options);
+	if(_validatePassphrase) location.reload(); //	reload page
+	//	passphrase is invalid
+	document.getElementById('error').innerHTML = 'Invalid passphrase: please try again and remember that passphrases are case sensitive.';
+	_submitButton.style.disabled = false;
+}
+async function submitPassphrase(url, options) {
+	try {
+		const response = await fetch(url, options);
+		const jsonResponse = await response.json();
+		return jsonResponse;
+	} catch (err) {
+		console.log('fatal error', err);
+		return false;
+	}
+}
+</script>
+<style>
+.chat-bubble {
+    border-radius: 1rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    max-width: 66%;
+    min-width: 20%;
+	width: fit-content;
+	width: -moz-fit-content;
+    word-wrap: break-word;
+}
+.agent-bubble {
+    background-color: #007BFF;
+    color: white;
+    margin-left: 0;
+}
+.user-bubble {
+    background-color: #E0E0E0;
+    color: black;
+    margin-left: auto;
+}
+#header {
+    background-color: #007BFF;
+    padding: 0.5rem;
+    color: white;
+}
+.header-text {
+    font-weight: bold;
+}
+</style>

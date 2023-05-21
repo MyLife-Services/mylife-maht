@@ -49,6 +49,17 @@ class Datamanager {
 		return this.#core?.resource
 	}
 	//	public functions
+	async challengeAccess(_mbr_id,_passphrase){
+		//	execute store procedure with passphrase and this mbr_id? yes, so won't be charged to user if bad password attempts
+		//	in order to obscure passphrase, have db make comparison (could include flag for case insensitivity)
+		const challengeOptions = { partitionKey: _mbr_id }
+		// Execute the stored procedure
+		const { resource: _result } = await this.container
+			.scripts
+			.storedProcedure('checkMemberPassphrase')
+			.execute(_mbr_id,_passphrase,true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
+		return _result
+	}
 	async deleteItem(_id) {}
 	async getItem(_id,_options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
 		const { resource: _item } = await this.container

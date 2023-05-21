@@ -1,15 +1,16 @@
 class Menu {
-	#menu = this.#setMenu()
-	constructor(){
+	#menu
+	constructor(_Agent){
+		this.#menu = this.#setMenu(_Agent)
 	}
 	get menu(){
 		return this.#menu
 	}
-	#setMenu(){
+	#setMenu(_Agent){
 		return [
-			{ display: `Meet ${ global.Maht.agentName }`, route: '/', icon: 'home' },
+			{ display: `Meet ${ _Agent.agentName }`, route: '/', icon: 'home' },
 			{ display: `about`, route: '/about', icon: 'about' },
-			{ display: `membership`, route: '/membership', icon: 'membership' },
+			{ display: `membership`, route: '/members', icon: 'membership' },
 			{ display: `register`, route: '/register', icon: 'register' },
 		]
 	}
