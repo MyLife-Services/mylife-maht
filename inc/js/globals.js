@@ -16,6 +16,7 @@ class Globals extends EventEmitter {
 	//	initialize
 	async init(){
 		this.#schemas = await this.#loadSchemas()
+		await this.#configureSchemaPrototypes()
 		console.log(chalk.yellow('global schema classes created:'),this.schema)
 		return this
 	}
@@ -91,6 +92,18 @@ class Globals extends EventEmitter {
 		vm.runInContext(classCode, context)
 		// Return the compiled class
 		return context.exports[_className]
+	}
+	async #configureSchemaPrototypes(){	//	add functionality to known prototypes
+		for(const _class in this.schema){
+			switch (_class) {
+				case 'agent':
+					this.schema[_class].prototype.testPrototype = _=>{ return 'agent' }
+					break
+				case 'core':
+				default:	//	core
+					break
+			}
+		}
 	}
 	#generateClassCode(_className,_properties,_schema){
 		//	delete known excluded _properties in source
@@ -202,7 +215,7 @@ exports.${_className} = ${_className}`
 		const _obj = _filesArray.reduce((acc, array) => {
   			return Object.assign(acc, ...array)
 		}, {})
-		return _obj	//	Object.assign({},_filesArray.flat())	//	merge all objects into one, named by class [lowercase, as in ready for eval instancing]
+		return _obj
 	}
 }
 //	exports

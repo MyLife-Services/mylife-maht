@@ -7,10 +7,10 @@
 		</button>
 		<div class="collapse navbar-collapse" id="navbarNavAltMarkup">
 			<div class="navbar-nav">
-				<% global.Menu.forEach(_menuItem=>{ %>
+				<% menu.forEach(_menuItem=>{ %>
 					<a class="nav-link" href="<%= _menuItem.route %>"><%= _menuItem.display %></a>
 				<% }) %>
-				<!--<a class="nav-link" href="../pdf/MyLife_Summary.pdf">Summary</a>-->
+				<a class="nav-link" href="../pdf/MyLife_Summary.pdf">Summary</a>
 			</div>
 		</div>
 	</div>

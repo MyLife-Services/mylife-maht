@@ -1,30 +1,19 @@
 // imports
 import Router from 'koa-router'
 import { about, board, chat, index, register } from './functions.js'
-// variables
-const router = new Router()
-//	top-level system routes
-router.get('/', index)
-//	router.post('/', chat)
-router.post(
-	'/',
-	async ctx => {
-		console.log('chat-request-post')
-		await global.Maht.processChatRequest(ctx)
-			.then(_response => ctx.body = { 'answer': _response })
-	}
-)
-router.get('/about', about)
-router.get('/board', board)
-router.post(
-	'/board', 
-	async ctx => {
-		console.log('board-chat-request-post')
-		await ctx.session.Member.processChatRequest(ctx)
-			.then(_response => ctx.body = { 'answer': _response })
-	}
-)
-router.get('/board/:bid', board)
-router.get('/register', register)
-//	exports
-export { router }
+const _Router = new Router()
+function connectRoutes(_Agent,_Menu){
+	_Router.get('/', index)
+	_Router.get('/about', about)
+	_Router.get('/board', board)
+	_Router.get('/board/:bid', board)
+	_Router.get('/register', register)
+	_Router.post('/', chat)
+	_Router.post('/board', chat)
+	return _Router
+}
+// exports
+export default function init(_Agent,_Menu) {
+	connectRoutes(_Agent,_Menu)
+	return _Router
+}

@@ -19,7 +19,7 @@ import Dataservices from './inc/js/mylife-data-service.js'
 import Menu from './inc/js/menu.js'
 import { Member, MyLife } from './member/core.js'
 import { router as MyLifeMemberRouter } from './member/routes/routes.js'
-import { router as MyLifeRouter } from './inc/js/routes.js'
+import initMyLifeRouter from './inc/js/routes.js'
 //	dotenv
 import koaenv from 'dotenv'
 koaenv.config()
@@ -30,19 +30,19 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const router = new Router()
 const MemoryStore = new session.MemoryStore()
-//	Maht Singleton for server scope
-global.Globals = await new Globals()
+const _Globals = await new Globals()
 	.init()
+//	Maht Singleton for server scope
 const _Maht = new MyLife(
-	(await new Dataservices(process.env.MYLIFE_SERVER_MBR_ID).init())
+	(await new Dataservices(process.env.MYLIFE_SERVER_MBR_ID).init()),
+	_Globals
 )
 _Maht	//	attach event listeners
 	.on('testEmitter',(_callback)=>{
 		if(_callback)	_callback(true)
 	})
 await _Maht.init()	//	initialize member after event listeners are attached
-global.Maht = _Maht	//	if human, this is the root, if core is org, it can proxy anyone in session
-global.Menu = new Menu().menu
+const MyLifeRouter = initMyLifeRouter(_Maht,new Menu(_Maht))
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	koa-ejs
 render(app, {
@@ -54,38 +54,49 @@ render(app, {
 })
 //	default root routes
 //	app bootup
+//	app context (ctx) modification
+app.context.MyLife = _Maht
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
-app.use(
-	session(	//	session initialization
-		{
-			key: 'mylife.sid',   // cookie session id
-			maxAge: process.env.MYLIFE_SESSION_TIMEOUT_MS,     // session lifetime in milliseconds
-			autoCommit: true,
-			overwrite: true,
-			httpOnly: false,
-			signed: true,
-			rolling: false,
-			renew: false,
-  			store: MemoryStore,
-		},
-		app
-	))
+app.use(bodyParser())	//	enable body parsing
+	.use(
+		session(	//	session initialization
+			{
+				key: 'mylife.sid',   // cookie session id
+				maxAge: process.env.MYLIFE_SESSION_TIMEOUT_MS,     // session lifetime in milliseconds
+				autoCommit: true,
+				overwrite: true,
+				httpOnly: false,
+				signed: true,
+				rolling: false,
+				renew: false,
+				store: MemoryStore,
+			},
+			app
+		))
 	.use(async (ctx,next) => {	//	SESSION: member login
+/*
+//	NOTE: Not yet required, only when member login is enabled
 		if(!ctx.session?.Member){	//	check if already logged in
 			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]	//	root host id
 			ctx.session.Member = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
 				await new Dataservices(_mbr_id)
-					.init()
+					.init(),
+				_Globals
 			)
 				.init()
 			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(ctx.session.Member.agentName )))
 		}
+*/
+		//	systen context
+		ctx.state.board = ctx.MyLife.boardListing	//	array of plain objects by full name
+		ctx.state.menu = new Menu(ctx.MyLife).menu
+		//	by default, will use system agent, but can be overridden by toggle on routing or other business logic
+		if(!ctx.session?.member) ctx.session.member = ctx.MyLife
+		ctx.state.member = ctx.session.member
+		ctx.state.agent = ctx.state.member.agent
 		await next()
 	})
-	.use(bodyParser())	//	enable body parsing
-	.use(router.routes())	//	enable routes
-	.use(router.allowedMethods())	//	enable routes
 	.use(MyLifeMemberRouter.routes())	//	enable member routes
 	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
 	.use(MyLifeRouter.routes())	//	enable system routes
