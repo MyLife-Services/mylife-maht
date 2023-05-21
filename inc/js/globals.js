@@ -4,7 +4,12 @@ import EventEmitter from 'events'
 import vm from 'vm'
 import { Guid } from 'js-guid'	//	Guid.newGuid().toString()
 import chalk from 'chalk'
-// core class
+import Dataservices from './mylife-data-service.js'
+import { Member, MyLife } from './core.js'
+import Menu from './menu.js'
+import MylifeMemberSession from './session.js'
+// global singleton class
+// instantiates objects from json class schemas
 class Globals extends EventEmitter {
 	#excludeProperties = { '$schema': true, '$id': true, '$defs': true, "$comment": true, "name": true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 	#excludeConstructors = { 'id': true }
@@ -15,12 +20,26 @@ class Globals extends EventEmitter {
 	}
 	//	initialize
 	async init(){
-		this.#schemas = await this.#loadSchemas()
-		await this.#configureSchemaPrototypes()
+		this.#schemas = { ...await this.#loadSchemas(), ...{ dataservices: Dataservices, menu: Menu, member: Member, server: MyLife, session: MylifeMemberSession } }
+		//	await this.#configureSchemaPrototypes()
 		console.log(chalk.yellow('global schema classes created:'),this.schema)
 		return this
 	}
 	//	public utility functions
+	async getMember(_mbr_id){
+		const _r =  await new (this.schemas.member)(await new (this.schema.dataservices)(_mbr_id).init(),this)
+			.init()
+		return _r
+	}
+	async getServer(_mbr_id){
+		const _r = await new (this.schemas.server)(await new (this.schema.dataservices)(_mbr_id).init(),this)
+			.on('testEmitter',(_callback)=>{
+				if(_callback) _callback(true)
+			})
+			.init()
+		return _r
+	}
+
 	extractId(_mbr_id){
 		return _mbr_id.split('|')[1]
 	}
@@ -31,6 +50,9 @@ class Globals extends EventEmitter {
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
 	}
 	//	getters/setters
+	get member(){
+		return this.schemas.member
+	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
 	}
@@ -39,6 +61,9 @@ class Globals extends EventEmitter {
 	}
 	get schemas(){
 		return this.#schemas
+	}
+	get server(){
+		return this.schemas.server
 	}
 	//	private functions
 	#assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema in case of $def

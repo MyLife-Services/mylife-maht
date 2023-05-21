@@ -3,10 +3,10 @@ import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
 import { abort } from 'process'
-import { _ } from 'ajv'
-// core
-import Dataservices from '../inc/js/mylife-data-service.js'
 //	import { _ } from 'ajv'
+import Dataservices from './mylife-data-service.js'
+//	server-specific imports
+import initRouter from './routes.js'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -53,7 +53,7 @@ class Member extends EventEmitter {
 			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
 			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
 			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			console.log('agent-chat-init',this.agent.description)
+			console.log(chalk.bgCyanBright('agent-chat-init'),chalk.cyanBright(this.agent.description))
 			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
 			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
 			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
@@ -190,8 +190,8 @@ class Member extends EventEmitter {
 		//	gatekeeper
 		//	throttle requests
 		//	validate input
-		const _question = ctx.request.body.message
 		//	store question
+		let _question = ctx.request.body.message
 		const _chatSnippetQuestion = new (this.globals.schema.chatSnippet)({	//	no trigger to set
 			content: _question,
 			contributor: this.mbr_id,
@@ -233,7 +233,6 @@ class Member extends EventEmitter {
 			timestamp: new Date().toISOString(),
 		})
 		//	this.chat.exchanges.unshift(_chatSnippetResponse.inspect(true),_chatSnippetQuestion.inspect(true))	//	add to conversation [reverse chronological order]
-		console.log('chat.id',this.chat.id)
 		this.#dataservice.patchItem(
 			this.chat.id,
 			[
@@ -417,6 +416,8 @@ class Member extends EventEmitter {
 	}
 }
 class MyLife extends Member {	//	form=organization
+	#Menu
+	#Router
 	board
 	constructor(_Dataservice,_Globals){
 		super(_Dataservice,_Globals)
@@ -432,7 +433,7 @@ class MyLife extends Member {	//	form=organization
 		return this
 	}
 	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
-		if(!ctx.session?.bInitialized) {
+		if(!ctx.session?.bInitialized){
 			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
 			ctx.session.bInitialized = true
 		}
@@ -508,6 +509,10 @@ class MyLife extends Member {	//	form=organization
 		}
 		return _fewShotQuestions
 	}
+	async challengeAccess(_mbr_id,_passphrase){	//	if possible (async) injected into session object
+		//	ask global data service (stored proc) for passphrase
+		return await this.dataservice.challengeAccess(_mbr_id,_passphrase)
+	}
 	async fetchEnquiryType(_question){	//	categorize, log and return
 		const _model = 'text-babbage-001'
 		const _category = await this.personality.createCompletion({
@@ -549,16 +554,12 @@ class MyLife extends Member {	//	form=organization
 		//	question formatting
 		return super.formatQuestion(_question)
 	}
-	toggleBoardMember(ctx){	//	id in array
-		this.agent = this.boardMembers[ctx.params.bid].agent
-		console.log(ctx.MyLife.agent.inspect(true))
-	}
 	//	getters/setters
 	get board(){	//	board is array of Member objects
 		return this.board 
 	}
 	get boardListing(){
-		return this.board.members.map(_boardMember=>{ return _boardMember.memberName })
+		return this.boardMembers.map(_boardMember=>{ return _boardMember.memberName })
 	}
 	get boardMembers(){
 		return this.board.members	//	board.members is an ordered array of Member objects
@@ -571,6 +572,12 @@ class MyLife extends Member {	//	form=organization
 	}
 	get membership(){
 		return this.core.membership
+	}
+	get menu(){
+		if(!this.#Menu){
+			this.#Menu = new (this.globals.schemas.menu)(this).menu
+		}
+		return this.#Menu
 	}
 	get mission(){
 		return this.core.mission
@@ -586,6 +593,12 @@ class MyLife extends Member {	//	form=organization
 	}
 	get roadmap(){
 		return this.core.roadmap
+	}
+	get router(){
+		if(!this.#Router){
+			this.#Router = initRouter(this, new (this.globals.schemas.menu)(this))
+		}
+		return this.#Router
 	}
 	get security(){
 		return this.core.security

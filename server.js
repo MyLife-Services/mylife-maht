@@ -8,18 +8,11 @@ import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
 import render from 'koa-ejs'
 import session from 'koa-generic-session'
-import Router from 'koa-router'
+//	import Router from 'koa-router'
 //	misc
 import chalk from 'chalk'
 //	local services
-//	import { commitRequest } from './inc/js/functions.js'
-//	import MylifeMemberSession from './inc/js/session.js'
 import Globals from './inc/js/globals.js'
-import Dataservices from './inc/js/mylife-data-service.js'
-import Menu from './inc/js/menu.js'
-import { Member, MyLife } from './member/core.js'
-import { router as MyLifeMemberRouter } from './member/routes/routes.js'
-import initMyLifeRouter from './inc/js/routes.js'
 //	dotenv
 import koaenv from 'dotenv'
 koaenv.config()
@@ -28,21 +21,12 @@ const app = new Koa()
 const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const router = new Router()
 const MemoryStore = new session.MemoryStore()
 const _Globals = await new Globals()
 	.init()
 //	Maht Singleton for server scope
-const _Maht = new MyLife(
-	(await new Dataservices(process.env.MYLIFE_SERVER_MBR_ID).init()),
-	_Globals
-)
-_Maht	//	attach event listeners
-	.on('testEmitter',(_callback)=>{
-		if(_callback)	_callback(true)
-	})
-await _Maht.init()	//	initialize member after event listeners are attached
-const MyLifeRouter = initMyLifeRouter(_Maht,new Menu(_Maht))
+const _Maht = await _Globals.getServer(process.env.MYLIFE_SERVER_MBR_ID)
+const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	koa-ejs
 render(app, {
@@ -75,32 +59,27 @@ app.use(bodyParser())	//	enable body parsing
 			app
 		))
 	.use(async (ctx,next) => {	//	SESSION: member login
-/*
-//	NOTE: Not yet required, only when member login is enabled
-		if(!ctx.session?.Member){	//	check if already logged in
-			const _mbr_id = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0]	//	root host id
-			ctx.session.Member = await new Member(	//	login currently only supported by .env vars hosted on MyLife azure
-				await new Dataservices(_mbr_id)
-					.init(),
-				_Globals
-			)
-				.init()
-			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(ctx.session.Member.agentName )))
-		}
-*/
-		//	systen context
-		ctx.state.board = ctx.MyLife.boardListing	//	array of plain objects by full name
-		ctx.state.menu = new Menu(ctx.MyLife).menu
-		//	by default, will use system agent, but can be overridden by toggle on routing or other business logic
-		if(!ctx.session?.member) ctx.session.member = ctx.MyLife
-		ctx.state.member = ctx.session.member
-		ctx.state.agent = ctx.state.member.agent
+		//	systen context, koa: https://koajs.com/#request
+		if(!ctx.session?.MemberSession) ctx.session.MemberSession = new (_Globals.schemas.session)(JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0], _Globals, ctx.MyLife.challengeAccess.bind(_Maht))	//	inject MAHT-specific functionality into session object
+		ctx.state.board = ctx.MyLife.boardMembers	//	array of plain objects by full name
+		ctx.state.boardListing = ctx.MyLife.boardListing	//	array of plain objects by full name
+		ctx.state.menu = ctx.MyLife.menu
+		ctx.state.blocked = ctx.session.MemberSession.locked
+		ctx.state.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
+		ctx.state.member = 
+			(ctx.request.body?.agent==='member' || ctx.request.url.split('/')[1]==='members')	//	to-do: find better way to ascertain
+			?	ctx.session.MemberSession.member	//	has key .member (even if `undefined`)
+			:	(ctx.request.url.split('/')[1]==='board')
+				?	ctx.state.board[ctx.session?.bid??0]	//	cannot bid yet, as there are no params developed at this stage, so just have to rely on alterations later
+				:	ctx.MyLife
+		ctx.state.agent = ctx.state.member?.agent
+		console.log(chalk.bgBlue('ctx.state.agent:', chalk.bgRedBright(ctx.state.member?.agentName)))
 		await next()
 	})
-	.use(MyLifeMemberRouter.routes())	//	enable member routes
-	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
-	.use(MyLifeRouter.routes())	//	enable system routes
-	.use(MyLifeRouter.allowedMethods())	//	enable system routes
+//	.use(MyLifeMemberRouter.routes())	//	enable member routes
+//	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
+	.use(serverRouter.routes())	//	enable system routes
+	.use(serverRouter.allowedMethods())	//	enable system routes
 	.listen(port, () => {	//	start the server
 		console.log(chalk.bgGreen(`server available on port ${port}`))
 	})

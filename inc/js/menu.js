@@ -10,7 +10,7 @@ class Menu {
 		return [
 			{ display: `Meet ${ _Agent.agentName }`, route: '/', icon: 'home' },
 			{ display: `about`, route: '/about', icon: 'about' },
-			{ display: `membership`, route: '/membership', icon: 'membership' },
+			{ display: `membership`, route: '/members', icon: 'membership' },
 			{ display: `register`, route: '/register', icon: 'register' },
 		]
 	}

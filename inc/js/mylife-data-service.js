@@ -3,17 +3,17 @@ import Datamanager from "./mylife-datamanager.js"
 class Dataservices{	//	convert to extension of Datamanager
 	//	pseudo-constructor
 	#Datamanager
-	#mbr_id
+	#partitionId
 	#rootSelect = 'u.id, u.mbr_id, u.parent_id, u.being'
 	//	constructor
 	constructor(_mbr_id){
-		this.#mbr_id = _mbr_id
+		this.#partitionId = _mbr_id
 		//	NOTE: init() required, as population is async
 		//	agent and chat required
 	}
 	//	init function
 	async init(){
-		this.#Datamanager=await new Datamanager(this.#mbr_id)
+		this.#Datamanager=await new Datamanager(this.#partitionId)
 			.init()	//	init datamanager
 		return this
 	}
@@ -25,12 +25,19 @@ class Dataservices{	//	convert to extension of Datamanager
 		return this.#Datamanager
 	}
 	get id(){
-		return this.mbr_id.split('|')[1]
+		return this.partitionId.split('|')[1]
 	}
 	get mbr_id(){
-		return this.#mbr_id
+		return this.partitionId
+	}
+	get partitionId(){
+		return this.#partitionId
 	}
 	//	public functions
+	async challengeAccess(_mbr_id,_passphrase){	//	if possible (async) injected into session object
+		//	ask global data service (stored proc) for passphrase
+		return await this.datamanager.challengeAccess(_mbr_id,_passphrase)
+	}
 	async getAgent(_parent_id){	//	get specificed (or default) agent; one per parent_id, most recent only
 		const _agentsArray = (await this.getAgents())
 			.filter(_agent=>{
@@ -69,7 +76,7 @@ class Dataservices{	//	convert to extension of Datamanager
 	async getChats(parent_id){
 		let _chats = await this.getItems('conversation','u.exchanges',[{ name: '@parent_id', value: parent_id }])
 		if(!_chats.length) _chats = await this.pushItem({	//	create chat
-			id: global.Globals.newGuid,
+//	id: global.Globals.newGuid,
 			mbr_id: this.mbr_id,
 			parent_id: parent_id,
 			being: 'conversation',

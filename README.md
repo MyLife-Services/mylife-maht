@@ -143,11 +143,11 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
-##### `20230513`
+##### `20230514`
 
-- almost done with #60, but chat is not saving to cosmos? Might well be, just need to refresh in order for document to show up altered based on patch
-- [issue #60](https://github.com/MyLife-Services/mylife-maht/issues/60) **DONE**
-
+- [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63)
+  - include session updates
+    - Member object will be held locked until passphraze is entered
 - [issue #59](https://github.com/MyLife-Services/mylife-maht/issues/59)
   - Build content into board agent db entry, but 
   - How to incorporate this into JSON scheme, and/or code representation?
@@ -180,9 +180,13 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
   - corporate info
   - personal bio
 
+##### `20230513`
+
+- [issue #60](https://github.com/MyLife-Services/mylife-maht/issues/60) **DONE**
+
 ##### `20230506`
 
-- [issue [#60](https://github.com/MyLife-Services/mylife-maht/issues/60)
+- [issue #60](https://github.com/MyLife-Services/mylife-maht/issues/60)
 
 ##### `20230502`
 

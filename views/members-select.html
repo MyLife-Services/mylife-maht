@@ -1,0 +1,46 @@
+<div class="container mt-5">
+	<select id="agent-select" class="form-select" aria-label="Default select example" onchange="submit(event)">
+		<option value="">select your member id to begin</option>
+				<% hostedMembers.forEach(_mbr_id=>{ %>
+					<option value="<%= _mbr_id %>"><%= _mbr_id %></option>
+				<% }) %>
+	</select>
+</div>
+<script>
+function submit(_event) {
+	_event.preventDefault();
+	const _mbr_id = document.getElementById('agent-select').value;
+	if(!_mbr_id.length) return
+	window.location = `/members/${_mbr_id}`;
+}
+</script>
+<style>
+.chat-bubble {
+    border-radius: 1rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    max-width: 66%;
+    min-width: 20%;
+	width: fit-content;
+	width: -moz-fit-content;
+    word-wrap: break-word;
+}
+.agent-bubble {
+    background-color: #007BFF;
+    color: white;
+    margin-left: 0;
+}
+.user-bubble {
+    background-color: #E0E0E0;
+    color: black;
+    margin-left: auto;
+}
+#header {
+    background-color: #007BFF;
+    padding: 0.5rem;
+    color: white;
+}
+.header-text {
+    font-weight: bold;
+}
+</style>
