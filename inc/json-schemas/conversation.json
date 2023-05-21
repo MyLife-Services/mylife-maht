@@ -1,0 +1,30 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "mylife-services-conversation-json-schema",
+	"required": ["mbr_id", "parent_id", "being", "exchanges"],
+	"type": "object",
+	"name": "Conversation",
+	"properties": {
+		"id": {"type": "string", "format": "uuid"},
+		"mbr_id": {"type": "string", "minimum": 40, "$comment": "partition-key for member: sysName|core_id"},
+		"parent_id": {"type": "string", "format": "uuid", "$comment": "chat should be attached to agent, but must be at least attached to member core"},
+		"being": {"type": "string", "const": "chat", "$comment": "must be chat to fulfill schema"},
+		"format": {"type": "string", "default": "chatML", "$comment": "storage pattern"},
+		"exchanges": {"type": "array", "default": [], "contains": {"$ref": "#/$defs/chatSnippet"}, "$comment": "pointer to chat chatSnippet, array populated by unshift"}
+	},
+	"additionalProperties": true,
+	"$defs": {
+		"chatSnippet": {
+			"type": "object",
+			"name": "ChatSnippet",
+			"required": ["content", "contributor", "role"],
+			"properties": {
+				"content": {"type": "string", "default": "", "$comment": "text of conversation snippet"},
+				"contributor": { "type": "string", "default": "gpt-3-turbo", "$comment": "id of known member contribution, defaults to owner mbr_id" },
+				"role": {"type": "string", "default": "assistant", "enum": ["user", "assistant", "system"], "$comment": "role of contributor"},
+				"timestamp": {"type": "date-time"}
+			},
+			"additionalProperties": false
+		}
+	}
+}

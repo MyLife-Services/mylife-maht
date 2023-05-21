@@ -4,7 +4,12 @@ import EventEmitter from 'events'
 import vm from 'vm'
 import { Guid } from 'js-guid'	//	Guid.newGuid().toString()
 import chalk from 'chalk'
-// core class
+import Dataservices from './mylife-data-service.js'
+import { Member, MyLife } from './core.js'
+import Menu from './menu.js'
+import MylifeMemberSession from './session.js'
+// global singleton class
+// instantiates objects from json class schemas
 class Globals extends EventEmitter {
 	#excludeProperties = { '$schema': true, '$id': true, '$defs': true, "$comment": true, "name": true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 	#excludeConstructors = { 'id': true }
@@ -15,14 +20,38 @@ class Globals extends EventEmitter {
 	}
 	//	initialize
 	async init(){
-		this.#schemas = await this.#loadSchemas()
+		this.#schemas = { ...await this.#loadSchemas(), ...{ dataservices: Dataservices, menu: Menu, member: Member, server: MyLife, session: MylifeMemberSession } }
+		//	await this.#configureSchemaPrototypes()
 		console.log(chalk.yellow('global schema classes created:'),this.schema)
 		return this
 	}
-	//	private functions
-   toString(_obj){
-		console.log("object",_obj)
+	//	public utility functions
+	async getMember(_mbr_id){
+		const _r =  await new (this.schemas.member)(await new (this.schema.dataservices)(_mbr_id).init(),this)
+			.init()
+		return _r
+	}
+	async getServer(_mbr_id){
+		const _r = await new (this.schemas.server)(await new (this.schema.dataservices)(_mbr_id).init(),this)
+			.on('testEmitter',(_callback)=>{
+				if(_callback) _callback(true)
+			})
+			.init()
+		return _r
+	}
+
+	extractId(_mbr_id){
+		return _mbr_id.split('|')[1]
+	}
+	extractSysName(_mbr_id){
+		return _mbr_id.split('|')[0]
+	}
+	toString(_obj){
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
+	}
+	//	getters/setters
+	get member(){
+		return this.schemas.member
 	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
@@ -32,6 +61,9 @@ class Globals extends EventEmitter {
 	}
 	get schemas(){
 		return this.#schemas
+	}
+	get server(){
+		return this.schemas.server
 	}
 	//	private functions
 	#assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema in case of $def
@@ -86,6 +118,18 @@ class Globals extends EventEmitter {
 		// Return the compiled class
 		return context.exports[_className]
 	}
+	async #configureSchemaPrototypes(){	//	add functionality to known prototypes
+		for(const _class in this.schema){
+			switch (_class) {
+				case 'agent':
+					this.schema[_class].prototype.testPrototype = _=>{ return 'agent' }
+					break
+				case 'core':
+				default:	//	core
+					break
+			}
+		}
+	}
 	#generateClassCode(_className,_properties,_schema){
 		//	delete known excluded _properties in source
 		for(const _prop in _properties){
@@ -93,10 +137,11 @@ class Globals extends EventEmitter {
 		}
 		// Generate class
 		let classCode = `
-// Code will run in vm and pass-back class
+// Code will run in vm and pass back class
 class ${_className} {
 	// private properties
 	#excludeConstructors = ${ '['+Object.keys(this.#excludeProperties).map(key => "'" + key + "'").join(',')+']' }
+	#globals
 	#name
 `
 		for (const _prop in _properties) {	//	assign default values as animated from schema
@@ -116,7 +161,7 @@ class ${_className} {
 					eval(\`this.\${_key}=obj[_key]\`)	//	implicit getters/setters
 				}
 			}
-			console.log('${ _className } class constructed')
+			console.log('vm ${ _className } class constructed')
 		} catch(err) {
 			console.log(\`FATAL ERROR CREATING \${obj.being}\`)
 			console.log(err)
@@ -124,24 +169,19 @@ class ${_className} {
 		}
 	}
 	// if id changes are necessary, then use set .id() to trigger the change
-	// getters/setters for private vars
-	set name(_value) {
-		if (typeof _value !== 'string') {
-			throw new Error('Invalid type for property name. Expected string.')
-		}
-		this.#name = _value
-	}`
-		// getters/setters
+	// getters/setters for private vars`
 		for (const _prop in _properties) {
 			const _type = _properties[_prop].type
-			// generate getter
+			// generate getters/setters
 			classCode += `
 	get ${_prop}() {
 		return this.#${_prop}
 	}
 	set ${_prop}(_value) {	// setter with type validation
 		if (typeof _value !== '${_type}') {
-			throw new Error('Invalid type for property ${_prop}. Expected ${_type}.')
+			if(!('${_type}'==='array' && Array.isArray(_value))){
+				throw new Error('Invalid type for property ${_prop}: expected ${_type}')
+			}
 		}
 		this.#${_prop} = _value
 	}`
@@ -155,7 +195,7 @@ class ${_className} {
 			classCode += `			${_prop}: this.#${_prop},\n`
 		}
 		classCode += `		}:{}
-		return {...this,..._this,...{ name: this.#name }}
+		return {...this,..._this}
 	}
 }
 exports.${_className} = ${_className}`
@@ -200,7 +240,7 @@ exports.${_className} = ${_className}`
 		const _obj = _filesArray.reduce((acc, array) => {
   			return Object.assign(acc, ...array)
 		}, {})
-		return _obj	//	Object.assign({},_filesArray.flat())	//	merge all objects into one, named by class [lowercase, as in ready for eval instancing]
+		return _obj
 	}
 }
 //	exports

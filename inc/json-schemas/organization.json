@@ -28,9 +28,6 @@
 			"default": "organization",
 			"$comment": "I see this as the root descriptor for the organization - i.e., MyLife is a nonprofit, educational _corporation_"
 		},
-		"board": {
-
-		},
 		"categories": {
 			"type": "array",
 			"items": {
