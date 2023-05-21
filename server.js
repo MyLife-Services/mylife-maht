@@ -13,12 +13,6 @@ import session from 'koa-generic-session'
 import chalk from 'chalk'
 //	local services
 import Globals from './inc/js/globals.js'
-import Dataservices from './inc/js/mylife-data-service.js'
-import Member from './member/core.js'
-import { router as MyLifeMemberRouter } from './member/routes/routes.js'
-import { router as MyLifeRouter } from './inc/js/routes.js'
-import MylifeMemberSession from './inc/js/session.js'
-import MylifeSystemError from './inc/js/error.js'
 //	bootstrap
 //	koaenv.config()
 //	constants/variables
