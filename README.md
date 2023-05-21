@@ -143,11 +143,13 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 - Jared: get Connected with ecosystem and account
 	- ask him to tune pipeline
 
-##### `20230514`
+##### `20230521`
 
-- [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63)
-  - include session updates
-    - Member object will be held locked until passphraze is entered
+- merge and deploy
+  - [#73](https://github.com/MyLife-Services/mylife-maht/issues/73)
+- [issue #73](https://github.com/MyLife-Services/mylife-maht/issues/73) **DONE**
+  - index.html using wrong object, agent.agentName => member.agentName
+
 - [issue #59](https://github.com/MyLife-Services/mylife-maht/issues/59)
   - Build content into board agent db entry, but 
   - How to incorporate this into JSON scheme, and/or code representation?
@@ -179,6 +181,17 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
   - prompt questions
   - corporate info
   - personal bio
+
+##### `20230520`
+
+- Deployed to Azure
+- [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63) **DONE**
+
+##### `20230514`
+
+- [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63)
+  - include session updates
+    - Member object will be held locked until passphraze is entered
 
 ##### `20230513`
 
