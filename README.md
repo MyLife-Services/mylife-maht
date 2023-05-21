@@ -145,11 +145,16 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 ##### `20230521`
 
-- merge and deploy
+- merge and deploy [#74](https://github.com/MyLife-Services/mylife-maht/pull/74)
   - [#73](https://github.com/MyLife-Services/mylife-maht/issues/73)
+
+- [issue #65](https://github.com/MyLife-Services/mylife-maht/issues/65)
+  - ensure that each chat bubble has its FE id
+  - endpoint: /feedback(id,type,comment)
+  - FE build and attach commenting mechanism
+  
 - [issue #73](https://github.com/MyLife-Services/mylife-maht/issues/73) **DONE**
   - index.html using wrong object, agent.agentName => member.agentName
-
 - [issue #59](https://github.com/MyLife-Services/mylife-maht/issues/59)
   - Build content into board agent db entry, but 
   - How to incorporate this into JSON scheme, and/or code representation?
@@ -184,12 +189,17 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 
 ##### `20230520`
 
+<<<<<<< Updated upstream
 - Deployed to Azure
 - [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63) **DONE**
 
 ##### `20230514`
 
 - [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63)
+=======
+- Deploy to PROD **DONE**
+- [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63) **DONE**
+>>>>>>> Stashed changes
   - include session updates
     - Member object will be held locked until passphraze is entered
 
