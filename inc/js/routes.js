@@ -1,6 +1,6 @@
 // imports
 import Router from 'koa-router'
-import { about, board, challenge, chat, index, members, register } from './functions.js'
+import { about, board, challenge, chat, feedback, index, members, register } from './functions.js'
 // variables
 const _Router = new Router()
 function connectRoutes(_Agent,_Menu){
@@ -14,6 +14,7 @@ function connectRoutes(_Agent,_Menu){
 	_Router.post('/', chat)
 	_Router.post('/board', chat)
 	_Router.post('/challenge', challenge)
+	_Router.post('/feedback', feedback)
 
 	return _Router
 }

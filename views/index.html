@@ -43,24 +43,25 @@ const _followon = `To get started, tell me a little bit about something or someo
 let _chatBubbleCount = 0;
 //	bootup
 awaitButton.style.display = 'none';
-addMessageToColumn(_prompter, chatColumn, 'agent-bubble');
-setTimeout(()=> addMessageToColumn(_followon, chatColumn, 'agent-bubble'), 3000);
+addMessageToColumn(undefined,_prompter, chatColumn, 'agent-bubble');
+setTimeout(()=> addMessageToColumn(undefined,_followon, chatColumn, 'agent-bubble'), 3000);
 //	add listeners
 chatForm.addEventListener('submit', (event) => {
 	event.preventDefault();
 	const userMessage = messageInput.value.trim();
 	if (userMessage === '') return;
 
-	addMessageToColumn(userMessage, chatColumn, 'user-bubble');
+	addMessageToColumn(undefined,userMessage, chatColumn, 'user-bubble');
 	messageInput.value = '';
 
 	submit(event, userMessage);
 });
 // page functions
-function addMessageToColumn(message, column, bubbleClass, _typewrite = (bubbleClass === 'agent-bubble'), _delay = 10) {
+function addMessageToColumn(id=_chatBubbleCount,message, column, bubbleClass, _typewrite = (bubbleClass === 'agent-bubble'), _delay = 10) {
 	_chatBubbleCount++;
 	const chatBubble = document.createElement('div');
-	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
+	chatBubble.setAttribute('id', id);
+	chatBubble.setAttribute('name', `chat-bubble-${_chatBubbleCount}`);
 	chatBubble.className = `chat-bubble ${bubbleClass}`;
 	column.appendChild(chatBubble);
 	if (_typewrite) {
@@ -97,8 +98,9 @@ async function submit(_event, _message) {
 		},
 		body: JSON.stringify({message: _message }),
 	};
-	const _gptChat = await submitChat(url, options);
-	addMessageToColumn(_gptChat.answer, chatColumn, 'agent-bubble');
+	const _gptChat = await submitChat(url, options);	//	response will include id (for chatSnippet) for agent block
+	console.log('gptChat', _gptChat)
+	addMessageToColumn(_gptChat.id, _gptChat.content, chatColumn, 'agent-bubble');
 	awaitButton.style.display = 'none';
 	submitButton.style.display = 'block';
 	agentSpinner.classList.remove('text-primary');
@@ -122,8 +124,8 @@ async function submitChat(url, options) {
     margin-bottom: 0.5rem;
     max-width: 66%;
     min-width: 20%;
-	width: fit-content;
 	width: -moz-fit-content;
+	width: fit-content;
     word-wrap: break-word;
 }
 .agent-bubble {

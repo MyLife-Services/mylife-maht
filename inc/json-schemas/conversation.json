@@ -19,8 +19,24 @@
 			"name": "ChatSnippet",
 			"required": ["content", "contributor", "role"],
 			"properties": {
+				"id": {"type": "string", "format": "uuid", "$comment": "id of chat snippet"},
 				"content": {"type": "string", "default": "", "$comment": "text of conversation snippet"},
 				"contributor": { "type": "string", "default": "gpt-3-turbo", "$comment": "id of known member contribution, defaults to owner mbr_id" },
+				"purpose": { "type": "string", "default": "output", "enum": ["input", "output", "internal"], "$comment": "purpose of chatSnippet" },
+				"question": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string", "format": "uuid", "$comment": "id of the question"},
+						"text": {"type": "string", "maxLength": 1024, "minLength": 1, "$comment": "text of the question"}
+					},
+					"default": {},
+					"$comment": "question of chatSnippet",
+					"not": {
+					"properties": {
+						"purpose": {"const": "input"}
+					}
+					}
+				},
 				"role": {"type": "string", "default": "assistant", "enum": ["user", "assistant", "system"], "$comment": "role of contributor"},
 				"timestamp": {"type": "date-time"}
 			},

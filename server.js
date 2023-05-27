@@ -59,7 +59,7 @@ app.use(bodyParser())	//	enable body parsing
 			app
 		))
 	.use(async (ctx,next) => {	//	SESSION: member login
-		//	systen context, koa: https://koajs.com/#request
+		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession) ctx.session.MemberSession = new (_Globals.schemas.session)(JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0], _Globals, ctx.MyLife.challengeAccess.bind(_Maht))	//	inject MAHT-specific functionality into session object
 		ctx.state.board = ctx.MyLife.boardMembers	//	array of plain objects by full name
 		ctx.state.boardListing = ctx.MyLife.boardListing	//	array of plain objects by full name

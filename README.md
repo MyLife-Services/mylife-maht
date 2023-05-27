@@ -142,36 +142,30 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 	- fed nightly to gpt-2
 - Jared: get Connected with ecosystem and account
 
-##### `20230521`
+##### `20230527`
 
 - merge and deploy [#74](https://github.com/MyLife-Services/mylife-maht/pull/74)
   - [#73](https://github.com/MyLife-Services/mylife-maht/issues/73)
   - [#75](https://github.com/MyLife-Services/mylife-maht/issues/75)
   
 - [issue #65](https://github.com/MyLife-Services/mylife-maht/issues/65)
-  - ensure that each chat bubble has its FE id
+  - ensure that each chat bubble has its FE id **DONE**
+  - 
   - endpoint: /feedback(id,type,comment)
   - FE build and attach commenting mechanism
-- [issue #75](https://github.com/MyLife-Services/mylife-maht/issues/75) **DONE**
-- [issue #73](https://github.com/MyLife-Services/mylife-maht/issues/73) **DONE**
-  - index.html using wrong object, agent.agentName => member.agentName
-
-
 - [issue #59](https://github.com/MyLife-Services/mylife-maht/issues/59)
   - Build content into board agent db entry, but 
   - How to incorporate this into JSON scheme, and/or code representation?
 	- "BOARD" JSON schema would hold structure for itself, which includes a default of the required new agent fields, and an agent extension (i.e., inheritor) would be defined in 
   - i.e., extra data nodes attached to that style of agent specifically
   - thinking that any unique data values to be require/infused into agents would be first ascribed to the object itself: and yes, the requirement would be in JSON schema, and then $defs could handle the agent-specific "fields" that are needed/defaulted/required, yes -- they just need unique name (or directory I guess) to suss out
-
-- **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
-
 - [issue #54](https://github.com/MyLife-Services/mylife-maht/issues/54)
   - while on AMS calls, begin categorization of personal agent (not board) to render new categories
     - ensure that it picks up these unique categories
   - populate with personal, perhaps even Adam (since I have rich amounts)
 
-- secret word for login?
+**Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
+
 - primitive easter-eggs (epiphanies) for Maht
 - put command icon next to chat bubbles (exclamation point, or whatever)
 - on session end, ask gpt-turbo for summaries and save to chat object -- this could be the manner to progress to archival storage and quick-access memory in addition to whatever innate mechanism (via tokenization) is assessed inside LLM itself
@@ -188,6 +182,12 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
   - prompt questions
   - corporate info
   - personal bio
+
+##### `20230521`
+
+- [issue #75](https://github.com/MyLife-Services/mylife-maht/issues/75) **DONE**
+- [issue #73](https://github.com/MyLife-Services/mylife-maht/issues/73) **DONE**
+  - index.html using wrong object, agent.agentName => member.agentName
 
 ##### `20230520`
 

@@ -1,0 +1,30 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/developer.json",
+	"required": ["id", "mbr_id", "being"],
+	"type": "object",
+	"name": "Developer",
+	"properties": {
+		"id": {
+			"description": "uuid of developer",
+			"type": "string",
+			"format": "uuid",
+			"$comment": "reference to developer in the system, not the same as the mbr_id, level of abstraction"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "unique root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "parent id of developer, most likely organization or human core id",
+			"$comment": "parent id of feedback, chatSnippetId which will be found in the conversation log (or archive? No, exchanges with unaddressed feedback might not be archived) for this mbr_id"
+		},
+		"being": {
+			"type": "string",
+			"const": "feedback"
+		}
+	}
+}

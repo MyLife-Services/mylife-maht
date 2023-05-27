@@ -1,0 +1,53 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/feedback.json",
+	"required": ["id", "mbr_id", "being", "content","rating"],
+	"type": "object",
+	"name": "Feedback",
+	"properties": {
+		"id": {
+			"description": "uuid of feedback",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "parent id of feedback, chatSnippetId",
+			"$comment": "parent id of feedback, chatSnippetId which will be found in the conversation log (or archive? No, exchanges with unaddressed feedback might not be archived) for this mbr_id"
+		},
+		"name": {
+			"type": "string",
+			"default": "feedback_${id}_${mbr_id}",
+			"description": "feedback_[id]_[mbr_id]"
+		},
+		"being": {
+			"type": "string",
+			"const": "feedback",
+			"description": "feedback object"
+		},
+		"content": {
+			"type": "string",
+			"minLength": 0,
+			"maxLength": 1024,
+			"description": "Feedback from user",
+			"$comment": "can be null so long as rating is not zero"
+		},
+		"developers": {
+			"type": "array",
+			"description": "endpoint developers"
+		},
+		"rating": {
+			"type": "integer",
+			"minimum": -10,
+			"maximum": 10,
+			"description": "Rating from user",
+			"$comment": "can be zero so long as content is not null"
+		}
+	}
+}

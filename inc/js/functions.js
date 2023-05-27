@@ -17,8 +17,13 @@ async function challenge(ctx){
 }
 async function chat(ctx){
 	//	best way to turn to any agent? build into ctx? get state.member right
-	const _response = await ctx.state.member.processChatRequest(ctx)
-	ctx.body = { 'answer': _response }
+	ctx.body = await ctx.state.member.processChatRequest(ctx)
+//	ctx.body = JSON.stringify(ctx.body)
+	console.log('ctx.body',ctx.body,ctx.body.content)
+	ctx.type = 'application/json'
+}
+async function feedback(ctx){
+	await ctx.render('feedback')	//	feedback
 }
 async function index(ctx){
 	ctx.state.title = `Meet ${ ctx.state.member.agentName }`
@@ -54,9 +59,10 @@ async function register(ctx){
 // exports
 export {
 	about,
+	board,
 	challenge,
 	chat,
-	board,
+	feedback,
 	index,
 	members,
 	register,

@@ -167,6 +167,9 @@ class Member extends EventEmitter {
 	get name(){
 		return this.core.name
 	}
+	get newid(){
+		return this.globals.newGuid
+	}
 	get personality(){
 		return this.#personalityKernal
 	}
@@ -209,6 +212,9 @@ class Member extends EventEmitter {
 		console.log('aQuestion',aQuestion)
 		//	insert ai-sniffer/optimizer	//	why won't anyone think of the tokens!?
 		const _model = 'gpt-3.5-turbo'
+	if(true){
+const _response = 'intercept from GPT-3.5-turbo'
+	} else {
 		const _response = await this.personality.createChatCompletion({
 			model: _model,
 			messages: aQuestion,
@@ -226,6 +232,7 @@ class Member extends EventEmitter {
 				console.log(err)
 				//	emit for server
 			})
+	}
 		console.log(chalk.bgGray('chat-response-received'),_response)
 		//	store response
 		const _chatSnippetResponse = new (this.globals.schema.chatSnippet)({	//	no trigger to set
@@ -241,7 +248,7 @@ class Member extends EventEmitter {
 			]	//	add array value)
 		)
 		//	return response
-		return _response
+		return _chatSnippetResponse.inspect(true)
 	}
 	//	question/answer functions
 	async assignPrimingQuestions(_question){
