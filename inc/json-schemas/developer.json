@@ -1,7 +1,8 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/developer.json",
-	"required": ["id", "mbr_id", "being"],
+	"$comment": "currently only a placeholder cross-reference between object and developer member account",
+	"required": ["id", "mbr_id", "being","public"],
 	"type": "object",
 	"name": "Developer",
 	"properties": {
@@ -24,7 +25,11 @@
 		},
 		"being": {
 			"type": "string",
-			"const": "feedback"
+			"const": "developer"
+		},
+		"public": {
+			"type": "boolean",
+			"const": true
 		}
 	}
 }
