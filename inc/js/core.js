@@ -7,6 +7,7 @@ import { abort } from 'process'
 import Dataservices from './mylife-data-service.js'
 //	server-specific imports
 import initRouter from './routes.js'
+import { _ } from 'ajv'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -48,12 +49,8 @@ class Member extends EventEmitter {
 	}
 	//	initialize
 	async init(_agent_parent_id=this.globals.extractId(this.mbr_id)){
-		if(!this?.agent) {	//	create agent
-			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
-			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
-			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			//	context curiosity
-
+		if(!this?.agent){
+			this.agent = await this.getDefaultAgent(_agent_parent_id)
 
 			//	REMOVE CHAT from startup, only on demand
 			console.log(chalk.bgCyanBright('agent-dialog-initialization'),chalk.cyanBright(this.agent.description))
@@ -200,6 +197,25 @@ class Member extends EventEmitter {
 		return this.core.values
 	}
 	//	public functions
+	async getDefaultAgent(){
+		//	get agent
+		if(this.core?.defaultAgent){
+			return new (this.globals.schema.agent)(await this.dataservice.getItem(this.core.defaultAgent))
+		}
+		const _agents = await this.dataservice.getAgents()	//	retrieve available agents from db as array
+		if(!_agents.length){	//	create agent
+			_agents.push(await this.#createAgent())
+		}
+		const _agent = await new (this.globals.schema.agent)(_agents[0])	//	agent
+		//	assign additional properties and methods
+		_agent.categories = _agent?.categories??this.#categories	//	assign categories
+		//	context curiosity
+		//	self-property assignment based upon returns from openai
+		//	update core
+		this.core.defaultAgent = _agent.id
+		this.dataservice.patchItem(this.sysid, [{ op: 'add', path: `/defaultAgent`, value: this.core.defaultAgent }])	//	no need to await
+		return _agent
+	}
 	async processChatRequest(ctx){
 		//	gatekeeper/timekeeper
 		let _timer = process.hrtime()
@@ -427,11 +443,28 @@ class Member extends EventEmitter {
 		return '<||'+_str+'||>'
 	}
 	//	private functions
+	async #createAgent(){
+		const _agentProperties = {
+			id: this.newid,
+			being: 'agent',
+			command_word: this.sysname,
+			description: `I am ${ this.sysname }, AI-Agent for ${ this.memberName }`,	//	should ultimately inherit from core agent
+			mbr_id: this.mbr_id,
+			name: `agent_${ this.sysname }`,
+			names: [this.sysname, 'AI-Agent'],
+			nickname: this.sysname,
+			parent_id: this.sysid,
+			purpose: `Be a personal superintelligent digital agent for human ${ this.memberName }`,
+		}
+		await this.dataservice.pushItem(_agentProperties)
+		console.log(chalk.bgCyanBright(`default core agent created for ${ this.mbr_id }`),_agents[0].inspect(true))
+		return _agentProperties
+	}
 	#hasAgentAccess(_agent){
 		return (
 			this.agentBeacons	//	agent must be on beacon list
 				.filter(_=>{
-					return _===_agent?.parent_id || this.mbr_id===_agent.mbr_id 
+					return _===_agent?.parent_id || this.mbr_id===_agent?.mbr_id 
 				})	//	member must have rights to agent, cooperative or core
 				.length
 		)	

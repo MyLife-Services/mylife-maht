@@ -61,6 +61,13 @@
 		},
 		"nickname": {
 			"$ref": "mylife-services-globals-json-schema#/definitions/name"
+		},
+		"purpose": {
+			"type": "string",
+			"minLength": 16,
+			"maxLength": 256,
+			"description": "agent purpose",
+			"$comment": "From purpose, context can be derived in consultation with member and ai-models"
 		}
 	},
 	"additionalProperties": true
