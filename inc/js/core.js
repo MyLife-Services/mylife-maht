@@ -51,11 +51,18 @@ class Member extends EventEmitter {
 		if(!this?.agent) {	//	create agent
 			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
 			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
-			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
 			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			console.log(chalk.bgCyanBright('agent-chat-init'),chalk.cyanBright(this.agent.description))
-			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
-			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
+			//	context curiosity
+
+
+			//	REMOVE CHAT from startup, only on demand
+			console.log(chalk.bgCyanBright('agent-dialog-initialization'),chalk.cyanBright(this.agent.description))
+			const _dialog = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
+			this.agent.chat = await new (this.globals.schema.dialog)(_dialog)	//	agent chat assignment
+
+
+
+
 			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		}
 		return this
@@ -123,6 +130,10 @@ class Member extends EventEmitter {
 		return this.agent.categories
 	}
 	get chat(){
+		if(!this.agent?.chat){	//	initialize dialog
+			console.log(chalk.bgRedBright('agent-chat-not-initialized'),chalk.redBright(this.agent.name))
+			throw new Error('agent chat not initialized')
+		}
 		return this.agent.chat
 	}
 	get core(){
@@ -190,19 +201,22 @@ class Member extends EventEmitter {
 	}
 	//	public functions
 	async processChatRequest(ctx){
-		//	gatekeeper
+		//	gatekeeper/timekeeper
+		let _timer = process.hrtime()
 		//	throttle requests
 		//	validate input
 		//	store question
 		let _question = ctx.request.body.message
-		const _chatSnippetQuestion = new (this.globals.schema.chatSnippet)({	//	no trigger to set
-			content: _question,
-			contributor: this.mbr_id,
-			role: 'user',
-			timestamp: new Date().toISOString(),
-		})
+		const _Exchange = new (this.globals.schema.exchange)({
+			id: this.newid,
+			input: new  (this.globals.schema.inputDialog)({
+					id: this.newid,
+					content: _question,
+					contributor_mbr_id: ctx.session.MemberSession.mbr_id,
+				})
+		})	//	Exchange
 		//	log input
-		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`),_chatSnippetQuestion)
+		console.log(chalk.bgGray('dialog-exchange-input:'),_Exchange.input.inspect(true))
 		//	transform input
 		const aQuestion = [
 			this.agentRole,	//	assign system role
@@ -212,13 +226,11 @@ class Member extends EventEmitter {
 		console.log('aQuestion',aQuestion)
 		//	insert ai-sniffer/optimizer	//	why won't anyone think of the tokens!?
 		const _model = 'gpt-3.5-turbo'
-	if(true){
-const _response = 'intercept from GPT-3.5-turbo'
-	} else {
-		const _response = await this.personality.createChatCompletion({
+		let _response = 'intercept from GPT-3.5-turbo'
+	if(!true){
+		_response = await this.personality.createChatCompletion({
 			model: _model,
 			messages: aQuestion,
-	//		git: { repo: 'https://github.com/MyLife-Services/mylife-maht' },
 		})
 			.then(
 				(_response)=>{
@@ -235,20 +247,23 @@ const _response = 'intercept from GPT-3.5-turbo'
 	}
 		console.log(chalk.bgGray('chat-response-received'),_response)
 		//	store response
-		const _chatSnippetResponse = new (this.globals.schema.chatSnippet)({	//	no trigger to set
+		_timer = process.hrtime(_timer)
+		_Exchange.output = new (this.globals.schema.outputDialog)({
+			id: this.newid,
 			content: _response,
-			timestamp: new Date().toISOString(),
+			model: _model,
+			processingTime: (_timer[0] * 1000) + (_timer[1] / 1e6),
 		})
-		//	this.chat.exchanges.unshift(_chatSnippetResponse.inspect(true),_chatSnippetQuestion.inspect(true))	//	add to conversation [reverse chronological order]
+		//	this.chat.exchanges.unshift(_outputDialog.inspect(true),_inputDialog.inspect(true))	//	add to dialog [reverse chronological order]
 		this.#dataservice.patchItem(
 			this.chat.id,
 			[
-				{ op: 'add', path: `/exchanges/0`, value: _chatSnippetQuestion.inspect(true) },
-				{ op: 'add', path: `/exchanges/0`, value: _chatSnippetResponse.inspect(true) },
+				{ op: 'add', path: `/exchanges/0`, value: _Exchange.input.inspect(true) },
+				{ op: 'add', path: `/exchanges/0`, value: _Exchange.output.inspect(true) },
 			]	//	add array value)
 		)
 		//	return response
-		return _chatSnippetResponse.inspect(true)
+		return _outputDialog.inspect(true)
 	}
 	//	question/answer functions
 	async assignPrimingQuestions(_question){

@@ -1,66 +1,66 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$id": "mylife-services-agent-json-schema",
+	"$id": "mylife-services-character-json-schema",
+	"$comment": "Can be thought of as artificial core and should have an agent attached for interactions",
 	"required": ["id", "mbr_id", "being", "name"],
 	"type": "object",
-	"name": "Agent",
+	"name": "Character",
 	"properties": {
 		"id": {
-			"description": "uuid of agent",
+			"description": "uuid of character",
 			"type": "string",
 			"format": "uuid"
 		},
 		"mbr_id": {
 			"type": "string",
 			"pattern": "^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}&&[^|\\t\\n\\r\\f\\v\\b\\s]]{1,64}\\|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-			"description": "root member id: [sysName|id]",
+			"description": "root member id: [sysName|id] of character offering",
 			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
 		},
 		"parent_id": {
 			"type": "string",
 			"format": "uuid",
-			"description": "parent id of agent"
+			"description": "parent id of character"
 		},
 		"being": {
 			"type": "string",
-			"const": "agent",
-			"description": "root constructor for agent in MyLife"
-		},
-		"command_word": {
-			"type": "string",
-			"minimum": 2,
-			"maximum": 16,
-			"default": "agent",
-			"description": "trigger for command mode"
+			"const": "character",
+			"description": "root constructor for character in MyLife"
 		},
 		"description": {
 			"type": "string",
-			"description": "agent description"
+			"description": "character description"
 		},
 		"developers": {
 			"type": "array",
 			"description": "endpoint developers"
 		},
 		"name": {
-			"$ref": "mylife-services-globals-json-schema#/definitions/name",
-			"$comment": "; NOTE: this is the name of the *agent*, not the member"
+			"type": "string",
+			"maximum": 32,
+			"minimum": 1,
+			"description": "character system name",
+			"$comment": "; NOTE: this is the name of the *character*, not member"
 		},
 		"names": {
 			"type": "array",
-			"description": "agent names array",
-			"default": [{
-				"$ref": "#/properties/name"
-			}],
+			"description": "character names array",
 			"items": {
-				"$ref": "mylife-services-globals-json-schema#/definitions/name"
+				"type": "string",
+				"maximum": 32,
+				"minimum": 1,
+				"description": "character name"
 			},
-			"maxItems": 16,
+			"maxItems": 128,
 			"minItems": 1,
 			"uniqueItems": true,
 			"$comment": "Can item contents reference the schema of the name property?"
 		},
 		"nickname": {
-			"$ref": "mylife-services-globals-json-schema#/definitions/name"
+			"type": "string",
+			"maximum": 64,
+			"default": "character",
+			"description": "character nickname"
 		}
 	}
 }

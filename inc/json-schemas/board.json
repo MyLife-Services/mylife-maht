@@ -1,6 +1,6 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$id": "https://maht.azurewebsites.net/inc/json-schemas/organization.json",
+	"$id": "mylife-services-board-json-schema",
 	"required": ["id", "mbr_id", "parent_id", "being"],
 	"type": "object",
 	"name": "Board",
@@ -11,6 +11,7 @@
 		},
 		"mbr_id": {
 			"type": "string",
+			"pattern": "^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}&&[^|\\t\\n\\r\\f\\v\\b\\s]]{1,64}\\|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 			"$comment": "sysname+uuid; note: sysname should not render down to any boolean version of false"
 		},
 		"parent_id": {

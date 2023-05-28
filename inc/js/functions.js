@@ -18,8 +18,6 @@ async function challenge(ctx){
 async function chat(ctx){
 	//	best way to turn to any agent? build into ctx? get state.member right
 	ctx.body = await ctx.state.member.processChatRequest(ctx)
-//	ctx.body = JSON.stringify(ctx.body)
-	console.log('ctx.body',ctx.body,ctx.body.content)
 	ctx.type = 'application/json'
 }
 async function feedback(ctx){

@@ -1,6 +1,6 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$id": "https://maht.azurewebsites.net/inc/json-schemas/human.json",
+	"$id": "mylife-services-human-json-schema",
 	"required": ["id", "mbr_id", "being", "language", "agent"],
 	"type": "object",
 	"name": "Human",
@@ -12,6 +12,7 @@
 		},
 		"mbr_id": {
 			"type": "string",
+			"pattern": "^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}&&[^|\\t\\n\\r\\f\\v\\b\\s]]{1,64}\\|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 			"description": "root member id: [sysName|id]",
 			"$comment": "also prtitionId for container; NOTE: sysName should not render down to any boolean version of false"
 		},

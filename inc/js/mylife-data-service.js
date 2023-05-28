@@ -74,14 +74,14 @@ class Dataservices{	//	convert to extension of Datamanager
 		return _response[0]	//	separate out [0] dimension here as it cannot be embedded in await
 	}
 	async getChats(parent_id){
-		let _chats = await this.getItems('conversation','u.exchanges',[{ name: '@parent_id', value: parent_id }])
+		let _chats = await this.getItems('dialog','u.exchanges',[{ name: '@parent_id', value: parent_id }])
 		if(!_chats.length) _chats = await this.pushItem({	//	create chat
 //	id: global.Globals.newGuid,
 			mbr_id: this.mbr_id,
 			parent_id: parent_id,
-			being: 'conversation',
+			being: 'dialog',
 			exchanges: [],
-			name: `conversation_${ this.mbr_id }`,
+			name: `dialog_${ this.mbr_id }`,
 		})
 		return _chats
 	}

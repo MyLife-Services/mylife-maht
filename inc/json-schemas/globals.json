@@ -1,0 +1,14 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "mylife-services-globals-json-schema",
+	"type": "object",
+	"name": "Globals",
+	"$defs": {
+		"name": {
+			"name": "Name",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 255
+		}
+	}
+}

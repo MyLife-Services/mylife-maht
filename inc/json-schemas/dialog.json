@@ -1,0 +1,178 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "mylife-services-dialog-json-schema",
+	"type": "object",
+	"name": "Dialog",
+	"required": ["id", "mbr_id", "parent_id", "being", "exchanges", "mode"],
+	"properties": {
+		"id": {
+			"type": "string",
+			"format": "uuid",
+			"$comment": "id of dialog"
+		},
+		"mbr_id": {
+			"type": "string",
+			"pattern": "^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}&&[^|\\t\\n\\r\\f\\v\\b\\s]]{1,64}\\|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+			"$comment": "partition-key for member: sysName|core_id"
+		},
+		"parent_id": {
+			"type": "string", 
+			"format": "uuid", 
+			"$comment": "dialog should be attached to operating agent, but must be at least attached to member core id"
+		},
+		"session_id": {
+			"type": "string",
+			"format": "uuid",
+			"$comment": "session id for dialog [ctx.session.id]"
+		},
+		"being": {
+			"type": "string", 
+			"const": "dialog"
+		},
+		"context": {
+			"type": "string",
+			"default": "unknown",
+			"enum": ["unknown", "private", "public", "pod", "organization", "other"],
+			"$comment": "context in which the dialog is taking place"
+		},
+		"device": {
+			"type": "string",
+			"enum": ["unknown", "car", "phone", "tablet", "watch", "tv", "speaker", "robot", "drone", "other"],
+			"$comment": "device on which dialog is taking place"
+		},
+		"exchanges": {
+			"type": "array",
+			"default": [],
+			"items": {
+				"$ref": "#/$defs/exchange"
+			},
+			"$comment": "array of dialog exchange objects"
+		},
+		"mode": {
+			"type": "string",
+			"default": "text",
+			"enum": ["unknown", "text", "voice", "video", "mixed", "other"],
+			"$comment": "mode of dialog"
+		}
+	},
+	"additionalProperties": true,
+	"$comment": "Definition for dialog component, includes sub-schemas via $def for exchange, inputDialog, inputDialogModeration, outputDialog",
+	"$defs": {
+		"exchange": {
+			"type": "object",
+			"name": "Exchange",
+			"required": ["id", "input"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"$comment": "id of dialog exchange"
+				},
+				"errors": {
+					"type": "array",
+					"items": {
+						"$ref": "mylife-services-error-json-schema"
+					},
+					"minItems": 1,
+					"$comment": "exchange errors"
+				},
+				"feedback": {
+					"type": "array",
+					"items": {
+						"$ref": "mylife-services-feedback-json-schema"
+					},
+					"minItems": 1,
+					"maxItems": 10,
+					"$comment": "feedback for exchange"
+				},
+				"input": {
+					"type": "object",
+					"$ref": "#/$defs/inputDialog",
+					"$comment": "input of exchange"
+				},
+				"moderation": {
+					"type": "object",
+					"$ref": "#/$defs/inputDialogModeration",
+					"$comment": "moderation query for input"
+				},
+				"output": {
+					"type": "object",
+					"$ref": "#/$defs/outputDialog",
+					"$comment": "model output of exchange"
+				}
+			},
+			"additionalProperties": false
+		},
+		"inputDialog": {
+			"type": "object",
+			"name": "InputDialog",
+			"required": ["id", "content", "contributor_mbr_id"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"$comment": "id of inputDialog"
+				},
+				"content": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 2048,
+					"$comment": "text of inputDialog"
+				},
+				"contributor_mbr_id": {
+					"type": "string",
+					"minLength": 40,
+					"$comment": "id of contributing member"
+				}
+			},
+			"$comment": "Definition for exchange component from member"
+		},
+		"inputDialogModeration": {
+			"type": "object",
+			"name": "InputDialogModeration",
+			"required": ["id", "content"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"$comment": "id of inputDialogModeration"
+				},
+				"content": {
+					"type": "string",
+					"$comment": "text of inputDialogModeration"
+				},
+				"$comment": "Moderation results from moderation model"
+			}
+		},
+		"outputDialog": {
+			"type": "object",
+			"name": "OutputDialog",
+			"required": ["id", "content"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"$comment": "id of outputDialog"
+				},
+				"content": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 2048,
+					"$comment": "text of processed outputDialog"
+				},
+				"model": {
+					"type": "string",
+					"default": "gpt-3-turbo",
+					"description": "ai-model or mbr_id of contributor",
+					"$comment": "id of known member contribution, defaults to owner mbr_id"
+				},
+				"processingTime": {
+					"type": "integer",
+					"description": "processing time in milliseconds",
+					"$comment": "processing time in milliseconds"
+				}
+			},
+			"$comment": "Definition for exchange component from system/ai-model"
+		}
+	}
+}

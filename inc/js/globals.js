@@ -12,7 +12,7 @@ import MylifeMemberSession from './session.js'
 // instantiates objects from json class schemas
 class Globals extends EventEmitter {
 	#excludeProperties = { '$schema': true, '$id': true, '$defs': true, "$comment": true, "name": true }	//	global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
-	#excludeConstructors = { 'id': true }
+	//	#excludeConstructors = { 'id': true }
 	#path = './inc/json-schemas'
 	#schemas	//	when deployed, check against the current prod schemas
 	constructor() {

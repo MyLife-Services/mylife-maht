@@ -1,7 +1,7 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$id": "https://maht.azurewebsites.net/inc/json-schemas/feedback.json",
-	"required": ["id", "mbr_id", "being", "content","rating"],
+	"$id": "mylife-services-feedback-json-schema",
+	"required": ["id", "mbr_id", "being","rating"],
 	"type": "object",
 	"name": "Feedback",
 	"properties": {
@@ -12,6 +12,7 @@
 		},
 		"mbr_id": {
 			"type": "string",
+			"pattern": "^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S}&&[^|\\t\\n\\r\\f\\v\\b\\s]]{1,64}\\|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 			"description": "root member id: [sysName|id]",
 			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
 		},
@@ -19,7 +20,7 @@
 			"type": "string",
 			"format": "uuid",
 			"description": "parent id of feedback, chatSnippetId",
-			"$comment": "parent id of feedback, chatSnippetId which will be found in the conversation log (or archive? No, exchanges with unaddressed feedback might not be archived) for this mbr_id"
+			"$comment": "parent id of feedback, chatSnippetId which will be found in the dialog log (or archive? No, exchanges with unaddressed feedback might not be archived) for this mbr_id"
 		},
 		"name": {
 			"type": "string",
@@ -44,10 +45,21 @@
 		},
 		"rating": {
 			"type": "integer",
+			"default": 0,
 			"minimum": -10,
 			"maximum": 10,
 			"description": "Rating from user",
 			"$comment": "can be zero so long as content is not null"
 		}
+	},
+	"if": {
+		"properties": {
+			"rating": {
+			"const": 0
+		}
+		}
+	},
+	"then": {
+		"required": ["content"]
 	}
 }
