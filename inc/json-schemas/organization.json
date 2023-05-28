@@ -68,5 +68,6 @@
 		"vision": {
 			"type": "string"
 		}
-	}
+	},
+	"additionalProperties": true
 }

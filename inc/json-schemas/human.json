@@ -22,9 +22,19 @@
 			"const": "core",
 			"description": "root constructor for human being in MyLife"
 		},
+		"birthdate": {
+			"type": "string",
+			"format": "date"
+		},
 		"bio": {
 			"type": "string",
 			"description": "human member biography"
+		},
+		"default_agent": {
+			"type": "string",
+			"format": "uuid",
+			"description": "uuid of the agent representing this human member",
+			"$comment": "could later scale to array? Why not?"
 		},
 		"form": {
 			"type": "string",
@@ -55,16 +65,7 @@
 			"maxItems": 10,
 			"description": "array of potential name references for this human member; transition to array of name schemas",
 			"$comment": "artificial cap on names for now @10x"
-		},
-		"birthdate": {
-			"type": "string",
-			"format": "date"
-		},
-		"agent": {
-			"type": "string",
-			"format": "uuid",
-			"description": "uuid of the agent representing this human member",
-			"$comment": "could later scale to array? Why not?"
 		}
-	}
+	},
+	"additionalProperties": true
 }

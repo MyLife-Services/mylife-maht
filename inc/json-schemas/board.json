@@ -32,5 +32,6 @@
 				"$comment": "uuid of associated upserted agent--when org<-->person, management scheme is defined in Agent, if member<-->member, it would establish its own mbr_id, and is a full sandbox buildout for social, and would have its own MyLife-based algorithms [i.e., creating amalgum of permissions from both individuals in the relationship]"
 			}
 		}
-	}
+	},
+	"additionalProperties": true
 }

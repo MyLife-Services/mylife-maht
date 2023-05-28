@@ -52,6 +52,7 @@
 			"$comment": "can be zero so long as content is not null"
 		}
 	},
+	"additionalProperties": true,
 	"if": {
 		"properties": {
 			"rating": {

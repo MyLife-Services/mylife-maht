@@ -32,5 +32,6 @@
 			"type": "boolean",
 			"const": true
 		}
-	}
+	},
+	"additionalProperties": true
 }

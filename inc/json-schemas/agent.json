@@ -62,5 +62,6 @@
 		"nickname": {
 			"$ref": "mylife-services-globals-json-schema#/definitions/name"
 		}
-	}
+	},
+	"additionalProperties": true
 }

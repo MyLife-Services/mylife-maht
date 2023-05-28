@@ -62,5 +62,6 @@
 			"default": "character",
 			"description": "character nickname"
 		}
-	}
+	},
+	"additionalProperties": true
 }
