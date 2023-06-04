@@ -1,16 +1,19 @@
 import chalk from 'chalk'
 class MylifeMemberSession {	//	bean only, no public functions aside from init and constructor
+	#Dialog	//	Interactions with system, Maht, Board, etc.
 	#fxValidate
 	#globals
 	#mbr_id
 	#Member
 	#locked = true	//	locked by default
 	name
-	constructor(_mbr_id,_globals,_fxValidate){	//	who is injected to return an answer about passphrase? Can I send in a function?
+	constructor(_mbr_id,_globals,_fxValidate,ctx){	//	inject validation function
 		this.#mbr_id = _mbr_id
 		this.#globals = _globals
 		this.#fxValidate = _fxValidate
-		this.name = 'MylifeMemberSession'
+		ctx.session.id = this.#globals.newGuid
+		this.name = `MylifeMemberSession_${ ctx.session.id }`
+		console.log('session created', ctx.session)
 	}
 	async init(_mbr_id=this.#mbr_id){
 		if(this.locked){

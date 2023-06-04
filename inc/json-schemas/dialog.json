@@ -17,47 +17,73 @@
 		},
 		"parent_id": {
 			"type": "string", 
-			"format": "uuid", 
-			"$comment": "dialog should be attached to operating agent, but must be at least attached to member core id"
-		},
-		"session_id": {
-			"type": "string",
 			"format": "uuid",
-			"$comment": "session id for dialog [ctx.session.id]"
+			"description": "id of agent",
+			"$comment": "dialog must be attached to agent"
 		},
 		"being": {
 			"type": "string", 
 			"const": "dialog"
 		},
-		"context": {
-			"type": "string",
-			"default": "unknown",
-			"enum": ["unknown", "private", "public", "pod", "organization", "other"],
-			"$comment": "context in which the dialog is taking place"
-		},
-		"device": {
-			"type": "string",
-			"enum": ["unknown", "car", "phone", "tablet", "watch", "tv", "speaker", "robot", "drone", "other"],
-			"$comment": "device on which dialog is taking place"
-		},
-		"exchanges": {
+		"conversations": {
 			"type": "array",
 			"default": [],
 			"items": {
-				"$ref": "#/$defs/exchange"
+				"$ref": "#/$defs/conversation"
 			},
-			"$comment": "array of dialog exchange objects"
+			"$comment": "array of dialog conversation objects"
 		},
-		"mode": {
+		"name": {
 			"type": "string",
-			"default": "text",
-			"enum": ["unknown", "text", "voice", "video", "mixed", "other"],
-			"$comment": "mode of dialog"
+			"$comment": "dialog_[agent_name]_[agent_id]"
 		}
 	},
 	"additionalProperties": true,
 	"$comment": "Definition for dialog component, includes sub-schemas via $def for exchange, inputDialog, inputDialogModeration, outputDialog",
 	"$defs": {
+		"conversation": {
+			"type": "object",
+			"name": "Conversation",
+			"required": ["id"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"$comment": "id of dialog"
+				},
+				"context": {
+					"type": "string",
+					"default": "public",
+					"enum": ["unknown", "private", "public", "pod", "organization", "other"],
+					"$comment": "context in which the conversation is taking place"
+				},
+				"device": {
+					"type": "string",
+					"default": "browser",
+					"enum": ["unknown", "browser", "car", "phone", "tablet", "watch", "tv", "speaker", "robot", "drone", "other"],
+					"$comment": "device on which dialog is taking place"
+				},
+				"exchanges": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"$ref": "#/$defs/exchange"
+					},
+					"$comment": "array of dialog exchange objects"
+				},
+				"mode": {
+					"type": "string",
+					"default": "text",
+					"enum": ["unknown", "text", "voice", "video", "mixed", "other"],
+					"$comment": "mode of dialog"
+				},
+				"session_id": {
+					"type": "string",
+					"format": "uuid",
+					"$comment": "session id for dialog [ctx.session.id]"
+				}
+			}
+		},
 		"exchange": {
 			"type": "object",
 			"name": "Exchange",

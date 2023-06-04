@@ -3,7 +3,6 @@ db_dotenv.config()
 //	definitions
 class Config{
 	constructor(_mbr_id){
-		console.log('configuring datasource for member...',_mbr_id)
 		this.endpoint=process.env.MYLIFE_DB_ENDPOINT
 		this.rw_id=process.env.MYLIFE_DB_RW
 		this.rx_id=process.env.MYLIFE_DB_RX

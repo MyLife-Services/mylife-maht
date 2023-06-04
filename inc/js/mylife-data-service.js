@@ -44,28 +44,15 @@ class Dataservices{	//	convert to extension of Datamanager
 	async getBoard(){
 		return (await this.getBoards())[0]
 	}
+	async getBoardAgents(_parent_id){
+		return await this.getItems('agent','u.members',[{ name: '@parent_id', value: _parent_id }])
+	}
 	async getBoards(){
 		//	board -> mbr_id but with board.id as "parent_id", if not exists, then create]
 		return await this.getItems('board','u.members')
 	}
 	getBio(){
 		return this.getCore().bio
-	}
-	async getChat(parent_id=this.id){
-		const _response = await this.getChats(parent_id)
-		return _response[0]	//	separate out [0] dimension here as it cannot be embedded in await
-	}
-	async getChats(parent_id){
-		let _chats = await this.getItems('dialog','u.exchanges',[{ name: '@parent_id', value: parent_id }])
-		if(!_chats.length) _chats = await this.pushItem({	//	create chat
-//	id: global.Globals.newGuid,
-			mbr_id: this.mbr_id,
-			parent_id: parent_id,
-			being: 'dialog',
-			exchanges: [],
-			name: `dialog_${ this.mbr_id }`,
-		})
-		return _chats
 	}
 	async getItem(_id){
 		return await this.datamanager.getItem(_id)
@@ -84,6 +71,9 @@ class Dataservices{	//	convert to extension of Datamanager
 			query: _query,
 			parameters: _paramsArray
 		})
+	}
+	async itemExists(_id){
+		return await this.datamanager.itemExists(_id)
 	}
 	async patchItem(_id,_dataArray){
 		return await this.datamanager.patchItem(_id,_dataArray)

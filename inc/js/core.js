@@ -4,10 +4,9 @@ import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
 import { abort } from 'process'
 //	import { _ } from 'ajv'
-import Dataservices from './mylife-data-service.js'
 //	server-specific imports
-import initRouter from './routes.js'
 import { _ } from 'ajv'
+import { assignProperties } from './factory.js'
 // config
 const config = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -16,70 +15,82 @@ const config = new Configuration({
 	basePath: process.env.OPENAI_BASE_URL,
 })
 const openai = new OpenAIApi(config)
+const _humanCategories = ['Interests','Abilities','Preferences','Artifacts','Beliefs','Facts','Other']
+const _organizationCategories = []
+/*
+const _agent = new Agent()
+//	utility functions
+	function mixin(target, ...sources) {
+	  Object.assign(target, ...sources);
+	}
+*/
+//	define independent export class for Agent
+class Agent extends EventEmitter{	//	Agent is a decorator to another object that animates and personifies; is formed through Object.assign
+	constructor(_agent){	//	is Member a reference in this case or a copy? If copy, then I can introduce an agent as .Object.assign()
+		super()
+		assignProperties(_agent,this)	//	construct properties from core
+	}
+	//	since will be composite object, can reference Factory from Member/MyLife
+}
+//	conceptually, could I make a combined class for the session that 'inherits' or 'composites' from a member and an agent?
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#agent
-	agentBeacons = []
-	#categories = ['Interests','Abilities','Preferences','Artifacts','Beliefs','Facts','Other']	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
-	#core
+	#categories = _humanCategories	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#dataservice
-	#excludeProperties = { '_none':true }
-	#globals
+	#factory
+	#id
 	#mbr_id
 	#personalityKernal
-	constructor(_Dataservice,_Globals){
+	constructor(_Dataservice,_Factory){
 		super()
 		this.#dataservice = _Dataservice	//	individual cosmos dataservice by mbr_id
 		this.#personalityKernal = openai	//	alterable, though would require different options and subelements, so should build into utility class
-		this.#globals = _Globals
-		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
-			.filter((_prop)=>{	//	filter out excluded properties
-				const _charExlusions = ['_','@','$','%','!','*',' ']
-				return !(
-						(_prop[0] in this.#excludeProperties)
-					||	!(_charExlusions.indexOf(_prop[0].charAt()))
-				)
-				})
-			.map(_prop=>{	//	map to object
-				return { [_prop[0]]:_prop[1] }
-			})
-		this.#core = Object.assign({},...this.#core)	//	merge to single object
-		this.#mbr_id = this.#core.mbr_id
-		this.agentBeacons.push(this.id)
+		this.#factory = _Factory
+		assignProperties(this.#dataservice.core,this,{ 'id': true, 'mbr_id': true })	//	construct properties from core
+		//	ensure foundation
+		this.#id = this.#dataservice.core.id
+		this.#mbr_id = this.#dataservice.core.mbr_id
 	}
 	//	initialize
-	async init(_agent_parent_id=this.globals.extractId(this.mbr_id)){
+	async init(_id=false){
 		if(!this?.agent){
-			this.agent = await this.getDefaultAgent(_agent_parent_id)
+			return this
+			try{
+				//	find existing dialog or create
+				const _dialog = await this.dataservice.getItems('dialog','*',[{ name: '@parent_id', value: this.agent.id }])
+				this.agent.dialog = new (this.factory.schema.dialog)(
+					( _dialog.length )
+					?	_dialog[0]
+					:	{
+							mbr_id: this.mbr_id,
+							name: 'dialog_'+this.agent.name+'_'+this.agent.id,
+							parent_id: this.agent.id,
+						}
+				)
+				//	create new conversation (but wait until first chat to save)
+				
+				console.log(chalk.bgGreenBright('agent-init-succeeded'),chalk.greenBright(this.agent))
 
-			//	REMOVE CHAT from startup, only on demand
-			console.log(chalk.bgCyanBright('agent-dialog-initialization'),chalk.cyanBright(this.agent.description))
-			const _dialog = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
-			this.agent.chat = await new (this.globals.schema.dialog)(_dialog)	//	agent chat assignment
+				//	add conversation pointer
 
-
-
-
-			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
+				//	context curiosity
+				//	self-property assignment based upon returns from openai
+				if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
+			} catch(e){
+				console.log(chalk.bgRedBright('agent-init-failed'),chalk.redBright(e))
+			}
 		}
-		return this
+		
 	}
 	//	getter/setter functions
 	get _agent(){	//	introspected agent
 		return this.agent.inspect(true)
 	}
-	get abilities(){
-		return this.core.abilities
-	}
-	get agent(){
-		return this.#agent
-	}
-	set agent(_agent){	//	must be instance of agent already
-		if(!this.#hasAgentAccess(_agent)) throw new Error('agent not known or not available to member')
-		this.#agent = _agent
-	}
-	get agentCategories(){
-		return this.agent.categories
+	get agent(){	//	can only egest versions of its agent
+		return async (_session_id,_id=this.id) => {
+			return Object.assign({}, this, await( await this.factory.agent( await this.#getAgent(_id) )).init())
+		}
 	}
 	get agentCommand(){
 		return this.agent.command_word
@@ -114,18 +125,6 @@ class Member extends EventEmitter {
 					}
 		}
 	}
-	get being(){
-		return this.core.being
-	}
-	get beliefs(){
-		return this.core.beliefs
-	}
-	get bio(){
-		return this.core.bio
-	}
-	get categories(){
-		return this.agent.categories
-	}
 	get chat(){
 		if(!this.agent?.chat){	//	initialize dialog
 			console.log(chalk.bgRedBright('agent-chat-not-initialized'),chalk.redBright(this.agent.name))
@@ -133,59 +132,26 @@ class Member extends EventEmitter {
 		}
 		return this.agent.chat
 	}
-	get core(){
-		return this.#core
-	}
 	get dataservice(){
 		return this.#dataservice
 	}
-	get description(){
-		return this.core.description
+	get dialog(){
+		return this.agent.dialog
 	}
-	get email(){
-		return this.core.email
-	}
-	get facts(){
-		return this.core.facts
-	}
-	get form(){
-		return this.core.form
-	}
-	get globals(){
-		return this.#globals
-	}
-	get hobbies(){
-		return this.core.hobbies
-	}
-	get interests(){
-		return this.core.interests
+	get factory(){
+		return this.#factory
 	}
 	get id(){
 		return this.sysid
 	}
-	get mbr_id(){
-		return this.core.mbr_id
-	}
-	get member(){
-		return this.core
-	}
-	get memberName(){
-		return this.core.names[0]
-	}
-	get name(){
-		return this.core.name
-	}
 	get newid(){
-		return this.globals.newGuid
+		return this.factory.newGuid
 	}
 	get personality(){
 		return this.#personalityKernal
 	}
-	get preferences(){
-		return this.core.preferences
-	}
-	get skills(){
-		return this.core.skills
+	get router(){
+		return this.factory.router(this.agent)
 	}
 	get sysname(){
 		return this.mbr_id.split('|')[0]
@@ -193,29 +159,7 @@ class Member extends EventEmitter {
 	get sysid(){
 		return this.mbr_id.split('|')[1]
 	}
-	get values(){
-		return this.core.values
-	}
 	//	public functions
-	async getDefaultAgent(){
-		//	get agent
-		if(this.core?.defaultAgent){
-			return new (this.globals.schema.agent)(await this.dataservice.getItem(this.core.defaultAgent))
-		}
-		const _agents = await this.dataservice.getAgents()	//	retrieve available agents from db as array
-		if(!_agents.length){	//	create agent
-			_agents.push(await this.#createAgent())
-		}
-		const _agent = await new (this.globals.schema.agent)(_agents[0])	//	agent
-		//	assign additional properties and methods
-		_agent.categories = _agent?.categories??this.#categories	//	assign categories
-		//	context curiosity
-		//	self-property assignment based upon returns from openai
-		//	update core
-		this.core.defaultAgent = _agent.id
-		this.dataservice.patchItem(this.sysid, [{ op: 'add', path: `/defaultAgent`, value: this.core.defaultAgent }])	//	no need to await
-		return _agent
-	}
 	async processChatRequest(ctx){
 		//	gatekeeper/timekeeper
 		let _timer = process.hrtime()
@@ -223,9 +167,9 @@ class Member extends EventEmitter {
 		//	validate input
 		//	store question
 		let _question = ctx.request.body.message
-		const _Exchange = new (this.globals.schema.exchange)({
+		const _Exchange = new (this.factory.schema.exchange)({
 			id: this.newid,
-			input: new  (this.globals.schema.inputDialog)({
+			input: new  (this.factory.schema.inputDialog)({
 					id: this.newid,
 					content: _question,
 					contributor_mbr_id: ctx.session.MemberSession.mbr_id,
@@ -264,7 +208,7 @@ class Member extends EventEmitter {
 		console.log(chalk.bgGray('chat-response-received'),_response)
 		//	store response
 		_timer = process.hrtime(_timer)
-		_Exchange.output = new (this.globals.schema.outputDialog)({
+		_Exchange.output = new (this.factory.schema.outputDialog)({
 			id: this.newid,
 			content: _response,
 			model: _model,
@@ -460,31 +404,55 @@ class Member extends EventEmitter {
 		console.log(chalk.bgCyanBright(`default core agent created for ${ this.mbr_id }`),_agents[0].inspect(true))
 		return _agentProperties
 	}
+	async #getAgent(_id=false){
+		//	get agent
+		if(_id){	//	id could be for [id] | [parent_id]
+			//	1. test for direct agent id
+			let _agent = await this.dataservice.getItem(_id)
+			if(_agent!==undefined)
+				return await this.factory.agent(_agent,this)
+			//	2. test for agent parent_id (example: board)
+			_agent = (await this.dataservice.getItems('agent','*',[{ name: '@parent_id', value: _id }]))[0]
+			if(_agent!==undefined){
+				return await this.factory.agent(_agent,this)
+			}
+			throw new Error(`agent not found for id: ${ _id }`)
+		}
+		//	3. test for default agent
+		if(this?.defaultAgent)
+			return this.factory.agent(await this.dataservice.getItem(this.defaultAgent),this)
+		const _agents = await this.dataservice.getAgents()	//	retrieve member's available agents from db as array
+		if(!_agents.length){	//	create agent
+			_agents.push(await this.#createAgent())
+		}
+		_agent = await this.factory.agent(_agents[0],this)	//	agent
+		//	update core
+		this.defaultAgent = _agent.id
+		this.dataservice.patchItem(this.sysid, [{ op: 'add', path: `/defaultAgent`, value: this.defaultAgent }])	//	no need to await
+		return _agent
+	}
 	#hasAgentAccess(_agent){
-		return (
-			this.agentBeacons	//	agent must be on beacon list
-				.filter(_=>{
-					return _===_agent?.parent_id || this.mbr_id===_agent?.mbr_id 
-				})	//	member must have rights to agent, cooperative or core
-				.length
-		)	
+		return true	//	is now based on server-hosted objects, owner-member is always presenting the agent, no proxies
 	}
 }
+//=========================================================
+//	MyLife Organization
+//=========================================================
 class MyLife extends Member {	//	form=organization
+	#Hosted = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)
 	#Menu
 	#Router
 	board
-	constructor(_Dataservice,_Globals){
-		super(_Dataservice,_Globals)
+	constructor(_Dataservice,_Factory){	//	inject factory to keep server singleton
+		super(_Dataservice,_Factory)
 	}
 	//	public functions
 	async init(){
 		//	assign board array
 		await super.init()
-		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
-		this.board = await new (this.globals.schema.board)(_board)
-		this.agentBeacons.push(this.board.id)	//	board can host agents
-		this.board.members = await this.#populateBoard(_board)	//	convert board.members to array of Member objects
+		this.board = await this.factory.board(await this.dataservice.getBoard())
+		//	when accessed, the board should point to the member-agent with board parent_id
+		console.log('board-initialized',this.board.members,this.board.id)
 		return this
 	}
 	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
@@ -610,7 +578,7 @@ class MyLife extends Member {	//	form=organization
 		return super.formatQuestion(_question)
 	}
 	//	getters/setters
-	get board(){	//	board is array of Member objects
+	get board(){
 		return this.board 
 	}
 	get boardListing(){
@@ -619,53 +587,12 @@ class MyLife extends Member {	//	form=organization
 	get boardMembers(){
 		return this.board.members	//	board.members is an ordered array of Member objects
 	}
-	get description(){
-		return this.core.description
-	}
-	get governance(){
-		return this.core.governance
-	}
-	get membership(){
-		return this.core.membership
+	get hosted(){	//	returns array of members hosted on this instance
+		return this.#Hosted
 	}
 	get menu(){
-		if(!this.#Menu){
-			this.#Menu = new (this.globals.schemas.menu)(this).menu
-		}
+		this.#Menu ??= this.factory.menu(this).menu
 		return this.#Menu
-	}
-	get mission(){
-		return this.core.mission
-	}
-	get name(){
-		return this.core.names[0]
-	}
-	get philosophy(){
-		return this.core.philosophy
-	}
-	get privacy(){
-		return this.core.privacy
-	}
-	get roadmap(){
-		return this.core.roadmap
-	}
-	get router(){
-		if(!this.#Router){
-			this.#Router = initRouter(this, new (this.globals.schemas.menu)(this))
-		}
-		return this.#Router
-	}
-	get security(){
-		return this.core.security
-	}
-	get services(){
-		return this.core.services
-	}
-	get values(){
-		return this.core.values
-	}
-	get vision(){
-		return this.core.vision
 	}
 	//	private functions
 	async #isQuestion(_question){	//	question or statement?
@@ -689,20 +616,10 @@ class MyLife extends Member {	//	form=organization
 				})
 		return _question
 	}
-	async #populateBoard(_board){
-		//	convert promises to array of agents
-		const _boardAgents = await Promise.all(
-			await _board.members
-				.map(async _boardMemberMbr_id=>{	//	find agent in board -- search for parent_id = board.id
-					return await new Member( (await new Dataservices(_boardMemberMbr_id).init()),this.globals )	//	init service with mbr_id
-						.init(_board.id)	//	request parent_id agent
-				})
-		)
-		return _boardAgents	//	returns filterable array of member.agent(s)
-	}
 }
 //	exports
 export {
+	Agent,
 	Member,
 	MyLife,
 }

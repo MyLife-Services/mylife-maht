@@ -12,7 +12,7 @@ import session from 'koa-generic-session'
 //	misc
 import chalk from 'chalk'
 //	local services
-import Globals from './inc/js/globals.js'
+import { Factory } from './inc/js/factory.js'
 //	dotenv
 import koaenv from 'dotenv'
 koaenv.config()
@@ -22,12 +22,27 @@ const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
-const _Globals = await new Globals()
-	.init()
+const _Factory = new Factory()
 //	Maht Singleton for server scope
-const _Maht = await _Globals.getServer(process.env.MYLIFE_SERVER_MBR_ID)
+const _Maht = await _Factory.server(process.env.MYLIFE_SERVER_MBR_ID,_Factory)
 const serverRouter = await _Maht.router
+//	hosted members assigned by .env
+//	stubbed until accessed, stored in server memory from that point on
+//	Agents (:aid) referenced as /members/:mid/:aid/[action]
+//	session will be used for agent interactions and authentication AGENT-related Data would be stored by session
+//	create class Agent inside of core.js for trinity of Member, Agent, MyLife
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
+const _sessionConfig = {
+	key: process.env?.MYLIFE_SESSION_KEY??_Factory.newGuid,   // cookie session id
+	maxAge: process.env?.MYLIFE_SESSION_TIMEOUT_MS??900000,     // session lifetime in milliseconds
+	autoCommit: true,
+	overwrite: true,
+	httpOnly: false,
+	signed: true,
+	rolling: true,
+	renew: true,
+	store: MemoryStore,
+}
 //	koa-ejs
 render(app, {
 	root: path.join(__dirname, 'views'),
@@ -43,29 +58,21 @@ app.context.MyLife = _Maht
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
 app.use(bodyParser())	//	enable body parsing
-	.use(
-		session(	//	session initialization
-			{
-				key: 'mylife.sid',   // cookie session id
-				maxAge: process.env.MYLIFE_SESSION_TIMEOUT_MS,     // session lifetime in milliseconds
-				autoCommit: true,
-				overwrite: true,
-				httpOnly: false,
-				signed: true,
-				rolling: false,
-				renew: false,
-				store: MemoryStore,
-			},
-			app
-		))
+	.use(session(_sessionConfig, app))	//	enable session
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
-		if(!ctx.session?.MemberSession) ctx.session.MemberSession = new (_Globals.schemas.session)(JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)[0], _Globals, ctx.MyLife.challengeAccess.bind(_Maht))	//	inject MAHT-specific functionality into session object
-		ctx.state.board = ctx.MyLife.boardMembers	//	array of plain objects by full name
+		ctx.session.id ??= ctx.MyLife.newid	//	assign unique session id
+		ctx.session.mbr_id ??= 'guest'
+
+
+		console.log(ctx.request,ctx.session.id,ctx.MyLife.agent(ctx.session.id))
+		//	ctx.session.Member
+		ctx.state.board = ctx.MyLife.boardMembers	//	array of member objects by [bid]
 		ctx.state.boardListing = ctx.MyLife.boardListing	//	array of plain objects by full name
 		ctx.state.menu = ctx.MyLife.menu
 		ctx.state.blocked = ctx.session.MemberSession.locked
-		ctx.state.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
+		//	change to use ctx.MyLife
+		ctx.state.hostedMembers = ctx.MyLife.hostedMembers	//	array of mbr_id
 		ctx.state.member = 
 			(ctx.request.body?.agent==='member' || ctx.request.url.split('/')[1]==='members')	//	to-do: find better way to ascertain
 			?	ctx.session.MemberSession.member	//	has key .member (even if `undefined`)

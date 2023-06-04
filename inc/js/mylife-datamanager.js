@@ -29,9 +29,7 @@ class Datamanager {
 		}
 		//	assign database and container
 		this.database=this.client.database(oConfig.db.id)
-		console.log(chalk.bgCyan('database initialized:',chalk.bgCyanBright(`${this.database.id}`)))
 		this.container=this.database.container(oConfig.db.container.id)
-		console.log(chalk.bgCyan('container initialized:',chalk.bgCyanBright(`${this.container.id}`)))
 	}
 	//	init function
 	async init() {
@@ -41,7 +39,6 @@ class Datamanager {
 			this.#partitionId
 		)
 			.read()
-		console.log(chalk.bgBlue('core initialized:',chalk.bgBlueBright(`${this.#core.resource.id}`)))
 		return this
 	}
 	//	getter/setter property functions
@@ -73,6 +70,11 @@ class Datamanager {
 			.query(_querySpec,_options)
 			.fetchAll()
 		return resources
+	}
+	async itemExists(_id,_options=this.requestOptions){
+		_options.enableContentResponseOnWrite = false
+		const { resource } = await this.container.item(_id).read(_options)
+		return !!resource
 	}
 	async patchItem(_id,_item) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
