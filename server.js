@@ -26,6 +26,7 @@ const _Factory = new Factory()
 //	Maht Singleton for server scope
 const _Maht = await _Factory.server(process.env.MYLIFE_SERVER_MBR_ID,_Factory)
 const serverRouter = await _Maht.router
+console.log(await _Maht.board())
 //	hosted members assigned by .env
 //	stubbed until accessed, stored in server memory from that point on
 //	Agents (:aid) referenced as /members/:mid/:aid/[action]

@@ -52,7 +52,7 @@ class Member extends EventEmitter {
 		this.#id = this.#dataservice.core.id
 		this.#mbr_id = this.#dataservice.core.mbr_id
 	}
-	//	initialize
+	/*
 	async init(_id=false){
 		if(!this?.agent){
 			return this
@@ -83,6 +83,7 @@ class Member extends EventEmitter {
 		}
 		
 	}
+	*/
 	//	getter/setter functions
 	get _agent(){	//	introspected agent
 		return this.agent.inspect(true)
@@ -446,15 +447,6 @@ class MyLife extends Member {	//	form=organization
 	constructor(_Dataservice,_Factory){	//	inject factory to keep server singleton
 		super(_Dataservice,_Factory)
 	}
-	//	public functions
-	async init(){
-		//	assign board array
-		await super.init()
-		this.board = await this.factory.board(await this.dataservice.getBoard())
-		//	when accessed, the board should point to the member-agent with board parent_id
-		console.log('board-initialized',this.board.members,this.board.id)
-		return this
-	}
 	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
 		if(!ctx.session?.bInitialized){
 			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
@@ -578,7 +570,17 @@ class MyLife extends Member {	//	form=organization
 		return super.formatQuestion(_question)
 	}
 	//	getters/setters
+	get #Board(){
+		return this.factory.board
+	}
 	get board(){
+		//	board requires db call to .board (async) to populate
+		this.board ??= new (this.#Board)()
+		this.factory.board = this.board(await this.dataservice.getBoard())
+		console.log(this.board)
+		return async ()=>{	//	Board object
+			this.#Board ??= await this.#Board
+		}
 		return this.board 
 	}
 	get boardListing(){
