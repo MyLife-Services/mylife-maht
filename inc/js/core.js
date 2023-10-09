@@ -102,12 +102,19 @@ class Member extends EventEmitter {
 		switch(this.being){
 //			case 'agent':
 			default:	//	core
+				const replacedDescription = 'I am <||Q||>, AI-Agent for the nonprofit member organization MyLife'
+				return {
+						role: "system",
+						content: replacedDescription
+					}
+/*
 				const regex = new RegExp(this.agentName, 'g')
 				const replacedDescription = this.agentDescription.replace(regex, this.agentName_tokenized)
 				return {
 						role: "system",
 						content: replacedDescription + ' ' + this.agentProxy
 					}
+*/					
 		}
 	}
 	get being(){
@@ -203,12 +210,13 @@ class Member extends EventEmitter {
 		//	transform input
 		const aQuestion = [
 			this.agentRole,	//	assign system role
-			...await this.assignPrimingQuestions(_question),	//	assign few-shot learning prompts
+//			...await this.assignPrimingQuestions(_question),	//	assign few-shot learning prompts
 			await this.formatQuestion(_question)	//	assign user question
 		]
 		console.log('aQuestion',aQuestion)
 		//	insert ai-sniffer/optimizer	//	why won't anyone think of the tokens!?
-		const _model = 'gpt-3.5-turbo'
+		const _model = process.env.OPENAI_MODEL_MAHT
+		console.log('model=', process.env.OPENAI_MODEL_MAHT)
 		const _response = await this.personality.createChatCompletion({
 			model: _model,
 			messages: aQuestion,
@@ -433,10 +441,12 @@ class MyLife extends Member {	//	form=organization
 		return this
 	}
 	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
+/* testing fine-tuned model, remove priming questions
 		if(!ctx.session?.bInitialized){
 			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
 			ctx.session.bInitialized = true
 		}
+*/
 		return await super.processChatRequest(ctx)
 	}
 	async assignPrimingQuestions(_question){	//	corporate version
