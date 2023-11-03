@@ -27,7 +27,6 @@ class PgvectorManager {
 					}
 				]
 		}
-		this.#mylifeEmbeddingServerUrl = 'http://localhost:8000/'
 		return await axios.post(
 			this.#mylifeEmbeddingServerUrl+'query',
 			_question,
