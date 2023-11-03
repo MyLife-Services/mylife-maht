@@ -1,13 +1,16 @@
 //	imports
 import Datamanager from "./mylife-datamanager.js"
+import PgvectorManager from "./mylife-pgvector-datamanager.js"
 class Dataservices{	//	convert to extension of Datamanager
 	//	pseudo-constructor
 	#Datamanager
 	#partitionId
+	#PgvectorManager
 	#rootSelect = 'u.id, u.mbr_id, u.parent_id, u.being'
 	//	constructor
 	constructor(_mbr_id){
 		this.#partitionId = _mbr_id
+		this.#PgvectorManager = new PgvectorManager()
 		//	NOTE: init() required, as population is async
 		//	agent and chat required
 	}
@@ -15,7 +18,7 @@ class Dataservices{	//	convert to extension of Datamanager
 	async init(){
 		this.#Datamanager=await new Datamanager(this.#partitionId)
 			.init()	//	init datamanager
-		return this
+		return this 
 	}
 	//	getters/setters
 	get core(){
@@ -23,6 +26,9 @@ class Dataservices{	//	convert to extension of Datamanager
 	}
 	get datamanager(){
 		return this.#Datamanager
+	}
+	get embedder(){
+		return this.#PgvectorManager
 	}
 	get id(){
 		return this.partitionId.split('|')[1]
@@ -102,6 +108,9 @@ class Dataservices{	//	convert to extension of Datamanager
 			query: _query,
 			parameters: _paramsArray
 		})
+	}
+	async getLocalRecords(_question){
+		return await this.embedder.getLocalRecords(_question)
 	}
 	async patchItem(_id,_dataArray){
 		return await this.datamanager.patchItem(_id,_dataArray)
