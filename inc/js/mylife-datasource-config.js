@@ -1,5 +1,3 @@
-import db_dotenv from 'dotenv'
-db_dotenv.config()
 //	definitions
 class Config{
 	constructor(_mbr_id){

@@ -2,7 +2,6 @@
 import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
-import { abort } from 'process'
 //	import { _ } from 'ajv'
 import Dataservices from './mylife-data-service.js'
 //	server-specific imports
@@ -209,18 +208,17 @@ class Member extends EventEmitter {
 		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`),_chatSnippetQuestion)
 		//	transform input
 		const aQuestion = [
-			this.agentRole,	//	assign system role
-//			...await this.assignPrimingQuestions(_question),	//	assign few-shot learning prompts
+			this.agentRole,	//	assign system role {}
+			...await this.assignLocalContent(_question),	//	assign local content {} from pgvector
+			...await this.assignPrimingQuestions(_question),	//	assign few-shot learning prompts
 			await this.formatQuestion(_question)	//	assign user question
 		]
 		console.log('aQuestion',aQuestion)
 		//	insert ai-sniffer/optimizer	//	why won't anyone think of the tokens!?
 		const _model = process.env.OPENAI_MODEL_MAHT
-		console.log('model=', process.env.OPENAI_MODEL_MAHT)
 		const _response = await this.personality.createChatCompletion({
 			model: _model,
 			messages: aQuestion,
-	//		git: { repo: 'https://github.com/MyLife-Services/mylife-maht' },
 		})
 			.then(
 				(_response)=>{
@@ -231,7 +229,7 @@ class Member extends EventEmitter {
 				}
 			)
 			.catch(err=>{
-				console.log(err)
+				console.error(err)
 				//	emit for server
 			})
 		console.log(chalk.bgGray('chat-response-received'),_response)
@@ -448,6 +446,21 @@ class MyLife extends Member {	//	form=organization
 		}
 */
 		return await super.processChatRequest(ctx)
+	}
+	async assignLocalContent(_question){	//	assign local content from pgvector
+		let _localContent = await this.dataservice.getLocalRecords(_question)
+		return (_localContent.length)	//	"micro"-prompt around content
+			?	[
+					{
+						role: 'user',
+						content: `What is top corporate record about: ${_question}`
+					},
+					{
+						role: 'assistant',
+						content: await this.dataservice.getLocalRecords(_question)
+					}
+				]
+			:	[]
 	}
 	async assignPrimingQuestions(_question){	//	corporate version
 		return this.buildFewShotQuestions(
