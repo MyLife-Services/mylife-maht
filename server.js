@@ -1,6 +1,5 @@
 //	*imports
 import { abort } from 'process'
-//	native node [less dotenv => azure web app]
 import path from 'path'
 import { fileURLToPath } from 'url'
 //	server
@@ -13,9 +12,6 @@ import session from 'koa-generic-session'
 import chalk from 'chalk'
 //	local services
 import Globals from './inc/js/globals.js'
-//	dotenv
-import koaenv from 'dotenv'
-koaenv.config()
 //	constants/variables
 const app = new Koa()
 const port = process.env.PORT || 3000
