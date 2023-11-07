@@ -4,7 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 //	server
 import Koa from 'koa'
-import bodyParser from 'koa-bodyparser'
+import { koaBody } from 'koa-body'
 import render from 'koa-ejs'
 import session from 'koa-generic-session'
 //	import Router from 'koa-router'
@@ -38,7 +38,7 @@ render(app, {
 app.context.MyLife = _Maht
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
-app.use(bodyParser())	//	enable body parsing
+app.use(koaBody({ multipart: true }))	//	enable body parsing
 	.use(
 		session(	//	session initialization
 			{

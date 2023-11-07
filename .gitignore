@@ -5,3 +5,6 @@ package-lock.json
 .vscode/
 __*/ # ignore all folders starting with an underscore
 .hintrc
+.uploads
+.tmp
+.DS_Store

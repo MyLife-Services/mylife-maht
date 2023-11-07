@@ -1,0 +1,59 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/asset.json",
+	"required": ["id", "mbr_id", "being", "type"],
+	"type": "object",
+	"name": "asset",
+	"properties": {
+		"id": {
+			"description": "uuid of asset-agent",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "parent id of agent"
+		},
+		"being": {
+			"type": "string",
+			"const": "asset",
+			"description": "Being for asset in MyLife"
+		},
+		"type": {
+			"type": "string",
+			"default": "text",
+			"description": "Type of content (text|image|video|audio|binary|other)",
+			"$comment": "NOTE: could also be construed from extension property, but also metadata'd here with actual conversion technique"
+		},
+		"description": {
+			"type": "string",
+			"description": "asset description"
+		},
+		"extension": {
+			"type": "string",
+			"default": "",
+			"description": "extension for original file"
+		},
+		"postgres_source_id": {
+			"type": "string",
+			"description": "marked filename for embedded document, including extension"
+		},
+		"context": {
+			"type": "string",
+			"default": "Text document uploaded by member ${mbr_id} to MyLife",
+			"description": "Provide evolving context of underlying asset (why/where created, updated, included, curated)"
+		},
+		"purpose": {
+			"type": "string",
+			"default": "To represent the content of this asset faithfully",
+			"description": "purpose of ai-asset-agent"
+		},
+		"$comment": "any additional properties "
+	}
+}

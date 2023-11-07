@@ -16,7 +16,7 @@ async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	//	best way to turn to any agent? build into ctx? get state.member right
+	//	best way to turn to any agent? build into ctx? get state.member(/agent?) right
 	const _response = await ctx.state.member.processChatRequest(ctx)
 	ctx.body = { 'answer': _response }
 }
@@ -51,6 +51,15 @@ async function register(ctx){
 	ctx.state.registerEmail = ctx.state.agent.email
 	await ctx.render('register')	//	register
 }
+async function _upload(ctx){	//	post file via post
+
+	ctx.body = { 'answer': 'nothing' }
+}
+async function upload(ctx){	//	upload display widget/for list and/or action(s)
+	ctx.state.title = `Upload`
+	ctx.state.subtitle = `Upload your files to <em>MyLife</em>`
+	await ctx.render('upload')	//	upload
+}
 // exports
 export {
 	about,
@@ -60,4 +69,6 @@ export {
 	index,
 	members,
 	register,
+	upload,
+	_upload,
 }

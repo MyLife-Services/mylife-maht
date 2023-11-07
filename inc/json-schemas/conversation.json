@@ -1,6 +1,6 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$id": "mylife-services-conversation-json-schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/conversation",
 	"required": ["mbr_id", "parent_id", "being", "exchanges"],
 	"type": "object",
 	"name": "Conversation",

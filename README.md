@@ -1,8 +1,24 @@
-# Q: MyLife Executive AI-Agent
+# MyLife Member Services
+
+_MyLife_ is a nonprofit member organization established in 2021 with the aim of preserving the authentic and genuine 21st-century human experience. _MyLife_ offers a free, secure, equitable network for personal archives and narrative legacies. _MyLife_ services platform helps members define Digital Selves for themselves and posterity. _MyLife_ is a member-based nonprofit organization that is committed to providing humanity a durable, enduring and accessible internet-based platform to collect and showcase an individual's stories, media and memories through a personal lens.
+
+Any human can claim their membership with _MyLife_.
+
+This codebased comprises two primary functional elements
+
+1. MyLife Member Services
+2. Q: MyLife Executive AI-Agent
+
+## MyLife Member Services
+
+- Story-Telling AI-Agent
+- Digital Self Avatar
+
+## Q: MyLife Executive AI-Agent
 
 [![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
 
-## About **Q**
+### About **Q**
 
 _MyLife, Incorporated_'s **Q** is an artificial intelligence (AI) project developed by _MyLife_ Services. **Q** is the core AI-Agent for the _MyLife_ organization, so is being built and trained to discuss any topics around _MyLife_, its mission, board, intent, technology, and more. **Q** will shepherd members into the alpha program and be the first point of contact for member services, but will remain distinct from AI-Agents that assist in story-telling or memoire narration, AI-Agent `Avatars` that represent _MyLife_ Members, or helpdesk AI-Agents that assist with technical support on the application.
 
