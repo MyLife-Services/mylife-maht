@@ -38,7 +38,12 @@ render(app, {
 app.context.MyLife = _Maht
 app.keys = [`${process.env.MYLIFE_SESSION_KEY}`]
 //	app definition
-app.use(koaBody({ multipart: true }))	//	enable body parsing
+app.use(koaBody({ 
+	multipart: true,
+	formidable: {
+      maxFileSize: 1024 * 1024 * 10, // 10MB admin maximum upload size; members limited @route level
+    },
+}))	//	enable body parsing
 	.use(
 		session(	//	session initialization
 			{

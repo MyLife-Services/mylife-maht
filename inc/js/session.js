@@ -41,6 +41,9 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	set blocked(_passphrase){
 		return (this.locked = _passphrase)
 	}
+	get globals(){
+		return this.#globals
+	}
 	get locked(){
 		return this.#locked
 	}
