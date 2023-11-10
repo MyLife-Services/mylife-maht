@@ -32,10 +32,11 @@ const schemas = {
 	server: MyLife,
 	session: MylifeMemberSession
 }
+const globals = new Globals()
 // modular variables
 let oServer
 // modular classes
-class AgentFactory extends Globals{
+class AgentFactory extends EventEmitter{
 	#dataservices
 	constructor(){
 		super()
@@ -53,11 +54,14 @@ class AgentFactory extends Globals{
 	}
 	async getMyLifeSession(_challengeFunction){
 		//	default is session based around default dataservices [Maht entertains guests]
-		return await new (schemas.session)(dataservicesId,this,_challengeFunction).init()
+		return await new (schemas.session)(dataservicesId,globals,_challengeFunction).init()
 	}
 	//	getters/setters
 	get dataservices(){
 		return this.#dataservices
+	}
+	get globals(){
+		return globals
 	}
 	get organization(){
 		return organization
@@ -65,8 +69,17 @@ class AgentFactory extends Globals{
 	get organization(){
 		return oServer
 	}
+	get schema(){	//	proxy for schemas
+		return this.schemas
+	}
+	get schemaList(){	//	proxy for schemas
+		return Object.keys(this.schemas)
+	}
 	get schemas(){
 		return schemas
+	}
+	get urlEmbeddingServer(){
+		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
 }
 // private modular functions

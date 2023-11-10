@@ -19,15 +19,6 @@ class Globals extends EventEmitter {
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
 	}
 	//	getters/setters
-	get member(){
-		return this.schemas.member
-	}
-	get schema(){	//	proxy for schemas
-		return this.schemas
-	}
-	get schemaList(){	//	proxy for schemas
-		return Object.keys(schemas)
-	}
 	get uploadPath(){
 		return './.uploads/.tmp/'
 	}

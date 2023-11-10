@@ -3,7 +3,6 @@ import EventEmitter from 'events'
 import { OpenAIApi, Configuration } from 'openai'
 import chalk from 'chalk'
 //	import { _ } from 'ajv'
-import Dataservices from './mylife-data-service.js'
 //	server-specific imports
 import initRouter from './routes.js'
 // config
@@ -22,14 +21,16 @@ class Member extends EventEmitter {
 	#core
 	#dataservice
 	#excludeProperties = { '_none':true }
+	#factory
 	#globals
 	#mbr_id
 	#personalityKernal
-	constructor(_Dataservice,_Globals){
+	constructor(_Dataservice,_Factory){
 		super()
 		this.#dataservice = _Dataservice	//	individual cosmos dataservice by mbr_id
 		this.#personalityKernal = openai	//	alterable, though would require different options and subelements, so should build into utility class
-		this.#globals = _Globals
+		this.#factory = _Factory
+		this.#globals = this.#factory.globals
 		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']
@@ -49,11 +50,11 @@ class Member extends EventEmitter {
 	async init(_agent_parent_id=this.globals.extractId(this.mbr_id)){
 		if(!this?.agent) {	//	create agent
 			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
-			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
+			this.agent = await new (this.#factory.schema.agent)(_agentProperties)	//	agent
 			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
 			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
 			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
-			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
+			this.agent.chat = await new (this.factory.schema.conversation)(_conversation)	//	agent chat assignment
 			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		}
 		return this
@@ -141,6 +142,9 @@ class Member extends EventEmitter {
 	}
 	get email(){
 		return this.core.email
+	}
+	get factory(){
+		return this.#factory
 	}
 	get facts(){
 		return this.core.facts
@@ -599,7 +603,7 @@ class MyLife extends Member {	//	form=organization
 	}
 	get menu(){
 		if(!this.#Menu){
-			this.#Menu = new (this.globals.schemas.menu)(this).menu
+			this.#Menu = new (this.factory.schemas.menu)(this).menu
 		}
 		return this.#Menu
 	}
@@ -620,7 +624,7 @@ class MyLife extends Member {	//	form=organization
 	}
 	get router(){
 		if(!this.#Router){
-			this.#Router = initRouter(this, new (this.globals.schemas.menu)(this))
+			this.#Router = initRouter(this, new (this.factory.schemas.menu)(this))
 		}
 		return this.#Router
 	}

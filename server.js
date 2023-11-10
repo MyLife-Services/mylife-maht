@@ -35,7 +35,11 @@ render(app, {
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
-app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_Globals.newGuid()}`]
+app.context.AgentFactory = _factory
+app.context.Globals = _factory.globals
+app.context.menu = _Maht.menu
+app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
+app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_factory.newGuid()}`]
 // Enable Koa body w/ configuration
 app.use(koaBody({
     multipart: true,
@@ -58,17 +62,11 @@ app.use(koaBody({
 			},
 			app
 		))
-	.use(async (ctx,next) => {	//	assign basic context variables
-		ctx.state.menu = ctx.MyLife.menu
-		ctx.state.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
-		await next()
-	})
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		//	MyLife uses Maht as the default until login
 		ctx.state.member = ctx.MyLife
 		ctx.state.agent = ctx.state.member?.agent
-		console.log(ctx.state.member)
 		console.log(chalk.bgBlue('ctx.state.agent:', chalk.bgRedBright(ctx.state.member.agentName)))
 		await next()
 	})

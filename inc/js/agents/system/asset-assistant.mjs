@@ -2,10 +2,12 @@
 import fs from 'fs'
 import mime from 'mime-types'
 import axios from 'axios'
-//	variable definition
-let moduleGlobals = null
-let aAdmins = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)
-//	class definition
+//	modular constants
+const aAdmins = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)
+//	modular variables
+let AgentFactory
+let Globals
+//	modular class definition
 class oAIAssetAssistant {
 	//	pseudo-constructor
 	#ctx
@@ -14,7 +16,8 @@ class oAIAssetAssistant {
 		//	primary direct assignment
 		this.#ctx = _ctx
 		//	modular direct assignment
-		if(!moduleGlobals) moduleGlobals = this.#ctx?.session?.MemberSession?.globals??null
+		if(!AgentFactory) AgentFactory = this.#ctx.AgentFactory
+		if(!Globals) Globals = this.#ctx.Globals
 		//	secondary direct assignment
 		this.#file = this.#extractFile(this.#ctx)
 		//	validate asset construction
@@ -31,15 +34,14 @@ class oAIAssetAssistant {
 	//	private functions
 	async embedFile(){
 		console.log('#embedFile() begin')
-		const _uploadDestination = moduleGlobals.uploadPath + this.#file.localFilename
+		const _uploadDestination = Globals.uploadPath + this.#file.localFilename
 		console.log(_uploadDestination)
 		const reader = fs.createReadStream(this.#file.filepath)	// create a read stream
-		console.log('reader', reader)
 		//	upload to server
-		const MyLifeEmbeddingServer = await moduleGlobals.getEmbeddingServer()
 		//	file
 		//	metadata
-		return await axios.post(url, reader, {
+		let _url = 'http://localhost:8000/upsert-file'	//	AgentFactory.urlEmbeddingServer
+		return await axios.post(_url, reader, {
 				headers: {
 					'Content-Type': 'multipart/form-data'
 				}
@@ -49,7 +51,7 @@ class oAIAssetAssistant {
 				// Additional processing based on response
 			})
 			.catch(error => {
-				console.error('Error uploading file:', error.message)
+				console.error('Error uploading file:', error)
 				// Error handling
 			})
 	}
@@ -58,7 +60,7 @@ class oAIAssetAssistant {
 		if(!this.#ctx.request?.files?.file??false) throw new Error('No file found in request.')
 		const { lastModifiedDate, filepath, newFilename, originalFilename, mimetype, size } = this.#ctx.request.files.file
 		return {
-			...{ lastModifiedDate, filepath, newFilename, originalFilename, mimetype, size, localFilename: `${moduleGlobals.newGuid}.${mime.extension(mimetype)}` },
+			...{ lastModifiedDate, filepath, newFilename, originalFilename, mimetype, size, localFilename: `${Globals.newGuid}.${mime.extension(mimetype)}` },
 			...this.#ctx.request.body
 		}
 	}
@@ -77,7 +79,8 @@ class oAIAssetAssistant {
 			'text/plain',
 		]
 		// reject size
-		let _maxFileSize = (aAdmins.includes(this.session.mbr_id))
+		let _mbr_id = this.#ctx.state.member.mbr_id
+		let _maxFileSize = (aAdmins.includes(_mbr_id) || _mbr_id === process.env.MYLIFE_SERVER_MBR_ID)
 			?	process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN
 			:	process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT
 		if (this.#file.size > _maxFileSize) throw new Error(`File size too large: ${this.#file.size}. Maximum file size is 1MB.`)
