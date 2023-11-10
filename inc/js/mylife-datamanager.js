@@ -29,9 +29,7 @@ class Datamanager {
 		}
 		//	assign database and container
 		this.database=this.client.database(oConfig.db.id)
-		console.log(chalk.bgCyan('database initialized:',chalk.bgCyanBright(`${this.database.id}`)))
 		this.container=this.database.container(oConfig.db.container.id)
-		console.log(chalk.bgCyan('container initialized:',chalk.bgCyanBright(`${this.container.id}`)))
 	}
 	//	init function
 	async init() {
@@ -41,7 +39,7 @@ class Datamanager {
 			this.#partitionId
 		)
 			.read()
-		console.log(chalk.bgBlue('core initialized:',chalk.bgBlueBright(`${this.#core.resource.id}`)))
+		console.log(chalk.yellowBright('database, container, core initialized:',chalk.bgYellowBright(`${this.container.id} :: ${this.database.id} :: ${this.#core.resource.id}`) ))
 		return this
 	}
 	//	getter/setter property functions

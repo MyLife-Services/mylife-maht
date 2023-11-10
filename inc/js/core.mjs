@@ -52,7 +52,6 @@ class Member extends EventEmitter {
 			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
 			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
 			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			console.log(chalk.bgCyanBright('agent-chat-init'),chalk.cyanBright(this.agent.description))
 			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
 			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
 			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
@@ -432,10 +431,12 @@ class MyLife extends Member {	//	form=organization
 	async init(){
 		//	assign board array
 		await super.init()
+/*	removing board and beacons for now, as openAI services mature
 		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
 		this.board = await new (this.globals.schema.board)(_board)
 		this.agentBeacons.push(this.board.id)	//	board can host agents
 		this.board.members = await this.#populateBoard(_board)	//	convert board.members to array of Member objects
+*/
 		return this
 	}
 	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
@@ -657,6 +658,7 @@ class MyLife extends Member {	//	form=organization
 				})
 		return _question
 	}
+/* removed board mechanic
 	async #populateBoard(_board){
 		//	convert promises to array of agents
 		const _boardAgents = await Promise.all(
@@ -668,6 +670,7 @@ class MyLife extends Member {	//	form=organization
 		)
 		return _boardAgents	//	returns filterable array of member.agent(s)
 	}
+*/
 }
 //	exports
 export {
