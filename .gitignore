@@ -8,3 +8,4 @@ __*/ # ignore all folders starting with an underscore
 .uploads
 .tmp
 .DS_Store
+.code-workspace
