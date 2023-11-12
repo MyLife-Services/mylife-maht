@@ -38,13 +38,19 @@ let oServer
 // modular classes
 class AgentFactory extends EventEmitter{
 	#dataservices
-	constructor(){
+	#mbr_id
+	constructor(_mbr_id=dataservicesId){
 		super()
-		this.#dataservices = oDataservices
+		//	if incoming member id is not same as id on oDataservices, then ass new class-private dataservice
+		this.#mbr_id = _mbr_id
 	}
 	//	public functions
 	async init(){
-		oServer = await new MyLife(oDataservices,this).init()
+		if(!oServer) oServer = await new MyLife(oDataservices,this).init()
+		this.#dataservices = 
+			(this.mbr_id!==oDataservices.mbr_id)
+			?	await new Dataservices(dataservicesId).init()
+			:	oDataservices
 		return this
 	}
 	async getMyLifeMember(_mbr_id){
@@ -60,8 +66,20 @@ class AgentFactory extends EventEmitter{
 	get dataservices(){
 		return this.#dataservices
 	}
+	get _factory(){
+		return this
+	}
+	get factory(){	//	get self
+		return JSON.toString(this)
+	}
+	get file(){
+		return schemas.file
+	}
 	get globals(){
 		return globals
+	}
+	get mbr_id(){
+		return this.#mbr_id
 	}
 	get organization(){
 		return organization

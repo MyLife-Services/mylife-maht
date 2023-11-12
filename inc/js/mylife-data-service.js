@@ -1,7 +1,7 @@
 //	imports
 import Datamanager from "./mylife-datamanager.js"
 import PgvectorManager from "./mylife-pgvector-datamanager.js"
-class Dataservices{	//	convert to extension of Datamanager
+class Dataservices{
 	//	pseudo-constructor
 	#Datamanager
 	#partitionId

@@ -13,9 +13,11 @@ class oAIAssetAssistant {
 	//	pseudo-constructor
 	#ctx
 	#file
+	#mbr_id
 	constructor(_ctx){
 		//	primary direct assignment
 		this.#ctx = _ctx
+		this.#mbr_id = this.#ctx.state.member.mbr_id
 		//	modular direct assignment
 		if(!AgentFactory) AgentFactory = this.#ctx.AgentFactory
 		if(!Globals) Globals = this.#ctx.Globals
@@ -24,6 +26,11 @@ class oAIAssetAssistant {
 		//	validate asset construction
 		this.#validateFile()
 	}
+	async init(){
+		await this.#embedFile()	//	critical step
+		await this.#enactFile()	//	critical step
+		return this
+	}
 	//	getters
 	get ctx(){
 		return this.#ctx
@@ -31,13 +38,17 @@ class oAIAssetAssistant {
 	get file(){
 		return this.#file
 	}
+	get mbr_id(){
+		return this.#mbr_id
+	}
 	get session(){
 		return this.#ctx.session?.MemberSession??null
 	}
 	//	setters
 	//	private functions
-	async embedFile(){
-		console.log('#embedFile() begin', this.file)
+	async #embedFile(){
+		console.log(this.file)
+		console.log('#embedFile() begin')
 		const _metadata = {
 			source: 'corporate',	//	logickify this
 			source_id: this.file.originalFilename,
@@ -65,10 +76,19 @@ class oAIAssetAssistant {
 			})
 			.catch((error) => {
 				console.error(error.message)
-				return {'error': error.message }
+				return {'#embedFile() finished error': error.message }
 			})
 	}
-	//	private functions
+	async #enactFile(){	//	vitalizes by saving to MyLife database
+		console.log('#enactFile() begin')
+		const _fileContent = {
+			...this.file,
+			...{ mbr_id: this.mbr_id }
+		}
+		const oFile = new (AgentFactory.file)(_fileContent)
+		console.log('testing factory',oFile.inspect(true))
+		return oFile
+	}
 	#extractFile(){
 		if(!this.#ctx.request?.files?.file??false) throw new Error('No file found in request.')
 		const { lastModifiedDate, filepath, newFilename, originalFilename, mimetype, size } = this.#ctx.request.files.file
