@@ -65,7 +65,7 @@ app.use(koaBody({
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		//	MyLife uses Maht as the default until login
-		ctx.state.member = ctx.MyLife
+		ctx.state.member = ctx.session?.MemberSession?.member??ctx.MyLife
 		ctx.state.agent = ctx.state.member?.agent
 		console.log(chalk.bgBlue('ctx.state.agent:', chalk.bgRedBright(ctx.state.member.agentName)))
 		await next()
