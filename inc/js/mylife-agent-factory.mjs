@@ -218,15 +218,15 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 								.filter(
 									_msg=>{ return _msg.run_id==this.runs[0].id }
 								)
-								.map(
-									_msg=>{
-										//	message content(s)
-										return { content: this.getMessageContent(_msg)}
-									}
-								)
-								console.log('responses',_responses)
+							this.messages.unshift(..._responses)	//	post each response to this.messages
 							//	update cosmos
+							//	build-out
 							//	return response
+							return _responses
+								.map(_msg=>{
+									return this.getMessageContent(_msg)
+								})
+								.join('\n')
 						},
 						async checkStatus(_thread_id,_run_id,_callInterval){
 							//	should be able to remove params aside from _callInterval, as they are properties of this
@@ -288,7 +288,6 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 						},
 						getMessageContent(_msg){
 							//	flatten content array
-							console.log('msg',_msg.content)
 							return _msg.content
 								.map(
 									_content=>{ 
