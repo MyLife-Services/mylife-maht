@@ -1,0 +1,240 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/message.json",
+	"required": ["id", "mbr_id", "being", "messages", "type"],
+	"type": "object",
+	"name": "message",
+	"properties": {
+		"id": {
+			"description": "uuid of message",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"avatar_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "id of avatar from/to which message was generated"
+		},
+		"being": {
+			"type": "string",
+			"const": "message",
+			"description": "root constructor for message in MyLife"
+		},
+		"message": {
+			"type": "object",
+			"$ref": "#/definitions/message_openai-assistant",
+			"description": "message object"
+		},
+        "system": {
+            "type": "string",
+			"default": "openai-assistant",
+            "description": "message type",
+            "enum": ["openai-assistant", "openai-completion", "openai-finetue"]
+        },
+        "type": {
+            "type": "string",
+			"default": "chat",
+            "description": "message type",
+            "enum": ["chat", "system", "error", "warning", "info", "debug"]
+        }
+	},
+	"definitions": {
+		"annotation_openai-assistant":{
+			"type": "object",
+			"required": ["File citation", "File path"],
+			"properties": {
+				"File citation": {
+					"type": "object",
+					"$ref": "#/definitions/citation_openai-assistant",
+					"description": "A citation within the message that points to a specific quote from a specific File associated with the assistant or the message. Generated when the assistant uses the `retrieval` tool to search files"
+				},
+				"File path": {
+					"type": "object",
+					"$ref": "#/definitions/file_path_openai-assistant",
+					"description": "A URL for the file that's generated when the assistant used the code_interpreter tool to generate a file"
+				}
+			}
+		},
+		"citation_openai-assistant": {
+			"type": "object",
+			"required": ["type", "text"],
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "file_citation",
+					"$ref": "#/definitions/file_citation_openai-assistant",
+					"description": "A citation within the message that points to a specific quote from a specific File associated with the assistant or the message. Generated when the assistant uses the `retrieval` tool to search files"
+				},
+				"text": {
+					"type": "string",
+					"description": "The text in the message content that needs to be replaced"
+				},
+				"end_index": {
+					"type": "integer",
+					"description": "The index of the last character of the text that needs to be replaced"
+				},
+				"start_index": {
+					"type": "integer",
+					"description": "The index of the first character of the text that needs to be replaced"
+				}
+			}
+		},
+		"content_openai-assistant": {
+			"type": "object",
+			"required": ["type"],
+			"properties": {
+				"type": {
+					"type": "string",
+					"default": "text",
+					"enum": ["image_file","text"],
+					"description": "type of content, accepts text or image_file; when text, property filled is called `text`, otherwise called `image_file`"
+				},
+				"text": {
+					"type": "object",
+					"$ref": "#/definitions/content_text_openai-assistant",
+					"description": "content text is present as { text: text, annotations: []"
+				},
+				"image_file": {
+					"type": "string",
+					"$ref": "#/definitions/image_file_openai-assistant",
+					"description": "file id of attachment"
+				}
+			}
+		},
+		"content_text_openai-assistant": {
+			"type": "object",
+			"required": ["type", "text"],
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "text",
+					"description": ""
+				},
+				"text": {
+					"type": "object",
+					"$ref": "#/definitions/content_text_text_openai-assistant",
+					"description": "text sub-object"
+				}
+			}
+		},
+		"content_text_text_openai-assistant": {
+			"type": "object",
+			"required": ["value", "annotations"],
+			"properties": {
+				"value": {
+					"type": "string",
+					"const": "text",
+					"description": "text of message"
+				},
+				"annotations": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"$ref": "#/definitions/annotation_openai-assistant",
+						"description": "annotations of text"
+					},
+					"description": "text sub-object"
+				}
+			}
+		},
+		"file_citation_openai-assistant": {
+			"type": "object",
+			"required": ["file_id", "quote"],
+			"properties": {
+				"file_id": {
+					"type": "string",
+					"description": "The ID of the specific File the citation is from"
+				},
+				"quote": {
+					"type": "string",
+					"description": "The specific quote in the file"
+				}
+			}
+		},
+		"file_path_openai-assistant": {
+			"type": "object",
+			"required": ["file_id"],
+			"properties": {
+				"file_id": {
+					"type": "string",
+					"description": "The ID of the file that was generated"
+				}
+			}
+		},
+		"image_file_openai-assistant": {
+			"type": "object",
+			"required": ["file_id"],
+			"properties": {
+				"file_id": {
+					"type": "string",
+					"description": "The File ID of the image in the message content"
+				}
+			}
+		},
+		"message_openai-assistant": {
+			"type": "object",
+			"required": ["content", "created_at", "id", "object", "role", "thread_id"],
+			"properties": {
+				"assistant_id": {
+					"type": "string",
+					"default": "",
+					"description": "string of assistant id, begins `asst_`"
+				},
+				"content": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "object",
+						"$ref": "#/definitions/content_openai-assistant",
+						"description": "openai assistant message content objects"
+					},
+					"uniqueItems": true
+				},
+				"created_at": {
+					"type": "integer",
+					"description": "UNIX date-time of message creation"
+				},
+				"id": {
+					"type": "string",
+					"description": "string of message id, beings `msg_`"
+				},
+				"file_ids": {
+					"type": "array",
+					"description": "array of user file ids"
+				},
+				"metadata": {
+					"type": "object",
+					"description": "object of metadata, using any key:value pairs in JSON; 16 pair limit",
+					"$comment": "example: metadata={ \"any-key-name\": \"value\" }\nmay/may not overwrite thread/run versions of metadata as well, unclear"
+				},
+				"object": {
+					"type": "string",
+					"const": "message_openai-assistant",
+					"description": "object type"
+				},
+				"role": {
+					"type": "string",
+					"default": "user",
+					"description": "",
+					"enum": ["user", "assistant"]
+				},
+				"run_id": {
+					"type": "string",
+					"default": "",
+					"description": "uuid of run that submitted or generated message, when applicable"
+				},
+				"thread_id": {
+					"type": "string",
+					"default": "",
+					"description": "uuid of message thread"
+				}
+			},
+			"$comment": "openAI assistants interact with chat in a new way, they create a thread for the conversation and then apply a model that *runs* the thread and generates messages; this object is a direct capture of this object"
+		}
+	}
+}

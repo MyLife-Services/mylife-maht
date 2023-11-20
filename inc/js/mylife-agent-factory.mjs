@@ -1,8 +1,8 @@
 //	imports
+import OpenAI from 'openai'
 import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
-import chalk from 'chalk'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import Globals from './globals.mjs'
 import Dataservices from './mylife-data-service.js'
@@ -32,7 +32,15 @@ const schemas = {
 	server: MyLife,
 	session: MylifeMemberSession
 }
-const globals = new Globals()
+const _Globals = new Globals()
+const openai = new OpenAI({
+	apiKey: process.env.OPENAI_API_KEY,
+	organizationId: process.env.OPENAI_ORG_KEY,
+	timeoutMs: process.env.OPENAI_TIMEOUT,
+	basePath: process.env.OPENAI_BASE_URL,
+})
+// config: add functionality to known prototypes
+configureSchemaPrototypes()
 // modular variables
 let oServer
 // modular classes
@@ -46,12 +54,29 @@ class AgentFactory extends EventEmitter{
 	}
 	//	public functions
 	async init(){
-		if(!oServer) oServer = await new MyLife(oDataservices,this).init()
 		this.#dataservices = 
 			(this.mbr_id!==oDataservices.mbr_id)
 			?	await new Dataservices(dataservicesId).init()
 			:	oDataservices
+		if(!oServer) oServer = await new MyLife(this).init()
 		return this
+	}
+	async getAvatar(_agent_id){
+		//	get avatar template for metadata from cosmos
+		const _avatarProperties = await this.dataservices.getAgent(this.globals.extractId(this.mbr_id))
+		//	activate (created inside if necessary) avatar
+		const _avatar = new (this.schemas.avatar)(_avatarProperties)
+		//	assign function activateAssistant() to this new class
+		if(!_avatar.assistant) await _avatar.getAssistant()
+		const _ = {
+			id: 'thread_WU0OZOSQheyfQrfnwwuaTBTY',
+			object: 'thread',
+			created_at: 1700337778,
+			metadata: {}
+		  }
+		_avatar.thread = _	//	temp config to avoid external ping
+//		if(!_avatar.thread) await _avatar.getThread()	//	also populates internal property: `thread`
+		return _avatar
 	}
 	async getMyLifeMember(_mbr_id){
 		const _r =  await new (schemas.member)(await new (schemas.dataservices)(_mbr_id).init(),this)
@@ -60,9 +85,27 @@ class AgentFactory extends EventEmitter{
 	}
 	async getMyLifeSession(_challengeFunction){
 		//	default is session based around default dataservices [Maht entertains guests]
-		return await new (schemas.session)(dataservicesId,globals,_challengeFunction).init()
+		return await new (schemas.session)(dataservicesId,_Globals,_challengeFunction).init()
 	}
 	//	getters/setters
+	get core(){
+		const _excludeProperties = { '_none':true }
+		console.log('dataservices', this.#dataservices)
+		let _core = Object.entries(this.#dataservices.core)	//	array of arrays
+			.filter((_prop)=>{	//	filter out excluded properties
+				const _charExlusions = ['_','@','$','%','!','*',' ']
+				return !(
+						(_prop[0] in _excludeProperties)
+					||	!(_charExlusions.indexOf(_prop[0].charAt()))
+				)
+				})
+			.map(_prop=>{	//	map to object
+				return { [_prop[0]]:_prop[1] }
+			})
+		_core = Object.assign({},..._core)	//	merge to single object
+		
+		return _core
+	}
 	get dataservices(){
 		return this.#dataservices
 	}
@@ -76,7 +119,7 @@ class AgentFactory extends EventEmitter{
 		return schemas.file
 	}
 	get globals(){
-		return globals
+		return _Globals
 	}
 	get mbr_id(){
 		return this.#mbr_id
@@ -145,11 +188,211 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 		return vmClassGenerator.exports[_className]
 	}
 	async function configureSchemaPrototypes(){	//	add functionality to known prototypes
-		for(const _class in this.schema){
+		for(const _class in schemas){
 			switch (_class) {
 				case 'agent':
-					this.schema[_class].prototype.testPrototype = _=>{ return 'agent' }
+					schemas[_class].prototype.testPrototype = _=>{ return 'agent' }
 					break
+				case 'avatar':
+					//	based on avatar.type, could assign different prototypes
+					Object.assign(schemas[_class].prototype, {
+						async cancelRun(_run_id){	//	returns openai run object
+							return await openai.beta.threads.runs.cancel(
+								this.thread.id,
+								_run_id
+							)
+						},
+						async chatRequest(_ctx){
+							//	now consolidated in architecture for openai assistants
+							//	assign files and metadata, optional
+							//	create message
+							const _message = await this.setMessage({content: _ctx.request.body.message})
+							//	create local message model and add to this.messages
+							this.messages.unshift(
+								new (schemas.message)(_message)
+							)
+							//	run thread
+							await this.run()
+							//	get message data from thread
+							const _responses = (await this.getMessages())
+								.filter(
+									_msg=>{ return _msg.run_id==this.runs[0].id }
+								)
+								.map(
+									_msg=>{
+										//	message content(s)
+										return { content: this.getMessageContent(_msg)}
+									}
+								)
+								console.log('responses',_responses)
+							//	update cosmos
+							//	return response
+						},
+						async checkStatus(_thread_id,_run_id,_callInterval){
+							//	should be able to remove params aside from _callInterval, as they are properties of this
+							const _run = await openai.beta.threads.runs.retrieve(
+								_thread_id,
+								_run_id
+							)
+							switch(_run.status){
+								//	https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
+								case 'completed':
+									if(!this?.runs[0]?.id === _run_id) this.runs.unshift(_run)	//	add
+									else this.runs[0] = _run	//	update
+									return true
+								case 'failed':
+								case 'cancelled':
+								case 'expired':
+									return false
+								case 'queued':
+								case 'requires_action':
+								case 'in_progress':
+								case 'cancelling':
+								default:
+									console.log(`...${_run.status}:${_thread_id}...`)
+									break
+							}
+						},
+						async completeRun(_run_id){
+							return new Promise((resolve, reject) => {
+								const checkInterval = setInterval(async () => {
+									try {
+										const status = await this.checkStatus(this.thread.id, _run_id)
+										if (status) {
+											clearInterval(checkInterval)
+											resolve('Run completed')
+										}
+									} catch (error) {
+										clearInterval(checkInterval)
+										reject(error)
+									}
+								}, 700)
+								// Set a timeout to resolve the promise after 12 seconds
+								setTimeout(() => {
+									clearInterval(checkInterval)
+									resolve('Run completed (timeout)')
+								}, 12000)
+							})
+						},
+						async getAssistant(){	//	returns openai `assistant` object
+							/* derive build from object properties
+							if(!this.openai_assistant_id) this.openai_assistant_id = await openai.beta.assistants.create(
+
+							)
+							*/
+							this.assistant = await openai.beta.assistants.retrieve(this.openai_assistant_id)
+						},
+						async getMessage(_msg_id){	//	returns openai `message` object
+							if(!this.thread) await this.getThread()
+							return this.messages.data.filter(_msg=>{ return _msg.id==_msg_id })
+						},
+						getMessageContent(_msg){
+							//	flatten content array
+							console.log('msg',_msg.content)
+							return _msg.content
+								.map(
+									_content=>{ 
+										switch(_content.type){
+											case 'image_file':
+												//	build-out
+												return
+											case 'text':
+											default:
+												return _content.text.value
+											}
+										}
+								)
+								.join('\n')
+						},
+						async getMessages(){
+							if(!this.thread) await this.getThread()
+							this.messages = ( await openai.beta.threads.messages.list(
+								this.thread.id
+							) )	//	extra parens to resolve promise
+								.data
+							return this.messages
+						},
+						async getRun(_run_id){	//	returns openai `run` object
+							return this.runs.filter(_run=>{ return _run.id==_run_id })
+						},
+						async getRuns(){	//	runs are also descending
+							if(!this.thread) await this.getThread()
+							if(!this.runs){
+								this.runs = await openai.beta.threads.runs.list(this.thread.id)
+								//	need to winnow to mapped array?
+							}
+						},
+						async getRunStep(_run_id,_step_id){
+							//	pull from known runs
+							return this.runs
+								.filter(_run=>{ return _run.id==_run_id })
+								.steps
+									.filter(_step=>{ return _step.id==_step_id })
+						},
+						async getRunSteps(_run_id){
+							//	always get dynamically
+							const _run = this.runs.filter(_run=>{ return _run.id==_run_id })
+							_run.steps = await openai.beta.threads.runs.steps.list(this.thread.id, _run.id)
+						},
+						async getThread(){
+							if(!this.thread) this.thread = await openai.beta.threads.create()
+							return this.thread
+						},
+						async run(){
+							const _run = await this.startRun()
+							if(!_run) throw new Error('Run failed to start')
+							this.runs = this?.runs??[]	//	once begun, ought complete even if failed
+							this.runs.unshift(_run)
+							// ping status
+							await this.completeRun(_run.id)
+						},
+						async setMessage(_message){	//	add or update message; returns openai `message` object
+							if(!this.thread) await this.getThread()
+							return (!_message.id)
+								?	await openai.beta.threads.messages.create(	//	add
+									this.thread.id,
+									{
+										role: "user",
+										content: _message.content
+									}
+								)
+								:	await openai.beta.threads.messages.update(	//	update
+										this.thread.id,
+										_message.id,
+										{
+											role: "user",
+											content: _message.content
+										}
+									)
+						},
+						async startRun(){	//	returns openai `run` object
+							if(!this.thread || !this.messages.length) return
+							return await openai.beta.threads.runs.create(
+								this.thread.id,
+								{ assistant_id: this.openai_assistant_id }
+							)
+						}
+					})
+					break
+				case 'message':
+					Object.defineProperty(
+						schemas[_class].prototype,
+						'_content',
+						{
+							get: function() {
+								switch (this.type) {
+									case 'chat':
+										switch (this.system) {
+											case 'openai-assistant':
+												return this.content[0].text.value
+											default:
+												break
+										}
+									default:
+										return 'no content derived'
+								}
+							}
+						})
 				case 'core':
 				default:	//	core
 					break
@@ -236,28 +479,28 @@ function generateClassFromSchema(_schema) {
 	return compileClass(_className,_classCode)
 }
 async function loadSchemas() {
-try{
-    let _filesArray = await (fs.readdir(path))
-	_filesArray = _filesArray.filter(_filename => _filename.split('.')[1] === 'json')
-    const schemasArray = await Promise.all(
-		_filesArray.map(
-			async _filename => {
-				const _file = await fs.readFile(`${path}/${_filename}`, 'utf8')
-				const _fileContent = JSON.parse(_file)
-				const _classArray = [{ [_filename.split('.')[0]]: generateClassFromSchema(_fileContent) }]
-				if (_fileContent.$defs) {
-					for (const _schema in _fileContent.$defs) {
-						_classArray.push({ [_schema]: generateClassFromSchema(_fileContent.$defs[_schema]) })
+	try{
+		let _filesArray = await (fs.readdir(path))
+		_filesArray = _filesArray.filter(_filename => _filename.split('.')[1] === 'json')
+		const schemasArray = await Promise.all(
+			_filesArray.map(
+				async _filename => {
+					const _file = await fs.readFile(`${path}/${_filename}`, 'utf8')
+					const _fileContent = JSON.parse(_file)
+					const _classArray = [{ [_filename.split('.')[0]]: generateClassFromSchema(_fileContent) }]
+					if (_fileContent.$defs) {
+						for (const _schema in _fileContent.$defs) {
+							_classArray.push({ [_schema]: generateClassFromSchema(_fileContent.$defs[_schema]) })
+						}
 					}
+					return _classArray
 				}
-				return _classArray
-    		}
+			)
 		)
-	)
-    return schemasArray.reduce((acc, array) => Object.assign(acc, ...array), {})
-} catch(err){
-	console.log(err,schemasArray)
-}
+		return schemasArray.reduce((acc, array) => Object.assign(acc, ...array), {})
+	} catch(err){
+		console.log(err,schemasArray)
+	}
 }
 //	exports
 export default AgentFactory

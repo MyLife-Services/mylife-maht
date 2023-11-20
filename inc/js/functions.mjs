@@ -22,7 +22,7 @@ async function challenge(ctx){
 }
 async function chat(ctx){
 	//	best way to turn to any agent? build into ctx? get state.member(/agent?) right
-	const _response = await ctx.state.member.processChatRequest(ctx)
+	const _response = await ctx.state.avatar.chatRequest(ctx)
 	ctx.body = { 'answer': _response }
 }
 async function index(ctx){

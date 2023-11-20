@@ -1,62 +1,38 @@
 //	imports
 import EventEmitter from 'events'
-import { OpenAIApi, Configuration } from 'openai'
+import OpenAI from 'openai'
 import chalk from 'chalk'
 //	import { _ } from 'ajv'
 //	server-specific imports
 import initRouter from './routes.js'
 // config
-const config = new Configuration({
+const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 	organizationId: process.env.OPENAI_ORG_KEY,
 	timeoutMs: process.env.OPENAI_TIMEOUT,
 	basePath: process.env.OPENAI_BASE_URL,
 })
-const openai = new OpenAIApi(config)
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
-	#agent
-	agentBeacons = []
+	#avatar
 	#categories = ['Interests','Abilities','Preferences','Artifacts','Beliefs','Facts','Other']	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#core
 	#dataservice
-	#excludeProperties = { '_none':true }
 	#factory
 	#globals
 	#mbr_id
 	#personalityKernal
-	constructor(_Dataservice,_Factory){
+	constructor(_Factory){
 		super()
-		this.#dataservice = _Dataservice	//	individual cosmos dataservice by mbr_id
 		this.#personalityKernal = openai	//	alterable, though would require different options and subelements, so should build into utility class
-		this.#factory = _Factory
+		this.#factory = _Factory	//	Factory should be configured for this member upon receipt
 		this.#globals = this.#factory.globals
-		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
-			.filter((_prop)=>{	//	filter out excluded properties
-				const _charExlusions = ['_','@','$','%','!','*',' ']
-				return !(
-						(_prop[0] in this.#excludeProperties)
-					||	!(_charExlusions.indexOf(_prop[0].charAt()))
-				)
-				})
-			.map(_prop=>{	//	map to object
-				return { [_prop[0]]:_prop[1] }
-			})
-		this.#core = Object.assign({},...this.#core)	//	merge to single object
-		this.#mbr_id = this.#core.mbr_id
-		this.agentBeacons.push(this.id)
+		this.#mbr_id = this.#factory.mbr_id
 	}
 	//	initialize
-	async init(_agent_parent_id=this.globals.extractId(this.mbr_id)){
-		if(!this?.agent) {	//	create agent
-			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
-			this.agent = await new (this.#factory.schema.agent)(_agentProperties)	//	agent
-			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
-			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
-			this.agent.chat = await new (this.factory.schema.conversation)(_conversation)	//	agent chat assignment
-			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
-		}
+	async init(){
+		this.#avatar = await this.factory.getAvatar()
+		if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		return this
 	}
 	//	getter/setter functions
@@ -67,11 +43,7 @@ class Member extends EventEmitter {
 		return this.core.abilities
 	}
 	get agent(){
-		return this.#agent
-	}
-	set agent(_agent){	//	must be instance of agent already
-		if(!this.#hasAgentAccess(_agent)) throw new Error('agent not known or not available to member')
-		this.#agent = _agent
+		return this.#avatar
 	}
 	get agentCategories(){
 		return this.agent.categories
@@ -80,11 +52,11 @@ class Member extends EventEmitter {
 		return this.agent.command_word
 	}
 	get agentDescription(){	//	agent description (not required)
-		if(!this.agent?.description) this.#agent.description = `I am ${ this.agentName }, AI-Agent for ${ this.name }`
+		if(!this.agent?.description) this.avatar.description = `I am ${ this.agentName }, AI-Agent for ${ this.name }`
 		return this.agent.description
 	}
 	get agentName(){
-		return this.agent.names[0]
+		return this.avatar.names[0]
 	}
 	get agentName_tokenized(){
 		return this.tokenize(this.agentName)
@@ -115,6 +87,9 @@ class Member extends EventEmitter {
 					}
 */					
 		}
+	}
+	get avatar(){
+		return this.#avatar
 	}
 	get being(){
 		return this.core.being
@@ -165,7 +140,7 @@ class Member extends EventEmitter {
 		return this.sysid
 	}
 	get mbr_id(){
-		return this.core.mbr_id
+		return this.#mbr_id
 	}
 	get member(){
 		return this.core
@@ -413,34 +388,18 @@ class Member extends EventEmitter {
 	tokenize(_str){
 		return '<||'+_str+'||>'
 	}
-	//	private functions
-	#hasAgentAccess(_agent){
-		return (
-			this.agentBeacons	//	agent must be on beacon list
-				.filter(_=>{
-					return _===_agent?.parent_id || this.mbr_id===_agent.mbr_id 
-				})	//	member must have rights to agent, cooperative or core
-				.length
-		)	
-	}
 }
 class MyLife extends Member {	//	form=organization
 	#Menu
 	#Router
 	board
-	constructor(_Dataservice,_Globals){
-		super(_Dataservice,_Globals)
+	constructor(_Factory){
+		super(_Factory)
 	}
 	//	public functions
 	async init(){
 		//	assign board array
 		await super.init()
-/*	removing board and beacons for now, as openAI services mature
-		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
-		this.board = await new (this.globals.schema.board)(_board)
-		this.agentBeacons.push(this.board.id)	//	board can host agents
-		this.board.members = await this.#populateBoard(_board)	//	convert board.members to array of Member objects
-*/
 		return this
 	}
 	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]

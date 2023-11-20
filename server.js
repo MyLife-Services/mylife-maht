@@ -23,6 +23,9 @@ console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('agent-factor
 const _Maht = _factory.organization	//	use something like `createServer()` for an alternate instance than default
 const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
+//	test harness region
+
+//	end test harness region
 //	koa-ejs
 render(app, {
 	root: path.join(__dirname, 'views'),
@@ -66,8 +69,10 @@ app.use(koaBody({
 		//	system context, koa: https://koajs.com/#request
 		//	MyLife uses Maht as the default until login
 		ctx.state.member = ctx.session?.MemberSession?.member??ctx.MyLife
-		ctx.state.agent = ctx.state.member?.agent
-		console.log(chalk.bgBlue('ctx.state.agent:', chalk.bgRedBright(ctx.state.member.agentName)))
+		ctx.state.avatar = ctx.state.member.avatar
+		ctx.state.avatar.name = ctx.state.avatar.names[0]
+		ctx.state.menu = ctx.MyLife.menu
+		console.log(chalk.bgBlue('ctx.state.avatar:', chalk.bgRedBright(ctx.state.avatar.name)))
 		await next()
 	})
 //	.use(MyLifeMemberRouter.routes())	//	enable member routes

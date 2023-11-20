@@ -1,0 +1,106 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/avatar.json",
+	"required": ["id", "mbr_id", "being", "name"],
+	"type": "object",
+	"name": "Avatar",
+	"properties": {
+		"id": {
+			"description": "uuid of avatar",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "parent id of avatar"
+		},
+		"assistant": {
+			"type": "object",
+			"description": "assistant object GPT-assistant access",
+			"$comment": "this could become an array of assistants, with `type` going away"
+		},
+		"being": {
+			"type": "string",
+			"const": "avatar",
+			"description": "root constructor for avatar/agent in MyLife"
+		},
+		"command_word": {
+			"type": "string",
+			"minimum": 2,
+			"maximum": 16,
+			"default": "avatar",
+			"description": "trigger for command mode"
+		},
+		"description": {
+			"type": "string",
+			"description": "avatar description"
+		},
+		"developers": {
+			"type": "array",
+			"description": "endpoint developers"
+		},
+		"name": {
+			"type": "string",
+			"maximum": 32,
+			"minimum": 1,
+			"description": "avatar system name",
+			"$comment": "; NOTE: this is the name of the *avatar*, not the member"
+		},
+		"names": {
+			"type": "array",
+			"description": "avatar names array",
+			"items": {
+				"type": "string",
+				"maximum": 32,
+				"minimum": 1,
+				"description": "avatar name"
+			},
+			"maxItems": 128,
+			"minItems": 1,
+			"uniqueItems": true,
+			"$comment": "Can item contents reference the schema of the name property?"
+		},
+		"nickname": {
+			"type": "string",
+			"maximum": 64,
+			"default": "avatar",
+			"description": "avatar nickname"
+		},
+		"messages": {
+			"type": "array",
+			"description": "array of openai messages for avatar",
+			"items": {
+				"type": "object",
+				"maximum": 64,
+				"description": "openai message object",
+				"$comment": "https://platform.openai.com/docs/api-reference/messages"
+			}
+		},
+		"openai_assistant_id": {
+			"type": "string",
+			"maximum": 128,
+			"default": "",
+			"$comment": "from node sdk, assistant_id on openai"
+		},
+		"thread": {
+			"type": "object",
+			"description": "thread object for avatar",
+			"$comment": "currently from openAI assistant technology"
+		},
+		"type": {
+			"type": "string",
+			"default": "openai-assistant",
+			"enum": ["openai-assistant"],
+			"$comment": "In attempt to make assistants more modular, define external system type here, and then add optional data-elements from appropriate sub-assistant type"	
+		}
+	},
+	"definitions": {
+		
+	}
+}

@@ -44,7 +44,7 @@ class Dataservices{
 		//	ask global data service (stored proc) for passphrase
 		return await this.datamanager.challengeAccess(_mbr_id,_passphrase)
 	}
-	async getAgent(_parent_id){	//	get specificed (or default) agent; one per parent_id, most recent only
+	async getAgent(_parent_id){	//	get specificed (or default) agent; one per parent_id, most recent only; NOTE: parent_id is an extracted guid
 		const _agentsArray = (await this.getAgents())
 			.filter(_agent=>{
 				return _agent.parent_id === _parent_id
@@ -57,7 +57,7 @@ class Dataservices{
 				mbr_id: this.mbr_id,
 				name: `agent_${ _parent_id }_${ this.mbr_id }`,
 				names: ['AI-Agent', 'Agent', 'AI'],
-				parent_id: _parent_id,
+				parent_id: _parent_id,	//	attaching to member core by default
 			}))
 		}
 		return _agentsArray[0]	//	or isolate dimension earlier
