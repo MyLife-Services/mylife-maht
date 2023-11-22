@@ -1,5 +1,6 @@
 //	imports
 import OpenAI from 'openai'
+import { Marked } from 'marked'
 import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
@@ -9,6 +10,7 @@ import Dataservices from './mylife-data-service.js'
 import { Member, MyLife } from './core.mjs'
 import Menu from './menu.js'
 import MylifeMemberSession from './session.js'
+import { _ } from 'ajv'
 // modular constants
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 const excludeProperties = { '$schema': true, '$id': true, '$defs': true, "$comment": true, "name": true }
@@ -67,7 +69,7 @@ class AgentFactory extends EventEmitter{
 		//	activate (created inside if necessary) avatar
 		const _avatar = new (this.schemas.avatar)(_avatarProperties)
 		//	assign function activateAssistant() to this new class
-		if(!_avatar.assistant) await _avatar.getAssistant()
+		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
 		const _ = {
 			id: 'thread_WU0OZOSQheyfQrfnwwuaTBTY',
 			object: 'thread',
@@ -220,11 +222,11 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 								)
 							this.messages.unshift(..._responses)	//	post each response to this.messages
 							//	update cosmos
-							//	build-out
+							//	build out
 							//	return response
 							return _responses
 								.map(_msg=>{
-									return this.getMessageContent(_msg)
+									return new Marked().parse(this.getMessageContent(_msg))
 								})
 								.join('\n')
 						},
@@ -274,13 +276,31 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 								}, 12000)
 							})
 						},
-						async getAssistant(){	//	returns openai `assistant` object
-							/* derive build from object properties
-							if(!this.openai_assistant_id) this.openai_assistant_id = await openai.beta.assistants.create(
-
-							)
-							*/
-							this.assistant = await openai.beta.assistants.retrieve(this.openai_assistant_id)
+						async getAssistant(_dataservice){	//	openai `assistant` object
+							if(!this.openai_assistant_id) {
+								const _core = {
+									name: this?.names[0]??this.name,
+									model: process.env.OPENAI_MODEL_CORE,
+									description: this.description,
+									instructions: this.purpose,
+									metadata: {
+										...Object.entries(this.categories)
+											.filter(([key, value]) => this[value.replace(' ', '_').toLowerCase()]?.length)
+											.slice(0, 16)
+											.reduce((obj, [key, value]) => ({
+												...obj,
+												[value]: this[value.replace(' ', '_').toLowerCase()],
+											}), {})
+									},
+									file_ids: [],	//	no files at birth, can be added later
+									tools: [],	//	only need tools if files
+								}
+								this.assistant = await openai.beta.assistants.create(_core)
+								this.openai_assistant_id = this.assistant.id
+								//	save id to cosmos
+								_dataservice.patch(this.id, { openai_assistant_id: this.openai_assistant_id })
+							}
+							else this.assistant = await openai.beta.assistants.retrieve(this.openai_assistant_id)
 						},
 						async getMessage(_msg_id){	//	returns openai `message` object
 							if(!this.thread) await this.getThread()
