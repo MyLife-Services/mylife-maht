@@ -103,6 +103,7 @@ class Datamanager {
 		return replaced
 	}
 COLLECTION PATCH:
+BodY itself is the List of operations, second parameter is options, for configuration and fiLtEr?
 const filter = 'FROM products p WHERE p.used = false'
 
 const operations =

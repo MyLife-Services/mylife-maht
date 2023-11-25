@@ -66,12 +66,6 @@
 			"maximum": 64,
 			"default": "agent",
 			"description": "agent nickname"
-		},
-		"openai_assistant_id": {
-			"type": "string",
-			"maximum": 128,
-			"default": "",
-			"$comment": "from node sdk, assistant_id on openai"
 		}
 	}
 }

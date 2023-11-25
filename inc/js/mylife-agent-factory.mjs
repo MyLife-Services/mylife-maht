@@ -277,7 +277,8 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							})
 						},
 						async getAssistant(_dataservice){	//	openai `assistant` object
-							if(!this.openai_assistant_id) {
+							//	3 states: 1) no assistant, 2) assistant id, 3) assistant object
+							if(!this.assistant?.id.length) {
 								const _core = {
 									name: this?.names[0]??this.name,
 									model: process.env.OPENAI_MODEL_CORE,
@@ -296,11 +297,11 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 									tools: [],	//	only need tools if files
 								}
 								this.assistant = await openai.beta.assistants.create(_core)
-								this.openai_assistant_id = this.assistant.id
 								//	save id to cosmos
-								_dataservice.patch(this.id, { openai_assistant_id: this.openai_assistant_id })
+								_dataservice.patch(this.id, { id: this.assistant.id })
 							}
-							else this.assistant = await openai.beta.assistants.retrieve(this.openai_assistant_id)
+							else if(!this.assistant?.name.length) this.assistant = await openai.beta.assistants.retrieve(this.assistant.id)
+							return this.assistant
 						},
 						async getMessage(_msg_id){	//	returns openai `message` object
 							if(!this.thread) await this.getThread()
@@ -388,7 +389,7 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							if(!this.thread || !this.messages.length) return
 							return await openai.beta.threads.runs.create(
 								this.thread.id,
-								{ assistant_id: this.openai_assistant_id }
+								{ assistant_id: this.assistant.id }
 							)
 						}
 					})

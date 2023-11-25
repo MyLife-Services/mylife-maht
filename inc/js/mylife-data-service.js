@@ -113,14 +113,14 @@ class Dataservices{
 	async getLocalRecords(_question){
 		return await this.embedder.getLocalRecords(_question)
 	}
-	async patch(_id,_data){	//	_data is just object of key/value pairs so must be transformed (add/update only)
+	async patch(_id,_data,_path='/'){	//	_data is just object of key/value pairs so must be transformed (add/update only)
 		_data = Object.keys(_data)
 			.map(_key=>{
-				return { op: 'add', path: `/${_key}`, value: _data[_key] }
+				return { op: 'add', path: _path+_key, value: _data[_key] }
 			})
 		return await this.patchItem(_id,_data)
 	}
-	async patchItem(_id,_data){
+	async patchItem(_id,_data){ // path Embedded in _data
 		return await this.datamanager.patchItem(_id,_data)
 	}
 	async pushItem(_data){
