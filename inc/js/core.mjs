@@ -15,17 +15,26 @@ const openai = new OpenAI({
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#avatar
-	#categories = ['Interests','Abilities','Preferences','Artifacts','Beliefs','Facts','Other']	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
+	#categories = [
+		'Interests',
+		'Abilities',
+		'Preferences',
+		'Artifacts',
+		'Beliefs',
+		'Facts',
+		'Other'
+	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#core
 	#dataservice
-	#factory
+	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
 	#globals
 	#mbr_id
 	#personalityKernal
-	constructor(_Factory){
+	constructor(_Factory,_Session){
 		super()
-		this.#personalityKernal = openai	//	alterable, though would require different options and subelements, so should build into utility class
-		this.#factory = _Factory	//	Factory should be configured for this member upon receipt
+		this.#personalityKernal = openai	//	will be covered in avatars
+		this.#factory = (_Session?.factory)?_Session.factory:_Factory	//	Factory configured for this user or Q
+		this.#dataservice = this.factory.dataservice
 		this.#globals = this.#factory.globals
 		this.#mbr_id = this.#factory.mbr_id
 	}
@@ -36,9 +45,6 @@ class Member extends EventEmitter {
 		return this
 	}
 	//	getter/setter functions
-	get _agent(){	//	introspected agent
-		return this.agent.inspect(true)
-	}
 	get abilities(){
 		return this.core.abilities
 	}
@@ -57,9 +63,6 @@ class Member extends EventEmitter {
 	}
 	get agentName(){
 		return this.avatar.names[0]
-	}
-	get agentName_tokenized(){
-		return this.tokenize(this.agentName)
 	}
 	get agentProxy(){
 		switch(this.form){	//	need switch because I could not overload class function
@@ -170,12 +173,13 @@ class Member extends EventEmitter {
 		return this.core.values
 	}
 	//	public functions
-	async processChatRequest(ctx){
+	/* handled now by avatar
+	async processChatRequest(_ctx){
 		//	gatekeeper
 		//	throttle requests
 		//	validate input
 		//	store question
-		let _question = ctx.request.body.message
+		let _question = _ctx.request.body.message
 		const _chatSnippetQuestion = new (this.globals.schema.chatSnippet)({	//	no trigger to set
 			content: _question,
 			contributor: this.mbr_id,
@@ -227,6 +231,7 @@ class Member extends EventEmitter {
 		//	return response
 		return _response
 	}
+	*/
 	//	question/answer functions
 	async assignPrimingQuestions(_question){
 		return this.buildFewShotQuestions(
@@ -392,24 +397,12 @@ class Member extends EventEmitter {
 class MyLife extends Member {	//	form=organization
 	#Menu
 	#Router
-	board
-	constructor(_Factory){
-		super(_Factory)
+	constructor(_Factory,_Session){
+		super(_Factory,_Session)
 	}
 	//	public functions
 	async init(){
-		//	assign board array
-		await super.init()
-		return this
-	}
-	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
-/* testing fine-tuned model, remove priming questions
-		if(!ctx.session?.bInitialized){
-			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
-			ctx.session.bInitialized = true
-		}
-*/
-		return await super.processChatRequest(ctx)
+		return await super.init()
 	}
 	async assignLocalContent(_question){	//	assign local content from pgvector
 		let _localContent = await this.dataservice.getLocalRecords(_question)

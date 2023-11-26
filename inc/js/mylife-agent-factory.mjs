@@ -57,7 +57,8 @@ class AgentFactory extends EventEmitter{
 		this.#mbr_id = _mbr_id
 	}
 	//	public functions
-	async init(){
+	async init(_mbr_id){
+		if(_mbr_id) this.#mbr_id = _mbr_id
 		this.#dataservices = 
 			(this.mbr_id!==oDataservices.mbr_id)
 			?	await new Dataservices(dataservicesId).init()
@@ -72,7 +73,6 @@ class AgentFactory extends EventEmitter{
 		const _avatar = new (this.schemas.avatar)(_avatarProperties)
 		//	assign function activateAssistant() to this new class
 		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
-		if(!_avatar.thread) await _avatar.getThread()	//	also populates internal property: `thread`
 		return _avatar
 	}
 	async getMyLifeMember(_mbr_id){
@@ -83,6 +83,9 @@ class AgentFactory extends EventEmitter{
 	async getMyLifeSession(_challengeFunction){
 		//	default is session based around default dataservices [Maht entertains guests]
 		return await new (schemas.session)(dataservicesId,_Globals,_challengeFunction).init()
+	}
+	async getThread(){
+		return await openai.beta.threads.create()
 	}
 	//	getters/setters
 	get core(){
@@ -106,11 +109,8 @@ class AgentFactory extends EventEmitter{
 	get dataservices(){
 		return this.#dataservices
 	}
-	get _factory(){
-		return this
-	}
 	get factory(){	//	get self
-		return JSON.toString(this)
+		return this
 	}
 	get file(){
 		return schemas.file
@@ -135,6 +135,9 @@ class AgentFactory extends EventEmitter{
 	}
 	get schemas(){
 		return schemas
+	}
+	get session(){
+		return this.schemas.session
 	}
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
@@ -200,11 +203,11 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							)
 						},
 						async chatRequest(_ctx){
-							//	now consolidated in architecture for openai assistants
+							if(!this.thread)
+								this.thread = _ctx.session?.MemberSession?.thread
 							//	assign files and metadata, optional
 							//	create message
 							const _message = await this.setMessage({content: _ctx.request.body.message})
-							//	create local message model and add to this.messages
 							this.messages.unshift(
 								new (schemas.message)(_message)
 							)
@@ -215,13 +218,17 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 								.filter(
 									_msg=>{ return _msg.run_id==this.runs[0].id }
 								)
+								.map(
+									_msg=>{ return new (schemas.message)(_msg) }
+								)
 							this.messages.unshift(..._responses)	//	post each response to this.messages
 							//	update cosmos
-							//	build out
+							console.log(_responses)
+							//	await this.dataservices.patch()
 							//	return response
 							return _responses
 								.map(_msg=>{
-									return new Marked().parse(this.getMessageContent(_msg))
+									return new Marked().parse(_msg.text)
 								})
 								.join('\n')
 						},
@@ -268,7 +275,7 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 								setTimeout(() => {
 									clearInterval(checkInterval)
 									resolve('Run completed (timeout)')
-								}, 12000)
+								}, 220000)
 							})
 						},
 						async getAssistant(_dataservice){	//	openai `assistant` object
@@ -307,23 +314,6 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							if(!this.thread) await this.getThread()
 							return this.messages.data.filter(_msg=>{ return _msg.id==_msg_id })
 						},
-						getMessageContent(_msg){
-							//	flatten content array
-							return _msg.content
-								.map(
-									_content=>{ 
-										switch(_content.type){
-											case 'image_file':
-												//	build-out
-												return
-											case 'text':
-											default:
-												return _content.text.value
-											}
-										}
-								)
-								.join('\n')
-						},
 						async getMessages(){
 							if(!this.thread) await this.getThread()
 							this.messages = ( await openai.beta.threads.messages.list(
@@ -336,7 +326,6 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							return this.runs.filter(_run=>{ return _run.id==_run_id })
 						},
 						async getRuns(){	//	runs are also descending
-							if(!this.thread) await this.getThread()
 							if(!this.runs){
 								this.runs = await openai.beta.threads.runs.list(this.thread.id)
 								//	need to winnow to mapped array?
@@ -354,10 +343,6 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							const _run = this.runs.filter(_run=>{ return _run.id==_run_id })
 							_run.steps = await openai.beta.threads.runs.steps.list(this.thread.id, _run.id)
 						},
-						async getThread(){
-							if(!this.thread) this.thread = await openai.beta.threads.create()
-							return this.thread
-						},
 						async run(){
 							const _run = await this.startRun()
 							if(!_run) throw new Error('Run failed to start')
@@ -367,7 +352,6 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							await this.completeRun(_run.id)
 						},
 						async setMessage(_message){	//	add or update message; returns openai `message` object
-							if(!this.thread) await this.getThread()
 							return (!_message.id)
 								?	await openai.beta.threads.messages.create(	//	add
 									this.thread.id,
@@ -393,26 +377,41 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 							)
 						}
 					})
+					//	assign getters/setters
+					Object.defineProperties(
+						schemas[_class].prototype,
+						{
+							threadId:{
+								get: function() {
+									return this.threadId
+								},
+								set: function(_thread_id) {
+									this.threadId = _thread_id
+								}}
+						}
+					)
 					break
 				case 'message':
-					Object.defineProperty(
+					Object.defineProperties(
 						schemas[_class].prototype,
-						'_content',
 						{
-							get: function() {
-								switch (this.type) {
-									case 'chat':
-										switch (this.system) {
-											case 'openai-assistant':
-												return this.content[0].text.value
-											default:
-												break
-										}
-									default:
-										return 'no content derived'
+							text: {
+								get: function() {
+									switch (this.type) {
+										case 'chat':
+											switch (this.system) {
+												case 'openai_assistant':
+													return this.content[0].text.value
+												default:
+													break
+											}
+										default:
+											return 'no content derived'
+									}
 								}
 							}
-						})
+						}
+					)
 				case 'core':
 				default:	//	core
 					break

@@ -67,12 +67,18 @@ app.use(koaBody({
 		))
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
-		//	MyLife uses Maht as the default until login
-		ctx.state.member = ctx.session?.MemberSession?.member??ctx.MyLife
+		if(!ctx.session?.MemberSession){
+			ctx.session.MemberSession = await new (_factory.session)(
+				ctx.AgentFactory,
+				ctx.MyLife.challengeAccess.bind(_Maht),
+			)	//	inject MAHT-specific functionality into session object [on bind]
+				.init()
+			console.log(chalk.bgBlue('created-member-session', chalk.bgRedBright(ctx.session.MemberSession.threadId)))
+		}
+		ctx.state.member = ctx.session.MemberSession?.member??ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
 		ctx.state.avatar = ctx.state.member.avatar
 		ctx.state.avatar.name = ctx.state.avatar.names[0]
 		ctx.state.menu = ctx.MyLife.menu
-		console.log(chalk.bgBlue('ctx.state.avatar:', chalk.bgRedBright(ctx.state.avatar.name)))
 		await next()
 	})
 //	.use(MyLifeMemberRouter.routes())	//	enable member routes
