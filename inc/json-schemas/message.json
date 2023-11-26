@@ -3,7 +3,7 @@
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/message.json",
 	"required": ["id", "mbr_id", "being", "messages", "type"],
 	"type": "object",
-	"name": "message",
+	"name": "Message",
 	"properties": {
 		"id": {
 			"description": "uuid of message",
@@ -27,14 +27,14 @@
 		},
 		"message": {
 			"type": "object",
-			"$ref": "#/definitions/message_openai-assistant",
+			"$ref": "#/$defs/message_openai_assistant",
 			"description": "message object"
 		},
         "system": {
             "type": "string",
-			"default": "openai-assistant",
+			"default": "openai_assistant",
             "description": "message type",
-            "enum": ["openai-assistant", "openai-completion", "openai-finetue"]
+            "enum": ["openai_assistant", "openai_completion", "openai_finetue"]
         },
         "type": {
             "type": "string",
@@ -43,31 +43,35 @@
             "enum": ["chat", "system", "error", "warning", "info", "debug"]
         }
 	},
-	"definitions": {
-		"annotation_openai-assistant":{
+	"additionalProperties": true,
+	"$defs": {
+		"annotation_openai_assistant":{
+			"name": "Annotation_openai_assistant",
 			"type": "object",
-			"required": ["File citation", "File path"],
+			"required": ["File_citation", "File_path"],
 			"properties": {
-				"File citation": {
+				"File_citation": {
 					"type": "object",
-					"$ref": "#/definitions/citation_openai-assistant",
+					"$ref": "#/$defs/citation_openai_assistant",
 					"description": "A citation within the message that points to a specific quote from a specific File associated with the assistant or the message. Generated when the assistant uses the `retrieval` tool to search files"
 				},
-				"File path": {
+				"File_path": {
 					"type": "object",
-					"$ref": "#/definitions/file_path_openai-assistant",
+					"$ref": "#/$defs/file_path_openai_assistant",
 					"description": "A URL for the file that's generated when the assistant used the code_interpreter tool to generate a file"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"citation_openai-assistant": {
+		"citation_openai_assistant": {
+			"name": "Citation_openai_assistant",
 			"type": "object",
 			"required": ["type", "text"],
 			"properties": {
 				"type": {
 					"type": "string",
 					"const": "file_citation",
-					"$ref": "#/definitions/file_citation_openai-assistant",
+					"$ref": "#/$defs/file_citation_openai_assistant",
 					"description": "A citation within the message that points to a specific quote from a specific File associated with the assistant or the message. Generated when the assistant uses the `retrieval` tool to search files"
 				},
 				"text": {
@@ -82,9 +86,11 @@
 					"type": "integer",
 					"description": "The index of the first character of the text that needs to be replaced"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"content_openai-assistant": {
+		"content_openai_assistant": {
+			"name": "Content_openai_assistant",
 			"type": "object",
 			"required": ["type"],
 			"properties": {
@@ -96,17 +102,19 @@
 				},
 				"text": {
 					"type": "object",
-					"$ref": "#/definitions/content_text_openai-assistant",
+					"$ref": "#/$defs/content_text_openai_assistant",
 					"description": "content text is present as { text: text, annotations: []"
 				},
 				"image_file": {
 					"type": "string",
-					"$ref": "#/definitions/image_file_openai-assistant",
+					"$ref": "#/$defs/image_file_openai_assistant",
 					"description": "file id of attachment"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"content_text_openai-assistant": {
+		"content_text_openai_assistant": {
+			"name": "Content_text_openai_assistant",
 			"type": "object",
 			"required": ["type", "text"],
 			"properties": {
@@ -117,12 +125,14 @@
 				},
 				"text": {
 					"type": "object",
-					"$ref": "#/definitions/content_text_text_openai-assistant",
+					"$ref": "#/$defs/content_text_text_openai_assistant",
 					"description": "text sub-object"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"content_text_text_openai-assistant": {
+		"content_text_text_openai_assistant": {
+			"name": "Content_text_text_openai_assistant",
 			"type": "object",
 			"required": ["value", "annotations"],
 			"properties": {
@@ -135,14 +145,16 @@
 					"type": "array",
 					"items": {
 						"type": "object",
-						"$ref": "#/definitions/annotation_openai-assistant",
+						"$ref": "#/$defs/annotation_openai_assistant",
 						"description": "annotations of text"
 					},
 					"description": "text sub-object"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"file_citation_openai-assistant": {
+		"file_citation_openai_assistant": {
+			"name": "File_citation_openai_assistant",
 			"type": "object",
 			"required": ["file_id", "quote"],
 			"properties": {
@@ -154,9 +166,11 @@
 					"type": "string",
 					"description": "The specific quote in the file"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"file_path_openai-assistant": {
+		"file_path_openai_assistant": {
+			"name": "File_path_openai_assistant",
 			"type": "object",
 			"required": ["file_id"],
 			"properties": {
@@ -164,9 +178,11 @@
 					"type": "string",
 					"description": "The ID of the file that was generated"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"image_file_openai-assistant": {
+		"image_file_openai_assistant": {
+			"name": "Image_file_openai_assistant",
 			"type": "object",
 			"required": ["file_id"],
 			"properties": {
@@ -174,9 +190,11 @@
 					"type": "string",
 					"description": "The File ID of the image in the message content"
 				}
-			}
+			},
+			"additionalProperties": false
 		},
-		"message_openai-assistant": {
+		"message_openai_assistant": {
+			"name": "Message_openai_assistant",
 			"type": "object",
 			"required": ["content", "created_at", "id", "object", "role", "thread_id"],
 			"properties": {
@@ -190,7 +208,7 @@
 					"default": [],
 					"items": {
 						"type": "object",
-						"$ref": "#/definitions/content_openai-assistant",
+						"$ref": "#/$defs/content_openai_assistant",
 						"description": "openai assistant message content objects"
 					},
 					"uniqueItems": true
@@ -214,7 +232,7 @@
 				},
 				"object": {
 					"type": "string",
-					"const": "message_openai-assistant",
+					"const": "message_openai_assistant",
 					"description": "object type"
 				},
 				"role": {
@@ -234,6 +252,7 @@
 					"description": "uuid of message thread"
 				}
 			},
+			"additionalProperties": false,
 			"$comment": "openAI assistants interact with chat in a new way, they create a thread for the conversation and then apply a model that *runs* the thread and generates messages; this object is a direct capture of this object"
 		}
 	}

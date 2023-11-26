@@ -13,7 +13,7 @@ import MylifeMemberSession from './session.js'
 import { _ } from 'ajv'
 // modular constants
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
-const excludeProperties = { '$schema': true, '$id': true, '$defs': true, "$comment": true, "name": true }
+const excludeProperties = { '$schema': true, '$id': true, '$defs': true, 'definitions': true, "$comment": true, "name": true }
 const path = './inc/json-schemas'
 const vmClassGenerator = vm.createContext({
 	exports: {},
@@ -45,6 +45,8 @@ const openai = new OpenAI({
 configureSchemaPrototypes()
 // modular variables
 let oServer
+//	logging/reporting
+console.log('AgentFactory loaded; schemas:', schemas)
 // modular classes
 class AgentFactory extends EventEmitter{
 	#dataservices
@@ -70,14 +72,7 @@ class AgentFactory extends EventEmitter{
 		const _avatar = new (this.schemas.avatar)(_avatarProperties)
 		//	assign function activateAssistant() to this new class
 		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
-		const _ = {
-			id: 'thread_WU0OZOSQheyfQrfnwwuaTBTY',
-			object: 'thread',
-			created_at: 1700337778,
-			metadata: {}
-		  }
-		_avatar.thread = _	//	temp config to avoid external ping
-//		if(!_avatar.thread) await _avatar.getThread()	//	also populates internal property: `thread`
+		if(!_avatar.thread) await _avatar.getThread()	//	also populates internal property: `thread`
 		return _avatar
 	}
 	async getMyLifeMember(_mbr_id){
@@ -298,7 +293,12 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 								}
 								this.assistant = await openai.beta.assistants.create(_core)
 								//	save id to cosmos
-								_dataservice.patch(this.id, { id: this.assistant.id })
+								_dataservice.patch(this.id, {
+									assistant: { 
+										id: this.assistant.id
+									,	object: 'assistant'
+									}
+								})
 							}
 							else if(!this.assistant?.name.length) this.assistant = await openai.beta.assistants.retrieve(this.assistant.id)
 							return this.assistant

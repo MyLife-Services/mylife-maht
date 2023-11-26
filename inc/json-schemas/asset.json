@@ -3,7 +3,7 @@
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/asset.json",
 	"required": ["id", "mbr_id", "being", "type"],
 	"type": "object",
-	"name": "asset",
+	"name": "Asset",
 	"properties": {
 		"id": {
 			"description": "uuid of asset-agent",
