@@ -63,7 +63,7 @@ class AgentFactory extends EventEmitter{
 		if(_mbr_id) this.#mbr_id = _mbr_id
 		this.#dataservices = 
 			(this.mbr_id!==oDataservices.mbr_id)
-			?	await new Dataservices(dataservicesId).init()
+			?	await new Dataservices(this.mbr_id).init()
 			:	oDataservices
 		if(!oServer) oServer = await new MyLife(this).init()
 		return this
@@ -81,8 +81,8 @@ class AgentFactory extends EventEmitter{
 		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
 		return _avatar
 	}
-	async getMyLifeMember(_mbr_id){
-		const _r =  await new (schemas.member)(await new (schemas.dataservices)(_mbr_id).init(),this)
+	async getMyLifeMember(){
+		const _r =  await new (schemas.member)(this)
 			.init()
 		return _r
 	}
@@ -99,7 +99,6 @@ class AgentFactory extends EventEmitter{
 	}
 	get core(){
 		const _excludeProperties = { '_none':true }
-		console.log('dataservices', this.#dataservices)
 		let _core = Object.entries(this.#dataservices.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']

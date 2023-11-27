@@ -24,19 +24,12 @@ class Member extends EventEmitter {
 		'Facts',
 		'Other'
 	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
-	#core
-	#dataservice
 	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
-	#globals
-	#mbr_id
 	#personalityKernal
 	constructor(_Factory,_Session){
 		super()
 		this.#personalityKernal = openai	//	will be covered in avatars
 		this.#factory = (_Session?.factory)?_Session.factory:_Factory	//	Factory configured for this user or Q
-		this.#dataservice = this.factory.dataservice
-		this.#globals = this.#factory.globals
-		this.#mbr_id = this.#factory.mbr_id
 	}
 	//	initialize
 	async init(){
@@ -110,10 +103,13 @@ class Member extends EventEmitter {
 		return this.agent.chat
 	}
 	get core(){
-		return this.#core
+		return this.factory.core
 	}
 	get dataservice(){
-		return this.#dataservice
+		return this.dataservices
+	}
+	get dataservices(){
+		return this.factory.dataservices
 	}
 	get description(){
 		return this.core.description
@@ -131,7 +127,7 @@ class Member extends EventEmitter {
 		return this.core.form
 	}
 	get globals(){
-		return this.#globals
+		return this.factory.globals
 	}
 	get hobbies(){
 		return this.core.hobbies
@@ -143,7 +139,7 @@ class Member extends EventEmitter {
 		return this.sysid
 	}
 	get mbr_id(){
-		return this.#mbr_id
+		return this.factory.mbr_id
 	}
 	get member(){
 		return this.core
@@ -221,7 +217,7 @@ class Member extends EventEmitter {
 			timestamp: new Date().toISOString(),
 		})
 		//	this.chat.exchanges.unshift(_chatSnippetResponse.inspect(true),_chatSnippetQuestion.inspect(true))	//	add to conversation [reverse chronological order]
-		this.#dataservice.patchItem(
+		this.dataservices.patchItem(
 			this.chat.id,
 			[
 				{ op: 'add', path: `/exchanges/0`, value: _chatSnippetQuestion.inspect(true) },
@@ -535,15 +531,6 @@ class MyLife extends Member {	//	form=organization
 		return super.formatQuestion(_question)
 	}
 	//	getters/setters
-	get board(){	//	board is array of Member objects
-		return this.board 
-	}
-	get boardListing(){
-		return this.boardMembers.map(_boardMember=>{ return _boardMember.memberName })
-	}
-	get boardMembers(){
-		return this.board.members	//	board.members is an ordered array of Member objects
-	}
 	get description(){
 		return this.core.description
 	}

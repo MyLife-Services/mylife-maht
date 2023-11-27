@@ -1,3 +1,4 @@
+import AgentFactory from './mylife-agent-factory.mjs'
 import chalk from 'chalk'
 class MylifeMemberSession {	//	bean only, no public functions aside from init and constructor
 	#conversation
@@ -13,39 +14,30 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 		this.#fxValidate = _fxValidate	//	_fxValidate is an injected function to use the most current mechanic to validate the member
 		this.#mbr_id = this.factory.mbr_id
 	}
-	async init(_mbr_id=this.#mbr_id){
-		this.#thread = await this.factory.getThread()	//	make sure to generate a thread for each session, which should remain intact _through_ login _until_ logout
-		this.name = this.#assignName()	//	unique name for this session, can be reassigned once logged in
-		this.#conversation = new (this.factory.conversation)({
-			mbr_id: _mbr_id,
-			parent_id: this.mbr_id_id,
-			thread_id: this.thread.id,
-		}, this.factory)
-		this.#conversation.name = this.name
-		//	print to CosmosDB - no need to await as I already have id
-		this.factory.dataservices.pushItem(this.conversation.inspect(true))
+	async init(_mbr_id=this.mbr_id){
+		if(!this.#thread) await this.#createThread()
 		if(this.locked){
 			if(this.#Member?.mbr_id??_mbr_id !== _mbr_id)
 				console.log(chalk.bgRed('cannot initialize, member locked'))
 		}
-		if(this.#Member?.mbr_id??_mbr_id !== _mbr_id) {	//	only create if not already created or alternate Member
-			this.#Member = await this.factory.getMember(_mbr_id)
+		if(this.mbr_id !== _mbr_id) {	//	only create if not already created or alternate Member
 			this.#mbr_id = _mbr_id
-			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(this.#Member.name )))
+			console.log('update-agent-factory')
+			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
+			await this.#createThread()
+			this.#Member = await this.factory.getMyLifeMember()
+			//	update conversation info (name)
+			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(this.#Member.memberName )))
 		}
 		return this
 	}
 	async challengeAccess(_passphrase){
-		if(this.#locked && await this.#fxValidate(this.#mbr_id,_passphrase)){
+		if(this.#locked && this.challenge_id && await this.#fxValidate(this.challenge_id,_passphrase)){
 			//	init member
 			this.#locked = false
-			await this.init(this.#mbr_id)
-			console.log('logged in',this.#mbr_id,this.agent)
+			await this.init(this.challenge_id)
 		}
 		return !this.locked
-	}
-	get agent(){
-		return this.#Member?.agent??false
 	}
 	get blocked(){
 		return this.locked
@@ -94,6 +86,18 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	//	private functions
 	#assignName(){
 		return `MylifeMemberSession_${this.mbr_id}_${this.threadId}`
+	}
+	async #createThread(){
+		this.#thread = await this.factory.getThread()	//	make sure to generate a thread for each session, which should remain intact _through_ login _until_ logout
+		this.#conversation = new (this.factory.conversation)({
+			mbr_id: this.mbr_id,
+			parent_id: this.mbr_id_id,
+			thread_id: this.thread.id,
+		}, this.factory)
+		this.name = this.#assignName()
+		this.#conversation.name = this.name
+		//	print to CosmosDB - no need to await as I already have id
+		this.factory.dataservices.pushItem(this.conversation.inspect(true))
 	}
 }
 export default MylifeMemberSession

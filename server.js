@@ -72,6 +72,7 @@ app.use(koaBody({
 				.init()
 			console.log(chalk.bgBlue('created-member-session', chalk.bgRedBright(ctx.session.MemberSession.threadId)))
 		}
+		ctx.state.locked = ctx.session.MemberSession.locked
 		ctx.state.member = ctx.session.MemberSession?.member??ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
 		ctx.state.avatar = ctx.state.member.avatar
 		ctx.state.avatar.name = ctx.state.avatar.names[0]

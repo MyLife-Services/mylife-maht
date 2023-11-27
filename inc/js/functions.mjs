@@ -35,13 +35,19 @@ async function members(ctx){
 	ctx.state.title = `Your MyLife Digital Home`
 	switch (true) {
 		case !ctx.state.mid:
+			ctx.state.hostedMembers = ctx.hostedMembers
+				.sort(
+					(a, b) => a.localeCompare(b)
+				)
+				.map(
+					_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.extractSysName(_mbr_id) })
+				)
 			ctx.state.subtitle = `Select your membership to continue:`
 			await ctx.render('members-select')
 			break
-		case ctx.state.blocked:	//	should emit to server.js to manage ctx session, not here
-			ctx.session.MemberSession
-			ctx.session.MemberSession.mbr_id = ctx.state.mid	//	initialize member session with 'new' member id
-			ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.state.mid.split('|')[0] }]:`
+		case ctx.state.locked:
+			ctx.session.MemberSession.challenge_id = ctx.state.mid
+			ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.extractSysName(ctx.state.mid) }]:`
 			await ctx.render('members-challenge')
 			break
 		default:

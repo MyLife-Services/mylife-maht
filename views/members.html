@@ -2,7 +2,7 @@
 <!--<div class="row">
 		<div class="col-md-12">
 			<div id="header" class="d-flex">
-				<div class="col-md-6 header-text text-center">Agent <%= agent.agentName %></div>
+				<div class="col-md-6 header-text text-center">Agent <%= avatar.name %></div>
 				<div class="col-md-6 header-text text-center">You</div>
 			</div>
 		</div>
@@ -25,7 +25,7 @@
 				<button id="submitButton" type="submit" class="btn btn-primary">Submit</button>
 				<button id="awaitButton" name="awaitButton" class="btn btn-primary" type="button" disabled>
 					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-					Connecting with <%= member.agentName %>...
+					Connecting with <%= avatar.name %>...
 				</button>
 			</form>
 		</div>
@@ -38,7 +38,7 @@ const chatColumn = document.getElementById('chat');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message');
 const submitButton = document.getElementById('submitButton');
-const _prompter = `Hi, I'm <%= member.agentName %>, so nice to meet you!`;
+const _prompter = `Hi, I'm <%= avatar.name %>, so nice to meet you!`;
 const _followon = `I'm here to collaborate with you on behalf of <%= member.memberName %>, feel free to ask me anything about him to get started.`;
 let _chatBubbleCount = 0;
 //	bootup
