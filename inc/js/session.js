@@ -1,22 +1,29 @@
 import chalk from 'chalk'
 class MylifeMemberSession {	//	bean only, no public functions aside from init and constructor
+	#conversation
 	#factory
 	#fxValidate
-	#globals
 	#locked = true	//	locked by default
 	#mbr_id
 	#Member
 	#thread
 	name
-	constructor(_factory,_fxValidate){
-		this.#factory = _factory
+	constructor(ctx,_fxValidate){
+		this.#factory = ctx.AgentFactory
 		this.#fxValidate = _fxValidate	//	_fxValidate is an injected function to use the most current mechanic to validate the member
-		this.#globals = _factory.globals
-		this.#mbr_id = _factory.mbr_id
+		this.#mbr_id = this.factory.mbr_id
 	}
 	async init(_mbr_id=this.#mbr_id){
 		this.#thread = await this.factory.getThread()	//	make sure to generate a thread for each session, which should remain intact _through_ login _until_ logout
 		this.name = this.#assignName()	//	unique name for this session, can be reassigned once logged in
+		this.#conversation = new (this.factory.conversation)({
+			mbr_id: _mbr_id,
+			parent_id: this.mbr_id_id,
+			thread_id: this.thread.id,
+		}, this.factory)
+		this.#conversation.name = this.name
+		//	print to CosmosDB - no need to await as I already have id
+		this.factory.dataservices.pushItem(this.conversation.inspect(true))
 		if(this.locked){
 			if(this.#Member?.mbr_id??_mbr_id !== _mbr_id)
 				console.log(chalk.bgRed('cannot initialize, member locked'))
@@ -46,11 +53,14 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	set blocked(_passphrase){
 		return (this.locked = _passphrase)
 	}
+	get conversation(){
+		return this.#conversation
+	}
 	get factory(){
 		return this.#factory
 	}
 	get globals(){
-		return this.#globals
+		return this.factory.globals
 	}
 	get locked(){
 		return this.#locked
@@ -61,6 +71,9 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	set mbr_id(_mbr_id){
 		this.#mbr_id = _mbr_id
 		return this.mbr_id
+	}
+	get mbr_id_id(){
+		return this.globals.extractId( this.mbr_id )
 	}
 	get member(){
 		return this.#Member

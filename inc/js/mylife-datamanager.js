@@ -74,6 +74,7 @@ class Datamanager {
 	}
 	async patchItem(_id,_item) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
+		if(!Array.isArray(_item)) _item = [_item]
 		const { resource: _update } = await this.container
 			.item(_id,this.#partitionId)
 			.patch(_item)	//	see below for filter-patch example
@@ -103,7 +104,7 @@ class Datamanager {
 		return replaced
 	}
 COLLECTION PATCH:
-BodY itself is the List of operations, second parameter is options, for configuration and fiLtEr?
+Body itself is the array of operations, second parameter is options, for configuration and filter?
 const filter = 'FROM products p WHERE p.used = false'
 
 const operations =

@@ -17,20 +17,30 @@
 		"parent_id": {
 			"type": "string",
 			"format": "uuid",
-			"$comment": "chat should be attached to agent, but must be at least attached to member core"
+			"$comment": "chat should be attached to avatar.id when known"
 		},
 		"being": {
 			"type": "string",
 			"const": "chat"
 		},
 		"messages": {
-			"type": "array", 
+			"type": "array",
 			"default": [], 
 			"items": {
 				"type": "object",
 				"$ref": "./message.json"
 			},
 			"$comment": "messages array, populated by unshift"
+		},
+		"name": {
+			"type": "string",
+			"maxLength": 128,
+			"$comment": "name of the conversation, used for display"
+		},
+		"thread_id": {
+			"type": "string",
+			"maxLength": 128,
+			"$comment": "openai thread id, used for tracking"
 		}
 	},
 	"additionalProperties": true

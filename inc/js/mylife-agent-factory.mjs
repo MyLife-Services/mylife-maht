@@ -49,12 +49,14 @@ let oServer
 console.log('AgentFactory loaded; schemas:', schemas)
 // modular classes
 class AgentFactory extends EventEmitter{
+	#ctx	//	allows perennial access to ctx scope with mutability
 	#dataservices
 	#mbr_id
-	constructor(_mbr_id=dataservicesId){
+	constructor(_mbr_id=dataservicesId, ctx){
 		super()
 		//	if incoming member id is not same as id on oDataservices, then ass new class-private dataservice
 		this.#mbr_id = _mbr_id
+		this.#ctx = ctx
 	}
 	//	public functions
 	async init(_mbr_id){
@@ -66,12 +68,16 @@ class AgentFactory extends EventEmitter{
 		if(!oServer) oServer = await new MyLife(this).init()
 		return this
 	}
-	async getAvatar(_agent_id){
+	async getAvatar(){
 		//	get avatar template for metadata from cosmos
 		const _avatarProperties = await this.dataservices.getAgent(this.globals.extractId(this.mbr_id))
 		//	activate (created inside if necessary) avatar
-		const _avatar = new (this.schemas.avatar)(_avatarProperties)
-		//	assign function activateAssistant() to this new class
+//	NOTE: should second var instead be new AgentFactory(ctx.session?) unclear if this factory is already primed
+		const _avatar = new (this.schemas.avatar)(_avatarProperties, this)
+		//	update conversation
+		if(this.ctx?.session?.MemberSession?.conversation){
+			console.log('you betcha')
+		}
 		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
 		return _avatar
 	}
@@ -82,12 +88,15 @@ class AgentFactory extends EventEmitter{
 	}
 	async getMyLifeSession(_challengeFunction){
 		//	default is session based around default dataservices [Maht entertains guests]
-		return await new (schemas.session)(dataservicesId,_Globals,_challengeFunction).init()
+		return await new (this.schemas.session)(dataservicesId,_Globals,_challengeFunction).init()
 	}
 	async getThread(){
 		return await openai.beta.threads.create()
 	}
 	//	getters/setters
+	get conversation(){
+		return this.schemas.conversation
+	}
 	get core(){
 		const _excludeProperties = { '_none':true }
 		console.log('dataservices', this.#dataservices)
@@ -106,6 +115,9 @@ class AgentFactory extends EventEmitter{
 		
 		return _core
 	}
+	get ctx(){
+		return this.#ctx
+	}
 	get dataservices(){
 		return this.#dataservices
 	}
@@ -113,7 +125,7 @@ class AgentFactory extends EventEmitter{
 		return this
 	}
 	get file(){
-		return schemas.file
+		return this.schemas.file
 	}
 	get globals(){
 		return _Globals
@@ -204,13 +216,16 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 						},
 						async chatRequest(_ctx){
 							if(!this.thread)
-								this.thread = _ctx.session?.MemberSession?.thread
+								this.thread = _ctx.session.MemberSession.thread
 							//	assign files and metadata, optional
 							//	create message
-							const _message = await this.setMessage({content: _ctx.request.body.message})
-							this.messages.unshift(
-								new (schemas.message)(_message)
-							)
+							const _message = new (schemas.message)({
+								message: await this.setMessage({content: _ctx.request.body.message}),
+								mbr_id: this.mbr_id,
+								avatar_id: this.id,
+								role: 'user',
+							})
+							this.messages.unshift(_message)
 							//	run thread
 							await this.run()
 							//	get message data from thread
@@ -219,12 +234,21 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 									_msg=>{ return _msg.run_id==this.runs[0].id }
 								)
 								.map(
-									_msg=>{ return new (schemas.message)(_msg) }
+									_msg=>{ return new (schemas.message)({
+										message: _msg,
+										mbr_id: this.mbr_id,
+										avatar_id: this.id,
+										role: 'assistant',
+									}) }
 								)
 							this.messages.unshift(..._responses)	//	post each response to this.messages
 							//	update cosmos
-							console.log(_responses)
-							//	await this.dataservices.patch()
+							if(this?.factory)
+								await this.factory.dataservices.patchArrayItems(
+									_ctx.session.MemberSession.conversation.id,
+									'messages',
+									[..._responses, _message]
+								)
 							//	return response
 							return _responses
 								.map(_msg=>{
@@ -401,7 +425,7 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 										case 'chat':
 											switch (this.system) {
 												case 'openai_assistant':
-													return this.content[0].text.value
+													return this.message.content[0].text.value
 												default:
 													break
 											}
@@ -429,7 +453,7 @@ function generateClassCode(_className,_properties,_schema){
 class ${_className} {
 // private properties
 #excludeConstructors = ${ '['+Object.keys(excludeProperties).map(key => "'" + key + "'").join(',')+']' }
-#globals
+#factory
 #name
 `
 	for (const _prop in _properties) {	//	assign default values as animated from schema
@@ -438,7 +462,8 @@ class ${_className} {
 	}
 	classCode += `
 // class constructor
-constructor(obj){
+constructor(obj,_factory){
+	if(_factory) this.#factory = _factory
 	try{
 		for(const _key in obj){
 			//	exclude known private properties and db properties beginning with '_'
@@ -474,6 +499,11 @@ set ${_prop}(_value) {	// setter with type validation
 	this.#${_prop} = _value
 }`
 	}
+	//	get factory
+	classCode += `
+get factory(){
+	return this.#factory
+}`
 	//	functions
 	//	inspect: returns a object representation of available private properties
 	classCode += `	// public functions

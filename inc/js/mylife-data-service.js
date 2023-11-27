@@ -120,6 +120,16 @@ class Dataservices{
 			})
 		return await this.patchItem(_id,_data)
 	}
+	async patchArrayItems(_id,_node,_data,_index=0){	//	_data is array of objects to be inserted into _node at _index
+		//	create patch object that can insert _data into _node at _index
+		const __data = _data
+			.map(
+				(_item,_index)=>{
+					return { op: 'add', path: `/${_node}/${_index}`, value: { message: _item.text, role: _item.role } }
+				}
+			)
+		return await this.patchItem(_id,__data)
+	}
 	async patchItem(_id,_data){ // path Embedded in _data
 		return await this.datamanager.patchItem(_id,_data)
 	}
