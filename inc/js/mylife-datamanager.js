@@ -29,9 +29,7 @@ class Datamanager {
 		}
 		//	assign database and container
 		this.database=this.client.database(oConfig.db.id)
-		console.log(chalk.bgCyan('database initialized:',chalk.bgCyanBright(`${this.database.id}`)))
 		this.container=this.database.container(oConfig.db.container.id)
-		console.log(chalk.bgCyan('container initialized:',chalk.bgCyanBright(`${this.container.id}`)))
 	}
 	//	init function
 	async init() {
@@ -41,7 +39,7 @@ class Datamanager {
 			this.#partitionId
 		)
 			.read()
-		console.log(chalk.bgBlue('core initialized:',chalk.bgBlueBright(`${this.#core.resource.id}`)))
+		console.log(chalk.yellowBright('database, container, core initialized:',chalk.bgYellowBright(`${this.container.id} :: ${this.database.id} :: ${this.#core.resource.id}`) ))
 		return this
 	}
 	//	getter/setter property functions
@@ -76,6 +74,7 @@ class Datamanager {
 	}
 	async patchItem(_id,_item) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
+		if(!Array.isArray(_item)) _item = [_item]
 		const { resource: _update } = await this.container
 			.item(_id,this.#partitionId)
 			.patch(_item)	//	see below for filter-patch example
@@ -105,6 +104,7 @@ class Datamanager {
 		return replaced
 	}
 COLLECTION PATCH:
+Body itself is the array of operations, second parameter is options, for configuration and filter?
 const filter = 'FROM products p WHERE p.used = false'
 
 const operations =

@@ -1,7 +1,8 @@
 //	imports
+import { _ } from "ajv"
 import Datamanager from "./mylife-datamanager.js"
 import PgvectorManager from "./mylife-pgvector-datamanager.js"
-class Dataservices{	//	convert to extension of Datamanager
+class Dataservices{
 	//	pseudo-constructor
 	#Datamanager
 	#partitionId
@@ -44,7 +45,7 @@ class Dataservices{	//	convert to extension of Datamanager
 		//	ask global data service (stored proc) for passphrase
 		return await this.datamanager.challengeAccess(_mbr_id,_passphrase)
 	}
-	async getAgent(_parent_id){	//	get specificed (or default) agent; one per parent_id, most recent only
+	async getAgent(_parent_id){	//	get specificed (or default) agent; one per parent_id, most recent only; NOTE: parent_id is an extracted guid
 		const _agentsArray = (await this.getAgents())
 			.filter(_agent=>{
 				return _agent.parent_id === _parent_id
@@ -57,7 +58,7 @@ class Dataservices{	//	convert to extension of Datamanager
 				mbr_id: this.mbr_id,
 				name: `agent_${ _parent_id }_${ this.mbr_id }`,
 				names: ['AI-Agent', 'Agent', 'AI'],
-				parent_id: _parent_id,
+				parent_id: _parent_id,	//	attaching to member core by default
 			}))
 		}
 		return _agentsArray[0]	//	or isolate dimension earlier
@@ -112,8 +113,25 @@ class Dataservices{	//	convert to extension of Datamanager
 	async getLocalRecords(_question){
 		return await this.embedder.getLocalRecords(_question)
 	}
-	async patchItem(_id,_dataArray){
-		return await this.datamanager.patchItem(_id,_dataArray)
+	async patch(_id,_data,_path='/'){	//	_data is just object of key/value pairs so must be transformed (add/update only)
+		_data = Object.keys(_data)
+			.map(_key=>{
+				return { op: 'add', path: _path+_key, value: _data[_key] }
+			})
+		return await this.patchItem(_id,_data)
+	}
+	async patchArrayItems(_id,_node,_data,_index=0){	//	_data is array of objects to be inserted into _node at _index
+		//	create patch object that can insert _data into _node at _index
+		const __data = _data
+			.map(
+				(_item,_index)=>{
+					return { op: 'add', path: `/${_node}/${_index}`, value: { message: _item.text, role: _item.role } }
+				}
+			)
+		return await this.patchItem(_id,__data)
+	}
+	async patchItem(_id,_data){ // path Embedded in _data
+		return await this.datamanager.patchItem(_id,_data)
 	}
 	async pushItem(_data){
 		return await this.datamanager.pushItem(_data)

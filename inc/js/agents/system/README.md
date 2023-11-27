@@ -1,0 +1,2 @@
+modular assistants, not actual agents, but system functionality that can be used _by_ agents
+all outputs thereby should be in the form of a consistent class, that is at least initially defined by the global config at its heart (i.e., inclusive at least, if one-day not fully birthed from, the raw json config file)

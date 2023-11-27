@@ -1,3 +1,8 @@
+//	imports
+import fs from 'fs'
+import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
+import { _ } from 'ajv'
+//	pseudo-constructor
 //	need to process any session actions at a layer higher than this, preferably session emitter to all objects?
 async function about(ctx){
 	ctx.state.member = ctx.MyLife.member
@@ -16,8 +21,8 @@ async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	//	best way to turn to any agent? build into ctx? get state.member right
-	const _response = await ctx.state.member.processChatRequest(ctx)
+	//	best way to turn to any agent? build into ctx? get state.member(/agent?) right
+	const _response = await ctx.state.avatar.chatRequest(ctx)
 	ctx.body = { 'answer': _response }
 }
 async function index(ctx){
@@ -51,6 +56,17 @@ async function register(ctx){
 	ctx.state.registerEmail = ctx.state.agent.email
 	await ctx.render('register')	//	register
 }
+async function _upload(ctx){	//	post file via post
+	//	revive or create nascent AI-Asset Assistant, that will be used to process the file from validation => storage
+	//	ultimately, this may want to move up in the chain, but perhaps not, considering the need to process binary file content
+	const _oAIAssetAssistant = await new oAIAssetAssistant(ctx).init()
+	ctx.body = _oAIAssetAssistant
+}
+async function upload(ctx){	//	upload display widget/for list and/or action(s)
+	ctx.state.title = `Upload`
+	ctx.state.subtitle = `Upload your files to <em>MyLife</em>`
+	await ctx.render('upload')	//	upload
+}
 // exports
 export {
 	about,
@@ -60,4 +76,6 @@ export {
 	index,
 	members,
 	register,
+	upload,
+	_upload,
 }

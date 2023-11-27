@@ -1,77 +1,55 @@
 //	imports
 import EventEmitter from 'events'
-import { OpenAIApi, Configuration } from 'openai'
+import OpenAI from 'openai'
 import chalk from 'chalk'
 //	import { _ } from 'ajv'
-import Dataservices from './mylife-data-service.js'
 //	server-specific imports
 import initRouter from './routes.js'
 // config
-const config = new Configuration({
+const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 	organizationId: process.env.OPENAI_ORG_KEY,
 	timeoutMs: process.env.OPENAI_TIMEOUT,
 	basePath: process.env.OPENAI_BASE_URL,
 })
-const openai = new OpenAIApi(config)
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
-	#agent
-	agentBeacons = []
-	#categories = ['Interests','Abilities','Preferences','Artifacts','Beliefs','Facts','Other']	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
+	#avatar
+	#categories = [
+		'Interests',
+		'Abilities',
+		'Preferences',
+		'Artifacts',
+		'Beliefs',
+		'Facts',
+		'Other'
+	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#core
 	#dataservice
-	#excludeProperties = { '_none':true }
+	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
 	#globals
 	#mbr_id
 	#personalityKernal
-	constructor(_Dataservice,_Globals){
+	constructor(_Factory,_Session){
 		super()
-		this.#dataservice = _Dataservice	//	individual cosmos dataservice by mbr_id
-		this.#personalityKernal = openai	//	alterable, though would require different options and subelements, so should build into utility class
-		this.#globals = _Globals
-		this.#core = Object.entries(this.#dataservice.core)	//	array of arrays
-			.filter((_prop)=>{	//	filter out excluded properties
-				const _charExlusions = ['_','@','$','%','!','*',' ']
-				return !(
-						(_prop[0] in this.#excludeProperties)
-					||	!(_charExlusions.indexOf(_prop[0].charAt()))
-				)
-				})
-			.map(_prop=>{	//	map to object
-				return { [_prop[0]]:_prop[1] }
-			})
-		this.#core = Object.assign({},...this.#core)	//	merge to single object
-		this.#mbr_id = this.#core.mbr_id
-		this.agentBeacons.push(this.id)
+		this.#personalityKernal = openai	//	will be covered in avatars
+		this.#factory = (_Session?.factory)?_Session.factory:_Factory	//	Factory configured for this user or Q
+		this.#dataservice = this.factory.dataservice
+		this.#globals = this.#factory.globals
+		this.#mbr_id = this.#factory.mbr_id
 	}
 	//	initialize
-	async init(_agent_parent_id=this.globals.extractId(this.mbr_id)){
-		if(!this?.agent) {	//	create agent
-			const _agentProperties = await this.dataservice.getAgent(_agent_parent_id)	//	retrieve agent from db
-			this.agent = await new (this.globals.schema.agent)(_agentProperties)	//	agent
-			this.agent.name = `agent_${ this.agentName }_${ this.mbr_id }`
-			this.agent.categories = this.agent?.categories??this.#categories	//	assign categories
-			console.log(chalk.bgCyanBright('agent-chat-init'),chalk.cyanBright(this.agent.description))
-			const _conversation = await this.dataservice.getChat(this.agent.id)	//	send in agent id for pull
-			this.agent.chat = await new (this.globals.schema.conversation)(_conversation)	//	agent chat assignment
-			if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
-		}
+	async init(){
+		this.#avatar = await this.factory.getAvatar()
+		if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		return this
 	}
 	//	getter/setter functions
-	get _agent(){	//	introspected agent
-		return this.agent.inspect(true)
-	}
 	get abilities(){
 		return this.core.abilities
 	}
 	get agent(){
-		return this.#agent
-	}
-	set agent(_agent){	//	must be instance of agent already
-		if(!this.#hasAgentAccess(_agent)) throw new Error('agent not known or not available to member')
-		this.#agent = _agent
+		return this.#avatar
 	}
 	get agentCategories(){
 		return this.agent.categories
@@ -80,14 +58,11 @@ class Member extends EventEmitter {
 		return this.agent.command_word
 	}
 	get agentDescription(){	//	agent description (not required)
-		if(!this.agent?.description) this.#agent.description = `I am ${ this.agentName }, AI-Agent for ${ this.name }`
+		if(!this.agent?.description) this.avatar.description = `I am ${ this.agentName }, AI-Agent for ${ this.name }`
 		return this.agent.description
 	}
 	get agentName(){
-		return this.agent.names[0]
-	}
-	get agentName_tokenized(){
-		return this.tokenize(this.agentName)
+		return this.avatar.names[0]
 	}
 	get agentProxy(){
 		switch(this.form){	//	need switch because I could not overload class function
@@ -116,6 +91,9 @@ class Member extends EventEmitter {
 */					
 		}
 	}
+	get avatar(){
+		return this.#avatar
+	}
 	get being(){
 		return this.core.being
 	}
@@ -143,6 +121,9 @@ class Member extends EventEmitter {
 	get email(){
 		return this.core.email
 	}
+	get factory(){
+		return this.#factory
+	}
 	get facts(){
 		return this.core.facts
 	}
@@ -162,7 +143,7 @@ class Member extends EventEmitter {
 		return this.sysid
 	}
 	get mbr_id(){
-		return this.core.mbr_id
+		return this.#mbr_id
 	}
 	get member(){
 		return this.core
@@ -192,12 +173,13 @@ class Member extends EventEmitter {
 		return this.core.values
 	}
 	//	public functions
-	async processChatRequest(ctx){
+	/* handled now by avatar
+	async processChatRequest(_ctx){
 		//	gatekeeper
 		//	throttle requests
 		//	validate input
 		//	store question
-		let _question = ctx.request.body.message
+		let _question = _ctx.request.body.message
 		const _chatSnippetQuestion = new (this.globals.schema.chatSnippet)({	//	no trigger to set
 			content: _question,
 			contributor: this.mbr_id,
@@ -249,6 +231,7 @@ class Member extends EventEmitter {
 		//	return response
 		return _response
 	}
+	*/
 	//	question/answer functions
 	async assignPrimingQuestions(_question){
 		return this.buildFewShotQuestions(
@@ -410,42 +393,16 @@ class Member extends EventEmitter {
 	tokenize(_str){
 		return '<||'+_str+'||>'
 	}
-	//	private functions
-	#hasAgentAccess(_agent){
-		return (
-			this.agentBeacons	//	agent must be on beacon list
-				.filter(_=>{
-					return _===_agent?.parent_id || this.mbr_id===_agent.mbr_id 
-				})	//	member must have rights to agent, cooperative or core
-				.length
-		)	
-	}
 }
 class MyLife extends Member {	//	form=organization
 	#Menu
 	#Router
-	board
-	constructor(_Dataservice,_Globals){
-		super(_Dataservice,_Globals)
+	constructor(_Factory,_Session){
+		super(_Factory,_Session)
 	}
 	//	public functions
 	async init(){
-		//	assign board array
-		await super.init()
-		const _board = await this.dataservice.getBoard()	//	get current list of mbr_id
-		this.board = await new (this.globals.schema.board)(_board)
-		this.agentBeacons.push(this.board.id)	//	board can host agents
-		this.board.members = await this.#populateBoard(_board)	//	convert board.members to array of Member objects
-		return this
-	}
-	async processChatRequest(ctx){	//	determine if first submission is question or subjective sentiment [i.e., something you care about]
-/* testing fine-tuned model, remove priming questions
-		if(!ctx.session?.bInitialized){
-			ctx.request.body.message = await this.#isQuestion(ctx.request.body.message)
-			ctx.session.bInitialized = true
-		}
-*/
-		return await super.processChatRequest(ctx)
+		return await super.init()
 	}
 	async assignLocalContent(_question){	//	assign local content from pgvector
 		let _localContent = await this.dataservice.getLocalRecords(_question)
@@ -598,7 +555,7 @@ class MyLife extends Member {	//	form=organization
 	}
 	get menu(){
 		if(!this.#Menu){
-			this.#Menu = new (this.globals.schemas.menu)(this).menu
+			this.#Menu = new (this.factory.schemas.menu)(this).menu
 		}
 		return this.#Menu
 	}
@@ -619,7 +576,7 @@ class MyLife extends Member {	//	form=organization
 	}
 	get router(){
 		if(!this.#Router){
-			this.#Router = initRouter(this, new (this.globals.schemas.menu)(this))
+			this.#Router = initRouter(this, new (this.factory.schemas.menu)(this))
 		}
 		return this.#Router
 	}
@@ -657,6 +614,7 @@ class MyLife extends Member {	//	form=organization
 				})
 		return _question
 	}
+/* removed board mechanic
 	async #populateBoard(_board){
 		//	convert promises to array of agents
 		const _boardAgents = await Promise.all(
@@ -668,6 +626,7 @@ class MyLife extends Member {	//	form=organization
 		)
 		return _boardAgents	//	returns filterable array of member.agent(s)
 	}
+*/
 }
 //	exports
 export {
