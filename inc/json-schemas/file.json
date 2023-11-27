@@ -11,7 +11,7 @@
 		},
 		"mbr_id": {
 			"type": "string",
-			"minimum": 40,
+			"minLength": 40,
 			"$comment": "partition-key for member: sysName|core_id"
 		},
 		"being": {

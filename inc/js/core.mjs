@@ -16,13 +16,17 @@ const openai = new OpenAI({
 class Member extends EventEmitter {
 	#avatar
 	#categories = [
-		'Interests',
 		'Abilities',
-		'Preferences',
 		'Artifacts',
 		'Beliefs',
-		'Facts',
-		'Other'
+		'Biography',
+		'Challenges',
+		'Goals',
+		'Interests',
+		'Personality',
+		'Preferences',
+		'Relationships',
+		'Updates'
 	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
 	#personalityKernal
