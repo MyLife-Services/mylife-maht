@@ -74,30 +74,27 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 		return this.#Member?.agentName
 	}
 	get thread(){
-		return this.#thread
+		return this.#conversation.thread
 	}
 	get threadId(){
 		return this.thread.id
-	}
-	set thread(_thread){
-		this.#thread = _thread
-		return this.thread
 	}
 	//	private functions
 	#assignName(){
 		return `MylifeMemberSession_${this.mbr_id}_${this.threadId}`
 	}
-	async #createThread(){
-		this.#thread = await this.factory.getThread()	//	make sure to generate a thread for each session, which should remain intact _through_ login _until_ logout
-		this.#conversation = new (this.factory.conversation)({
+	async #createThread(){	//	thread can be acted on by any avatar/agent, ergo stored here in session
+		this.#conversation = await new (this.factory.conversation)({
 			mbr_id: this.mbr_id,
 			parent_id: this.mbr_id_id,
-			thread_id: this.thread.id,
+			thread: await this.factory.getThread(),
 		}, this.factory)
+		console.log('test: conversation thread filled?', this.thread, this.#conversation)
 		this.name = this.#assignName()
 		this.#conversation.name = this.name
 		//	print to CosmosDB - no need to await as I already have id
-		this.factory.dataservices.pushItem(this.conversation.inspect(true))
+		if(this.bAllowSave)
+			this.factory.dataservices.pushItem(this.conversation.inspect(true))
 	}
 }
 export default MylifeMemberSession
