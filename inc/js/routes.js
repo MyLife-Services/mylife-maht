@@ -3,20 +3,16 @@ import Router from 'koa-router'
 import { challenge, chat, index, members, register, upload, _upload } from './functions.mjs'
 // variables
 const _Router = new Router()
-function connectRoutes(_Agent,_Menu){
+function connectRoutes(_Menu){
 	//	validation
 	_Router.all('/member', _memberValidate)
 	//	*routes
 	_Router.get('/', index)
-//	_Router.get('/about', about)
-//	_Router.get('/board', board)
-//	_Router.get('/board/:bid', board)
 	_Router.get('/members', members)
 	_Router.get('/members/:mid', members)
 	_Router.get('/members/upload', upload)
 	_Router.get('/register', register)
 	_Router.post('/', chat)
-//	_Router.post('/board', chat)
 	_Router.post('/challenge', challenge)
 	_Router.post('/members/upload', _upload)
 
@@ -32,7 +28,7 @@ async function _memberValidate(ctx, next) {
 	return next()
 }
 // exports
-export default function init(_Agent,_Menu) {
-	connectRoutes(_Agent,_Menu)
+export default function init(_Menu) {
+	connectRoutes(_Menu)
 	return _Router
 }
