@@ -37,9 +37,8 @@
 			"maxLength": 128,
 			"$comment": "name of the conversation, used for display"
 		},
-		"thread_id": {
-			"type": "string",
-			"maxLength": 128,
+		"thread": {
+			"type": "object",
 			"$comment": "openai thread id, used for tracking"
 		}
 	},

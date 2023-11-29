@@ -1,6 +1,5 @@
 //	imports
 import OpenAI from 'openai'
-import { Marked } from 'marked'
 import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
@@ -8,12 +7,20 @@ import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import Globals from './globals.mjs'
 import Dataservices from './mylife-data-service.js'
 import { Member, MyLife } from './core.mjs'
+import { extendClass_avatar, extendClass_consent, extendClass_message } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in configureSchemaPrototypes()
 import Menu from './menu.js'
 import MylifeMemberSession from './session.js'
 import { _ } from 'ajv'
 // modular constants
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
-const excludeProperties = { '$schema': true, '$id': true, '$defs': true, 'definitions': true, "$comment": true, "name": true }
+const excludeProperties = {
+	$schema: true,
+	$id: true,
+	$defs: true,
+	$comment: true,
+	definitions: true,
+	name: true
+}
 const path = './inc/json-schemas'
 const vmClassGenerator = vm.createContext({
 	exports: {},
@@ -46,7 +53,7 @@ configureSchemaPrototypes()
 // modular variables
 let oServer
 //	logging/reporting
-console.log('AgentFactory loaded; schemas:', schemas)
+//	console.log('AgentFactory loaded; schemas:', schemas)
 // modular classes
 class AgentFactory extends EventEmitter{
 	#ctx	//	allows perennial access to ctx scope with mutability
@@ -72,7 +79,6 @@ class AgentFactory extends EventEmitter{
 		//	get avatar template for metadata from cosmos
 		const _avatarProperties = await this.dataservices.getAgent(this.globals.extractId(this.mbr_id))
 		//	activate (created inside if necessary) avatar
-//	NOTE: should second var instead be new AgentFactory(ctx.session?) unclear if this factory is already primed
 		const _avatar = new (this.schemas.avatar)(_avatarProperties, this)
 		//	update conversation
 		if(this.ctx?.session?.MemberSession?.conversation){
@@ -80,6 +86,12 @@ class AgentFactory extends EventEmitter{
 		}
 		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
 		return _avatar
+	}
+	async getConsent(_consent_id,_request){
+		const _consent = (_consent_id)
+			?	{}	//	retrieve from Cosmos
+			:	new (this.schemas.consent)(_request, this)	//	generate new consent
+		console.log('_consent', _consent)
 	}
 	async getMyLifeMember(){
 		const _r =  await new (schemas.member)(this)
@@ -94,6 +106,9 @@ class AgentFactory extends EventEmitter{
 		return await openai.beta.threads.create()
 	}
 	//	getters/setters
+	get consent(){
+		return
+	}
 	get conversation(){
 		return this.schemas.conversation
 	}
@@ -117,6 +132,10 @@ class AgentFactory extends EventEmitter{
 	get ctx(){
 		return this.#ctx
 	}
+	set ctx(_ctx){
+		if(!validCtxObject(_ctx)) throw new Error('invalid ctx object')
+		this.#ctx = _ctx
+	}
 	get dataservices(){
 		return this.#dataservices
 	}
@@ -131,6 +150,9 @@ class AgentFactory extends EventEmitter{
 	}
 	get mbr_id(){
 		return this.#mbr_id
+	}
+	get message(){
+		return this.schemas.message
 	}
 	get organization(){
 		return organization
@@ -156,291 +178,66 @@ class AgentFactory extends EventEmitter{
 }
 // private modular functions
 function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema in case of $def
-		switch (true) {
-			case _propertyDefinition?.const!==undefined:	//	constants
-				return `'${_propertyDefinition.const}'`
-			case _propertyDefinition?.default!==undefined:	//	defaults: bypass logic
-				if(Array.isArray(_propertyDefinition.default)){
-					return '[]'
-				}
-				return `'${_propertyDefinition.default}'`
-			default:
-				//	presumption: _propertyDefinition.type is not array [though can be]
-				switch (_propertyDefinition?.type) {
-					case 'array':
-						return '[]'
-					case 'boolean':
-						return false
-					case 'integer':
-					case 'number':
-						return 0
-					case 'string':
-						switch (_propertyDefinition?.format) {
-							case 'date':
-							case 'date-time':
-								return `'${new Date().toDateString()}'`
-							case 'uuid':
-								return `'${Guid.newGuid().toString()}'`
-							case 'email':
-							case 'uri':
-							default:
-								return null
-						}
-					case undefined:
-					default:
-						return null
-				}
-		}
-	}
-	function compileClass(_className, classCode) {
-		// Create a global vm context and run the class code in it
-		vm.runInContext(classCode, vmClassGenerator)
-		// Return the compiled class
-		return vmClassGenerator.exports[_className]
-	}
-	async function configureSchemaPrototypes(){	//	add functionality to known prototypes
-		for(const _class in schemas){
-			switch (_class) {
-				case 'agent':
-					schemas[_class].prototype.testPrototype = _=>{ return 'agent' }
-					break
-				case 'avatar':
-					//	based on avatar.type, could assign different prototypes
-					Object.assign(schemas[_class].prototype, {
-						async cancelRun(_run_id){	//	returns openai run object
-							return await openai.beta.threads.runs.cancel(
-								this.thread.id,
-								_run_id
-							)
-						},
-						async chatRequest(_ctx){
-							if(!this.thread)
-								this.thread = _ctx.session.MemberSession.thread
-							//	assign files and metadata, optional
-							//	create message
-							const _message = new (schemas.message)({
-								message: await this.setMessage({content: _ctx.request.body.message}),
-								mbr_id: this.mbr_id,
-								avatar_id: this.id,
-								role: 'user',
-							})
-							this.messages.unshift(_message)
-							//	run thread
-							await this.run()
-							//	get message data from thread
-							const _responses = (await this.getMessages())
-								.filter(
-									_msg=>{ return _msg.run_id==this.runs[0].id }
-								)
-								.map(
-									_msg=>{ return new (schemas.message)({
-										message: _msg,
-										mbr_id: this.mbr_id,
-										avatar_id: this.id,
-										role: 'assistant',
-									}) }
-								)
-							this.messages.unshift(..._responses)	//	post each response to this.messages
-							//	update cosmos
-							if(this?.factory)
-								await this.factory.dataservices.patchArrayItems(
-									_ctx.session.MemberSession.conversation.id,
-									'messages',
-									[..._responses, _message]
-								)
-							//	return response
-							return _responses
-								.map(_msg=>{
-									return new Marked().parse(_msg.text)
-								})
-								.join('\n')
-						},
-						async checkStatus(_thread_id,_run_id,_callInterval){
-							//	should be able to remove params aside from _callInterval, as they are properties of this
-							const _run = await openai.beta.threads.runs.retrieve(
-								_thread_id,
-								_run_id
-							)
-							switch(_run.status){
-								//	https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
-								case 'completed':
-									if(!this?.runs[0]?.id === _run_id) this.runs.unshift(_run)	//	add
-									else this.runs[0] = _run	//	update
-									return true
-								case 'failed':
-								case 'cancelled':
-								case 'expired':
-									return false
-								case 'queued':
-								case 'requires_action':
-								case 'in_progress':
-								case 'cancelling':
-								default:
-									console.log(`...${_run.status}:${_thread_id}...`)
-									break
-							}
-						},
-						async completeRun(_run_id){
-							return new Promise((resolve, reject) => {
-								const checkInterval = setInterval(async () => {
-									try {
-										const status = await this.checkStatus(this.thread.id, _run_id)
-										if (status) {
-											clearInterval(checkInterval)
-											resolve('Run completed')
-										}
-									} catch (error) {
-										clearInterval(checkInterval)
-										reject(error)
-									}
-								}, 700)
-								// Set a timeout to resolve the promise after 12 seconds
-								setTimeout(() => {
-									clearInterval(checkInterval)
-									resolve('Run completed (timeout)')
-								}, 220000)
-							})
-						},
-						async getAssistant(_dataservice){	//	openai `assistant` object
-							//	3 states: 1) no assistant, 2) assistant id, 3) assistant object
-							if(!this.assistant?.id.length) {
-								const _core = {
-									name: this?.names[0]??this.name,
-									model: process.env.OPENAI_MODEL_CORE,
-									description: this.description,
-									instructions: this.purpose,
-									metadata: {
-										...Object.entries(this.categories)
-											.filter(([key, value]) => this[value.replace(' ', '_').toLowerCase()]?.length)
-											.slice(0, 16)
-											.reduce((obj, [key, value]) => ({
-												...obj,
-												[value]: this[value.replace(' ', '_').toLowerCase()],
-											}), {})
-									},
-									file_ids: [],	//	no files at birth, can be added later
-									tools: [],	//	only need tools if files
-								}
-								this.assistant = await openai.beta.assistants.create(_core)
-								//	save id to cosmos
-								_dataservice.patch(this.id, {
-									assistant: { 
-										id: this.assistant.id
-									,	object: 'assistant'
-									}
-								})
-							}
-							else if(!this.assistant?.name.length) this.assistant = await openai.beta.assistants.retrieve(this.assistant.id)
-							return this.assistant
-						},
-						async getMessage(_msg_id){	//	returns openai `message` object
-							if(!this.thread) await this.getThread()
-							return this.messages.data.filter(_msg=>{ return _msg.id==_msg_id })
-						},
-						async getMessages(){
-							if(!this.thread) await this.getThread()
-							this.messages = ( await openai.beta.threads.messages.list(
-								this.thread.id
-							) )	//	extra parens to resolve promise
-								.data
-							return this.messages
-						},
-						async getRun(_run_id){	//	returns openai `run` object
-							return this.runs.filter(_run=>{ return _run.id==_run_id })
-						},
-						async getRuns(){	//	runs are also descending
-							if(!this.runs){
-								this.runs = await openai.beta.threads.runs.list(this.thread.id)
-								//	need to winnow to mapped array?
-							}
-						},
-						async getRunStep(_run_id,_step_id){
-							//	pull from known runs
-							return this.runs
-								.filter(_run=>{ return _run.id==_run_id })
-								.steps
-									.filter(_step=>{ return _step.id==_step_id })
-						},
-						async getRunSteps(_run_id){
-							//	always get dynamically
-							const _run = this.runs.filter(_run=>{ return _run.id==_run_id })
-							_run.steps = await openai.beta.threads.runs.steps.list(this.thread.id, _run.id)
-						},
-						async run(){
-							const _run = await this.startRun()
-							if(!_run) throw new Error('Run failed to start')
-							this.runs = this?.runs??[]	//	once begun, ought complete even if failed
-							this.runs.unshift(_run)
-							// ping status
-							await this.completeRun(_run.id)
-						},
-						async setMessage(_message){	//	add or update message; returns openai `message` object
-							return (!_message.id)
-								?	await openai.beta.threads.messages.create(	//	add
-									this.thread.id,
-									{
-										role: "user",
-										content: _message.content
-									}
-								)
-								:	await openai.beta.threads.messages.update(	//	update
-										this.thread.id,
-										_message.id,
-										{
-											role: "user",
-											content: _message.content
-										}
-									)
-						},
-						async startRun(){	//	returns openai `run` object
-							if(!this.thread || !this.messages.length) return
-							return await openai.beta.threads.runs.create(
-								this.thread.id,
-								{ assistant_id: this.assistant.id }
-							)
-						}
-					})
-					//	assign getters/setters
-					Object.defineProperties(
-						schemas[_class].prototype,
-						{
-							threadId:{
-								get: function() {
-									return this.threadId
-								},
-								set: function(_thread_id) {
-									this.threadId = _thread_id
-								}}
-						}
-					)
-					break
-				case 'message':
-					Object.defineProperties(
-						schemas[_class].prototype,
-						{
-							text: {
-								get: function() {
-									switch (this.type) {
-										case 'chat':
-											switch (this.system) {
-												case 'openai_assistant':
-													return this.message.content[0].text.value
-												default:
-													break
-											}
-										default:
-											return 'no content derived'
-									}
-								}
-							}
-						}
-					)
-				case 'core':
-				default:	//	core
-					break
+	switch (true) {
+		case _propertyDefinition?.const!==undefined:	//	constants
+			return `'${_propertyDefinition.const}'`
+		case _propertyDefinition?.default!==undefined:	//	defaults: bypass logic
+			if(Array.isArray(_propertyDefinition.default)){
+				return '[]'
 			}
-		}
+			return `'${_propertyDefinition.default}'`
+		default:
+			//	presumption: _propertyDefinition.type is not array [though can be]
+			switch (_propertyDefinition?.type) {
+				case 'array':
+					return '[]'
+				case 'boolean':
+					return false
+				case 'integer':
+				case 'number':
+					return 0
+				case 'string':
+					switch (_propertyDefinition?.format) {
+						case 'date':
+						case 'date-time':
+							return `'${new Date().toDateString()}'`
+						case 'uuid':
+							return `'${Guid.newGuid().toString()}'`
+						case 'email':
+						case 'uri':
+						default:
+							return null
+					}
+				case undefined:
+				default:
+					return null
+			}
 	}
+}
+function compileClass(_className, classCode) {
+	// Create a global vm context and run the class code in it
+	vm.runInContext(classCode, vmClassGenerator)
+	// Return the compiled class
+	return vmClassGenerator.exports[_className]
+}
+async function configureSchemaPrototypes(){	//	add required functionality as decorated extension class
+	for(const _class in schemas){
+		//	global injections; maintained _outside_ of eval class
+		Object.assign(
+			schemas[_class].prototype,
+			{ sanitizeValue: sanitizeValue },
+		)
+		try{
+			eval(`extendClass_${_class}`)	//	see if extension function exists
+			console.log(`extension function found for ${_class}`)
+		} catch(err){
+			continue
+		}
+		//	add extension decorations
+		const _references = { openai: openai, factory: this }
+		schemas[_class] = eval(`extendClass_${_class}(schemas[_class],_references)`)
+	}
+}
 function generateClassCode(_className,_properties,_schema){
 	//	delete known excluded _properties in source
 	for(const _prop in _properties){
@@ -452,17 +249,16 @@ function generateClassCode(_className,_properties,_schema){
 class ${_className} {
 // private properties
 #excludeConstructors = ${ '['+Object.keys(excludeProperties).map(key => "'" + key + "'").join(',')+']' }
-#factory
 #name
 `
 	for (const _prop in _properties) {	//	assign default values as animated from schema
-		const _value = assignClassPropertyValues(_properties[_prop],_schema)
+		const _value = sanitizeValue(assignClassPropertyValues(_properties[_prop],_schema))
+		//	this is the value in error that needs sanitizing
 		classCode += `	#${(_value)?`${_prop} = ${_value}`:_prop}\n`
 	}
 	classCode += `
 // class constructor
-constructor(obj,_factory){
-	if(_factory) this.#factory = _factory
+constructor(obj){
 	try{
 		for(const _key in obj){
 			//	exclude known private properties and db properties beginning with '_'
@@ -470,14 +266,14 @@ constructor(obj,_factory){
 			try{
 				eval(\`this.\#\${_key}=obj[_key]\`)
 			} catch(err){
-				eval(\`this.\${_key}=obj[_key]\`)	//	implicit getters/setters
+				eval(\`this.\${_key}=obj[_key]\`)
+				console.log(\`could not privatize \${_key}, public node created\`)
 			}
 		}
 		console.log('vm ${ _className } class constructed')
 	} catch(err) {
-		console.log(\`FATAL ERROR CREATING \${obj.being}\`)
-		console.log(err)
-		throw(err)
+		console.log(\`FATAL ERROR CREATING \${obj.being}\`, err)
+		rethrow
 	}
 }
 // if id changes are necessary, then use set .id() to trigger the change
@@ -495,14 +291,10 @@ set ${_prop}(_value) {	// setter with type validation
 			throw new Error('Invalid type for property ${_prop}: expected ${_type}')
 		}
 	}
-	this.#${_prop} = _value
+	if( this?.#${_prop} ) this.#${_prop} = _value
+	else this.${_prop} = _value
 }`
 	}
-	//	get factory
-	classCode += `
-get factory(){
-	return this.#factory
-}`
 	//	functions
 	//	inspect: returns a object representation of available private properties
 	classCode += `	// public functions
@@ -521,7 +313,7 @@ exports.${_className} = ${_className}`
 function generateClassFromSchema(_schema) {
 	//	get core class
 	const _className = _schema.name
-	const _properties = _schema.properties
+	const _properties = _schema.properties	//	wouldn't need sanitization, as refers to keys
 	const _classCode = generateClassCode(_className,_properties,_schema)
 	//	compile class and return
 	return compileClass(_className,_classCode)
@@ -547,8 +339,32 @@ async function loadSchemas() {
 		)
 		return schemasArray.reduce((acc, array) => Object.assign(acc, ...array), {})
 	} catch(err){
-		console.log(err,schemasArray)
+		console.log(err)
+		if(schemasArray) console.log(schemasArray)
 	}
+}
+function sanitizeValue(_value) {
+    if (typeof _value !== 'string') return _value
+
+    let startsWithQuote = _value.startsWith("'") || _value.startsWith('"') || _value.startsWith('`')
+    let endsWithQuote = _value.endsWith("'") || _value.endsWith('"') || _value.endsWith('`')
+    let wasTrimmed = startsWithQuote && endsWithQuote && _value[0] === _value[_value.length - 1]
+
+    let trimmedStr = wasTrimmed ? _value.substring(1, _value.length - 1) : _value
+    trimmedStr = trimmedStr.replace(/(?<!\\)[`\\$'"]/g, "\\$&")
+
+    return wasTrimmed ? _value[0] + trimmedStr + _value[0] : trimmedStr
+}
+function validCtxObject(_ctx){
+	//	validate ctx object
+	return	(
+			_ctx
+		&&	typeof _ctx === 'object'
+		&&	'request' in _ctx 
+		&&	'response' in _ctx
+		&&	'session' in _ctx
+		&&	'state' in _ctx
+	)
 }
 //	exports
 export default AgentFactory

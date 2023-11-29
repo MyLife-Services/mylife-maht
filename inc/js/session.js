@@ -9,8 +9,8 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	#Member
 	#thread
 	name
-	constructor(ctx,_fxValidate){
-		this.#factory = ctx.AgentFactory
+	constructor(_factory,_fxValidate){
+		this.#factory = _factory
 		this.#fxValidate = _fxValidate	//	_fxValidate is an injected function to use the most current mechanic to validate the member
 		this.#mbr_id = this.factory.mbr_id
 	}
@@ -89,11 +89,10 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 			parent_id: this.mbr_id_id,
 			thread: await this.factory.getThread(),
 		}, this.factory)
-		console.log('test: conversation thread filled?', this.thread, this.#conversation)
 		this.name = this.#assignName()
 		this.#conversation.name = this.name
-		//	print to CosmosDB - no need to await as I already have id
-		if(this.bAllowSave)
+		//	print to CosmosDB
+//		if(this.bAllowSave)
 			this.factory.dataservices.pushItem(this.conversation.inspect(true))
 	}
 }

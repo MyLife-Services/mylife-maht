@@ -38,7 +38,7 @@ render(app, {
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
-app.context.AgentFactory = _factory
+app.context.AgentFactory = _factory	//	flag ctx.AgentFactory for removal
 app.context.Globals = _factory.globals
 app.context.menu = _Maht.menu
 app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
@@ -65,10 +65,15 @@ app.use(koaBody({
 			},
 			app
 		))
+	.use(async (ctx,next) => {	//	Initial bootup final populations
+		//	factory born without ctx reference, endow; since injected, will all objects have access?
+		if(!_factory.ctx) _factory.ctx = ctx
+		await next()
+	})
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
-			ctx.session.MemberSession = await new (_factory.session)(ctx,ctx.MyLife.challengeAccess.bind(_Maht))
+			ctx.session.MemberSession = await new (_factory.session)(_factory,ctx.MyLife.challengeAccess.bind(_Maht))
 				.init()
 			console.log(chalk.bgBlue('created-member-session', chalk.bgRedBright(ctx.session.MemberSession.threadId)))
 		}
