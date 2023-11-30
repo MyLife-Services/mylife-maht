@@ -77,15 +77,7 @@ class Member extends EventEmitter {
 				return {
 						role: "system",
 						content: replacedDescription
-					}
-/*
-				const regex = new RegExp(this.agentName, 'g')
-				const replacedDescription = this.agentDescription.replace(regex, this.agentName_tokenized)
-				return {
-						role: "system",
-						content: replacedDescription + ' ' + this.agentProxy
-					}
-*/					
+					}					
 		}
 	}
 	get avatar(){
@@ -105,6 +97,12 @@ class Member extends EventEmitter {
 	}
 	get chat(){
 		return this.agent.chat
+	}
+	get consent(){
+		return this.factory.consent	//	**caution**: returns <<PROMISE>>
+	}
+	set consent(_consent){
+		this.factory.consents.unshift(_consent.id)
 	}
 	get core(){
 		return this.factory.core
@@ -172,66 +170,6 @@ class Member extends EventEmitter {
 	get values(){
 		return this.core.values
 	}
-	//	public functions
-	/* handled now by avatar
-	async processChatRequest(_ctx){
-		//	gatekeeper
-		//	throttle requests
-		//	validate input
-		//	store question
-		let _question = _ctx.request.body.message
-		const _chatSnippetQuestion = new (this.globals.schema.chatSnippet)({	//	no trigger to set
-			content: _question,
-			contributor: this.mbr_id,
-			role: 'user',
-			timestamp: new Date().toISOString(),
-		})
-		//	log input
-		console.log(chalk.bgGray('chat-request-received:'),chalk.bgWhite(` ${_question}`),_chatSnippetQuestion)
-		//	transform input
-		const aQuestion = [
-			this.agentRole,	//	assign system role {}
-			...await this.assignLocalContent(_question),	//	assign local content {} from pgvector
-			...await this.assignPrimingQuestions(_question),	//	assign few-shot learning prompts
-			await this.formatQuestion(_question)	//	assign user question
-		]
-		console.log('aQuestion',aQuestion)
-		//	insert ai-sniffer/optimizer	//	why won't anyone think of the tokens!?
-		const _model = process.env.OPENAI_MODEL_MAHT
-		const _response = await this.personality.createChatCompletion({
-			model: _model,
-			messages: aQuestion,
-		})
-			.then(
-				(_response)=>{
-					//	response insertion/alteration points for approval, validation, storage, pruning
-					//	challengeResponse(_response) //	insertion point: human reviewable
-					_response = this.formatResponse(_response)
-					return _response
-				}
-			)
-			.catch(err=>{
-				console.error(err)
-				//	emit for server
-			})
-		console.log(chalk.bgGray('chat-response-received'),_response)
-		//	store response
-		const _chatSnippetResponse = new (this.globals.schema.chatSnippet)({	//	no trigger to set
-			content: _response,
-			timestamp: new Date().toISOString(),
-		})
-		//	this.chat.exchanges.unshift(_chatSnippetResponse.inspect(true),_chatSnippetQuestion.inspect(true))	//	add to conversation [reverse chronological order]
-		this.dataservices.patchItem(
-			this.chat.id,
-			[
-				{ op: 'add', path: `/exchanges/0`, value: _chatSnippetQuestion.inspect(true) },
-				{ op: 'add', path: `/exchanges/0`, value: _chatSnippetResponse.inspect(true) },
-			]	//	add array value)
-		)
-		//	return response
-		return _response
-	}
-	*/
 	//	question/answer functions
 	async assignPrimingQuestions(_question){
 		return this.buildFewShotQuestions(
@@ -394,7 +332,7 @@ class Member extends EventEmitter {
 		return '<||'+_str+'||>'
 	}
 }
-class MyLife extends Member {	//	form=organization
+class Organization extends Member {	//	form=organization
 	#Menu
 	#Router
 	constructor(_Factory,_Session){
@@ -489,10 +427,6 @@ class MyLife extends Member {	//	form=organization
 		}
 		return _fewShotQuestions
 	}
-	async challengeAccess(_mbr_id,_passphrase){	//	if possible (async) injected into session object
-		//	ask global data service (stored proc) for passphrase
-		return await this.dataservice.challengeAccess(_mbr_id,_passphrase)
-	}
 	async fetchEnquiryType(_question){	//	categorize, log and return
 		const _model = 'text-babbage-001'
 		const _category = await this.personality.createCompletion({
@@ -567,7 +501,7 @@ class MyLife extends Member {	//	form=organization
 	}
 	get router(){
 		if(!this.#Router){
-			this.#Router = initRouter(this, new (this.factory.schemas.menu)(this))
+			this.#Router = initRouter(new (this.factory.schemas.menu)(this))
 		}
 		return this.#Router
 	}
@@ -605,22 +539,19 @@ class MyLife extends Member {	//	form=organization
 				})
 		return _question
 	}
-/* removed board mechanic
-	async #populateBoard(_board){
-		//	convert promises to array of agents
-		const _boardAgents = await Promise.all(
-			await _board.members
-				.map(async _boardMemberMbr_id=>{	//	find agent in board -- search for parent_id = board.id
-					return await new Member( (await new Dataservices(_boardMemberMbr_id).init()),this.globals )	//	init service with mbr_id
-						.init(_board.id)	//	request parent_id agent
-				})
-		)
-		return _boardAgents	//	returns filterable array of member.agent(s)
+}
+class MyLife extends Organization {	//	form=server
+	constructor(_Factory){	//	no session presumed to exist
+		super(_Factory)
 	}
-*/
+	async challengeAccess(_passphrase){	//	if possible (async) injected into session object
+		//	ask global data service (stored proc) for passphrase
+		return await this.factory.challengeAccess(_passphrase)
+	}
 }
 //	exports
 export {
 	Member,
+	Organization,
 	MyLife,
 }

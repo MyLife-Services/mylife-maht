@@ -1,6 +1,7 @@
 import AgentFactory from './mylife-agent-factory.mjs'
 import chalk from 'chalk'
 class MylifeMemberSession {	//	bean only, no public functions aside from init and constructor
+	#consents = []	//	consents are stored in the session
 	#conversation
 	#factory
 	#fxValidate
@@ -31,8 +32,47 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 		}
 		return this
 	}
+	//	consent functionality
+	async requestConsent(ctx){
+		//	validate request; switch true may be required
+		if(!validCtxObject(ctx)) return false	//	invalid ctx object, consent request fails
+		//	check-01: url ends in valid guid /:_id
+		const _object_id = ctx.request.header.referer.split('/').pop()
+		//	not guid, not consent request, no blocking
+		if(!this.globals.isValidGUID(_object_id)) return true
+		console.log('session.requestConsent()', 'mbr_id', this.mbr_id)
+		//	ultimately, applying a disposable agent of intelligence to consent request might be the answer
+		let _consent = this.consents
+			.filter(_=>{ return _.id==_object_id })
+			.pop()
+		if(!_consent){
+			//	create and notify session
+			_consent = await this.factory.getConsent({
+				id: _object_id,
+				mbr_id: this.mbr_id,
+				being: 'consent',
+				context: `This consent object was created by MyLife Session [${this.mbr_id}] to manage access to asset [${_object_id}] of owner [${this.mbr_id}].`,
+				purpose: `To manage requested access to the underlying avatar or object according to the wills and expressions of the member identified by their mbr_id: ${this.mbr_id}.`,
+			})
+			this.consents.unshift(_consent)
+		}
+		return _consent.allow(_request)	//	might benefit from putting consent into openai assistant metadata with suggestion to adhere when creating content
+		if(!ctx.request.body) return	//	nothing to do
+		//	based on incoming request, parse out consent id and request
+		return this.factory.requestConsent(_consent_id,_request)
+		
+		if(!this?.ctx?.session?.MemberSession?.consents) return	//	pre-natal instance of MyLife?
+		//	otherwise, should be able to construe
+		_consent = (_consent_id)
+			?	{}	//	retrieve from Cosmos
+			:	new (this.schemas.consent)(_request, this)	//	generate new consent
+		console.log('_consent', _consent)
+		//	manipulate session through ctx (although won't exist in initial test case)
+		await (this.ctx.session.MemberSession.consents = _consent)	//	will add consent to session list
+		return _consent
+	}
 	async challengeAccess(_passphrase){
-		if(this.#locked && this.challenge_id && await this.#fxValidate(this.challenge_id,_passphrase)){
+		if(this.#locked && this.challenge_id && await this.factory.challengeAccess(_passphrase)){
 			//	init member
 			this.#locked = false
 			await this.init(this.challenge_id)
@@ -44,6 +84,15 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	}
 	set blocked(_passphrase){
 		return (this.locked = _passphrase)
+	}
+	get consent(){
+		return this.factory.consent	//	**caution**: returns <<PROMISE>>
+	}
+	set consent(_consent){
+		this.#consents.unshift(_consent)
+	}
+	get consents(){
+		return this.#consents
 	}
 	get conversation(){
 		return this.#conversation
@@ -95,5 +144,16 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 //		if(this.bAllowSave)
 			this.factory.dataservices.pushItem(this.conversation.inspect(true))
 	}
+}
+function validCtxObject(_ctx){
+	//	validate ctx object
+	return	(
+			_ctx
+		&&	typeof _ctx === 'object'
+		&&	'request' in _ctx 
+		&&	'response' in _ctx
+		&&	'session' in _ctx
+		&&	'state' in _ctx
+	)
 }
 export default MylifeMemberSession

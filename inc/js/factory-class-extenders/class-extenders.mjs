@@ -228,12 +228,9 @@ function extendClass_consent(_originClass,_references) {
 			console.log('Consent class extended')
         }
         //  public functions
-        async processConsentRequest(_request){
+        async allow(_request){
             //	this intends to evolve in near future, but is currently only a pass-through with some basic structure alluding to future functionality
-            return {
-                bAllow: true,
-                reason: 'consent granted--as yet unimplemented',
-            }
+            return true
         }
     }
 

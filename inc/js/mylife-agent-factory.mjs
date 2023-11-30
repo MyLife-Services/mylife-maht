@@ -51,19 +51,16 @@ const openai = new OpenAI({
 // config: add functionality to known prototypes
 configureSchemaPrototypes()
 // modular variables
-let oServer
 //	logging/reporting
 //	console.log('AgentFactory loaded; schemas:', schemas)
 // modular classes
 class AgentFactory extends EventEmitter{
-	#ctx	//	allows perennial access to ctx scope with mutability
 	#dataservices
 	#mbr_id
-	constructor(_mbr_id=dataservicesId, ctx){
+	constructor(_mbr_id=dataservicesId){
 		super()
 		//	if incoming member id is not same as id on oDataservices, then ass new class-private dataservice
 		this.#mbr_id = _mbr_id
-		this.#ctx = ctx
 	}
 	//	public functions
 	async init(_mbr_id){
@@ -72,8 +69,11 @@ class AgentFactory extends EventEmitter{
 			(this.mbr_id!==oDataservices.mbr_id)
 			?	await new Dataservices(this.mbr_id).init()
 			:	oDataservices
-		if(!oServer) oServer = await new MyLife(this).init()
 		return this
+	}
+	async challengeAccess(_passphrase){
+		//	always look to server to challenge Access; this may remove need to bind
+		return await oDataservices.challengeAccess(this.mbr_id,_passphrase)
 	}
 	async getAvatar(){
 		//	get avatar template for metadata from cosmos
@@ -81,17 +81,15 @@ class AgentFactory extends EventEmitter{
 		//	activate (created inside if necessary) avatar
 		const _avatar = new (this.schemas.avatar)(_avatarProperties, this)
 		//	update conversation
-		if(this.ctx?.session?.MemberSession?.conversation){
-			console.log('you betcha')
-		}
+
 		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
 		return _avatar
 	}
-	async getConsent(_consent_id,_request){
-		const _consent = (_consent_id)
-			?	{}	//	retrieve from Cosmos
-			:	new (this.schemas.consent)(_request, this)	//	generate new consent
-		console.log('_consent', _consent)
+	async getMyLife(){	//	get server instance
+		//	ensure that factory mbr_id = dataservices mbr_id
+		if(this.mbr_id!==dataservicesId)
+			throw new Error('unauthorized request')
+		return await new (this.schemas.server)(this).init()
 	}
 	async getMyLifeMember(){
 		const _r =  await new (schemas.member)(this)
@@ -105,10 +103,15 @@ class AgentFactory extends EventEmitter{
 	async getThread(){
 		return await openai.beta.threads.create()
 	}
-	//	getters/setters
-	get consent(){
-		return
+	async getConsent(_consent){
+		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
+		//	not stored in cosmos (as of yet, might be different container), so id can be redundant
+		console.log('factory.getConsent():108', _consent)
+		console.log('factory.getConsent():109', 'mbr_id', this.mbr_id)
+		
+		return new (this.schemas.consent)(_consent, this)
 	}
+	//	getters/setters
 	get conversation(){
 		return this.schemas.conversation
 	}
@@ -129,13 +132,6 @@ class AgentFactory extends EventEmitter{
 		
 		return _core
 	}
-	get ctx(){
-		return this.#ctx
-	}
-	set ctx(_ctx){
-		if(!validCtxObject(_ctx)) throw new Error('invalid ctx object')
-		this.#ctx = _ctx
-	}
 	get dataservices(){
 		return this.#dataservices
 	}
@@ -154,11 +150,11 @@ class AgentFactory extends EventEmitter{
 	get message(){
 		return this.schemas.message
 	}
-	get organization(){
-		return organization
+	get MyLife(){	//	**caution**: returns <<PROMISE>>
+		return this.getMyLife()
 	}
 	get organization(){
-		return oServer
+		return this.schemas.organization
 	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
@@ -169,12 +165,16 @@ class AgentFactory extends EventEmitter{
 	get schemas(){
 		return schemas
 	}
+	get server(){
+		return this.schemas.server
+	}
 	get session(){
 		return this.schemas.session
 	}
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
+	//	private functions
 }
 // private modular functions
 function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema in case of $def
@@ -354,17 +354,6 @@ function sanitizeValue(_value) {
     trimmedStr = trimmedStr.replace(/(?<!\\)[`\\$'"]/g, "\\$&")
 
     return wasTrimmed ? _value[0] + trimmedStr + _value[0] : trimmedStr
-}
-function validCtxObject(_ctx){
-	//	validate ctx object
-	return	(
-			_ctx
-		&&	typeof _ctx === 'object'
-		&&	'request' in _ctx 
-		&&	'response' in _ctx
-		&&	'session' in _ctx
-		&&	'state' in _ctx
-	)
 }
 //	exports
 export default AgentFactory

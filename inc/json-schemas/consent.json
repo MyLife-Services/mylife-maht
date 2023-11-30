@@ -1,7 +1,7 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/consent.json",
-	"required": ["id", "mbr_id", "parent_id", "being", "context", "purpose"],
+	"required": ["id", "mbr_id", "being", "context", "purpose"],
 	"type": "object",
 	"name": "Consent",
 	"properties": {
@@ -14,11 +14,6 @@
 			"type": "string",
 			"description": "root member id: [sysName|id]",
 			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
-		},
-		"parent_id": {
-			"type": "string",
-			"format": "uuid",
-			"description": "parent consent id; could be a core or some other accessible or assignable system object"
 		},
 		"being": {
 			"type": "string",
@@ -34,6 +29,7 @@
 		},
 		"logs": {
 			"type": "array",
+			"default": [],
 			"items": {
 				"type": "object",
 				"$ref": "#/$defs/consent_log"
@@ -41,7 +37,7 @@
 		},
 		"purpose": {
 			"type": "string",
-			"default": "To manage requested access to the underlying member or object according to the wills and expressions of the member identied by their `mbr_id`",
+			"default": "To manage requested access to the underlying avatar or object according to the wills and expressions of the member identified by their `mbr_id`",
 			"maxLength": 32768,
 			"description": "purpose of consent, manages access, responses and permissions for requested object and requesting entity"
 		},

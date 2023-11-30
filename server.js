@@ -19,8 +19,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
 const _factory = await new AgentFactory().init()
-console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('agent-factory')))
-const _Maht = _factory.organization	//	use something like `createServer()` for an alternate instance than default
+const _Maht = await _factory.MyLife	//	MyLife is a unique version of organization
 const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	test harness region
@@ -38,10 +37,10 @@ render(app, {
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
-app.context.AgentFactory = _factory	//	flag ctx.AgentFactory for removal
-app.context.Globals = _factory.globals
+app.context.AgentFactory = _Maht.factory	//	flag ctx.AgentFactory for removal?
+app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
-app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
+//	does _Maht, as uber-sessioned, need to have ctx injected?
 app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_factory.newGuid()}`]
 // Enable Koa body w/ configuration
 app.use(koaBody({
@@ -65,11 +64,6 @@ app.use(koaBody({
 			},
 			app
 		))
-	.use(async (ctx,next) => {	//	Initial bootup final populations
-		//	factory born without ctx reference, endow; since injected, will all objects have access?
-		if(!_factory.ctx) _factory.ctx = ctx
-		await next()
-	})
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
@@ -82,6 +76,9 @@ app.use(koaBody({
 		ctx.state.avatar = ctx.state.member.avatar
 		ctx.state.avatar.name = ctx.state.avatar.names[0]
 		ctx.state.menu = ctx.MyLife.menu
+		if(!await ctx.session.MemberSession.requestConsent(ctx))
+			throw new Error('asset request rejected by consent')
+
 		await next()
 	})
 //	.use(MyLifeMemberRouter.routes())	//	enable member routes
