@@ -40,6 +40,7 @@ app.context.MyLife = _Maht
 app.context.AgentFactory = _Maht.factory	//	flag ctx.AgentFactory for removal?
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
+app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
 //	does _Maht, as uber-sessioned, need to have ctx injected?
 app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_factory.newGuid()}`]
 // Enable Koa body w/ configuration

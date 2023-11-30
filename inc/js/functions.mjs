@@ -35,6 +35,7 @@ async function members(ctx){
 	ctx.state.title = `Your MyLife Digital Home`
 	switch (true) {
 		case !ctx.state.mid:
+			//	listing comes from state.hostedMembers
 			ctx.state.hostedMembers = ctx.hostedMembers
 				.sort(
 					(a, b) => a.localeCompare(b)
