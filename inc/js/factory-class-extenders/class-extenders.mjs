@@ -6,7 +6,14 @@ function extendClass_avatar(_originClass,_references) {
         #factory = _references?.factory
         constructor(_obj,_factory) {
             super(_obj)
-            if(_factory) this.#factory = _factory
+            this.#factory = _factory
+        }
+        async init(_ctx){
+            return await this.onInit(_ctx)
+        }
+        //  public event hooks
+        async onInit(_ctx){
+            
         }
         //  public getters/setters
         get ctx(){
