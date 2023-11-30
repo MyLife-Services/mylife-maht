@@ -544,10 +544,6 @@ class MyLife extends Organization {	//	form=server
 	constructor(_Factory){	//	no session presumed to exist
 		super(_Factory)
 	}
-	async challengeAccess(_passphrase){	//	if possible (async) injected into session object
-		//	ask global data service (stored proc) for passphrase
-		return await this.factory.challengeAccess(_passphrase)
-	}
 }
 //	exports
 export {

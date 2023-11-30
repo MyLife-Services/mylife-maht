@@ -72,18 +72,14 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 		return _consent
 	}
 	async challengeAccess(_passphrase){
-		if(this.#locked && this.challenge_id && await this.factory.challengeAccess(_passphrase)){
+		if(this.locked){
+			if(!this.challenge_id) return false	//	no challenge, no access
+			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
 			//	init member
 			this.#locked = false
 			await this.init(this.challenge_id)
 		}
 		return !this.locked
-	}
-	get blocked(){
-		return this.locked
-	}
-	set blocked(_passphrase){
-		return (this.locked = _passphrase)
 	}
 	get consent(){
 		return this.factory.consent	//	**caution**: returns <<PROMISE>>

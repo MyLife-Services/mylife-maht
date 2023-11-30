@@ -68,7 +68,7 @@ app.use(koaBody({
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
-			ctx.session.MemberSession = await new (_factory.session)(_factory,ctx.MyLife.challengeAccess.bind(_Maht))
+			ctx.session.MemberSession = await new (_factory.session)(_factory)
 				.init()
 			console.log(chalk.bgBlue('created-member-session', chalk.bgRedBright(ctx.session.MemberSession.threadId)))
 		}

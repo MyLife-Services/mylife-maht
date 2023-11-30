@@ -17,7 +17,6 @@ async function board(ctx){
 	await ctx.render('board')	//	board
 }
 async function challenge(ctx){
-	//	send challenge processing to member: currently session, as state is only for page variable representation
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
