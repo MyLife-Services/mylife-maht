@@ -35,6 +35,9 @@ class Member extends EventEmitter {
 		super()
 		this.#personalityKernal = openai	//	will be covered in avatars
 		this.#factory = (_Session?.factory)?_Session.factory:_Factory	//	Factory configured for this user or Q
+		this.factory.on('avatar-activated',_avatar=>{
+			console.log(chalk.grey('core::constructor::getAvatar_trigger'),chalk.bgGray(_avatar.id))
+		})
 	}
 	//	initialize
 	async init(){

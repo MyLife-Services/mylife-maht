@@ -87,16 +87,17 @@ class AgentFactory extends EventEmitter{
 	async getAvatar(_avatar_id,_avatarProperties){	//	either send list of properties (pre-retrieved for example from core `this.#avatars`) of known avatar or original object properties that are going to be initially infused into the generated agent; for example, I am a book, and user/gpt have determined that a book (new dynamic object, unknown to schemas) should have a super-intelligence - _that_ book core is sent in _avatarProperties and will imprinted into the initial avatar version of object
 		//	factory determines whether to create or retrieve
 		if(!_avatar_id && !_avatarProperties) throw new Error('no avatar id or properties')
-
-		this.emit('getAvatar',[_avatar_id,_avatarProperties])
+		_avatarProperties = _avatarProperties??await this.dataservices.getAvatar(_avatar_id)	//	use properties or retrieve properties from Cosmos
+		if(!_avatarProperties?.id)
+			throw new Error('create-avatar-to-do')
 		//	enact, instantiate and activate avatar, all under **factory** purview
-		 if(!_avatarProperties) _avatarProperties = await this.dataservices.getAvatar(_avatar_id)
-		return await new (schemas.avatar)(_avatarProperties, this)
+		const _Avatar = await new (schemas.avatar)(_avatarProperties, this)
 			.init()
+		this.emit('avatar-activated',_Avatar)
+		return _Avatar
 	}
 	async getAvatars(_parent_id=this.mbr_id_id){
 		const _avatars = await this.dataservices.getAvatars(_parent_id)	//	returns array of _unclassed_, _uninstantiated_ js objects reflecting the core data _of_ a MyLife avatar; perhaps sometimes that inner reflection is all that is needed, such as what is stored as the active avatar inside the requestor
-		
 		return _avatars
 	}
 	async getMyLife(){	//	get server instance
