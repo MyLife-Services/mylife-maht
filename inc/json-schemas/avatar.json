@@ -43,7 +43,7 @@
 			"maxItems": 12,
 			"minItems": 1,
 			"uniqueItems": true,
-			"$comment": "Categories for any construct (i.e., not just avatars) are dynamically built by LLM and assigned on creation, spokes of the wheel of contextualization"
+			"$comment": "Categories for any construct (i.e., not just avatars) are dynamically built by LLM and assigned/inherited on creation, spokes of the wheel of contextualization"
 		},
 		"command_word": {
 			"type": "string",
@@ -51,6 +51,14 @@
 			"minLength": 2,
 			"default": "avatar",
 			"description": "trigger for command mode"
+		},
+		"contributions": {
+			"type": "array",
+			"default": [],
+			"maxItems": 6,
+			"items": "#defs/contribution",
+			"description": "array of contributions to avatar, not distinct to single core, contributions could be applied to keys (whether adding/updating) inside _any_ object",
+			"$comment": "20231202 limiting to 3 contributions per avatar, as it will be simpler to check, and mechanic _could_ be too costly to scale, and by time of scale likely to have a better solution"
 		},
 		"description": {
 			"type": "string",
@@ -114,6 +122,62 @@
 			"default": "openai_assistant",
 			"enum": ["openai_assistant"],
 			"$comment": "In attempt to make assistants more modular, define external system type here, and then add optional data-elements from appropriate sub_assistant type"	
+		}
+	},
+	"additionalProperties": true,
+	"$defs": {
+		"contribution": {
+			"type": "object",
+			"name": "Contribution",
+			"required": ["being","contribution","id","mbr_id","object_being","object_id","status"],
+			"properties": {
+				"being": {
+					"type": "string",
+					"const": "contribution",
+					"description": "root constructor for contribution in MyLife"
+				},
+				"contribution": {
+					"type": "string",
+					"maxLength": 2048,
+					"description": "contribution content of suggestion to underlying object [object_id]",
+					"$comment": "**note**: will certainly sophisticate itself, but for now, just a string, and contribution-agent (known to underlying object) will be responsible for parsing and applying to underlying object [object_id]; could also attach file of JSON, develop new object, etc."
+				},
+				"created": {
+					"type": "integer",
+					"description": "UNIX date-time of contribution"
+				},
+				"id": {
+					"description": "uuid of contribution",
+					"type": "string",
+					"format": "uuid"
+				},
+				"key": {
+					"type": "string",
+					"description": "key (JSON-data-point) suggested or known of underlying object [object_id] to which contribution is being suggested"
+				},
+				"mbr_id": {
+					"type": "string",
+					"description": "root member id: [sysName|id]",
+					"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+				},
+				"object_id": {
+					"type": "string",
+					"format": "uuid",
+					"description": "parent id of contribution, can be anything _but_ an agent or avatar, to avoid recursion and unnecessary meta-complexity"
+				},
+				"object_being": {
+					"type": "string",
+					"not": {
+						"enum": ["avatar","agent"]
+					},
+					"description": "type of object to which contribution is being made"
+				},
+				"status": {
+					"type": "string",
+					"enum": ["active","inactive"],
+					"description": "status of contribution"
+				}
+			}
 		}
 	}
 }

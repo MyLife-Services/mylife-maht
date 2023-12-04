@@ -4,6 +4,7 @@ import Datamanager from "./mylife-datamanager.js"
 import PgvectorManager from "./mylife-pgvector-datamanager.js"
 class Dataservices{
 	//	pseudo-constructor
+	#core	//	Objectivizing core, too raw as output otherwise
 	#Datamanager
 	#partitionId
 	#PgvectorManager
@@ -19,11 +20,25 @@ class Dataservices{
 	async init(){
 		this.#Datamanager=await new Datamanager(this.#partitionId)
 			.init()	//	init datamanager
-		return this 
+		const _excludeProperties = { '_none':true }	//	populate if exclusions are required
+		const _core = Object.entries(this.datamanager.core)	//	array of arrays
+			.filter((_prop)=>{	//	filter out excluded properties
+				const _charExlusions = ['_','@','$','%','!','*',' ']
+				return !(
+						(_prop[0] in _excludeProperties)
+					||	!(_charExlusions.indexOf(_prop[0].charAt()))
+				)
+				})
+			.map(_prop=>{	//	map to object
+				return { [_prop[0]]:_prop[1] }
+			})
+		this.#core = Object.assign({},..._core)	//	init core
+
+		return this
 	}
 	//	getters/setters
 	get core(){
-		return this.datamanager.core
+		return this.#core
 	}
 	get datamanager(){
 		return this.#Datamanager
@@ -45,33 +60,11 @@ class Dataservices{
 		//	ask global data service (stored proc) for passphrase
 		return await this.datamanager.challengeAccess(_mbr_id,_passphrase)
 	}
-	async getAgent(_parent_id){	//	get specificed (or default) agent; one per parent_id, most recent only; NOTE: parent_id is an extracted guid
-		const _agentsArray = (await this.getAgents())
-			.filter(_agent=>{
-				return _agent.parent_id === _parent_id
-			})
-		if(!_agentsArray.length){
-			//	create agent
-			_agentsArray.push(await this.pushItem({
-				being: 'agent',
-				description: `I am the AI-Agent for this member`,	//	should ultimately inherit from core agent
-				mbr_id: this.mbr_id,
-				name: `agent_${ _parent_id }_${ this.mbr_id }`,
-				names: ['AI-Agent', 'Agent', 'AI'],
-				parent_id: _parent_id,	//	attaching to member core by default
-			}))
-		}
-		return _agentsArray[0]	//	or isolate dimension earlier
+	async getAvatar(_avatar_id){
+		return await this.getItems('avatar','*',[{ name: '@id', value: _avatar_id }])
 	}
-	async getAgents(){
-		return await this.getItems('agent','*')
-	}
-	async getBoard(){
-		return (await this.getBoards())[0]
-	}
-	async getBoards(){
-		//	board -> mbr_id but with board.id as "parent_id", if not exists, then create]
-		return await this.getItems('board','u.members')
+	async getAvatars(_parent_id){	//	get all agents for object, id required
+		return await this.getItems('avatar','*',[{ name: '@parent_id', value: _parent_id }])
 	}
 	getBio(){
 		return this.getCore().bio

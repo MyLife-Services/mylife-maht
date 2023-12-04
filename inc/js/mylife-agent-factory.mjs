@@ -10,6 +10,7 @@ import { Member, MyLife } from './core.mjs'
 import { extendClass_avatar, extendClass_consent, extendClass_message } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in configureSchemaPrototypes()
 import Menu from './menu.js'
 import MylifeMemberSession from './session.js'
+import chalk from 'chalk'
 import { _ } from 'ajv'
 // modular constants
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
@@ -52,53 +53,66 @@ const openai = new OpenAI({
 configureSchemaPrototypes()
 // modular variables
 //	logging/reporting
-//	console.log('AgentFactory loaded; schemas:', schemas)
+console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
+console.log(chalk.greenBright('schema-class-constructs'))
+console.log(schemas)
 // modular classes
 class AgentFactory extends EventEmitter{
 	#dataservices
+	#exposedSchemas = getExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#mbr_id
 	constructor(_mbr_id=dataservicesId){
 		super()
 		//	if incoming member id is not same as id on oDataservices, then ass new class-private dataservice
 		this.#mbr_id = _mbr_id
+		if(this.mbr_id!==dataservicesId){
+			console.log(chalk.blueBright('AgentFactory class constructed:'),chalk.bgBlueBright(this.mbr_id))
+		}
 	}
 	//	public functions
 	async init(_mbr_id){
+		this.emit('onInitBegin',this.mbr_id_id)
 		if(_mbr_id) this.#mbr_id = _mbr_id
 		this.#dataservices = 
 			(this.mbr_id!==oDataservices.mbr_id)
 			?	await new Dataservices(this.mbr_id).init()
 			:	oDataservices
+		this.emit('onInitEnd',this.mbr_id_id)
 		return this
 	}
 	async challengeAccess(_passphrase){
 		//	always look to server to challenge Access; this may remove need to bind
 		return await oDataservices.challengeAccess(this.mbr_id,_passphrase)
 	}
-	async getAvatar(){
-		//	get avatar template for metadata from cosmos
-		const _avatarProperties = await this.dataservices.getAgent(this.globals.extractId(this.mbr_id))
-		//	activate (created inside if necessary) avatar
-		const _avatar = new (this.schemas.avatar)(_avatarProperties, this)
-		//	update conversation
+	async getAvatar(_avatar_id,_avatarProperties){	//	either send list of properties (pre-retrieved for example from core `this.#avatars`) of known avatar or original object properties that are going to be initially infused into the generated agent; for example, I am a book, and user/gpt have determined that a book (new dynamic object, unknown to schemas) should have a super-intelligence - _that_ book core is sent in _avatarProperties and will imprinted into the initial avatar version of object
+		//	factory determines whether to create or retrieve
+		if(!_avatar_id && !_avatarProperties) throw new Error('no avatar id or properties')
 
-		if(!_avatar.assistant) await _avatar.getAssistant(this.dataservices)
-		return _avatar
+		this.emit('getAvatar',[_avatar_id,_avatarProperties])
+		//	enact, instantiate and activate avatar, all under **factory** purview
+		 if(!_avatarProperties) _avatarProperties = await this.dataservices.getAvatar(_avatar_id)
+		return await new (schemas.avatar)(_avatarProperties, this)
+			.init()
+	}
+	async getAvatars(_parent_id=this.mbr_id_id){
+		const _avatars = await this.dataservices.getAvatars(_parent_id)	//	returns array of _unclassed_, _uninstantiated_ js objects reflecting the core data _of_ a MyLife avatar; perhaps sometimes that inner reflection is all that is needed, such as what is stored as the active avatar inside the requestor
+		
+		return _avatars
 	}
 	async getMyLife(){	//	get server instance
 		//	ensure that factory mbr_id = dataservices mbr_id
 		if(this.mbr_id!==dataservicesId)
 			throw new Error('unauthorized request')
-		return await new (this.schemas.server)(this).init()
+		return await new (schemas.server)(this).init()
 	}
 	async getMyLifeMember(){
 		const _r =  await new (schemas.member)(this)
 			.init()
 		return _r
 	}
-	async getMyLifeSession(_challengeFunction){
+	async getMyLifeSession(){
 		//	default is session based around default dataservices [Maht entertains guests]
-		return await new (this.schemas.session)(dataservicesId,_Globals,_challengeFunction).init()
+		return await new (schemas.session)(this).init()
 	}
 	async getThread(){
 		return await openai.beta.threads.create()
@@ -109,28 +123,23 @@ class AgentFactory extends EventEmitter{
 		console.log('factory.getConsent():108', _consent)
 		console.log('factory.getConsent():109', 'mbr_id', this.mbr_id)
 		
-		return new (this.schemas.consent)(_consent, this)
+		return new (schemas.consent)(_consent, this)
+	}
+	isAvatar(_avatar){	//	when unavailable from general schemas
+		return (_avatar instanceof schemas.avatar)
+	}
+	isConsent(_consent){	//	when unavailable from general schemas
+		return (_consent instanceof schemas.consent)
+	}
+	isSession(_session){	//	when unavailable from general schemas
+		return (_session instanceof schemas.session)
 	}
 	//	getters/setters
 	get conversation(){
 		return this.schemas.conversation
 	}
 	get core(){
-		const _excludeProperties = { '_none':true }
-		let _core = Object.entries(this.#dataservices.core)	//	array of arrays
-			.filter((_prop)=>{	//	filter out excluded properties
-				const _charExlusions = ['_','@','$','%','!','*',' ']
-				return !(
-						(_prop[0] in _excludeProperties)
-					||	!(_charExlusions.indexOf(_prop[0].charAt()))
-				)
-				})
-			.map(_prop=>{	//	map to object
-				return { [_prop[0]]:_prop[1] }
-			})
-		_core = Object.assign({},..._core)	//	merge to single object
-		
-		return _core
+		return this.dataservices.core
 	}
 	get dataservices(){
 		return this.#dataservices
@@ -146,6 +155,9 @@ class AgentFactory extends EventEmitter{
 	}
 	get mbr_id(){
 		return this.#mbr_id
+	}
+	get mbr_id_id(){
+		return this.globals.extractId(this.mbr_id)
 	}
 	get message(){
 		return this.schemas.message
@@ -163,18 +175,19 @@ class AgentFactory extends EventEmitter{
 		return Object.keys(this.schemas)
 	}
 	get schemas(){
-		return schemas
+		return this.#exposedSchemas
 	}
 	get server(){
 		return this.schemas.server
-	}
-	get session(){
-		return this.schemas.session
 	}
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
 	//	private functions
+	async #addAvatar(_avatarProperties){
+		//	add avatar to database
+		return await this.dataservices.addAvatar(_avatarProperties)
+	}
 }
 // private modular functions
 function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema in case of $def
@@ -317,6 +330,15 @@ function generateClassFromSchema(_schema) {
 	const _classCode = generateClassCode(_className,_properties,_schema)
 	//	compile class and return
 	return compileClass(_className,_classCode)
+}
+function getExposedSchemas(_factoryBlockedSchemas){
+	const _systemBlockedSchemas = ['dataservices','session']
+	return Object.keys(schemas)
+		.filter(key => !_systemBlockedSchemas.includes(key) && !_factoryBlockedSchemas.includes(key))
+		.reduce((obj, key) => {
+			obj[key] = schemas[key]
+			return obj
+		}, {})
 }
 async function loadSchemas() {
 	try{

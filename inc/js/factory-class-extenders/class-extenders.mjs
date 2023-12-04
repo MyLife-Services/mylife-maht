@@ -1,23 +1,38 @@
+import { EventEmitter } from 'events'
 import { Marked } from 'marked'
 //  function definitions to extend remarkable classes
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
+        #emitter = new EventEmitter()
+        #contributions
         #openai = _references?.openai
         #factory = _references?.factory
         constructor(_obj,_factory) {
-            super(_obj)
+            super(_obj) //  should include contributions from db or from class schema
             this.#factory = _factory
         }
-        async init(_ctx){
-            return await this.onInit(_ctx)
-        }
-        //  public event hooks
-        async onInit(_ctx){
-            
+        async init(){
+            this.emitter.emit('onInitBegin')
+            //  review assigned categories and map against intelligence (call to gpt)
+            //  obtain contributions
+            this.emitter.emit('onInitEnd',this.core)
+            return this
         }
         //  public getters/setters
+        get avatar(){
+            return this.inspect(true)
+        }
+        get contribution() {
+            return this.#contributions ? this.#contributions[0] : this.#contributions
+        }
+        get contributions(){   //  overloaded for clarity only
+            return this.#contributions
+        }
         get ctx(){
             return this.factory.ctx
+        }
+        get emitter(){
+            return this.#emitter
         }
         get factory(){
             return this.#factory

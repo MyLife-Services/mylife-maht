@@ -1,18 +1,18 @@
-import AgentFactory from './mylife-agent-factory.mjs'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
-class MylifeMemberSession {	//	bean only, no public functions aside from init and constructor
+class MylifeMemberSession extends EventEmitter {
 	#consents = []	//	consents are stored in the session
+	#contributions = []	//	'useful' (i.e., ran through whatever gauntlet of procedural logic is required and worthwhile to vet a submission) contributions from avatars/assistants are posted and stored in the session (perhaps through an emitter?), so that they can be checked and applied to instantiating avatar
 	#conversation
 	#factory
-	#fxValidate
 	#locked = true	//	locked by default
 	#mbr_id
 	#Member
 	#thread
 	name
-	constructor(_factory,_fxValidate){
+	constructor(_factory){
+		super()
 		this.#factory = _factory
-		this.#fxValidate = _fxValidate	//	_fxValidate is an injected function to use the most current mechanic to validate the member
 		this.#mbr_id = this.factory.mbr_id
 	}
 	async init(_mbr_id=this.mbr_id){
@@ -22,8 +22,8 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 				console.log(chalk.bgRed('cannot initialize, member locked'))
 		}
 		if(this.mbr_id !== _mbr_id) {	//	only create if not already created or alternate Member
+			this.emit('onInit-member-initialize')
 			this.#mbr_id = _mbr_id
-			console.log('update-agent-factory')
 			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
 			await this.#createThread()
 			this.#Member = await this.factory.getMyLifeMember()
@@ -37,7 +37,7 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 		//	validate request; switch true may be required
 		if(!validCtxObject(ctx)) return false	//	invalid ctx object, consent request fails
 		//	check-01: url ends in valid guid /:_id
-		const _object_id = ctx.request.header.referer.split('/').pop()
+		const _object_id = ctx.request.header?.referer?.split('/').pop()
 		//	not guid, not consent request, no blocking
 		if(!this.globals.isValidGUID(_object_id)) return true
 		console.log('session.requestConsent()', 'mbr_id', this.mbr_id)

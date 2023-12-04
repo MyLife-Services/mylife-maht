@@ -38,10 +38,11 @@ class Member extends EventEmitter {
 	}
 	//	initialize
 	async init(){
-		this.#avatars = await this.factory.getAvatars()
+		this.#avatars = await this.factory.getAvatars()	//	defaults to `this.core` which factory owns; **note**: getAvatars() normally accepts the object dna
 		if(!this.#avatars.length) console.log(chalk.red('no avatars found'))	//	create avatar
-		this.#avatar = await this.#avatars[0]	//	activate avatar
-		if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
+		this.avatar = await this.factory.getAvatar(undefined,this.#avatars[0])	//	activate avatar
+		//	console.log('#avatar',this.#avatar.avatar)	//	**note**: avatar in this getter refers to the inspect(true) of the avatar
+		//	if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		return this
 	}
 	//	getter/setter functions
@@ -74,6 +75,12 @@ class Member extends EventEmitter {
 	}
 	get avatar(){
 		return this.#avatar
+	}
+	set avatar(_Avatar){
+		//	oops, hack around how to get dna of avatar class; review options [could block at factory-getter level, most efficient and logical]
+		if(!this.factory.isAvatar(_Avatar))
+			throw new Error('avatar requires Avatar Class')
+		this.#avatar = _Avatar
 	}
 	get being(){
 		return this.core.being
