@@ -1,22 +1,67 @@
+/**
+ * @fileOverview This file contains the Dataservices class, which manages data interactions for the MyLife platform.
+ * It includes functionality for handling avatars, chats, items, and other core elements of the platform's data.
+ * @version 1.0.0
+ */
 //	imports
 import { _ } from "ajv"
 import Datamanager from "./mylife-datamanager.js"
 import PgvectorManager from "./mylife-pgvector-datamanager.js"
-class Dataservices{
-	//	pseudo-constructor
-	#core	//	Objectivizing core, too raw as output otherwise
-	#Datamanager
-	#partitionId
-	#PgvectorManager
-	#rootSelect = 'u.id, u.mbr_id, u.parent_id, u.being'
-	//	constructor
+import { Guid } from "js-guid"
+/**
+ * The Dataservices class.
+ * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
+ * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
+ */
+class Dataservices {
+    /**
+     * Represents the core functionality of the data service. This property
+     * objectifies core data to make it more manageable and structured,
+     * as opposed to presenting raw output.
+     * @private
+     */
+    #core
+    /**
+     * Manages various data-related operations. It could be responsible for
+     * handling data transactions, CRUD operations, etc., depending on its implementation.
+     * @private
+     */
+    #Datamanager
+    /**
+     * Identifies a specific partition or segment of the data storage
+     * that this instance of Dataservices interacts with. Useful for multi-tenant
+     * architectures or when data is sharded.
+     * @private
+     */
+    #partitionId
+    /**
+     * Manages interactions with Pgvector, which might be used for
+     * efficient vector operations in a Postgres database. This could include
+     * functionalities like similarity search, nearest neighbor search, etc.
+     * @private
+     */
+    #PgvectorManager
+    /**
+     * A default SQL SELECT statement or part of it used to fetch
+     * user-related data. It defines the columns to be retrieved in most
+     * database queries within this service.
+     * @private
+     */
+    #rootSelect = 'u.id, u.mbr_id, u.parent_id, u.being'
+    /**
+     * Constructor for Dataservices class.
+     * @param {string} _mbr_id - Member ID to partition data.
+     */
 	constructor(_mbr_id){
 		this.#partitionId = _mbr_id
 		this.#PgvectorManager = new PgvectorManager()
-		//	NOTE: init() required, as population is async
-		//	agent and chat required
 	}
-	//	init function
+    /**
+     * Initializes the Datamanager instance and sets up core data.
+     * @async
+	 * @public
+     * @returns {Dataservices} The instance of Dataservices.
+     */
 	async init(){
 		this.#Datamanager=await new Datamanager(this.#partitionId)
 			.init()	//	init datamanager
@@ -56,39 +101,101 @@ class Dataservices{
 		return this.#partitionId
 	}
 	//	public functions
+    /**
+     * Proxy to add an avatar to the MyLife Cosmos database.
+     * @async
+	 * @public
+     * @param {Object} _avatar - The avatar to add.
+     */
+	async addAvatar(_avatar){
+		return await this.pushItem(_avatar)
+	}
+    /**
+     * Challenges access using a member ID and passphrase.
+     * @async
+	 * @public
+     * @param {string} _mbr_id - The member ID.
+     * @param {string} _passphrase - The passphrase for access.
+     * @returns {Promise<Object>} The result of the access challenge.
+     */
 	async challengeAccess(_mbr_id,_passphrase){	//	if possible (async) injected into session object
 		//	ask global data service (stored proc) for passphrase
 		return await this.datamanager.challengeAccess(_mbr_id,_passphrase)
 	}
-	async getAvatar(_avatar_id){
-		return await this.getItems('avatar','*',[{ name: '@id', value: _avatar_id }])
+	/**
+	 * Retrieves a specific avatar by its ID.
+	 * @async
+	 * @public
+	 * @param {string} _avatar_id - The unique identifier for the avatar.
+	 * @returns {Promise<Object>} The avatar corresponding to the provided ID.
+	 */
+	async getAvatar(_avatar_id) {
+		return await this.getItems('avatar', '*', [{ name: '@id', value: _avatar_id }])
 	}
-	async getAvatars(_parent_id){	//	get all agents for object, id required
-		return await this.getItems('avatar','*',[{ name: '@parent_id', value: _parent_id }])
+	/**
+	 * Retrieves all avatars associated with a given parent ID.
+	 * This method is typically used to get all avatar entities under a specific object.
+	 * @async
+	 * @public
+	 * @param {string} _object_id - The parent object ID to search for associated avatars.
+	 * @returns {Promise<Array>} An array of avatars associated with the given parent ID.
+	 */
+	async getAvatars(_object_id) {
+		return await this.getItems('avatar', '*', [{ name: '@object_id', value: _object_id }])
 	}
-	getBio(){
-		return this.getCore().bio
-	}
-	async getChat(parent_id=this.id){
+	/**
+	 * Retrieves the first chat associated with a given parent ID.
+	 * If multiple chats are associated with the parent ID, only the first one is returned.
+	 * @async
+	 * @public
+	 * @param {string} [parent_id=this.id] - The parent ID for which to retrieve the chat. Defaults to the current instance ID.
+	 * @returns {Promise<Object>} The first chat object associated with the given parent ID.
+	 */
+	async getChat(parent_id = this.id) {
 		const _response = await this.getChats(parent_id)
-		return _response[0]	//	separate out [0] dimension here as it cannot be embedded in await
+		return _response[0] // Extract the first chat from the response
 	}
-	async getChats(parent_id){
-		let _chats = await this.getItems('conversation','u.exchanges',[{ name: '@parent_id', value: parent_id }])
-		if(!_chats.length) _chats = await this.pushItem({	//	create chat
-//	id: global.Globals.newGuid,
-			mbr_id: this.mbr_id,
-			parent_id: parent_id,
-			being: 'conversation',
-			exchanges: [],
-			name: `conversation_${ this.mbr_id }`,
-		})
+	/**
+	 * Retrieves all chat conversations associated with a given parent ID.
+	 * If no chats exist, it creates a new chat conversation.
+	 * @async
+	 * @public
+	 * @param {string} parent_id - The parent ID for which to retrieve or create chats.
+	 * @returns {Promise<Array>} An array of chat conversations associated with the given parent ID.
+	 */
+	async getChats(parent_id) {
+		let _chats = await this.getItems('conversation', 'u.exchanges', [{ name: '@parent_id', value: parent_id }])
+		if (!_chats.length) {
+			_chats = await this.pushItem({
+				mbr_id: this.mbr_id,
+				parent_id: parent_id,
+				being: 'conversation',
+				exchanges: [],
+				name: `conversation_${this.mbr_id}`,
+			})
+		}
 		return _chats
 	}
-	async getItem(_id){
+	/**
+	 * Retrieves a specific item by its ID.
+	 * @async
+	 * @public
+	 * @param {string} _id - The unique identifier for the item.
+	 * @returns {Promise<Object>} The item corresponding to the provided ID.
+	 */
+	async getItem(_id) {
 		return await this.datamanager.getItem(_id)
 	}
-	async getItems(_being,_selects='*',_paramsArray=[]){	//	_params is array of objects { name: '${varName}' }
+	/**
+	 * Retrieves items based on specified parameters.
+	 * @async
+	 * @public
+	 * @param {string} _being - The type of items to retrieve.
+	 * @param {string} [_selects='*'] - The fields to select, defaults to all (*).
+	 * @param {Array<Object>} [_paramsArray=[]] - Additional query parameters.
+	 * @returns {Promise<Array>} An array of items matching the query parameters.
+	 */
+	async getItems(_being,_selects='*',_paramsArray=[]) {	//	_params is array of objects { name: '${varName}' }
 		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
 		if(_selects!='*') _selects = this.#rootSelect+', '+_selects
 		let _query = `select ${_selects} from members u`	//	@being is required
@@ -103,9 +210,23 @@ class Dataservices{
 			parameters: _paramsArray
 		})
 	}
+	/**
+	 * Retrieves local records based on a query.
+	 * @async
+	 * @param {string} _question - The query to retrieve records.
+	 * @returns {Promise<Array>} An array of local records matching the query.
+	 */
 	async getLocalRecords(_question){
 		return await this.embedder.getLocalRecords(_question)
 	}
+	/**
+	 * Patches an item by its ID with the provided data.
+	 * @async
+	 * @param {string} _id - The unique identifier for the item to be patched.
+	 * @param {Object} _data - The data to patch the item with.
+	 * @param {string} [_path='/'] - The path for patching, defaults to root.
+	 * @returns {Promise<Object>} The result of the patch operation.
+	 */
 	async patch(_id,_data,_path='/'){	//	_data is just object of key/value pairs so must be transformed (add/update only)
 		_data = Object.keys(_data)
 			.map(_key=>{
@@ -113,6 +234,15 @@ class Dataservices{
 			})
 		return await this.patchItem(_id,_data)
 	}
+	/**
+	 * Patches an array within an item by inserting data at a specified index.
+	 * @async
+	 * @param {string} _id - The unique identifier for the item to be patched.
+	 * @param {string} _node - The node within the item where data is to be inserted.
+	 * @param {Array<Object>} _data - The data to be inserted.
+	 * @param {number} [_index=0] - The index at which to insert the data.
+	 * @returns {Promise<Object>} The result of the patch operation.
+	 */
 	async patchArrayItems(_id,_node,_data,_index=0){	//	_data is array of objects to be inserted into _node at _index
 		//	create patch object that can insert _data into _node at _index
 		const __data = _data
@@ -123,9 +253,23 @@ class Dataservices{
 			)
 		return await this.patchItem(_id,__data)
 	}
+	/**
+	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
+	 * @async
+	 * @param {string} _id - The unique identifier for the item to be patched.
+	 * @param {Array<Object>} _data - The data for patching, including the path and operation.
+	 * @returns {Promise<Object>} The result of the patch operation.
+	 */
 	async patchItem(_id,_data){ // path Embedded in _data
 		return await this.datamanager.patchItem(_id,_data)
 	}
+    /**
+     * Pushes a new item to the data manager
+     * @async
+	 * @public
+     * @param {Object} _data - The data to be pushed
+     * @returns {Promise<Object>} The result of the push operation
+     */
 	async pushItem(_data){
 		return await this.datamanager.pushItem(_data)
 	}

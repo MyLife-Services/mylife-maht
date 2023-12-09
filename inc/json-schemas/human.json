@@ -28,19 +28,24 @@
 			"type": "string",
 			"description": "human member biography"
 		},
+		"birthdate": {
+			"type": "string",
+			"format": "date"
+		},
 		"categories": {
 			"type": "array",
-			"default": ["Abilities", "Artifacts", "Beliefs", "Biography", "Challenges", "Goals", "Interests", "Personality", "Preferences", "Relationships", "Updates"],
+			"default": ["Abilities", "Artifacts", "Beliefs", "Biography", "Challenges", "Goals", "Interests", "Personality", "Preferences", "Relationships"],
 			"items": {
 				"type": "string",
 				"maxLength": 64,
 				"minLength": 1,
-				"description": "human member descriptive categories, updated and tailored to current member",
-				"$comment": "cap on categories comes from openai metadata keys for now"
+				"description": "descriptive category, updated and tailored to/by current avatar purpose and context"
 			},
 			"uniqueItems": true,
 			"minItems": 1,
-			"maxItems": 12
+			"maxItems": 12,
+			"description": "human member descriptive categories, updated and tailored to current avatar purpose and context",
+			"$comment": "cap on categories comes from openai metadata keys for now"
 		},
 		"emails": {
 			"type": "array",
@@ -87,9 +92,47 @@
 			"description": "array of potential name references for this human member; transition to array of name schemas",
 			"$comment": "artificial cap on names for now @10x"
 		},
-		"birthdate": {
-			"type": "string",
-			"format": "date"
+		"nationalities": {
+			"type": "array"
+		},
+		"signatures":{
+			"type": "array",
+			"items": {
+				"type": "object",
+				"$ref": "#/$defs/signature",
+				"description": "human member signature"
+			},
+			"uniqueItems": true,
+			"description": "array of signature references for this human member; transition to array of signature schemas"
+		},
+		"$defs": {
+			"signature": {
+				"type": "object",
+				"name": "Signature",
+				"required": ["being", "id", "mbr_id","object_id"],
+				"properties": {
+					"being": {
+						"type": "string",
+						"const": "signature",
+						"description": "Human Signature consenting to resource `object_id`"
+					},
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "uuid of the human member"
+					},
+					"mbr_id": {
+						"type": "string",
+						"description": "root member id: [sysName|id]",
+						"$comment": "also prtitionId for container; NOTE: sysName should not render down to any boolean version of false"
+					},
+					"object_id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "uuid of the object being referenced in signature"						
+					}
+				}
+			}
 		}
 	}
 }

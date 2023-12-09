@@ -14,6 +14,9 @@ class MylifeMemberSession extends EventEmitter {
 		super()
 		this.#factory = _factory
 		this.#mbr_id = this.factory.mbr_id
+		this.factory.on('avatar-activated',_avatar=>{
+			console.log(chalk.grey('session::constructor::avatar-activated_trigger'),chalk.bgGray(_avatar.id))
+		})
 	}
 	async init(_mbr_id=this.mbr_id){
 		if(!this.#thread) await this.#createThread()

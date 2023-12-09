@@ -14,7 +14,8 @@ function extendClass_avatar(_originClass,_references) {
         async init(){
             this.emitter.emit('onInitBegin')
             //  review assigned categories and map against intelligence (call to gpt)
-            //  obtain contributions
+            //  assess context
+            //  obtain contributions, post to session if valid and room (i.e., presume a limit to number of contributions operable at one time, presumably stored in the session array)
             this.emitter.emit('onInitEnd',this.core)
             return this
         }

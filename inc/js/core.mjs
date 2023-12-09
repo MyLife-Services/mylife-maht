@@ -36,14 +36,14 @@ class Member extends EventEmitter {
 		this.#personalityKernal = openai	//	will be covered in avatars
 		this.#factory = (_Session?.factory)?_Session.factory:_Factory	//	Factory configured for this user or Q
 		this.factory.on('avatar-activated',_avatar=>{
-			console.log(chalk.grey('core::constructor::getAvatar_trigger'),chalk.bgGray(_avatar.id))
+			console.log(chalk.grey('core::constructor::avatar-activated_trigger'),chalk.bgGray(_avatar.id))
 		})
 	}
 	//	initialize
 	async init(){
 		this.#avatars = await this.factory.getAvatars()	//	defaults to `this.core` which factory owns; **note**: getAvatars() normally accepts the object dna
 		if(!this.#avatars.length) console.log(chalk.red('no avatars found'))	//	create avatar
-		this.avatar = await this.factory.getAvatar(undefined,this.#avatars[0])	//	activate avatar
+		this.avatar = await this.factory.getAvatar(undefined,(this?.avatars[0]??this.core))	//	activate avatar
 		//	console.log('#avatar',this.#avatar.avatar)	//	**note**: avatar in this getter refers to the inspect(true) of the avatar
 		//	if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
 		return this
@@ -62,7 +62,8 @@ class Member extends EventEmitter {
 		return this.agent.command_word
 	}
 	get agentDescription(){	//	agent description (not required)
-		if(!this.agent?.description) this.avatar.description = `I am ${ this.agentName }, AI-Agent for ${ this.name }`
+		if(!this.agent?.description)
+			this.avatar.description = `I am ${ this.agentName }, AI-Agent for ${ this.name }`
 		return this.agent.description
 	}
 	get agentName(){
@@ -84,6 +85,9 @@ class Member extends EventEmitter {
 		if(!this.factory.isAvatar(_Avatar))
 			throw new Error('avatar requires Avatar Class')
 		this.#avatar = _Avatar
+	}
+	get avatars(){
+		return this.#avatars
 	}
 	get being(){
 		return this.core.being
