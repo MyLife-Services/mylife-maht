@@ -1,20 +1,10 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/message.json",
-	"required": ["id", "mbr_id", "being", "messages", "type"],
+	"required": ["avatar_id", "being", "id", "mbr_id", "messages", "type"],
 	"type": "object",
 	"name": "Message",
 	"properties": {
-		"id": {
-			"description": "uuid of message",
-			"type": "string",
-			"format": "uuid"
-		},
-		"mbr_id": {
-			"type": "string",
-			"description": "root member id: [sysName|id]",
-			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
-		},
 		"avatar_id": {
 			"type": "string",
 			"format": "uuid",
@@ -24,6 +14,16 @@
 			"type": "string",
 			"const": "message",
 			"description": "root constructor for message in MyLife"
+		},
+		"id": {
+			"description": "uuid of message",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
 		},
 		"message": {
 			"type": "object",
@@ -103,7 +103,7 @@
 				"text": {
 					"type": "object",
 					"$ref": "#/$defs/content_text_openai_assistant",
-					"description": "content text is present as { text: text, annotations: []"
+					"description": "content text is present as { text: text, annotations: [] }"
 				},
 				"image_file": {
 					"type": "string",

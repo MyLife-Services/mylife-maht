@@ -1,0 +1,83 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/contribution.json",
+	"required": ["avatar_id", "being", "context", "id", "mbr_id", "purpose", "status", "urgency"],
+	"type": "object",
+	"name": "Contribution",
+	"properties": {
+		"avatar_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "id of associated avatar"
+		},
+		"being": {
+			"type": "string",
+			"const": "contribution",
+			"description": "Being for contribution in MyLife"
+		},
+		"context": {
+			"type": "string",
+			"default": "I am a contribution object in MyLife, comprising data and functionality around a data evolution request to the underlying (see data for Avatar via avatar_id) MyLife data object",
+			"description": "The context for the creation of this object-type"
+		},
+		"id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "uuid of Contribution"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"purpose": {
+			"type": "string",
+			"default": "Manage `request` being responded to by associated human Member [mbr_id]",
+			"description": "The purpose underlying this object-type"
+		},
+		"request": {
+			"type": "object",
+			"name": "ContributionRequest",
+			"required": ["being", "category", "content", "id", "mbr_id"],
+			"properties": {
+				"being": {
+					"type": "string",
+					"const": "contribution_request",
+					"description": "Being for contribution request in MyLife"
+				},
+				"category": {
+					"type": "string",
+					"description": "category of request"
+				},
+				"content": {
+					"type": "string",
+					"description": "The content for the creation of this object-type"
+				},
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"description": "uuid of Request"
+				},
+				"mbr_id": {
+					"type": "string",
+					"description": "root member id: [sysName|id]",
+					"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+				}
+			},
+			"additionalProperties": false,
+			"$comment": "establishing baseline should it need to become a full object, though unclear, leaning no"
+		},
+		"status": {
+			"type": "string",
+			"default": "populated",
+			"description": "contribution life-cycle phase",
+			"$comment": "populated, submitted, accepted, rejected, completed, archived"
+		},
+		"urgency": {
+			"type": "integer",
+			"default": 0,
+			"description": "urgency of contribution (0-100); defaults to neutral urgency"
+		}
+	},
+	"additionalProperties": false
+}

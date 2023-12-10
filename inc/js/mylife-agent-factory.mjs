@@ -139,6 +139,9 @@ class AgentFactory extends EventEmitter{
 		return (_session instanceof schemas.session)
 	}
 	//	getters/setters
+	get contribution(){
+		return this.schemas.contribution
+	}
 	get conversation(){
 		return this.schemas.conversation
 	}

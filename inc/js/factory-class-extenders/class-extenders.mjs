@@ -1,10 +1,12 @@
 import { EventEmitter } from 'events'
 import { Marked } from 'marked'
+import { EvolutionAssistant } from '../agents/system/evolution-assistant.mjs'
+import { _ } from 'ajv'
 //  function definitions to extend remarkable classes
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
         #emitter = new EventEmitter()
-        #contributions
+        #evolver
         #openai = _references?.openai
         #factory = _references?.factory
         constructor(_obj,_factory) {
@@ -13,21 +15,21 @@ function extendClass_avatar(_originClass,_references) {
         }
         async init(){
             this.emitter.emit('onInitBegin')
-            //  review assigned categories and map against intelligence (call to gpt)
-            //  assess context
-            //  obtain contributions, post to session if valid and room (i.e., presume a limit to number of contributions operable at one time, presumably stored in the session array)
+            this.#evolver = new EvolutionAssistant(this)
+            this.#evolver.on('newContribution',(_)=>{
+                this.#contributionTest(_)
+            })
+            const _ = await this.#evolver.init()
             this.emitter.emit('onInitEnd',this.core)
+            this.emitter.emit('onBirth', this)
             return this
         }
         //  public getters/setters
         get avatar(){
             return this.inspect(true)
         }
-        get contribution() {
-            return this.#contributions ? this.#contributions[0] : this.#contributions
-        }
         get contributions(){   //  overloaded for clarity only
-            return this.#contributions
+            return this.#evolver.contributions
         }
         get ctx(){
             return this.factory.ctx
@@ -57,14 +59,17 @@ function extendClass_avatar(_originClass,_references) {
             }
             if(!this.thread)
                 this.thread = this.ctx.session.MemberSession.thread
-            //	assign files and metadata, optional
+            //  add metata, optional
+            //	assign files, optional, push `retrieval` to tools
+            if(_message_files) _message.files = _message_files
             //	create message
-            const _message = new (this.factory.message)({
-                message: await this.setMessage({content: this.ctx.request.body.message}),
-                mbr_id: this.mbr_id,
+            const _message = new (this.factory.message,{ openai: this.#openai })({
                 avatar_id: this.id,
+                content: _message_content,
+                mbr_id: this.mbr_id,
                 role: 'user',
             })
+                .init() //  by embedding content above, init routine requires no parameters
             this.messages.unshift(_message)
             //	run thread
             await this.run()
@@ -215,22 +220,27 @@ function extendClass_avatar(_originClass,_references) {
             // ping status
             await this.completeRun(_run.id)
         }
-        async setMessage(_message){	//	add or update message; returns openai `message` object
+        /**
+         * add or update openai portion of `message`
+         * @private
+         * @param {string} _message 
+         * @returns {object} openai `message` object
+         */
+        async #setMessageContent(_message){
+            //  files are attached at the message level under file_ids _array_, only content aside from text = [image_file]:image_file.file_id
             return (!_message.id)
                 ?	await this.openai.beta.threads.messages.create(	//	add
                     this.thread.id,
-                    {
-                        role: "user",
-                        content: _message.content
-                    }
+                    _message.map(_message=>({
+                        role: 'User',
+                        content: _message.content,
+                        file: _message.file,
+                    }))
                 )
                 :	await this.openai.beta.threads.messages.update(	//	update
                         this.thread.id,
                         _message.id,
-                        {
-                            role: "user",
-                            content: _message.content
-                        }
+                        this.#getMessage(_message)
                     )
         }
         async startRun(){	//	returns openai `run` object
@@ -239,6 +249,11 @@ function extendClass_avatar(_originClass,_references) {
                 this.thread.id,
                 { assistant_id: this.assistant.id }
             )
+        }
+        //  private functions
+        //  emitter management
+        #contributionTest(_){
+            console.log('contribution test',_)
         }
     }
     console.log('Avatar class extended')
@@ -259,13 +274,70 @@ function extendClass_consent(_originClass,_references) {
 
     return Consent
 }
+function extendClass_conversation(_originClass,_references) {
+    class Conversation extends _originClass {
+        constructor(_obj) {
+            super(_obj)
+            console.log('Conversation class extended')
+        }
+        //  public functions
+        findMessage(_message_id){
+            //  given this conversation, retrieve message by id
+            return _message_id
+        }
+        //  public getters/setters
+        get messages(){
+            return this?.messages??[]
+        }
+        //  private functions
+    }
+
+    return Conversation
+
+}
+function extendClass_file(_originClass,_references) {
+    class File extends _originClass {
+        #contents   //  utilized _only_ for text files
+        constructor(_obj) {
+            super(_obj)
+            console.log('File class extended')
+        }
+        //  public functions
+        async init(){
+            //  self-validation
+            if(!this.contents && this.type=='text')
+                throw new Error('No contents provided for text file; will not store')
+            //  save to embedder
+        }
+        //  public getters/setters
+        //  private functions
+    }
+}
 function extendClass_message(_originClass,_references) {
     class Message extends _originClass {
+        #maxContextWindow = Math.min((process.env.OPENAI_MAX_CONTEXT_WINDOW || 2000), 5000)    //  default @2k chars, hard cap @5k
         constructor(_obj) {
             super(_obj)
 			console.log('Message class extended')
         }
         //  public functions
+        async init(){
+            if(!this.content && !this.files)
+                throw new Error('No content provided for message')
+            //  limit requirements for context window, generate file and attach to file_ids array
+            if(this.content.length > this.#maxContextWindow) {
+                this.files.push( await this.#constructFile(this.content) )
+                this.content = `user posted content length greater than context window: find request in related`      //   default content points to file
+            }
+            const _message = (true)
+                ?   {
+                    type: 'text',
+                    content: this.ctx.request.body.message,
+                }
+                :   {}
+
+            this.message = await this.#getMessage_openAI(_message)
+        }
         //  public getters/setters
         get text(){
             switch (this.type) {
@@ -280,6 +352,27 @@ function extendClass_message(_originClass,_references) {
                     return 'no content derived'
             }
         }
+        //  private functions
+        /**
+         * When incoming text is too large for a single message, generate dynamic text file and attach/submit.
+         * @private
+         * @param {string} _file - The file to construct.
+         * @returns 
+         */
+        async #constructFile(_file){
+            //  construct file object
+            const _file = new (this.factory.file)({
+                name: `file_message_${this.id}`,
+                type: 'text',
+                contents: _file,
+            })
+            //  save to embedder
+            return {
+                name: _file.name,
+                type: _file.type,
+                contents: await _file.arrayBuffer(),
+            }
+        }
     }
 
     return Message
@@ -288,5 +381,7 @@ function extendClass_message(_originClass,_references) {
 export {
 	extendClass_avatar,
 	extendClass_consent,
+    extendClass_conversation,
+    extendClass_file,
 	extendClass_message,
 }
