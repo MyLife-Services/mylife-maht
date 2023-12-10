@@ -1,19 +1,10 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/file",
-	"required": ["mbr_id", "being", "format", "mimetype"],
+	"required": ["being", "format", "id", "mbr_id", "mimetype"],
 	"type": "object",
 	"name": "File",
 	"properties": {
-		"id": {
-			"type": "string",
-			"format": "uuid"
-		},
-		"mbr_id": {
-			"type": "string",
-			"minimum": 40,
-			"$comment": "partition-key for member: sysName|core_id"
-		},
 		"being": {
 			"type": "string",
 			"const": "file",
@@ -23,6 +14,22 @@
 			"type": "string",
 			"default": "text",
 			"$comment": "text, image, audio, video, etc"
+		},
+		"id": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"minLength": 40,
+			"$comment": "partition-key for member: sysName|core_id"
+		},
+		"name": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 255,
+			"description": "name of file",
+			"$comment": "name of file"
 		},
 		"mimetype": {
 			"type": "string", 

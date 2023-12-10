@@ -1,0 +1,1 @@
+//  could be responsible for divining topics that interest a given human member, based upon a feed of their conversation activity with various avatars
