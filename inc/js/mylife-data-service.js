@@ -78,7 +78,6 @@ class Dataservices {
 				return { [_prop[0]]:_prop[1] }
 			})
 		this.#core = Object.assign({},..._core)	//	init core
-
 		return this
 	}
 	//	getters/setters

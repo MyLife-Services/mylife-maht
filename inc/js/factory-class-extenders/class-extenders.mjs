@@ -16,12 +16,11 @@ function extendClass_avatar(_originClass,_references) {
         async init(){
             this.emitter.emit('onInitBegin')
             this.#evolver = new EvolutionAssistant(this)
-            this.#evolver.on('newContribution',(_)=>{
-                this.#contributionTest(_)
+            this.#evolver.on('onNewContribution',(_contribution)=>{
+                this.#onNewContribution(_contribution)
             })
-            const _ = await this.#evolver.init()
+            await this.#evolver.init()
             this.emitter.emit('onInitEnd',this.core)
-            this.emitter.emit('onBirth', this)
             return this
         }
         //  public getters/setters
@@ -52,24 +51,22 @@ function extendClass_avatar(_originClass,_references) {
             )
         }
         async chatRequest(_ctx){
-            //  should I always update factory? make sure I have correct underlying factory
-            if(_ctx) this.factory.ctx = _ctx    //  update reference, as I was getting odd results without
+            if(_ctx) this.factory.ctx = _ctx    //  always update reference to current request
             if(!this.ctx) {
                 throw new Error('No context provided in factory')
             }
             if(!this.thread)
                 this.thread = this.ctx.session.MemberSession.thread
             //  add metata, optional
-            //	assign files, optional, push `retrieval` to tools
-            if(_message_files) _message.files = _message_files
+            //	assign uploaded files (optional) and push `retrieval` to tools
             //	create message
-            const _message = new (this.factory.message,{ openai: this.#openai })({
+            const _message = new (this.factory.message)({
                 avatar_id: this.id,
-                content: _message_content,
+                content: this.ctx.request.body.message,
                 mbr_id: this.mbr_id,
                 role: 'user',
             })
-                .init() //  by embedding content above, init routine requires no parameters
+                .init(this.thread) //  by embedding content above, init routine requires no parameters
             this.messages.unshift(_message)
             //	run thread
             await this.run()
@@ -220,29 +217,6 @@ function extendClass_avatar(_originClass,_references) {
             // ping status
             await this.completeRun(_run.id)
         }
-        /**
-         * add or update openai portion of `message`
-         * @private
-         * @param {string} _message 
-         * @returns {object} openai `message` object
-         */
-        async #setMessageContent(_message){
-            //  files are attached at the message level under file_ids _array_, only content aside from text = [image_file]:image_file.file_id
-            return (!_message.id)
-                ?	await this.openai.beta.threads.messages.create(	//	add
-                    this.thread.id,
-                    _message.map(_message=>({
-                        role: 'User',
-                        content: _message.content,
-                        file: _message.file,
-                    }))
-                )
-                :	await this.openai.beta.threads.messages.update(	//	update
-                        this.thread.id,
-                        _message.id,
-                        this.#getMessage(_message)
-                    )
-        }
         async startRun(){	//	returns openai `run` object
             if(!this.thread || !this.messages.length) return
             return await this.openai.beta.threads.runs.create(
@@ -252,8 +226,8 @@ function extendClass_avatar(_originClass,_references) {
         }
         //  private functions
         //  emitter management
-        #contributionTest(_){
-            console.log('contribution test',_)
+        #onNewContribution(_contribution){
+        //  console.log('contribution test',this.#evolver.contributions)
         }
     }
     console.log('Avatar class extended')
@@ -263,7 +237,6 @@ function extendClass_consent(_originClass,_references) {
     class Consent extends _originClass {
         constructor(_obj) {
             super(_obj)
-			console.log('Consent class extended')
         }
         //  public functions
         async allow(_request){
@@ -274,11 +247,67 @@ function extendClass_consent(_originClass,_references) {
 
     return Consent
 }
+function extendClass_contribution(_originClass,_references) {
+    class Contribution extends _originClass {
+        #emitter = new EventEmitter()
+        #openai = _references?.openai
+        constructor(_obj) {
+            super(_obj)
+        }
+        //  public functions
+        async init(){
+            //  self-validation
+            this.status = 'populated'
+            //  generate question(s) from openAI
+            this.request.questions = await this.#getQuestions()
+            //  save to embedder to avoid continual openAI ping
+            //  emit event
+            this.emitter.emit('onNewContribution',this)
+            return this
+        }
+        async allow(_request){
+            //	this intends to evolve in near future, but is currently only a pass-through with some basic structure alluding to future functionality
+            return true
+        }
+        //  public getters/setters
+        get emitter(){
+            return this.#emitter
+        }
+        get questions(){
+            return this?.questions??[]
+        }
+        //  private functions
+        async #getQuestions(){
+            //  generate question(s) from openAI
+            const _response = await this.#openai.completions.create({
+                model: 'gpt-3.5-turbo-instruct',
+                prompt: 'give a list of 3 questions (markdown bullets) used to ' + (
+                    (!this.request.content)
+                    ?   `get more information about a ${this.request.impersonation} regarding its ${this.request.category}`
+                    :   `improve the following description of a ${this.request.impersonation} regarding its ${this.request.category}: "${this.request.content}"`
+                ),
+                temperature: 0.76,
+                max_tokens: 700,
+                top_p: 0.71,
+                best_of: 5,
+                frequency_penalty: 0.87,
+                presence_penalty: 0.54,
+            })
+            //  parse response
+            return _response.choices[0].text
+                .split('\n')    // Split into lines
+                .map(line => line.trim())   // Trim each line
+                .filter(line => line.startsWith('-'))   // Filter lines that start with '-'
+                .map(line => line.substring(1).trim())  // Remove the '-' and extra space
+        }
+    }
+
+    return Contribution
+}
 function extendClass_conversation(_originClass,_references) {
     class Conversation extends _originClass {
         constructor(_obj) {
             super(_obj)
-            console.log('Conversation class extended')
         }
         //  public functions
         findMessage(_message_id){
@@ -300,7 +329,6 @@ function extendClass_file(_originClass,_references) {
         #contents   //  utilized _only_ for text files
         constructor(_obj) {
             super(_obj)
-            console.log('File class extended')
         }
         //  public functions
         async init(){
@@ -316,29 +344,30 @@ function extendClass_file(_originClass,_references) {
 function extendClass_message(_originClass,_references) {
     class Message extends _originClass {
         #maxContextWindow = Math.min((process.env.OPENAI_MAX_CONTEXT_WINDOW || 2000), 5000)    //  default @2k chars, hard cap @5k
+        #message
+        #openai = _references?.openai
         constructor(_obj) {
             super(_obj)
-			console.log('Message class extended')
         }
         //  public functions
-        async init(){
-            if(!this.content && !this.files)
+        async init(_thread){
+            if(!this.content & !this.files)
                 throw new Error('No content provided for message')
             //  limit requirements for context window, generate file and attach to file_ids array
             if(this.content.length > this.#maxContextWindow) {
-                this.files.push( await this.#constructFile(this.content) )
-                this.content = `user posted content length greater than context window: find request in related`      //   default content points to file
+                //  TODO: generate file and attach to file_ids array
+                throw new Error('unimplemented')
+                const _file = await this.#constructFile(this.content)
+                this.files.push(_file)
+                this.content = `user posted content length greater than context window: find request in related file, file_id: ${_file.id}`      //   default content points to file
             }
-            const _message = (true)
-                ?   {
-                    type: 'text',
-                    content: this.ctx.request.body.message,
-                }
-                :   {}
-
-            this.message = await this.#getMessage_openAI(_message)
+            this.#message = await this.#getMessage_openAI(_thread)
+            console.log('init complete', this.message)
         }
         //  public getters/setters
+        get message(){
+            return this.#message
+        }
         get text(){
             switch (this.type) {
                 case 'chat':
@@ -361,18 +390,56 @@ function extendClass_message(_originClass,_references) {
          */
         async #constructFile(_file){
             //  construct file object
-            const _file = new (this.factory.file)({
+            const __file = new (this.factory.file)({
                 name: `file_message_${this.id}`,
                 type: 'text',
                 contents: _file,
             })
             //  save to embedder
             return {
-                name: _file.name,
-                type: _file.type,
-                contents: await _file.arrayBuffer(),
+                name: __file.name,
+                type: __file.type,
+                contents: await __file.arrayBuffer(),
             }
         }
+        #getMessage(){
+            return {
+                role: 'user',
+                content: this.content,
+       //         file: this.file,
+            }
+        }
+        /**
+         * add or update openai portion of `this.message`
+         * @private
+         * @param {string} _message 
+         * @returns {object} openai `message` object
+         */
+        async #getMessage_openAI(_thread){
+            //  files are attached at the message level under file_ids _array_, only content aside from text = [image_file]:image_file.file_id
+            return (!this.message?.id)
+            ?	await this.#openai.beta.threads.messages.create(	//	add
+                    _thread.id,
+                    this.#getMessage()
+                )
+            :	await this.#openai.beta.threads.messages.update(	//	update
+                    _thread.id,
+                    this.message.id,
+                    this.#getMessage()
+                )
+            /* TODO: code for message retrieval
+            switch (this.system) {
+                case 'openai_assistant':
+                    return await this.#openai.beta.threads.messages.retrieve(
+                        this.message.message.thread_id,
+                        this.message.id
+                    )
+                default:
+                    break
+            }
+            */
+        }
+        
     }
 
     return Message
@@ -381,6 +448,7 @@ function extendClass_message(_originClass,_references) {
 export {
 	extendClass_avatar,
 	extendClass_consent,
+    extendClass_contribution,
     extendClass_conversation,
     extendClass_file,
 	extendClass_message,

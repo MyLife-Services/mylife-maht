@@ -34,7 +34,7 @@
             "type": "string",
 			"default": "openai_assistant",
             "description": "message type",
-            "enum": ["openai_assistant", "openai_completion", "openai_finetue"]
+            "enum": ["openai_assistant", "openai_completion", "openai_finetune"]
         },
         "type": {
             "type": "string",
@@ -196,7 +196,7 @@
 		"message_openai_assistant": {
 			"name": "Message_openai_assistant",
 			"type": "object",
-			"required": ["content", "created_at", "id", "object", "role", "thread_id"],
+			"required": ["assistant_id", "content", "created_at", "id", "object", "role", "thread_id"],
 			"properties": {
 				"assistant_id": {
 					"type": "string",

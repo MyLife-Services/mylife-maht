@@ -139,6 +139,11 @@
 			"default": "avatar",
 			"description": "avatar nickname"
 		},
+		"object_being": {
+			"type": "string",
+			"default": "human",
+			"description": "proxy for object_id.core.being so that it is available to the \"impersonating\" avatar (although this descriptive could be anything at all that is objectified"
+		},
 		"object_id": {
 			"type": "string",
 			"format": "uuid",

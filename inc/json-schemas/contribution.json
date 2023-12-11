@@ -47,7 +47,9 @@
 				},
 				"category": {
 					"type": "string",
-					"description": "category of request"
+					"maxlength": 64,
+					"description": "category node of request",
+					"$comment": "openAI limit for metadata keys is 64 chars"
 				},
 				"content": {
 					"type": "string",
@@ -58,20 +60,57 @@
 					"format": "uuid",
 					"description": "uuid of Request"
 				},
+				"impersonation": {
+					"type": "string",
+					"default": "human",
+					"description": "core being of object that avatar is impersonating"
+				},
 				"mbr_id": {
 					"type": "string",
 					"description": "root member id: [sysName|id]",
 					"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+				},
+				"questions": {
+					"type": "array",
+					"maxItems": 3,
+					"items": {
+						"type": "string",
+						"description": "question to pose to Member to elicit response"
+					},
+					"description": "array of contribution question strings"
 				}
 			},
 			"additionalProperties": false,
 			"$comment": "establishing baseline should it need to become a full object, though unclear, leaning no"
 		},
+		"response": {
+			"type": "object",
+			"name": "ContributionResponse",
+			"required": ["being", "category", "content"],
+			"properties": {
+				"being": {
+					"type": "string",
+					"const": "contribution_response",
+					"description": "Being for contribution response in MyLife"
+				},
+				"category": {
+					"type": "string",
+					"maxlength": 64,
+					"description": "category node for response",
+					"$comment": "openAI limit for metadata keys is 64 chars"
+				},
+				"content": {
+					"type": "string",
+					"description": "The content proposed for the category node defined in request"
+				}
+			},
+			"additionalProperties": false
+		},
 		"status": {
 			"type": "string",
-			"default": "populated",
+			"default": "new",
 			"description": "contribution life-cycle phase",
-			"$comment": "populated, submitted, accepted, rejected, completed, archived"
+			"$comment": "new, populated, submitted, accepted, rejected, completed, archived"
 		},
 		"urgency": {
 			"type": "integer",
