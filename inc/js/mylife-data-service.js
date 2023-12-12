@@ -272,6 +272,14 @@ class Dataservices {
 	async pushItem(_data){
 		return await this.datamanager.pushItem(_data)
 	}
+	/**
+	 * Registers a new candidate to MyLife membership
+	 * @public
+	 * @param {object} _candidate { 'email': string, 'first_name': string, 'avatar_name': string }
+	 */
+	async registerCandidate(_candidate){
+		return await this.datamanager.registerCandidate(_candidate)
+	}
 }
 //	exports
 export default Dataservices

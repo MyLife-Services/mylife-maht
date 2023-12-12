@@ -11,11 +11,6 @@ async function about(ctx){
 	ctx.state.subtitle = `Learn more about MyLife and your superintelligent future`
 	await ctx.render('about')	//	about
 }
-async function board(ctx){
-	ctx.session.bid = ctx.params?.bid??0	//	set board member id for session info to use
-	ctx.state.title = `Board of Directors`
-	await ctx.render('board')	//	board
-}
 async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
@@ -62,6 +57,64 @@ async function register(ctx){
 	ctx.state.registerEmail = ctx.state.agent.email
 	await ctx.render('register')	//	register
 }
+async function signup(ctx) {
+    const { email, first_name, avatar_name } = ctx.request.body
+	const _signupPackage = {
+		'email': email,
+		'first_name': first_name,
+		'avatar_name': avatar_name,
+	}
+    // Basic Email Regex for validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+	//	validate package
+	if (Object.values(_signupPackage).some(value => !value)) {
+		const _missingFields = Object.entries(_signupPackage)
+			.filter(([key, value]) => !value)
+			.map(([key]) => key) // Extract just the key
+			.join(', ');
+		ctx.status = 400 // Bad Request
+		ctx.body = {
+			..._signupPackage,
+			success: false, 
+			message: `Missing required field(s): ${_missingFields}`,
+		};
+		return;
+	}
+    // Validate email
+    if (!emailRegex.test(email)) {
+        ctx.status = 400 // Bad Request
+        ctx.body = {
+			..._signupPackage,
+			success: false, 
+			message: 'Invalid email',
+		};
+        return;
+    }
+    // Validate first name and avatar name
+    if (!first_name || first_name.length < 3 || first_name.length > 64 ||
+        !avatar_name || avatar_name.length < 3 || avatar_name.length > 64) {
+        ctx.status = 400; // Bad Request
+        ctx.body = {
+			..._signupPackage,
+			success: false,
+			message: 'First name and avatar name must be between 3 and 64 characters',
+		};
+        return;
+    }
+    // save to `registration` container of Cosmos expressly for signup data
+	console.log(ctx.MyLife.registerCandidate({
+		..._signupPackage,
+		id: ctx.MyLife.newGuid,
+	}))
+	// create account and avatar
+    // If all validations pass and signup is successful
+    ctx.status = 200; // OK
+    ctx.body = {
+		..._signupPackage,
+        success: true,
+        message: 'Signup successful',
+    };
+}
 async function _upload(ctx){	//	post file via post
 	//	revive or create nascent AI-Asset Assistant, that will be used to process the file from validation => storage
 	//	ultimately, this may want to move up in the chain, but perhaps not, considering the need to process binary file content
@@ -78,10 +131,10 @@ export {
 	about,
 	challenge,
 	chat,
-	board,
 	index,
 	members,
 	register,
+	signup,
 	upload,
 	_upload,
 }

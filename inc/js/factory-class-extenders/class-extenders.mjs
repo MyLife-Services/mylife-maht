@@ -278,6 +278,9 @@ function extendClass_contribution(_originClass,_references) {
         }
         //  private functions
         async #getQuestions(){
+            if(process.env.DISABLE_OPENAI)
+                return ['What is the meaning of life?']
+            throw new Error('unimplemented')
             //  generate question(s) from openAI
             const _response = await this.#openai.completions.create({
                 model: 'gpt-3.5-turbo-instruct',

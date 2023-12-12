@@ -4,11 +4,13 @@ import { CosmosClient } from '@azure/cosmos'
 import Config from './mylife-datasource-config.js'
 import chalk from 'chalk'
 //	define class
+//	TODO: move some of critical data to module scope to obscure from public access
 class Datamanager {
 	//	specifications
 	#core = null
 	#coreId
 	#partitionId
+	#registration_container
 	//	constructor
 	constructor(_root) {
 		const oConfig=new Config(_root)
@@ -27,9 +29,11 @@ class Datamanager {
 			partitionKey: this.#partitionId,
 			populateQuotaInfo: true, // set this to true to include quota information in the response headers
 		}
-		//	assign database and container
+		//	assign database and containers
 		this.database=this.client.database(oConfig.db.id)
-		this.container=this.database.container(oConfig.db.container.id)
+		this.container=this.database.container(this.containerId)
+		console.log('oConfig.registration_db.container.id', oConfig.registration_db)
+		this.#registration_container=this.database.container(oConfig.registration_db.container.id)
 	}
 	//	init function
 	async init() {
@@ -84,6 +88,18 @@ class Datamanager {
 		const { resource: doc } = await this.container.items.upsert(_item)
 		return doc
 	}
+	/**
+	 * Registers a new candidate to MyLife membership
+	 * @public
+	 * @param {object} _candidate { 'email': string, 'first_name': string, 'avatar_name': string }
+	 */
+	async registerCandidate(_candidate){
+		const { resource: doc } = await this.#registration_container.items.upsert(_candidate)
+		return doc
+	}
+}
+//	exports
+export default Datamanager
 /*
 	async addItem(item) {
 		debug('Adding an item to the database')
@@ -122,6 +138,3 @@ const { resource: updated } = await container
         options = filter
     );
 */
-}
-//	exports
-export default Datamanager

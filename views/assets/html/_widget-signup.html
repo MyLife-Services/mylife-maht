@@ -1,0 +1,131 @@
+<div class="d-flex flex-column align-items-center" id="sign-up-container">
+    <h5>Claim Your MyLife Membership</h5>
+    <!-- Sign-Up Button -->
+    <button class="button button-join" id="joinMyLifeButton" data-alt-text="Not right now">Join MyLife Pilot Program</button>
+    <div id="sign-up-content">
+        <div class="content-transition visible" id="sign-up-teaser">
+            <p>MyLife is a nonprofit humanist member organization whose core mission is to provide <em>you</em> with the tools to digitally preserve what truly matters to you for now and for human posterity. By claiming your free account, you will receive:</p>
+            <ul>
+                <li>Access to Personalized AI-Assistants who help you:
+                    <ul>
+                        <li>Tell your story - imagine your own biographer!</li>
+                        <li>Vitally represent you</li>
+                        <li>photos, memories</li>
+                        <li>Protect your personal data</li>
+                        <li>Anything else you can imagine...</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <!-- Sign-Up Form (Initially Hidden) -->
+        <div id="sign-up-form">
+            <div class="content-transition fade" id="membership-enrollment-form">
+                Thank you for your interest in MyLife, we're certain you won't be disappointed. We require only the most basic information to get you started. We will never sell your data or use it for any purpose other than to provide you with the services or revenue streams you deserve. We are a nonprofit organization and once you are a member, you become MyLife's most important stakeholder.
+                <label for="emailInput">Email:</label>
+                <input type="email" id="emailInput" placeholder="Enter your email" required>
+                
+                <label for="humanNameInput">First Name or Nickname:</label>
+                <input type="text" id="humanNameInput" placeholder="Enter your first name or nickname" required>
+                
+                <label for="avatarNicknameInput" id="avatarNicknameLabel" style="display:none;">Avatar Nickname:</label>
+                <input type="text" id="avatarNicknameInput" placeholder="Avatar Nickname" style="display:none;" required>
+                
+                <button type="button" id="signupButton">Claim your membership today!</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--- page js -->
+<script>
+    const avatarNicknameInput = document.getElementById('avatarNicknameInput');
+    const avatarNicknameLabel = document.getElementById('avatarNicknameLabel');
+    const emailInput = document.getElementById('emailInput');
+    const humanNameInput = document.getElementById('humanNameInput');
+    const joinButton = document.getElementById('joinMyLifeButton');
+    const signupButton = document.getElementById('signupButton');
+    const signUpForm = document.getElementById('membership-enrollment-form'); 
+    const signUpTeaser = document.getElementById('sign-up-teaser');
+    
+    joinButton.addEventListener('click', function() {
+        if (signUpTeaser.classList.contains('visible')) {
+            // Fade out the teaser
+            signUpTeaser.classList.remove('visible');
+            signUpTeaser.classList.add('fade');
+            
+            // After fade-out, show the form
+            setTimeout(() => {
+                signUpForm.classList.add('visible');
+                signUpForm.classList.remove('fade');
+            }, 500); // Match the CSS transition duration
+        } else {
+            // Fade out the form
+            signUpForm.classList.remove('visible');
+            signUpForm.classList.add('fade');
+
+            // After fade-out, show the teaser
+            setTimeout(() => {
+                signUpTeaser.classList.add('visible');
+                signUpTeaser.classList.remove('fade');
+            }, 500); // Match the CSS transition duration
+        }
+        // Toggle the button text using data attribute
+        const altText = this.getAttribute('data-alt-text');
+        const currentText = this.innerText;
+        this.innerText = currentText === altText ? "Join MyLife Pilot Program" : altText;
+    });
+    //  page functions
+    function updateFormState() {
+        const emailValue = emailInput.value;
+        const humanNameValue = humanNameInput.value;
+
+        // Update the visibility and placeholder of Avatar AI Name field and label
+        if (emailValue && humanNameValue) {
+            avatarNicknameInput.style.display = 'block';
+            avatarNicknameLabel.style.display = 'block';
+            const firstName = humanNameValue.split(' ')[0];
+            avatarNicknameInput.placeholder = `${firstName}-AI`; // Set placeholder
+        } else {
+            avatarNicknameInput.style.display = 'none';
+            avatarNicknameLabel.style.display = 'none';
+        }
+
+        // Enable or disable the submit button based on form state
+        const avatarNicknameValue = avatarNicknameInput.value;
+        signupButton.disabled = !(emailValue && humanNameValue && avatarNicknameValue);
+    }
+
+    // Add event listeners to all three input fields
+    emailInput.addEventListener('input', updateFormState);
+    humanNameInput.addEventListener('input', updateFormState);
+    avatarNicknameInput.addEventListener('input', updateFormState);
+    signupButton.addEventListener('click', async function() {
+        const email = emailInput.value;
+        const firstName = humanNameInput.value;
+        const avatarName = avatarNicknameInput.value;
+        const formData = {
+            email: email,
+            first_name: firstName,
+            avatar_name: avatarName
+        };
+        try {
+            const response = await fetch('/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Signup successful:', result);
+                // Handle success (e.g., display a success message, redirect, etc.)
+            } else {
+                throw new Error('Signup failed');
+            }
+        } catch (error) {
+            console.error('Error during signup:', error);
+            // Handle errors (e.g., display error message)
+        }
+    });
+</script>

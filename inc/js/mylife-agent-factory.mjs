@@ -154,6 +154,14 @@ class AgentFactory extends EventEmitter{
 	isSession(_session){	//	when unavailable from general schemas
 		return (_session instanceof schemas.session)
 	}
+	/**
+	 * Registers a new candidate to MyLife membership
+	 * @public
+	 * @param {object} _candidate { 'email': string, 'first_name': string, 'avatar_name': string }
+	 */
+	async registerCandidate(_candidate){
+		return await this.dataservices.registerCandidate(_candidate)
+	}
 	//	getters/setters
 	get contribution(){
 		return this.schemas.contribution

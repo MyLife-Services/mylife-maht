@@ -158,6 +158,10 @@ class Member extends EventEmitter {
 	get name(){
 		return this.core.name
 	}
+	get newGuid(){
+		return this.globals.newGuid
+	
+	}
 	get personality(){
 		return this.#personalityKernal
 	}
@@ -267,6 +271,15 @@ class Organization extends Member {	//	form=organization
 class MyLife extends Organization {	//	form=server
 	constructor(_Factory){	//	no session presumed to exist
 		super(_Factory)
+	}
+	//	public functions
+	/**
+	 * Registers a new candidate to MyLife membership
+	 * @public
+	 * @param {object} _candidate { 'email': string, 'first_name': string, 'avatar_name': string }
+	 */
+	async registerCandidate(_candidate){
+		return await this.factory.registerCandidate(_candidate)
 	}
 }
 //	exports

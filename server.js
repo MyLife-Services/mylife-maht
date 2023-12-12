@@ -7,6 +7,7 @@ import Koa from 'koa'
 import { koaBody } from 'koa-body'
 import render from 'koa-ejs'
 import session from 'koa-generic-session'
+import serve from 'koa-static'
 //	import Router from 'koa-router'
 //	misc
 import chalk from 'chalk'
@@ -50,6 +51,7 @@ app.use(koaBody({
         maxFileSize: parseInt(process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760, // 10MB in bytes
     },
 }))
+	.use(serve(path.join(__dirname, 'views', 'assets')))
 	.use(
 		session(	//	session initialization
 			{
