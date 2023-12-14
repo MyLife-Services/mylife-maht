@@ -84,6 +84,8 @@ app.use(koaBody({
 			)
 			await ctx.session.MemberSession
 				.init()
+			//	MemberSession-external variables
+			ctx.session.signup = false
 			console.log(chalk.bgBlue('created-member-session', chalk.bgRedBright(ctx.session.MemberSession.threadId)))
 		}
 		ctx.state.locked = ctx.session.MemberSession.locked

@@ -13,6 +13,7 @@ function connectRoutes(_Menu){
 	_Router.get('/members/:mid', members)
 	_Router.get('/members/upload', upload)
 	_Router.get('/register', register)
+	_Router.get('/signup', status_signup)
 	_Router.post('/', chat)
 	_Router.post('/challenge', challenge)
 	_Router.post('/members/upload', _upload)
@@ -42,6 +43,14 @@ async function _memberValidate(ctx, next) {
  */
 function status(ctx){	//	currently returns "locked" status, could send object with more info
 	ctx.body = !ctx.state?.locked??true
+}
+/**
+ * Returns the member session signup status
+ * @param {object} ctx Koa context object
+ * @returns {boolean} session user has signed up (t/f)
+ */
+function status_signup(ctx){
+	ctx.body = ctx.session.signup
 }
 // exports
 export default function init(_Menu) {

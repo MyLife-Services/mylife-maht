@@ -66,6 +66,16 @@ async function signup(ctx) {
 	}
     // Basic Email Regex for validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+	//	validate session signup
+	if (ctx.session.signup) {
+		ctx.status = 400 // Bad Request
+		ctx.body = {
+			..._signupPackage,
+			success: false,
+			message: 'session user already signed up',
+		}
+		return
+	}
 	//	validate package
 	if (Object.values(_signupPackage).some(value => !value)) {
 		const _missingFields = Object.entries(_signupPackage)
@@ -77,8 +87,8 @@ async function signup(ctx) {
 			..._signupPackage,
 			success: false, 
 			message: `Missing required field(s): ${_missingFields}`,
-		};
-		return;
+		}
+		return
 	}
     // Validate email
     if (!emailRegex.test(email)) {
@@ -87,33 +97,34 @@ async function signup(ctx) {
 			..._signupPackage,
 			success: false, 
 			message: 'Invalid email',
-		};
-        return;
+		}
+        return
     }
     // Validate first name and avatar name
     if (!first_name || first_name.length < 3 || first_name.length > 64 ||
         !avatar_name || avatar_name.length < 3 || avatar_name.length > 64) {
-        ctx.status = 400; // Bad Request
+        ctx.status = 400 // Bad Request
         ctx.body = {
 			..._signupPackage,
 			success: false,
 			message: 'First name and avatar name must be between 3 and 64 characters',
-		};
-        return;
+		}
+        return
     }
     // save to `registration` container of Cosmos expressly for signup data
-	console.log(ctx.MyLife.registerCandidate({
+	console.log(await ctx.MyLife.registerCandidate({
 		..._signupPackage,
 		id: ctx.MyLife.newGuid,
 	}))
-	// create account and avatar
+	// TODO: create account and avatar
     // If all validations pass and signup is successful
-    ctx.status = 200; // OK
+	ctx.session.signup = true
+    ctx.status = 200 // OK
     ctx.body = {
 		..._signupPackage,
         success: true,
         message: 'Signup successful',
-    };
+    }
 }
 async function _upload(ctx){	//	post file via post
 	//	revive or create nascent AI-Asset Assistant, that will be used to process the file from validation => storage
