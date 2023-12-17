@@ -11,6 +11,20 @@ async function about(ctx){
 	ctx.state.subtitle = `Learn more about MyLife and your superintelligent future`
 	await ctx.render('about')	//	about
 }
+async function avatarListing(ctx){
+	ctx.state.title = `Avatars for ${ ctx.state.member.memberName }`
+	ctx.state.avatars = ctx.state.member.avatars
+		.map(
+			_avatar => ({
+				id: _avatar.id,
+				categories: _avatar.categories,
+				description: _avatar.description,
+				name: _avatar?.nickname??_avatar?.names?.[0]??_avatar.name,
+				purpose: _avatar.purpose,
+			})
+		)
+	await ctx.render('avatars')	//	avatars
+}
 async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
@@ -28,7 +42,7 @@ async function members(ctx){
 	ctx.state.mid = ctx.params?.mid??false	//	member id
 	ctx.state.title = `Your MyLife Digital Home`
 	switch (true) {
-		case !ctx.state.mid:
+		case !ctx.state.mid && ctx.state.locked:
 			//	listing comes from state.hostedMembers
 			ctx.state.hostedMembers = ctx.hostedMembers
 				.sort(
@@ -140,6 +154,7 @@ async function upload(ctx){	//	upload display widget/for list and/or action(s)
 // exports
 export {
 	about,
+	avatarListing,
 	challenge,
 	chat,
 	index,
