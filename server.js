@@ -70,16 +70,21 @@ app.use(koaBody({
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
-			ctx.session.MemberSession = await _factory.getMyLifeSession(
-				await new AgentFactory().init()
-			)	//	create default locked session
+			ctx.session.MemberSession = await _factory.getMyLifeSession()	//	create default locked session upon first request
 			//	assign listeners to session
-			ctx.session.MemberSession.on( 'member-unlocked', 
-				async (ctx) => {}
+			ctx.session.MemberSession
+				.on( 'session-init', async (_session)=>{
+					console.log(chalk.bgBlackBright('session-init'), _session.core)
+				}
 			)
-			ctx.session.MemberSession.on( 'onInit-member-initialize',
-				async (ctx) => {
-					console.log('listener:', ctx.session.MemberSession)
+			ctx.session.MemberSession
+				.on( 'member-unlocked', async (_mbr_id)=>{
+					console.log(chalk.bgBlackBright('member-unlocked'), _mbr_id)
+				}
+			)
+			ctx.session.MemberSession
+				.on( 'onInit-member-initialize', async (_member)=>{
+					console.log(chalk.bgBlackBright('onInit-member-initialize'), _member)
 				}
 			)
 			await ctx.session.MemberSession

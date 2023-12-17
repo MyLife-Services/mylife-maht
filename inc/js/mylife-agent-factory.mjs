@@ -3,6 +3,7 @@ import OpenAI from 'openai'
 import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
+import util from 'util'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import Globals from './globals.mjs'
 import Dataservices from './mylife-data-service.js'
@@ -87,13 +88,13 @@ class AgentFactory extends EventEmitter{
 	}
 	//	public functions
 	async init(_mbr_id){
-		this.emit('onInitBegin',this.mbr_id_id)
 		if(_mbr_id) this.#mbr_id = _mbr_id
-		this.#dataservices = 
-			(this.mbr_id!==oDataservices.mbr_id)
-			?	await new Dataservices(this.mbr_id).init()
-			:	oDataservices
-		this.emit('onInitEnd',this.mbr_id_id)
+		if(this.mbr_id===oDataservices.mbr_id){
+			this.#dataservices = oDataservices
+		} else {
+			this.#dataservices = new Dataservices(this.mbr_id)
+			await this.#dataservices.init()
+		}
 		return this
 	}
 	async challengeAccess(_passphrase){
@@ -111,8 +112,11 @@ class AgentFactory extends EventEmitter{
 				:	await this.#addAvatar( this.core )//_avatarProperties)	//	add avatar to Cosmos
 		//	enact, instantiate and activate avatar, all under **factory** purview
 		const _Avatar = new (schemas.avatar)(_avatarProperties, this)
+		/* assign listeners */
+		_Avatar.emitter.on('avatar-init-end',_avatar=>{
+			this.emit('avatar-init-end',_avatar,mBytes(_avatar))
+		})
 		await _Avatar.init()
-		this.emit('avatar-activated',_Avatar)
 		return _Avatar
 	}
 	async getAvatars(_object_id=this.mbr_id_id){
@@ -130,9 +134,11 @@ class AgentFactory extends EventEmitter{
 			.init()
 		return _r
 	}
-	async getMyLifeSession(){
+	async getMyLifeSession(_factory=this){
 		//	default is session based around default dataservices [Maht entertains guests]
-		return await new (schemas.session)(this).init()
+		return await new (schemas.session)(
+			await new AgentFactory().init()
+		).init()
 	}
 	async getThread(){
 		return await openai.beta.threads.create()
@@ -310,6 +316,9 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 					return null
 			}
 	}
+}
+function mBytes(_object){
+	return util.inspect(_object).length
 }
 function compileClass(_className, classCode) {
 	// Create a global vm context and run the class code in it

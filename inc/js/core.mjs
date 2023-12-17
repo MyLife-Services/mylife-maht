@@ -5,6 +5,7 @@ import chalk from 'chalk'
 //	import { _ } from 'ajv'
 //	server-specific imports
 import initRouter from './routes.js'
+import { _ } from 'ajv'
 // config
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -31,21 +32,29 @@ class Member extends EventEmitter {
 	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
 	#personalityKernal
-	constructor(_Factory,_Session){
+	constructor(_Factory){
 		super()
 		this.#personalityKernal = openai	//	will be covered in avatars
-		this.#factory = (_Session?.factory)?_Session.factory:_Factory	//	Factory configured for this user or Q
+		this.#factory = _Factory
 		this.factory.on('avatar-activated',_avatar=>{
-			console.log(chalk.grey('core::constructor::avatar-activated_trigger'),chalk.bgGray(_avatar.id))
+			console.log(chalk.grey('Member::constructor::avatar-activated_trigger'), chalk.bgGray(_avatar.id))
 		})
 	}
-	//	initialize
+	/**
+	 * 
+	 * @returns {Promise} Promise resolves to this Member class instantiation
+	 */
 	async init(){
 		this.#avatars = await this.factory.getAvatars()	//	defaults to `this.core` which factory owns; **note**: getAvatars() normally accepts the object dna
-		if(!this.#avatars.length) console.log(chalk.red('no avatars found'))	//	create avatar
-		this.avatar = await this.factory.getAvatar(undefined,(this?.avatars[0]??this.core))	//	activate avatar
-		//	console.log('#avatar',this.#avatar.avatar)	//	**note**: avatar in this getter refers to the inspect(true) of the avatar
-		//	if(!this.testEmitters()) console.log(chalk.red('emitter test failed'))
+		if(!this.#avatars.length)
+			console.log(chalk.red('no avatars found'))	//	create avatar
+		this.avatar = await this.factory
+			.getAvatar(undefined,(this?.avatars[0]??this.core))
+		/* assign avatar listeners 
+		this.avatar.on('avatar-init-end',(_avatar,bytes)=>{
+			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
+			console.log(_avatar)
+		})*/
 		return this
 	}
 	//	getter/setter functions

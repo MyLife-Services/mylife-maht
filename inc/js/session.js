@@ -14,6 +14,9 @@ class MylifeMemberSession extends EventEmitter {
 		super()
 		this.#factory = _factory
 		this.#mbr_id = this.factory.mbr_id
+		this.factory.on('member-unlocked',_mbr_id=>{
+			console.log(chalk.grey('session::constructor::member-unlocked_trigger'),chalk.bgGray(_mbr_id))
+		})
 		this.factory.on('avatar-activated',_avatar=>{
 			console.log(chalk.grey('session::constructor::avatar-activated_trigger'),chalk.bgGray(_avatar.id))
 		})
@@ -25,12 +28,13 @@ class MylifeMemberSession extends EventEmitter {
 				console.log(chalk.bgRed('cannot initialize, member locked'))
 		}
 		if(this.mbr_id !== _mbr_id) {	//	only create if not already created or alternate Member
-			this.emit('onInit-member-initialize')
 			this.#mbr_id = _mbr_id
 			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
 			await this.#createThread()
 			this.#Member = await this.factory.getMyLifeMember()
 			//	update conversation info (name)
+			this.name = this.#assignName()
+			this.emit('onInit-member-initialize', this.#Member.memberName)
 			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(this.#Member.memberName )))
 		}
 		return this
@@ -76,10 +80,11 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	async challengeAccess(_passphrase){
 		if(this.locked){
-			if(!this.challenge_id) return false	//	no challenge, no access
+			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
 			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
 			//	init member
 			this.#locked = false
+			this.emit('member-unlocked', this.challenge_id)
 			await this.init(this.challenge_id)
 		}
 		return !this.locked
@@ -95,6 +100,9 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	get conversation(){
 		return this.#conversation
+	}
+	get core(){
+		return this.factory.core
 	}
 	get factory(){
 		return this.#factory

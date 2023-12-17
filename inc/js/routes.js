@@ -1,24 +1,32 @@
 // imports
 import Router from 'koa-router'
-import { challenge, chat, index, members, register, signup, upload, _upload } from './functions.mjs'
+import { avatarListing, challenge, chat, index, members, register, signup, upload, _upload } from './functions.mjs'
 // variables
 const _Router = new Router()
+const _memberRouter = new Router()
+//	root routes
+_Router.get('/', index)
+_Router.get('/status', status)
+_Router.get('/members', members)
+_Router.get('/members/:mid', members)
+_Router.get('/register', register)
+_Router.get('/signup', status_signup)
+_Router.post('/', chat)
+_Router.post('/challenge', challenge)
+_Router.post('/signup', signup)
+//	members routes
+_memberRouter.use(_memberValidate)
+_memberRouter.get('/upload', upload)
+_memberRouter.post('/upload', _upload)
+_memberRouter.get('/:mid/avatars', avatarListing)
+// Mount the _memberRouter on the main router at the '/members' path
+_Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
+/**
+ * Connects the routes to the router
+ * @param {object} _Menu Menu object
+ * @returns {object} Koa router object
+ */
 function connectRoutes(_Menu){
-	//	validation
-	_Router.all('/member', _memberValidate)
-	//	*routes
-	_Router.get('/', index)
-	_Router.get('/status', status)
-	_Router.get('/members', members)
-	_Router.get('/members/:mid', members)
-	_Router.get('/members/upload', upload)
-	_Router.get('/register', register)
-	_Router.get('/signup', status_signup)
-	_Router.post('/', chat)
-	_Router.post('/challenge', challenge)
-	_Router.post('/members/upload', _upload)
-	_Router.post('/signup', signup)
-
 	return _Router
 }
 /**
@@ -28,21 +36,20 @@ function connectRoutes(_Menu){
  * @returns {function} Koa next function
  */
 async function _memberValidate(ctx, next) {
-	// validation logic
-	if(!status(ctx)) {
-		ctx.status = 401 // Unauthorized
-		ctx.body = "Unauthorized access to member route."
-		return
-	}
-	return next()
+    // validation logic
+    if (ctx.state.locked) {
+        ctx.redirect('/members') // Redirect to /members if not authorized
+        return
+    }
+    await next() // Proceed to the next middleware if authorized
 }
 /**
  * Returns the member session logged in status
  * @param {object} ctx Koa context object
  * @returns {boolean} false if member session is locked, true if registered and unlocked
  */
-function status(ctx){	//	currently returns "locked" status, could send object with more info
-	ctx.body = !ctx.state?.locked??true
+function status(ctx){	//	currently returns reverse "locked" status, could send object with more info
+	ctx.body = !ctx.state.locked
 }
 /**
  * Returns the member session signup status
