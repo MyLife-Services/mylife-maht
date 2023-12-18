@@ -9,7 +9,9 @@
     data-require-login="false"
     id="sign-up-widget"
 >
-    <% include _widget-signup %>
+    <% if (locked) { %>
+        <% include _widget-signup %>
+    <% } %>
 </div>
 <div
     class="mylife-widget contributions"

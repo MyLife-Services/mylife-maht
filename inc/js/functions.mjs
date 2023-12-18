@@ -33,6 +33,9 @@ async function chat(ctx){
 	const _response = await ctx.state.avatar.chatRequest(ctx)
 	ctx.body = { 'answer': _response }
 }
+async function contributions(ctx){
+	ctx.body = ctx.state.contributions
+}
 async function index(ctx){
 	ctx.state.title = `Meet ${ ctx.state.member.agentName }`
 	ctx.state.subtitle = `${ctx.state.member.agentDescription}`
@@ -156,6 +159,7 @@ export {
 	avatarListing,
 	challenge,
 	chat,
+	contributions,
 	index,
 	members,
 	register,

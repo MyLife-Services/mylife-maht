@@ -1,4 +1,10 @@
-<h5>Evolve Your Objects</h5>
+<div class="widget-header">Questions for <% avatar.name %></div>
 <ul id="contributions-list">
-    <!-- Contributions will be listed here -->
+    <% if(contributions && contributions.length > 0) { %>
+        <% contributions.forEach(contribution => { %>
+            <li><%= contribution %></li>
+        <% }) %>
+    <% } else { %>
+        <li>No contributions available.</li>
+    <% } %>
 </ul>

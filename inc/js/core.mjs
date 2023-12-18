@@ -131,6 +131,13 @@ class Member extends EventEmitter {
 	set consent(_consent){
 		this.factory.consents.unshift(_consent.id)
 	}
+	/**
+	 * Gets Member Contributions, i.e., questions that need posing to Member
+	 * @returns {array} returns array of Member Contributions
+	 */
+	get contributions(){
+		return this.#avatar.contributions
+	}
 	get core(){
 		return this.factory.core
 	}
@@ -181,7 +188,6 @@ class Member extends EventEmitter {
 	}
 	get newGuid(){
 		return this.globals.newGuid
-	
 	}
 	get personality(){
 		return this.#personalityKernal

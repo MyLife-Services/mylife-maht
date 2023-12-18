@@ -271,7 +271,7 @@ function extendClass_contribution(_originClass,_references) {
             //	this intends to evolve in near future, but is currently only a pass-through with some basic structure alluding to future functionality
             return true
         }
-        //  public getters/setters
+        /*  getters/setters */
         get emitter(){
             return this.#emitter
         }

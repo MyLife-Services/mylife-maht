@@ -43,8 +43,32 @@
 		},
 		"request": {
 			"type": "object",
-			"name": "ContributionRequest",
-			"required": ["being", "category", "content", "id", "mbr_id"],
+			"$ref": "/$defs/contribution_request",
+			"description": "JSON object structure for contribution request"
+		},
+		"response": {
+			"type": "object",
+			"$ref": "/$defs/contribution_response",
+			"description": "JSON object structure for contribution response"
+		},
+		"status": {
+			"type": "string",
+			"default": "new",
+			"description": "contribution life-cycle phase",
+			"$comment": "new, populated, submitted, accepted, rejected, completed, archived"
+		},
+		"urgency": {
+			"type": "integer",
+			"default": 0,
+			"description": "urgency of contribution (0-100); defaults to neutral urgency"
+		}
+	},
+	"additionalProperties": false,
+	"$defs": {
+		"contribution_request": {
+			"type": "object",
+			"name": "Contribution_request",
+			"required": ["being", "category", "content", "id", "impersonation", "mbr_id", "phase", "questions"],
 			"properties": {
 				"being": {
 					"type": "string",
@@ -88,17 +112,18 @@
 					"maxItems": 3,
 					"items": {
 						"type": "string",
+						"maxlength": 256,
 						"description": "question to pose to Member to elicit response"
 					},
 					"description": "array of contribution question strings"
 				}
 			},
 			"additionalProperties": false,
-			"$comment": "establishing baseline should it need to become a full object, though unclear, leaning no"
+			"description": "a `Contribution_request` holds the information required to effectively request a contribution from a Member regarding the underlying datacore"
 		},
-		"response": {
+		"contribution_response": {
 			"type": "object",
-			"name": "ContributionResponse",
+			"name": "Contribution_response",
 			"required": ["being", "category", "content"],
 			"properties": {
 				"being": {
@@ -117,19 +142,8 @@
 					"description": "The content proposed for the category node defined in request"
 				}
 			},
-			"additionalProperties": false
-		},
-		"status": {
-			"type": "string",
-			"default": "new",
-			"description": "contribution life-cycle phase",
-			"$comment": "new, populated, submitted, accepted, rejected, completed, archived"
-		},
-		"urgency": {
-			"type": "integer",
-			"default": 0,
-			"description": "urgency of contribution (0-100); defaults to neutral urgency"
+			"additionalProperties": false,
+			"description": "a `Contribution_response` carries the response from the Member about the underlying datacore"
 		}
-	},
-	"additionalProperties": false
+	}
 }
