@@ -7,33 +7,39 @@ function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
         #emitter = new EventEmitter()
         #evolver
+        #factory
         #openai = _references?.openai
-        #factory = _references?.factory
+        #proxyBeing = 'human'
         constructor(_obj,_factory) {
             super(_obj) //  should include contributions from db or from class schema
+            if(_obj.proxyBeing)
+                this.#proxyBeing = _obj.proxyBeing
             this.#factory = _factory
         }
         async init(){
-            this.emitter.emit('onInitBegin')
+            /* create evolver */
             this.#evolver = new EvolutionAssistant(this)
-            this.#evolver.on('onNewContribution',(_contribution)=>{
-                this.#onNewContribution(_contribution)
-            })
+            /* assign evolver listeners */
+            this.#evolver.on(
+                'on-new-contribution',
+                _contribution=>{this.emitter.emit('on-new-contribution', _contribution) }
+            )
+            /* init evolver */
             await this.#evolver.init()
-            this.emitter.emit('onInitEnd',this.core)
+            this.emitter.emit('avatar-init-end',this)
             return this
         }
         //  public getters/setters
         get avatar(){
             return this.inspect(true)
         }
-        get contributions(){   //  overloaded for clarity only
+        get being(){    //  avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations
+            return this.#proxyBeing
+        }
+        get contributions(){
             return this.#evolver.contributions
         }
-        get ctx(){
-            return this.factory.ctx
-        }
-        get emitter(){
+        get emitter(){  //  allows parent to squeeze out an emitter
             return this.#emitter
         }
         get factory(){
@@ -51,7 +57,6 @@ function extendClass_avatar(_originClass,_references) {
             )
         }
         async chatRequest(_ctx){
-            if(_ctx) this.factory.ctx = _ctx    //  always update reference to current request
             if(!this.ctx) {
                 throw new Error('No context provided in factory')
             }
@@ -224,11 +229,6 @@ function extendClass_avatar(_originClass,_references) {
                 { assistant_id: this.assistant.id }
             )
         }
-        //  private functions
-        //  emitter management
-        #onNewContribution(_contribution){
-        //  console.log('contribution test',this.#evolver.contributions)
-        }
     }
     console.log('Avatar class extended')
     return Avatar
@@ -250,19 +250,21 @@ function extendClass_consent(_originClass,_references) {
 function extendClass_contribution(_originClass,_references) {
     class Contribution extends _originClass {
         #emitter = new EventEmitter()
+        #factory
         #openai = _references?.openai
         constructor(_obj) {
             super(_obj)
         }
         //  public functions
-        async init(){
+        async init(_factory){
+            this.#factory = _factory
             //  self-validation
             this.status = 'populated'
             //  generate question(s) from openAI
-            this.request.questions = await this.#getQuestions()
+            this.request.questions = await mGetQuestions(this, this.openai)
             //  save to embedder to avoid continual openAI ping
             //  emit event
-            this.emitter.emit('onNewContribution',this)
+            this.emitter.emit('on-new-contribution',this)
             return this
         }
         async allow(_request){
@@ -273,36 +275,20 @@ function extendClass_contribution(_originClass,_references) {
         get emitter(){
             return this.#emitter
         }
+        /**
+         * Get the factory instance.
+         * @returns {object} MyLife Factory instance
+         */
+        get factory(){
+            return this.#factory
+        }
+        get openai(){
+            return this.#openai
+        }
         get questions(){
             return this?.questions??[]
         }
-        //  private functions
-        async #getQuestions(){
-            if(process.env.DISABLE_OPENAI)
-                return ['What is the meaning of life?']
-            throw new Error('unimplemented')
-            //  generate question(s) from openAI
-            const _response = await this.#openai.completions.create({
-                model: 'gpt-3.5-turbo-instruct',
-                prompt: 'give a list of 3 questions (markdown bullets) used to ' + (
-                    (!this.request.content)
-                    ?   `get more information about a ${this.request.impersonation} regarding its ${this.request.category}`
-                    :   `improve the following description of a ${this.request.impersonation} regarding its ${this.request.category}: "${this.request.content}"`
-                ),
-                temperature: 0.76,
-                max_tokens: 700,
-                top_p: 0.71,
-                best_of: 5,
-                frequency_penalty: 0.87,
-                presence_penalty: 0.54,
-            })
-            //  parse response
-            return _response.choices[0].text
-                .split('\n')    // Split into lines
-                .map(line => line.trim())   // Trim each line
-                .filter(line => line.startsWith('-'))   // Filter lines that start with '-'
-                .map(line => line.substring(1).trim())  // Remove the '-' and extra space
-        }
+        /* private functions */
     }
 
     return Contribution
@@ -447,7 +433,47 @@ function extendClass_message(_originClass,_references) {
 
     return Message
 }
-// exports
+/* modular functions */
+async function mGetQuestions(_contribution, _openai){
+    /*  get questions from openAI
+        -   if no content, generate questions for description
+        -   if content, generate questions with intent to nuance content
+    */
+   const _contribution_request = _contribution.request
+    if(!_contribution_request?.content){ //  null nodes render to false
+        return await _contribution.factory.dataservices.getContributionQuestions(
+            _contribution_request.impersonation,
+            _contribution_request.category,
+            _contribution.factory.MyLife_mbr_id,
+        )
+    }
+    if(process.env.DISABLE_OPENAI)
+        return ['What is the meaning of life?']
+    //  attempt to pull from Cosmos, containerId: 'seeds'
+
+    //  generate question(s) from openAI
+    const _response = await _evoAgent.openai.completions.create({
+        model: 'gpt-3.5-turbo-instruct',
+        prompt: 'give a list of 3 questions (markdown bullets) used to ' + (
+            (!this.request.content)
+            ?   `get more information about a ${this.request.impersonation} regarding its ${this.request.category}`
+            :   `improve the following description of a ${this.request.impersonation} regarding its ${this.request.category}: "${this.request.content}"`
+        ),
+        temperature: 0.76,
+        max_tokens: 700,
+        top_p: 0.71,
+        best_of: 5,
+        frequency_penalty: 0.87,
+        presence_penalty: 0.54,
+    })
+    //  parse response
+    return _response.choices[0].text
+        .split('\n')    // Split into lines
+        .map(line => line.trim())   // Trim each line
+        .filter(line => line.startsWith('-'))   // Filter lines that start with '-'
+        .map(line => line.substring(1).trim())  // Remove the '-' and extra space
+}
+/* exports */
 export {
 	extendClass_avatar,
 	extendClass_consent,

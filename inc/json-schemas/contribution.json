@@ -1,7 +1,7 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/contribution.json",
-	"required": ["avatar_id", "being", "context", "id", "mbr_id", "purpose", "status", "urgency"],
+	"required": ["avatar_id", "being", "context", "id", "mbr_id", "phase", "purpose", "status", "urgency"],
 	"type": "object",
 	"name": "Contribution",
 	"properties": {
@@ -29,6 +29,12 @@
 			"type": "string",
 			"description": "root member id: [sysName|id]",
 			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"phase": {
+			"type": "string",
+			"default": "create",
+			"enum": ["create", "init", "request", "response", "complete", "archive"],
+			"description": "life-cycle phase of parent evo-agent"
 		},
 		"purpose": {
 			"type": "string",
@@ -69,6 +75,13 @@
 					"type": "string",
 					"description": "root member id: [sysName|id]",
 					"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+				},
+				"phase": {
+					"type": "string",
+					"default": "create",
+					"enum": ["create", "init", "request", "response", "complete", "archive"],
+					"description": "life-cycle phase of parent evo-agent",
+					"$comment": "proxy for containing object phase property"
 				},
 				"questions": {
 					"type": "array",

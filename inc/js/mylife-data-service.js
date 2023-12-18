@@ -47,7 +47,7 @@ class Dataservices {
      * database queries within this service.
      * @private
      */
-    #rootSelect = 'u.id, u.mbr_id, u.parent_id, u.being'
+    #rootSelect = ['id', 'mbr_id', 'parent_id', 'being']
     /**
      * Constructor for Dataservices class.
      * @param {string} _mbr_id - Member ID to partition data.
@@ -63,8 +63,8 @@ class Dataservices {
      * @returns {Dataservices} The instance of Dataservices.
      */
 	async init(){
-		this.#Datamanager=await new Datamanager(this.#partitionId)
-			.init()	//	init datamanager
+		this.#Datamanager = new Datamanager(this.#partitionId)
+		await this.#Datamanager.init()	//	init datamanager
 		const _excludeProperties = { '_none':true }	//	populate if exclusions are required
 		const _core = Object.entries(this.datamanager.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
@@ -129,7 +129,7 @@ class Dataservices {
 	 * @returns {Promise<Object>} The avatar corresponding to the provided ID.
 	 */
 	async getAvatar(_avatar_id) {
-		return await this.getItems('avatar', '*', [{ name: '@id', value: _avatar_id }])
+		return await this.getItems('avatar', undefined, [{ name: '@id', value: _avatar_id }])
 	}
 	/**
 	 * Retrieves all avatars associated with a given parent ID.
@@ -140,7 +140,7 @@ class Dataservices {
 	 * @returns {Promise<Array>} An array of avatars associated with the given parent ID.
 	 */
 	async getAvatars(_object_id) {
-		return await this.getItems('avatar', '*', [{ name: '@object_id', value: _object_id }])
+		return await this.getItems('avatar', undefined, [{ name: '@object_id', value: _object_id }])
 	}
 	/**
 	 * Retrieves the first chat associated with a given parent ID.
@@ -163,7 +163,7 @@ class Dataservices {
 	 * @returns {Promise<Array>} An array of chat conversations associated with the given parent ID.
 	 */
 	async getChats(parent_id) {
-		let _chats = await this.getItems('conversation', 'u.exchanges', [{ name: '@parent_id', value: parent_id }])
+		let _chats = await this.getItems('conversation', ['exchanges'], [{ name: '@parent_id', value: parent_id }])
 		if (!_chats.length) {
 			_chats = await this.pushItem({
 				mbr_id: this.mbr_id,
@@ -174,6 +174,27 @@ class Dataservices {
 			})
 		}
 		return _chats
+	}
+	/**
+	 * Retrieves all seed contribution questions associated with being & category.
+	 * @async
+	 * @public
+	 * @param {string} _being - The type of underlying datacore.
+	 * @param {string} _category - The category of seed questions to retrieve.
+	 * @returns {Promise<Object>} The item corresponding to the provided ID.
+	 */
+	async getContributionQuestions(_being, _category, _mbr_id, _maxNumber=3){
+		return (await this.getItems(
+			_being,
+			['questions'],
+			[{ name: '@category', value: _category }],
+			'contribution_responses',
+			_mbr_id
+		))
+			.map(_ => (_.questions))
+			.reduce((acc, val) => acc.concat(val), [])
+			.sort(() => Math.random() - Math.random())
+			.slice(0, _maxNumber)
 	}
 	/**
 	 * Retrieves a specific item by its ID.
@@ -190,24 +211,27 @@ class Dataservices {
 	 * @async
 	 * @public
 	 * @param {string} _being - The type of items to retrieve.
-	 * @param {string} [_selects='*'] - The fields to select, defaults to all (*).
+	 * @param {array} [_selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [_paramsArray=[]] - Additional query parameters.
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
-	async getItems(_being,_selects='*',_paramsArray=[]) {	//	_params is array of objects { name: '${varName}' }
+	async getItems(_being, _selects=[], _paramsArray=[], _container='members') {	//	_params is array of objects { name: '${varName}' }
+		const _prefix = 'u'
 		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
-		if(_selects!='*') _selects = this.#rootSelect+', '+_selects
-		let _query = `select ${_selects} from members u`	//	@being is required
+		const _selectFields = (_selects.length)
+			?	[...this.#rootSelect, ..._selects].map(_=>(`${_prefix}.`+_)).join(',')
+			:	'*'
+		let _query = `select ${_selectFields} from ${_container} ${_prefix}`	//	@being is required
 		_paramsArray	//	iterate through parameters
 			.forEach(_param=>{	//	param is an object of name, value pairs
 				_query += (_param.name==='@being')
-					?	` where u.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
-					:	` and u.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
+					?	` where ${_prefix}.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
+					:	` and ${_prefix}.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
 		})
-		return await this.datamanager.getItems({
-			query: _query,
-			parameters: _paramsArray
-		})
+		return await this.datamanager.getItems(
+			{ query: _query, parameters: _paramsArray },
+			_container,
+		)
 	}
 	/**
 	 * Retrieves local records based on a query.
@@ -275,7 +299,7 @@ class Dataservices {
 	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'first_name': string, 'avatar_name': string }
+	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
 	async registerCandidate(_candidate){
 		return await this.datamanager.registerCandidate(_candidate)

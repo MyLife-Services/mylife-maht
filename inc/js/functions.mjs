@@ -72,11 +72,11 @@ async function register(ctx){
 	await ctx.render('register')	//	register
 }
 async function signup(ctx) {
-    const { email, first_name, avatar_name } = ctx.request.body
+    const { email, humanName, avatarNickname } = ctx.request.body
 	const _signupPackage = {
 		'email': email,
-		'first_name': first_name,
-		'avatar_name': avatar_name,
+		'humanName': humanName,
+		'avatarNickname': avatarNickname,
 	}
     // Basic Email Regex for validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -88,14 +88,13 @@ async function signup(ctx) {
 			success: false,
 			message: 'session user already signed up',
 		}
-		return
 	}
 	//	validate package
 	if (Object.values(_signupPackage).some(value => !value)) {
 		const _missingFields = Object.entries(_signupPackage)
 			.filter(([key, value]) => !value)
 			.map(([key]) => key) // Extract just the key
-			.join(', ');
+			.join(',');
 		ctx.status = 400 // Bad Request
 		ctx.body = {
 			..._signupPackage,
@@ -110,18 +109,18 @@ async function signup(ctx) {
         ctx.body = {
 			..._signupPackage,
 			success: false, 
-			message: 'Invalid email',
+			message: 'Invalid input: emailInput',
 		}
         return
     }
     // Validate first name and avatar name
-    if (!first_name || first_name.length < 3 || first_name.length > 64 ||
-        !avatar_name || avatar_name.length < 3 || avatar_name.length > 64) {
+    if (!humanName || humanName.length < 3 || humanName.length > 64 ||
+        !avatarNickname || avatarNickname.length < 3 || avatarNickname.length > 64) {
         ctx.status = 400 // Bad Request
         ctx.body = {
 			..._signupPackage,
 			success: false,
-			message: 'First name and avatar name must be between 3 and 64 characters',
+			message: 'Invalid input: First name and avatar name must be between 3 and 64 characters: humanNameInput,avatarNicknameInput',
 		}
         return
     }

@@ -23,11 +23,16 @@ class Member extends EventEmitter {
 		'Beliefs',
 		'Biography',
 		'Challenges',
+		'Future',
 		'Goals',
+		'Health',
+		'Identity',
 		'Interests',
+		'Outlook',
 		'Personality',
 		'Preferences',
 		'Relationships',
+		'Sexuality',
 		'Updates'
 	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
@@ -36,8 +41,12 @@ class Member extends EventEmitter {
 		super()
 		this.#personalityKernal = openai	//	will be covered in avatars
 		this.#factory = _Factory
-		this.factory.on('avatar-activated',_avatar=>{
-			console.log(chalk.grey('Member::constructor::avatar-activated_trigger'), chalk.bgGray(_avatar.id))
+		/* assign factory/avatar listeners */
+		this.factory.on('avatar-init-end',(_avatar,bytes)=>{
+			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
+		})
+		this.factory.on('on-new-contribution',(_contribution)=>{
+			console.log(chalk.grey(`Member::on-new-contribution`),_contribution.request)
 		})
 	}
 	/**
@@ -48,13 +57,12 @@ class Member extends EventEmitter {
 		this.#avatars = await this.factory.getAvatars()	//	defaults to `this.core` which factory owns; **note**: getAvatars() normally accepts the object dna
 		if(!this.#avatars.length)
 			console.log(chalk.red('no avatars found'))	//	create avatar
+		const _avatarProperties = {
+			...this?.avatars[0]??this.core,
+			proxyBeing: this.being,
+		}
 		this.avatar = await this.factory
-			.getAvatar(undefined,(this?.avatars[0]??this.core))
-		/* assign avatar listeners 
-		this.avatar.on('avatar-init-end',(_avatar,bytes)=>{
-			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
-			console.log(_avatar)
-		})*/
+			.getAvatar(undefined,_avatarProperties)	//	not pulling from db
 		return this
 	}
 	//	getter/setter functions
@@ -98,8 +106,12 @@ class Member extends EventEmitter {
 	get avatars(){
 		return this.#avatars
 	}
+	/**
+	 * Gets being type. Members are _only_ human prototypes, and presents as human, even though the current manifestation is a datacore `core` being.
+	 * @returns {string} returns 'human'
+	*/
 	get being(){
-		return this.core.being
+		return 'human'
 	}
 	get beliefs(){
 		return this.core.beliefs
@@ -216,17 +228,13 @@ class Organization extends Member {	//	form=organization
 	async init(){
 		return await super.init()
 	}
-	//	getters/setters
-	get agentRole(){
-		switch(this.being){
-//			case 'agent':
-			default:	//	core
-				const replacedDescription = 'I am <||Q||>, AI-Agent for the nonprofit member organization MyLife'
-				return {
-						role: "system",
-						content: replacedDescription
-					}					
-		}
+	/* getters/setters */
+	/**
+	 * Gets being type. MyLife are _only_ MyLife prototypes, and presents as mylife, even though the current manifestation is a datacore `core` being.
+	 * @returns {string} returns 'MyLife'
+	*/
+	get being(){
+		return 'MyLife'
 	}
 	get description(){
 		return this.core.description
@@ -281,14 +289,36 @@ class MyLife extends Organization {	//	form=server
 	constructor(_Factory){	//	no session presumed to exist
 		super(_Factory)
 	}
-	//	public functions
+	/* public functions */
 	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'first_name': string, 'avatar_name': string }
+	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
 	async registerCandidate(_candidate){
 		return await this.factory.registerCandidate(_candidate)
+	}
+	/* getters/setters */
+	/**
+	 * Gets MyLife agent role, refers to server entity Maht/MyLife
+	 * @returns {object} returns { role: 'system', content: 'I am <||Q||>, AI-Agent for the nonprofit member organization MyLife' }
+	*/
+	get agentRole(){
+		switch(this.being){
+			default:	//	core
+				const replacedDescription = 'I am <||Q||>, AI-Agent for the nonprofit member organization MyLife'
+				return {
+						role: "system",
+						content: replacedDescription
+					}					
+		}
+	}
+	/**
+	 * Gets being type. MyLife are _only_ MyLife prototypes, and presents as mylife, even though the current manifestation is a datacore `core` being.
+	 * @returns {string} returns 'MyLife'
+	*/
+	get being(){
+		return 'MyLife'
 	}
 }
 //	exports

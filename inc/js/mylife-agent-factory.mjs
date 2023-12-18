@@ -101,7 +101,13 @@ class AgentFactory extends EventEmitter{
 		//	always look to server to challenge Access; this may remove need to bind
 		return await oDataservices.challengeAccess(this.mbr_id,_passphrase)
 	}
-	async getAvatar(_avatar_id,_avatarProperties){	//	either send list of properties (pre-retrieved for example from core `this.#avatars`) of known avatar or original object properties that are going to be initially infused into the generated agent; for example, I am a book, and user/gpt have determined that a book (new dynamic object, unknown to schemas) should have a super-intelligence - _that_ book core is sent in _avatarProperties and will imprinted into the initial avatar version of object
+	/**
+	 * Gets factory to product appropriate avatar
+	 * @param {Guid} _avatar_id 
+	 * @param {object} _avatarProperties 
+	 * @returns 
+	 */
+	async getAvatar(_avatar_id, _avatarProperties,){	//	either send list of properties (pre-retrieved for example from core `this.#avatars`) of known avatar or original object properties that are going to be initially infused into the generated agent; for example, I am a book, and user/gpt have determined that a book (new dynamic object, unknown to schemas) should have a super-intelligence - _that_ book core is sent in _avatarProperties and will imprinted into the initial avatar version of object
 		//	factory determines whether to create or retrieve
 		if(!_avatar_id && !_avatarProperties)
 			throw new Error('no avatar id or properties')
@@ -113,6 +119,9 @@ class AgentFactory extends EventEmitter{
 		//	enact, instantiate and activate avatar, all under **factory** purview
 		const _Avatar = new (schemas.avatar)(_avatarProperties, this)
 		/* assign listeners */
+		_Avatar.emitter.on('on-new-contribution',_contribution=>{
+			this.emit('on-new-contribution',_contribution)
+		})
 		_Avatar.emitter.on('avatar-init-end',_avatar=>{
 			this.emit('avatar-init-end',_avatar,mBytes(_avatar))
 		})
@@ -163,7 +172,7 @@ class AgentFactory extends EventEmitter{
 	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'first_name': string, 'avatar_name': string }
+	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
 	async registerCandidate(_candidate){
 		return await this.dataservices.registerCandidate(_candidate)
@@ -204,6 +213,9 @@ class AgentFactory extends EventEmitter{
 	}
 	get MyLife(){	//	**caution**: returns <<PROMISE>>
 		return this.getMyLife()
+	}
+	get MyLife_mbr_id(){
+		return dataservicesId
 	}
 	get organization(){
 		return this.schemas.organization

@@ -88,6 +88,16 @@ body {
 	flex-wrap: wrap;
 	justify-content: space-around;
 }
+/* MyLife error handling */
+.error {
+    border-color: red;
+}
+
+.error-message {
+    color: red;
+    margin-bottom: 10px;
+}
+/* others */
 .selected {
 	background-color: #ffc107;
 	color: #fff;
