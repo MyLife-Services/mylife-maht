@@ -160,6 +160,9 @@ class AgentFactory extends EventEmitter{
 		
 		return new (schemas.consent)(_consent, this)
 	}
+	async getContributionQuestions(_being, _category){
+		return await oDataservices.getContributionQuestions(_being, _category)
+	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof schemas.avatar)
 	}
@@ -213,9 +216,6 @@ class AgentFactory extends EventEmitter{
 	}
 	get MyLife(){	//	**caution**: returns <<PROMISE>>
 		return this.getMyLife()
-	}
-	get MyLife_mbr_id(){
-		return dataservicesId
 	}
 	get organization(){
 		return this.schemas.organization

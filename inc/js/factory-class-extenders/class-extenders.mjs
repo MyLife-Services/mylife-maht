@@ -441,11 +441,12 @@ async function mGetQuestions(_contribution, _openai){
     */
    const _contribution_request = _contribution.request
     if(!_contribution_request?.content){ //  null nodes render to false
-        return await _contribution.factory.dataservices.getContributionQuestions(
+        const _response = await _contribution.factory.getContributionQuestions(
             _contribution_request.impersonation,
             _contribution_request.category,
-            _contribution.factory.MyLife_mbr_id,
         )
+        console.log('mGetQuestions', _response)
+        return _response
     }
     if(process.env.DISABLE_OPENAI)
         return ['What is the meaning of life?']

@@ -183,13 +183,12 @@ class Dataservices {
 	 * @param {string} _category - The category of seed questions to retrieve.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getContributionQuestions(_being, _category, _mbr_id, _maxNumber=3){
+	async getContributionQuestions(_being, _category, _maxNumber=3){
 		return (await this.getItems(
 			_being,
 			['questions'],
 			[{ name: '@category', value: _category }],
-			'contribution_responses',
-			_mbr_id
+			'contribution_responses'
 		))
 			.map(_ => (_.questions))
 			.reduce((acc, val) => acc.concat(val), [])
