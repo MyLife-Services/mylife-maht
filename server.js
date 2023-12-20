@@ -97,10 +97,10 @@ app.use(koaBody({
 		ctx.state.member = ctx.session.MemberSession?.member??ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
 		ctx.state.avatar = ctx.state.member.avatar
 		ctx.state.avatar.name = ctx.state.avatar.names[0]
-		ctx.state.contributions = ctx.state.member.contributions
+		ctx.state.contributions = ctx.state.avatar.contributions
 		ctx.state.menu = ctx.MyLife.menu
 		if(!await ctx.session.MemberSession.requestConsent(ctx))
-			throw new Error('asset request rejected by consent')
+			ctx.throw(404,'asset request rejected by consent')
 
 		await next()
 	})

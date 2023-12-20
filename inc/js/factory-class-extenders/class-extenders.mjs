@@ -29,7 +29,7 @@ function extendClass_avatar(_originClass,_references) {
             this.emitter.emit('avatar-init-end',this)
             return this
         }
-        //  public getters/setters
+        /* getters/setters */
         get avatar(){
             return this.inspect(true)
         }
@@ -38,6 +38,13 @@ function extendClass_avatar(_originClass,_references) {
         }
         get contributions(){
             return this.#evolver.contributions
+        }
+        /**
+         * Set incoming contribution.
+         * @param {object} _contribution
+         */
+        set contribution(_contribution){
+            this.#evolver.contribution = _contribution
         }
         get emitter(){  //  allows parent to squeeze out an emitter
             return this.#emitter
@@ -255,21 +262,34 @@ function extendClass_contribution(_originClass,_references) {
         constructor(_obj) {
             super(_obj)
         }
-        //  public functions
+        /* public functions */
+        /**
+         * Initialize a contribution.
+         * @async
+         * @public
+         * @param {object} _factory - The factory instance.
+         */
         async init(_factory){
             this.#factory = _factory
-            //  self-validation
-            this.status = 'populated'
-            //  generate question(s) from openAI
-            this.request.questions = await mGetQuestions(this, this.openai)
-            //  save to embedder to avoid continual openAI ping
-            //  emit event
+            this.request.questions = await mGetQuestions(this, this.openai) // generate question(s) from cosmos or openAI
+            this.id = this.factory.newGuid
+            console.log('==========newid', this.id)
+            this.status = 'prepared'
             this.emitter.emit('on-new-contribution',this)
             return this
         }
         async allow(_request){
             //	this intends to evolve in near future, but is currently only a pass-through with some basic structure alluding to future functionality
             return true
+        }
+        update(_contribution){
+            //  update contribution
+            if(!_contribution?.response)
+                ctx.throw(400, `missing contribution response`)
+            this.response = _contribution.response
+            console.log('updated', this.response, this.inspect(true))
+            this.emitter.emit('on-contribution-reponse',this.response)
+            return this
         }
         /*  getters/setters */
         get emitter(){
@@ -281,6 +301,9 @@ function extendClass_contribution(_originClass,_references) {
          */
         get factory(){
             return this.#factory
+        }
+        get memberView(){
+            return this.inspect(true)
         }
         get openai(){
             return this.#openai
@@ -445,7 +468,6 @@ async function mGetQuestions(_contribution, _openai){
             _contribution_request.impersonation,
             _contribution_request.category,
         )
-        console.log('mGetQuestions', _response)
         return _response
     }
     if(process.env.DISABLE_OPENAI)

@@ -16,6 +16,7 @@ _Router.post('/challenge', challenge)
 _Router.post('/signup', signup)
 //	members routes
 _memberRouter.use(_memberValidate)
+_memberRouter.get('/:mid/contributions/', contributions)
 _memberRouter.get('/:mid/contributions/:cid', contributions)
 _memberRouter.get('/upload', upload)
 _memberRouter.post('/upload', _upload)

@@ -1,12 +1,4 @@
 <div class="container mt-5">
-<!--<div class="row">
-		<div class="col-md-12">
-			<div id="header" class="d-flex">
-				<div class="col-md-6 header-text text-center">Agent <%= avatar.name %></div>
-				<div class="col-md-6 header-text text-center">You</div>
-			</div>
-		</div>
-	</div>-->
 	<div class="row">
 		<div id="chat" class="col-md-12">
 				<!-- Agent and User messages will be added here -->
@@ -32,6 +24,7 @@
 	</div>
 </div>
 <script>
+/* define variables */
 const awaitButton = document.getElementById('awaitButton');
 const agentSpinner = document.getElementById('agent-spinner');
 const chatColumn = document.getElementById('chat');
@@ -41,11 +34,34 @@ const submitButton = document.getElementById('submitButton');
 const _prompter = `Hi, I'm <%= avatar.name %>, so nice to meet you!`;
 const _followon = `I'm here to collaborate with you on behalf of <%= member.memberName %>, feel free to ask me anything about him to get started.`;
 let _chatBubbleCount = 0;
-//	bootup
+/* onLoad */
 awaitButton.style.display = 'none';
+/* welcome-01 */
 addMessageToColumn(_prompter, chatColumn, 'agent-bubble');
-setTimeout(()=> addMessageToColumn(_followon, chatColumn, 'agent-bubble'), 3000);
-//	add listeners
+/* welcome-02 */
+setTimeout(() => { // Set a timeout for 1 second to wait for the first line to be fully painted
+    // Set another timeout for 7.5 seconds to add the second message
+    const timerId = setTimeout(_addIntroductionMessage, 7500);
+    // Event listeners for user interactions
+    window.addEventListener('mousemove', _addIntroductionMessage, { once: true });
+    window.addEventListener('click', _addIntroductionMessage, { once: true });
+    window.addEventListener('focus', _addIntroductionMessage, { once: true });
+    window.addEventListener('scroll', _addIntroductionMessage, { once: true });
+    /* local timeout functions */
+    function _addIntroductionMessage() { // Clear the 7.5 seconds timeout if any event is triggered
+        clearTimeout(timerId);
+        addMessageToColumn(_followon, chatColumn, 'agent-bubble');
+        _cleanupListeners();
+    }
+	// Cleanup function to remove event listeners
+	function _cleanupListeners() {
+		window.removeEventListener('mousemove', _addIntroductionMessage);
+		window.removeEventListener('click', _addIntroductionMessage);
+		window.removeEventListener('focus', _addIntroductionMessage);
+		window.removeEventListener('scroll', _addIntroductionMessage);
+}
+}, 1000);
+/* page listeners */
 chatForm.addEventListener('submit', (event) => {
 	event.preventDefault();
 	const userMessage = messageInput.value.trim();
@@ -56,7 +72,7 @@ chatForm.addEventListener('submit', (event) => {
 
 	submit(event, userMessage);
 });
-// page functions
+/* page functions */
 function addMessageToColumn(message, column, bubbleClass, _typewrite = (bubbleClass === 'agent-bubble'), _delay = 10) {
 	_chatBubbleCount++;
 	const chatBubble = document.createElement('div');
@@ -115,33 +131,3 @@ async function submitChat(url, options) {
 	}
 }
 </script>
-<style>
-.chat-bubble {
-    border-radius: 1rem;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    max-width: 66%;
-    min-width: 20%;
-	width: -moz-fit-content;
-	width: fit-content;
-    word-wrap: break-word;
-}
-.agent-bubble {
-    background-color: #007BFF;
-    color: white;
-    margin-left: 0;
-}
-.user-bubble {
-    background-color: #E0E0E0;
-    color: black;
-    margin-left: auto;
-}
-#header {
-    background-color: #007BFF;
-    padding: 0.5rem;
-    color: white;
-}
-.header-text {
-    font-weight: bold;
-}
-</style>

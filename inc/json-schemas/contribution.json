@@ -33,8 +33,9 @@
 		"phase": {
 			"type": "string",
 			"default": "create",
-			"enum": ["create", "init", "request", "response", "complete", "archive"],
-			"description": "life-cycle phase of parent evo-agent"
+			"enum": ["create", "init", "develop", "mature", "maintain", "retire"],
+			"description": "life-cycle phase of parent evo-agent",
+			"$comment": "proxy access to containing object phase property"
 		},
 		"purpose": {
 			"type": "string",
@@ -54,13 +55,15 @@
 		"status": {
 			"type": "string",
 			"default": "new",
+			"enum": ["accepted", "new", "pending", "prepared", "requested", "rejected", "submitted"],
 			"description": "contribution life-cycle phase",
-			"$comment": "new, populated, submitted, accepted, rejected, completed, archived"
+			"$comment": "- New: A freshly created contribution, not yet detailed with specific data.\n- Prepared: The contribution is fully set up with all necessary data, ready to be presented to the user.\n- Requested: The contribution is actively being considered or interacted with by the user.\n- Submitted: The user has responded, and the contribution awaits review or incorporation.\n- Pending: The contribution is being evaluated for accuracy, relevance, and other criteria.\n- Accepted: The contribution has been successfully integrated into the datacore.\n- Rejected: The contribution is not suitable for integration based on the set criteria."
 		},
 		"urgency": {
 			"type": "integer",
 			"default": 0,
-			"description": "urgency of contribution (0-100); defaults to neutral urgency"
+			"description": "urgency of contribution (0-100); defaults to neutral urgency",
+			"$comment": "loose proposal, not implemented"
 		}
 	},
 	"additionalProperties": false,
@@ -140,6 +143,11 @@
 				"content": {
 					"type": "string",
 					"description": "The content proposed for the category node defined in request"
+				},
+				"question": {
+					"type": "string",
+					"maxlength": 256,
+					"description": "question actually posed to Member to elicit response"
 				}
 			},
 			"additionalProperties": false,

@@ -34,6 +34,7 @@ export class EvolutionAssistant extends EventEmitter {
     //  public functions
     /**
      * Initialize the Evolution Assistant, generating and assigning three Contributions available to the avatar to complete.
+     * @public
      * @async
      * @emits {`evo-agent-${phase}-begin`} - Emitted when given phase init() process begins.
      * @emits {`evo-agent-${phase}-end`} - Emitted when the initialization process ends.
@@ -42,7 +43,7 @@ export class EvolutionAssistant extends EventEmitter {
     async init() {  //  initialize routine populates this.#contributions
         //  validation or other logic
         //  set phase
-        this.#advancePhase()  // subfunction will handle emissions
+        await this.#advancePhase()  // subfunction will handle emissions
     }
     /* getters/setters */
     /**
@@ -65,6 +66,19 @@ export class EvolutionAssistant extends EventEmitter {
     */
     get categories() {
         return this.#avatar?.categories??[]
+    }
+    /**
+     * Set the contributions object.
+     * @param {object} _contribution - The contribution object
+    */
+    set contribution(_contribution) {
+        if(!_contribution?.id)
+            ctx.throw(400, `missing contribution id`)
+        const __contribution = this.#contributions
+            .find(_contribution => _contribution.id === _contribution.id)
+        if(!__contribution)
+            ctx.throw(400, `contribution not found`)
+        __contribution.update(_contribution)
     }
     /**
      * Get the contributions array.
@@ -98,11 +112,12 @@ export class EvolutionAssistant extends EventEmitter {
     /**
      * Advance the phase of the Evolution Assistant. Logic is encapsulated (here chosen as module private functionality shared amongs evolvers) to ensure that the phase is advanced only when appropriate, ergo, not every request _to_ advancePhase() will actually _do_ so.
      * @private
+     * @async
      * @emits {evo-agent-phase-${_startingPhase}-complete} - Emitted on occasion of advancing phase.
      * @returns {void}
      */
-    #advancePhase(){
-        const _phaseResults = mAdvancePhase(this)
+    async #advancePhase(){
+        const _phaseResults = await mAdvancePhase(this)
         const _startingPhase = this.#phase
         const _proposedPhase = _phaseResults.phase
         this.#contributions = _phaseResults.contributions
@@ -121,7 +136,7 @@ export class EvolutionAssistant extends EventEmitter {
  * @returns {string} The determined phase.
  * @todo Implement phase advancement logic for: develop, mature, maintain, retire.
  */
-function mAdvancePhase(_evoAgent){  //  **note**: treat parameter `_evoAgent` as `read-only` for now
+async function mAdvancePhase(_evoAgent){  //  **note**: treat parameter `_evoAgent` as `read-only` for now
     const _proposal = { //  no need to objectify
         contributions: _evoAgent.contributions,
         phase: _evoAgent.phase,
@@ -134,10 +149,9 @@ function mAdvancePhase(_evoAgent){  //  **note**: treat parameter `_evoAgent` as
             if(!_evoAgent.categories.length)
                 return _evoAgent.phase
             if(!_evoAgent.contributions.length < 3){    // too low, refresh
-                _proposal.contributions = mAssessData(_evoAgent)
-                    .map(async _category => 
-                        await mGetContribution(_evoAgent, _category, _formalPhase)) //  returns array(5) of newly populated Contribution objects
-            }
+                const contributionsPromises = mAssessData(_evoAgent)
+                    .map(_category => mGetContribution(_evoAgent, _category, _formalPhase)) // Returns array of promises
+                _proposal.contributions = await Promise.all(contributionsPromises)            }
             // alterations sent as proposal to be adopted (or not, albeit no current mechanism to reject) by instantiated evo-agent [only viable caller by modular design]
             _proposal.phase = (mEvolutionPhaseComplete(_evoAgent,_formalPhase))
                 ? 'init'
@@ -185,10 +199,11 @@ function mAssessNodes(_evoAgent){
     .map(_category => mFormatCategory(_category))
     .sort((a, b) => _evoAgent[a].length - _evoAgent[b].length)
 }
-function mAssessNulls(_evoAgent){
+function mAssessNulls(_evoAgent) {
     return _evoAgent.categories
         .filter(_category => !_evoAgent?.[mFormatCategory(_category)])
         .map(_category => mFormatCategory(_category))
+        .sort(() => Math.random() - 0.5)
 }
 /**
  * Determines whether the given phase is complete.
@@ -234,6 +249,7 @@ async function mGetContribution(_evoAgent, _category, _phase) {
     const _contribution = new (_avatar.factory.contribution)({
         avatar_id: _avatar.id,
         context: `I am a contribution object in MyLife, comprising data and functionality around a data evolution request to my associated avatar [${_avatar.id}]`,
+//        id: _avatar.factory.newGuid,
         mbr_id: _avatar.mbr_id,    //  Contributions are system objects
         phase: _phase,
         purpose: `Contribute to the data evolution of underlying avatar for category [${_category}]`,

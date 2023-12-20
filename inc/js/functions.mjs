@@ -1,9 +1,8 @@
-//	imports
+/* imports */
 import fs from 'fs'
 import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { _ } from 'ajv'
-//	pseudo-constructor
-//	need to process any session actions at a layer higher than this, preferably session emitter to all objects?
+/* module export functions */
 async function about(ctx){
 	ctx.state.member = ctx.MyLife.member
 	ctx.state.agent = ctx.state.member.agent
@@ -33,8 +32,19 @@ async function chat(ctx){
 	const _response = await ctx.state.avatar.chatRequest(ctx)
 	ctx.body = { 'answer': _response }
 }
+/**
+ * Manage delivery and receipt of contributions(s)
+ * @async
+ * @public
+ * @api no associated view
+ * @param {object} ctx Koa Context object
+ */
 async function contributions(ctx){
-	ctx.body = ctx.state.contributions
+	ctx.body = await (
+		(ctx.method ==='GET')
+		?	mGetContributions(ctx)
+		:	mSetContributions(ctx)
+	)
 }
 async function index(ctx){
 	ctx.state.title = `Meet ${ ctx.state.member.agentName }`
@@ -84,49 +94,39 @@ async function signup(ctx) {
     // Basic Email Regex for validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 	//	validate session signup
-	if (ctx.session.signup) {
-		ctx.status = 400 // Bad Request
-		ctx.body = {
-			..._signupPackage,
+	if (ctx.session.signup)
+		ctx.throw(400, 'Invalid input', { 
 			success: false,
-			message: 'session user already signed up',
-		}
-	}
+			message: `session user already signed up`,
+			..._signupPackage 
+		})
 	//	validate package
 	if (Object.values(_signupPackage).some(value => !value)) {
 		const _missingFields = Object.entries(_signupPackage)
 			.filter(([key, value]) => !value)
 			.map(([key]) => key) // Extract just the key
-			.join(',');
-		ctx.status = 400 // Bad Request
-		ctx.body = {
-			..._signupPackage,
-			success: false, 
+			.join(',')
+		ctx.throw(400, 'Invalid input', { 
+			success: false,
 			message: `Missing required field(s): ${_missingFields}`,
-		}
-		return
+			..._signupPackage 
+		})
 	}
     // Validate email
-    if (!emailRegex.test(email)) {
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-			..._signupPackage,
-			success: false, 
+    if (!emailRegex.test(email))
+		ctx.throw(400, 'Invalid input', { 
+			success: false,
 			message: 'Invalid input: emailInput',
-		}
-        return
-    }
+			..._signupPackage 
+		})
     // Validate first name and avatar name
     if (!humanName || humanName.length < 3 || humanName.length > 64 ||
-        !avatarNickname || avatarNickname.length < 3 || avatarNickname.length > 64) {
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-			..._signupPackage,
+        !avatarNickname || avatarNickname.length < 3 || avatarNickname.length > 64)
+		ctx.throw(400, 'Invalid input', { 
 			success: false,
 			message: 'Invalid input: First name and avatar name must be between 3 and 64 characters: humanNameInput,avatarNicknameInput',
-		}
-        return
-    }
+			..._signupPackage 
+		})
     // save to `registration` container of Cosmos expressly for signup data
 	console.log(await ctx.MyLife.registerCandidate({
 		..._signupPackage,
@@ -153,7 +153,42 @@ async function upload(ctx){	//	upload display widget/for list and/or action(s)
 	ctx.state.subtitle = `Upload your files to <em>MyLife</em>`
 	await ctx.render('upload')	//	upload
 }
-// exports
+/* module private functions */
+function mGetContributions(ctx){
+	ctx.state.cid = ctx.params?.cid??false	//	contribution id
+	const statusOrder = ['new', 'prepared', 'requested', 'submitted', 'pending', 'accepted', 'rejected']
+	ctx.state.status = ctx.query?.status??'prepared'	//	default state for execution
+	return ctx.state.contributions
+		.filter(_contribution => (ctx.state.cid && _contribution.id === ctx.state.cid) || !ctx.state.cid)
+		.map(_contribution => (_contribution.memberView))
+		.sort((a, b) => {
+			// Get the index of the status for each contribution
+			const indexA = statusOrder.indexOf(a.status)
+			const indexB = statusOrder.indexOf(b.status)
+			// Sort based on the index
+			return indexA - indexB
+		})
+}
+/**
+ * Manage receipt and setting of contributions(s).
+ * @async
+ * @modular
+ * @param {object} ctx Koa Context object 
+ */
+function mSetContributions(ctx){
+	if(!ctx.params?.cid)
+		ctx.throw(400, `missing contribution id`) // currently only accepts single contributions via post with :cid
+	ctx.state.cid = ctx.params.cid
+	const _contribution = ctx.request.body?.contribution??false
+	console.log('test', ctx.state.cid, _contribution)
+	if(!_contribution)
+		ctx.throw(400, `missing contribution data`)
+	ctx.state.avatar.contribution = ctx.request.body.contribution
+	return ctx.state.avatar.contributions
+		.filter(_contribution => (_contribution.id === ctx.state.cid))
+		.map(_contribution => (_contribution.memberView))
+}
+/* exports */
 export {
 	about,
 	avatarListing,

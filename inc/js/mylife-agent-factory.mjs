@@ -217,6 +217,9 @@ class AgentFactory extends EventEmitter{
 	get MyLife(){	//	**caution**: returns <<PROMISE>>
 		return this.getMyLife()
 	}
+	get newGuid(){
+		return this.globals.newGuid
+	}
 	get organization(){
 		return this.schemas.organization
 	}

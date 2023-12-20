@@ -12,6 +12,22 @@ body {
 	margin: 0;
 	background-color: #f5f5f5;
 }
+/* MyLife Contribution Request */
+.flex-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+.category-button {
+    background-color: #f0f0f0; /* Neutral color */
+    margin: 5px;
+    padding: 10px;
+    border: none;
+    cursor: pointer;
+}
+.category-button.active {
+    background-color: #4CAF50; /* Active state color */
+    color: white;
+}
 /* MyLife Signup Routine */
 /* by ids */
 #sign-up-container {
@@ -126,25 +142,6 @@ h1 {
 	margin-bottom: 1rem;
 }
 
-#chat-form {
-	display: flex;
-	justify-content: space-between;
-	margin-bottom: 12px;
-	margin-top: 12px;
-}
-
-#message {
-	flex-grow: 1;
-	margin-right: 0.5rem;
-}
-
-#response {
-	margin-top: 1rem;
-}
-#board-toggle {
-	margin-bottom: 24px;
-}
-
 .loading {
 	display: none;
 	font-size: 24px;
@@ -156,4 +153,48 @@ h1 {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
+}
+/* MyLife chatbot */
+/* chat bubbles */
+.chat-bubble {
+    border-radius: 1rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    max-width: 80%;
+    min-width: 20%;
+	width: -moz-fit-content;
+	width: fit-content;
+    word-wrap: break-word;
+}
+.agent-bubble {
+    background-color: #007BFF;
+    color: white;
+    margin-left: 0;
+}
+.user-bubble {
+    background-color: #E0E0E0;
+    color: black;
+   margin-left: auto;
+}
+#chat-form {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 12px;
+	margin-top: 12px;
+}
+#message {
+	flex-grow: 1;
+	margin-right: 0.5rem;
+}
+#response {
+	margin-top: 1rem;
+}
+/* MyLife header */
+#header {
+    background-color: #007BFF;
+    padding: 0.5rem;
+    color: white;
+}
+.header-text {
+    font-weight: bold;
 }

@@ -2,7 +2,7 @@ import { EventEmitter } from 'events'
 import chalk from 'chalk'
 class MylifeMemberSession extends EventEmitter {
 	#consents = []	//	consents are stored in the session
-	#contributions = []	//	'useful' (i.e., ran through whatever gauntlet of procedural logic is required and worthwhile to vet a submission) contributions from avatars/assistants are posted and stored in the session (perhaps through an emitter?), so that they can be checked and applied to instantiating avatar
+	#contributions = []	//	intended to hold all relevant contribution questions for session
 	#conversation
 	#factory
 	#locked = true	//	locked by default
@@ -97,6 +97,9 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	get consents(){
 		return this.#consents
+	}
+	get contributions(){
+		return this.#contributions
 	}
 	get conversation(){
 		return this.#conversation
