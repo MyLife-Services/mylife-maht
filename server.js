@@ -12,20 +12,18 @@ import serve from 'koa-static'
 //	misc
 import chalk from 'chalk'
 //	local services
-import AgentFactory from './inc/js/mylife-agent-factory.mjs'
+import MyLife from './inc/js/mylife-agent-factory.mjs'
 //	constants/variables
 const app = new Koa()
 const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
-const _factory = await new AgentFactory().init()
-const _Maht = await _factory.MyLife	//	MyLife is a unique version of organization
+const _Maht = MyLife // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
 const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	test harness region
 
-//	end test harness region
 //	koa-ejs
 render(app, {
 	root: path.join(__dirname, 'views'),
@@ -38,12 +36,12 @@ render(app, {
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
-app.context.AgentFactory = _Maht.factory	//	flag ctx.AgentFactory for removal?
+//	app.context.AgentFactory = _Maht.factory	//	todo: remove ctx.AgentFactory, rely on ctx.MyLife, no direct access to manipulate system factory
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
 app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
 //	does _Maht, as uber-sessioned, need to have ctx injected?
-app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_factory.newGuid()}`]
+app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_Maht.newGuid()}`]
 // Enable Koa body w/ configuration
 app.use(koaBody({
     multipart: true,
@@ -70,7 +68,7 @@ app.use(koaBody({
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
-			ctx.session.MemberSession = await _factory.getMyLifeSession()	//	create default locked session upon first request
+			ctx.session.MemberSession = await _Maht.getMyLifeSession()	//	create default locked session upon first request
 			//	assign listeners to session
 			ctx.session.MemberSession
 				.on( 'session-init', async (_session)=>{

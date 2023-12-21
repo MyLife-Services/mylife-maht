@@ -304,6 +304,9 @@ class MyLife extends Organization {	//	form=server
 	async registerCandidate(_candidate){
 		return await this.factory.registerCandidate(_candidate)
 	}
+	async getMyLifeSession(){
+		return await this.factory.getMyLifeSession()
+	}
 	/* getters/setters */
 	/**
 	 * Gets MyLife agent role, refers to server entity Maht/MyLife

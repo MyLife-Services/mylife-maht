@@ -63,43 +63,51 @@ function extendClass_avatar(_originClass,_references) {
                 _run_id
             )
         }
-        async chatRequest(_ctx){
-            if(!this.ctx) {
+        async chatRequest(ctx){
+            if(!ctx) {
                 throw new Error('No context provided in factory')
             }
             if(!this.thread)
-                this.thread = this.ctx.session.MemberSession.thread
+                this.thread = ctx.session.MemberSession.thread
             //  add metata, optional
             //	assign uploaded files (optional) and push `retrieval` to tools
             //	create message
             const _message = new (this.factory.message)({
                 avatar_id: this.id,
-                content: this.ctx.request.body.message,
+                content: ctx.request.body.message,
                 mbr_id: this.mbr_id,
                 role: 'user',
             })
-                .init(this.thread) //  by embedding content above, init routine requires no parameters
+            await _message.init(this.thread) //  by embedding content above, init routine requires no parameters
             this.messages.unshift(_message)
+            console.log('this.messages-01', this.messages)
             //	run thread
             await this.run()
             //	get message data from thread
-            const _responses = (await this.getMessages())
-                .filter(
-                    _msg=>{ return _msg.run_id==this.runs[0].id }
-                )
-                .map(
-                    _msg=>{ return new (this.factory.message)({
-                        message: _msg,
-                        mbr_id: this.mbr_id,
-                        avatar_id: this.id,
-                        role: 'assistant',
-                    }) }
-                )
-            this.messages.unshift(..._responses)	//	post each response to this.messages
+
+const ____messages = await this.getMessages()
+const ____fmessages = ____messages
+    .filter(_msg => _msg.run_id == this.runs[0].id)
+    .map(_msg => {
+        return new (this.factory.message)({
+            avatar_id: this.id,
+            content: _msg.content[0].text.value,
+            mbr_id: this.mbr_id,
+            role: 'assistant',
+        })
+    })
+
+const _responses = await Promise.all(
+    ____fmessages.map(async _msg => {
+        return await _msg.init(this.thread)
+    })
+)
+this.messages.unshift(..._responses)	//	post each response to this.messages
+console.log('this.messages', this.messages)
             //	update cosmos
             if(this?.factory)
                 await this.factory.dataservices.patchArrayItems(
-                    this.ctx.session.MemberSession.conversation.id,
+                    ctx.session.MemberSession.conversation.id,
                     'messages',
                     [..._responses, _message]
                 )
@@ -273,7 +281,6 @@ function extendClass_contribution(_originClass,_references) {
             this.#factory = _factory
             this.request.questions = await mGetQuestions(this, this.openai) // generate question(s) from cosmos or openAI
             this.id = this.factory.newGuid
-            console.log('==========newid', this.id)
             this.status = 'prepared'
             this.emitter.emit('on-new-contribution',this)
             return this
@@ -365,16 +372,16 @@ function extendClass_message(_originClass,_references) {
         async init(_thread){
             if(!this.content & !this.files)
                 throw new Error('No content provided for message')
-            //  limit requirements for context window, generate file and attach to file_ids array
+            /* todo: limit requirements for context window, generate file and attach to file_ids array
             if(this.content.length > this.#maxContextWindow) {
                 //  TODO: generate file and attach to file_ids array
                 throw new Error('unimplemented')
                 const _file = await this.#constructFile(this.content)
                 this.files.push(_file)
                 this.content = `user posted content length greater than context window: find request in related file, file_id: ${_file.id}`      //   default content points to file
-            }
+            }*/
             this.#message = await this.#getMessage_openAI(_thread)
-            console.log('init complete', this.message)
+            return this
         }
         //  public getters/setters
         get message(){

@@ -56,7 +56,6 @@ const schemas = {
 	dataservices: Dataservices,
 	menu: Menu,
 	member: Member,
-	server: MyLife,
 	session: MylifeMemberSession
 }
 const _Globals = new Globals()
@@ -68,7 +67,6 @@ const openai = new OpenAI({
 })
 // config: add functionality to known prototypes
 configureSchemaPrototypes()
-// modular variables
 //	logging/reporting
 console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
 console.log(chalk.greenBright('schema-class-constructs'))
@@ -78,22 +76,27 @@ class AgentFactory extends EventEmitter{
 	#dataservices
 	#exposedSchemas = getExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#mbr_id
-	constructor(_mbr_id=dataservicesId){
+	constructor(_mbr_id){
 		super()
-		//	if incoming member id is not same as id on oDataservices, then ass new class-private dataservice
+		this.#mbr_id = _mbr_id
+		if(this.mbr_id===dataservicesId)
+			this.#dataservices = oDataservices
+		else
+			console.log(chalk.blueBright('AgentFactory class constructed:'),chalk.bgBlueBright(this.mbr_id))
+	}
+	/* public functions */
+	/**
+	 * Initialization routine required for all AgentFactory instances save MyLife server
+	 * @param {Guid} _mbr_id 
+	 * @returns {AgentFactory} this
+	 */
+	async init(_mbr_id){
+		if(!_mbr_id) // ergo, MyLife does not must not call init()
+			throw new Error('no mbr_id on Factory creation init')
 		this.#mbr_id = _mbr_id
 		if(this.mbr_id!==dataservicesId){
-			console.log(chalk.blueBright('AgentFactory class constructed:'),chalk.bgBlueBright(this.mbr_id))
-		}
-	}
-	//	public functions
-	async init(_mbr_id){
-		if(_mbr_id) this.#mbr_id = _mbr_id
-		if(this.mbr_id===oDataservices.mbr_id){
-			this.#dataservices = oDataservices
-		} else {
-			this.#dataservices = new Dataservices(this.mbr_id)
-			await this.#dataservices.init()
+			this.#dataservices = await new Dataservices(this.mbr_id)
+				.init()
 		}
 		return this
 	}
@@ -143,10 +146,10 @@ class AgentFactory extends EventEmitter{
 			.init()
 		return _r
 	}
-	async getMyLifeSession(_factory=this){
+	async getMyLifeSession(){
 		//	default is session based around default dataservices [Maht entertains guests]
 		return await new (schemas.session)(
-			await new AgentFactory().init()
+			new AgentFactory(dataservicesId)
 		).init()
 	}
 	async getThread(){
@@ -487,5 +490,11 @@ function sanitizeValue(_value) {
 
     return wasTrimmed ? _value[0] + trimmedStr + _value[0] : trimmedStr
 }
-//	exports
-export default AgentFactory
+/* final constructs relying on class and functions */
+// server build: injects default factory into _server_ **MyLife** instance
+const _MyLife = await new MyLife(
+	new AgentFactory(dataservicesId)
+)
+	.init()
+/* exports */
+export default _MyLife
