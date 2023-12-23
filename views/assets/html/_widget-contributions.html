@@ -4,7 +4,8 @@
         <% if (contributions && contributions.length > 0) { %>
             <% contributions.forEach(contribution => { %>
                 <div class="category-container">
-                    <button class="category-button" 
+                    <button class="category-button"
+                            data-id="<%= contribution.id %>"
                             data-category="<%= contribution.request.category %>" 
                             data-questions='<%= JSON.stringify(contribution.request.questions) %>'>
                         <%= contribution.request.category %>
@@ -28,8 +29,9 @@
                 this.classList.add('active');
                 // Fetch random question from the category
                 const category = this.getAttribute('data-category');
+                const contributionId = this.getAttribute('data-id');
                 const questions = JSON.parse(this.getAttribute('data-questions'));
-                handleCategorySelection(category,questions);
+                handleCategorySelection(contributionId, category, questions);
             });
         });
         // Dismiss button event listeners
@@ -55,10 +57,22 @@ function handleAllCategoriesDismissed() {
     const list = document.getElementById('contributions-list');
     list.innerHTML = '<p>All categories dismissed. <button onclick="location.reload()">Refresh</button></p>';
 }
-function handleCategorySelection(category, questions) {
-    const randomQuestion = getRandomQuestion(questions);
-    const message = `Great! I love talking about ${category}! ${randomQuestion}`;
-    addMessageToColumn(message, chatColumn, 'agent-bubble');
+function handleCategorySelection(contributionId, category, questions) {
+    const _question = getRandomQuestion(questions);
+    const _message = {
+        id: null,
+        message: `Excellent! I'm excited to get to know and understand you better. ${_question}`,
+        question: _question,
+    };
+    const _options = {
+        chatColumn: chatColumn,
+        type: 'agent-bubble',
+        _typewrite: true,
+        _delay: 10,
+    };
+    setActiveCategory(contributionId, category, _question);
+    addMessageToColumn(_message, _options);
+    
 }
 function getRandomQuestion(questions) {
     if (questions.length === 0) return "No question available";

@@ -5,6 +5,7 @@ import { _ } from 'ajv'
 //  function definitions to extend remarkable classes
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
+        #activeChatCategory = '' // string connoting active category, when Category Mode activated
         #emitter = new EventEmitter()
         #evolver
         #factory
@@ -29,81 +30,46 @@ function extendClass_avatar(_originClass,_references) {
             this.emitter.emit('avatar-init-end',this)
             return this
         }
-        /* getters/setters */
-        get avatar(){
-            return this.inspect(true)
-        }
-        get being(){    //  avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations
-            return this.#proxyBeing
-        }
-        get contributions(){
-            return this.#evolver.contributions
-        }
-        /**
-         * Set incoming contribution.
-         * @param {object} _contribution
-         */
-        set contribution(_contribution){
-            this.#evolver.contribution = _contribution
-        }
-        get emitter(){  //  allows parent to squeeze out an emitter
-            return this.#emitter
-        }
-        get factory(){
-            return this.#factory
-        }
-        get openai(){
-            return this.#openai
-        }
-        //	based on avatar.type, could assign different prototypes
-        //  public functions
+        /* public functions */
+        // todo: move almost all logic to modular functionality to ease burden on class
         async cancelRun(_run_id){	//	returns openai run object
             return await this.openai.beta.threads.runs.cancel(
                 this.thread.id,
                 _run_id
             )
         }
-        async chatRequest(ctx){
-            if(!ctx) {
-                throw new Error('No context provided in factory')
-            }
+        async chatRequest(ctx){ // todo: determine if ctx.state is sufficient
+            const _processStartTime = Date.now()
+            if(!ctx?.state?.chatMessage)
+                throw new Error('No message provided in context')
             if(!this.thread)
                 this.thread = ctx.session.MemberSession.thread
             //  add metata, optional
             //	assign uploaded files (optional) and push `retrieval` to tools
             //	create message
-            const _message = new (this.factory.message)({
-                avatar_id: this.id,
-                content: ctx.request.body.message,
-                mbr_id: this.mbr_id,
-                role: 'user',
-            })
+            const _chatMessage = ctx.state.chatMessage
+            const _message = new (this.factory.message)(_chatMessage)
             await _message.init(this.thread) //  by embedding content above, init routine requires no parameters
-            this.messages.unshift(_message)
-            console.log('this.messages-01', this.messages)
+            this.messages.unshift(_chatMessage)
             //	run thread
             await this.run()
             //	get message data from thread
-
-const ____messages = await this.getMessages()
-const ____fmessages = ____messages
-    .filter(_msg => _msg.run_id == this.runs[0].id)
-    .map(_msg => {
-        return new (this.factory.message)({
-            avatar_id: this.id,
-            content: _msg.content[0].text.value,
-            mbr_id: this.mbr_id,
-            role: 'assistant',
-        })
-    })
-
-const _responses = await Promise.all(
-    ____fmessages.map(async _msg => {
-        return await _msg.init(this.thread)
-    })
-)
-this.messages.unshift(..._responses)	//	post each response to this.messages
-console.log('this.messages', this.messages)
+            const _messages = (await this.getMessages())
+                .filter(_msg => _msg.run_id == this.runs[0].id)
+                .map(_msg => {
+                    return new (this.factory.message)({
+                        avatar_id: this.id,
+                        content: _msg.content[0].text.value,
+                        mbr_id: this.mbr_id,
+                        role: 'assistant',
+                    })
+                })
+            const _responses = await Promise.all(
+                _messages.map(async _msg => {
+                    return await _msg.init(this.thread)
+                })
+            )
+            this.messages.unshift(..._responses)	//	post each response to this.messages
             //	update cosmos
             if(this?.factory)
                 await this.factory.dataservices.patchArrayItems(
@@ -114,9 +80,17 @@ console.log('this.messages', this.messages)
             //	return response
             return _responses
                 .map(_msg=>{
-                    return new Marked().parse(_msg.text)
+                    const __message = mPrepareMessage(_msg.text) // returns object { category, content }
+                    return {
+                        agent: 'server',
+                        category: __message.category,
+                        contributions: [],
+                        message: __message.content,
+                        response_time: Date.now()-_processStartTime,
+                        purpose: 'chat response',
+                        type: 'chat',
+                    }
                 })
-                .join('\n')
         }
         async checkStatus(_thread_id,_run_id,_callInterval){
             //	should be able to remove params aside from _callInterval, as they are properties of this
@@ -237,12 +211,54 @@ console.log('this.messages', this.messages)
             // ping status
             await this.completeRun(_run.id)
         }
+        setChatCategory(_category) {
+            if (!_category || _category.toLowerCase() === 'off')
+                _category = ''
+            this.#activeChatCategory = _category
+                .replace(/\s+/g, '_')
+                .toLowerCase();
+        }
+        
         async startRun(){	//	returns openai `run` object
             if(!this.thread || !this.messages.length) return
             return await this.openai.beta.threads.runs.create(
                 this.thread.id,
                 { assistant_id: this.assistant.id }
             )
+        }
+        /* getters/setters */
+        get avatar(){
+            return this.inspect(true)
+        }
+        /**
+         * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
+         * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
+         * @returns {string} The object being the avatar is emulating.
+        */
+        get being(){    //  
+            return this.#proxyBeing
+        }
+        get category(){
+            return this.#activeChatCategory
+        }
+        get contributions(){
+            return this.#evolver.contributions
+        }
+        /**
+         * Set incoming contribution.
+         * @param {object} _contribution
+         */
+        set contribution(_contribution){
+            this.#evolver.contribution = _contribution
+        }
+        get emitter(){  //  allows parent to squeeze out an emitter
+            return this.#emitter
+        }
+        get factory(){
+            return this.#factory
+        }
+        get openai(){
+            return this.#openai
         }
     }
     console.log('Avatar class extended')
@@ -367,8 +383,10 @@ function extendClass_message(_originClass,_references) {
         #openai = _references?.openai
         constructor(_obj) {
             super(_obj)
+            /* category population */
+            mReviewContent(this, _obj)
         }
-        //  public functions
+        /* public functions */
         async init(_thread){
             if(!this.content & !this.files)
                 throw new Error('No content provided for message')
@@ -380,10 +398,15 @@ function extendClass_message(_originClass,_references) {
                 this.files.push(_file)
                 this.content = `user posted content length greater than context window: find request in related file, file_id: ${_file.id}`      //   default content points to file
             }*/
-            this.#message = await this.#getMessage_openAI(_thread)
+            this.#message = await mGetMessage_openAI(
+                _thread,
+                this.content,
+                this?.message?.id,
+                this.#openai
+            )
             return this
         }
-        //  public getters/setters
+        /* getters/setters */
         get message(){
             return this.#message
         }
@@ -400,7 +423,7 @@ function extendClass_message(_originClass,_references) {
                     return 'no content derived'
             }
         }
-        //  private functions
+        /* private functions */
         /**
          * When incoming text is too large for a single message, generate dynamic text file and attach/submit.
          * @private
@@ -421,49 +444,64 @@ function extendClass_message(_originClass,_references) {
                 contents: await __file.arrayBuffer(),
             }
         }
-        #getMessage(){
-            return {
-                role: 'user',
-                content: this.content,
-       //         file: this.file,
-            }
-        }
-        /**
-         * add or update openai portion of `this.message`
-         * @private
-         * @param {string} _message 
-         * @returns {object} openai `message` object
-         */
-        async #getMessage_openAI(_thread){
-            //  files are attached at the message level under file_ids _array_, only content aside from text = [image_file]:image_file.file_id
-            return (!this.message?.id)
-            ?	await this.#openai.beta.threads.messages.create(	//	add
-                    _thread.id,
-                    this.#getMessage()
-                )
-            :	await this.#openai.beta.threads.messages.update(	//	update
-                    _thread.id,
-                    this.message.id,
-                    this.#getMessage()
-                )
-            /* TODO: code for message retrieval
-            switch (this.system) {
-                case 'openai_assistant':
-                    return await this.#openai.beta.threads.messages.retrieve(
-                        this.message.message.thread_id,
-                        this.message.id
-                    )
-                default:
-                    break
-            }
-            */
-        }
-        
     }
-
     return Message
 }
 /* modular functions */
+/* avatar modular functions */
+/* contribution modular functions */
+/* message modular functions */
+function mExtractCategory(_category){
+    return _category
+        .replace('Category Mode: ', '')
+        .replace(/\n/g, '') // Remove all newline characters
+        .trim()
+        .replace(/\s+/g, '_')
+        .toLowerCase()
+}
+/**
+ * add or update openai portion of `this.message`
+ * @private
+ * @param {string} _message 
+ * @returns {object} openai `message` object
+ */
+async function mGetMessage_openAI(_thread, _content, _msg_id, _openai){
+    //  files are attached at the message level under file_ids _array_, only content aside from text = [image_file]:image_file.file_id
+    return (!_msg_id)
+    ?	await _openai.beta.threads.messages.create(	//	add
+            _thread.id,
+            mGetMessage_openAIFormat(_content)
+        )
+    :	await _openai.beta.threads.messages.update(	//	update
+            _thread.id,
+            _msg_id,
+            mGetMessage_openAIFormat(_content)
+        )
+    /* TODO: code for message retrieval
+    switch (this.system) {
+        case 'openai_assistant':
+            return await this.#openai.beta.threads.messages.retrieve(
+                this.message.message.thread_id,
+                this.message.id
+            )
+        default:
+            break
+    }
+    */
+}
+function mGetMessage_openAIFormat(_message){
+    return {
+        role: 'user',
+        content: _message,
+//         file: this.file,
+    }
+}
+/**
+ * Gets questions from Cosmos, but could request from openAI.
+ * @param {Contribution} _contribution Contribution object
+ * @param {OpenAI} _openai OpenAI object
+ * @returns {string}
+ */
 async function mGetQuestions(_contribution, _openai){
     /*  get questions from openAI
         -   if no content, generate questions for description
@@ -479,9 +517,7 @@ async function mGetQuestions(_contribution, _openai){
     }
     if(process.env.DISABLE_OPENAI)
         return ['What is the meaning of life?']
-    //  attempt to pull from Cosmos, containerId: 'seeds'
-
-    //  generate question(s) from openAI
+    //  generate question(s) from openAI when required
     const _response = await _evoAgent.openai.completions.create({
         model: 'gpt-3.5-turbo-instruct',
         prompt: 'give a list of 3 questions (markdown bullets) used to ' + (
@@ -502,6 +538,45 @@ async function mGetQuestions(_contribution, _openai){
         .map(line => line.trim())   // Trim each line
         .filter(line => line.startsWith('-'))   // Filter lines that start with '-'
         .map(line => line.substring(1).trim())  // Remove the '-' and extra space
+}
+/**
+ * Assigns content (from _message.message) to message object.
+ * @modular
+ * @param {Message} _message Message object
+ * @param {object} _obj Object to assign to message
+ */
+function mReviewContent(_message, _obj){
+    console.log('review content', _message)
+    _message.content = (_obj?.category?.length)
+        ?   `Category Mode: ${_obj.category}. If asked: ${_obj.question}, I would say: ` + _obj.message // todo: cleanse/prepare message function
+        :   _obj?.message??
+            _obj?.content??
+            _message?.content??
+            ''
+}
+/**
+ * returns simple micro-message with category after logic mutation. Currently tuned for openAI gpt-assistant responses.
+ * @modular
+ * @param {string} _msg text of message, currently from gpt-assistants
+ * @returns {object} { category, content }
+ */
+function mPrepareMessage(_msg){
+    /* parse message */
+    let _filteredLines = _msg.split('\n')
+        .filter(_line => (_line.trim() !== '\n' || _line.trim() !== ''))
+    const _modeLine = _filteredLines[0] // first line of gpt response _may_ be a command mode, but not necessarily
+    let _messageCategory
+    if(_modeLine.includes('Mode:')){ // examine mode
+        if(_modeLine.includes('Category')){
+            _messageCategory = mExtractCategory(_modeLine)
+        }
+        _filteredLines = _filteredLines.slice(1)
+    }
+    const _content = _filteredLines.join('\n')
+    return {
+        category: _messageCategory,
+        content: _content,
+    }
 }
 /* exports */
 export {

@@ -1,15 +1,15 @@
 // imports
 import Router from 'koa-router'
-import { avatarListing, challenge, chat, contributions, index, members, register, signup, upload, _upload } from './functions.mjs'
+import { about, avatarListing, challenge, chat, contributions, index, members, signup, upload, _upload } from './functions.mjs'
 // variables
 const _Router = new Router()
 const _memberRouter = new Router()
 //	root routes
 _Router.get('/', index)
+_Router.get('/about', about)
 _Router.get('/status', status)
-_Router.get('/members', members)
-_Router.get('/members/:mid', members)
-_Router.get('/register', register)
+_Router.get('/members', members) // todo: this should be simpler and more precise a conductor of the request to sub-elements
+_Router.get('/members/:mid', members) // todo: dual purposed at moment, should be part of /login route or something akin
 _Router.get('/signup', status_signup)
 _Router.post('/', chat)
 _Router.post('/challenge', challenge)
@@ -19,6 +19,7 @@ _memberRouter.use(_memberValidate)
 _memberRouter.get('/:mid/contributions/', contributions)
 _memberRouter.get('/:mid/contributions/:cid', contributions)
 _memberRouter.get('/upload', upload)
+_memberRouter.post('/', chat)
 _memberRouter.post('/upload', _upload)
 _memberRouter.post('/:mid/contributions/:cid', contributions)
 _memberRouter.get('/:mid/avatars', avatarListing)

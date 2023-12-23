@@ -254,6 +254,67 @@
 			},
 			"additionalProperties": false,
 			"$comment": "openAI assistants interact with chat in a new way, they create a thread for the conversation and then apply a model that *runs* the thread and generates messages; this object is a direct capture of this object"
+		},
+		"message_member_chat": {
+			"name": "Message_member_chat",
+			"type": "object",
+			"required": ["agent", "category", "contributions", "id", "message", "type"],
+			"properties": {
+				"agent": {
+					"const": "member",
+					"enum": ["assistant", "member", "server", "user"],
+					"type": "string",
+					"description": "type of entity submitting",
+					"$comment": "three distinct and possible submittors: assistant (deprecate to avatar/agent), member (human), user (human)"
+				},
+				"category": {
+					"type": "string",
+					"default": "",
+					"description": "message category, if applicable",
+					"$comment": "in this instance, member has clicked a topic related to contribution(s) (whose .id is included in `contributions` array) and is submitting their response related to that `contribution.category`; category topics can span multiple response messages, but a category reset should equally reset the `contributions` array to empty"
+				},
+				"contributions": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string",
+						"format": "uuid",
+						"description": "contribution object ids"
+					},
+					"uniqueItems": true
+				},
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"description": "uuid of message",
+					"$comment": "interesting note: id could be sent from server in previous request in anticipation of recall; could be nice way to handshake and place onus of security downstream?"
+				},
+				"message": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 16000,
+					"description": "member-typed text",
+					"$comment": "currently flat, represents end results of keystrokes [not including backspace or rewrites]; note wrapper-like properties here, such as response_time, where such action-over-time structures could be captured when relevant and worth the data-parsing"
+				},
+				"response_time": {
+					"type": "integer",
+					"description": "UNIX date-time of front-end receipt to delivery of response",
+					"$comment": "tracks from point of delivery of request to point of delivery of response; can be used to track response time of member, assistant and potentially MyLife server services; could contribute to extrapolate other facets of human behavioral responses with digital interface devices"
+				},
+				"purpose": {
+					"type": "string",
+					"default": "",
+					"description": "message purpose, if applicable",
+					"$comment": "quite interesting to presume to extrapolate the purpose of a given message, but it certainly could be done; for example, if a 'response to a contribution request', then pupose can be explicated; currently unimplemented"
+				},
+				"type": {
+					"type": "string",
+					"default": "chat",
+					"description": "message type",
+					"enum": ["chat", "system", "error", "warning", "info", "debug"]
+				}
+			},
+			"additionalProperties": false
 		}
 	}
 }

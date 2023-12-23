@@ -4,10 +4,7 @@ import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { _ } from 'ajv'
 /* module export functions */
 async function about(ctx){
-	ctx.state.member = ctx.MyLife.member
-	ctx.state.agent = ctx.state.member.agent
 	ctx.state.title = `About MyLife`
-	ctx.state.subtitle = `Learn more about MyLife and your superintelligent future`
 	await ctx.render('about')	//	about
 }
 async function avatarListing(ctx){
@@ -28,9 +25,13 @@ async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	//	best way to turn to any agent? build into ctx? get state.member(/agent?) right
+	let _message = ctx.request?.body?.message??false /* body has all the nodes sent by fe */
+	if(!_message) ctx.throw(400, `invalid message: missing \`message\``) // currently only accepts single contributions via post with :cid
+	if(!_message?.length) ctx.throw(400, `empty message content`)
+	ctx.state.chatMessage = ctx.request.body
 	const _response = await ctx.state.avatar.chatRequest(ctx)
-	ctx.body = { 'answer': _response }
+	console.log('chat response', _response)
+	ctx.body = _response // return message_member_chat
 }
 /**
  * Manage delivery and receipt of contributions(s)
@@ -77,12 +78,6 @@ async function members(ctx){
 			await ctx.render('members')
 			break
 	}
-}
-async function register(ctx){
-	ctx.state.title = `Register`
-	ctx.state.subtitle = `Register for MyLife`
-	ctx.state.registerEmail = ctx.state.agent.email
-	await ctx.render('register')	//	register
 }
 async function signup(ctx) {
     const { email, humanName, avatarNickname } = ctx.request.body
@@ -197,7 +192,6 @@ export {
 	contributions,
 	index,
 	members,
-	register,
 	signup,
 	upload,
 	_upload,

@@ -171,6 +171,11 @@ h1 {
     color: white;
     margin-left: 0;
 }
+.member-bubble {
+    background-color: #78a6c1;
+    color: black;
+   margin-left: auto;
+}
 .user-bubble {
     background-color: #E0E0E0;
     color: black;
