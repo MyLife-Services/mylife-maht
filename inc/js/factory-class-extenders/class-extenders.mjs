@@ -81,7 +81,7 @@ function extendClass_avatar(_originClass,_references) {
                 })
             )
             _responses.forEach(_msg => {
-                this.#evolver.setContribution(_msg)
+                this.#evolver.setContribution(this.#activeChatCategory, _msg)
                 this.messages.unshift(_msg)
             })
             //	update cosmos
