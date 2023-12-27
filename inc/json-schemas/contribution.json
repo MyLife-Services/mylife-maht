@@ -45,12 +45,17 @@
 		"request": {
 			"type": "object",
 			"$ref": "/$defs/contribution_request",
-			"description": "JSON object structure for contribution request"
+			"description": "JSON object structure for contribution request, including questions that could be posed to Member"
 		},
-		"response": {
-			"type": "object",
-			"$ref": "/$defs/contribution_response",
-			"description": "JSON object structure for contribution response"
+		"responses": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"minLength": 1,
+				"description": "text content of question or response (agent or member)",
+				"$comment": "responses can be answers, follow-on questions, and answers to follow-ons"
+			},
+			"description": "array of contribution response strings"
 		},
 		"status": {
 			"type": "string",
@@ -147,7 +152,7 @@
 				"question": {
 					"type": "string",
 					"maxlength": 256,
-					"description": "question actually posed to Member to elicit response"
+					"description": "question originally posed to Member to elicit response"
 				}
 			},
 			"additionalProperties": false,

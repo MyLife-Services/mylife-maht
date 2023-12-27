@@ -124,12 +124,36 @@ function addMessageToColumn(_message, _options={
 function getActiveCategory() {
 	return _activeCategory;
 }
-function setActiveCategory(contributionId, category, question) {
-	_activeCategory = { /* no id then clears */
-		contributionId: contributionId,
-		category: category,
-		question: question,
-	}
+async function setActiveCategory(category, contributionId, question) {
+    const url = '/members/category'; // Replace with your server's URL
+    const data = {
+        contributionId: contributionId,
+        category: category,
+        question: question
+    };
+    await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+		.then(_response => {
+			if (!_response.ok) {
+				throw new Error(`HTTP error! Status: ${_response.status}`);
+			}
+			return _response.json();
+		})
+		.then(_response => {
+			_activeCategory = {
+				contributionId: _response.contributionId,
+				category: _response.category,
+			}
+		})
+		.catch(err => {
+			console.log('Error setting active category:', err);
+			// Handle errors as needed
+		});
 }
 async function submit(_event, _message) {
 	_event.preventDefault();
@@ -168,14 +192,16 @@ async function submit(_event, _message) {
 	agentSpinner.classList.remove('text-primary');
 	agentSpinner.classList.add('text-light');
 }
-async function submitChat(url, options) {
-	try {
-		const response = await fetch(url, options);
-		const jsonResponse = await response.json();
-		return jsonResponse;
-	} catch (err) {
-		console.log('fatal error', err);
-		return alert(`Error: ${err.message}`);
-	}
+async function submitChat(_url, _options) {
+	return await fetch(_url, _options)
+		.then(_response => {
+			if (!_response.ok) {
+				throw new Error(`HTTP error! Status: ${_response.status}`)
+			}
+			return _response.json()
+		})
+		.catch(_error => {
+			console.error('Error submitting chat:', _error)
+		})
 }
 </script>

@@ -21,16 +21,20 @@ async function avatarListing(ctx){
 		)
 	await ctx.render('avatars')	//	avatars
 }
+function category(ctx){ // sets category for avatar
+	ctx.state.category = ctx.request.body
+	ctx.state.avatar.setActiveCategory(ctx.state.category)
+	ctx.body = ctx.state.avatar.category
+}
 async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	let _message = ctx.request?.body?.message??false /* body has all the nodes sent by fe */
+	ctx.state.chatMessage = ctx.request.body
+	const _message = ctx.request?.body?.message??false /* body has all the nodes sent by fe */
 	if(!_message) ctx.throw(400, `invalid message: missing \`message\``) // currently only accepts single contributions via post with :cid
 	if(!_message?.length) ctx.throw(400, `empty message content`)
-	ctx.state.chatMessage = ctx.request.body
 	const _response = await ctx.state.avatar.chatRequest(ctx)
-	console.log('chat response', _response)
 	ctx.body = _response // return message_member_chat
 }
 /**
@@ -187,6 +191,7 @@ function mSetContributions(ctx){
 export {
 	about,
 	avatarListing,
+	category,
 	challenge,
 	chat,
 	contributions,

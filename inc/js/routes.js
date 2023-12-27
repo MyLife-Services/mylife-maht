@@ -1,6 +1,6 @@
 // imports
 import Router from 'koa-router'
-import { about, avatarListing, challenge, chat, contributions, index, members, signup, upload, _upload } from './functions.mjs'
+import { about, avatarListing, category, challenge, chat, contributions, index, members, signup, upload, _upload } from './functions.mjs'
 // variables
 const _Router = new Router()
 const _memberRouter = new Router()
@@ -19,6 +19,7 @@ _memberRouter.use(_memberValidate)
 _memberRouter.get('/:mid/contributions/', contributions)
 _memberRouter.get('/:mid/contributions/:cid', contributions)
 _memberRouter.get('/upload', upload)
+_memberRouter.post('/category', category)
 _memberRouter.post('/', chat)
 _memberRouter.post('/upload', _upload)
 _memberRouter.post('/:mid/contributions/:cid', contributions)

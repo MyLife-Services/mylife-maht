@@ -42,15 +42,12 @@ class Member extends EventEmitter {
 		this.#personalityKernal = openai	//	will be covered in avatars
 		this.#factory = _Factory
 		/* assign factory/avatar listeners */
-		this.factory.on('avatar-init-end',(_avatar,bytes)=>{
-			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
-		})
-		this.factory.on('on-new-contribution',(_contribution)=>{
-			console.log(chalk.grey(`Member::on-new-contribution`),_contribution.request)
-		})
+		this.attachListeners()
 	}
 	/**
-	 * 
+	 * Initializes Member class instantiation and returns `this`
+	 * @async
+	 * @public
 	 * @returns {Promise} Promise resolves to this Member class instantiation
 	 */
 	async init(){
@@ -64,6 +61,19 @@ class Member extends EventEmitter {
 		this.avatar = await this.factory
 			.getAvatar(undefined,_avatarProperties)	//	not pulling from db
 		return this
+	}
+	/**
+	 * Attaches listeners to Member class instantiation
+	 * @publc must remain public in order to be overridden
+	 * @returns {void} returns nothing
+	*/
+	attachListeners(){
+		this.factory.on('avatar-init-end',(_avatar,bytes)=>{
+			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
+		})
+		this.factory.on('on-contribution-new',(_contribution)=>{
+			console.log(chalk.grey(`Member::on-contribution-new`),_contribution.request)
+		})
 	}
 	//	getter/setter functions
 	get abilities(){
@@ -136,7 +146,7 @@ class Member extends EventEmitter {
 	 * @returns {array} returns array of Member Contributions
 	 */
 	get contributions(){
-		return this.#avatar.contributions
+		return this.#avatar?.contributions
 	}
 	get core(){
 		return this.factory.core
@@ -227,12 +237,20 @@ class Member extends EventEmitter {
 class Organization extends Member {	//	form=organization
 	#Menu
 	#Router
-	constructor(_Factory,_Session){
-		super(_Factory,_Session)
+	constructor(_Factory){
+		super(_Factory)
 	}
-	//	public functions
+	/* public functions */
 	async init(){
 		return await super.init()
+	}
+	/**
+	 * `Member` Overload
+	 * @publc must remain public in order to be overridden
+	 * @returns {void} returns nothing
+	*/
+	attachListeners(){
+		// intentionally empty
 	}
 	/* getters/setters */
 	/**
@@ -330,7 +348,7 @@ class MyLife extends Organization {	//	form=server
 		return 'MyLife'
 	}
 }
-//	exports
+/* exports */
 export {
 	Member,
 	Organization,

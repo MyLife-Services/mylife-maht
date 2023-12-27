@@ -19,7 +19,7 @@ const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
-const _Maht = MyLife // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
+const _Maht = await MyLife // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
 const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	test harness region
@@ -68,36 +68,24 @@ app.use(koaBody({
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
-			ctx.session.MemberSession = await _Maht.getMyLifeSession()	//	create default locked session upon first request
-			//	assign listeners to session
-			ctx.session.MemberSession
-				.on( 'session-init', async (_session)=>{
-					console.log(chalk.bgBlackBright('session-init'), _session.core)
-				}
-			)
-			ctx.session.MemberSession
-				.on( 'member-unlocked', async (_mbr_id)=>{
-					console.log(chalk.bgBlackBright('member-unlocked'), _mbr_id)
-				}
-			)
-			ctx.session.MemberSession
-				.on( 'onInit-member-initialize', async (_member)=>{
-					console.log(chalk.bgBlackBright('onInit-member-initialize'), _member)
-				}
-			)
-			await ctx.session.MemberSession
-				.init()
-			//	MemberSession-external variables
+			/* create generic session [references/leverages modular capabilities] */
+			ctx.session.MemberSession = await ctx.MyLife.getMyLifeSession()	//	create default locked session upon first request; does not require init(), _cannot_ have in fact, as it is referencing a global modular set of utilities and properties in order to charge-back to system as opposed to member
+			/* platform-required session-external variables */
 			ctx.session.signup = false
-			console.log(chalk.bgBlue('created-member-session', chalk.bgRedBright(ctx.session.MemberSession.threadId)))
+			/* log */
+			console.log(
+				chalk.bgBlue('created-member-session',
+				chalk.bgRedBright(ctx.session.MemberSession.threadId)))
 		}
 		ctx.state.locked = ctx.session.MemberSession.locked
-		ctx.state.member = ctx.session.MemberSession?.member??ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
+		ctx.state.MemberSession = ctx.session.MemberSession	//	lock-down session to state
+		ctx.state.member = ctx.state.MemberSession?.member
+			??	ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
 		ctx.state.avatar = ctx.state.member.avatar
 		ctx.state.avatar.name = ctx.state.avatar.names[0]
 		ctx.state.contributions = ctx.state.avatar.contributions
 		ctx.state.menu = ctx.MyLife.menu
-		if(!await ctx.session.MemberSession.requestConsent(ctx))
+		if(!await ctx.state.MemberSession.requestConsent(ctx))
 			ctx.throw(404,'asset request rejected by consent')
 
 		await next()

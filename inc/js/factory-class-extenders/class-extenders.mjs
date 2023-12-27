@@ -5,7 +5,7 @@ import { _ } from 'ajv'
 //  function definitions to extend remarkable classes
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
-        #activeChatCategory = '' // string connoting active category, when Category Mode activated
+        #activeChatCategory = mGetMyLifeChatCategory()
         #emitter = new EventEmitter()
         #evolver
         #factory
@@ -18,16 +18,14 @@ function extendClass_avatar(_originClass,_references) {
             this.#factory = _factory
         }
         async init(){
-            /* create evolver */
-            this.#evolver = new EvolutionAssistant(this)
-            /* assign evolver listeners */
-            this.#evolver.on(
-                'on-new-contribution',
-                _contribution=>{this.emitter.emit('on-new-contribution', _contribution) }
-            )
-            /* init evolver */
-            await this.#evolver.init()
-            this.emitter.emit('avatar-init-end',this)
+            /* create evolver (exclude MyLife) */
+            if(!this.factory.isMyLife){
+                this.#evolver = new EvolutionAssistant(this)
+                mAssignEvolverListeners(this.#evolver, this)
+                /* init evolver */
+                await this.#evolver.init()
+            }
+            this.emit('avatar-init-end',this)
             return this
         }
         /* public functions */
@@ -38,19 +36,32 @@ function extendClass_avatar(_originClass,_references) {
                 _run_id
             )
         }
+        /**
+         * Processes and executes incoming category set request.
+         * @public
+         * @param {string} _category - The category to set { category, contributionId, question }.
+         */
+        setActiveCategory(_category){
+            const _proposedCategory = mGetMyLifeChatCategory(_category)
+            /* evolve contribution */
+            if(_proposedCategory?.category){ // no category, no contribution
+                this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
+            }
+        }
         async chatRequest(ctx){ // todo: determine if ctx.state is sufficient
             const _processStartTime = Date.now()
             if(!ctx?.state?.chatMessage)
                 throw new Error('No message provided in context')
             if(!this.thread)
-                this.thread = ctx.session.MemberSession.thread
+                this.thread = ctx.state.MemberSession.thread
             //  add metata, optional
             //	assign uploaded files (optional) and push `retrieval` to tools
             //	create message
             const _chatMessage = ctx.state.chatMessage
+            this.setActiveCategory(_chatMessage) // also sets evolver contribution
             const _message = new (this.factory.message)(_chatMessage)
             await _message.init(this.thread) //  by embedding content above, init routine requires no parameters
-            this.messages.unshift(_chatMessage)
+            this.messages.unshift(_message)
             //	run thread
             await this.run()
             //	get message data from thread
@@ -69,11 +80,14 @@ function extendClass_avatar(_originClass,_references) {
                     return await _msg.init(this.thread)
                 })
             )
-            this.messages.unshift(..._responses)	//	post each response to this.messages
+            _responses.forEach(_msg => {
+                this.#evolver.setContribution(_msg)
+                this.messages.unshift(_msg)
+            })
             //	update cosmos
-            if(this?.factory)
+            if((this?.factory??false) & (this?.bAllowSave??false))
                 await this.factory.dataservices.patchArrayItems(
-                    ctx.session.MemberSession.conversation.id,
+                    ctx.state.MemberSession.conversation.id,
                     'messages',
                     [..._responses, _message]
                 )
@@ -137,6 +151,16 @@ function extendClass_avatar(_originClass,_references) {
                     resolve('Run completed (timeout)')
                 }, 220000)
             })
+        }
+        /**
+         * Proxy for emitter.
+         * @public
+         * @param {string} _eventName - The event to emit.
+         * @param {any} - The event(s) to emit.
+         * @returns {void}
+         */
+        emit(_eventName, ...args){
+            this.#emitter.emit(_eventName, ...args)
         }
         async getAssistant(_dataservice){	//	openai `assistant` object
             //	3 states: 1) no assistant, 2) assistant id, 3) assistant object
@@ -203,6 +227,9 @@ function extendClass_avatar(_originClass,_references) {
             const _run = this.runs.filter(_run=>{ return _run.id==_run_id })
             _run.steps = await openai.beta.threads.runs.steps.list(this.thread.id, _run.id)
         }
+        on(_eventName, listener){
+            this.#emitter.on(_eventName, listener)
+        }
         async run(){
             const _run = await this.startRun()
             if(!_run) throw new Error('Run failed to start')
@@ -211,14 +238,6 @@ function extendClass_avatar(_originClass,_references) {
             // ping status
             await this.completeRun(_run.id)
         }
-        setChatCategory(_category) {
-            if (!_category || _category.toLowerCase() === 'off')
-                _category = ''
-            this.#activeChatCategory = _category
-                .replace(/\s+/g, '_')
-                .toLowerCase();
-        }
-        
         async startRun(){	//	returns openai `run` object
             if(!this.thread || !this.messages.length) return
             return await this.openai.beta.threads.runs.create(
@@ -241,8 +260,11 @@ function extendClass_avatar(_originClass,_references) {
         get category(){
             return this.#activeChatCategory
         }
+        set category(_category){
+            this.#activeChatCategory = _category
+        }
         get contributions(){
-            return this.#evolver.contributions
+            return this.#evolver?.contributions
         }
         /**
          * Set incoming contribution.
@@ -251,6 +273,7 @@ function extendClass_avatar(_originClass,_references) {
         set contribution(_contribution){
             this.#evolver.contribution = _contribution
         }
+        // todo: deprecate to available convenience public emit() function
         get emitter(){  //  allows parent to squeeze out an emitter
             return this.#emitter
         }
@@ -298,26 +321,40 @@ function extendClass_contribution(_originClass,_references) {
             this.request.questions = await mGetQuestions(this, this.openai) // generate question(s) from cosmos or openAI
             this.id = this.factory.newGuid
             this.status = 'prepared'
-            this.emitter.emit('on-new-contribution',this)
+            this.emit('on-contribution-new',this)
             return this
         }
         async allow(_request){
-            //	this intends to evolve in near future, but is currently only a pass-through with some basic structure alluding to future functionality
+            //	todo: evolve in near future, but is currently only a pass-through with some basic structure alluding to future functionality
             return true
         }
+        /**
+         * Convenience proxy for emitter.
+         * @param {string} _eventName - The event to emit.
+         * @param {any} - The event(s) to emit.
+         * @returns {void}
+         */
+        emit(_eventName, ...args){
+            this.#emitter.emit(_eventName, ...args)
+        }
+        /**
+         * Convenience proxy for listener.
+         * @param {string} _eventName - The event to emit.
+         * @param {function} _listener - The event listener functionality.
+         * @returns {void}
+         */
+        on(_eventName, _listener){
+            this.#emitter.on(_eventName, _listener)
+        }
+        /**
+         * Updates `this` with incoming contribution data.
+         * @param {object} _contribution - Contribution data to incorporate 
+         * @returns {void}
+         */
         update(_contribution){
-            //  update contribution
-            if(!_contribution?.response)
-                ctx.throw(400, `missing contribution response`)
-            this.response = _contribution.response
-            console.log('updated', this.response, this.inspect(true))
-            this.emitter.emit('on-contribution-reponse',this.response)
-            return this
+            mUpdateContribution(this, _contribution) // directly modifies `this`, no return
         }
         /*  getters/setters */
-        get emitter(){
-            return this.#emitter
-        }
         /**
          * Get the factory instance.
          * @returns {object} MyLife Factory instance
@@ -377,6 +414,12 @@ function extendClass_file(_originClass,_references) {
     }
 }
 function extendClass_message(_originClass,_references) {
+    /**
+     * Message class.
+     * @class
+     * @extends _originClass - variable that defines the _actual_ class to extend, here message.
+     * @param {object} _obj - The object to construct the message from..
+     */
     class Message extends _originClass {
         #maxContextWindow = Math.min((process.env.OPENAI_MAX_CONTEXT_WINDOW || 2000), 5000)    //  default @2k chars, hard cap @5k
         #message
@@ -449,7 +492,115 @@ function extendClass_message(_originClass,_references) {
 }
 /* modular functions */
 /* avatar modular functions */
+function mAssignEvolverListeners(_evolver, _avatar){
+    /* assign evolver listeners */
+    _evolver.on(
+        'on-contribution-new',
+        _contribution=>{
+            _contribution.emit('on-contribution-new', _contribution)
+        }
+    )
+    _evolver.on( // bug: not getting triggered
+        'avatar-change-category',
+        (_current, _proposed)=>{
+            _avatar.category = _proposed
+            console.log('avatar-change-category', _avatar.category)
+        }
+    )
+    _evolver.on(
+        'on-contribution-submitted',
+        _contribution=>{
+            // send to gpt for summary
+            const _responses = _contribution.responses.join('\n')
+            const _summary = _avatar.factory.openai.completions.create({
+                model: 'gpt-3.5-turbo-instruct',
+                prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
+                temperature: 1,
+                max_tokens: 700,
+                frequency_penalty: 0.87,
+                presence_penalty: 0.54,
+            })
+            // evaluate summary
+            console.log('on-contribution-submitted', _summary)
+            abort
+            //  if summary is good, submit to cosmos
+        }
+    )
+}
+function mFormatCategory(_category){
+    return _category
+        .replace('Category Mode: ', '')
+        .replace(/\n/g, '') // Remove all newline characters
+        .trim()
+        .slice(0, 128)  //  hard cap at 128 chars
+        .replace(/\s+/g, '_')
+        .toLowerCase()
+}
+/**
+ * Returns chat category object
+ * @modular
+ * @param {object} _category - local category { category, contributionId, question }
+ * @returns {object} - local category { category, contributionId, messages }
+ */
+function mGetMyLifeChatCategory(_category) {
+    const _proposedCategory = {
+        category: '',
+        contributionId: undefined,
+        content: undefined,
+    }
+    if(_category?.category && _category.category.toLowerCase() !== 'off'){
+        _proposedCategory.category = mFormatCategory(_category.category)
+        _proposedCategory.contributionId = _category.contributionId
+        _proposedCategory.content = 
+            _category?.question??
+            _category?.message??
+            _category?.content // test for undefined
+    }
+    return _proposedCategory
+}
 /* contribution modular functions */
+/**
+ * Evaluates Contribution and may update `status` property.
+ * @modular
+ * @param {Contribution} _contribution - Contribution object
+ * @returns {void}
+ */
+function mEvaluateStatus(_contribution){
+    // assess `status`
+    // statuses=["new", "pending", "prepared", "requested", "submitted", "accepted", "rejected"],
+    switch(true){
+        case(['submitted', 'accepted', 'rejected'].includes(_contribution.status)):
+            //  intentionally empty, different process manages, no change
+            break
+        case (_contribution.responses.length === 1): // **note** `.question` = responses[0]
+            _contribution.status = 'pending'
+            _contribution.emit('on-contribution-prepared', _contribution.id)
+            break
+        case(_contribution.responses.length > 1): // subsequent objects, by logic = response included
+            _contribution.status = 'requested'
+            break
+        default:
+            _contribution.status = 'pending' // no emission
+            break
+    }
+}
+/**
+ * Updates contribution object with incoming contribution data.
+ * @modular
+ * @param {Contribution} _contribution - Contribution object
+ * @param {object} _obj - Contribution data { category, contributionId, content??question??message }
+ * @returns {void}
+ */
+function mUpdateContribution(_contribution, _obj){
+    if(_obj?.question ?? _obj?.content ?? _obj?.message){
+        _contribution.responses.unshift( // todo: ensure incoming has _only_ `content`
+            _obj.question??
+            _obj.content??
+            _obj.message
+        )
+    }
+    mEvaluateStatus(_contribution) // evaluates readiness for next stage of Contribution
+}
 /* message modular functions */
 function mExtractCategory(_category){
     return _category
@@ -546,7 +697,6 @@ async function mGetQuestions(_contribution, _openai){
  * @param {object} _obj Object to assign to message
  */
 function mReviewContent(_message, _obj){
-    console.log('review content', _message)
     _message.content = (_obj?.category?.length)
         ?   `Category Mode: ${_obj.category}. If asked: ${_obj.question}, I would say: ` + _obj.message // todo: cleanse/prepare message function
         :   _obj?.message??
@@ -563,7 +713,7 @@ function mReviewContent(_message, _obj){
 function mPrepareMessage(_msg){
     /* parse message */
     let _filteredLines = _msg.split('\n')
-        .filter(_line => (_line.trim() !== '\n' || _line.trim() !== ''))
+        .filter(_line => _line.trim() !== '') // Remove empty lines
     const _modeLine = _filteredLines[0] // first line of gpt response _may_ be a command mode, but not necessarily
     let _messageCategory
     if(_modeLine.includes('Mode:')){ // examine mode

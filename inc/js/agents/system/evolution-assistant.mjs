@@ -45,6 +45,15 @@ export class EvolutionAssistant extends EventEmitter {
         //  set phase
         await this.#advancePhase()  // subfunction will handle emissions
     }
+    /**
+     * Proxy to process a Contribution. First update the Contribution object, determining if the Contribution stage is updated. Then evaluate Evolution phase for completeness and advancement.
+     * @param {object} _current - Contribution object { category, contributionId, message }
+     * @param {object} _proposed - Contribution object { category, contributionId, message }
+     * @returns {object} The updated Contribution instantiation.
+     */
+    setContribution(_current, _proposed) {
+        mSetContribution(this, _current, _proposed)
+    }
     /* getters/setters */
     /**
      * Get the avatar object.
@@ -66,19 +75,6 @@ export class EvolutionAssistant extends EventEmitter {
     */
     get categories() {
         return this.#avatar?.categories??[]
-    }
-    /**
-     * Set the contributions object.
-     * @param {object} _contribution - The contribution object
-    */
-    set contribution(_contribution) {
-        if(!_contribution?.id)
-            ctx.throw(400, `missing contribution id`)
-        const __contribution = this.#contributions
-            .find(_contribution => _contribution.id === _contribution.id)
-        if(!__contribution)
-            ctx.throw(400, `contribution not found`)
-        __contribution.update(_contribution)
     }
     /**
      * Get the contributions array.
@@ -135,7 +131,7 @@ export class EvolutionAssistant extends EventEmitter {
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
  * @returns {string} The determined phase.
  * @todo Implement phase advancement logic for: develop, mature, maintain, retire.
- */
+*/
 async function mAdvancePhase(_evoAgent){  //  **note**: treat parameter `_evoAgent` as `read-only` for now
     const _proposal = { //  no need to objectify
         contributions: _evoAgent.contributions,
@@ -176,7 +172,7 @@ async function mAdvancePhase(_evoAgent){  //  **note**: treat parameter `_evoAge
  * @param {EvolutionAssistant} _evoAgent - The avatar evoAgent whose data requires assessment.
  * @param {number} _numCategories - The number of categories to return. Defaults to 5. minimum 1, maximum 9.
  * @returns {Array} The top number categories requiring Contributions.
- */
+*/
 function mAssessData(_evoAgent, _numCategories) {
     const _defaultNumCategories = 5
     const _maxNumCategories = 9
@@ -187,12 +183,11 @@ function mAssessData(_evoAgent, _numCategories) {
     ]
         .slice(0, Math.min(_numCategories || _defaultNumCategories, _maxNumCategories))
 }
-
 /**
  * Asses nodes for categories to contribute to.
  * @param {EvolutionAssistant} _evoAgent 
- * @returns 
- */
+ * @returns {Array} The categories to contribute to.
+*/
 function mAssessNodes(_evoAgent){
     return _evoAgent.categories
     .filter(_category => _evoAgent?.[mFormatCategory(_category)])
@@ -204,6 +199,32 @@ function mAssessNulls(_evoAgent) {
         .filter(_category => !_evoAgent?.[mFormatCategory(_category)])
         .map(_category => mFormatCategory(_category))
         .sort(() => Math.random() - 0.5)
+}
+/**
+ * Assign listeners to a Contribution object.
+ * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
+ * @param {Contribution} _contribution - The Contribution object to assign listeners to.
+*/
+function mAssignContributionListeners(_evoAgent, _contribution) {
+     // **note**: logging exact text of event for now, but could be more generic
+    _contribution.on(
+        'on-contribution-new',
+        _contribution => { // todo: do not add contributions to anything but Member
+
+        }
+    )
+    _contribution.on(
+        'on-contribution-prepared',
+        _contribution => {
+
+        }
+    )
+    _contribution.on(
+        'on-contribution-submitted',
+        _contribution => {
+
+        }
+    )
 }
 /**
  * Determines whether the given phase is complete.
@@ -221,10 +242,10 @@ function mEvolutionPhaseComplete(_evoAgent,_phase) {
     }
 }
 /**
-* Formats a category string to a format consistent with Cosmos key structure: all lowercase, underscores for spaces, limit of 64-characters.
-* @modular
-* @param {string} _category - The category to format.
-* @returns {string} The formatted category.
+ * Formats a category string to a format consistent with Cosmos key structure: all lowercase, underscores for spaces, limit of 64-characters.
+ * @modular
+ * @param {string} _category - The category to format.
+ * @returns {string} The formatted category.
 */
 function mFormatCategory(_category) {
    return _category
@@ -236,7 +257,7 @@ function mFormatCategory(_category) {
 /**
  * Digest a request to generate a new Contribution.
  * @modular
- * @emits {on-new-contribution} - Emitted when a new Contribution is generated.
+ * @emits {on-contribution-new} - Emitted when a new Contribution is generated.
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
  * @param {string} _category - The category to process.
  * @param {string} _phase - The phase to process.
@@ -259,15 +280,9 @@ async function mGetContribution(_evoAgent, _category, _phase) {
             impersonation: _avatar.being,
             phase: _phase,
         },
-        response: {
-            category: _category,
-        },
+        responses: [],
     })
-    //  assign contribution listeners
-    _contribution.emitter.on(
-        'on-new-contribution',
-        _contribution => mLog('on-new-contribution',_evoAgent,_contribution) // **note**: logging exact text 
-    )
+    mAssignContributionListeners(_evoAgent, _contribution)
     return await _contribution.init(_avatar.factory)   //  fires emitters
 }
 /**
@@ -277,20 +292,45 @@ async function mGetContribution(_evoAgent, _category, _phase) {
  * @param {string} _emit_text - The text to emit.
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
  * @param {object} _object - The object to log, if not evoAgent.
- */
+*/
 function mLog(_emit_text,_evoAgent,_object) {
     if(_emit_text) _evoAgent.emit(_emit_text, _object??_evoAgent) // incumbent upon EvoAgent to incorporate child emissions into self and _then_ emit here
-} 
+}
+/**
+ * Process a Contribution. First update the Contribution object, determining if the Contribution stage is updated. Then evaluate Evolution phase for completeness and advancement.
+ * @modular
+ * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
+ * @param {Array} _contributions - The contributions array.
+ * @param {object} _current - Contribution object { category, contributionId, message }
+ * @param {object} _proposed - Contribution object { category, contributionId, message }
+ * @returns {object} The updated Contribution instantiation.
+*/
+function mSetContribution(_evoAgent, _current, _proposed) {
+    /* update Contribution */
+    if(_proposed?.contributionId){
+        _evoAgent.contributions
+            .find(_contribution => _contribution.id === _proposed.contributionId)
+            .update(_proposed) // emits avatar update event
+    }
+    /* evolve phase */
+    if(_current?.category!==_proposed.category){
+        _evoAgent.emit('avatar-change-category', _current, _proposed)
+        if(_current?.contributionId){
+        /* @todo: verify that categories are changing
+            const _currentContribution = _contributions
+                .find(_contribution => _contribution.id === _current.contributionId)
+            if(_currentContribution.stage === 'prepared'){ // ready to process
+                // join array and submit for gpt-summarization
+                mSubmitContribution(_evoAgent, _contributions.responses.join('\n'))
+                // advance phase, write db, emit event
+            }
+        */
+        }
+    }
+}
+async function mSubmitContribution(_evoAgent, _contribution) {
+    // emit to avatar => (session?) => datacore
+    _contribution.emit('on-contribution-submitted', _contribution)
+}
 // exports
 export default EvolutionAssistant
-/*
-# Design Principles and Architectural Guidelines:
-
-- Adaptability: More than other objects or agents, the dexterity of an evo-agent is crucial, as it is the heart and brains of the context-awareness [less crucial as tech develops] and data-evolution [more crucial by comparison] process. Incorporate the ability to adapt continuously throughout the Evo-Agent's lifecycle, enabling it to stay relevant and effective in dynamic environments.
-- Modularity: Develop Evo-Agents with a modular approach, allowing for easy updates, maintenance, and scalability.
-- Resilience: Ensure that Evo-Agents can recover gracefully from errors and continue operation in the face of failures or unexpected conditions.
-- Security: Incorporate robust security measures to protect against unauthorized access and to safeguard sensitive data.
-- Efficiency: Optimize for performance and resource usage, ensuring that Evo-Agents are not excessively taxing on system resources.
-Transparency and Accountability: Ensure that the actions and decisions of Evo-Agents are understandable and justifiable, particularly if they impact users directly.
-Sustainability: Consider the long-term impacts of Evo-Agents, including environmental, social, and economic factors.
-*/

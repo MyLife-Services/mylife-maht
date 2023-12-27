@@ -122,10 +122,10 @@ class AgentFactory extends EventEmitter{
 		//	enact, instantiate and activate avatar, all under **factory** purview
 		const _Avatar = new (schemas.avatar)(_avatarProperties, this)
 		/* assign listeners */
-		_Avatar.emitter.on('on-new-contribution',_contribution=>{
-			this.emit('on-new-contribution',_contribution)
+		_Avatar.on('on-contribution-new',_contribution=>{
+			this.emit('on-contribution-new',_contribution)
 		})
-		_Avatar.emitter.on('avatar-init-end',_avatar=>{
+		_Avatar.on('avatar-init-end',_avatar=>{
 			this.emit('avatar-init-end',_avatar,mBytes(_avatar))
 		})
 		await _Avatar.init()
@@ -147,9 +147,11 @@ class AgentFactory extends EventEmitter{
 		return _r
 	}
 	async getMyLifeSession(){
-		//	default is session based around default dataservices [Maht entertains guests]
+		// default is session based around default dataservices [Maht entertains guests]
+		// **note**: conseuquences from this is that I must be careful to not abuse the modular space for sessions, and regard those as _untouchable_
 		return await new (schemas.session)(
-			new AgentFactory(dataservicesId)
+			( new AgentFactory(dataservicesId) ) // no need to init currently as only pertains to non-server adjustments
+			// I assume this is where the duplication is coming but no idea why
 		).init()
 	}
 	async getThread(){
@@ -204,6 +206,13 @@ class AgentFactory extends EventEmitter{
 	}
 	get globals(){
 		return _Globals
+	}
+	/**
+	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
+	 * @returns {boolean}
+	*/
+	get isMyLife(){
+		return this.mbr_id===dataservicesId
 	}
 	get mbr_id(){
 		return this.#mbr_id

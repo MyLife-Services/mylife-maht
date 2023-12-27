@@ -42,7 +42,7 @@
                 const category = this.getAttribute('data-category');
                 const container = this.closest('.category-container');
                 container.remove(); // Remove the category
-
+                closeCategory(category);
                 // Check if all categories are dismissed
                 if (!document.querySelector('.category-container')) {
                     // Option to refresh or load more categories
@@ -51,6 +51,11 @@
             });
         });
 });
+function closeCategory(_category) {
+    if(getActiveCategory()?.category == _category){
+        setActiveCategory();
+    }
+}
 function handleAllCategoriesDismissed() {
     // Implement the logic to refresh or notify the user
     // Example: display a message with an option to refresh
@@ -65,17 +70,16 @@ function handleCategorySelection(contributionId, category, questions) {
         question: _question,
     };
     const _options = {
-        chatColumn: chatColumn,
         type: 'agent-bubble',
         _typewrite: true,
-        _delay: 10,
+        _delay: 6,
     };
-    setActiveCategory(contributionId, category, _question);
+    setActiveCategory(category, contributionId, _question);
     addMessageToColumn(_message, _options);
     
 }
 function getRandomQuestion(questions) {
-    if (questions.length === 0) return "No question available";
+    if (!questions?.length) return "No question available";
     const randomIndex = Math.floor(Math.random() * questions.length);
     return questions[randomIndex];
 }
