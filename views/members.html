@@ -166,11 +166,10 @@ async function submit(_event, _message) {
 	const url = window.location.origin + '/members';
 	/* category logic */
 	const _activeCategory = getActiveCategory();
-	const _contributions = (_activeCategory?.contributionId) ? [_activeCategory.contributionId] : [];
 	const _request = {
 			agent: 'member',
 			category: _activeCategory.category,
-			contributions: _contributions, // todo: pull unique ids from active `contributions` related to response
+			contributionId: _activeCategory?.contributionId, // todo: pull unique ids from active `contributions` related to response
 			id: null,
 			message: _message.message,
 			question: _activeCategory.question,

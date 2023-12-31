@@ -53,8 +53,9 @@ chatForm.addEventListener('submit', (event) => {
 	if (!userMessage.length)
 		return;
 	submit(event, userMessage);
-	addMessageToColumn(userMessage, {
-		bubbleClass: 'user-bubble'
+	addMessageToColumn({ message: userMessage }, {
+		bubbleClass: 'user-bubble',
+		_delay: 7,
 	});
 	messageInput.value = '';
 });
@@ -62,7 +63,7 @@ chatForm.addEventListener('submit', (event) => {
 function addMessageToColumn(_message, _options={
 	bubbleClass: 'agent-bubble',
 	_typewrite: true,
-	_delay: 25,
+	_delay: 15,
 }){
 	const { message } = _message;
 	const { bubbleClass, _typewrite, _delay } = _options;
@@ -107,8 +108,12 @@ async function submit(_event, _message) {
 		body: JSON.stringify({message: _message }),
 	};
 	const _gptChat = await submitChat(url, options);
-	addMessageToColumn({
-		message: _gptChat.message,
+	// now returns array of messages
+	_gptChat.forEach(_message => {
+		addMessageToColumn({
+			message: _message.message,
+			_delay: 10,
+		});
 	});
 	awaitButton.style.display = 'none';
 	submitButton.style.display = 'block';

@@ -179,6 +179,9 @@ async function mCreateConversation(_session){	//	thread can be acted on by any a
 		thread: await _session.factory.getThread(),
 	}, _session.factory)
 	_conversation.name = mAssignName(_session.mbr_id, _conversation.threadId)
+	//	print to CosmosDB
+	if(process.env?.MYLIFE_DB_ALLOW_SAVE??false)
+		_session.factory.dataservices.pushItem(_conversation.inspect(true))
 	return _conversation
 }
 function mValidCtxObject(_ctx){

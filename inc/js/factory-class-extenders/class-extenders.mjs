@@ -2,6 +2,7 @@ import { EventEmitter } from 'events'
 import { Marked } from 'marked'
 import { EvolutionAssistant } from '../agents/system/evolution-assistant.mjs'
 import { _ } from 'ajv'
+import { parse } from 'path'
 //  function definitions to extend remarkable classes
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
@@ -48,13 +49,19 @@ function extendClass_avatar(_originClass,_references) {
                 this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
             }
         }
+        /**
+         * Processes and executes incoming chat request.
+         * @public
+         * @param {object} ctx - The context object.
+         * @returns {object} - The response(s) to the chat request.
+        */
         async chatRequest(ctx){ // todo: determine if ctx.state is sufficient
             const _processStartTime = Date.now()
             if(!ctx?.state?.chatMessage)
                 throw new Error('No message provided in context')
             if(!this.thread)
                 this.thread = ctx.state.MemberSession.thread
-            //  add metata, optional
+            //  add metadata, optional
             //	assign uploaded files (optional) and push `retrieval` to tools
             //	create message
             const _chatMessage = ctx.state.chatMessage
@@ -81,16 +88,17 @@ function extendClass_avatar(_originClass,_references) {
                 })
             )
             _responses.forEach(_msg => {
-                this.#evolver.setContribution(this.#activeChatCategory, _msg)
+                this.#evolver?.setContribution(this.#activeChatCategory, _msg)??false
                 this.messages.unshift(_msg)
             })
             //	update cosmos
-            if((this?.factory??false) & (this?.bAllowSave??false))
+            if ((this?.factory !== undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE ?? false)) {
                 await this.factory.dataservices.patchArrayItems(
                     ctx.state.MemberSession.conversation.id,
                     'messages',
                     [..._responses, _message]
                 )
+            }
             //	return response
             return _responses
                 .map(_msg=>{
@@ -185,7 +193,7 @@ function extendClass_avatar(_originClass,_references) {
                 this.assistant = await this.openai.beta.assistants.create(_core)
                 //	save id to cosmos
                 _dataservice.patch(this.id, {
-                    assistant: { 
+                    assistant: {
                         id: this.assistant.id
                     ,	object: 'assistant'
                     }
@@ -195,11 +203,9 @@ function extendClass_avatar(_originClass,_references) {
             return this.assistant
         }
         async getMessage(_msg_id){	//	returns openai `message` object
-            if(!this.thread) await this.getThread()
             return this.messages.data.filter(_msg=>{ return _msg.id==_msg_id })
         }
         async getMessages(){
-            if(!this.thread) await this.getThread()
             this.messages = ( await this.openai.beta.threads.messages.list(
                 this.thread.id
             ) )	//	extra parens to resolve promise
@@ -500,11 +506,11 @@ function mAssignEvolverListeners(_evolver, _avatar){
             _contribution.emit('on-contribution-new', _contribution)
         }
     )
-    _evolver.on( // bug: not getting triggered
+    _evolver.on(
         'avatar-change-category',
         (_current, _proposed)=>{
             _avatar.category = _proposed
-            console.log('avatar-change-category', _avatar.category)
+            console.log('avatar-change-category', _avatar.category.category)
         }
     )
     _evolver.on(
@@ -529,8 +535,6 @@ function mAssignEvolverListeners(_evolver, _avatar){
 }
 function mFormatCategory(_category){
     return _category
-        .replace('Category Mode: ', '')
-        .replace(/\n/g, '') // Remove all newline characters
         .trim()
         .slice(0, 128)  //  hard cap at 128 chars
         .replace(/\s+/g, '_')
@@ -712,16 +716,14 @@ function mReviewContent(_message, _obj){
  */
 function mPrepareMessage(_msg){
     /* parse message */
+    // Regular expression to match the pattern "Category Mode: {category}. " or "Category Mode: {category}\n"; The 'i' flag makes the match case-insensitive
+    const _categoryRegex = /^Category Mode: (.*?)\.?$/gim
+    const _match = _categoryRegex.exec(_msg)
+    const _messageCategory = mFormatCategory(_match?.[1]??'')
+    // Remove from _msg
+    _msg = _msg.replace(_categoryRegex, '')
     let _filteredLines = _msg.split('\n')
         .filter(_line => _line.trim() !== '') // Remove empty lines
-    const _modeLine = _filteredLines[0] // first line of gpt response _may_ be a command mode, but not necessarily
-    let _messageCategory
-    if(_modeLine.includes('Mode:')){ // examine mode
-        if(_modeLine.includes('Category')){
-            _messageCategory = mExtractCategory(_modeLine)
-        }
-        _filteredLines = _filteredLines.slice(1)
-    }
     const _content = _filteredLines.join('\n')
     return {
         category: _messageCategory,

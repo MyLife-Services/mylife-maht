@@ -316,15 +316,15 @@ function mSetContribution(_evoAgent, _current, _proposed) {
     if(_current?.category!==_proposed.category){
         _evoAgent.emit('avatar-change-category', _current, _proposed)
         if(_current?.contributionId){
-        /* @todo: verify that categories are changing
-            const _currentContribution = _contributions
+        /* @todo: verify that categories are changing */
+            const _currentContribution = _evoAgent.contributions
                 .find(_contribution => _contribution.id === _current.contributionId)
+            console.log('evolution-assistant:mSetContribution():320', _currentContribution.inspect(true))
             if(_currentContribution.stage === 'prepared'){ // ready to process
                 // join array and submit for gpt-summarization
                 mSubmitContribution(_evoAgent, _contributions.responses.join('\n'))
                 // advance phase, write db, emit event
             }
-        */
         }
     }
 }
