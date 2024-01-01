@@ -11,7 +11,7 @@ class Globals extends EventEmitter {
 	}
 	//	public utility functions
 	extractId(_mbr_id){
-		return _mbr_id.split('|')[1]
+		return _mbr_id?.split('|')[1]??_mbr_id
 	}
 	extractSysName(_mbr_id){
 		return _mbr_id.split('|')[0]

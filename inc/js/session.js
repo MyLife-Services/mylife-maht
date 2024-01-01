@@ -1,43 +1,58 @@
-import AgentFactory from './mylife-agent-factory.mjs'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
-class MylifeMemberSession {	//	bean only, no public functions aside from init and constructor
+class MylifeMemberSession extends EventEmitter {
 	#consents = []	//	consents are stored in the session
+	#contributions = []	//	intended to hold all relevant contribution questions for session
 	#conversation
 	#factory
-	#fxValidate
 	#locked = true	//	locked by default
-	#mbr_id
+	#mbr_id = false
 	#Member
 	#thread
 	name
-	constructor(_factory,_fxValidate){
+	constructor(_factory){
+		super()
 		this.#factory = _factory
-		this.#fxValidate = _fxValidate	//	_fxValidate is an injected function to use the most current mechanic to validate the member
-		this.#mbr_id = this.factory.mbr_id
+		this.#mbr_id = this.isMyLife ? this.factory.mbr_id : false
+		mAssignFactoryListeners(this.#factory)
+		console.log(
+			chalk.bgGray('MylifeMemberSession:constructor(_factory):generic-mbr_id::end'),
+			chalk.bgYellowBright(this.factory.mbr_id),
+		)
 	}
 	async init(_mbr_id=this.mbr_id){
-		if(!this.#thread) await this.#createThread()
+		if(!this.conversation){
+			this.#conversation = await mCreateConversation(this)
+			this.#thread = this.conversation.thread
+		}
 		if(this.locked){
 			if(this.#Member?.mbr_id??_mbr_id !== _mbr_id)
 				console.log(chalk.bgRed('cannot initialize, member locked'))
 		}
-		if(this.mbr_id !== _mbr_id) {	//	only create if not already created or alternate Member
+		// unlocked session, initialize fidelity member session
+		if(this.mbr_id && this.mbr_id !== _mbr_id) {
 			this.#mbr_id = _mbr_id
-			console.log('update-agent-factory')
+			mAssignFactoryListeners(this.#factory)
 			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
-			await this.#createThread()
+			this.#conversation = await mCreateConversation(this)
+			this.#thread = this.conversation.thread
 			this.#Member = await this.factory.getMyLifeMember()
 			//	update conversation info (name)
-			console.log(chalk.bgBlue('created-member:', chalk.bgRedBright(this.#Member.memberName )))
+			this.name = mAssignName(this.#mbr_id, this.#thread.id)
+			this.emit('onInit-member-initialize', this.#Member.memberName)
+			console.log(
+				chalk.bgBlue('created-member:'),
+				chalk.bgRedBright(this.#Member.memberName)
+			)
 		}
 		return this
 	}
 	//	consent functionality
 	async requestConsent(ctx){
 		//	validate request; switch true may be required
-		if(!validCtxObject(ctx)) return false	//	invalid ctx object, consent request fails
+		if(!mValidCtxObject(ctx)) return false	//	invalid ctx object, consent request fails
 		//	check-01: url ends in valid guid /:_id
-		const _object_id = ctx.request.header.referer.split('/').pop()
+		const _object_id = ctx.request.header?.referer?.split('/').pop()
 		//	not guid, not consent request, no blocking
 		if(!this.globals.isValidGUID(_object_id)) return true
 		console.log('session.requestConsent()', 'mbr_id', this.mbr_id)
@@ -73,10 +88,11 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	}
 	async challengeAccess(_passphrase){
 		if(this.locked){
-			if(!this.challenge_id) return false	//	no challenge, no access
+			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
 			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
 			//	init member
 			this.#locked = false
+			this.emit('member-unlocked', this.challenge_id)
 			await this.init(this.challenge_id)
 		}
 		return !this.locked
@@ -90,14 +106,26 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	get consents(){
 		return this.#consents
 	}
+	get contributions(){
+		return this.#contributions
+	}
 	get conversation(){
 		return this.#conversation
+	}
+	get core(){
+		return this.factory.core
 	}
 	get factory(){
 		return this.#factory
 	}
 	get globals(){
 		return this.factory.globals
+	}
+	get isInitialized(){
+		return ( this.mbr_id!==false )
+	}
+	get isMyLife(){
+		return this.factory.isMyLife
 	}
 	get locked(){
 		return this.#locked
@@ -124,24 +152,39 @@ class MylifeMemberSession {	//	bean only, no public functions aside from init an
 	get threadId(){
 		return this.thread.id
 	}
-	//	private functions
-	#assignName(){
-		return `MylifeMemberSession_${this.mbr_id}_${this.threadId}`
-	}
-	async #createThread(){	//	thread can be acted on by any avatar/agent, ergo stored here in session
-		this.#conversation = await new (this.factory.conversation)({
-			mbr_id: this.mbr_id,
-			parent_id: this.mbr_id_id,
-			thread: await this.factory.getThread(),
-		}, this.factory)
-		this.name = this.#assignName()
-		this.#conversation.name = this.name
-		//	print to CosmosDB
-//		if(this.bAllowSave)
-			this.factory.dataservices.pushItem(this.conversation.inspect(true))
-	}
 }
-function validCtxObject(_ctx){
+function mAssignFactoryListeners(_session){
+	if(_session.isMyLife) // all sessions _begin_ as MyLife
+		_session.factory.on('member-unlocked',_mbr_id=>{
+			console.log(
+				chalk.grey('session::constructor::member-unlocked_trigger'),
+				chalk.bgGray(_mbr_id)
+			)
+		})
+	else // all _"end"_ as member
+		_session.factory.on('avatar-activated',_avatar=>{
+			console.log(
+				chalk.grey('session::constructor::avatar-activated_trigger'),
+				chalk.bgGray(_avatar.id)
+			)
+		})
+}
+function mAssignName(_mbr_id, _threadId){
+	return `MylifeMemberSession_${_mbr_id}_${_threadId}`
+}
+async function mCreateConversation(_session){	//	thread can be acted on by any avatar/agent, ergo stored here in session
+	const _conversation = await new (_session.factory.conversation)({
+		mbr_id: _session.mbr_id,
+		parent_id: _session.mbr_id_id,
+		thread: await _session.factory.getThread(),
+	}, _session.factory)
+	_conversation.name = mAssignName(_session.mbr_id, _conversation.threadId)
+	//	print to CosmosDB
+	if(process.env?.MYLIFE_DB_ALLOW_SAVE??false)
+		_session.factory.dataservices.pushItem(_conversation.inspect(true))
+	return _conversation
+}
+function mValidCtxObject(_ctx){
 	//	validate ctx object
 	return	(
 			_ctx

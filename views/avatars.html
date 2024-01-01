@@ -1,0 +1,35 @@
+<% if (avatars && avatars.length > 0) { %>
+    <div class="avatars-listing">
+        <% avatars.forEach(avatar => { %>
+            <div class="avatar-listing card d-flex">
+                <div class="avatar-details">
+                    <div class="avatar-detail avatar-detail-name" id="<%= avatar.name %>-name">
+                        <%= avatar.name %>
+                    </div>
+                    <div class="avatar-detail" id="<%= avatar.name %>-id">
+                        <span class="avatar-detail-label">ID:</span> <%= avatar.id %>
+                    </div>
+                    <div class="avatar-detail" id="<%= avatar.name %>-id">
+                        <span class="avatar-detail-label">Description:</span> <%= avatar.description %>
+                    </div>
+                    <div class="avatar-detail" id="<%= avatar.name %>-id">
+                        <span class="avatar-detail-label">Purpose:</span> <%= avatar.purpose %>
+                    </div>
+                    <div class="avatar-detail" id="<%= avatar.name %>-id">
+                        <span class="avatar-detail-label">Categories:</span>
+                        <ul>
+                            <% avatar.categories.forEach(function(category) { %>
+                                <li><%= category %></li>
+                            <% }); %>
+                        </ul>
+                    </div>
+                    <div class="avatar-detail" id="<%= avatar.name %>-id">
+                        <span class="avatar-detail-label">Contributions:</span>  <%= avatar.contributions?.length??'none' %>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    </div>
+<% } else { %>
+    <p>No avatars found for this member.</p>
+<% } %>

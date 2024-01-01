@@ -7,24 +7,23 @@ import Koa from 'koa'
 import { koaBody } from 'koa-body'
 import render from 'koa-ejs'
 import session from 'koa-generic-session'
+import serve from 'koa-static'
 //	import Router from 'koa-router'
 //	misc
 import chalk from 'chalk'
 //	local services
-import AgentFactory from './inc/js/mylife-agent-factory.mjs'
+import MyLife from './inc/js/mylife-agent-factory.mjs'
 //	constants/variables
 const app = new Koa()
 const port = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
-const _factory = await new AgentFactory().init()
-const _Maht = await _factory.MyLife	//	MyLife is a unique version of organization
+const _Maht = await MyLife // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
 const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
 //	test harness region
 
-//	end test harness region
 //	koa-ejs
 render(app, {
 	root: path.join(__dirname, 'views'),
@@ -37,12 +36,12 @@ render(app, {
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
-app.context.AgentFactory = _Maht.factory	//	flag ctx.AgentFactory for removal?
+//	app.context.AgentFactory = _Maht.factory	//	todo: remove ctx.AgentFactory, rely on ctx.MyLife, no direct access to manipulate system factory
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
 app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
 //	does _Maht, as uber-sessioned, need to have ctx injected?
-app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_factory.newGuid()}`]
+app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_Maht.newGuid()}`]
 // Enable Koa body w/ configuration
 app.use(koaBody({
     multipart: true,
@@ -50,6 +49,7 @@ app.use(koaBody({
         maxFileSize: parseInt(process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760, // 10MB in bytes
     },
 }))
+	.use(serve(path.join(__dirname, 'views', 'assets')))
 	.use(
 		session(	//	session initialization
 			{
@@ -68,17 +68,25 @@ app.use(koaBody({
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
-			ctx.session.MemberSession = await new (_factory.session)(_factory)
-				.init()
-			console.log(chalk.bgBlue('created-member-session', chalk.bgRedBright(ctx.session.MemberSession.threadId)))
+			/* create generic session [references/leverages modular capabilities] */
+			ctx.session.MemberSession = await ctx.MyLife.getMyLifeSession()	//	create default locked session upon first request; does not require init(), _cannot_ have in fact, as it is referencing a global modular set of utilities and properties in order to charge-back to system as opposed to member
+			/* platform-required session-external variables */
+			ctx.session.signup = false
+			/* log */
+			console.log(
+				chalk.bgBlue('created-member-session',
+				chalk.bgRedBright(ctx.session.MemberSession.threadId)))
 		}
 		ctx.state.locked = ctx.session.MemberSession.locked
-		ctx.state.member = ctx.session.MemberSession?.member??ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
+		ctx.state.MemberSession = ctx.session.MemberSession	//	lock-down session to state
+		ctx.state.member = ctx.state.MemberSession?.member
+			??	ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
 		ctx.state.avatar = ctx.state.member.avatar
 		ctx.state.avatar.name = ctx.state.avatar.names[0]
+		ctx.state.contributions = ctx.state.avatar.contributions
 		ctx.state.menu = ctx.MyLife.menu
-		if(!await ctx.session.MemberSession.requestConsent(ctx))
-			throw new Error('asset request rejected by consent')
+		if(!await ctx.state.MemberSession.requestConsent(ctx))
+			ctx.throw(404,'asset request rejected by consent')
 
 		await next()
 	})
