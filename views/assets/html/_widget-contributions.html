@@ -1,0 +1,93 @@
+<div id="mylife-widget-contributions" class="flex-container">
+    <div class="widget-header">Topics for <%= member.name %></div>
+    <div id="contributions-list">
+        <% if (contributions && contributions.length > 0) { %>
+            <% contributions.forEach(contribution => { %>
+                <div class="category-container">
+                    <button class="category-button"
+                            data-id="<%= contribution.id %>"
+                            data-category="<%= contribution.request.category %>" 
+                            data-questions='<%= JSON.stringify(contribution.request.questions) %>'>
+                        <%= contribution.request.category %>
+                    </button>
+                    <span class="dismiss-button" data-category="<%= contribution.request.category %>">&times;</span>
+                </div>
+            <% }) %>            
+        <% } else { %>
+            <p>No contributions available.</p>
+        <% } %>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const buttons = document.querySelectorAll('.category-button');
+
+        buttons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Toggle active class
+                buttons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                // Fetch random question from the category
+                const category = this.getAttribute('data-category');
+                const contributionId = this.getAttribute('data-id');
+                const questions = JSON.parse(this.getAttribute('data-questions'));
+                handleCategorySelection(contributionId, category, questions);
+            });
+        });
+        // Dismiss button event listeners
+        const dismissButtons = document.querySelectorAll('.dismiss-button');
+        dismissButtons.forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.stopPropagation(); // Prevent category button click
+                const category = this.getAttribute('data-category');
+                const container = this.closest('.category-container');
+                container.remove(); // Remove the category
+                closeCategory(category);
+                // Check if all categories are dismissed
+                if (!document.querySelector('.category-container')) {
+                    // Option to refresh or load more categories
+                    handleAllCategoriesDismissed();
+                }
+            });
+        });
+});
+function closeCategory(_category) {
+    if(getActiveCategory()?.category == _category){
+        setActiveCategory();
+    }
+}
+function handleAllCategoriesDismissed() {
+    // Implement the logic to refresh or notify the user
+    // Example: display a message with an option to refresh
+    const list = document.getElementById('contributions-list');
+    list.innerHTML = '<p>All categories dismissed. <button onclick="location.reload()">Refresh</button></p>';
+}
+function handleCategorySelection(contributionId, category, questions) {
+    const _question = getRandomQuestion(questions);
+    const _message = {
+        id: null,
+        message: `Excellent! I'm excited to get to know and understand you better. ${_question}`,
+        question: _question,
+    };
+    const _options = {
+        type: 'agent-bubble',
+        _typewrite: true,
+        _delay: 6,
+    };
+    setActiveCategory(category, contributionId, _question);
+    addMessageToColumn(_message, _options);
+    
+}
+function getRandomQuestion(questions) {
+    if (!questions?.length) return "No question available";
+    const randomIndex = Math.floor(Math.random() * questions.length);
+    return questions[randomIndex];
+}
+
+function displayInChatArea(message) {
+    // Implement logic to create a new bubble in the chat area with the message
+    // This is a placeholder function
+    console.log(message); // For testing
+}
+
+</script>

@@ -1,0 +1,33 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/file",
+	"required": ["mbr_id", "being", "format", "mimetype"],
+	"type": "object",
+	"name": "File",
+	"properties": {
+		"id": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"minLength": 40,
+			"$comment": "partition-key for member: sysName|core_id"
+		},
+		"being": {
+			"type": "string",
+			"const": "file",
+			"$comment": "must be file to fulfill schema"
+		},
+		"format": {
+			"type": "string",
+			"default": "text",
+			"$comment": "text, image, audio, video, etc"
+		},
+		"mimetype": {
+			"type": "string", 
+			"default": "text/plain", 
+			"$comment": "mime type of file"
+		}
+	}
+}

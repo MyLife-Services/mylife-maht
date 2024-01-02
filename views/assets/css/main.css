@@ -12,7 +12,108 @@ body {
 	margin: 0;
 	background-color: #f5f5f5;
 }
+/* MyLife Contribution Request */
+.flex-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+.category-button {
+    background-color: #f0f0f0; /* Neutral color */
+    margin: 5px;
+    padding: 10px;
+    border: none;
+    cursor: pointer;
+}
+.category-button.active {
+    background-color: #4CAF50; /* Active state color */
+    color: white;
+}
+/* MyLife Signup Routine */
+/* by ids */
+#sign-up-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 400px; /* Adjust based on your content */
+}
+/* by class */
+.button-join {
+    background-color: green; /* Default background color */
+    color: #fff; /* Text color */
+    margin: 8px;
+    margin-bottom: 18px;
+    border: 2px solid red; /* Red border */
+    border-radius: 5px; /* Rounded corners */
+    box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
+    font-weight: bold; /* Bold text */
+    padding: 10px 20px; /* Adjust as needed */
+    cursor: pointer; /* Cursor changes to pointer on hover */
+    transition: background-color 0.3s ease; /* Smooth transition for background color */
+    text-align: center; /* Center text */
+}
+.button-join:hover {
+    background-color: darkslategray; /* Background color on hover */
+}
+.button-join:active {
+    background-color: lightslategray; /* Background color when the button is clicked */
+}
+.content-transition {
+    width: 100%; /* Adjust based on your design */
+}
+.fade {
+	opacity: 0;
+	display: none;
+}
+.visible {
+	opacity: 1;
+    display: block;
+}
+/* MyLife sidebar */
+.sidebar {
+	background-color: aliceblue;
+	color: #5c4a7f;
+	border-color: aqua;
+	border-radius: 26px;
+	padding: 1rem;
+}
+/* Avatars */
+/* Avatar detail listing */
+.avatar-detail {
+	color: #444;
+	font-family: 'Courier New', Courier, monospace;
+}
+.avatar-detail-label {
+	font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+	font-weight: bold;
+	color: #5c4a7f;
+}
+.avatar-detail-name {
+	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+	font-size: 1.5rem;
+}
+.avatar-listing {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: space-around;
+	padding: 12px;
+}
+.avatars-listing {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: space-around;
+}
+/* MyLife error handling */
+.error {
+    border-color: red;
+}
 
+.error-message {
+    color: red;
+    margin-bottom: 10px;
+}
+/* others */
 .selected {
 	background-color: #ffc107;
 	color: #fff;
@@ -20,9 +121,16 @@ body {
 .btn-hover-gray:hover {
 	background-color: #dcdcdc;
 }
-
+.card {
+	background-color: #fff;
+	border: 1px solid rgba(0,0,0,.125);
+	border-radius: .25rem;
+	box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+	padding: 1rem;
+	margin: 1rem;
+}
 .container {
-	max-width: 800px;
+	max-width: 1024px;
 	background-color: #ffffff;
 	border-radius: 5px;
 	padding: 2rem;
@@ -34,29 +142,64 @@ h1 {
 	margin-bottom: 1rem;
 }
 
+.loading {
+	display: none;
+	font-size: 24px;
+	color: #6c757d;
+	text-align: center;
+}
+.mylife-widget {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+/* MyLife chatbot */
+/* chat bubbles */
+.chat-bubble {
+    border-radius: 1rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    max-width: 80%;
+    min-width: 20%;
+	width: -moz-fit-content;
+	width: fit-content;
+    word-wrap: break-word;
+}
+.agent-bubble {
+    background-color: #007BFF;
+    color: white;
+    margin-left: 0;
+}
+.member-bubble {
+    background-color: #78a6c1;
+    color: black;
+   margin-left: auto;
+}
+.user-bubble {
+    background-color: #E0E0E0;
+    color: black;
+   margin-left: auto;
+}
 #chat-form {
 	display: flex;
 	justify-content: space-between;
 	margin-bottom: 12px;
 	margin-top: 12px;
 }
-
 #message {
 	flex-grow: 1;
 	margin-right: 0.5rem;
 }
-
 #response {
 	margin-top: 1rem;
 }
-
-#board-toggle {
-	margin-bottom: 24px;
+/* MyLife header */
+#header {
+    background-color: #007BFF;
+    padding: 0.5rem;
+    color: white;
 }
-
-.loading {
-	display: none;
-	font-size: 24px;
-	color: #6c757d;
-	text-align: center;
+.header-text {
+    font-weight: bold;
 }

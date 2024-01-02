@@ -1,0 +1,162 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/contribution.json",
+	"required": ["avatar_id", "being", "context", "id", "mbr_id", "phase", "purpose", "status", "urgency"],
+	"type": "object",
+	"name": "Contribution",
+	"properties": {
+		"avatar_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "id of associated avatar"
+		},
+		"being": {
+			"type": "string",
+			"const": "contribution",
+			"description": "Being for contribution in MyLife"
+		},
+		"context": {
+			"type": "string",
+			"default": "I am a contribution object in MyLife, comprising data and functionality around a data evolution request to the underlying (see data for Avatar via avatar_id) MyLife data object",
+			"description": "The context for the creation of this object-type"
+		},
+		"id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "uuid of Contribution"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"phase": {
+			"type": "string",
+			"default": "create",
+			"enum": ["create", "init", "develop", "mature", "maintain", "retire"],
+			"description": "life-cycle phase of parent evo-agent",
+			"$comment": "proxy access to containing object phase property"
+		},
+		"purpose": {
+			"type": "string",
+			"default": "Manage `request` being responded to by associated human Member [mbr_id]",
+			"description": "The purpose underlying this object-type"
+		},
+		"request": {
+			"type": "object",
+			"$ref": "/$defs/contribution_request",
+			"description": "JSON object structure for contribution request, including questions that could be posed to Member"
+		},
+		"responses": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"minLength": 1,
+				"description": "text content of question or response (agent or member)",
+				"$comment": "responses can be answers, follow-on questions, and answers to follow-ons"
+			},
+			"description": "array of contribution response strings"
+		},
+		"status": {
+			"type": "string",
+			"default": "new",
+			"enum": ["accepted", "new", "pending", "prepared", "requested", "rejected", "submitted"],
+			"description": "contribution life-cycle phase",
+			"$comment": "- New: A freshly created contribution, not yet detailed with specific data.\n- Prepared: The contribution is fully set up with all necessary data, ready to be presented to the user.\n- Requested: The contribution is actively being considered or interacted with by the user.\n- Submitted: The user has responded, and the contribution awaits review or incorporation.\n- Pending: The contribution is being evaluated for accuracy, relevance, and other criteria.\n- Accepted: The contribution has been successfully integrated into the datacore.\n- Rejected: The contribution is not suitable for integration based on the set criteria."
+		},
+		"urgency": {
+			"type": "integer",
+			"default": 0,
+			"description": "urgency of contribution (0-100); defaults to neutral urgency",
+			"$comment": "loose proposal, not implemented"
+		}
+	},
+	"additionalProperties": false,
+	"$defs": {
+		"contribution_request": {
+			"type": "object",
+			"name": "Contribution_request",
+			"required": ["being", "category", "content", "id", "impersonation", "mbr_id", "phase", "questions"],
+			"properties": {
+				"being": {
+					"type": "string",
+					"const": "contribution_request",
+					"description": "Being for contribution request in MyLife"
+				},
+				"category": {
+					"type": "string",
+					"maxlength": 64,
+					"description": "category node of request",
+					"$comment": "openAI limit for metadata keys is 64 chars"
+				},
+				"content": {
+					"type": "string",
+					"description": "The content for the creation of this object-type"
+				},
+				"id": {
+					"type": "string",
+					"format": "uuid",
+					"description": "uuid of Request"
+				},
+				"impersonation": {
+					"type": "string",
+					"default": "human",
+					"description": "core being of object that avatar is impersonating"
+				},
+				"mbr_id": {
+					"type": "string",
+					"description": "root member id: [sysName|id]",
+					"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+				},
+				"phase": {
+					"type": "string",
+					"default": "create",
+					"enum": ["create", "init", "request", "response", "complete", "archive"],
+					"description": "life-cycle phase of parent evo-agent",
+					"$comment": "proxy for containing object phase property"
+				},
+				"questions": {
+					"type": "array",
+					"maxItems": 3,
+					"items": {
+						"type": "string",
+						"maxlength": 256,
+						"description": "question to pose to Member to elicit response"
+					},
+					"description": "array of contribution question strings"
+				}
+			},
+			"additionalProperties": false,
+			"description": "a `Contribution_request` holds the information required to effectively request a contribution from a Member regarding the underlying datacore"
+		},
+		"contribution_response": {
+			"type": "object",
+			"name": "Contribution_response",
+			"required": ["being", "category", "content"],
+			"properties": {
+				"being": {
+					"type": "string",
+					"const": "contribution_response",
+					"description": "Being for contribution response in MyLife"
+				},
+				"category": {
+					"type": "string",
+					"maxlength": 64,
+					"description": "category node for response",
+					"$comment": "openAI limit for metadata keys is 64 chars"
+				},
+				"content": {
+					"type": "string",
+					"description": "The content proposed for the category node defined in request"
+				},
+				"question": {
+					"type": "string",
+					"maxlength": 256,
+					"description": "question originally posed to Member to elicit response"
+				}
+			},
+			"additionalProperties": false,
+			"description": "a `Contribution_response` carries the response from the Member about the underlying datacore"
+		}
+	}
+}

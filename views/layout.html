@@ -8,16 +8,23 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
 		integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
 		crossorigin="anonymous" referrerpolicy="no-referrer">
+	<link rel="stylesheet" href="/css/main.css">
 	<title>MyLife.org</title>
 </head>
 <body>
 	<div class="container">
 		<% include assets/html/_navbar %>
-	</div>
-	<div class="container">
-		<% if(locals?.title){ %><h1><%= title %></h1><% } %><!-- koa-ejs title inclusion -->
-		<% if(locals?.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs title inclusion -->
-		<%- body %><!-- koa-ejs body inclusion -->
+		<div class="row">
+			<div class="col-md-8">
+				<% if(locals?.title){ %><h1><%= title %></h1><% } %><!-- koa-ejs title inclusion -->
+				<% if(locals?.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs title inclusion -->
+				<%- body %><!-- koa-ejs body inclusion -->
+			</div>
+			<!-- Sidebar area -->
+			<div class="sidebar col-md-4">
+				<% include assets/html/_sidebar %>
+			</div>
+		</div>
 	</div>
 </body>
 </html>

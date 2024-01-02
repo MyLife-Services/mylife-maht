@@ -1,0 +1,189 @@
+<div class="d-flex flex-column align-items-center"id="sign-up-container">
+    <h5>Claim Your MyLife Membership</h5>
+    <!-- Sign-Up Button -->
+    <button class="button button-join" id="joinMyLifeButton" data-alt-text="Not right now">Join MyLife Pilot Program</button>
+    <div id="sign-up-content">
+        <div class="error-message" id="signup-error-message"></div> <!-- Error message container -->
+        <!-- Sign-Up Teaser -->
+        <div class="content-transition visible" id="sign-up-teaser">
+            <p>MyLife is a nonprofit humanist member organization whose core mission is to provide <em>you</em> with the tools to digitally preserve what truly matters to you for now and for human posterity. By claiming your free account, you will receive:</p>
+            <ul>
+                <li>Access to Personalized AI-Assistants who help you:
+                    <ul>
+                        <li>Tell your story - imagine your own biographer!</li>
+                        <li>Vitally represent you</li>
+                        <li>photos, memories</li>
+                        <li>Protect your personal data</li>
+                        <li>Anything else you can imagine...</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <!-- Sign-Up Form (Initially Hidden) -->
+        <div class="content-transition fade" id="sign-up-form">
+            Thank you for your interest in <em>MyLife</em>, we're certain you won't be disappointed. We require only the most basic information to get you started. We will never sell your data or use it for any purpose other than to provide you with the services or revenue streams you deserve. We are a nonprofit organization and once you are a member, you become <em>MyLife</em>'s most important stakeholder.
+            <label for="emailInput">Email:</label>
+            <input type="email" id="emailInput" placeholder="Enter your email" required>
+
+            <label for="humanNameInput">First Name or Nickname:</label>
+            <input type="text" id="humanNameInput" placeholder="Enter your first name or nickname" required>
+
+            <label for="avatarNicknameInput" id="avatarNicknameLabel" style="display:none;">Avatar Nickname:</label>
+            <input type="text" id="avatarNicknameInput" placeholder="Avatar Nickname" style="display:none;" required>
+
+            <button type="button" id="signupButton">Claim your membership today!</button>
+        </div>
+        <!-- Sign-Up Form (Initially Hidden) -->
+        <div class="content-transition fade" id="sign-up-success">
+            <h5>Thank <em>you</em> for joining our Pilot!</h5>
+            <p>Welcome to <em>MyLife</em>, where your journey to creating a lasting digital legacy begins. As a valued new member, you now have exclusive access to our Alpha version, a unique platform designed to honor and preserve your personal narratives, cherished memories, and life's wisdom. Here, you are encouraged to share your story, capturing the essence of who you are for future generations. Remember, every story matters, and your participation is not just an act of self-expression but a contribution to a grand tapestry of human experiences.</p>
+            <p>We are excited to have you on board and look forward to witnessing the legacy you will create and share within our <em>MyLife</em> community.</p>
+        </div>
+    </div>
+</div>
+<!--- page js -->
+<script>
+document.addEventListener('DOMContentLoaded', async ()=>{
+    /* page elements => constants */
+    const avatarNicknameInput = document.getElementById('avatarNicknameInput');
+    const avatarNicknameLabel = document.getElementById('avatarNicknameLabel');
+    const emailInput = document.getElementById('emailInput');
+    const humanNameInput = document.getElementById('humanNameInput');
+    const joinButton = document.getElementById('joinMyLifeButton');
+    const signupButton = document.getElementById('signupButton');
+    const signUpForm = document.getElementById('sign-up-form'); 
+    const signUpSuccess = document.getElementById('sign-up-success');
+    const signUpTeaser = document.getElementById('sign-up-teaser');
+    const errorMessage = document.getElementById('signup-error-message');
+    let avatarNameEdited = false;
+    /* page functions */
+    function handleSignupSuccess() { // Update the button text and display the thank you message on successful signup
+        signUpForm.style.display = 'none';
+        const signUpSuccess = document.getElementById('sign-up-success');
+        signUpSuccess.style.display = 'block';
+        joinButton.innerText = "Congratulations!";
+        joinButton.style.display = 'none';
+    }
+    async function checkSignupStatus() {
+        try {
+            const response = await fetch('/signup');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const isSignedUp = await response.text(); // Get the response as text
+            console.log('Signup status:', signUpTeaser, signUpSuccess)
+            if (isSignedUp === 'true') {
+                // If already signed up, show signup success message
+                signUpSuccess.classList.add('visible');
+                signUpSuccess.classList.remove('fade');
+                // Hide the join button and teaser
+                joinButton.style.display = 'none';
+                signUpTeaser.style.display = 'none';
+            } else {
+                // If not signed up, show the teaser
+                signUpTeaser.classList.add('visible');
+                signUpTeaser.classList.remove('fade');
+                // Ensure join button is visible
+                joinButton.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error checking signup status:', error);
+            // Handle any errors, e.g., show a default state or error message
+        }
+    }
+    function updateFormState() {
+        const emailValue = emailInput.value;
+        const humanNameValue = humanNameInput.value;
+
+        if (emailValue && humanNameValue) {
+            avatarNicknameInput.style.display = 'block';
+            avatarNicknameLabel.style.display = 'block';
+            if (!avatarNameEdited) {
+                const firstName = humanNameValue.split(' ')[0];
+                avatarNicknameInput.value = `${firstName}-AI`; // Set value instead of placeholder
+            }
+        } else {
+            avatarNicknameInput.style.display = 'none';
+            avatarNicknameLabel.style.display = 'none';
+        }
+        // Enable or disable the submit button
+        const avatarNicknameValue = avatarNicknameInput.value;
+        signupButton.disabled = !(emailValue && humanNameValue && avatarNicknameValue);
+    }
+    /* page listeners */
+    avatarNicknameInput.addEventListener('input', updateFormState);
+    avatarNicknameInput.addEventListener('focus', ()=>{ avatarNameEdited = true; }); // Detect if avatar name has been manually edited
+    emailInput.addEventListener('input', updateFormState);
+    humanNameInput.addEventListener('input', updateFormState);
+    joinButton.addEventListener('click', function() {
+        if (signUpTeaser.classList.contains('visible')) {
+            // Fade out the teaser
+            signUpTeaser.classList.remove('visible');
+            signUpTeaser.classList.add('fade');
+            
+            // After fade-out, show the form
+            setTimeout(() => {
+                signUpForm.classList.add('visible');
+                signUpForm.classList.remove('fade');
+            }, 500); // Match the CSS transition duration
+        } else {
+            // Fade out the form
+            signUpForm.classList.remove('visible');
+            signUpForm.classList.add('fade');
+            
+            // After fade-out, show the teaser
+            setTimeout(() => {
+                signUpTeaser.classList.add('visible');
+                signUpTeaser.classList.remove('fade');
+            }, 500); // Match the CSS transition duration
+        }
+        // Toggle the button text using data attribute
+        const altText = this.getAttribute('data-alt-text');
+        const currentText = this.innerText;
+        this.innerText = currentText === altText ? "Join MyLife Pilot Program" : altText;
+    });
+    signupButton.addEventListener('click', async function() {
+        const email = emailInput.value;
+        const firstName = humanNameInput.value;
+        const avatarName = avatarNicknameInput.value;
+        const formData = {
+            email: email,
+            humanName: firstName,
+            avatarNickname: avatarName
+        };
+
+        try {
+            const response = await fetch('/signup', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                // Handle successful signup
+                handleSignupSuccess();
+            } else {
+                // Handle errors
+                const errorFields = result.message.split(':').pop().trim().split(', ');
+                errorFields.forEach(field => {
+                    document.getElementById(`${field}Input`).classList.add('error'); // Highlight the field
+                });
+                // Display error message
+                const errorDiv = document.createElement('div');
+                errorDiv.textContent = result.message;
+                errorDiv.classList.add('error-message');
+                signUpForm.prepend(errorDiv);
+            }
+        } catch (error) {
+            console.log('Error during signup:', error);
+        }
+    });
+    /* add tab index */ 
+    emailInput.tabIndex = 1;
+    humanNameInput.tabIndex = 2;
+    avatarNicknameInput.tabIndex = 3;
+    /* begin page */
+    await checkSignupStatus();
+});
+</script>
