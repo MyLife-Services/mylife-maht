@@ -95,5 +95,5 @@ app.use(koaBody({
 	.use(serverRouter.routes())	//	enable system routes
 	.use(serverRouter.allowedMethods())	//	enable system routes
 	.listen(port, () => {	//	start the server
-		console.log(chalk.bgGreen(`server available on port ${port}`))
+		console.log(chalk.bgGreenBright('server available')+chalk.yellow(`\nlistening on port ${port}`))
 	})
