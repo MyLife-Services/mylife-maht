@@ -1,0 +1,210 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/openai.json",
+	"required": [],
+	"type": "object",
+	"name": "OpenAISchema",
+    "description": "Unofficial catalog of openai API objects for manipulating as objects inside of MyLife platform. Root object is empty, it's objective is to offer the catalog under the $defs property.",
+    "$comment": "see file metadata or github for last updated date",
+	"properties": {
+		"openai_gpt_assistant": {
+			"type": "object",
+			"$ref": "#/$defs/openai_gpt_assistant",
+			"description": "Openai gpt assistant object"
+		},
+        "openai_thread": {
+            "type": "object",
+            "$ref": "#/$defs/openai_thread",
+            "description": "Openai thread object"
+        },
+        "openai_gpt_function_function": {
+            "type": "object",
+            "$ref": "#/$defs/openai_gpt_function_function",
+            "description": "Openai gpt function function object"
+        },
+		"openai_gpt_code_interpreter": {
+			"type": "object",
+			"$ref": "#/$defs/openai_gpt_code_interpreter",
+			"description": "Openai gpt code interpreter object"
+		},
+		"openai_gpt_retrieval": {
+			"type": "object",
+			"$ref": "#/$defs/openai_gpt_retrieval",
+			"description": "Openai gpt retrieval object"
+		},
+		"openai_gpt_function": {
+			"type": "object",
+			"$ref": "#/$defs/openai_gpt_function",
+			"description": "Openai gpt function object"
+		}
+    },
+    "$defs": {
+		"openai_gpt_assistant": {
+			"name": "Openai_gpt_assistant",
+			"required": ["id", "object", "created_at", "name", "description", "model"],
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "id on openai"
+				},
+				"object": {
+					"type": "string",
+					"const": "assistant",
+					"description": "from openai node sdk, type of entity"
+				},
+				"created_at": {
+					"type": "integer",
+					"description": "UNIX timestamp"
+				},
+				"name": {
+					"type": "string",
+					"maxLength": 256,
+					"minLength": 1,
+					"description": "name of assistant"
+				},
+				"description": {
+					"type": "string",
+					"maxLength": 512,
+					"minLength": 1,
+					"description": "description of assistant"
+				},
+				"model": {
+					"type": "string",
+					"description": "model of assistant"
+				},
+				"instructions": {
+					"type": "string",
+					"maxLength": 32768,
+					"description": "instructions for assistant"
+				},
+				"tools": {
+					"type": "array",
+					"description": "A list of tool enabled on the assistant. There can be a maximum of 128 tools per assistant.",
+					"items": {
+						"oneOf": [
+							{"$ref": "#/$defs/openai_gpt_code_interpreter"}, 
+							{"$ref": "#/$defs/openai_gpt_retrieval"}, 
+							{"$ref": "#/$defs/openai_gpt_function"}
+						],
+						"description": "tool for assistant"
+					},
+					"maxItems": 128,
+					"minItems": 0,
+					"uniqueItems": true
+				},
+				"file_ids": {
+					"type": "array",
+					"description": "A list of file IDs attached to this assistant. There can be a maximum of 20 files attached to the assistant. Files are ordered by their creation date in ascending order",
+					"items": {
+						"type": "string",
+						"maxLength": 256,
+						"minLength": 1,
+						"description": "file id for assistant"
+					},
+					"maxItems": 32,
+					"minItems": 1,
+					"uniqueItems": true
+				},
+				"metadata": {
+					"type": "object",
+					"description": "Set of 16 key-value pairs that can be attached to an object. This can be useful for storing additional information about the object in a structured format. Keys can be a maximum of 64 characters long and values can be a maxium of 512 characters long"
+				}
+			},
+			"additionalProperties": false
+		},
+		"openai_thread": {
+			"name": "Openai_thread",
+			"required": ["id", "object", "created_at", "metadata"],
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "id on openai"
+				},
+				"object": {
+					"type": "string",
+					"const": "thread",
+					"description": "from openai node sdk, type of entity"
+				},
+				"created_at": {
+					"type": "integer",
+					"description": "UNIX timestamp"
+				},
+				"metadata": {
+					"type": "object",
+					"default": {},
+					"maxProperties": 16,
+					"description": "Set of 16 key-value pairs that can be attached to an object. This can be useful for storing additional information about the object in a structured format. Keys can be a maximum of 64 characters long and values can be a maxium of 512 characters long"
+				}
+			},
+			"additionalProperties": false
+		},
+		"openai_gpt_function_function": {
+			"name": "Openai_gpt_function_function",
+			"required": ["description", "name"],
+			"type": "object",
+			"properties": {
+				"description": {
+					"type": "string",
+					"description": "A description of what the function does, used by the model to choose when and how to call the function"
+				},
+				"name": {
+					"type": "string",
+					"pattern": "^[a-zA-Z0-9_-]{1,64}$",
+					"maxLength": 64,
+					"description": "The name of the function to be called. Must be a-z, A-Z, 0-9, or contain underscores and dashes, with a maximum length of 64."
+				},
+				"parameters": {
+					"type": "object",
+					"description": "The parameters the functions accepts, described as a JSON Schema object. See the guide for examples, and the JSON Schema reference for documentation about the format. To describe a function that accepts no parameters, provide the value {\"type\": \"object\", \"properties\": {}}."
+				}
+			},
+			"additionalProperties": false
+		},
+		"openai_gpt_code_interpreter": {
+			"name": "Openai_gpt_code_interpreter",
+			"required": ["type"],
+			"type": "object",
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "code_interpreter",
+					"description": "The type of tool being defined"
+				}
+			},
+			"additionalProperties": false
+		},
+		"openai_gpt_retrieval": {
+			"name": "Openai_gpt_retrieval",
+			"required": ["type"],
+			"type": "object",
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "retrieval",
+					"description": "The type of tool being defined"
+				}
+			},
+			"additionalProperties": false
+		},
+		"openai_gpt_function": {
+			"name": "Openai_gpt_function",
+			"required": ["type"],
+			"type": "object",
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "function",
+					"description": "The type of tool being defined"
+				},
+				"function": {
+					"type": "object",
+					"$ref": "#/$defs/openai_gpt_function_function",
+					"description": "The type of function being defined"
+				}
+			},
+			"additionalProperties": false
+		}
+    }
+}

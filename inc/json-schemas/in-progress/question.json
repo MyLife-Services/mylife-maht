@@ -1,0 +1,56 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/question.json",
+	"required": ["id", "being", "content", "context", "mbr_id", "purpose", "require_answer", "scope"],
+	"type": "object",
+	"name": "Question",
+	"properties": {
+		"id": {
+			"description": "uuid of quesatoipn object",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"being": {
+			"type": "string",
+			"const": "question",
+			"description": "question object identity"
+		},
+        "content": {
+            "type": "string",
+            "maxLength": 1024,
+            "description": "The question itself in plain language",
+            "$comment": "simple for now, keeping it short, presumption is that longer content could be display differently, or perhaps if image were the content... etc"
+        },
+		"context": {
+			"type": "string",
+			"default": "This question object was created by the MyLife platform to manage access to the underlying object [identified  by `parent_id`] according to owner [identified by `mbr_id`]",
+			"maxLength": 32768,
+			"description": "Context and summary history of this question object, and its permissions, responses and direct interactions with various members and objects",
+			"$comment": "MyLife should be capable of at least \"filling in those blanks\" for this field, all of it should be injectible from factory core"
+		},
+		"purpose": {
+			"type": "string",
+			"default": "To pose the content of this question object to the member identified by ",
+			"maxLength": 32768,
+			"description": "purpose of question, manages access, responses and permissions for requested object and requesting entity"
+		},
+        "scope": {
+            "type": "string",
+            "default": "public",
+            "enum": ["global", "private", "public", "relational", "universal"],
+            "description": "scope of question; universal: for as long as question stays in this scope, it's unshifted to question queue and will always be requested of member until answered; global: public+push to global queue, public: findable by any browser, relational: Member-Only or fewer; nuanced case, essentially begs for intelligent interpretation that boils down to all/subset of members, private: only associated member",
+            "$comment": "expect these to change as we mature the system; I'll add a separate node addressing 'requiredness' of the question, this would all get folded into consent, so it's more for my personal management for now"
+        },
+        "require_answer": {
+            "type": "boolean",
+            "default": false,
+            "description": "whether or not this question is required to be answered by the member in order to fulfill purpose"
+        },
+		"additionalProperties": true
+    }
+}
