@@ -670,7 +670,7 @@ async function mGetQuestions(_contribution, _openai){
         )
         return _response
     }
-    if(process.env.DISABLE_OPENAI)
+    if(!process.env?.MYLIFE_ALLOW_INTELLIGENT_QUESTIONS??false)
         return ['What is the meaning of life?']
     //  generate question(s) from openAI when required
     const _response = await _evoAgent.openai.completions.create({
