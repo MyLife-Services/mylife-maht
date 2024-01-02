@@ -1,15 +1,7 @@
 <div class="container mt-5">
-<!--<div class="row">
-		<div class="col-md-12">
-			<div id="header" class="d-flex">
-				<div class="col-md-6 header-text text-center">Agent <%= agent.agentName %></div>
-				<div class="col-md-6 header-text text-center">You</div>
-			</div>
-		</div>
-	</div>-->
 	<div class="row">
 		<div id="chat" class="col-md-12">
-				<!-- Agent and User messages will be added here -->
+				<!-- Agent and User messages will be added via innerHTML here -->
 		</div>
 	</div>
 	<div class="row mt-4">
@@ -25,7 +17,7 @@
 				<button id="submitButton" type="submit" class="btn btn-primary">Submit</button>
 				<button id="awaitButton" name="awaitButton" class="btn btn-primary" type="button" disabled>
 					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-					Connecting with <%= member.agentName %>...
+					Connecting with <%= avatar.name %>...
 				</button>
 			</form>
 		</div>
@@ -38,36 +30,53 @@ const chatColumn = document.getElementById('chat');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message');
 const submitButton = document.getElementById('submitButton');
-const _prompter = `Hi, I'm <%= member.agentName %>, so nice to meet you!`;
-const _followon = `To get started, tell me a little bit about something or someone that is really important to you--or ask me a question about MyLife.`;
+const _greeting = [
+	`Hi, I'm <%= avatar.name %>, so nice to meet you!`,
+	`To get started, tell me a little bit about something or someone that is really important to you--or ask me a question about MyLife.`
+];
 let _chatBubbleCount = 0;
 //	bootup
 awaitButton.style.display = 'none';
-addMessageToColumn(_prompter, chatColumn, 'agent-bubble');
-setTimeout(()=> addMessageToColumn(_followon, chatColumn, 'agent-bubble'), 3000);
-//	add listeners
+/* welcome-01 */
+addMessageToColumn({
+	message: _greeting[0]
+});
+/* welcome-01 */
+setTimeout(
+	()=> addMessageToColumn({ message: _greeting[1] }),
+	1500
+);
+/* add listeners */
 chatForm.addEventListener('submit', (event) => {
 	event.preventDefault();
 	const userMessage = messageInput.value.trim();
-	if (userMessage === '') return;
-
-	addMessageToColumn(userMessage, chatColumn, 'user-bubble');
-	messageInput.value = '';
-
+	if (!userMessage.length)
+		return;
 	submit(event, userMessage);
+	addMessageToColumn({ message: userMessage }, {
+		bubbleClass: 'user-bubble',
+		_delay: 7,
+	});
+	messageInput.value = '';
 });
-// page functions
-function addMessageToColumn(message, column, bubbleClass, _typewrite = (bubbleClass === 'agent-bubble'), _delay = 10) {
+/* page functions */
+function addMessageToColumn(_message, _options={
+	bubbleClass: 'agent-bubble',
+	_typewrite: true,
+	_delay: 15,
+}){
+	const { message } = _message;
+	const { bubbleClass, _typewrite, _delay } = _options;
 	_chatBubbleCount++;
 	const chatBubble = document.createElement('div');
 	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
 	chatBubble.className = `chat-bubble ${bubbleClass}`;
-	column.appendChild(chatBubble);
+	chatColumn.appendChild(chatBubble);
 	if (_typewrite) {
 		let i = 0;
 		let tempMessage = '';
 		function typeAgentMessage() {
-			if (i < message.length) {
+			if (i <= message?.length??0) {
 				tempMessage += message.charAt(i);
 				chatBubble.innerHTML = '';
 				chatBubble.insertAdjacentHTML('beforeend', tempMessage);
@@ -83,6 +92,7 @@ function addMessageToColumn(message, column, bubbleClass, _typewrite = (bubbleCl
 		chatBubble.insertAdjacentHTML('beforeend', message);
 	}
 }
+
 async function submit(_event, _message) {
 	_event.preventDefault();
 	submitButton.style.display = 'none';
@@ -98,7 +108,13 @@ async function submit(_event, _message) {
 		body: JSON.stringify({message: _message }),
 	};
 	const _gptChat = await submitChat(url, options);
-	addMessageToColumn(_gptChat.answer, chatColumn, 'agent-bubble');
+	// now returns array of messages
+	_gptChat.forEach(_message => {
+		addMessageToColumn({
+			message: _message.message,
+			_delay: 10,
+		});
+	});
 	awaitButton.style.display = 'none';
 	submitButton.style.display = 'block';
 	agentSpinner.classList.remove('text-primary');

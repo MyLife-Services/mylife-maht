@@ -1,8 +1,8 @@
 <div class="container mt-5">
 	<select id="agent-select" class="form-select" aria-label="Default select example" onchange="submit(event)">
 		<option value="">select your member id to begin</option>
-				<% hostedMembers.forEach(_mbr_id=>{ %>
-					<option value="<%= _mbr_id %>"><%= _mbr_id %></option>
+				<% hostedMembers.forEach(_member=>{ %>
+					<option value="<%= _member.id %>"><%= _member.name %></option>
 				<% }) %>
 	</select>
 </div>

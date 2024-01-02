@@ -1,15 +1,7 @@
 <div class="container mt-5">
-<!--<div class="row">
-		<div class="col-md-12">
-			<div id="header" class="d-flex">
-				<div class="col-md-6 header-text text-center">Agent <%= agent.agentName %></div>
-				<div class="col-md-6 header-text text-center">You</div>
-			</div>
-		</div>
-	</div>-->
 	<div class="row">
 		<div id="chat" class="col-md-12">
-				<!-- Agent and User messages will be added here -->
+				<!-- Agent and member messages will be added here -->
 		</div>
 	</div>
 	<div class="row mt-4">
@@ -25,44 +17,91 @@
 				<button id="submitButton" type="submit" class="btn btn-primary">Submit</button>
 				<button id="awaitButton" name="awaitButton" class="btn btn-primary" type="button" disabled>
 					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-					Connecting with <%= member.agentName %>...
+					Connecting with <%= avatar.name %>...
 				</button>
 			</form>
 		</div>
 	</div>
 </div>
 <script>
+/* define variables */
 const awaitButton = document.getElementById('awaitButton');
 const agentSpinner = document.getElementById('agent-spinner');
 const chatColumn = document.getElementById('chat');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message');
 const submitButton = document.getElementById('submitButton');
-const _prompter = `Hi, I'm <%= member.agentName %>, so nice to meet you!`;
-const _followon = `I'm here to collaborate with you on behalf of <%= member.memberName %>, feel free to ask me anything about him to get started.`;
+const _greeting = [`So nice to see you again!`, `What would you like to share or talk about today? You can find recent topic ideas on the right hand side, and you may click one of those to get us started.`];
 let _chatBubbleCount = 0;
-//	bootup
+let _activeCategory;
+/* onLoad */
 awaitButton.style.display = 'none';
-addMessageToColumn(_prompter, chatColumn, 'agent-bubble');
-setTimeout(()=> addMessageToColumn(_followon, chatColumn, 'agent-bubble'), 3000);
-//	add listeners
+/* welcome-01 */
+addMessageToColumn({
+	message: _greeting[0],
+});
+/* welcome-02 */
+setTimeout(() => { // Set a timeout for 1 second to wait for the first line to be fully painted
+    // Set another timeout for 7.5 seconds to add the second message
+    const timerId = setTimeout(_addIntroductionMessage, 7500);
+    // Event listeners for member interactions
+    window.addEventListener('mousemove', _addIntroductionMessage, { once: true });
+    window.addEventListener('click', _addIntroductionMessage, { once: true });
+    window.addEventListener('focus', _addIntroductionMessage, { once: true });
+    window.addEventListener('scroll', _addIntroductionMessage, { once: true });
+    /* local timeout functions */
+    function _addIntroductionMessage() { // Clear the 7.5 seconds timeout if any event is triggered
+        clearTimeout(timerId);
+        addMessageToColumn({ message: _greeting[1] });
+        _cleanupListeners();
+    }
+	// Cleanup function to remove event listeners
+	function _cleanupListeners() {
+		window.removeEventListener('mousemove', _addIntroductionMessage);
+		window.removeEventListener('click', _addIntroductionMessage);
+		window.removeEventListener('focus', _addIntroductionMessage);
+		window.removeEventListener('scroll', _addIntroductionMessage);
+}
+}, 1000);
+/* page listeners */
 chatForm.addEventListener('submit', (event) => {
 	event.preventDefault();
-	const userMessage = messageInput.value.trim();
-	if (userMessage === '') return;
-
-	addMessageToColumn(userMessage, chatColumn, 'user-bubble');
-	messageInput.value = '';
-
-	submit(event, userMessage);
+	if (!messageInput.value.trim()?.length) return;
+	const _message = {
+		message: messageInput.value.trim()
+	};
+	messageInput.value = ''; // immediately scrub
+	addMessageToColumn(
+		_message,
+		{ bubbleClass: 'member-bubble', _typewrite: false }
+	);
+	submit(event, _message);
+	
 });
-// page functions
-function addMessageToColumn(message, column, bubbleClass, _typewrite = (bubbleClass === 'agent-bubble'), _delay = 10) {
+/* page functions */
+/* todo: fix params, follow more of a content, config, {extras/instructions} structure */
+function addMessageToColumn(_message, _options={
+	bubbleClass: 'agent-bubble',
+	_typewrite: true,
+	_delay: 25,
+}){
+	const {
+		category=null,
+		contributions=[],
+		id=null,
+		message,
+		question=null
+	} = _message;
+	const {
+		bubbleClass,
+		_typewrite,
+		_delay,
+	} = _options;
 	_chatBubbleCount++;
 	const chatBubble = document.createElement('div');
 	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
 	chatBubble.className = `chat-bubble ${bubbleClass}`;
-	column.appendChild(chatBubble);
+	chatColumn.appendChild(chatBubble);
 	if (_typewrite) {
 		let i = 0;
 		let tempMessage = '';
@@ -75,7 +114,6 @@ function addMessageToColumn(message, column, bubbleClass, _typewrite = (bubbleCl
 				setTimeout(typeAgentMessage, _delay); // Adjust the typing speed here (50ms)
 			} else {
 				chatBubble.setAttribute('status', 'done');
-				console.log(chatBubble)
 			}
 		}
 		typeAgentMessage();
@@ -83,65 +121,86 @@ function addMessageToColumn(message, column, bubbleClass, _typewrite = (bubbleCl
 		chatBubble.insertAdjacentHTML('beforeend', message);
 	}
 }
+function getActiveCategory() {
+	return _activeCategory;
+}
+async function setActiveCategory(category, contributionId, question) {
+    const url = '/members/category'; // Replace with your server's URL
+    const data = {
+        contributionId: contributionId,
+        category: category,
+        question: question
+    };
+    await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+		.then(_response => {
+			if (!_response.ok) {
+				throw new Error(`HTTP error! Status: ${_response.status}`);
+			}
+			return _response.json();
+		})
+		.then(_response => {
+			_activeCategory = {
+				contributionId: _response.contributionId,
+				category: _response.category,
+			}
+		})
+		.catch(err => {
+			console.log('Error setting active category:', err);
+			// Handle errors as needed
+		});
+}
 async function submit(_event, _message) {
 	_event.preventDefault();
+	if(!_message?.message?.length??false)
+		throw new Error('submit(): `message` property is required');
 	submitButton.style.display = 'none';
 	awaitButton.style.display = 'block';
 	agentSpinner.classList.remove('text-light');
 	agentSpinner.classList.add('text-primary');
-	const url = window.location.origin;
+	const url = window.location.origin + '/members';
+	/* category logic */
+	const _activeCategory = getActiveCategory();
+	const _request = {
+			agent: 'member',
+			category: _activeCategory.category,
+			contributionId: _activeCategory?.contributionId, // todo: pull unique ids from active `contributions` related to response
+			id: null,
+			message: _message.message,
+			question: _activeCategory.question,
+			type: 'chat', // todo: assess usefulness
+		};
 	const options = {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 		},
-		body: JSON.stringify({ message: _message, agent: 'member' }),
+		body: JSON.stringify(_request),	//	todo: pull json schema for this object from `/messages/$defs/message_member_chat`
 	};
-	const _gptChat = await submitChat(url, options);
-	addMessageToColumn(_gptChat.answer, chatColumn, 'agent-bubble');
+	const _MyLifeResponseArray = await submitChat(url, options);
+	_MyLifeResponseArray.forEach(_MyLifeResponse => {
+		addMessageToColumn({ message: _MyLifeResponse.message })
+	});
 	awaitButton.style.display = 'none';
 	submitButton.style.display = 'block';
 	agentSpinner.classList.remove('text-primary');
 	agentSpinner.classList.add('text-light');
 }
-async function submitChat(url, options) {
-	try {
-		const response = await fetch(url, options);
-		const jsonResponse = await response.json();
-		return jsonResponse;
-	} catch (err) {
-		console.log('fatal error', err);
-		return alert(`Error: ${err.message}`);
-	}
+async function submitChat(_url, _options) {
+	return await fetch(_url, _options)
+		.then(_response => {
+			if (!_response.ok) {
+				throw new Error(`HTTP error! Status: ${_response.status}`)
+			}
+			return _response.json()
+		})
+		.catch(_error => {
+			console.error('Error submitting chat:', _error)
+		})
 }
 </script>
-<style>
-.chat-bubble {
-    border-radius: 1rem;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    max-width: 66%;
-    min-width: 20%;
-	width: -moz-fit-content;
-	width: fit-content;
-    word-wrap: break-word;
-}
-.agent-bubble {
-    background-color: #007BFF;
-    color: white;
-    margin-left: 0;
-}
-.user-bubble {
-    background-color: #E0E0E0;
-    color: black;
-    margin-left: auto;
-}
-#header {
-    background-color: #007BFF;
-    padding: 0.5rem;
-    color: white;
-}
-.header-text {
-    font-weight: bold;
-}
-</style>

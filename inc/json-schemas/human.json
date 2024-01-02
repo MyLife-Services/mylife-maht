@@ -1,7 +1,7 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/human.json",
-	"required": ["id", "mbr_id", "being", "language", "agent"],
+	"required": ["id", "mbr_id", "being", "categories", "emails", "language"],
 	"type": "object",
 	"name": "Human",
 	"properties": {
@@ -15,7 +15,10 @@
 			"description": "root member id: [sysName|id]",
 			"$comment": "also prtitionId for container; NOTE: sysName should not render down to any boolean version of false"
 		},
-		"parent_id": {"type": "string", "format": "uuid", "$comment": "chat must be at least attached to member core"},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid"
+		},
 		"being": {
 			"type": "string",
 			"const": "core",
@@ -24,6 +27,40 @@
 		"bio": {
 			"type": "string",
 			"description": "human member biography"
+		},
+		"birthdate": {
+			"type": "string",
+			"format": "date"
+		},
+		"categories": {
+			"type": "array",
+			"default": ["Abilities", "Artifacts", "Beliefs", "Biography", "Challenges", "Goals", "Interests", "Personality", "Preferences", "Relationships"],
+			"items": {
+				"type": "string",
+				"maxLength": 64,
+				"minLength": 1,
+				"description": "descriptive category, updated and tailored to/by current avatar purpose and context"
+			},
+			"uniqueItems": true,
+			"minItems": 1,
+			"maxItems": 12,
+			"description": "human member descriptive categories, updated and tailored to current avatar purpose and context",
+			"$comment": "cap on categories comes from openai metadata keys for now"
+		},
+		"emails": {
+			"type": "array",
+			"default": [],
+			"items": {
+				"type": "string",
+				"format": "email",
+				"maxLength": 64,
+				"minLength": 8,
+				"description": "human member email address",
+				"$comment": "later can transform into email _objects_, entities that could theoretically thereby send messages to thenmselves, send from, etc."
+			},
+			"uniqueItems": true,
+			"minItems": 1,
+			"maxItems": 12
 		},
 		"form": {
 			"type": "string",
@@ -34,7 +71,7 @@
 			"default": [],
 			"items": {
 				"type": "string",
-				"maximum": 16,
+				"maxLength": 16,
 				"default": "eng",
 				"enum": ["eng","deu","dan","spa","fra","ita","jpn","kor","nld","por","rus","swe","zho"],
 				"$comment": "ISO 639-2T language codes"
@@ -45,8 +82,8 @@
 			"type": "array",
 			"items": {
 				"type": "string",
-				"maximum": 64,
-				"minimum": 1,
+				"maxLength": 64,
+				"minLength": 1,
 				"description": "human member name"
 			},
 			"uniqueItems": true,
@@ -55,15 +92,47 @@
 			"description": "array of potential name references for this human member; transition to array of name schemas",
 			"$comment": "artificial cap on names for now @10x"
 		},
-		"birthdate": {
-			"type": "string",
-			"format": "date"
+		"nationalities": {
+			"type": "array"
 		},
-		"agent": {
-			"type": "string",
-			"format": "uuid",
-			"description": "uuid of the agent representing this human member",
-			"$comment": "could later scale to array? Why not?"
+		"signatures":{
+			"type": "array",
+			"items": {
+				"type": "object",
+				"$ref": "#/$defs/signature",
+				"description": "human member signature"
+			},
+			"uniqueItems": true,
+			"description": "array of signature references for this human member; transition to array of signature schemas"
+		},
+		"$defs": {
+			"signature": {
+				"type": "object",
+				"name": "Signature",
+				"required": ["being", "id", "mbr_id","object_id"],
+				"properties": {
+					"being": {
+						"type": "string",
+						"const": "signature",
+						"description": "Human Signature consenting to resource `object_id`"
+					},
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "uuid of the human member"
+					},
+					"mbr_id": {
+						"type": "string",
+						"description": "root member id: [sysName|id]",
+						"$comment": "also prtitionId for container; NOTE: sysName should not render down to any boolean version of false"
+					},
+					"object_id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "uuid of the object being referenced in signature"						
+					}
+				}
+			}
 		}
 	}
 }

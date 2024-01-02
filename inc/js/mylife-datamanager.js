@@ -1,50 +1,59 @@
-//	imports
+/* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
 import Config from './mylife-datasource-config.js'
 import chalk from 'chalk'
 //	define class
 class Datamanager {
-	//	specifications
+	#containers
 	#core = null
 	#coreId
 	#partitionId
 	//	constructor
-	constructor(_root) {
-		const oConfig=new Config(_root)
-		const oOptions={
-			endpoint: oConfig.endpoint,
-			key: oConfig.rw_id,
+	constructor(_mbr_id) {
+		const _config = new Config(_mbr_id)
+		const _options = {
+			endpoint: _config.endpoint,
+			key: _config.rw_id,
 			userAgentSuffix: 'mylife-services',
-//			aadCredentials: new DefaultAzureCredential()
+			//	aadCredentials: new DefaultAzureCredential()
 		}
-		//	define variables
-		this.client=new CosmosClient(oOptions)
-		this.containerId = oConfig.db.container.id
-		this.#partitionId = oConfig.db.container.partitionId
-		this.#coreId = oConfig.db.container.coreId
+		const _client = new CosmosClient(_options)
+		this.database = _client.database(_config.db.id)
+		this.#partitionId = _config.db.container.partitionId
+		this.#coreId = _config.db.container?.coreId??this.#partitionId.split('|')[1]
+		this.#containers = {
+			contribution_responses: this.database.container(_config.contributions.container.id),
+			members: this.database.container(_config.db.container.id),
+			registrations: this.database.container(_config.registrations.container.id),
+		}
 		this.requestOptions = {
 			partitionKey: this.#partitionId,
 			populateQuotaInfo: true, // set this to true to include quota information in the response headers
 		}
-		//	assign database and container
-		this.database=this.client.database(oConfig.db.id)
-		console.log(chalk.bgCyan('database initialized:',chalk.bgCyanBright(`${this.database.id}`)))
-		this.container=this.database.container(oConfig.db.container.id)
-		console.log(chalk.bgCyan('container initialized:',chalk.bgCyanBright(`${this.container.id}`)))
 	}
 	//	init function
 	async init() {
 		//	assign core
-		this.#core=await this.container.item(
-			this.#coreId,
-			this.#partitionId
-		)
+		this.#core = await this.#containers['members']
+			.item(
+				this.#coreId,
+				this.#partitionId
+			)
 			.read()
-		console.log(chalk.bgBlue('core initialized:',chalk.bgBlueBright(`${this.#core.resource.id}`)))
+		console.log(chalk.yellowBright('database, container, core initialized:',chalk.bgYellowBright(`${this.#containers['members'].id} :: ${this.database.id} :: ${this.#core.resource.id}`) ))
 		return this
 	}
 	//	getter/setter property functions
+	/**
+	 * Returns container default for MyLife data.
+	*/
+	get containerDefault(){
+		return 'members'
+	}
+	/**
+	 * Returns datacore.
+	*/
 	get core(){
 		return this.#core?.resource
 	}
@@ -54,37 +63,61 @@ class Datamanager {
 		//	in order to obscure passphrase, have db make comparison (could include flag for case insensitivity)
 		const challengeOptions = { partitionKey: _mbr_id }
 		// Execute the stored procedure
-		const { resource: _result } = await this.container
+		const { resource: _result } = await this.#containers['members']
 			.scripts
 			.storedProcedure('checkMemberPassphrase')
 			.execute(_mbr_id,_passphrase,true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
 		return _result
 	}
 	async deleteItem(_id) {}
-	async getItem(_id,_options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
-		const { resource: _item } = await this.container
+	/**
+	 * Retreives specific item from container.
+	 * @param {guid} _id 
+	 * @param {object} _options 
+	 * @param {string} _container Container to use.
+	 * @returns 
+	 */
+	async getItem(_id, _options=this.requestOptions, _container=this.containerDefault){	//	quick, inexpensive read; otherwise use getItems
+		const { resource: _item } = await this.#containers[_container]
 			.item(_id,this.#partitionId)
 			.read(_options)
 		return _item
 	}
-	async getItems(_querySpec,_options=this.requestOptions){
-		const { resources } = await this.container
+	async getItems(_querySpec, _container=this.containerDefault, _options=this.requestOptions ){
+		const { resources } = await this.#containers[_container]
 			.items
 			.query(_querySpec,_options)
 			.fetchAll()
 		return resources
 	}
-	async patchItem(_id,_item) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+	async patchItem(_id, _item, _container=this.containerDefault) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
-		const { resource: _update } = await this.container
+		if(!Array.isArray(_item)) _item = [_item]
+		const { resource: _update } = await this.#containers[_container]
 			.item(_id,this.#partitionId)
 			.patch(_item)	//	see below for filter-patch example
 		return _update
 	}
-	async pushItem(_item) {	//	post or insert, depends on whether it finds id or not, will overwrite all existing fields
-		const { resource: doc } = await this.container.items.upsert(_item)
+	async pushItem(_item, _container=this.containerDefault) {	//	post or insert, depends on whether it finds id or not, will overwrite all existing fields
+		const { resource: doc } = await this.#containers[_container]
+			.items
+			.upsert(_item)
 		return doc
 	}
+	/**
+	 * Registers a new candidate to MyLife membership
+	 * @public
+	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
+	 */
+	async registerCandidate(_candidate){
+		const { resource: doc } = await this.#containers['registrations']
+			.items
+			.upsert(_candidate)
+		return doc
+	}
+}
+//	exports
+export default Datamanager
 /*
 	async addItem(item) {
 		debug('Adding an item to the database')
@@ -105,6 +138,7 @@ class Datamanager {
 		return replaced
 	}
 COLLECTION PATCH:
+Body itself is the array of operations, second parameter is options, for configuration and filter?
 const filter = 'FROM products p WHERE p.used = false'
 
 const operations =
@@ -122,6 +156,3 @@ const { resource: updated } = await container
         options = filter
     );
 */
-}
-//	exports
-export default Datamanager

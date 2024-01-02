@@ -1,0 +1,43 @@
+<!-- 
+    different widgets appear based upon
+    1. "logged in" status
+    2. available contributions
+    3. Sign-up for MyLife
+-->
+<div
+    class="mylife-widget sign-up"
+    data-require-login="false"
+    id="sign-up-widget"
+>
+    <% if (locked) { %>
+        <% include _widget-signup %>
+    <% } %>
+</div>
+<div
+    class="mylife-widget contributions"
+    data-require-login="true"
+    id="contributions-widget"
+>
+    <% include _widget-contributions %>
+</div>
+
+<script>
+    // Function to fetch contributions from the server
+    async function checkLoginStatusForDisplay() {
+        try {
+            const response = await fetch('/status');
+            const _unlocked = await response.json();    //  returns boolean
+            const _widgets = document.querySelectorAll('.mylife-widget')
+                .forEach(_widget => {
+                    const _requireLogin = _widget.dataset?.requireLogin === "true";
+                    _widget.style.display = (_unlocked || !_requireLogin)
+                        ?   'block'
+                        :   'none'
+                });
+        } catch (error) {
+            console.error('Error checking login status:', error);
+        }
+    }
+    // Fetch contributions when the widget loads
+    document.addEventListener('DOMContentLoaded', checkLoginStatusForDisplay());
+</script>

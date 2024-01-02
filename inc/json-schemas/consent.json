@@ -1,0 +1,70 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/consent.json",
+	"required": ["id", "mbr_id", "being", "context", "purpose"],
+	"type": "object",
+	"name": "Consent",
+	"properties": {
+		"id": {
+			"description": "uuid of consent object",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"being": {
+			"type": "string",
+			"const": "consent",
+			"description": "Consent object identity"
+		},
+		"context": {
+			"type": "string",
+			"default": "This consent object was created by the MyLife platform to manage access to the underlying object [identified  by `parent_id`] according to owner [identified by `mbr_id`]",
+			"maxLength": 32768,
+			"description": "Context and summary history of this consent object, and its permissions, responses and direct interactions with various members and objects",
+			"$comment": "MyLife should be capable of at least \"filling in those blanks\" for this field, all of it should be injectible from factory core"
+		},
+		"logs": {
+			"type": "array",
+			"default": [],
+			"items": {
+				"type": "object",
+				"$ref": "#/$defs/consent_log"
+			}
+		},
+		"purpose": {
+			"type": "string",
+			"default": "To manage requested access to the underlying avatar or object according to the wills and expressions of the member identified by their `mbr_id`",
+			"maxLength": 32768,
+			"description": "purpose of consent, manages access, responses and permissions for requested object and requesting entity"
+		},
+		"additionalProperties": true
+    },
+	"$defs": {
+		"consent_log": {
+			"name": "Consent_log",
+			"required": ["created_at", "request", "response"],
+			"type": "object",
+			"properties": {
+				"created_at": {
+					"type": "integer",
+					"description": "UNIX timestamp"
+				},
+				"request": {
+					"type": "string",
+					"description": "content of request made to system",
+					"$comment": "presume string? mature into object? Unclear bnased on current usage"
+				},
+				"response": {
+					"type": "string",
+					"description": "content of response made by this consent object",
+					"$comment": "same Q's as `request`"
+				}
+			},
+			"additionalProperties": false
+		}
+	}
+}

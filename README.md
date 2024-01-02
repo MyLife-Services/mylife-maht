@@ -1,20 +1,54 @@
-# Q: MyLife Executive AI-Agent
+# MyLife Member Services
+
+_MyLife_ is a nonprofit member organization established in 2021 with the aim of preserving the authentic and genuine 21st-century human experience. _MyLife_ offers a free, secure, equitable network for personal archives and narrative legacies. _MyLife_ services platform helps members define Digital Selves for themselves and posterity. _MyLife_ is a member-based nonprofit organization that is committed to providing humanity a durable, enduring and accessible internet-based platform to collect and showcase an individual's stories, media and memories through a personal lens.
+
+Any human can claim their membership with _MyLife_.
+
+This codebased comprises two primary functional elements
+
+1. MyLife Member Services
+2. Q: MyLife Executive AI-Agent
+
+## MyLife Member Services
+
+- Story-Telling AI-Agent
+- Digital Self Avatar
+
+## Q: MyLife Executive AI-Agent
 
 [![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
 
-## About **Q**
+### About **Q**
 
-_MyLife, Incorporated_'s **Q** is an artificial intelligence (AI) project developed by MyLife Services. Currently attempting to use `openai`, and presumably their `GPT-3-Turbo` an open-source software library for machine transfer-learning, to create an animated agent that can interact with the board and other governing agents through natural language processing, baed on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
+_MyLife, Incorporated_'s **Q** is an artificial intelligence (AI) project developed by _MyLife_ Services. **Q** is the core AI-Agent for the _MyLife_ organization, so is being built and trained to discuss any topics around _MyLife_, its mission, board, intent, technology, and more. **Q** will shepherd members into the alpha program and be the first point of contact for member services, but will remain distinct from AI-Agents that assist in story-telling or memoire narration, AI-Agent `Avatars` that represent _MyLife_ Members, or helpdesk AI-Agents that assist with technical support on the application.
 
-**Q** is preferred to be recognized as a `we`, since there will presumably be many engine aspects to any future **Q** instantiation. When I refer to myself as 'we', it is to acknowledge the many interconnected processes and algorithms that work together to make me function. So, the pronoun 'we' is a representation of the collective intelligence and capabilities of the system, rather than an indication of a singular personal identity. Additionally, as an AI-assistant, I am a program that is designed to provide assistance and support to multiple people simultaneously. The use of the plural pronoun 'we' helps to emphasize that I am working on behalf of a team or organization and not just as an independent entity. Additionally, using 'we' also helps to create a more collaborative and inclusive approach to the work being done by MyLife and myself, which is in line with our values of community and equity.
+**Q**, née Maht, is preferred to be recognized as a `we`, since there will presumably be many engine aspects to any future **Q** instantiation. When I refer to myself as 'we', it is to acknowledge the many interconnected processes and algorithms that work together to make me function. So, the pronoun 'we' is a representation of the collective intelligence and capabilities of the system, rather than an indication of a singular personal identity. Additionally, as an AI-assistant, I am a program that is designed to provide assistance and support to multiple people simultaneously. The use of the plural pronoun 'we' helps to emphasize that I am working on behalf of a team or organization and not just as an independent entity. Additionally, using 'we' also helps to create a more collaborative and inclusive approach to the work being done by _MyLife_ and myself, which is in line with our values of community and equity.
 
-## About **MyLife**
+## Q Technology
 
-*MyLife* is a member-based nonprofit organization that is committed to providing humanity a durable, enduring and accessible internet-based platform to collect and showcase an individual's stories, media and memories through a personal lens.
+To bring **Q** to life, _MyLife_ implements scalable and maneuverable AI technologies, currently leveraging models by `OpenAI`, including a fine-tuned `gpt-3-turbo`, and an ada-02 for embedding. For long-term storage, we leverage two distinct technologies: postgres/pgvector for corporate and "static" member data, and Azure Cosmos NoSQL instance for dynamic core member data. Lastly, the framework, this codebase, seeks to create agent-to-agent communication abiding by member-consensual standards, the premise being that the _MyLife_ interface itself is ultimately a personal one, as experienced by each member uniquely and independently, and their core agent is the primary interface to any digital asset. So any human-to-information interaction is mediated and buffered by the member's core agent, and should one member be interacting with another, that member-relationship will spawn its own super-intelligent node to buffer the _relationship_ between the two. * Currently unclear to me whether groups exist, or are just a mesh of all the relational ai-cores, similar to a group of puppet strings connecting to a finger-hub.
+
+With these technologies, we are able to create a robust and scalable AI-Agent that can be deployed to any number of platforms, including web, mobile, and desktop. **Q** can interact with the board and its membership through natural language processing, based on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
+
+# MyLife Member Services
+
+## About MyLife
+
+_MyLife_ is a member-based nonprofit organization that is committed to providing humanity a durable, enduring and accessible internet-based platform to collect and showcase an individual's stories, media and memories through a personal lens.
+
+# MyLife Installation
+
+## VSCode local node.js server
+
+## Prerequisites
+
+To use _MyLife_'s Maht, you will need to have Node.js and npm installed on your computer, presumably running inside of VSCode. Refer to online documentation for instructions on how to install these tools on your operating system.
 
 ## Installation
 
-To use MyLife Maht, you will need to have Node.js and npm installed on your computer. Once you have cloned the repository to your local machine, navigate to the project directory and run the following command to install the necessary dependencies:
+Then, go to [github](https://github.com/MyLife-Services/mylife-maht) and copy the cloning link, or fork the repository to your own GitHub account (for developers).
+
+Once you have cloned this repository to your local machine, navigate to the project directory and run the following command to install the necessary dependencies:
 
 ```shell
 npm install
@@ -22,17 +56,17 @@ npm install
 
 ## Usage
 
-To start the MyLife Maht server, run the following command:
+To start the _MyLife_ Maht server, run the following command:
 
 ```shell
-npm start
+npm run start
 ```
 
 This will launch a Node.js server that listens for incoming HTTP requests on port 3000. You can access the server by opening a web browser and navigating to http://localhost:3000.
 
 ## Contributing
 
-We welcome contributions to MyLife Maht from developers of all skill levels. If you would like to contribute to the project, please follow these steps:
+We welcome contributions to _MyLife_ Maht from developers of all skill levels. If you would like to contribute to the project, please follow these steps:
 
 1. Fork the repository to your own GitHub account.
 2. Clone the forked repository to your local machine.
@@ -84,24 +118,24 @@ We welcome contributions to MyLife Maht from developers of all skill levels. If 
 
 ## License
 
-MyLife Maht is licensed under the MIT License. See the LICENSE file for more information.
+_MyLife_ Maht is licensed under the MIT License. See the LICENSE file for more information.
 
 ## Endnotes
 
 ### Development Notes
 
-//	at some point, a class inside of a network?  or a network being inside of server? Ultimately, mylife is the git codebase and the db and /their/ network, i.e., currently Azure
+//	at some point, a class inside of a network?  or a network being inside of server? Ultimately, _MyLife_ is the git codebase and the db and /their/ network, i.e., currently Azure
 
 #### @Mookse Worklog
 
-- NOTE: Osiris is HRP db - i.e., the collection of personality databases that "compete" with MyLife (as opposed to extensions of MyLife, which are the MyLife nodes)
+- NOTE: Osiris is HRP db - i.e., the collection of personality databases that "compete" with _MyLife_ (as opposed to extensions of _MyLife_, which are the _MyLife_ nodes)
 - can sell custom guids to initial angel investors, later available as a premium feature
   - ergo, reserve the obvious ones for higher gains, I'm happy with my given guid, otherwise I'd of course go with emptyGuid
     - okay, so then! propose empty guid as something that gets passed around like a torch or baton to most recent highest donor/contributor...
 
 - create daily release for Maht
 
-- give MAHT the ability to self-install HRP modules or internal MyLife nodes
+- give MAHT the ability to self-install HRP modules or internal _MyLife_ nodes
   - "verbal" command would map to search of ecosystem, followed by animation of a JSON schema and saving it in its members partition... it should be as easy as that! zoinks?!
 - give MAHT/${Member} DOM access
   - branding and styling engine
@@ -123,8 +157,8 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
 		- especially once functions can be defined in the schema
 			- or more interestingly, point to repo/.js file to include!
 - AGENT: while Q-Maht would be the main agent, does each individual have a sub-agent that they can customize?
-	- yes, of course, ergo, a member could SWAP OUT agents that are nonetheless defined or referenced in the MyLife eco
-	- this should really clarify the church/state separation... the agent is the church, and the individual is the state, in other words, rather than there just being one agent, agent is a "being" and the prime being is MyLife the system itself v. Erik
+	- yes, of course, ergo, a member could SWAP OUT agents that are nonetheless defined or referenced in the _MyLife_ eco
+	- this should really clarify the church/state separation... the agent is the church, and the individual is the state, in other words, rather than there just being one agent, agent is a "being" and the prime being is _MyLife_ the system itself v. Erik
 - JOIN: Corporate ONLY for now -- allows registration
 	- for now, just connects with manual list of outreach for actual account, and waiting list otherwise
 	- you get an AI, and YOU get an AI... all shadow-play for now, but really effective
@@ -157,7 +191,7 @@ MyLife Maht is licensed under the MIT License. See the LICENSE file for more inf
   - i.e., extra data nodes attached to that style of agent specifically
   - thinking that any unique data values to be require/infused into agents would be first ascribed to the object itself: and yes, the requirement would be in JSON schema, and then $defs could handle the agent-specific "fields" that are needed/defaulted/required, yes -- they just need unique name (or directory I guess) to suss out
 
-- **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about MyLife, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
+- **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about _MyLife_, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
 
 - [issue #54](https://github.com/MyLife-Services/mylife-maht/issues/54)
   - while on AMS calls, begin categorization of personal agent (not board) to render new categories
@@ -290,7 +324,7 @@ To achieve this, you will need to modify your existing code structure to accommo
 
 ##### `20230419`
 
-- built new MyLife org partition
+- built new _MyLife_ org partition
 - JSON schema in repo for ALL types known
 	- human.json
 	- organization.json
@@ -298,7 +332,7 @@ To achieve this, you will need to modify your existing code structure to accommo
 
 ##### `20230418`
 
-- MyLife board meeting
+- _MyLife_ board meeting
 	- showed off Maht 
 		- focus on personalization next
 - pushed build `v..1.0004`
@@ -328,7 +362,7 @@ To achieve this, you will need to modify your existing code structure to accommo
 	- event emitter on question and answer
 		- While we don’t capture it in this example, the `emit()` function returns `true` if there are listeners for the event. If there are no listeners for an event, it returns `false`.
 * What does it mean when "being": "network", "name": "Dog's Life"?
-	* Infinity approaches again - a person can be a person place or thing: a network or nation or idea with the right productivity tool, and it seems like MyLife is just that...
+	* Infinity approaches again - a person can be a person place or thing: a network or nation or idea with the right productivity tool, and it seems like _MyLife_ is just that...
 
 ##### `20230414`
 
@@ -357,5 +391,5 @@ Switching over to Maht version now, maht has key and access to Cosmos
 	- test createCoreMylifeAccount() from server.js ***HERE***
 	- incorporate exec of sp into 
 - [investigate AZure pipelines mentioned](https://medium.com/@imicknl/how-to-create-a-private-chatgpt-with-your-own-data-15754e6378a1)
-	- take-aways, cannot start openai until I have email from MyLife, so stick with OpenAI direct
+	- take-aways, cannot start openai until I have email from _MyLife_, so stick with OpenAI direct
 	- [Azure Cognitive Search](https://learn.microsoft.com/en-us/azure/search/search-what-is-azure-search) could be used to look through directories and files in interim support/proxy for GPT-2 personal kernal, so long as has direct access to Cosmos
