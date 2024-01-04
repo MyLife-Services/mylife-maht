@@ -64,20 +64,10 @@ setTimeout(() => { // Set a timeout for 1 second to wait for the first line to b
 }
 }, 1000);
 /* page listeners */
-chatForm.addEventListener('submit', (event) => {
-	event.preventDefault();
-	if (!messageInput.value.trim()?.length) return;
-	const _message = {
-		message: messageInput.value.trim()
-	};
-	messageInput.value = ''; // immediately scrub
-	addMessageToColumn(
-		_message,
-		{ bubbleClass: 'member-bubble', _typewrite: false }
-	);
-	submit(event, _message);
-	
-});
+// Event listener to submit the form on enter
+chatForm.addEventListener('submit', addUserMessage);
+// Event listener to check length of input and convert to textarea
+messageInput.addEventListener('input', toggleInputTextarea);
 /* page functions */
 /* todo: fix params, follow more of a content, config, {extras/instructions} structure */
 function addMessageToColumn(_message, _options={
@@ -102,6 +92,7 @@ function addMessageToColumn(_message, _options={
 	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
 	chatBubble.className = `chat-bubble ${bubbleClass}`;
 	chatColumn.appendChild(chatBubble);
+	_message = escapeHtml(message);
 	if (_typewrite) {
 		let i = 0;
 		let tempMessage = '';
@@ -121,8 +112,48 @@ function addMessageToColumn(_message, _options={
 		chatBubble.insertAdjacentHTML('beforeend', message);
 	}
 }
+function addUserMessage(_event){
+    _event.preventDefault();
+    // Dynamically get the current message element (input or textarea)
+    const messageElement = document.getElementById('message');
+    let userMessage = messageElement.value.trim();
+    if (!userMessage.length) return;
+    userMessage = escapeHtml(userMessage); // Escape the user message
+    submit(_event, userMessage);
+    addMessageToColumn({ message: userMessage }, {
+        bubbleClass: 'user-bubble',
+        _delay: 7,
+    });
+    messageElement.value = ''; // Clear the message field
+}
 function getActiveCategory() {
 	return _activeCategory;
+}
+// Function to escape HTML special characters
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+// Function to replace an element (input/textarea) with a specified type
+function replaceElement(element, newType) {
+    const newElement = document.createElement(newType);
+    newElement.id = element.id;
+    newElement.name = element.name;
+    newElement.required = element.required;
+    newElement.classList = element.classList;
+    newElement.value = element.value;
+    if (newType === 'textarea') {
+        newElement.setAttribute('rows', '3');
+    }
+    element.parentNode.replaceChild(newElement, element);
+    newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
+    return newElement;
 }
 async function setActiveCategory(category, contributionId, question) {
     const url = '/members/category'; // Replace with your server's URL
@@ -202,5 +233,18 @@ async function submitChat(_url, _options) {
 		.catch(_error => {
 			console.error('Error submitting chat:', _error)
 		})
+}
+// Function to toggle between textarea and input based on character count
+function toggleInputTextarea() {
+    let inputElement = document.getElementById('message');
+    if (inputElement.value.length > 42 && inputElement.tagName !== 'TEXTAREA') {
+        // Expand to textarea
+        inputElement = replaceElement(inputElement, 'textarea');
+        focusAndSetCursor(inputElement);
+    } else if (inputElement.value.length < 36 && inputElement.tagName === 'TEXTAREA') {
+        // Revert to input
+        inputElement = replaceElement(inputElement, 'input');
+        focusAndSetCursor(inputElement);
+    }
 }
 </script>

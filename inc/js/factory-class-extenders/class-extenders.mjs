@@ -60,7 +60,7 @@ function extendClass_avatar(_originClass,_references) {
             if(!ctx?.state?.chatMessage)
                 throw new Error('No message provided in context')
             if(!this.thread)
-                this.thread = ctx.state.MemberSession.thread
+                this.thread = ctx.state.thread
             //  add metadata, optional
             //	assign uploaded files (optional) and push `retrieval` to tools
             //	create message
@@ -722,9 +722,12 @@ function mPrepareMessage(_msg){
     const _messageCategory = mFormatCategory(_match?.[1]??'')
     // Remove from _msg
     _msg = _msg.replace(_categoryRegex, '')
-    let _filteredLines = _msg.split('\n')
+    const _content = _msg.split('\n')
         .filter(_line => _line.trim() !== '') // Remove empty lines
-    const _content = _filteredLines.join('\n')
+        .map(_msg=>{
+            return new Marked().parse(_msg)
+        })
+        .join('\n')
     return {
         category: _messageCategory,
         content: _content,

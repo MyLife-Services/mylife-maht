@@ -1,7 +1,7 @@
 <div class="container mt-5">
 	<div class="row">
 		<div id="chat" class="col-md-12">
-				<!-- Agent and User messages will be added via innerHTML here -->
+			<!-- Agent and User messages will be added via innerHTML here -->
 		</div>
 	</div>
 	<div class="row mt-4">
@@ -10,11 +10,12 @@
 				<span class="visually-hidden"></span>
 			</div>
 		</div>
-		<div class="col-md-6">
-			<form id="chat-form" class="d-flex align-items-center">
+		<div class="col-md-12">
+			<form id="chat-form" class="d-flex align-items-center justify-content-between">
 				<label for="message" class="me-2">Chat:</label>
-				<input id="message" name="message" required class="form-control me-2" />
+				<input id="message" name="message" required class="form-control me-2 chat-input" />
 				<button id="submitButton" type="submit" class="btn btn-primary">Submit</button>
+				<!-- ... other buttons ... -->
 				<button id="awaitButton" name="awaitButton" class="btn btn-primary" type="button" disabled>
 					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
 					Connecting with <%= avatar.name %>...
@@ -47,18 +48,8 @@ setTimeout(
 	1500
 );
 /* add listeners */
-chatForm.addEventListener('submit', (event) => {
-	event.preventDefault();
-	const userMessage = messageInput.value.trim();
-	if (!userMessage.length)
-		return;
-	submit(event, userMessage);
-	addMessageToColumn({ message: userMessage }, {
-		bubbleClass: 'user-bubble',
-		_delay: 7,
-	});
-	messageInput.value = '';
-});
+chatForm.addEventListener('submit', addUserMessage);
+messageInput.addEventListener('input', toggleInputTextarea); // Event listener to check length of input and convert to textarea
 /* page functions */
 function addMessageToColumn(_message, _options={
 	bubbleClass: 'agent-bubble',
@@ -72,6 +63,7 @@ function addMessageToColumn(_message, _options={
 	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
 	chatBubble.className = `chat-bubble ${bubbleClass}`;
 	chatColumn.appendChild(chatBubble);
+	_message = escapeHtml(message);
 	if (_typewrite) {
 		let i = 0;
 		let tempMessage = '';
@@ -92,7 +84,52 @@ function addMessageToColumn(_message, _options={
 		chatBubble.insertAdjacentHTML('beforeend', message);
 	}
 }
-
+function addUserMessage(_event){
+    event.preventDefault();
+    // Dynamically get the current message element (input or textarea)
+    const messageElement = document.getElementById('message');
+    let userMessage = messageElement.value.trim();
+    if (!userMessage.length) return;
+    userMessage = escapeHtml(userMessage); // Escape the user message
+    submit(event, userMessage);
+    addMessageToColumn({ message: userMessage }, {
+        bubbleClass: 'user-bubble',
+        _delay: 7,
+    });
+    messageElement.value = ''; // Clear the message field
+}
+// Function to escape HTML special characters
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+// Function to focus on the textarea and move cursor to the end
+function focusAndSetCursor(textarea) {
+    textarea.focus();
+    // Move the cursor to the end of the text
+    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+}
+// Function to replace an element (input/textarea) with a specified type
+function replaceElement(element, newType) {
+    const newElement = document.createElement(newType);
+    newElement.id = element.id;
+    newElement.name = element.name;
+    newElement.required = element.required;
+    newElement.classList = element.classList;
+    newElement.value = element.value;
+    if (newType === 'textarea') {
+        newElement.setAttribute('rows', '3');
+    }
+    element.parentNode.replaceChild(newElement, element);
+    newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
+    return newElement;
+}
 async function submit(_event, _message) {
 	_event.preventDefault();
 	submitButton.style.display = 'none';
@@ -130,34 +167,17 @@ async function submitChat(url, options) {
 		return alert(`Error: ${err.message}`);
 	}
 }
+// Function to toggle between textarea and input based on character count
+function toggleInputTextarea() {
+    let inputElement = document.getElementById('message');
+    if (inputElement.value.length > 42 && inputElement.tagName !== 'TEXTAREA') {
+        // Expand to textarea
+        inputElement = replaceElement(inputElement, 'textarea');
+        focusAndSetCursor(inputElement);
+    } else if (inputElement.value.length < 36 && inputElement.tagName === 'TEXTAREA') {
+        // Revert to input
+        inputElement = replaceElement(inputElement, 'input');
+        focusAndSetCursor(inputElement);
+    }
+}
 </script>
-<style>
-.chat-bubble {
-    border-radius: 1rem;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    max-width: 66%;
-    min-width: 20%;
-	width: fit-content;
-	width: -moz-fit-content;
-    word-wrap: break-word;
-}
-.agent-bubble {
-    background-color: #007BFF;
-    color: white;
-    margin-left: 0;
-}
-.user-bubble {
-    background-color: #E0E0E0;
-    color: black;
-    margin-left: auto;
-}
-#header {
-    background-color: #007BFF;
-    padding: 0.5rem;
-    color: white;
-}
-.header-text {
-    font-weight: bold;
-}
-</style>
