@@ -9,6 +9,14 @@ import {
     mMessages,
     mRuns,
  } from './class-avatar-functions.mjs'
+import {
+    mGetQuestions,
+    mUpdateContribution,
+} from './class-contribution-functions.mjs'
+import {
+    mGetMessage,
+	mReviewContent,
+} from './class-message-functions.mjs'
 import { _ } from 'ajv'
 import { parse } from 'path'
 //  function definitions to extend remarkable classes
@@ -308,7 +316,7 @@ function extendClass_message(_originClass,_references) {
                 this.files.push(_file)
                 this.content = `user posted content length greater than context window: find request in related file, file_id: ${_file.id}`      //   default content points to file
             }*/
-            this.#message = await mGetMessage_openAI(
+            this.#message = await mGetMessage(
                 _thread,
                 this.content,
                 this?.message?.id,
@@ -356,153 +364,6 @@ function extendClass_message(_originClass,_references) {
         }
     }
     return Message
-}
-/* modular functions */
-/* contribution modular functions */
-/**
- * Evaluates Contribution and may update `status` property.
- * @modular
- * @param {Contribution} _contribution - Contribution object
- * @returns {void}
- */
-function mEvaluateStatus(_contribution){
-    // assess `status`
-    // statuses=["new", "pending", "prepared", "requested", "submitted", "accepted", "rejected"],
-    switch(true){
-        case(['submitted', 'accepted', 'rejected'].includes(_contribution.status)):
-            //  intentionally empty, different process manages, no change
-            break
-        case (_contribution.responses.length === 1): // **note** `.question` = responses[0]
-            _contribution.status = 'pending'
-            _contribution.emit('on-contribution-prepared', _contribution.id)
-            break
-        case(_contribution.responses.length > 1): // subsequent objects, by logic = response included
-            _contribution.status = 'requested'
-            break
-        default:
-            _contribution.status = 'pending' // no emission
-            break
-    }
-}
-/**
- * Updates contribution object with incoming contribution data.
- * @modular
- * @param {Contribution} _contribution - Contribution object
- * @param {object} _obj - Contribution data { category, contributionId, content??question??message }
- * @returns {void}
- */
-function mUpdateContribution(_contribution, _obj){
-    if(_obj?.question ?? _obj?.content ?? _obj?.message){
-        _contribution.responses.unshift( // todo: ensure incoming has _only_ `content`
-            _obj.question??
-            _obj.content??
-            _obj.message
-        )
-    }
-    mEvaluateStatus(_contribution) // evaluates readiness for next stage of Contribution
-}
-/* message modular functions */
-function mExtractCategory(_category){
-    return _category
-        .replace('Category Mode: ', '')
-        .replace(/\n/g, '') // Remove all newline characters
-        .trim()
-        .replace(/\s+/g, '_')
-        .toLowerCase()
-}
-/**
- * add or update openai portion of `this.message`
- * @private
- * @param {string} _message 
- * @returns {object} openai `message` object
- */
-async function mGetMessage_openAI(_thread, _content, _msg_id, _openai){
-    //  files are attached at the message level under file_ids _array_, only content aside from text = [image_file]:image_file.file_id
-    return (!_msg_id)
-    ?	await _openai.beta.threads.messages.create(	//	add
-            _thread.id,
-            mGetMessage_openAIFormat(_content)
-        )
-    :	await _openai.beta.threads.messages.update(	//	update
-            _thread.id,
-            _msg_id,
-            mGetMessage_openAIFormat(_content)
-        )
-    /* TODO: code for message retrieval
-    switch (this.system) {
-        case 'openai_assistant':
-            return await this.#openai.beta.threads.messages.retrieve(
-                this.message.message.thread_id,
-                this.message.id
-            )
-        default:
-            break
-    }
-    */
-}
-function mGetMessage_openAIFormat(_message){
-    return {
-        role: 'user',
-        content: _message,
-//         file: this.file,
-    }
-}
-/**
- * Gets questions from Cosmos, but could request from openAI.
- * @param {Contribution} _contribution Contribution object
- * @param {OpenAI} _openai OpenAI object
- * @returns {string}
- */
-async function mGetQuestions(_contribution, _openai){
-    /*  get questions from openAI
-        -   if no content, generate questions for description
-        -   if content, generate questions with intent to nuance content
-    */
-   const _contribution_request = _contribution.request
-    if(!_contribution_request?.content){ //  null nodes render to false
-        const _response = await _contribution.factory.getContributionQuestions(
-            _contribution_request.impersonation,
-            _contribution_request.category,
-        )
-        return _response
-    }
-    if(!process.env?.MYLIFE_ALLOW_INTELLIGENT_QUESTIONS??false)
-        return ['What is the meaning of life?']
-    //  generate question(s) from openAI when required
-    const _response = await _evoAgent.openai.completions.create({
-        model: 'gpt-3.5-turbo-instruct',
-        prompt: 'give a list of 3 questions (markdown bullets) used to ' + (
-            (!this.request.content)
-            ?   `get more information about a ${this.request.impersonation} regarding its ${this.request.category}`
-            :   `improve the following description of a ${this.request.impersonation} regarding its ${this.request.category}: "${this.request.content}"`
-        ),
-        temperature: 0.76,
-        max_tokens: 700,
-        top_p: 0.71,
-        best_of: 5,
-        frequency_penalty: 0.87,
-        presence_penalty: 0.54,
-    })
-    //  parse response
-    return _response.choices[0].text
-        .split('\n')    // Split into lines
-        .map(line => line.trim())   // Trim each line
-        .filter(line => line.startsWith('-'))   // Filter lines that start with '-'
-        .map(line => line.substring(1).trim())  // Remove the '-' and extra space
-}
-/**
- * Assigns content (from _message.message) to message object.
- * @modular
- * @param {Message} _message Message object
- * @param {object} _obj Object to assign to message
- */
-function mReviewContent(_message, _obj){
-    _message.content = (_obj?.category?.length)
-        ?   `Category Mode: ${_obj.category}. If asked: ${_obj.question}, I would say: ` + _obj.message // todo: cleanse/prepare message function
-        :   _obj?.message??
-            _obj?.content??
-            _message?.content??
-            ''
 }
 /* exports */
 export {
