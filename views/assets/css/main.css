@@ -156,6 +156,11 @@ h1 {
 }
 /* MyLife chatbot */
 /* chat bubbles */
+.agent-bubble {
+	background-color: #007BFF;
+	color: white;
+	margin-left: 0;
+}
 .chat-bubble {
     border-radius: 1rem;
     padding: 0.75rem;
@@ -166,26 +171,20 @@ h1 {
 	width: fit-content;
     word-wrap: break-word;
 }
-.agent-bubble {
-    background-color: #007BFF;
-    color: white;
-    margin-left: 0;
-}
-.member-bubble {
-    background-color: #78a6c1;
-    color: black;
-   margin-left: auto;
-}
-.user-bubble {
-    background-color: #E0E0E0;
-    color: black;
-   margin-left: auto;
-}
 #chat-form {
 	display: flex;
 	justify-content: space-between;
 	margin-bottom: 12px;
 	margin-top: 12px;
+}
+.chat-input {
+	flex: 1 1 90%; /* Flex-grow, flex-shrink, flex-basis */
+	margin-right: 10px; /* Adjust spacing between input and button */
+}
+.member-bubble, .user-bubble {
+	background-color: #78a6c1;
+	color: black;
+	margin-left: auto;
 }
 #message {
 	flex-grow: 1;
@@ -193,6 +192,9 @@ h1 {
 }
 #response {
 	margin-top: 1rem;
+}
+#submitButton {
+	white-space: nowrap; /* Prevents text wrapping in the button */
 }
 /* MyLife header */
 #header {

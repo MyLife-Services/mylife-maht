@@ -58,11 +58,12 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     let avatarNameEdited = false;
     /* page functions */
     function handleSignupSuccess() { // Update the button text and display the thank you message on successful signup
-        signUpForm.style.display = 'none';
-        const signUpSuccess = document.getElementById('sign-up-success');
         signUpSuccess.style.display = 'block';
+        signUpForm.style.display = 'none';
         joinButton.innerText = "Congratulations!";
         joinButton.style.display = 'none';
+        signUpSuccess.classList.add('visible');
+        signUpSuccess.classList.remove('fade');
     }
     async function checkSignupStatus() {
         try {
