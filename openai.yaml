@@ -4,15 +4,10 @@ info:
   description: This API is for receiving webhooks from MyLife's public GPT instance found at []().
   version: 1.0.0
 servers:
-  - url: https://d1e2-73-149-210-124.ngrok-free.app/api/v1
+  - url: https://94c0-73-149-210-124.ngrok-free.app/api/v1
     description: Root endpoint for receiving GPT webhooks
 security:
   - bearerAuth: []
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
 paths:
   /register:
     post:

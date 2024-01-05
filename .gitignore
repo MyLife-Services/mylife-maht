@@ -4,6 +4,7 @@ package-lock.json
 /in-progress/
 .env*
 .vscode/
+.personal/
 __*/ # ignore all folders starting with an underscore
 .hintrc
 .uploads
