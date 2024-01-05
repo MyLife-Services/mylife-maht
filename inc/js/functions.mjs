@@ -84,6 +84,11 @@ async function members(ctx){
 			break
 	}
 }
+async function privacyPolicy(ctx){
+	ctx.state.title = `MyLife Privacy Policy`
+	ctx.state.subtitle = `Effective Date: 2024-01-01`
+	await ctx.render('privacy-policy')	//	privacy-policy
+}
 async function signup(ctx) {
     const { email, humanName, avatarNickname } = ctx.request.body
 	const _signupPackage = {
@@ -198,6 +203,7 @@ export {
 	contributions,
 	index,
 	members,
+	privacyPolicy,
 	signup,
 	upload,
 	_upload,
