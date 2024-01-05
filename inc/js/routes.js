@@ -2,6 +2,7 @@
 import Router from 'koa-router'
 import {
     about,
+    api_register,
     avatarListing,
     category,
     challenge,
@@ -46,11 +47,6 @@ _memberRouter.get('/:mid/avatars', avatarListing)
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
 /* mondular functions */
-async function api_register(ctx){
-    console.log('api_register', ctx.request.body)
-    ctx.body = ctx.request.body
-    return
-}
 /**
  * Connects the routes to the router
  * @param {object} _Menu Menu object
