@@ -62,7 +62,7 @@ const _Globals = new Globals()
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 	organizationId: process.env.OPENAI_ORG_KEY,
-	timeoutMs: process.env.OPENAI_TIMEOUT,
+	timeoutMs: process.env.OPENAI_API_CHAT_TIMEOUT,
 	basePath: process.env.OPENAI_BASE_URL,
 })
 // config: add functionality to known prototypes
