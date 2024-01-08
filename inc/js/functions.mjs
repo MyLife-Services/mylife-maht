@@ -7,6 +7,52 @@ async function about(ctx){
 	ctx.state.title = `About MyLife`
 	await ctx.render('about')	//	about
 }
+async function api_register(ctx){
+	const _registrationData = ctx.request.body
+	const { 
+		registrationInterests,
+		contact={}, // as to not elicit error destructuring
+		personalInterests,
+		additionalInfo
+	} = _registrationData
+	const {
+		avatarName,
+		humanName,
+		humanDateOfBirth,
+		email,
+		city,
+		state,
+		country,
+	} = contact
+	if (!humanName?.length || !email?.length){
+        ctx.status = 400 // Bad Request
+        ctx.body = {
+            success: false,
+            message: 'Missing required contact information: humanName and/or email are required.',
+        }
+        return
+    }
+	// Email validation
+    if (!ctx.Globals.isValidEmail(contact.email)) {
+        ctx.status = 400 // Bad Request
+        ctx.body = {
+            success: false,
+            message: 'Invalid email format.',
+        }
+        return
+    }
+	// throttle requests?
+	// write to cosmos db
+	_registrationData.email = email // required at root for select
+	ctx.MyLife.registerCandidate(_registrationData)
+	ctx.status = 200
+    ctx.body = {
+        success: true,
+        message: 'Registration completed successfully.',
+		data: _registrationData,
+    }
+	return
+}
 async function avatarListing(ctx){
 	ctx.state.title = `Avatars for ${ ctx.state.member.memberName }`
 	ctx.state.avatars = ctx.state.member.avatars
@@ -84,6 +130,11 @@ async function members(ctx){
 			break
 	}
 }
+async function privacyPolicy(ctx){
+	ctx.state.title = `MyLife Privacy Policy`
+	ctx.state.subtitle = `Effective Date: 2024-01-01`
+	await ctx.render('privacy-policy')	//	privacy-policy
+}
 async function signup(ctx) {
     const { email, humanName, avatarNickname } = ctx.request.body
 	const _signupPackage = {
@@ -91,8 +142,6 @@ async function signup(ctx) {
 		'humanName': humanName,
 		'avatarNickname': avatarNickname,
 	}
-    // Basic Email Regex for validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 	//	validate session signup
 	if (ctx.session.signup)
 		ctx.throw(400, 'Invalid input', { 
@@ -113,7 +162,7 @@ async function signup(ctx) {
 		})
 	}
     // Validate email
-    if (!emailRegex.test(email))
+    if (!ctx.Globals.isValidEmail(email))
 		ctx.throw(400, 'Invalid input', { 
 			success: false,
 			message: 'Invalid input: emailInput',
@@ -191,6 +240,7 @@ function mSetContributions(ctx){
 /* exports */
 export {
 	about,
+	api_register,
 	avatarListing,
 	category,
 	challenge,
@@ -198,6 +248,7 @@ export {
 	contributions,
 	index,
 	members,
+	privacyPolicy,
 	signup,
 	upload,
 	_upload,
