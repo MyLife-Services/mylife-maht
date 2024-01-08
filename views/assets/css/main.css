@@ -18,10 +18,33 @@ body {
     font-weight: bold;
     cursor: default; /* Set cursor to default */
 }
+/* MyLife main content */
+.container {
+	max-width: 1024px;
+	background-color: #ffffff;
+	border-radius: 5px;
+	padding: 2rem;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.main-content {
+    flex: 1; /* Takes up the remaining space */
+    min-width: 60%; /* Adjust min-width as needed, depending on how you want the responsive design to work */
+}
+.sidebar {
+    flex-basis: 300px; /* Adjust width of the sidebar */
+    max-width: 40%; /* Adjust max-width as needed */
+}
+.main-content h1 {
+	font-size: 20px;
+}
+.main-content h2 {
+	font-size: 20px;
+}
 /* MyLife Contribution Request */
 .flex-container {
     display: flex;
     flex-wrap: wrap;
+    gap: 12px; /* Adjust the space between the main content and sidebar */
 }
 .category-button {
     background-color: #f0f0f0; /* Neutral color */
@@ -216,19 +239,6 @@ body {
 	padding: 1rem;
 	margin: 1rem;
 }
-.container {
-	max-width: 1024px;
-	background-color: #ffffff;
-	border-radius: 5px;
-	padding: 2rem;
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-h1 {
-	font-size: 2.5rem;
-	margin-bottom: 1rem;
-}
-
 .loading {
 	display: none;
 	font-size: 24px;

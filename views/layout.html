@@ -14,14 +14,14 @@
 <body>
 	<div class="container">
 		<% include assets/html/_navbar %>
-		<div class="row">
-			<div class="col-md-8">
+		<div class="flex-container">
+			<div class="main-content">
 				<% if(locals?.title){ %><h1><%= title %></h1><% } %><!-- koa-ejs title inclusion -->
-				<% if(locals?.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs title inclusion -->
+				<% if(locals?.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs subtitle inclusion -->
 				<%- body %><!-- koa-ejs body inclusion -->
 			</div>
 			<!-- Sidebar area -->
-			<div class="sidebar col-md-4">
+			<div class="sidebar">
 				<% include assets/html/_sidebar %>
 			</div>
 		</div>
