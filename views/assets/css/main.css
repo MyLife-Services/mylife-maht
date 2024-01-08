@@ -59,10 +59,6 @@ body {
 }
 /* MyLife Signup Routine */
 /* by ids */
-#signUpTeaser, #signUpForm, #signUpSuccess {
-	transition: opacity 1s ease;
-	opacity: 0;
-}
 /* by class */
 .bold {
 	font-weight: bold;
@@ -120,12 +116,13 @@ body {
 	opacity: 0;
 	display: none;
 }
+.hidden {
+  transition: opacity 1s ease;
+  opacity: 0;
+  display: none; /* Initially not displayed */
+}
 .ital {
 	font-style: italic;
-}
-.visible {
-	opacity: 1;
-    display: block;
 }
 /* MyLife sidebar */
 .input {
@@ -173,6 +170,10 @@ body {
 .teaser li {
 	margin-left: 12px;
 	margin-top: 6px;
+}
+.visible {
+	opacity: 1;
+	display: block;
 }
 .widget {
     display: flex;

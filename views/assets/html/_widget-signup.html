@@ -5,7 +5,7 @@
     <div id="sign-up-content">
         <div class="error-message" id="signup-error-message"></div> <!-- Error message container -->
         <!-- Sign-Up Teaser -->
-        <div id="sign-up-teaser">
+        <div id="sign-up-teaser" class="hidden">
             <div class="teaser">
                 <div><!-- extra div required with flex or span created newline -->
                     Empower your digital self with <span class="bold">MyLife</span>, a nonprofit humanist member organization whose core mission is to provide you with the tools to digitally manage and preserve what truly matters to you, for now, throughout your lifetime, and for posterity.
@@ -22,7 +22,7 @@
             </div>
         </div>
         <!-- Sign-Up Form (Initially Hidden) -->
-        <div id="sign-up-form">
+        <div id="sign-up-form" class="hidden">
             <div class="teaser">
                 <div>
                     As a <span class="bold">MyLife</span> member, you gain free access to a global nascent, revolutionary platform where you can create personalized AI Avatar&mdash;as unique and multifaceted as <em>you</em>&mdash;to interact, explore and connect online.
@@ -50,7 +50,7 @@
             </div>
         </div>
         <!-- Sign-Up Form (Initially Hidden) -->
-        <div id="sign-up-success">
+        <div id="sign-up-success" class="hidden">
             <div class="teaser">
                 <div class="header">Thank you for joining our pilot!</div>
             </div>
@@ -100,10 +100,14 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     let avatarNameEdited = false;
     /* page functions */
     function handleSignupSuccess() { // Update the button text and display the thank you message on successful signup
-        signUpSuccess.style.display = 'block';
-        signUpTeaser.style.display = 'none';
-        signUpForm.style.display = 'none';
-        joinButton.style.display = 'none';
+        signUpSuccess.classList.add('visible');
+        signUpSuccess.classList.remove('hidden');
+        signUpTeaser.classList.add('hidden');
+        signUpTeaser.classList.remove('visible');
+        signUpForm.classList.add('hidden');
+        signUpForm.classList.remove('visible');
+        joinButton.classList.add('hidden');
+        joinButton.classList.remove('visible');
     }
     async function checkSignupStatus() {
         try {
@@ -116,10 +120,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
             if (isSignedUp === 'true') { // If already signed up, show signup success message
                 handleSignupSuccess();
             } else { // If not signed up, show teaser
-                signUpTeaser.style.display = 'block';
-                joinButton.style.display = 'block';
-                signUpForm.style.display = 'none';
-                signUpSuccess.style.display = 'none';
+                signUpTeaser.classList.add('visible');
             }
         } catch (error) {
             console.error('Error checking signup status:', error);
@@ -151,16 +152,24 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     emailInput.addEventListener('input', updateFormState);
     humanNameInput.addEventListener('input', updateFormState);
     joinButton.addEventListener('click', function() {
-        if (signUpTeaser.style.display === 'block') { // move to sign up form
-            signUpForm.style.display = 'block';
-            joinButton.style.display = 'block';
-            signUpSuccess.style.display = 'none';
-            signUpTeaser.style.display = 'none';
+        if (signUpTeaser.classList.contains('visible')) { // move to sign up form
+            signUpForm.classList.add('visible');
+            signUpForm.classList.remove('hidden');
+            joinButton.classList.add('visible');
+            joinButton.classList.remove('hidden');
+            signUpSuccess.classList.add('hidden');
+            signUpSuccess.classList.remove('visible');
+            signUpTeaser.classList.add('hidden');
+            signUpTeaser.classList.remove('visible');
         } else { // return to teaser
-            signUpTeaser.style.display = 'block';
-            joinButton.style.display = 'block';
-            signUpForm.style.display = 'none';
-            signUpSuccess.style.display = 'none';
+            signUpTeaser.classList.add('visible');
+            signUpTeaser.classList.remove('hidden');
+            joinButton.classList.add('visible');
+            joinButton.classList.remove('hidden');
+            signUpForm.classList.add('hidden');
+            signUpForm.classList.remove('visible');
+            signUpSuccess.classList.add('hidden');
+            signUpSuccess.classList.remove('visible');
         }
         // Toggle the button text using data attribute
         const altText = this.getAttribute('data-alt-text');
