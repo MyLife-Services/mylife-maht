@@ -36,13 +36,10 @@ body {
 }
 /* MyLife Signup Routine */
 /* by ids */
-#sign-up-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 400px; /* Adjust based on your content */
-}
 /* by class */
+.bold {
+	font-weight: bold;
+}
 .button-join {
     background-color: green; /* Default background color */
     color: #fff; /* Text color */
@@ -70,17 +67,62 @@ body {
 	opacity: 0;
 	display: none;
 }
+.ital {
+	font-style: italic;
+}
 .visible {
 	opacity: 1;
     display: block;
 }
 /* MyLife sidebar */
+.input-container {
+	background: linear-gradient(to right, rgba(94, 128, 191, 0.1), rgba(128, 0, 128, 0.1));
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	padding: 10px 12px;
+	width: 100%;
+	margin-top: 6px;
+	margin-bottom: 16px;
+	box-shadow: inset 1px 1px 3px rgba(94, 128, 191, 0.2), inset -1px -1px 3px rgba(128, 0, 128, 0.3);
+}
 .sidebar {
+	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
 	background-color: aliceblue;
-	color: #5c4a7f;
-	border-color: aqua;
-	border-radius: 26px;
+	color: #221a30;
+	border-radius: 22px;
 	padding: 1rem;
+}
+.sidebar-header {
+	font-weight: bold;
+	color: #5c4a7f;
+}
+.teaser {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	margin-left: 6px;
+	padding-bottom: 5px;
+}
+.teaser ul {
+	list-style-type: square;
+	margin-top: 6px;
+	margin-bottom: 6px;
+}
+.teaser li {
+	margin-left: 12px;
+	margin-top: 6px;
+}
+.widget {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* rows get left-aligned */
+    min-height: 100px; /* Adjust based on your content */
+	width: 100%;
+	/*border: #007BFF 1px solid; /* border color */
+}
+.widget .header {
+	padding: 0.5rem;
+	font-weight: bold;
 }
 /* Avatars */
 /* Avatar detail listing */
