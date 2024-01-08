@@ -19,7 +19,7 @@ class Config{
 				partitionId: _mbr_id,
 			}
 		}
-		this.registrations={
+		this.registration={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {
 				id: process.env.MYLIFE_REGISTRATION_DB_CONTAINER_NAME,
