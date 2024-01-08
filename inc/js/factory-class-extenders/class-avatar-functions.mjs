@@ -83,7 +83,7 @@ async function mChat(_openai, _avatar, _chatMessage, _conversation_id){
         _avatar.messages.unshift(_msg)
     })
     //	update cosmos
-    if ((_avatar?.factory !== undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE ?? false)) {
+    if ((_avatar?.factory !== undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE === 'true')) {
         _avatar.factory.dataservices.patchArrayItems( // no need to await
             _conversation_id,
             'messages',
