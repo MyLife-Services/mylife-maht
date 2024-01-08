@@ -317,10 +317,10 @@ function extendClass_message(_originClass,_references) {
                 this.content = `user posted content length greater than context window: find request in related file, file_id: ${_file.id}`      //   default content points to file
             }*/
             this.#message = await mGetMessage(
+                this.#openai,
                 _thread,
                 this.content,
                 this?.message?.id,
-                this.#openai
             )
             return this
         }
