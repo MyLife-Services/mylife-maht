@@ -121,6 +121,18 @@ class Dataservices {
 		//	ask global data service (stored proc) for passphrase
 		return await this.datamanager.challengeAccess(_mbr_id,_passphrase)
 	}
+	async findRegistrationIdByEmail(_email){
+		/* pull record for email, returning id or new guid */
+		const _ = await this.getItems(
+			'registration',
+			undefined,
+			[{ name: '@email',
+				value: _email,
+			}],
+			'registration'
+		)
+		return _?.[0]?.id??Guid.newGuid().toString() // needed to separate out, was failing
+	}
 	/**
 	 * Retrieves a specific avatar by its ID.
 	 * @async
@@ -296,11 +308,15 @@ class Dataservices {
 		return await this.datamanager.pushItem(_data)
 	}
 	/**
-	 * Registers a new candidate to MyLife membership
+	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
 	 * @public
 	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
 	async registerCandidate(_candidate){
+		_candidate.mbr_id = this.#partitionId
+		_candidate.id = await this.findRegistrationIdByEmail(_candidate.email)
+		_candidate.being = 'registration'
+		_candidate.name = `${_candidate.email.split('@')[0]}-${_candidate.email.split('@')[1]}_${_candidate.id}`
 		return await this.datamanager.registerCandidate(_candidate)
 	}
 }

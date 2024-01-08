@@ -1,0 +1,85 @@
+openapi: 3.0.0
+info:
+  title: MyLife GPT Webhook Receiver API
+  description: This API is for receiving webhooks from MyLife's public GPT instance found at []().
+  version: 1.0.0
+servers:
+  - url: https://94c0-73-149-210-124.ngrok-free.app/api/v1
+    description: Root endpoint for receiving GPT webhooks
+security:
+  - bearerAuth: []
+paths:
+  /register:
+    post:
+      operationId: MyLifeGPTRegistration
+      summary: Receives registration data from the GPT webhook.
+      description: Endpoint for handling incoming registration webhook data from the MyLife GPT service.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [registrationInterests, contact]
+              properties:
+                registrationInterests:
+                  type: array
+                  default: ['information']
+                  minItems: 1
+                  maxItems: 4
+                  items:
+                    type: string
+                    enum:
+                      - membership
+                      - volunteer
+                      - donate
+                      - information
+                  description: Interests in MyLife, defaults to information.
+                contact:
+                  type: object
+                  required: [humanName, email]
+                  properties:
+                    avatarName:
+                      type: string
+                      description: The avatar name desired by the person registering.
+                    humanName:
+                      type: string
+                      description: The name, can be nickname or short name, of the person registering.
+                    humanDateOfBirth:
+                      type: string
+                      format: date
+                      description: The date of birth of the person registering; could be as little as a year.
+                    email:
+                      type: string
+                      description: The email of the person registering.
+                    city:
+                      type: string
+                      description: The city of the person registering.
+                    state:
+                      type: string
+                      description: The state of the person registering.
+                    country:
+                      type: string
+                      description: The country of the person registering.
+                  description: The registration data sent from the MyLife GPT instance.
+                personalInterests:
+                  type: array
+                  default: []
+                  minItems: 0
+                  maxItems: 5
+                  items:
+                    type: string
+                    enum:
+                      - archivist
+                      - humanist
+                      - ethicist
+                      - technologist
+                      - futurist
+                  description: The driving personal interests of the person registering.
+                additionalInfo:
+                  type: string
+                  maxLength: 1024
+                  description: Additional information sent from the MyLife GPT instance.
+      responses:
+        '200':
+          description: Webhook registration data received successfully.
