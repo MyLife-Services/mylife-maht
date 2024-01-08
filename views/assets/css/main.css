@@ -1,16 +1,36 @@
+/* MyLife layout */
 body {
-	background-image: url('../jpg/MyLife_two_seeds.jpg');
+	/* background-image: url('../jpg/MyLife_two_seeds.jpg'); */
+	align-items: center;
+	background-color: #f5f5f5;
 	background-size: 1200px;
 	background-repeat: no-repeat;
 	background-position: top;
-	font-family: Arial, sans-serif;
 	display: flex;
 	flex-direction: column;
-	align-items: center;
+	font-family: Arial, sans-serif;
 	justify-content: center;
+	margin: 1.5%;
+	max-width: 1024px;
 	min-height: 65vh;
-	margin: 0;
-	background-color: #f5f5f5;
+}
+.flex-container {
+    display: flex;
+    flex-direction: column; /* Or row, depending on your layout */
+    flex-wrap: wrap;
+	height: 100vh; /* 100% of the viewport height */
+    gap: 12px;
+}
+.page-container {
+    display: flex;
+    flex-direction: column; /* Change to row for horizontal layout */
+    height: calc(100vh - [Height of Navbar]); /* Adjust for the height of the navbar */
+}
+.page-column-collection {
+	display: flex;
+	flex-direction: row; /* Change to column for vertical layout */
+	width: 100%;
+	gap: 12px;
 }
 /* MyLife Menu Navigation */
 .navbar {
@@ -19,9 +39,11 @@ body {
 /*	border: #111 12px double; */
 	border: 1px dotted rgba(0, 0, 139, 0.3);
 	border-radius: 22px; /* Rounded corners */
+	box-sizing: border-box; /* Ensures padding and width stays within the border */
 	margin-bottom: 12px; /* Bottom margin */
 	padding: 0px;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
+	width: 100%; /* Full width */
 }
 .navbar-brand {
 	color: #4CAF50; /* White text color */
@@ -36,7 +58,11 @@ body {
 	cursor: default; /* Set cursor to default */
 }
 .navbar-nav {
-	background: linear-gradient(to bottom, rgba(255, 255, 255, 0.25) 60%, rgba(0, 0, 100, 0.15) 100%); /* Gradient from top (lighter) to bottom (slightly darker) with alpha */
+	background: linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.25) 60%,
+		rgba(0, 0, 100, 0.15) 100%
+	); /* Gradient from top (lighter) to bottom (slightly darker) with alpha */
     background-color: #f8f9fa; /* A light base color for the navbar */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
     border-radius: 10px; /* Rounded edges */
@@ -53,33 +79,202 @@ body {
     cursor: default; /* Set cursor to default */
 }
 /* MyLife main content */
-.container {
-	max-width: 1024px;
-	background-color: #ffffff;
-	border-radius: 5px;
-	padding: 2rem;
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
 .main-content {
-    flex: 1; /* Takes up the remaining space */
-    min-width: 60%; /* Adjust min-width as needed, depending on how you want the responsive design to work */
+    background: white; /* Assuming a card-like look typically has a white background */
+    background-position: center; /* Centers the image in the area */
+    background-size: cover; /* Ensures the image covers the whole area */
+	border: rgb(0, 25, 51, .3) 2px dotted;
+    border-radius: 22px;
+	box-sizing: border-box;
+	flex-grow: 1; /* Takes up the remaining space */
+    margin: 2px; /* No space outside the container */
+    max-height: none; /* Adjust the max height as needed */
+	max-width: 65%; /* Adjust min-width as needed */
+    padding: 0px; /* Adds space inside the container */
+	position: relative; /* Needed to position pseudo-elements or child divs */
+}
+.main-content h1 {
+	padding: 3%;
+	padding-bottom: 0px;
+	margin-bottom: 0px;
+	font-size: 20px;
+	font-weight: lighter;
+	font-family: 'Arial Narrow', sans-serif;
+}
+.main-content hr {
+    border: none; /* Removes the default border */
+    height: .5px; /* Sets the height of the horizontal rule */
+    background-color: rgb(0, 25, 51, 1); /* Faint line color using RGBA for transparency */
+    margin-left: 0%; /* Aligns with the start of the container */
+    margin-right: 10%; /* Leaves space at the end of the container */
+	margin-top: 2%;
+	margin-bottom: 0%;
+    width: auto; /* Takes the full available width minus margin */
+}
+.main-content h2 {
+	font-size: 20px;
 }
 .sidebar {
     flex-basis: 300px; /* Adjust width of the sidebar */
     max-width: 40%; /* Adjust max-width as needed */
 }
-.main-content h1 {
-	font-size: 20px;
+/* MyLife chat container */
+.agent-bubble {
+    background-color: rgba(0, 86, 179, .85); /* A darker shade of blue for the agent */
+    color: #ffffff; /* White text for better readability */
+    margin-left: 0;
 }
-.main-content h2 {
-	font-size: 20px;
+.chat-bubble {
+    display: flex; /* Set as a flex container */
+    align-items: center; /* Center items vertically inside the bubble */
+    justify-content: flex-start; /* Align content to the start (left) */
+    border-radius: 18px; /* Rounded corners for a modern look */
+    padding: 10px 15px; /* Padding for content inside bubble */
+    margin-bottom: 0.5rem;
+    max-width: 70%;
+    min-width: 20%;
+    width: fit-content; /* Fit the content's width */
+    word-wrap: break-word; /* Ensure long words don't overflow */
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
+}
+.chat-container {
+	background-image: 
+        linear-gradient(
+			to bottom,
+			rgba(255, 255, 255, 0.85) 0%,
+			rgba(255, 255, 255, 0.85) 50%,
+			rgba(66, 66, 66, 0.85) 100%
+		), /* White overlay with 50% opacity */
+        url('../jpg/cosmos.jpg'); /* Your original background image */
+    background-size: cover; /* Ensures the image covers the whole area */
+    background-position: center; /* Centers the image */
+    border-radius: 0px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 100px); /* Adjust if necessary */
+    overflow-y: auto; /* Keeps vertical scrolling */
+    overflow-x: hidden; /* Prevents horizontal scrolling */
+    padding: 20px;
+}
+/* Styles the scrollbar itself */
+.chat-container::-webkit-scrollbar {
+    width: 10px; /* Adjust the width of the scrollbar */
+}
+/* Styles the track of the scrollbar */
+.chat-container::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Color of the track */
+    border-radius: 10px; /* Optional: adds rounded corners to the track */
+}
+/* Styles the handle (thumb) of the scrollbar */
+.chat-container::-webkit-scrollbar-thumb {
+    background: #888; /* Color of the thumb */
+    border-radius: 10px; /* Optional: adds rounded corners to the thumb */
+}
+/* Changes the color of the thumb when hovered over or clicked */
+.chat-container::-webkit-scrollbar-thumb:hover {
+    background: #555; /* Darker shade on hover */
+}
+.chat-input {
+	align-items: center;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: right;
+	margin-top: 3rem;
+}
+.chat-input input {
+	background-color: #ffffff; /* White background color */
+	border-radius: 12px; /* Rounded corners */
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
+	flex: 1;
+	margin: 6px 12px; /* Margin for space outside the container */
+	padding: 8px; /* Padding for space inside the container */
+}
+.chat-input label {
+	flex: 0 0 auto;
+	font-weight: bold;
+	font-style: normal;
+	font-stretch: condensed;
+	color: rgba(240, 240, 240, .9);
+	font-size: 24px;
+}
+.chat-input textarea {
+    background-color: #ffffff; /* White background color */
+    border: 1px solid #ccc; /* Border color */
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    flex: 1;
+    font-size: 1rem; /* Adjust font size */
+    line-height: 1.5; /* Adjust line height for better readability */
+	max-height: 200px; /* Adjust this value as needed */
+    margin: 6px 12px; /* Margin for space outside the container */
+    overflow-y: auto; /* Adds a scrollbar when content exceeds max-height */
+    padding: 8px; /* Padding for space inside the container */
+    resize: vertical; /* Allows vertical resizing, none to disable */
+}
+/* Styling the scrollbar track */
+.chat-input textarea::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0.1); /* Track background color */
+    border-radius: 1%; /* Rounded corners for the track */
+}
+
+/* Styling the scrollbar handle */
+.chat-input textarea::-webkit-scrollbar-thumb {
+    background-color: #e3a274; /* Handle color */
+    border-radius: 10px; /* Rounded corners for the handle */
+}
+
+/* Styling the scrollbar handle on hover */
+.chat-input textarea::-webkit-scrollbar-thumb:hover {
+    background-color: #15a211; /* Darker color on hover */
+}
+
+/* Styling the scrollbar width */
+.chat-input textarea::-webkit-scrollbar {
+	background-color: rgba(255, 255, 255, 0.8); /* Track background color */
+    width: 12px; /* Width of the scrollbar */
+}
+.chat-output {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+}
+.button.chat-submit {
+	flex: 0 0 auto;
+	color: rgba(65, 84, 104, 0.85);
+	background-color: rgba(183, 203, 225, 0.85);
+	margin: 0px;
+	white-space: nowrap; /* Prevents text wrapping in the button */
+}
+.button.chat-submit:hover {
+	background-color: rgba(195, 203, 52, 0.85);
+	color: #061320;
+}
+.button.chat-submit:focus {
+    outline: none; /* Remove the default focus outline */
+    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.6); /* Yellow glow */
+}
+.button.chat-submit:disabled {
+	background-color: rgba(63, 75, 83, 0.2);
+	border-color: rgba(146, 157, 163, .7);
+	color: rgba(146, 157, 163, .9);
+}
+.member-bubble, .user-bubble {
+    background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
+    color: #333333; /* Dark grey for contrast and easy reading */
+    margin-left: auto;
+}
+#message {
+	flex-grow: 1;
+	margin-right: 0.5rem;
+}
+#response {
+	margin-top: 1rem;
 }
 /* MyLife Contribution Request */
-.flex-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px; /* Adjust the space between the main content and sidebar */
-}
 .category-button {
     background-color: #f0f0f0; /* Neutral color */
     margin: 5px;
@@ -92,8 +287,6 @@ body {
     color: white;
 }
 /* MyLife Signup Routine */
-/* by ids */
-/* by class */
 .bold {
 	font-weight: bold;
 }
@@ -102,13 +295,12 @@ body {
 	color: #fff; /* Text color */
 	margin: 12px;
 	margin-bottom: 18px;
-	border: 2px solid #007BFF; /* Blue border */
-	border-radius: 22px; /* Rounded corners */
+	border: 2px solid #061320; /* Blue border */
+	border-radius: 12px; /* Rounded corners */
 	box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
 	font-weight: bold; /* Bold text */
 	padding: 6px 12px; /* Adjust as needed */
 	cursor: pointer; /* Cursor changes to pointer on hover */
-	transition: background-color 0.3s ease; /* Smooth transition for background color */
 	text-align: center; /* Center text */
 }
 .button:disabled {
@@ -179,6 +371,7 @@ body {
 	box-shadow: inset 1px 1px 3px rgba(94, 128, 191, 0.2), inset -1px -1px 3px rgba(128, 0, 128, 0.3);
 }
 .sidebar {
+	flex-basis: 35%;
 	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
 	background-color: aliceblue;
 	color: #221a30;
@@ -215,7 +408,7 @@ body {
 }
 .widget .header {
     background-color: white; /* Same blue as the agent chat bubble */
-    color: #001933;
+    color: rgb(0, 25, 51, 1);
     padding: 10px; /* Padding inside the header */
     font-size: 0.9em; /* Smaller text size */
     text-align: center; /* Center the text */
@@ -287,49 +480,6 @@ body {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-}
-/* MyLife chatbot */
-/* chat bubbles */
-.agent-bubble {
-    background-color: #0056b3; /* A darker shade of blue for the agent */
-    color: #ffffff; /* White text for better readability */
-    margin-left: 0;
-}
-.chat-bubble {
-    border-radius: 18px; /* Rounded corners for a modern look */
-    padding: 10px 15px; /* Padding for content inside bubble */
-    margin-bottom: 0.5rem;
-    max-width: 80%;
-    min-width: 20%;
-	width: -moz-fit-content;
-	width: fit-content;
-    word-wrap: break-word;
-    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
-}
-#chat-form {
-	display: flex;
-	justify-content: space-between;
-	margin-bottom: 12px;
-	margin-top: 12px;
-}
-.chat-input {
-	flex: 1 1 90%; /* Flex-grow, flex-shrink, flex-basis */
-	margin-right: 10px; /* Adjust spacing between input and button */
-}
-.member-bubble, .user-bubble {
-    background-color: #e1f5fe; /* A light shade of blue for the user */
-    color: #333333; /* Dark grey for contrast and easy reading */
-    margin-left: auto;
-}
-#message {
-	flex-grow: 1;
-	margin-right: 0.5rem;
-}
-#response {
-	margin-top: 1rem;
-}
-#submitButton {
-	white-space: nowrap; /* Prevents text wrapping in the button */
 }
 /* MyLife header */
 #header {

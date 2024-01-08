@@ -110,7 +110,6 @@ function extendClass_avatar(_originClass,_references) {
         async getMessages(){
             this.messages = ( await mMessages(this.#openai, this.thread.id) )
                 .data
-            console.log('getMessages', this.messages)
             return this.messages
         }
         on(_eventName, listener){
