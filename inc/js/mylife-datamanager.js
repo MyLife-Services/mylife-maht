@@ -25,7 +25,7 @@ class Datamanager {
 		this.#containers = {
 			contribution_responses: this.database.container(_config.contributions.container.id),
 			members: this.database.container(_config.db.container.id),
-			registrations: this.database.container(_config.registrations.container.id),
+			registration: this.database.container(_config.registration.container.id),
 		}
 		this.requestOptions = {
 			partitionKey: this.#partitionId,
@@ -110,7 +110,7 @@ class Datamanager {
 	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
 	async registerCandidate(_candidate){
-		const { resource: doc } = await this.#containers['registrations']
+		const { resource: doc } = await this.#containers['registration']
 			.items
 			.upsert(_candidate)
 		return doc
