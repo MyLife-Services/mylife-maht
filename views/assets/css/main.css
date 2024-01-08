@@ -244,19 +244,20 @@ h1 {
 /* MyLife chatbot */
 /* chat bubbles */
 .agent-bubble {
-	background-color: #007BFF;
-	color: white;
-	margin-left: 0;
+    background-color: #0056b3; /* A darker shade of blue for the agent */
+    color: #ffffff; /* White text for better readability */
+    margin-left: 0;
 }
 .chat-bubble {
-    border-radius: 1rem;
-    padding: 0.75rem;
+    border-radius: 18px; /* Rounded corners for a modern look */
+    padding: 10px 15px; /* Padding for content inside bubble */
     margin-bottom: 0.5rem;
     max-width: 80%;
     min-width: 20%;
 	width: -moz-fit-content;
 	width: fit-content;
     word-wrap: break-word;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
 }
 #chat-form {
 	display: flex;
@@ -269,9 +270,9 @@ h1 {
 	margin-right: 10px; /* Adjust spacing between input and button */
 }
 .member-bubble, .user-bubble {
-	background-color: #78a6c1;
-	color: black;
-	margin-left: auto;
+    background-color: #e1f5fe; /* A light shade of blue for the user */
+    color: #333333; /* Dark grey for contrast and easy reading */
+    margin-left: auto;
 }
 #message {
 	flex-grow: 1;
