@@ -36,9 +36,39 @@ body {
 }
 /* MyLife Signup Routine */
 /* by ids */
+#signUpTeaser, #signUpForm, #signUpSuccess {
+	transition: opacity 1s ease;
+	opacity: 0;
+}
 /* by class */
 .bold {
 	font-weight: bold;
+}
+.button {
+	background-color: #007BFF; /* Default background color */
+	color: #fff; /* Text color */
+	margin: 12px;
+	margin-bottom: 18px;
+	border: 2px solid #007BFF; /* Blue border */
+	border-radius: 22px; /* Rounded corners */
+	box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
+	font-weight: bold; /* Bold text */
+	padding: 6px 12px; /* Adjust as needed */
+	cursor: pointer; /* Cursor changes to pointer on hover */
+	transition: background-color 0.3s ease; /* Smooth transition for background color */
+	text-align: center; /* Center text */
+}
+.button:disabled {
+    background-color: #CCCCCC; /* Lighter/Different background color for disabled state */
+    color: #666666; /* Lighter/Different text color for disabled state */
+    border: 2px solid #CCCCCC; /* Border color for disabled state */
+    cursor: not-allowed; /* Cursor to indicate the button is not clickable */
+    box-shadow: none; /* Optional: remove shadow for disabled state */
+}
+.button-container {
+    display: flex;
+    justify-content: center; /* Centers the button horizontally */
+    width: 100%; /* Ensures the container spans the full width */
 }
 .button-join {
     background-color: green; /* Default background color */
@@ -75,6 +105,15 @@ body {
     display: block;
 }
 /* MyLife sidebar */
+.input {
+	margin-top: 6px;
+	text-align: left;
+}
+.input label {
+	font-weight: bold;
+	font-style: normal;
+	font-stretch: condensed;
+}
 .input-container {
 	background: linear-gradient(to right, rgba(94, 128, 191, 0.1), rgba(128, 0, 128, 0.1));
 	border: 1px solid #ccc;

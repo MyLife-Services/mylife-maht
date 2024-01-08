@@ -24,27 +24,29 @@
         <!-- Sign-Up Form (Initially Hidden) -->
         <div id="sign-up-form">
             <div class="teaser">
-                As a <span class="bold">MyLife</span> member, you gain free access to a global nascent, revolutionary platform where you can create personalized AI Avatar&mdash;;as unique and multifaceted as <em>you</em>&mdash;to interact, explore and connect online.
-            </div>
-            <div class="teaser ital">
-                Join <span class="bold">MyLife</span> and help pioneer the emerging digital era of human empowerment and connection!
-            </div>
-            <div class="input-container">
-                <div class="input">
-                    <label for="emailInput">Email:</label>
-                    <input type="email" id="emailInput" placeholder="Enter your email" required>
+                <div>
+                    As a <span class="bold">MyLife</span> member, you gain free access to a global nascent, revolutionary platform where you can create personalized AI Avatar&mdash;as unique and multifaceted as <em>you</em>&mdash;to interact, explore and connect online.
                 </div>
-                <div class="input">
-                    <label for="humanNameInput">First Name or Nickname:</label>
-                    <input type="text" id="humanNameInput" placeholder="Enter your first name or nickname" required>
+                <div class="ital">
+                    Join <span class="bold">MyLife</span> and help pioneer the emerging digital era of human empowerment and connection!
                 </div>
-                <div class="input">
-                    <label for="avatarNicknameInput" id="avatarNicknameLabel" style="display:none;">Avatar Nickname:</label>
-                    <input type="text" id="avatarNicknameInput" placeholder="Avatar Nickname" style="display:none;" required>
+                <div class="input-container">
+                    <div class="input">
+                        <label for="emailInput">Email:</label>
+                        <input type="email" id="emailInput" placeholder="Enter your email" required>
+                    </div>
+                    <div class="input">
+                        <label for="humanNameInput">Name:</label>
+                        <input type="text" id="humanNameInput" placeholder="Enter your name or nickname" required>
+                    </div>
+                    <div class="input">
+                        <label for="avatarNicknameInput" id="avatarNicknameLabel" style="display:none;">Avatar Nickname:</label>
+                        <input type="text" id="avatarNicknameInput" placeholder="Avatar Nickname" style="display:none;" required>
+                    </div>
+                    <div class="button-container">
+                        <button class="button" type="button" id="signupButton" disabled>Submit</button>
+                    </div>
                 </div>
-            </div>
-            <div class="button">
-                <button type="button" id="signupButton">Claim your membership today!</button>
             </div>
         </div>
         <!-- Sign-Up Form (Initially Hidden) -->
@@ -53,16 +55,24 @@
                 <div class="header">Thank you for joining our pilot!</div>
             </div>
             <div class="teaser">
-                ...and welcome to <span class="bold">MyLife</span>, where your journey to creating an everlasting digital legacy begins. 
+                <div>
+                    ...and welcome to <span class="bold">MyLife</span>, where your journey to creating an everlasting digital legacy begins. 
+                </div>
             </div>                
             <div class="teaser">
-                You're in control. In control of your data, of your exposure, of your privacy, in control of <em>your experience</em>.
+                <div>
+                    You're in control. In control of your data, of your exposure, of your privacy, in control of <em>your experience</em>.
+                </div>
             </div> 
             <div class="teaser">
-                At <span class="bold">MyLife</span>, we envision sharing <em>your</em> story <em>as</em> contribution to the greater Human Story. In a real way. Without having to write novels (though you may!) or compose sentient operas (feel enouraged!), but most importantly by <em>being</em> and your striving to become who you're <em>meant</em> to be. The greatest gift you can give <u>Humanity</u> is your lived experience, and that precious gift only accepted to the degree you consent.
+                <div>
+                    At <span class="bold">MyLife</span>, we envision sharing <em>your</em> story <em>as</em> contribution to the greater Human Story. In a real way. Without having to write novels (though you may!) or compose sentient operas (feel enouraged!), but most importantly by <em>being</em> and your striving to become who you're <em>meant</em> to be. The greatest gift you can give <u>Humanity</u> is your lived experience, and that precious gift only accepted to the degree you consent.
+                </div>
             </div> 
             <div class="teaser">
-                With <span class="bold">MyLife</span>, you/will be able to create anything. It is your personal, sacred sanctuary for you to get <em>your digital work</em> done, but not alone, instead armed with a legion of digital AI companions to support your journey through an otherwise thorny landscape of social-media, research, and corporate interest internet presences.
+                <div>
+                    With <span class="bold">MyLife</span>, you/will be able to create anything. It is your personal, sacred sanctuary for you to get <em>your digital work</em> done, but not alone, instead armed with a legion of digital AI companions to support your journey through an otherwise thorny landscape of social-media, research, and corporate interest internet presences.
+                </div>
             </div> 
             <div class="teaser">
                 Welcome to the freedom of the future, where your journey not only defines your legacy but also shapes the future of our collective digital world.
@@ -91,11 +101,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     /* page functions */
     function handleSignupSuccess() { // Update the button text and display the thank you message on successful signup
         signUpSuccess.style.display = 'block';
+        signUpTeaser.style.display = 'none';
         signUpForm.style.display = 'none';
-        joinButton.innerText = "Congratulations!";
         joinButton.style.display = 'none';
-        signUpSuccess.classList.add('visible');
-        signUpSuccess.classList.remove('fade');
     }
     async function checkSignupStatus() {
         try {
@@ -105,19 +113,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
             }
             const isSignedUp = await response.text(); // Get the response as text
             console.log('Signup status:', signUpTeaser, signUpSuccess)
-            if (isSignedUp === 'true') {
-                // If already signed up, show signup success message
-                signUpSuccess.classList.add('visible');
-                signUpSuccess.classList.remove('fade');
-                // Hide the join button and teaser
-                joinButton.style.display = 'none';
-                signUpTeaser.style.display = 'none';
-            } else {
-                // If not signed up, show the teaser
-                signUpTeaser.classList.add('visible');
-                signUpTeaser.classList.remove('fade');
-                // Ensure join button is visible
+            if (isSignedUp === 'true') { // If already signed up, show signup success message
+                handleSignupSuccess();
+            } else { // If not signed up, show teaser
+                signUpTeaser.style.display = 'block';
                 joinButton.style.display = 'block';
+                signUpForm.style.display = 'none';
+                signUpSuccess.style.display = 'none';
             }
         } catch (error) {
             console.error('Error checking signup status:', error);
@@ -149,26 +151,16 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     emailInput.addEventListener('input', updateFormState);
     humanNameInput.addEventListener('input', updateFormState);
     joinButton.addEventListener('click', function() {
-        if (signUpTeaser.classList.contains('visible')) {
-            // Fade out the teaser
-            signUpTeaser.classList.remove('visible');
-            signUpTeaser.classList.add('fade');
-            
-            // After fade-out, show the form
-            setTimeout(() => {
-                signUpForm.classList.add('visible');
-                signUpForm.classList.remove('fade');
-            }, 500); // Match the CSS transition duration
-        } else {
-            // Fade out the form
-            signUpForm.classList.remove('visible');
-            signUpForm.classList.add('fade');
-            
-            // After fade-out, show the teaser
-            setTimeout(() => {
-                signUpTeaser.classList.add('visible');
-                signUpTeaser.classList.remove('fade');
-            }, 500); // Match the CSS transition duration
+        if (signUpTeaser.style.display === 'block') { // move to sign up form
+            signUpForm.style.display = 'block';
+            joinButton.style.display = 'block';
+            signUpSuccess.style.display = 'none';
+            signUpTeaser.style.display = 'none';
+        } else { // return to teaser
+            signUpTeaser.style.display = 'block';
+            joinButton.style.display = 'block';
+            signUpForm.style.display = 'none';
+            signUpSuccess.style.display = 'none';
         }
         // Toggle the button text using data attribute
         const altText = this.getAttribute('data-alt-text');
@@ -184,14 +176,12 @@ document.addEventListener('DOMContentLoaded', async ()=>{
             humanName: firstName,
             avatarNickname: avatarName
         };
-
         try {
             const response = await fetch('/signup', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(formData)
             });
-
             const result = await response.json();
             if (result.success) {
                 // Handle successful signup
