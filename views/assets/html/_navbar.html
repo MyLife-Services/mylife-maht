@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 	<div class="container-fluid">
-		<a class="navbar-brand" href="#">MyLife</a>
+		<a class="navbar-brand">MyLife</a>
 		<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
 			aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
 			<span class="navbar-toggler-icon"></span>
@@ -10,8 +10,21 @@
 				<% menu.forEach(_menuItem=>{ %>
 					<a class="nav-link" href="<%= _menuItem.route %>"><%= _menuItem.display %></a>
 				<% }) %>
-				<a class="nav-link" href="../pdf/MyLife_Summary.pdf">Summary</a>
 			</div>
 		</div>
 	</div>
 </nav>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var currentPath = window.location.pathname; // Get the current path
+    var navLinks = document.querySelectorAll('.navbar-nav .nav-link'); // Select all nav links
+    navLinks.forEach(function(link) {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active'); // Add 'active' class to the current link
+            link.addEventListener('click', function(event) {
+                event.preventDefault(); // Prevent default action (navigation) on click
+            });
+        }
+    });
+});
+</script>

@@ -12,6 +12,12 @@ body {
 	margin: 0;
 	background-color: #f5f5f5;
 }
+/* MyLife Menu Navigation */
+.nav-link.active {
+    color: #007bff; /* Your existing styles for active link */
+    font-weight: bold;
+    cursor: default; /* Set cursor to default */
+}
 /* MyLife Contribution Request */
 .flex-container {
     display: flex;
