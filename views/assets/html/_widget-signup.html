@@ -1,5 +1,5 @@
 <div class="widget" id="sign-up-container">
-    <div class="header">Claim Your MyLife Membership</div>
+    <div class="header" id="signup-header">Claim Your MyLife Membership</div>
     <!-- Sign-Up Button -->
     <button class="button button-join" id="joinMyLifeButton" data-alt-text="Not right now">Join MyLife Pilot Program</button>
     <div class="signup" id="sign-up-content">
@@ -30,7 +30,7 @@
                 <div class="ital">
                     Join <span class="bold">MyLife</span> and help pioneer the emerging digital era of human empowerment and connection!
                 </div>
-                <div class="input-container">
+                <div class="input-container" id="input-container">
                     <div class="input">
                         <label for="emailInput">Email:</label>
                         <input type="email" id="emailInput" placeholder="Enter your email" required>
@@ -51,9 +51,6 @@
         </div>
         <!-- Sign-Up Form (Initially Hidden) -->
         <div id="sign-up-success" class="hidden">
-            <div class="teaser">
-                <div class="header">Thank you for joining our pilot!</div>
-            </div>
             <div class="teaser">
                 <div>
                     ...and welcome to <span class="bold">MyLife</span>, where your journey to creating an everlasting digital legacy begins. 
@@ -93,7 +90,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     const humanNameInput = document.getElementById('humanNameInput');
     const joinButton = document.getElementById('joinMyLifeButton');
     const signupButton = document.getElementById('signupButton');
-    const signUpForm = document.getElementById('sign-up-form'); 
+    const signUpForm = document.getElementById('sign-up-form');
+    const signUpHeader = document.getElementById('signup-header');
     const signUpSuccess = document.getElementById('sign-up-success');
     const signUpTeaser = document.getElementById('sign-up-teaser');
     const errorMessage = document.getElementById('signup-error-message');
@@ -108,6 +106,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         signUpForm.classList.remove('visible');
         joinButton.classList.add('hidden');
         joinButton.classList.remove('visible');
+        signUpHeader.innerHTML = `Thank you for joining our pilot!`
     }
     async function checkSignupStatus() {
         try {
@@ -185,30 +184,20 @@ document.addEventListener('DOMContentLoaded', async ()=>{
             humanName: firstName,
             avatarNickname: avatarName
         };
-        try {
-            const response = await fetch('/signup', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(formData)
-            });
-            const result = await response.json();
-            if (result.success) {
-                // Handle successful signup
-                handleSignupSuccess();
-            } else {
-                // Handle errors
-                const errorFields = result.message.split(':').pop().trim().split(', ');
-                errorFields.forEach(field => {
-                    document.getElementById(`${field}Input`).classList.add('error'); // Highlight the field
-                });
-                // Display error message
-                const errorDiv = document.createElement('div');
-                errorDiv.textContent = result.message;
-                errorDiv.classList.add('error-message');
-                signUpForm.prepend(errorDiv);
-            }
-        } catch (error) {
-            console.log('Error during signup:', error);
+        const response = await fetch('/signup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        if(response.ok) {
+            handleSignupSuccess();
+        } else {
+            // Display error message
+            const errorDiv = document.createElement('div');
+            errorDiv.textContent = `Please review your inputs, system cannot process your request.`;
+            errorDiv.classList.add('error-message');
+            document.getElementById('input-container').prepend(errorDiv);
+  //          signUpForm.prepend(errorDiv);
         }
     });
     /* add tab index */ 
