@@ -99,8 +99,7 @@ async function contributions(ctx){
 	)
 }
 async function index(ctx){
-	ctx.state.title = `Meet ${ ctx.state.member.agentName }`
-	ctx.state.subtitle = `${ctx.state.member.agentDescription}`
+	ctx.state.title = `${ctx.state.member.agentDescription}`
 	await ctx.render('index')
 }
 async function members(ctx){
