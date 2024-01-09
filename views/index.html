@@ -1,41 +1,38 @@
-<div class="container mt-5">
-	<div class="row">
-		<div id="chat" class="col-md-12">
-			<!-- Agent and User messages will be added via innerHTML here -->
-		</div>
+<hr><!-- begin with break for scroll -->
+<div class="chat-container">
+	<div class="chat-output" id="chat">
+		<!-- Agent and User messages will be added via innerHTML here -->
 	</div>
-	<div class="row mt-4">
-		<div class="col-md-6 text-center">
-			<div id="agent-spinner" class="spinner-grow text-light" role="status">
-				<span class="visually-hidden"></span>
-			</div>
-		</div>
-		<div class="col-md-12">
-			<form id="chat-form" class="d-flex align-items-center justify-content-between">
-				<label for="message" class="me-2">Chat:</label>
-				<input id="message" name="message" required class="form-control me-2 chat-input" />
-				<button id="submitButton" type="submit" class="btn btn-primary">Submit</button>
-				<!-- ... other buttons ... -->
-				<button id="awaitButton" name="awaitButton" class="btn btn-primary" type="button" disabled>
-					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-					Connecting with <%= avatar.name %>...
-				</button>
-			</form>
-		</div>
+	<div id="agent-spinner" class="spinner-grow text-light" role="status">
+		<span class="visually-hidden"></span>
+	</div>
+	<div class="chat-input" name="chat-form" id="chat-form">
+		<label for="user-chat-message">chat</label>
+		<input id="user-chat-message" name="user-chat-message" required />
+		<button class="button chat-submit" id="submit-button" type="submit" disabled>Submit</button>
+		<!-- ... other buttons ... -->
+		<button id="await-button" name="await-button" class="btn btn-primary" type="button" disabled>
+			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+			Connecting with <%= avatar.name %>...
+		</button>
 	</div>
 </div>
 <script>
-const awaitButton = document.getElementById('awaitButton');
+const awaitButton = document.getElementById('await-button');
 const agentSpinner = document.getElementById('agent-spinner');
 const chatColumn = document.getElementById('chat');
 const chatForm = document.getElementById('chat-form');
-const messageInput = document.getElementById('message');
-const submitButton = document.getElementById('submitButton');
+const submitButton = document.getElementById('submit-button');
 const _greeting = [
 	`Hi, I'm <%= avatar.name %>, so nice to meet you!`,
-	`To get started, tell me a little bit about something or someone that is really important to you--or ask me a question about MyLife.`
+	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
 ];
 let _chatBubbleCount = 0;
+let messageInput = document.getElementById('user-chat-message');
+/* add listeners */
+// add listener to address chat button, on input for message I guess
+messageInput.addEventListener('input', toggleInputTextarea); // Event listener to check length of input and convert to textarea
+submitButton.addEventListener('click', addUserMessage); // Event listener to submit message
 //	bootup
 awaitButton.style.display = 'none';
 /* welcome-01 */
@@ -47,9 +44,6 @@ setTimeout(
 	()=> addMessageToColumn({ message: _greeting[1] }),
 	1500
 );
-/* add listeners */
-chatForm.addEventListener('submit', addUserMessage);
-messageInput.addEventListener('input', toggleInputTextarea); // Event listener to check length of input and convert to textarea
 /* page functions */
 function addMessageToColumn(_message, _options={
 	bubbleClass: 'agent-bubble',
@@ -87,8 +81,7 @@ function addMessageToColumn(_message, _options={
 function addUserMessage(_event){
     event.preventDefault();
     // Dynamically get the current message element (input or textarea)
-    const messageElement = document.getElementById('message');
-    let userMessage = messageElement.value.trim();
+    let userMessage = messageInput.value.trim();
     if (!userMessage.length) return;
     userMessage = escapeHtml(userMessage); // Escape the user message
     submit(event, userMessage);
@@ -96,7 +89,7 @@ function addUserMessage(_event){
         bubbleClass: 'user-bubble',
         _delay: 7,
     });
-    messageElement.value = ''; // Clear the message field
+    messageInput.value = ''; // Clear the message field
 }
 // Function to escape HTML special characters
 function escapeHtml(text) {
@@ -126,8 +119,8 @@ function replaceElement(element, newType) {
     if (newType === 'textarea') {
         newElement.setAttribute('rows', '3');
     }
-    element.parentNode.replaceChild(newElement, element);
     newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
+    chatForm.replaceChild(newElement, element);
     return newElement;
 }
 async function submit(_event, _message) {
@@ -169,15 +162,14 @@ async function submitChat(url, options) {
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea() {
-    let inputElement = document.getElementById('message');
-    if (inputElement.value.length > 42 && inputElement.tagName !== 'TEXTAREA') {
-        // Expand to textarea
-        inputElement = replaceElement(inputElement, 'textarea');
-        focusAndSetCursor(inputElement);
-    } else if (inputElement.value.length < 36 && inputElement.tagName === 'TEXTAREA') {
-        // Revert to input
-        inputElement = replaceElement(inputElement, 'input');
-        focusAndSetCursor(inputElement);
+	const _message = messageInput.value.trim();
+	submitButton.disabled = !_message.length;
+    if (_message.length > 42 && messageInput.tagName !== 'TEXTAREA') { // Expand to textarea
+        messageInput = replaceElement(messageInput, 'textarea');
+        focusAndSetCursor(messageInput);
+    } else if (_message.length < 36 && messageInput.tagName === 'TEXTAREA' ) { // Revert to input
+		messageInput = replaceElement(messageInput, 'input');
+        focusAndSetCursor(messageInput);
     }
 }
 </script>

@@ -1,18 +1,10 @@
 //	imports
 import EventEmitter from 'events'
-import OpenAI from 'openai'
 import chalk from 'chalk'
 //	import { _ } from 'ajv'
 //	server-specific imports
 import initRouter from './routes.js'
 import { _ } from 'ajv'
-// config
-const openai = new OpenAI({
-	apiKey: process.env.OPENAI_API_KEY,
-	organizationId: process.env.OPENAI_ORG_KEY,
-	timeoutMs: process.env.OPENAI_TIMEOUT,
-	basePath: process.env.OPENAI_BASE_URL,
-})
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#avatar
@@ -36,10 +28,8 @@ class Member extends EventEmitter {
 		'Updates'
 	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
 	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
-	#personalityKernal
 	constructor(_Factory){
 		super()
-		this.#personalityKernal = openai	//	will be covered in avatars
 		this.#factory = _Factory
 		/* assign factory/avatar listeners */
 		this.attachListeners()
@@ -198,9 +188,6 @@ class Member extends EventEmitter {
 	}
 	get newGuid(){
 		return this.globals.newGuid
-	}
-	get personality(){
-		return this.#personalityKernal
 	}
 	get preferences(){
 		return this.core.preferences
