@@ -74,7 +74,7 @@ function extendClass_avatar(_originClass,_references) {
                 this.#openai, 
                 this, 
                 ctx.state.chatMessage, 
-                ctx.state.MemberSession.conversation.id
+                ctx.state.MemberSession
             )
         }
         /**

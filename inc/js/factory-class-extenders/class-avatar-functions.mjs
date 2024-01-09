@@ -43,16 +43,16 @@ function mAssignEvolverListeners(_evolver, _avatar){
     )
 }
 /**
- * Requests and returns chat response from openAI.
+ * Requests and returns chat response from openAI. Call session for conversation id.
  * @modular
  * @public
  * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
  * @param {string} _chatMessage - Chat message
- * @param {string} _conversation_id - Cosmos conversation id
+ * @param {string} _session - Member Session Instance
  * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
  */
-async function mChat(_openai, _avatar, _chatMessage, _conversation_id){
+async function mChat(_openai, _avatar, _chatMessage, _session){
     const _processStartTime = Date.now()
     //  add metadata, optional
     //	assign uploaded files (optional) and push `retrieval` to tools
@@ -82,10 +82,12 @@ async function mChat(_openai, _avatar, _chatMessage, _conversation_id){
 //        _avatar.#evolver?.setContribution(_avatar.#activeChatCategory, _msg)??false
         _avatar.messages.unshift(_msg)
     })
-    //	update cosmos
+    //	add/update cosmos
     if ((_avatar?.factory !== undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE ?? false)) {
+        const _conversation = await _session.getConversation() // await getter in case creating
+        // _session.conversation_id // await getter in case creating
         _avatar.factory.dataservices.patchArrayItems( // no need to await
-            _conversation_id,
+            _conversation.id,
             'messages',
             [..._responses, _message]
         )

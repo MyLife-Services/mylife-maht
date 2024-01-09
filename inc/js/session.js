@@ -5,6 +5,7 @@ class MylifeMemberSession extends EventEmitter {
 	#contributions = []	//	intended to hold all relevant contribution questions for session
 	#conversation
 	#factory
+	#isConversationSaved = false
 	#locked = true	//	locked by default
 	#mbr_id = false
 	#Member
@@ -12,6 +13,7 @@ class MylifeMemberSession extends EventEmitter {
 	name
 	constructor(_factory){
 		super()
+		console.log('constructing session, I ought have no conversation', this.#conversation)
 		this.#factory = _factory
 		this.#mbr_id = this.isMyLife ? this.factory.mbr_id : false
 		mAssignFactoryListeners(this.#factory)
@@ -24,6 +26,7 @@ class MylifeMemberSession extends EventEmitter {
 		if(!this.conversation){
 			this.#conversation = await mCreateConversation(this)
 			this.#thread = this.conversation.thread
+			this.#isConversationSaved = false
 		}
 		if(this.locked){
 			if(this.#Member?.mbr_id??_mbr_id !== _mbr_id)
@@ -34,8 +37,7 @@ class MylifeMemberSession extends EventEmitter {
 			this.#mbr_id = _mbr_id
 			mAssignFactoryListeners(this.#factory)
 			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
-			this.#conversation = await mCreateConversation(this)
-			this.#thread = this.conversation.thread
+			this.setConversation()
 			this.#Member = await this.factory.getMyLifeMember()
 			//	update conversation info (name)
 			this.name = mAssignName(this.#mbr_id, this.#thread.id)
@@ -46,6 +48,27 @@ class MylifeMemberSession extends EventEmitter {
 			)
 		}
 		return this
+	}
+	async challengeAccess(_passphrase){
+		if(this.locked){
+			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
+			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
+			//	init member
+			this.#locked = false
+			this.emit('member-unlocked', this.challenge_id)
+			await this.init(this.challenge_id)
+		}
+		return !this.locked
+	}
+	async getConversation(){ // full feature request for conversation that will print to Cosmos if not already (ergo, use cautiously)
+		//	print to CosmosDB
+		if(!this.#isConversationSaved){
+			await this.factory.dataservices.pushItem(
+				this.conversation.inspect(true)
+			)
+			this.#isConversationSaved = true
+		}
+		return this.conversation
 	}
 	//	consent functionality
 	async requestConsent(ctx){
@@ -86,16 +109,12 @@ class MylifeMemberSession extends EventEmitter {
 		await (this.ctx.session.MemberSession.consents = _consent)	//	will add consent to session list
 		return _consent
 	}
-	async challengeAccess(_passphrase){
-		if(this.locked){
-			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
-			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
-			//	init member
-			this.#locked = false
-			this.emit('member-unlocked', this.challenge_id)
-			await this.init(this.challenge_id)
+	async setConversation(_conversation){
+		if(!_conversation){
+			this.#conversation = await mCreateConversation(this)
+			this.#thread = this.conversation.thread
+			this.#isConversationSaved = false
 		}
-		return !this.locked
 	}
 	get consent(){
 		return this.factory.consent	//	**caution**: returns <<PROMISE>>
@@ -179,12 +198,6 @@ async function mCreateConversation(_session){	//	thread can be acted on by any a
 		thread: await _session.factory.getThread(),
 	}, _session.factory)
 	_conversation.name = mAssignName(_session.mbr_id, _conversation.threadId)
-	//	print to CosmosDB
-	if(process.env?.MYLIFE_DB_ALLOW_SAVE === 'true'){ // env vars always strings
-		_session.factory.dataservices.pushItem(
-			_conversation.inspect(true)
-		)
-	}
 	return _conversation
 }
 function mValidCtxObject(_ctx){
