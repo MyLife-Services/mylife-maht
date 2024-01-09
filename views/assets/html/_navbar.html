@@ -1,18 +1,12 @@
-<nav class="navbar-expand-lg navbar">
-	<div class="navbar-brand">
-		<image src="../png/logotype-knockout.png" class="d-inline-block align-middle" width="120" alt="MyLife logo">
-	</div>
-	<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
-		aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-		<span class="navbar-toggler-icon"></span>
-	</button>
-	<div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-		<div class="navbar-nav">
-			<% menu.forEach(_menuItem=>{ %>
-				<a class="nav-link" href="<%= _menuItem.route %>"><%= _menuItem.display %></a>
-			<% }) %>
-		</div>
-	</div>
+<nav class="navbar">
+    <div class="navbar-brand">
+        <img src="../png/logotype-knockout.png" class="d-inline-block align-middle" width="120" alt="MyLife logo">
+    </div>
+    <div class="navbar-nav">
+        <% menu.forEach(_menuItem => { %>
+            <a class="nav-link" href="<%= _menuItem.route %>"><%= _menuItem.display %></a>
+        <% }) %>
+    </div>
 </nav>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

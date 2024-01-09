@@ -10,8 +10,8 @@ body {
 	flex-direction: column;
 	font-family: Arial, sans-serif;
 	justify-content: center;
-	margin: 1.5%;
-	max-width: 1024px;
+	margin: 1.5em;
+	max-width: 100%;
 	min-height: 65vh;
 }
 .flex-container {
@@ -24,7 +24,9 @@ body {
 .page-container {
     display: flex;
     flex-direction: column; /* Change to row for horizontal layout */
-    height: calc(100vh - [Height of Navbar]); /* Adjust for the height of the navbar */
+	margin: 0 auto; /* Center the content */
+	width: 100%; /* Ensures the container grows to the full width */
+	max-width: 100%;
 }
 .page-column-collection {
 	display: flex;
@@ -39,17 +41,18 @@ body {
 /*	border: #111 12px double; */
 	border: 1px dotted rgba(0, 0, 139, 0.3);
 	border-radius: 22px; /* Rounded corners */
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
 	box-sizing: border-box; /* Ensures padding and width stays within the border */
+	justify-content: flex-start; /* Aligns items horizontally */
 	margin-bottom: 12px; /* Bottom margin */
 	padding: 0px;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
 	width: 100%; /* Full width */
 }
 .navbar-brand {
 	color: #4CAF50; /* White text color */
-	margin-right: 24px; /* Right margin on navbar brand */
-	font-weight: bold;
 	cursor: default; /* Set cursor to default */
+	font-weight: bold;
+	margin-right: 24px; /* Right margin on navbar brand */
 }
 .navbar-brand:hover {
 	color: #4CAF50; /* White text color */
@@ -66,12 +69,16 @@ body {
     background-color: #f8f9fa; /* A light base color for the navbar */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
     border-radius: 10px; /* Rounded edges */
-    margin: 6px 0; /* Margin for space outside the container */
-    padding: 4px; /* Padding for space inside the container */
+	display: flex; /* Aligns the flex item horizontally (default: row) */
+	flex-direction: row; /* Aligns the flex item horizontally (default: row) */
+	margin-top: 1.5em;
 }
 .navbar-nav:hover {
 	border:rgba(53, 31, 53, 0.25) 1px solid;
 	cursor: default;
+}
+.nav-link {
+	margin: 0em .8em;
 }
 .nav-link.active {
     color: #007bff; /* Your existing styles for active link */
@@ -498,4 +505,13 @@ body {
 }
 .header-text {
     font-weight: bold;
+}
+/* media queries */
+@media screen and (min-width: 1024px) {
+    body {
+        margin: 3em; /* Increased margin for larger screens */
+        max-width: 1024px; /* Set a max-width to center the content */
+        margin-left: auto; /* Center the body horizontally */
+        margin-right: auto;
+    }
 }
