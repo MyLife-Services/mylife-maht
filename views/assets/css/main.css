@@ -114,10 +114,6 @@ body {
 .main-content h2 {
 	font-size: 20px;
 }
-.sidebar {
-    flex-basis: 300px; /* Adjust width of the sidebar */
-    max-width: 40%; /* Adjust max-width as needed */
-}
 /* MyLife chat container */
 .agent-bubble {
     background-color: rgba(0, 86, 179, .85); /* A darker shade of blue for the agent */
@@ -219,18 +215,15 @@ body {
     background-color: rgba(0, 0, 0, 0.1); /* Track background color */
     border-radius: 1%; /* Rounded corners for the track */
 }
-
 /* Styling the scrollbar handle */
 .chat-input textarea::-webkit-scrollbar-thumb {
     background-color: #e3a274; /* Handle color */
     border-radius: 10px; /* Rounded corners for the handle */
 }
-
 /* Styling the scrollbar handle on hover */
 .chat-input textarea::-webkit-scrollbar-thumb:hover {
     background-color: #15a211; /* Darker color on hover */
 }
-
 /* Styling the scrollbar width */
 .chat-input textarea::-webkit-scrollbar {
 	background-color: rgba(255, 255, 255, 0.8); /* Track background color */
@@ -318,15 +311,13 @@ body {
 .button-join {
     background-color: green; /* Default background color */
     color: #fff; /* Text color */
-    margin: 8px;
-    margin-bottom: 18px;
     border: 2px solid red; /* Red border */
     border-radius: 5px; /* Rounded corners */
     box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
     font-weight: bold; /* Bold text */
     padding: 10px 20px; /* Adjust as needed */
+	margin: 0.5em;
     cursor: pointer; /* Cursor changes to pointer on hover */
-    transition: background-color 0.3s ease; /* Smooth transition for background color */
     text-align: center; /* Center text */
 }
 .button-join:hover {
@@ -350,6 +341,14 @@ body {
 .ital {
 	font-style: italic;
 }
+.signup {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
+	padding: 0em 1.05em 1.05em 1.05em;
+}
 /* MyLife sidebar */
 .input {
 	margin-top: 6px;
@@ -371,12 +370,18 @@ body {
 	box-shadow: inset 1px 1px 3px rgba(94, 128, 191, 0.2), inset -1px -1px 3px rgba(128, 0, 128, 0.3);
 }
 .sidebar {
+    background: white; /* Assuming a card-like look typically has a white background */
+    background-position: center; /* Centers the image in the area */
+    background-size: cover; /* Ensures the image covers the whole area */
+	border: rgb(0, 25, 51, .3) 2px dotted;
+    border-radius: 22px;
+	box-sizing: border-box;
+    flex-basis: 300px; /* Adjust width of the sidebar */
+	padding: 1em;
 	flex-basis: 35%;
 	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
-	background-color: aliceblue;
 	color: #221a30;
-	border-radius: 22px;
-	padding: 1rem;
+	font-size: 0.9em;
 }
 .teaser {
 	display: flex;
@@ -399,20 +404,22 @@ body {
 	display: block;
 }
 .widget {
+    align-items: center; /* rows get left-aligned */
+	background-color: rgba(240, 248, 255, 1);
+	border: 1px solid #666; /* Border color */
+	border-radius: 12px; /* rounded corners */
     display: flex;
     flex-direction: column;
-    align-items: center; /* rows get left-aligned */
     min-height: 100px; /* Adjust based on your content */
 	width: 100%;
-	/*border: #007BFF 1px solid; /* border color */
 }
 .widget .header {
-    background-color: white; /* Same blue as the agent chat bubble */
-    color: rgb(0, 25, 51, 1);
+    background-color: #333; /* Black background */
+    color: #fff; /* White text */
     padding: 10px; /* Padding inside the header */
-    font-size: 0.9em; /* Smaller text size */
+    font-size: 1.2em; /* Adjust the text size as needed */
     text-align: center; /* Center the text */
-    border-radius: inherit; /* Inherits border-radius from parent .widget */
+    border-radius: 12px 12px 0 0; /* Rounded top corners, flat bottom */
     margin: 0; /* No margin to ensure it meets the container's edges */
     width: 100%; /* Full width of the container */
 }
