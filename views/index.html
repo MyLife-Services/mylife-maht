@@ -29,7 +29,6 @@ const _greeting = [
 ];
 let _chatBubbleCount = 0;
 let messageInput = document.getElementById('user-chat-message');
-console.log('pagescript', chatForm)
 /* add listeners */
 // add listener to address chat button, on input for message I guess
 messageInput.addEventListener('input', toggleInputTextarea); // Event listener to check length of input and convert to textarea
@@ -120,8 +119,8 @@ function replaceElement(element, newType) {
     if (newType === 'textarea') {
         newElement.setAttribute('rows', '3');
     }
-    element.parentNode.replaceChild(newElement, element);
     newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
+    chatForm.replaceChild(newElement, element);
     return newElement;
 }
 async function submit(_event, _message) {
@@ -165,13 +164,11 @@ async function submitChat(url, options) {
 function toggleInputTextarea() {
 	const _message = messageInput.value.trim();
 	submitButton.disabled = !_message.length;
-    if (_message.length > 42 && messageInput.tagName !== 'TEXTAREA') {
-        // Expand to textarea
+    if (_message.length > 42 && messageInput.tagName !== 'TEXTAREA') { // Expand to textarea
         messageInput = replaceElement(messageInput, 'textarea');
         focusAndSetCursor(messageInput);
-    } else if (_message.length < 36 && messageInput.tagName === 'TEXTAREA') {
-        // Revert to input
-        messageInput = replaceElement(messageInput, 'input');
+    } else if (_message.length < 36 && messageInput.tagName === 'TEXTAREA' ) { // Revert to input
+		messageInput = replaceElement(messageInput, 'input');
         focusAndSetCursor(messageInput);
     }
 }
