@@ -3,6 +3,9 @@
 	<div class="chat-output" id="chat">
 		<!-- Agent and User messages will be added via innerHTML here -->
 	</div>
+	<div id="agent-spinner" class="spinner-grow text-light" role="status">
+		<span class="visually-hidden"></span>
+	</div>
 	<div class="chat-input" name="chat-form" id="chat-form">
 		<label for="user-chat-message">chat</label>
 		<input id="user-chat-message" name="user-chat-message" required />
@@ -19,18 +22,18 @@ const awaitButton = document.getElementById('await-button');
 const agentSpinner = document.getElementById('agent-spinner');
 const chatColumn = document.getElementById('chat');
 const chatForm = document.getElementById('chat-form');
-const messageInput = document.getElementById('user-chat-message');
 const submitButton = document.getElementById('submit-button');
 const _greeting = [
 	`Hi, I'm <%= avatar.name %>, so nice to meet you!`,
 	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
 ];
 let _chatBubbleCount = 0;
+let messageInput = document.getElementById('user-chat-message');
 console.log('pagescript', chatForm)
 /* add listeners */
 // add listener to address chat button, on input for message I guess
-chatForm.addEventListener('submit', addUserMessage);
 messageInput.addEventListener('input', toggleInputTextarea); // Event listener to check length of input and convert to textarea
+submitButton.addEventListener('click', addUserMessage); // Event listener to submit message
 //	bootup
 awaitButton.style.display = 'none';
 /* welcome-01 */
@@ -87,7 +90,7 @@ function addUserMessage(_event){
         bubbleClass: 'user-bubble',
         _delay: 7,
     });
-    messageElement.value = ''; // Clear the message field
+    messageInput.value = ''; // Clear the message field
 }
 // Function to escape HTML special characters
 function escapeHtml(text) {
