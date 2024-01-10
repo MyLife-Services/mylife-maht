@@ -49,60 +49,48 @@ function mAssignEvolverListeners(_evolver, _avatar){
  * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
  * @param {string} _chatMessage - Chat message
- * @param {string} _session - Member Session Instance
  * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
  */
-async function mChat(_openai, _avatar, _chatMessage, _session){
+async function mChat(_openai, _avatar, _chatMessage){
     const _processStartTime = Date.now()
+    const _conversation = await _avatar.getConversation(_chatMessage.thread_id) // create if not exists
+    _conversation.addMessage(_chatMessage)
     //  add metadata, optional
     //	assign uploaded files (optional) and push `retrieval` to tools
-    //	create message
-    const _message = new (_avatar.message)(_chatMessage)
-    await _message.init(_avatar.thread)
-    _avatar.messages.unshift(_message)
-    await mRunTrigger(_openai, _avatar) // run is triggered by message creation, content embedded/embedding now in _avatar
-    //	get message data from thread
-    const _messages = (await _avatar.getMessages())
+    await mRunTrigger(_openai, _avatar, _conversation) // run is triggered by message creation, content embedded/embedding now in _conversation in _avatar.conversations
+    //	get response data from thread
+    const _messages = (await _conversation.getMessages_openai())
         .filter(_msg => _msg.run_id == _avatar.runs[0].id)
         .map(_msg => {
             return new (_avatar.factory.message)({
                 avatar_id: _avatar.id,
+                message: _msg,
                 content: _msg.content[0].text.value,
                 mbr_id: _avatar.mbr_id,
                 role: 'assistant',
             })
         })
-    const _responses = await Promise.all(
-        _messages.map(async _msg => {
-            return await _msg.init(_avatar.thread)
-        })
-    )
-    _responses.forEach(_msg => {
+    _messages.forEach(async _msg => {
 //  @todo: reinstate contribution
 //        _avatar.#evolver?.setContribution(_avatar.#activeChatCategory, _msg)??false
-        _avatar.messages.unshift(_msg)
+        await _conversation.addMessage(_msg)
     })
     //	add/update cosmos
-    if ((_avatar?.factory !== undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE ?? false)) {
-        const _conversation = await _session.getConversation() // await getter in case creating
-        // _session.conversation_id // await getter in case creating
-        _avatar.factory.dataservices.patchArrayItems( // no need to await
-            _conversation.id,
-            'messages',
-            [..._responses, _message]
-        )
+    if ((_avatar?.factory!==undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE??false)) {
+        _conversation.save()
     }
     //	return response
-    return _responses
+    return _messages
         .map(_msg=>{
-            const __message = mPrepareMessage(_msg.text) // returns object { category, content }
+            const __message = mPrepareMessage(_msg) // returns object { category, content }
             return {
                 agent: 'server',
                 category: __message.category,
                 contributions: [],
                 message: __message.content,
-                response_time: Date.now()-_processStartTime,
                 purpose: 'chat response',
+                response_time: Date.now()-_processStartTime,
+                thread_id: _conversation.thread_id,
                 type: 'chat',
             }
         })
@@ -163,22 +151,19 @@ function mGetChatCategory(_category) {
     }
     return _proposedCategory
 }
-async function mMessages(_openai, _thread_id){
-        return await _openai.beta.threads.messages
-            .list(_thread_id)
-}
 /**
  * Returns all openai `run` objects for `thread`.
  * @modular
  * @public
  * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
+ * @param {string} _thread_id - Thread id (from session)
  * @returns {array} - array of [OpenAI run objects](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mRuns(_openai, _avatar){
+async function mRuns(_openai, _avatar, _thread_id){
 	if(!_avatar.runs){
 		_avatar.runs = await _openai.beta.threads.runs
-            .list(_avatar.thread.id)
+            .list(_thread_id)
 	}
 }
 /* modular "private" functions [unexported] */
@@ -187,13 +172,13 @@ async function mRuns(_openai, _avatar){
  * @modular
  * @private
  * @param {OpenAI} _openai - OpenAI object
- * @param {Avatar} _avatar - Avatar object
+ * @param {string} _thread_id - Thread id
  * @param {string} _run_id - Run id
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mCancelRun(_openai, _avatar, _run_id){
+async function mCancelRun(_openai, _thread_id, _run_id,){
     return await _openai.beta.threads.runs.cancel(
-        _avatar.thread.id,
+        _thread_id,
         _run_id
     )
 }
@@ -225,6 +210,7 @@ function mPrepareMessage(_msg){
     const _categoryRegex = /^Category Mode: (.*?)\.?$/gim
     const _match = _categoryRegex.exec(_msg)
     const _messageCategory = mFormatCategory(_match?.[1]??'')
+    if(_msg.content) _msg = _msg.content
     // Remove from _msg
     _msg = _msg.replace(_categoryRegex, '')
     const _content = _msg.split('\n')
@@ -244,14 +230,15 @@ function mPrepareMessage(_msg){
  * @private
  * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
+ * @param {string} _thread_id - Thread id
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mRunFinish(_openai, _avatar){
+async function mRunFinish(_openai, _avatar, _thread_id){
     const _run_id = _avatar.runs[0].id // runs[0] just populated, concretize before async
     return new Promise((resolve, reject) => {
         const checkInterval = setInterval(async () => {
             try {
-                const status = await mRunStatus(_openai, _avatar, _run_id)
+                const status = await mRunStatus(_openai, _avatar, _run_id, _thread_id)
                 if (status) {
                     clearInterval(checkInterval)
                     resolve('Run completed')
@@ -274,13 +261,12 @@ async function mRunFinish(_openai, _avatar){
  * @private
  * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
+ * @param {string} _thread_id - Thread id
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mRunStart(_openai, _avatar){
-    if(!_avatar.thread || !_avatar.messages.length)
-        throw new Error('Cannot start run without thread and messages available')
+async function mRunStart(_openai, _avatar, _thread_id){
     return await _openai.beta.threads.runs.create(
-        _avatar.thread.id,
+        _thread_id,
         { assistant_id: _avatar.assistant.id }
     )
 }
@@ -291,13 +277,14 @@ async function mRunStart(_openai, _avatar){
  * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
  * @param {string} _run_id - Run id
+ * @param {string} _thread_id - Thread id
  * @param {number} _callInterval - Interval in milliseconds
  * @returns {boolean} - true if run completed, voids otherwise
  */
-async function mRunStatus(_openai, _avatar, _run_id, _callInterval){
+async function mRunStatus(_openai, _avatar, _run_id, _thread_id, _callInterval){
     const _run = await _openai.beta.threads.runs
         .retrieve(
-            _avatar.thread.id,
+            _thread_id,
             _run_id
         )
     switch(_run.status){
@@ -316,7 +303,7 @@ async function mRunStatus(_openai, _avatar, _run_id, _callInterval){
         case 'in_progress':
         case 'cancelling':
         default:
-            console.log(`...${_run.status}:${_avatar.thread.id}...`) // ping check
+            console.log(`...${_run.status}:${_thread_id}...`) // ping check
             break
     }
 }
@@ -358,16 +345,17 @@ async function mRunSteps(_avatar, _run_id){
  * @private
  * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
+ * @param {string} _conversation - Conversation Object
  * @returns {void} - All content generated by run is available in `avatar`.
  */
-async function mRunTrigger(_openai, _avatar){
-    const _run = await mRunStart(_openai, _avatar)
+async function mRunTrigger(_openai, _avatar, _conversation){
+    const _run = await mRunStart(_openai, _avatar, _conversation.thread_id)
     if(!_run)
         throw new Error('Run failed to start')
-    _avatar.runs = _avatar?.runs??[]
+    _avatar.runs = _avatar.runs??[]
     _avatar.runs.unshift(_run)
     // ping status
-    return await mRunFinish(_openai, _avatar)
+    return await mRunFinish(_openai, _avatar, _conversation.thread_id)
 }
 /* exports */
 export {
@@ -376,6 +364,5 @@ export {
     mCreateAssistant,
     mGetAssistant,
     mGetChatCategory,
-    mMessages,
     mRuns,
 }

@@ -154,9 +154,6 @@ class AgentFactory extends EventEmitter{
 			// I assume this is where the duplication is coming but no idea why
 		).init()
 	}
-	async getThread(){
-		return await openai.beta.threads.create()
-	}
 	async getConsent(_consent){
 		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
 		//	not stored in cosmos (as of yet, might be different container), so id can be redundant

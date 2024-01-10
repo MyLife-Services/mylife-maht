@@ -277,14 +277,10 @@ class Dataservices {
 	 * @param {number} [_index=0] - The index at which to insert the data.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchArrayItems(_id,_node,_data,_index=0){	//	_data is array of objects to be inserted into _node at _index
-		//	create patch object that can insert _data into _node at _index
-		const __data = _data
-			.map(
-				(_item,_index)=>{
-					return { op: 'add', path: `/${_node}/${_index}`, value: { message: _item.text, role: _item.role } }
-				}
-			)
+	async patchArrayItems(_id,_node,_data){	//	_data is array of objects to be inserted into _node at _index
+		// changed to hard overwrite as the unshift was not working
+		// @todo: remove index
+		const __data = [{ op: 'replace', path: `/${_node}`, value: _data }]
 		return await this.patchItem(_id,__data)
 	}
 	/**

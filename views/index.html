@@ -28,6 +28,7 @@ const _greeting = [
 	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
 ];
 let _chatBubbleCount = 0;
+let _thread_id = null;
 let messageInput = document.getElementById('user-chat-message');
 /* add listeners */
 // add listener to address chat button, on input for message I guess
@@ -130,16 +131,18 @@ async function submit(_event, _message) {
 	agentSpinner.classList.remove('text-light');
 	agentSpinner.classList.add('text-primary');
 	const url = window.location.origin;
+	console.log('thread', _thread_id);
 	const options = {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 		},
-		body: JSON.stringify({message: _message }),
+		body: JSON.stringify({ message: _message, role: 'user', thread_id: _thread_id }),
 	};
 	const _gptChat = await submitChat(url, options);
 	// now returns array of messages
 	_gptChat.forEach(_message => {
+		_thread_id = _message.thread_id;
 		addMessageToColumn({
 			message: _message.message,
 			_delay: 10,
