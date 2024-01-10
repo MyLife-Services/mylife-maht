@@ -3,12 +3,10 @@ import chalk from 'chalk'
 class MylifeMemberSession extends EventEmitter {
 	#consents = []	//	consents are stored in the session
 	#contributions = []	//	intended to hold all relevant contribution questions for session
-	#conversation
 	#factory
 	#locked = true	//	locked by default
 	#mbr_id = false
 	#Member
-	#thread
 	name
 	constructor(_factory){
 		super()
@@ -21,24 +19,15 @@ class MylifeMemberSession extends EventEmitter {
 		)
 	}
 	async init(_mbr_id=this.mbr_id){
-		if(!this.conversation){
-			this.#conversation = await mCreateConversation(this)
-			this.#thread = this.conversation.thread
-		}
 		if(this.locked){
 			if(this.#Member?.mbr_id??_mbr_id !== _mbr_id)
 				console.log(chalk.bgRed('cannot initialize, member locked'))
 		}
-		// unlocked session, initialize fidelity member session
-		if(this.mbr_id && this.mbr_id !== _mbr_id) {
+		if(this.mbr_id && this.mbr_id !== _mbr_id) { // unlocked, initialize member session
 			this.#mbr_id = _mbr_id
 			mAssignFactoryListeners(this.#factory)
 			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
-			this.#conversation = await mCreateConversation(this)
-			this.#thread = this.conversation.thread
 			this.#Member = await this.factory.getMyLifeMember()
-			//	update conversation info (name)
-			this.name = mAssignName(this.#mbr_id, this.#thread.id)
 			this.emit('onInit-member-initialize', this.#Member.memberName)
 			console.log(
 				chalk.bgBlue('created-member:'),
@@ -46,6 +35,17 @@ class MylifeMemberSession extends EventEmitter {
 			)
 		}
 		return this
+	}
+	async challengeAccess(_passphrase){
+		if(this.locked){
+			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
+			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
+			//	init member
+			this.#locked = false
+			this.emit('member-unlocked', this.challenge_id)
+			await this.init(this.challenge_id)
+		}
+		return !this.locked
 	}
 	//	consent functionality
 	async requestConsent(ctx){
@@ -86,17 +86,6 @@ class MylifeMemberSession extends EventEmitter {
 		await (this.ctx.session.MemberSession.consents = _consent)	//	will add consent to session list
 		return _consent
 	}
-	async challengeAccess(_passphrase){
-		if(this.locked){
-			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
-			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
-			//	init member
-			this.#locked = false
-			this.emit('member-unlocked', this.challenge_id)
-			await this.init(this.challenge_id)
-		}
-		return !this.locked
-	}
 	get consent(){
 		return this.factory.consent	//	**caution**: returns <<PROMISE>>
 	}
@@ -108,9 +97,6 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	get contributions(){
 		return this.#contributions
-	}
-	get conversation(){
-		return this.#conversation
 	}
 	get core(){
 		return this.factory.core
@@ -146,12 +132,6 @@ class MylifeMemberSession extends EventEmitter {
 	get subtitle(){
 		return this.#Member?.agentName
 	}
-	get thread(){
-		return this.#conversation.thread
-	}
-	get threadId(){
-		return this.thread.id
-	}
 }
 function mAssignFactoryListeners(_session){
 	if(_session.isMyLife) // all sessions _begin_ as MyLife
@@ -168,24 +148,6 @@ function mAssignFactoryListeners(_session){
 				chalk.bgGray(_avatar.id)
 			)
 		})
-}
-function mAssignName(_mbr_id, _threadId){
-	return `MylifeMemberSession_${_mbr_id}_${_threadId}`
-}
-async function mCreateConversation(_session){	//	thread can be acted on by any avatar/agent, ergo stored here in session
-	const _conversation = await new (_session.factory.conversation)({
-		mbr_id: _session.mbr_id,
-		parent_id: _session.mbr_id_id,
-		thread: await _session.factory.getThread(),
-	}, _session.factory)
-	_conversation.name = mAssignName(_session.mbr_id, _conversation.threadId)
-	//	print to CosmosDB
-	if(process.env?.MYLIFE_DB_ALLOW_SAVE === 'true'){ // env vars always strings
-		_session.factory.dataservices.pushItem(
-			_conversation.inspect(true)
-		)
-	}
-	return _conversation
 }
 function mValidCtxObject(_ctx){
 	//	validate ctx object

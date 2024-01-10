@@ -6,7 +6,6 @@ import {
     mCreateAssistant,
     mGetAssistant,
     mGetChatCategory,
-    mMessages,
     mRuns,
  } from './class-avatar-functions.mjs'
 import {
@@ -14,8 +13,12 @@ import {
     mUpdateContribution,
 } from './class-contribution-functions.mjs'
 import {
+    mMessages,
+    mSaveConversation,
+} from './class-conversation-functions.mjs'
+import {
     mGetMessage,
-	mReviewContent,
+	mAssignContent,
 } from './class-message-functions.mjs'
 import { _ } from 'ajv'
 import { parse } from 'path'
@@ -23,6 +26,7 @@ import { parse } from 'path'
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
         #activeChatCategory = mGetChatCategory()
+        #conversations = []
         #emitter = new EventEmitter()
         #evolver
         #factory
@@ -67,14 +71,11 @@ function extendClass_avatar(_originClass,_references) {
         async chatRequest(ctx){
             if(!ctx?.state?.chatMessage)
                 throw new Error('No message provided in context')
-            if(!this.thread)
-                this.thread = ctx.state.thread
             this.setActiveCategory(ctx.state.chatMessage) // also sets evolver contribution
             return mChat(
-                this.#openai, 
-                this, 
-                ctx.state.chatMessage, 
-                ctx.state.MemberSession.conversation.id
+                this.#openai,
+                this,
+                ctx.state.chatMessage
             )
         }
         /**
@@ -103,15 +104,21 @@ function extendClass_avatar(_originClass,_references) {
             }
             return this.assistant
         }
-        async getMessage(_msg_id){	//	returns openai `message` object
-            return this.messages.data
-                .filter(_msg=>{ return _msg.id==_msg_id })
+        async getConversation(_thread_id){
+            if(!_thread_id){ // add new conversation
+                return await this.setConversation()
+            }
+            return this.#conversations.find(_=>_.thread?.id===_thread_id)
         }
-        async getMessages(){
-            this.messages = ( await mMessages(this.#openai, this.thread.id) )
-                .data
-            console.log('getMessages', this.messages)
-            return this.messages
+        async setConversation(_conversation){
+            if(!_conversation){
+                _conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id}, this.factory)
+                await _conversation.init()
+                this.#conversations.push(_conversation)
+            } else {
+// @todo: add update version
+            }
+            return _conversation
         }
         on(_eventName, listener){
             this.#emitter.on(_eventName, listener)
@@ -143,6 +150,13 @@ function extendClass_avatar(_originClass,_references) {
         */
        set contribution(_contribution){
            this.#evolver.contribution = _contribution
+        }
+        /**
+         * Get uninstantiated class definition for conversation.
+         * @returns {class} - class definition for conversation
+         */
+        get conversation(){
+            return this.factory.conversation
         }
         // todo: deprecate to available convenience public emit() function
         get emitter(){  //  allows parent to squeeze out an emitter
@@ -253,19 +267,77 @@ function extendClass_contribution(_originClass,_references) {
 }
 function extendClass_conversation(_originClass,_references) {
     class Conversation extends _originClass {
-        constructor(_obj) {
+        #factory
+        #messages = []
+        #openai = _references?.openai
+        #saved = false
+        #thread
+        constructor(_obj, _factory) {
             super(_obj)
+            this.#factory = _factory
+        }
+        async init(){
+            this.#thread = await this.invokeThread()
+            this.name = `conversation_${this.#factory.mbr_id}_${this.thread_id}`
         }
         //  public functions
+        async addMessage(_chatMessage){
+            const _message = (_chatMessage.id?.length)
+                ?   _chatMessage
+                :   await ( new (this.#factory.message)(_chatMessage) ).init(this.thread)
+            this.#messages.unshift(_message)
+        }
         findMessage(_message_id){
             //  given this conversation, retrieve message by id
-            return _message_id
+            return this.messages.find(_msg=>_msg.id===_message_id)
+        }
+        async getMessage(_msg_id){	//	returns openai `message` object
+            return this.messages
+                .filter(_msg=>{ return _msg.id==_msg_id })
+        }
+        async getMessages_openai(){ // refresh from opanAI
+            return ( await mMessages(this.#openai, this.thread_id) )
+                .data
+        }
+        async invokeThread(){
+            return await this.#openai.beta.threads.create()
+        }    
+        async save(){
+            // also if this not saved yet, save to cosmos
+            if(!this.isSaved){
+                await mSaveConversation(this.#factory, this)
+            }
+            //  save messages to cosmos
+            await this.#factory.dataservices.patchArrayItems( // no need to await
+                this.id,
+                'messages',
+                this.messages.map(_msg=>_msg.micro),
+            )
+            // flag as saved
+            this.#saved = true
+            return this
         }
         //  public getters/setters
+        get isSaved(){
+            return this.#saved
+        }
         get messages(){
-            return this?.messages??[]
+            return this.#messages
+        }
+        get thread(){
+            return this.#thread
+        }
+        get thread_id(){
+            return this.threadId
+        }
+        get threadId(){
+            return this.thread.id
         }
         //  private functions
+        async #add(){
+            //  add to cosmos
+            return this
+        }
     }
 
     return Conversation
@@ -302,10 +374,10 @@ function extendClass_message(_originClass,_references) {
         constructor(_obj) {
             super(_obj)
             /* category population */
-            mReviewContent(this, _obj)
+            if(!_obj.content) mAssignContent(this, _obj)
         }
         /* public functions */
-        async init(_thread){
+        async init(_thread){ // only required if user message
             if((!this.content & !this.files)||!_thread)
                 throw new Error('Insufficient data provided for message init()')
             /* todo: limit requirements for context window, generate file and attach to file_ids array
@@ -320,13 +392,16 @@ function extendClass_message(_originClass,_references) {
                 this.#openai,
                 _thread,
                 this.content,
-                this?.message?.id,
+                this.message?.id,
             )
             return this
         }
         /* getters/setters */
         get message(){
             return this.#message
+        }
+        get micro(){
+            return { content: this.content, role: this.role??'user' }
         }
         get text(){
             switch (this.type) {
