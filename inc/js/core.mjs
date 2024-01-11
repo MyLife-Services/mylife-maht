@@ -3,7 +3,7 @@ import EventEmitter from 'events'
 import chalk from 'chalk'
 //	import { _ } from 'ajv'
 //	server-specific imports
-import initRouter from './routes.js'
+import initRouter from './routes.mjs'
 import { _ } from 'ajv'
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {

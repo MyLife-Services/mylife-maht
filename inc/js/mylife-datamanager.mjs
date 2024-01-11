@@ -1,7 +1,7 @@
 /* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
-import Config from './mylife-datasource-config.js'
+import Config from './mylife-datasource-config.mjs'
 import chalk from 'chalk'
 //	define class
 class Datamanager {

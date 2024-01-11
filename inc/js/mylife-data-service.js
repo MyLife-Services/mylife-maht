@@ -5,8 +5,8 @@
  */
 //	imports
 import { _ } from "ajv"
-import Datamanager from "./mylife-datamanager.js"
-import PgvectorManager from "./mylife-pgvector-datamanager.js"
+import Datamanager from "./mylife-datamanager.mjs"
+import PgvectorManager from "./mylife-pgvector-datamanager.mjs"
 import { Guid } from "js-guid"
 /**
  * The Dataservices class.

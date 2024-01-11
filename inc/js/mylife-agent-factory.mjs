@@ -16,8 +16,8 @@ import {
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in configureSchemaPrototypes()
-import Menu from './menu.js'
-import MylifeMemberSession from './session.js'
+import Menu from './menu.mjs'
+import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
 import { _ } from 'ajv'
 // modular constants
