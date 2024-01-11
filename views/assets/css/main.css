@@ -179,7 +179,7 @@ body {
 	min-height: 50vh;
     max-height: 80vh;
 	overflow: visible;
-    padding: 20px;
+    padding: 13px;
 	position: relative;
 }
 .chat-input {
@@ -240,29 +240,27 @@ body {
 	flex-grow: 1;
 	flex-wrap: nowrap;
 	justify-content: flex-start;
-	min-height: 50%;
 	max-height: fit-content;
-	/* max-height: 500px; /* Adjust the height as needed */
 	overflow-x: hidden;
     overflow-y: scroll;
 }
 /* Styles the scrollbar itself */
 .chat-output::-webkit-scrollbar {
-    width: 10px; /* Adjust the width of the scrollbar */
+    width: 6px; /* Adjust the width of the scrollbar */
 }
 /* Styles the track of the scrollbar */
 .chat-output::-webkit-scrollbar-track {
-    background: #f1f1f1; /* Color of the track */
+    background: rgba(0, 0, 0, 0.1); /* Color of the track */
     border-radius: 10px; /* Optional: adds rounded corners to the track */
 }
 /* Styles the handle (thumb) of the scrollbar */
 .chat-output::-webkit-scrollbar-thumb {
-    background: #888; /* Color of the thumb */
+    background: rgba(232, 226, 183, .5); /* Color of the thumb */
     border-radius: 10px; /* Optional: adds rounded corners to the thumb */
 }
 /* Changes the color of the thumb when hovered over or clicked */
 .chat-output::-webkit-scrollbar-thumb:hover {
-    background: #555; /* Darker shade on hover */
+    background: rgba(214, 198, 75, 0.5); /* Darker shade on hover */
 }
 .label {
 	color: rgba(240, 240, 240, .9);
@@ -290,6 +288,7 @@ body {
     background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
     color: #333333; /* Dark grey for contrast and easy reading */
     margin-left: auto;
+	margin-right: 12px;
 }
 #message {
 	margin-right: 0.5rem;
