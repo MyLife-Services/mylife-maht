@@ -33,6 +33,7 @@ body {
 	flex-direction: row; /* Change to column for vertical layout */
 	width: 100%;
 	gap: 12px;
+	max-height: 100vh;
 }
 /* MyLife Menu Navigation */
 .navbar {
@@ -93,10 +94,9 @@ body {
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
 	box-sizing: border-box;
+	flex-basis: 65%;
 	flex-grow: 1; /* Takes up the remaining space */
-    margin: 2px; /* No space outside the container */
-    max-height: none; /* Adjust the max height as needed */
-	max-width: 65%; /* Adjust min-width as needed */
+	height: fit-content;
     padding: 0px; /* Adds space inside the container */
 	position: relative; /* Needed to position pseudo-elements or child divs */
 }
@@ -127,19 +127,36 @@ body {
     color: #ffffff; /* White text for better readability */
     margin-left: 0;
 }
+.button.chat-submit {
+	flex: 0 0 auto;
+	color: rgba(65, 84, 104, 0.85);
+	background-color: rgba(183, 203, 225, 0.85);
+	margin: 0px;
+	white-space: nowrap; /* Prevents text wrapping in the button */
+}
+.button.chat-submit:hover {
+	background-color: rgba(195, 203, 52, 0.85);
+	color: #061320;
+}
+.button.chat-submit:focus {
+    outline: none; /* Remove the default focus outline */
+    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.6); /* Yellow glow */
+}
+.button.chat-submit:disabled {
+	background-color: rgba(63, 75, 83, 0.2);
+	border-color: rgba(146, 157, 163, .7);
+	color: rgba(146, 157, 163, .9);
+}
 .chat-bubble {
-    display: flex; /* Set as a flex container */
-	flex-direction: column;
-    align-items: center; /* Center items vertically inside the bubble */
-    justify-content: flex-start; /* Align content to the start (left) */
     border-radius: 18px; /* Rounded corners for a modern look */
-    padding: 10px 15px; /* Padding for content inside bubble */
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
     margin-bottom: 0.5rem;
-    max-width: 70%;
-    min-width: 20%;
+    max-width: 80%;
+    min-width: 30%;
+    padding: 10px 15px; /* Padding for content inside bubble */
+	font-size: .9em;
     width: fit-content; /* Fit the content's width */
     word-wrap: break-word; /* Ensure long words don't overflow */
-    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
 }
 .chat-container {
 	background-image: 
@@ -152,33 +169,18 @@ body {
         url('../jpg/cosmos.jpg'); /* Your original background image */
     background-size: cover; /* Ensures the image covers the whole area */
     background-position: center; /* Centers the image */
-    border-radius: 0px;
+    border-radius: 0 0 22px 22px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 	box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 100px); /* Adjust if necessary */
-    overflow-y: auto; /* Keeps vertical scrolling */
-    overflow-x: hidden; /* Prevents horizontal scrolling */
+	height: fit-content;
+	justify-content: space-between;
+	min-height: 50vh;
+    max-height: 80vh;
+	overflow: visible;
     padding: 20px;
-}
-/* Styles the scrollbar itself */
-.chat-container::-webkit-scrollbar {
-    width: 10px; /* Adjust the width of the scrollbar */
-}
-/* Styles the track of the scrollbar */
-.chat-container::-webkit-scrollbar-track {
-    background: #f1f1f1; /* Color of the track */
-    border-radius: 10px; /* Optional: adds rounded corners to the track */
-}
-/* Styles the handle (thumb) of the scrollbar */
-.chat-container::-webkit-scrollbar-thumb {
-    background: #888; /* Color of the thumb */
-    border-radius: 10px; /* Optional: adds rounded corners to the thumb */
-}
-/* Changes the color of the thumb when hovered over or clicked */
-.chat-container::-webkit-scrollbar-thumb:hover {
-    background: #555; /* Darker shade on hover */
+	position: relative;
 }
 .chat-input {
 	align-items: center;
@@ -186,7 +188,8 @@ body {
 	flex-direction: row;
 	flex-wrap: wrap;
 	justify-content: right;
-	margin-top: 3rem;
+	margin-top: 1rem;
+	overflow: visible;
 }
 .chat-input input {
 	background-color: #ffffff; /* White background color */
@@ -196,23 +199,17 @@ body {
 	margin: 6px 12px; /* Margin for space outside the container */
 	padding: 8px; /* Padding for space inside the container */
 }
-.chat-input label {
-	flex: 0 0 auto;
-	font-weight: bold;
-	font-style: normal;
-	font-stretch: condensed;
-	color: rgba(240, 240, 240, .9);
-	font-size: 24px;
-}
 .chat-input textarea {
     background-color: #ffffff; /* White background color */
     border: 1px solid #ccc; /* Border color */
     border-radius: 12px; /* Rounded corners */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
     flex: 1;
+	flex-shrink: 0;
     font-size: 1rem; /* Adjust font size */
     line-height: 1.5; /* Adjust line height for better readability */
-	max-height: 200px; /* Adjust this value as needed */
+	min-height: 100%;
+	/* max-height: 200px; /* Adjust this value as needed */
     margin: 6px 12px; /* Margin for space outside the container */
     overflow-y: auto; /* Adds a scrollbar when content exceeds max-height */
     padding: 8px; /* Padding for space inside the container */
@@ -240,28 +237,54 @@ body {
 .chat-output {
 	display: flex;
 	flex-direction: column;
-	flex-wrap: wrap;
+	flex-grow: 1;
+	flex-wrap: nowrap;
 	justify-content: flex-start;
+	min-height: 50%;
+	max-height: fit-content;
+	/* max-height: 500px; /* Adjust the height as needed */
+	overflow-x: hidden;
+    overflow-y: scroll;
 }
-.button.chat-submit {
+/* Styles the scrollbar itself */
+.chat-output::-webkit-scrollbar {
+    width: 10px; /* Adjust the width of the scrollbar */
+}
+/* Styles the track of the scrollbar */
+.chat-output::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Color of the track */
+    border-radius: 10px; /* Optional: adds rounded corners to the track */
+}
+/* Styles the handle (thumb) of the scrollbar */
+.chat-output::-webkit-scrollbar-thumb {
+    background: #888; /* Color of the thumb */
+    border-radius: 10px; /* Optional: adds rounded corners to the thumb */
+}
+/* Changes the color of the thumb when hovered over or clicked */
+.chat-output::-webkit-scrollbar-thumb:hover {
+    background: #555; /* Darker shade on hover */
+}
+.label {
+	color: rgba(240, 240, 240, .9);
 	flex: 0 0 auto;
-	color: rgba(65, 84, 104, 0.85);
-	background-color: rgba(183, 203, 225, 0.85);
-	margin: 0px;
-	white-space: nowrap; /* Prevents text wrapping in the button */
+	font-size: 24px;
+	font-style: normal;
+	font-stretch: condensed;
+	font-weight: bold;
+	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+	transition: visibility 0s, opacity 0.7s linear;
 }
-.button.chat-submit:hover {
-	background-color: rgba(195, 203, 52, 0.85);
-	color: #061320;
+.label-spinner {
+    position: absolute;
+	background-color: whitesmoke;
+    opacity: 0; /* Max opacity of 50% */
 }
-.button.chat-submit:focus {
-    outline: none; /* Remove the default focus outline */
-    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.6); /* Yellow glow */
-}
-.button.chat-submit:disabled {
-	background-color: rgba(63, 75, 83, 0.2);
-	border-color: rgba(146, 157, 163, .7);
-	color: rgba(146, 157, 163, .9);
+.label-spinner-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center contents horizontally */
+    min-height: 50px; /* Ensure enough height for spinner and label */
 }
 .member-bubble, .user-bubble {
     background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
@@ -269,8 +292,24 @@ body {
     margin-left: auto;
 }
 #message {
-	flex-grow: 1;
 	margin-right: 0.5rem;
+}
+.spinner-green-glow {
+	background-image: radial-gradient(circle, #4b94a1, #d2f35e);
+	filter: blur(.2em); /* Adjust the pixel value for the level of blur */
+}
+.spinner-blue {
+	animation-delay: 0s;
+	background-image: radial-gradient(circle, #4b7982, #74a2ff);
+	filter: blur(.15em); /* Adjust the pixel value for the level of blur */
+}
+.spinner-grow {
+    animation: spinner-grow 2.6s infinite ease-in-out;
+	animation-delay: 2s;
+    border-radius: 50%;
+    display: inline-block;
+    height: 1.5rem;
+    width: 1.5rem;
 }
 #response {
 	margin-top: 1rem;
@@ -342,9 +381,9 @@ body {
 	display: none;
 }
 .hidden {
-  transition: opacity 1s ease;
-  opacity: 0;
-  display: none; /* Initially not displayed */
+	transition: opacity 1s ease;
+	opacity: 0;
+	display: none; /* Initially not displayed */
 }
 .ital {
 	font-style: italic;
@@ -384,12 +423,11 @@ body {
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
 	box-sizing: border-box;
-    flex-basis: 300px; /* Adjust width of the sidebar */
-	padding: 1em;
+	color: #221a30;
 	flex-basis: 35%;
 	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
-	color: #221a30;
-	font-size: 0.9em;
+	font-size: 0.8em;
+	padding: 1em;
 }
 .teaser {
 	display: flex;
@@ -509,9 +547,20 @@ body {
 /* media queries */
 @media screen and (min-width: 1024px) {
     body {
-        margin: 3em; /* Increased margin for larger screens */
+        margin-right: 3em; /* Increased margin for larger screens */
         max-width: 1024px; /* Set a max-width to center the content */
         margin-left: auto; /* Center the body horizontally */
         margin-right: auto;
     }
+}
+@media screen and (max-width: 768px) { /* Adjust the max-width as needed */
+    .page-column-collection {
+        flex-direction: column;
+    }
+	.main-content {
+		max-width: 100%;
+	}
+	.sidebar {
+		flex-basis: 100%;
+	}
 }
