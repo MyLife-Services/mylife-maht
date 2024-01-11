@@ -1,13 +1,15 @@
 <hr><!-- begin with break for scroll -->
 <div class="chat-container">
-	<div class="chat-output" id="chat">
+	<div class="chat-output" id="chat-output">
 		<!-- Agent and User messages will be added via innerHTML here -->
 	</div>
-	<div id="agent-spinner" class="spinner-grow text-light" role="status">
-		<span class="visually-hidden"></span>
-	</div>
-	<div class="chat-input" name="chat-form" id="chat-form">
-		<label for="user-chat-message">chat</label>
+	<div class="chat-input" name="chat-input" id="chat-input">
+		<div class="label-spinner-container">
+			<div id="agent-spinner" class="label-spinner spinner-grow spinner-green-glow" role="status">
+				<span class="visually-hidden"></span>
+			</div>
+			<label class="label" for="user-chat-message" id="user-chat-label">chat</label>
+		</div>
 		<input id="user-chat-message" name="user-chat-message" required />
 		<button class="button chat-submit" id="submit-button" type="submit" disabled>Submit</button>
 		<!-- ... other buttons ... -->
@@ -18,18 +20,24 @@
 	</div>
 </div>
 <script>
+/* page variables */
+/* constants */
 const awaitButton = document.getElementById('await-button');
 const agentSpinner = document.getElementById('agent-spinner');
-const chatColumn = document.getElementById('chat');
-const chatForm = document.getElementById('chat-form');
+const chatContainer = document.querySelector('.chat-container');
+const chatLabel = document.getElementById('user-chat-label');
+const chatOutput = document.getElementById('chat-output');
+const chatInput = document.getElementById('chat-input');
 const submitButton = document.getElementById('submit-button');
 const _greeting = [
 	`Hi, I'm <%= avatar.name %>, so nice to meet you!`,
 	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
 ];
+/* vars */
 let _chatBubbleCount = 0;
-let _thread_id = null;
 let messageInput = document.getElementById('user-chat-message');
+let _thread_id = null;
+let typingTimer;
 /* add listeners */
 // add listener to address chat button, on input for message I guess
 messageInput.addEventListener('input', toggleInputTextarea); // Event listener to check length of input and convert to textarea
@@ -57,7 +65,7 @@ function addMessageToColumn(_message, _options={
 	const chatBubble = document.createElement('div');
 	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
 	chatBubble.className = `chat-bubble ${bubbleClass}`;
-	chatColumn.appendChild(chatBubble);
+	chatOutput.appendChild(chatBubble);
 	_message = escapeHtml(message);
 	if (_typewrite) {
 		let i = 0;
@@ -69,14 +77,15 @@ function addMessageToColumn(_message, _options={
 				chatBubble.insertAdjacentHTML('beforeend', tempMessage);
 				i++;
 				setTimeout(typeAgentMessage, _delay); // Adjust the typing speed here (50ms)
+				scrollToBottom();
 			} else {
 				chatBubble.setAttribute('status', 'done');
-				console.log(chatBubble)
 			}
 		}
 		typeAgentMessage();
 	} else {
 		chatBubble.insertAdjacentHTML('beforeend', message);
+		scrollToBottom(); 
 	}
 }
 function addUserMessage(_event){
@@ -109,6 +118,13 @@ function focusAndSetCursor(textarea) {
     // Move the cursor to the end of the text
     textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
 }
+function getTextWidth(text, font) {
+    // Create a temporary canvas element to measure text width
+    let canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+    let context = canvas.getContext("2d");
+    context.font = font;
+    return context.measureText(text).width;
+}
 // Function to replace an element (input/textarea) with a specified type
 function replaceElement(element, newType) {
     const newElement = document.createElement(newType);
@@ -121,17 +137,28 @@ function replaceElement(element, newType) {
         newElement.setAttribute('rows', '3');
     }
     newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
-    chatForm.replaceChild(newElement, element);
+    chatInput.replaceChild(newElement, element);
     return newElement;
+}
+function resetAnimation(element) {
+    element.style.animation = 'none';
+    // Trigger a reflow to restart the animation
+    element.offsetHeight;
+    element.style.animation = '';
+}
+function scrollToBottom() {
+    chatOutput.scrollTop = chatOutput.scrollHeight;
 }
 async function submit(_event, _message) {
 	_event.preventDefault();
 	submitButton.style.display = 'none';
+	chatLabel.style.opacity = '0';
+	setTimeout(() => chatLabel.style.visibility = 'hidden', 1000); // Hide after transition
+	clearTimeout(typingTimer);
 	awaitButton.style.display = 'block';
-	agentSpinner.classList.remove('text-light');
-	agentSpinner.classList.add('text-primary');
-	const url = window.location.origin;
-	console.log('thread', _thread_id);
+	agentSpinner.classList.remove('spinner-green-glow');
+	agentSpinner.classList.add('spinner-blue');
+	const url = window.location.origin;0
 	const options = {
 		method: 'POST',
 		headers: {
@@ -150,8 +177,10 @@ async function submit(_event, _message) {
 	});
 	awaitButton.style.display = 'none';
 	submitButton.style.display = 'block';
-	agentSpinner.classList.remove('text-primary');
-	agentSpinner.classList.add('text-light');
+	chatLabel.style.visibility = 'visible'; // Make the element visible
+	setTimeout(() => chatLabel.style.opacity = '1', 700); // Fade in after a short delay
+	agentSpinner.classList.remove('spinner-blue');
+	agentSpinner.classList.add('spinner-green-glow');
 }
 async function submitChat(url, options) {
 	try {
@@ -165,14 +194,29 @@ async function submitChat(url, options) {
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea() {
-	const _message = messageInput.value.trim();
-	submitButton.disabled = !_message.length;
-    if (_message.length > 42 && messageInput.tagName !== 'TEXTAREA') { // Expand to textarea
+    const inputStyle = window.getComputedStyle(chatInput);
+    const inputFont = inputStyle.font;
+    const textWidth = getTextWidth(messageInput.value, inputFont); // no trim required
+    const inputWidth = chatInput.offsetWidth;
+	/* pulse */
+	clearTimeout(typingTimer);
+    agentSpinner.style.display = 'none';
+    resetAnimation(agentSpinner); // Reset animation
+    typingTimer = setTimeout(() => {
+        agentSpinner.style.display = 'block';
+        resetAnimation(agentSpinner); // Restart animation
+    }, 2000);
+
+    if (textWidth > inputWidth && messageInput.tagName !== 'TEXTAREA') { // Expand to textarea
         messageInput = replaceElement(messageInput, 'textarea');
         focusAndSetCursor(messageInput);
-    } else if (_message.length < 36 && messageInput.tagName === 'TEXTAREA' ) { // Revert to input
+    } else if (textWidth <= inputWidth && messageInput.tagName === 'TEXTAREA' ) { // Revert to input
 		messageInput = replaceElement(messageInput, 'input');
         focusAndSetCursor(messageInput);
     }
+	toggleSubmitButtonState();
+}
+function toggleSubmitButtonState() {
+	submitButton.disabled = !messageInput.value?.trim()?.length??true;
 }
 </script>

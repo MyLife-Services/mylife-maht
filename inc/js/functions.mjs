@@ -44,12 +44,13 @@ async function api_register(ctx){
 	// throttle requests?
 	// write to cosmos db
 	_registrationData.email = email // required at root for select
-	ctx.MyLife.registerCandidate(_registrationData)
+	const _ = ctx.MyLife.registerCandidate(_registrationData)
+	const { mbr_id, ..._return } = _registrationData // abstract out the mbr_id
 	ctx.status = 200
     ctx.body = {
         success: true,
         message: 'Registration completed successfully.',
-		data: _registrationData,
+		data: _return,
     }
 	return
 }
@@ -176,16 +177,15 @@ async function signup(ctx) {
 			..._signupPackage 
 		})
     // save to `registration` container of Cosmos expressly for signup data
-	console.log(await ctx.MyLife.registerCandidate({
-		..._signupPackage,
-		id: ctx.MyLife.newGuid,
-	}))
+	_signupPackage.id = ctx.MyLife.newGuid
+	await ctx.MyLife.registerCandidate(_signupPackage)
 	// TODO: create account and avatar
     // If all validations pass and signup is successful
 	ctx.session.signup = true
+	const { mbr_id, ..._return } = _signupPackage // abstract out the mbr_id
     ctx.status = 200 // OK
     ctx.body = {
-		..._signupPackage,
+		..._return,
         success: true,
         message: 'Signup successful',
     }
