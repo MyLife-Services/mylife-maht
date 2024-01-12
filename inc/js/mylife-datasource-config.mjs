@@ -26,6 +26,13 @@ class Config{
 				partitionId: _mbr_id,
 			}
 		}
+		this.system={
+			id: process.env.MYLIFE_DB_NAME,
+			container: {
+				id: process.env.MYLIFE_SYSTEM_DB_CONTAINER_NAME,
+				partitionId: _mbr_id,
+			}
+		}
 	}
 }
 //	exports
