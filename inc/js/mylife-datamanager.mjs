@@ -74,11 +74,11 @@ class Datamanager {
 	 * Retreives specific item from container.
 	 * @param {guid} _id 
 	 * @param {object} _options 
-	 * @param {string} _container Container to use.
+	 * @param {string} _container_id Container to use.
 	 * @returns 
 	 */
-	async getItem(_id, _options=this.requestOptions, _container=this.containerDefault){	//	quick, inexpensive read; otherwise use getItems
-		const { resource: _item } = await this.#containers[_container]
+	async getItem(_id, _container_id=this.containerDefault, _options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
+		const { resource: _item } = await this.#containers[_container_id]
 			.item(_id,this.#partitionId)
 			.read(_options)
 		return _item

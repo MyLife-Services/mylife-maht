@@ -134,6 +134,27 @@ class Dataservices {
 		return _?.[0]?.id??Guid.newGuid().toString() // needed to separate out, was failing
 	}
 	/**
+	 * Retrieves a specific alert by its ID. _Currently placehoder_.
+	 * @async
+	 * @public
+	 * @param {string} _alert_id - The unique identifier for the alert.
+	 * @returns {Promise<Object>} The alert corresponding to the provided ID.
+	 */
+	async getAlert(_alert_id){
+		return await this.getItem(_alert_id)
+	}
+	/**
+	 * Retrieves all system alerts. _Currently only works with system alerts, but intends to be expanded, refactor_.
+	 * This method is typically used to get all alert entities under a specific object.
+	 * @async
+	 * @public
+	 * @param {string} _object_id - The parent object ID to search for associated alerts.
+	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID.
+	 */
+	async getAlerts(){
+		return await this.getItems('alert')
+	}
+	/**
 	 * Retrieves a specific avatar by its ID.
 	 * @async
 	 * @public
@@ -212,10 +233,11 @@ class Dataservices {
 	 * @async
 	 * @public
 	 * @param {string} _id - The unique identifier for the item.
+	 * @param {string} _container_id - The container to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(_id) {
-		return await this.datamanager.getItem(_id)
+	async getItem(_id, _container_id) {
+		return await this.datamanager.getItem(_id, _container_id)
 	}
 	/**
 	 * Retrieves items based on specified parameters.
@@ -224,9 +246,10 @@ class Dataservices {
 	 * @param {string} _being - The type of items to retrieve.
 	 * @param {array} [_selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [_paramsArray=[]] - Additional query parameters.
+	 * @param {string} _container - The container to use, overriding default.
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
-	async getItems(_being, _selects=[], _paramsArray=[], _container='members') {	//	_params is array of objects { name: '${varName}' }
+	async getItems(_being, _selects=[], _paramsArray=[], _container) {	//	_params is array of objects { name: '${varName}' }
 		const _prefix = 'u'
 		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
 		const _selectFields = (_selects.length)
