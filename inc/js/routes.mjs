@@ -2,6 +2,7 @@
 import Router from 'koa-router'
 import {
     about,
+    alerts,
     api_register,
     avatarListing,
     category,
@@ -32,6 +33,8 @@ _Router.post('/challenge', challenge)
 _Router.post('/signup', signup)
 /* api webhook routes */
 _apiRouter.use(_tokenValidate)
+_apiRouter.get('/alerts', alerts)
+_apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.post('/register', api_register)
 /* member routes */
 _memberRouter.use(_memberValidate)
@@ -108,7 +111,12 @@ async function _tokenValidate(ctx, next) {
         await next()
     }  catch (error) {
         ctx.status = 401
-        ctx.body = { error: 'Unauthorized Access' }
+        const _error = {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        }
+        ctx.body = { message: 'Unauthorized Access', error: _error }
         return
     }
 }

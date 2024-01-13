@@ -73,9 +73,7 @@ app.use(koaBody({
 			/* platform-required session-external variables */
 			ctx.session.signup = false
 			/* log */
-			console.log(
-				chalk.bgBlue('created-member-session',
-				chalk.bgRedBright(ctx.session.MemberSession.threadId)))
+			console.log(chalk.bgBlue('created-member-session'))
 		}
 		ctx.state.locked = ctx.session.MemberSession.locked
 		ctx.state.MemberSession = ctx.session.MemberSession	//	lock-down session to state

@@ -1,11 +1,13 @@
 /* imports */
-import fs from 'fs'
 import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { _ } from 'ajv'
 /* module export functions */
 async function about(ctx){
 	ctx.state.title = `About MyLife`
 	await ctx.render('about')	//	about
+}
+async function alerts(ctx){
+	ctx.body = await ctx.state.MemberSession.alerts(ctx.request.body)
 }
 async function api_register(ctx){
 	const _registrationData = ctx.request.body
@@ -239,6 +241,7 @@ function mSetContributions(ctx){
 /* exports */
 export {
 	about,
+	alerts,
 	api_register,
 	avatarListing,
 	category,

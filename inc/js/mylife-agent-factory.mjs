@@ -104,6 +104,12 @@ class AgentFactory extends EventEmitter{
 		//	always look to server to challenge Access; this may remove need to bind
 		return await oDataservices.challengeAccess(this.mbr_id,_passphrase)
 	}
+	async getAlert(_alert_id){
+		return await this.dataservices.getAlert(_alert_id)
+	}
+	async getAlerts(_type){
+		return await this.dataservices.getAlerts()
+	}
 	/**
 	 * Gets factory to product appropriate avatar
 	 * @param {Guid} _avatar_id 

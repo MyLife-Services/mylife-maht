@@ -36,6 +36,13 @@ class MylifeMemberSession extends EventEmitter {
 		}
 		return this
 	}
+	async alert(_alert_id){
+		return this.factory.getAlert(_alert_id)
+	}
+	async alerts(_type){
+		// @todo: manage session alerts already shown, dismissed, etc.--for now, limit to session, which should cookie as eternal.
+		return this.factory.getAlerts()
+	}
 	async challengeAccess(_passphrase){
 		if(this.locked){
 			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
