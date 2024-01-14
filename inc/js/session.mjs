@@ -42,7 +42,6 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	async alerts(_type){
 		let _currentAlerts = this.factory.alerts
-		console.log('alerts', this.factory.alerts)
 		// remove alerts already shown to member in this session
 		_currentAlerts = _currentAlerts
 			.filter(_alert=>{
