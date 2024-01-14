@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
 import chalk from 'chalk'
 class MylifeMemberSession extends EventEmitter {
+	#alertsShown = [] // array of alert_id's shown to member in this session
 	#consents = []	//	consents are stored in the session
 	#contributions = []	//	intended to hold all relevant contribution questions for session
 	#factory
@@ -40,8 +41,17 @@ class MylifeMemberSession extends EventEmitter {
 		return this.factory.getAlert(_alert_id)
 	}
 	async alerts(_type){
-		// @todo: manage session alerts already shown, dismissed, etc.--for now, limit to session, which should cookie as eternal.
-		return this.factory.getAlerts()
+		let _currentAlerts = this.factory.alerts
+		console.log('alerts', this.factory.alerts)
+		// remove alerts already shown to member in this session
+		_currentAlerts = _currentAlerts
+			.filter(_alert=>{
+				return !this.#alertsShown.includes(_alert.id)
+			})
+		_currentAlerts.forEach(_alert=>{
+			this.#alertsShown.push(_alert.id)
+		})
+		return _currentAlerts
 	}
 	async challengeAccess(_passphrase){
 		if(this.locked){

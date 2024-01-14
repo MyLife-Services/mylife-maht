@@ -13,6 +13,7 @@ import serve from 'koa-static'
 import chalk from 'chalk'
 //	local services
 import MyLife from './inc/js/mylife-agent-factory.mjs'
+import { _ } from 'ajv'
 //	constants/variables
 const app = new Koa()
 const port = process.env.PORT || 3000
@@ -32,7 +33,8 @@ render(app, {
 	cache: false,
 	debug: false,
 })
-//	default root routes
+// Set an interval to check for alerts every minute (60000 milliseconds)
+setInterval(checkForLiveAlerts, 60000)
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
@@ -88,6 +90,9 @@ app.use(koaBody({
 
 		await next()
 	})
+	.use(async(ctx,next) => { // alert check
+		await next()
+	})
 //	.use(MyLifeMemberRouter.routes())	//	enable member routes
 //	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
 	.use(serverRouter.routes())	//	enable system routes
@@ -95,3 +100,8 @@ app.use(koaBody({
 	.listen(port, () => {	//	start the server
 		console.log(chalk.bgGreenBright('server available')+chalk.yellow(`\nlistening on port ${port}`))
 	})
+// Example of a periodic alert check function
+function checkForLiveAlerts() {
+    console.log("Checking for live alerts...")
+	_Maht.getAlerts()	
+}
