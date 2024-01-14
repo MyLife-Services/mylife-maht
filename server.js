@@ -34,7 +34,7 @@ render(app, {
 	debug: false,
 })
 // Set an interval to check for alerts every minute (60000 milliseconds)
-setInterval(checkForLiveAlerts, 60000)
+setInterval(checkForLiveAlerts, process.env?.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL??60000)
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht

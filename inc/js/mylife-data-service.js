@@ -151,11 +151,15 @@ class Dataservices {
 	 * @param {string} _object_id - The parent object ID to search for associated alerts.
 	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID.
 	 */
-	async getAlerts(){
-		return await this.getItems(
-			'alert',
-			undefined,
-			undefined,
+	async getAlerts(){	
+		const _paramsArray = [
+			{ name: '@being', value: 'alert' },
+			{ name: '@currentDate', value: new Date().toISOString() }
+		]
+		const _query = `SELECT * FROM c WHERE c.being = @being AND @currentDate >= c.timestampRange['start'] AND @currentDate <= c.timestampRange['end']`
+
+		return await this.datamanager.getItems(
+			{ query: _query, parameters: _paramsArray },
 			'system',
 		)
 	}
@@ -272,6 +276,7 @@ class Dataservices {
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
 	async getItems(_being, _selects=[], _paramsArray=[], _container_id) {	//	_params is array of objects { name: '${varName}' }
+		// @todo: incorporate date range functionality into this.getItems()
 		const _prefix = 'u'
 		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
 		const _selectFields = (_selects.length)
