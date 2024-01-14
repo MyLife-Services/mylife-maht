@@ -1,0 +1,59 @@
+<div id="system-alert-container" class="alert-container">
+</div>
+<script>
+async function loadAlerts() {
+    try {
+        const rootUrl = window.location.origin;
+        const response = await fetch(`${rootUrl}/alerts`);
+        const alerts = await response.json();
+            // Display each alert
+        alerts.forEach(alert => {
+            createAlert(alert);
+        });
+    } catch (error) {
+        console.log('Failed to load alerts:', error);
+    }
+}
+function createAlert(alertData) {
+    const systemAlertContainer = document.getElementById('system-alert-container');
+    const _id = alertData.id;
+    /* individual alert box */
+    const systemAlertBox = document.createElement('div');
+    systemAlertBox.id = `alert-${_id}`;
+    systemAlertBox.name = systemAlertBox.id;
+    systemAlertBox.classList.add('alert-box');
+    systemAlertContainer.appendChild(systemAlertBox);
+    /* alert box content */
+    const systemAlertContent = document.createElement('div');
+    systemAlertContent.id = `alert-content-${_id}`;
+    systemAlertContent.name = systemAlertContent.id;
+    systemAlertContent.classList.add('alert-content');
+    systemAlertContent.textContent = alertData.content;
+    if (alertData.urgency === 'high') {
+        systemAlertBox.classList.add('alert-high');
+    }
+    systemAlertBox.appendChild(systemAlertContent);
+    /* alert box close */
+    const systemAlertClose = document.createElement('div');
+    systemAlertClose.id = `alert-close-${_id}`;
+    systemAlertClose.name = systemAlertClose.id;
+    if (alertData.dismissable) {
+        systemAlertClose.classList.add('alert-close');
+        systemAlertClose.textContent = '×';
+        systemAlertClose.onclick = function() {
+            hideAlert(systemAlertBox)
+        };
+    }
+    systemAlertBox.appendChild(systemAlertClose);
+    showAlert(systemAlertBox);
+    // Auto-hide the alert
+    setTimeout(() => { hideAlert(systemAlertBox) }, 2000);
+}
+function hideAlert(_systemAlert) {
+    _systemAlert.classList.add('alert-hide');
+}
+function showAlert(_systemAlert) {
+    _systemAlert.classList.remove('alert-hide');
+}
+loadAlerts();
+</script>

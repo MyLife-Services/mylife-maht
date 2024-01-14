@@ -86,6 +86,51 @@ body {
     font-weight: bold;
     cursor: default; /* Set cursor to default */
 }
+/* MyLife system alerts */
+.alert-container{
+	display: flex;
+	flex-direction: column;
+}
+.alert-box {
+    width: 85%; /* Full width */
+    display: flex;
+    flex-direction: row; /* Stack alert elements horizontally */
+    align-items: stretch; /* Stretch children to fill width */
+    pointer-events: none; /* Allow clicks to pass through when not interacting with alerts */
+}
+.alert-content {
+    display: flex;
+    align-items: stretch; /* Vertically center align items */
+    justify-content: space-between;
+    width: 100%; /* Each alert box takes the full width */
+    pointer-events: auto; /* Allow interaction with the alert */
+    box-sizing: border-box; /* Include padding and borders in the width */
+    margin: 4px;
+    padding: 8px;
+    border-radius: 5px;
+    color: #000;
+    background-color: aliceblue; /* Red for error, can change based on alert type */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    pointer-events: auto; /* So the alert can be dismissed */
+ /*   animation: alertFadeOut 2s forwards; /* */
+}
+.alert-close {
+    background-color: darkgray; /* Example different background color */
+    border: black;
+    color: #fff;
+    cursor: pointer;
+    flex: 0 0 auto; /* Don't grow, don't shrink, auto basis */
+    align-self: stretch;
+}
+.alert-high {
+	color: #fff;
+	background-color: #f44336; /* Red for error, can change based on alert type */
+}
+@keyframes alertFadeOut {
+    0% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; }
+}
 /* MyLife main content */
 .main-content {
     background: white; /* Assuming a card-like look typically has a white background */

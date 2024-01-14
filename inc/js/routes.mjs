@@ -23,6 +23,7 @@ const _apiRouter = new Router()
 //	root routes
 _Router.get('/', index)
 _Router.get('/about', about)
+_Router.get('/alerts', alerts)
 _Router.get('/status', status)
 _Router.get('/members', members) // todo: this should be simpler and more precise a conductor of the request to sub-elements
 _Router.get('/members/:mid', members) // todo: dual purposed at moment, should be part of /login route or something akin
