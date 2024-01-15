@@ -16,8 +16,8 @@ import {
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in configureSchemaPrototypes()
-import Menu from './menu.js'
-import MylifeMemberSession from './session.js'
+import Menu from './menu.mjs'
+import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
 import { _ } from 'ajv'
 // modular constants
@@ -43,6 +43,9 @@ const vmClassGenerator = vm.createContext({
 const dataservicesId = process.env.MYLIFE_SERVER_MBR_ID
 const oDataservices = await new Dataservices(dataservicesId).init()
 // Object of registered extension functions
+const _alerts = {
+	system: await oDataservices.getAlerts(), // not sure if we need other types in global modular, but feasibly historical alerts could be stored here, etc.
+}
 const oExtensionFunctions = {
     extendClass_avatar: extendClass_avatar,
 	extendClass_consent: extendClass_consent,
@@ -103,6 +106,20 @@ class AgentFactory extends EventEmitter{
 	async challengeAccess(_passphrase){
 		//	always look to server to challenge Access; this may remove need to bind
 		return await oDataservices.challengeAccess(this.mbr_id,_passphrase)
+	}
+	async getAlert(_alert_id){
+		const _alert = _alerts.system.find(alert => alert.id === _alert_id)
+		return _alert ? _alert : await oDataservices.getAlert(_alert_id)
+	}
+	/**
+	 * Returns all alerts of a given type, currently only _system_ alerts are available. Refreshes by definition from the database.
+	 * @param {string} _type 
+	 * @returns {array} array of current alerts
+	 */
+	async getAlerts(_type){
+		const _systemAlerts = await this.dataservices.getAlerts()
+		_alerts.system = _systemAlerts
+		return this.alerts
 	}
 	/**
 	 * Gets factory to product appropriate avatar
@@ -183,6 +200,9 @@ class AgentFactory extends EventEmitter{
 		return await this.dataservices.registerCandidate(_candidate)
 	}
 	//	getters/setters
+	get alerts(){ // currently only returns system alerts
+		return _alerts.system
+	}
 	get contribution(){
 		return this.schemas.contribution
 	}

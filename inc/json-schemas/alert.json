@@ -1,0 +1,72 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/alert.json",
+    "required": ["audience", "being", "content", "dismissable", "id", "mbr_id", "parent_id", "timestampRange", "type", "urgency"],
+    "type": "object",
+	"name": "Alert",
+	"properties": {
+		"id": {
+			"description": "uuid of alert",
+			"type": "string",
+			"format": "uuid"
+		},
+		"mbr_id": {
+			"type": "string",
+			"description": "root member id: [sysName|id]",
+			"$comment": "also partitionId for container; NOTE: sysName should not render down to any boolean version of false"
+		},
+		"parent_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "parent id of alert, i.e., who created"
+		},
+        "audiences": {
+            "default": ["general"],
+            "description": "Array of potential audience types, used for consent.",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+                "type": "string",
+                "enum": ["charter", "general", "members", "personal", "technologists"],
+                "description": "Audience type, specific to MyLife requirements.",
+                "$comment": "explorer, technologist, leader, navigator, all human roles or role playing that we enjoy, i.e., TWERE an audience developed like so: [xxx, yyy] which would Member be?"
+            }
+        },        
+        "being": {
+            "description": "The nature of the alert, specific to MyLife requirements.",
+            "type": "string",
+            "const": "alert"
+        },
+        "dismissable": {
+            "description": "Indicates whether the alert can be dismissed by the user.",
+            "type": "boolean"
+        },
+        "timestampRange": {
+            "description": "Time range for displaying the alert on the site.",
+            "type": "object",
+            "properties": {
+                "end": {
+                "type": "string",
+                "format": "date-time"
+                },
+                "start": {
+                "type": "string",
+                "format": "date-time"
+                }
+            },
+            "required": ["start", "end"]
+        },
+        "type": {
+            "description": "Type of the alert, currently only 'system'.",
+            "type": "string",
+            "enum": ["system"]
+        },
+        "urgency": {
+            "description": "A string or code indicating the urgency level of the alert.",
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+        }
+    },
+    "additionalProperties": false
+}

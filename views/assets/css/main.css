@@ -10,7 +10,7 @@ body {
 	flex-direction: column;
 	font-family: Arial, sans-serif;
 	justify-content: center;
-	margin: 1.5em;
+	margin: 0 1.5em 1.5em 1.5em;
 	max-width: 100%;
 	min-height: 65vh;
 }
@@ -39,13 +39,12 @@ body {
 .navbar {
 	background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.25) 70%, rgba(0, 0, 100, 0.15) 100%);
 	background-color: whitesmoke; /* Blue background color */
-/*	border: #111 12px double; */
 	border: 1px dotted rgba(0, 0, 139, 0.3);
 	border-radius: 22px; /* Rounded corners */
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
 	box-sizing: border-box; /* Ensures padding and width stays within the border */
 	justify-content: flex-start; /* Aligns items horizontally */
-	margin-bottom: 12px; /* Bottom margin */
+	margin-bottom: 0.5em; /* Bottom margin */
 	padding: 0px;
 	width: 100%; /* Full width */
 }
@@ -85,6 +84,80 @@ body {
     color: #007bff; /* Your existing styles for active link */
     font-weight: bold;
     cursor: default; /* Set cursor to default */
+}
+/* MyLife system alerts */
+.alert-container{
+	display: flex;
+	flex-direction: column;
+	margin-bottom: .5em;
+}
+.alert-box {
+    width: 85%; /* Full width */
+    display: flex;
+    flex-direction: row; /* Stack alert elements horizontally */
+    align-items: center;
+	border-radius: 7px;
+	border: rgba(0,0,0,.25) 2px solid;
+	box-shadow: inset 4px 4px 2px 0px rgba(0, 0, 0, 0.1); /* Shadow for depth */
+}
+.alert-content {
+	align-items: stretch; /* Vertically center align items */
+	/*   animation: alertFadeOut 2s forwards; /* */
+	border-top-left-radius: inherit;
+	border-bottom-left-radius: inherit;
+    color: rgba(0, 0, 0, 0.9);
+	cursor: help;
+    display: flex;
+	font-size: clamp(10px, 2vw, 20px);
+    justify-content: space-between;
+    pointer-events: none;
+	padding: 0.75vh 2vw;
+    width: 100%; /* Each alert box takes the full width */
+}
+.alert-close {
+    align-self: stretch;
+	align-items: center;
+    background-color: rgba(0, 0, 0, 0.15); /* Example different background color */
+	border-top-right-radius: inherit;
+    border-bottom-right-radius: inherit;
+    color: rgba(255, 255, 255, 1);
+    cursor: pointer;
+	display: flex;
+    font-size: clamp(18px, 3vw, 26px); /* Adjust the min and max values as needed */
+	justify-content: center;
+	min-width: 5vh;
+	opacity: 0.9;
+	transition: opacity 0.3s, background-color 0.3s;
+}
+.alert-close:hover {
+    text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5); /* Example text shadow */
+    opacity: 1; /* Full opacity */
+    background-color: rgba(0, 0, 0, 0.35); /* Darkened background color */
+}
+.alert-hide {
+	opacity: 0;
+	display: none;
+}
+.alert-high {
+	color: rgba(0, 0, 0, 0.8);
+	background-color: rgba(255, 168, 162, 0.4); /* Red for error, can change based on alert type */
+}
+.alert-low {
+	color: rgba(0, 0, 0, 0.8);
+	background-color: rgba(31, 124, 163, 0.3); /* Red for error, can change based on alert type */
+}
+.alert-medium {
+	color: rgba(0, 0, 0, 0.8);
+}
+.alert-show {
+	display: flex;
+	opacity: 1;
+	animation: alertFadeIn 0.5s forwards;
+}
+@keyframes alertFadeOut {
+    0% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; }
 }
 /* MyLife main content */
 .main-content {

@@ -4,7 +4,7 @@ class Config{
 		this.endpoint=process.env.MYLIFE_DB_ENDPOINT
 		this.rw_id=process.env.MYLIFE_DB_RW
 		this.rx_id=process.env.MYLIFE_DB_RX
-		this.db={
+		this.members={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {
 				id: process.env.MYLIFE_DB_CONTAINER_NAME,
@@ -23,6 +23,13 @@ class Config{
 			id: process.env.MYLIFE_DB_NAME,
 			container: {
 				id: process.env.MYLIFE_REGISTRATION_DB_CONTAINER_NAME,
+				partitionId: _mbr_id,
+			}
+		}
+		this.system={
+			id: process.env.MYLIFE_DB_NAME,
+			container: {
+				id: process.env.MYLIFE_SYSTEM_DB_CONTAINER_NAME,
 				partitionId: _mbr_id,
 			}
 		}

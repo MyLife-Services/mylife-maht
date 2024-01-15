@@ -3,7 +3,7 @@ import EventEmitter from 'events'
 import chalk from 'chalk'
 //	import { _ } from 'ajv'
 //	server-specific imports
-import initRouter from './routes.js'
+import initRouter from './routes.mjs'
 import { _ } from 'ajv'
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
@@ -302,15 +302,23 @@ class MyLife extends Organization {	//	form=server
 	}
 	/* public functions */
 	/**
+	 * Server MyLife _Maht instantiation uses this function to populate the most current alerts in the modular factory memoryspace. Currently only applicable to system types, but since this is implemented at the `core.mjs` scope, we can account
+	 * @public
+	 * @returns {void} returns nothing, performs operation
+	 */
+	getAlerts(){
+		this.factory.getAlerts()
+	}
+	async getMyLifeSession(){
+		return await this.factory.getMyLifeSession()
+	}
+	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
 	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
 	async registerCandidate(_candidate){
 		return await this.factory.registerCandidate(_candidate)
-	}
-	async getMyLifeSession(){
-		return await this.factory.getMyLifeSession()
 	}
 	/* getters/setters */
 	/**

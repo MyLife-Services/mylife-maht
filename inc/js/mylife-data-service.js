@@ -5,8 +5,8 @@
  */
 //	imports
 import { _ } from "ajv"
-import Datamanager from "./mylife-datamanager.js"
-import PgvectorManager from "./mylife-pgvector-datamanager.js"
+import Datamanager from "./mylife-datamanager.mjs"
+import PgvectorManager from "./mylife-pgvector-datamanager.mjs"
 import { Guid } from "js-guid"
 /**
  * The Dataservices class.
@@ -129,9 +129,39 @@ class Dataservices {
 			[{ name: '@email',
 				value: _email,
 			}],
-			'registration'
+			'registration',
 		)
 		return _?.[0]?.id??Guid.newGuid().toString() // needed to separate out, was failing
+	}
+	/**
+	 * Retrieves a specific alert by its ID. _Currently placehoder_.
+	 * @async
+	 * @public
+	 * @param {string} _alert_id - The unique identifier for the alert.
+	 * @returns {Promise<Object>} The alert corresponding to the provided ID.
+	 */
+	async getAlert(_alert_id){
+		return await this.getItem(_alert_id, 'system')
+	}
+	/**
+	 * Retrieves all system alerts. _Currently only works with system alerts, but intends to be expanded, refactor_.
+	 * This method is typically used to get all alert entities under a specific object.
+	 * @async
+	 * @public
+	 * @param {string} _object_id - The parent object ID to search for associated alerts.
+	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID.
+	 */
+	async getAlerts(){	
+		const _paramsArray = [
+			{ name: '@being', value: 'alert' },
+			{ name: '@currentDate', value: new Date().toISOString() }
+		]
+		const _query = `SELECT * FROM c WHERE c.being = @being AND @currentDate >= c.timestampRange['start'] AND @currentDate <= c.timestampRange['end']`
+
+		return await this.datamanager.getItems(
+			{ query: _query, parameters: _paramsArray },
+			'system',
+		)
 	}
 	/**
 	 * Retrieves a specific avatar by its ID.
@@ -141,7 +171,7 @@ class Dataservices {
 	 * @returns {Promise<Object>} The avatar corresponding to the provided ID.
 	 */
 	async getAvatar(_avatar_id) {
-		return await this.getItems('avatar', undefined, [{ name: '@id', value: _avatar_id }])
+		return await this.getItem(_avatar_id)
 	}
 	/**
 	 * Retrieves all avatars associated with a given parent ID.
@@ -152,7 +182,11 @@ class Dataservices {
 	 * @returns {Promise<Array>} An array of avatars associated with the given parent ID.
 	 */
 	async getAvatars(_object_id) {
-		return await this.getItems('avatar', undefined, [{ name: '@object_id', value: _object_id }])
+		return await this.getItems(
+			'avatar',
+			undefined,
+			[{ name: '@object_id', value: _object_id }],
+		)
 	}
 	/**
 	 * Retrieves the first chat associated with a given parent ID.
@@ -175,7 +209,11 @@ class Dataservices {
 	 * @returns {Promise<Array>} An array of chat conversations associated with the given parent ID.
 	 */
 	async getChats(parent_id) {
-		let _chats = await this.getItems('conversation', ['exchanges'], [{ name: '@parent_id', value: parent_id }])
+		let _chats = await this.getItems(
+			'conversation',
+			undefined,
+			[{ name: '@parent_id', value: parent_id }],
+		)
 		if (!_chats.length) {
 			_chats = await this.pushItem({
 				mbr_id: this.mbr_id,
@@ -200,7 +238,7 @@ class Dataservices {
 			_being,
 			['questions'],
 			[{ name: '@category', value: _category }],
-			'contribution_responses'
+			'contribution_responses',
 		))
 			.map(_ => (_.questions))
 			.reduce((acc, val) => acc.concat(val), [])
@@ -212,10 +250,20 @@ class Dataservices {
 	 * @async
 	 * @public
 	 * @param {string} _id - The unique identifier for the item.
+	 * @param {string} _container_id - The container to use, overriding default: `Members`.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(_id) {
-		return await this.datamanager.getItem(_id)
+	async getItem(_id, _container_id) {
+		try{
+			return await this.datamanager.getItem(
+				_id,
+				_container_id,
+			)
+		}
+		catch(_error){
+			console.log('mylife-data-service::getItem() error')
+			console.log(_error, _id, _container_id,)
+		}
 	}
 	/**
 	 * Retrieves items based on specified parameters.
@@ -224,25 +272,33 @@ class Dataservices {
 	 * @param {string} _being - The type of items to retrieve.
 	 * @param {array} [_selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [_paramsArray=[]] - Additional query parameters.
+	 * @param {string} _container_id - The container name to use, overriding default.
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
-	async getItems(_being, _selects=[], _paramsArray=[], _container='members') {	//	_params is array of objects { name: '${varName}' }
+	async getItems(_being, _selects=[], _paramsArray=[], _container_id) {	//	_params is array of objects { name: '${varName}' }
+		// @todo: incorporate date range functionality into this.getItems()
 		const _prefix = 'u'
 		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
 		const _selectFields = (_selects.length)
 			?	[...this.#rootSelect, ..._selects].map(_=>(`${_prefix}.`+_)).join(',')
 			:	'*'
-		let _query = `select ${_selectFields} from ${_container} ${_prefix}`	//	@being is required
+		let _query = `select ${_selectFields} from ${_prefix}`	//	@being is required
 		_paramsArray	//	iterate through parameters
 			.forEach(_param=>{	//	param is an object of name, value pairs
 				_query += (_param.name==='@being')
 					?	` where ${_prefix}.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
 					:	` and ${_prefix}.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
 		})
-		return await this.datamanager.getItems(
-			{ query: _query, parameters: _paramsArray },
-			_container,
-		)
+		try{
+			return await this.datamanager.getItems(
+				{ query: _query, parameters: _paramsArray },
+				_container_id,
+			)
+		}
+		catch(_error){
+			console.log('mylife-data-service::getItems() error')
+			console.log(_error, _being, _query, _paramsArray, _container_id,)
+		}
 	}
 	/**
 	 * Retrieves local records based on a query.
