@@ -72,11 +72,16 @@ function extendClass_avatar(_originClass,_references) {
             if(!ctx?.state?.chatMessage)
                 throw new Error('No message provided in context')
             this.setActiveCategory(ctx.state.chatMessage) // also sets evolver contribution
-            return mChat(
+            const _chat = await mChat(
                 this.#openai,
                 this,
                 ctx.state.chatMessage
             )
+            const _activeAlerts = ctx.state.MemberSession.alerts()
+            if(_activeAlerts?.length){
+                _chat.alerts = ctx.state.MemberSession.alerts()
+            }
+            return _chat
         }
         /**
          * Proxy for emitter.

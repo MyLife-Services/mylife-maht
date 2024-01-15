@@ -1,5 +1,4 @@
 /* imports */
-import fs from 'fs'
 import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { _ } from 'ajv'
 /* module export functions */
@@ -7,9 +6,17 @@ async function about(ctx){
 	ctx.state.title = `About MyLife`
 	await ctx.render('about')	//	about
 }
+async function alerts(ctx){
+	// @todo: put into ctx the _type_ of alert to return, system use dataservices, member use personal
+	if(ctx.params?.aid){ // specific system alert
+		ctx.body = await ctx.state.MemberSession.alert(ctx.params.aid)
+	} else { // all system alerts
+		ctx.body = await ctx.state.MemberSession.alerts(ctx.request.body)
+	}
+}
 async function api_register(ctx){
 	const _registrationData = ctx.request.body
-	const { 
+	const {
 		registrationInterests,
 		contact={}, // as to not elicit error destructuring
 		personalInterests,
@@ -239,6 +246,7 @@ function mSetContributions(ctx){
 /* exports */
 export {
 	about,
+	alerts,
 	api_register,
 	avatarListing,
 	category,

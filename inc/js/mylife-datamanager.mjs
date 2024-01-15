@@ -1,7 +1,7 @@
 /* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
-import Config from './mylife-datasource-config.js'
+import Config from './mylife-datasource-config.mjs'
 import chalk from 'chalk'
 //	define class
 class Datamanager {
@@ -19,13 +19,14 @@ class Datamanager {
 			//	aadCredentials: new DefaultAzureCredential()
 		}
 		const _client = new CosmosClient(_options)
-		this.database = _client.database(_config.db.id)
-		this.#partitionId = _config.db.container.partitionId
-		this.#coreId = _config.db.container?.coreId??this.#partitionId.split('|')[1]
+		this.database = _client.database(_config.members.id)
+		this.#partitionId = _config.members.container.partitionId
+		this.#coreId = _config.members.container?.coreId??this.#partitionId.split('|')[1]
 		this.#containers = {
 			contribution_responses: this.database.container(_config.contributions.container.id),
-			members: this.database.container(_config.db.container.id),
+			members: this.database.container(_config.members.container.id),
 			registration: this.database.container(_config.registration.container.id),
+			system: this.database.container(_config.system.container.id),
 		}
 		this.requestOptions = {
 			partitionKey: this.#partitionId,
@@ -74,32 +75,32 @@ class Datamanager {
 	 * Retreives specific item from container.
 	 * @param {guid} _id 
 	 * @param {object} _options 
-	 * @param {string} _container Container to use.
+	 * @param {string} _container_id Container to use.
 	 * @returns 
 	 */
-	async getItem(_id, _options=this.requestOptions, _container=this.containerDefault){	//	quick, inexpensive read; otherwise use getItems
-		const { resource: _item } = await this.#containers[_container]
+	async getItem(_id, _container_id=this.containerDefault, _options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
+		const { resource: _item } = await this.#containers[_container_id]
 			.item(_id,this.#partitionId)
 			.read(_options)
 		return _item
 	}
-	async getItems(_querySpec, _container=this.containerDefault, _options=this.requestOptions ){
-		const { resources } = await this.#containers[_container]
+	async getItems(_querySpec, _container_id=this.containerDefault, _options=this.requestOptions ){
+		const { resources } = await this.#containers[_container_id]
 			.items
 			.query(_querySpec,_options)
 			.fetchAll()
 		return resources
 	}
-	async patchItem(_id, _item, _container=this.containerDefault) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+	async patchItem(_id, _item, _container_id=this.containerDefault) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(_item)) _item = [_item]
-		const { resource: _update } = await this.#containers[_container]
+		const { resource: _update } = await this.#containers[_container_id]
 			.item(_id,this.#partitionId)
 			.patch(_item)	//	see below for filter-patch example
 		return _update
 	}
-	async pushItem(_item, _container=this.containerDefault) {	//	post or insert, depends on whether it finds id or not, will overwrite all existing fields
-		const { resource: doc } = await this.#containers[_container]
+	async pushItem(_item, _container_id=this.containerDefault) {	//	post or insert, depends on whether it finds id or not, will overwrite all existing fields
+		const { resource: doc } = await this.#containers[_container_id]
 			.items
 			.upsert(_item)
 		return doc
