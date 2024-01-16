@@ -36,9 +36,84 @@
     
             <button class="button create-bot">Create</button>
         </div>
+    </div>
+    <div class="bot-container" id="resume-bot">
+        <div class="bot-header">Resume/CV Bot</div>
+        <div class="bot-content hidden">
+            <!-- Interests/Hobbies -->
+            <div class="input-group">
+                <label>Upload:</label>
+            </div>
+            <!-- Special Instructions -->
+            <div class="input-group">
+                <label>Special Instructions</label>
+                <select name="starter-questions">
+                    <option value="1">Pretend to be me</option>
+                    <option value="2">get me jobs</option>
+                </select>
+            </div>
+            <!-- Privacy Settings -->
+            <div class="input-group toggle-switch">
+                <label>Privacy:</label>
+                <input type="checkbox" id="privacy-toggle">
+                <label for="privacy-toggle">Public/Private</label>
+            </div>
+    
+            <button class="button create-bot">Create</button>
+        </div>
     </div>    
+    <div class="bot-container" id="health-bot">
+        <div class="bot-header">Health Bot</div>
+        <div class="bot-content hidden">
+            <!-- Interests/Hobbies -->
+            <div class="input-group">
+                <label>Upload Medical:</label>
+            </div>
+            <!-- Special Instructions -->
+            <div class="input-group">
+                <label>Special Instructions</label>
+                <select name="starter-questions">
+                    <option value="1">Pretend to be me</option>
+                    <option value="2">get me jobs</option>
+                </select>
+            </div>
+            <!-- Privacy Settings -->
+            <div class="input-group toggle-switch">
+                <label>Privacy:</label>
+                <input type="checkbox" id="privacy-toggle">
+                <label for="privacy-toggle">Public/Private</label>
+            </div>
+    
+            <button class="button create-bot">Create</button>
+        </div>
+    </div>
+    <div class="bot-container" id="art-bot">
+        <div class="bot-header">Artwork bot</div>
+        <div class="bot-content hidden">
+            <!-- Type of artwork -->
+            <div class="input-group">
+                <label>What type of artwork?</label>
+                <select name="starter-questions">
+                    <option value="1">Music</option>
+                    <option value="2">Novel</option>
+                    <option value="3">Opera</option>
+                </select>
+            </div>
+            <!-- Privacy Settings -->
+            <div class="input-group toggle-switch">
+                <label>Privacy:</label>
+                <input type="checkbox" id="privacy-toggle">
+                <label for="privacy-toggle">Public/Private</label>
+            </div>
+    
+            <button class="button create-bot">Create</button>
+        </div>
+    </div>
 </div>
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetchBots();
+});
 document.querySelectorAll('.bot-container').forEach(container => {
     container.addEventListener('click', function() {
         // First, close any currently open containers
@@ -53,4 +128,24 @@ document.querySelectorAll('.bot-container').forEach(container => {
         content.classList.toggle('visible');
     });
 });
+async function fetchBots(){
+    try {
+        console.log('Fetching bots')
+        const _url = window.location.origin + '/members/bots';
+        console.log(_url)
+        const response = await fetch(_url); // Replace with your actual endpoint
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const bots = await response.json();
+        console.log(bots)
+        // Process and display the bots here
+        updateBotContainers(bots);
+    } catch (error) {
+        console.log('Error fetching bots:', error);
+    }
+}
+function updateBotContainers(_bots){
+	
+}
 </script>

@@ -70,7 +70,7 @@ class MylifeMemberSession extends EventEmitter {
 		//	check-01: url ends in valid guid /:_id
 		const _object_id = ctx.request.header?.referer?.split('/').pop()
 		//	not guid, not consent request, no blocking
-		if(!this.globals.isValidGUID(_object_id)) return true
+		if(!this.globals.isValidGuid(_object_id)) return true
 		console.log('session.requestConsent()', 'mbr_id', this.mbr_id)
 		//	ultimately, applying a disposable agent of intelligence to consent request might be the answer
 		let _consent = this.consents

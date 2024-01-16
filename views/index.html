@@ -74,20 +74,10 @@ submitButton.addEventListener('click', addUserMessage); // Event listener to sub
 function addMessageToColumn(_message, _options={
 	bubbleClass: 'agent-bubble',
 	_typewrite: true,
-	_delay: 25,
+	_delay: 15,
 }){
-	const {
-		category=null,
-		contributions=[],
-		id=null,
-		message,
-		question=null
-	} = _message;
-	const {
-		bubbleClass,
-		_typewrite,
-		_delay,
-	} = _options;
+	const { message } = _message;
+	const { bubbleClass, _typewrite, _delay } = _options;
 	_chatBubbleCount++;
 	const chatBubble = document.createElement('div');
 	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
@@ -98,12 +88,13 @@ function addMessageToColumn(_message, _options={
 		let i = 0;
 		let tempMessage = '';
 		function typeAgentMessage() {
-			if (i < message.length) {
+			if (i <= message?.length??0) {
 				tempMessage += message.charAt(i);
 				chatBubble.innerHTML = '';
 				chatBubble.insertAdjacentHTML('beforeend', tempMessage);
 				i++;
 				setTimeout(typeAgentMessage, _delay); // Adjust the typing speed here (50ms)
+				scrollToBottom();
 			} else {
 				chatBubble.setAttribute('status', 'done');
 			}
@@ -111,49 +102,9 @@ function addMessageToColumn(_message, _options={
 		typeAgentMessage();
 	} else {
 		chatBubble.insertAdjacentHTML('beforeend', message);
+		scrollToBottom(); 
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function addUserMessage(_event){
     event.preventDefault();
     // Dynamically get the current message element (input or textarea)

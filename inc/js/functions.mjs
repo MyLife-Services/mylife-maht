@@ -76,6 +76,7 @@ async function avatarListing(ctx){
 	await ctx.render('avatars')	//	avatars
 }
 async function bots(ctx){
+	console.log('bots', ctx.params)
 	if(ctx.params?.bid?.length){ // specific system bot
 		ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
 	} else { // all system bots
@@ -117,32 +118,34 @@ async function index(ctx){
 	ctx.state.title = `${ctx.state.member.agentDescription}`
 	await ctx.render('index')
 }
-async function members(ctx){
-	ctx.state.mid = ctx.params?.mid??false	//	member id
-	ctx.state.title = `Your MyLife Digital Home`
-	switch (true) {
-		case !ctx.state.mid && ctx.state.locked:
-			//	listing comes from state.hostedMembers
-			ctx.state.hostedMembers = ctx.hostedMembers
-				.sort(
-					(a, b) => a.localeCompare(b)
-				)
-				.map(
-					_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.extractSysName(_mbr_id) })
-				)
-			ctx.state.subtitle = `Select your membership to continue:`
-			await ctx.render('members-select')
-			break
-		case ctx.state.locked:
-			ctx.session.MemberSession.challenge_id = ctx.state.mid
-			ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.extractSysName(ctx.state.mid) }]:`
-			await ctx.render('members-challenge')
-			break
-		default:
-			ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
-			await ctx.render('members')
-			break
-	}
+async function login(ctx){
+	// @todo: remove from params and include in post
+	console.log('members-login', ctx.params)
+	if(!ctx.params?.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
+	ctx.state.mid = decodeURIComponent(ctx.params.mid)
+	ctx.state.title = ''
+	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.extractSysName(ctx.params.mid) }]:`
+	ctx.session.MemberSession.challenge_id = ctx.params.mid
+	await ctx.render('members-challenge')
+}
+async function loginSelect(ctx){
+	ctx.state.title = ''
+	//	listing comes from state.hostedMembers
+	// @todo: should obscure and hash ids in session.mjs
+	// @todo: set and read long-cookies for seamless login
+	ctx.state.hostedMembers = ctx.hostedMembers
+		.sort(
+			(a, b) => a.localeCompare(b)
+		)
+		.map(
+			_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.extractSysName(_mbr_id) })
+		)
+	ctx.state.subtitle = `Select your personal Avatar to continue:`
+	await ctx.render('members-select')
+}
+async function members(ctx){ // members home
+	ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
+	await ctx.render('members')
 }
 async function privacyPolicy(ctx){
 	ctx.state.title = `MyLife Privacy Policy`
@@ -262,6 +265,8 @@ export {
 	chat,
 	contributions,
 	index,
+	login,
+	loginSelect,
 	members,
 	privacyPolicy,
 	signup,

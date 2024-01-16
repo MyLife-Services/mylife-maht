@@ -66,9 +66,21 @@ setTimeout(() => { // Set a timeout for 1 second to wait for the first line to b
 }, 1000);
 /* page listeners */
 // Event listener to submit the form on enter
-chatForm.addEventListener('submit', addUserMessage);
-// Event listener to check length of input and convert to textarea
 messageInput.addEventListener('input', toggleInputTextarea);
+submitButton.addEventListener('click', addUserMessage); // Event listener to submit message
+document.querySelectorAll('.bot-container').forEach(container => { // Event listener to toggle bot containers
+    container.addEventListener('click', function() {
+        // First, close any currently open containers
+        document.querySelectorAll('.bot-container .bot-content.visible').forEach(openContainer => {
+            if (openContainer.parentElement !== this) { // Check to avoid closing the current container
+                openContainer.classList.remove('visible');
+            }
+        });
+        // Then, toggle the visibility of the clicked container's content
+        var content = this.querySelector('.bot-content');
+        content.classList.toggle('visible');
+    });
+});
 /* page functions */
 /* todo: fix params, follow more of a content, config, {extras/instructions} structure */
 function addMessageToColumn(_message, _options={
@@ -114,21 +126,17 @@ function addMessageToColumn(_message, _options={
 	}
 }
 function addUserMessage(_event){
-    _event.preventDefault();
+    event.preventDefault();
     // Dynamically get the current message element (input or textarea)
-    const messageElement = document.getElementById('message');
-    let userMessage = messageElement.value.trim();
+    let userMessage = messageInput.value.trim();
     if (!userMessage.length) return;
     userMessage = escapeHtml(userMessage); // Escape the user message
-    submit(_event, userMessage);
+    submit(event, userMessage);
     addMessageToColumn({ message: userMessage }, {
         bubbleClass: 'user-bubble',
         _delay: 7,
     });
-    messageElement.value = ''; // Clear the message field
-}
-function getActiveCategory() {
-	return _activeCategory;
+    messageInput.value = ''; // Clear the message field
 }
 // Function to escape HTML special characters
 function escapeHtml(text) {
@@ -140,6 +148,22 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+// Function to focus on the textarea and move cursor to the end
+function focusAndSetCursor(textarea) {
+    textarea.focus();
+    // Move the cursor to the end of the text
+    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+}
+function getActiveCategory() {
+	return _activeCategory;
+}
+function getTextWidth(text, font) {
+    // Create a temporary canvas element to measure text width
+    let canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+    let context = canvas.getContext("2d");
+    context.font = font;
+    return context.measureText(text).width;
 }
 // Function to replace an element (input/textarea) with a specified type
 function replaceElement(element, newType) {
@@ -155,6 +179,15 @@ function replaceElement(element, newType) {
     element.parentNode.replaceChild(newElement, element);
     newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
     return newElement;
+}
+function resetAnimation(element) {
+    element.style.animation = 'none';
+    // Trigger a reflow to restart the animation
+    element.offsetHeight;
+    element.style.animation = '';
+}
+function scrollToBottom() {
+    chatOutput.scrollTop = chatOutput.scrollHeight;
 }
 async function setActiveCategory(category, contributionId, question) {
     const url = '/members/category'; // Replace with your server's URL
@@ -223,29 +256,41 @@ async function submit(_event, _message) {
 	agentSpinner.classList.remove('text-primary');
 	agentSpinner.classList.add('text-light');
 }
-async function submitChat(_url, _options) {
-	return await fetch(_url, _options)
-		.then(_response => {
-			if (!_response.ok) {
-				throw new Error(`HTTP error! Status: ${_response.status}`)
-			}
-			return _response.json()
-		})
-		.catch(_error => {
-			console.error('Error submitting chat:', _error)
-		})
+async function submitChat(url, options) {
+	try {
+		const response = await fetch(url, options);
+		const jsonResponse = await response.json();
+		return jsonResponse;
+	} catch (err) {
+		console.log('fatal error', err);
+		return alert(`Error: ${err.message}`);
+	}
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea() {
-    let inputElement = document.getElementById('message');
-    if (inputElement.value.length > 42 && inputElement.tagName !== 'TEXTAREA') {
-        // Expand to textarea
-        inputElement = replaceElement(inputElement, 'textarea');
-        focusAndSetCursor(inputElement);
-    } else if (inputElement.value.length < 36 && inputElement.tagName === 'TEXTAREA') {
-        // Revert to input
-        inputElement = replaceElement(inputElement, 'input');
-        focusAndSetCursor(inputElement);
+    const inputStyle = window.getComputedStyle(chatInput);
+    const inputFont = inputStyle.font;
+    const textWidth = getTextWidth(messageInput.value, inputFont); // no trim required
+    const inputWidth = chatInput.offsetWidth;
+	/* pulse */
+	clearTimeout(typingTimer);
+    agentSpinner.style.display = 'none';
+    resetAnimation(agentSpinner); // Reset animation
+    typingTimer = setTimeout(() => {
+        agentSpinner.style.display = 'block';
+        resetAnimation(agentSpinner); // Restart animation
+    }, 2000);
+
+    if (textWidth > inputWidth && messageInput.tagName !== 'TEXTAREA') { // Expand to textarea
+        messageInput = replaceElement(messageInput, 'textarea');
+        focusAndSetCursor(messageInput);
+    } else if (textWidth <= inputWidth && messageInput.tagName === 'TEXTAREA' ) { // Revert to input
+		messageInput = replaceElement(messageInput, 'input');
+        focusAndSetCursor(messageInput);
     }
+	toggleSubmitButtonState();
+}
+function toggleSubmitButtonState() {
+	submitButton.disabled = !messageInput.value?.trim()?.length??true;
 }
 </script>

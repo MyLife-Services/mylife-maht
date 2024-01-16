@@ -20,8 +20,8 @@ class Globals extends EventEmitter {
 	isValidEmail(_email){
 		return emailRegex.test(_email)
 	}
-	isValidGUID(_str) {
-		return guid_regex.test(_str)
+	isValidGuid(_str='') {
+		return (typeof _str === 'string' && guid_regex.test(_str))
 	}
 	toString(_obj){
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
