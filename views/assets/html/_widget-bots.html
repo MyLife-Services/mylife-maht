@@ -1,0 +1,56 @@
+<div class="widget" id="bot-container">
+    <div class="header">Bot Legion</div>
+    <div class="bot-container" id="biographer-bot">
+        <div class="bot-header">Biographer Bot</div>
+        <div class="bot-content hidden">
+            <!-- Date of Birth -->
+            <div class="input-group">
+                <label for="dob">Date of Birth:</label>
+                <input type="date" id="dob" name="dob">
+            </div>
+            <!-- Interests/Hobbies -->
+            <div class="input-group">
+                <label>Interests/Hobbies:</label>
+                <div class="checkbox-group">
+                    <!-- Repeat for each interest -->
+                    <label><input type="checkbox" name="interests" value="Art"> Art</label>
+                    <label><input type="checkbox" name="interests" value="Music"> Music</label>
+                    <!-- ... more interests ... -->
+                </div>
+            </div>
+            <!-- Starter Questions -->
+            <div class="input-group">
+                <label>Starter Questions:</label>
+                <select name="starter-questions">
+                    <option value="1">What is your earliest memory?</option>
+                    <option value="2">Who has been the most influential person in your life?</option>
+                    <option value="3">What are the most significant moments of your life?</option>
+                </select>
+            </div>
+            <!-- Privacy Settings -->
+            <div class="input-group toggle-switch">
+                <label>Privacy:</label>
+                <input type="checkbox" id="privacy-toggle">
+                <label for="privacy-toggle">Public/Private</label>
+            </div>
+    
+            <button class="button create-bot">Create</button>
+        </div>
+    </div>    
+</div>
+<script>
+document.querySelectorAll('.bot-container').forEach(container => {
+    container.addEventListener('click', function() {
+        // First, close any currently open containers
+        document.querySelectorAll('.bot-container .bot-content.visible').forEach(openContainer => {
+            if (openContainer.parentElement !== this) { // Check to avoid closing the current container
+                openContainer.classList.remove('visible');
+            }
+        });
+
+        // Then, toggle the visibility of the clicked container's content
+        var content = this.querySelector('.bot-content');
+        content.classList.toggle('visible');
+    });
+});
+</script>

@@ -109,6 +109,9 @@ class Dataservices {
 	async addAvatar(_avatar){
 		return await this.pushItem(_avatar)
 	}
+	async bot(_bot_id){
+		return await this.getItem(_bot_id)
+	}
     /**
      * Challenges access using a member ID and passphrase.
      * @async

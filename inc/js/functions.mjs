@@ -75,6 +75,13 @@ async function avatarListing(ctx){
 		)
 	await ctx.render('avatars')	//	avatars
 }
+async function bots(ctx){
+	if(ctx.params?.bid?.length){ // specific system bot
+		ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
+	} else { // all system bots
+		ctx.body = await ctx.state.avatar.bots
+	}
+}
 function category(ctx){ // sets category for avatar
 	ctx.state.category = ctx.request.body
 	ctx.state.avatar.setActiveCategory(ctx.state.category)
@@ -249,6 +256,7 @@ export {
 	alerts,
 	api_register,
 	avatarListing,
+	bots,
 	category,
 	challenge,
 	chat,

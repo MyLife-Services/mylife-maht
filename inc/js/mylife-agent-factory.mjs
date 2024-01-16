@@ -103,6 +103,15 @@ class AgentFactory extends EventEmitter{
 		}
 		return this
 	}
+	/**
+	 * Get a bot.
+	 * @public
+	 * @param {string} _bot_id - The bot id.
+	 * @returns {object} - The bot.
+	 */
+	async bot(_bot_id){
+		return await this.dataservices.bot(_bot_id)
+	}
 	async challengeAccess(_passphrase){
 		//	always look to server to challenge Access; this may remove need to bind
 		return await oDataservices.challengeAccess(this.mbr_id,_passphrase)

@@ -607,6 +607,34 @@ body {
 	align-items: center;
 	justify-content: center;
 }
+/* bot widget */
+.bot-container {
+    /* Basic styling for the bot container */
+    cursor: pointer;
+}
+.bot-header {
+    /* Styling for the header */
+	font-size: 1.2em;
+}
+.bot-content {
+    /* Hidden by default */
+    display: none;
+    overflow: hidden;
+}
+.bot-content.visible {
+    /* Show content when active */
+    display: block;
+}
+.input-group {
+    margin-bottom: 10px;
+}
+.checkbox-group label {
+    margin-right: 10px;
+}
+.toggle-switch {
+    /* Styling for toggle switch */
+	background-color: #ccc;
+}
 /* MyLife header */
 #header {
     background-color: #007BFF;

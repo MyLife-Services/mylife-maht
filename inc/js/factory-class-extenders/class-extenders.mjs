@@ -51,16 +51,13 @@ function extendClass_avatar(_originClass,_references) {
         }
         /* public functions */
         /**
-         * Processes and executes incoming category set request.
+         * Get a bot.
          * @public
-         * @param {string} _category - The category to set { category, contributionId, question }.
+         * @param {string} _bot_id - The bot id.
+         * @returns {object} - The bot.
          */
-        setActiveCategory(_category){
-            const _proposedCategory = mGetChatCategory(_category)
-            /* evolve contribution */
-            if(_proposedCategory?.category){ // no category, no contribution
-                this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
-            }
+        async bot(_bot_id){
+            return await this.factory.bot(_bot_id)
         }
         /**
          * Processes and executes incoming chat request.
@@ -115,6 +112,21 @@ function extendClass_avatar(_originClass,_references) {
             }
             return this.#conversations.find(_=>_.thread?.id===_thread_id)
         }
+        on(_eventName, listener){
+            this.#emitter.on(_eventName, listener)
+        }
+        /**
+         * Processes and executes incoming category set request.
+         * @public
+         * @param {string} _category - The category to set { category, contributionId, question }.
+         */
+        setActiveCategory(_category){
+            const _proposedCategory = mGetChatCategory(_category)
+            /* evolve contribution */
+            if(_proposedCategory?.category){ // no category, no contribution
+                this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
+            }
+        }
         async setConversation(_conversation){
             if(!_conversation){
                 _conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id}, this.factory)
@@ -124,9 +136,6 @@ function extendClass_avatar(_originClass,_references) {
 // @todo: add update version
             }
             return _conversation
-        }
-        on(_eventName, listener){
-            this.#emitter.on(_eventName, listener)
         }
         /* getters/setters */
         get avatar(){

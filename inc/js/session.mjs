@@ -87,7 +87,7 @@ class MylifeMemberSession extends EventEmitter {
 			})
 			this.consents.unshift(_consent)
 		}
-		return _consent.allow(_request)	//	might benefit from putting consent into openai assistant metadata with suggestion to adhere when creating content
+		return _consent.allow()	//	might benefit from putting consent into openai assistant metadata with suggestion to adhere when creating content
 		if(!ctx.request.body) return	//	nothing to do
 		//	based on incoming request, parse out consent id and request
 		return this.factory.requestConsent(_consent_id,_request)

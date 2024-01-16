@@ -5,6 +5,7 @@ import {
     alerts,
     api_register,
     avatarListing,
+    bots,
     category,
     challenge,
     chat,
@@ -39,12 +40,15 @@ _apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.post('/register', api_register)
 /* member routes */
 _memberRouter.use(_memberValidate)
+_memberRouter.get('/:mid/bots/', bots)
+_memberRouter.get('/:mid/bots/:bid', bots)
 _memberRouter.get('/:mid/contributions/', contributions)
 _memberRouter.get('/:mid/contributions/:cid', contributions)
 _memberRouter.get('/upload', upload)
 _memberRouter.post('/category', category)
 _memberRouter.post('/', chat)
 _memberRouter.post('/upload', _upload)
+_memberRouter.post('/:mid/bots/:bid', bots)
 _memberRouter.post('/:mid/contributions/:cid', contributions)
 _memberRouter.get('/:mid/avatars', avatarListing)
 // Mount the subordinate routers along respective paths

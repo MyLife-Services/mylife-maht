@@ -1,7 +1,7 @@
 <!-- 
     different widgets appear based upon
     1. "logged in" status
-    2. available contributions
+    2. available bots
     3. Sign-up for MyLife
 -->
 <div
@@ -14,11 +14,11 @@
     <% } %>
 </div>
 <div
-    class="mylife-widget contributions"
+    class="mylife-widget bots"
     data-require-login="true"
-    id="contributions-widget"
+    id="bots-widget"
 >
-    <% include _widget-contributions %>
+    <% include _widget-bots %>
 </div>
 
 <script>
