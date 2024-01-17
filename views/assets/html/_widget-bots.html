@@ -1,21 +1,22 @@
 <div class="widget bot" id="bot-container">
     <div class="header">Bot Legion</div>
     <div class="bot-container" id="personal-biographer">
-        <div class="bot-status" id="status-personal-biographer">
-            <div class="bot-icon" id="personal-biographer-icon"></div>
-            <div class="bot-type" id="personal-biographer-type">Biographer Bot</div>
-            <div class="bot-name" id="personal-biographer-name"><span>system-one-personal-biographer</span></div>
+        <div class="bot-status" id="personal-biographer-status" name="bot-status">
+            <div class="bot-icon" id="personal-biographer-icon" name="bot-icon"></div>
+            <div class="bot-type" id="personal-biographer-type" name="bot-type">Biographer Bot</div>
+            <div class="bot-name" id="personal-biographer-name" name="bot-name"><span>system-one-personal-biographer</span></div>
             <div class="bot-options-dropdown" id="personal-biographer-options"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
         <div class="bot-options hidden">
             <!-- Bot Name -->
             <div class="input-group">
                 <label for="bot_name">Biographer Name:</label>
-                <input id="bot_name" name="bot_name" maxlength="256">
-            </div>            <!-- Date of Birth -->
+                <input id="personal-biographer-bot_name" name="bot_name" maxlength="256">
+            </div>
+            <!-- Date of Birth -->
             <div class="input-group">
                 <label for="dob">Date of Birth:</label>
-                <input type="date" id="dob" name="dob">
+                <input type="date" id="personal-biographer-dob" name="dob">
             </div>
             <!-- Stories vs. Interview -->
             <div class="input-group narrative">
@@ -23,7 +24,7 @@
                     <span class="left-label">more<br />story-telling</span>
                     <span class="right-label">more<br />interview</span>
                 </div>
-                <input type="range" id="narrative-slider" name="narrative-slider" min="0" max="100">
+                <input type="range" id="personal-biographer-narrative" name="narrative-slider" min="0" max="100">
             </div>            
             <!-- Interests/Hobbies -->
             <div class="input-group interests">
@@ -31,100 +32,100 @@
                 <div class="checkbox-group">
                     <!-- Repeat for each interest -->
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="career" value="Career">
-                        <label for="career">Work/Career</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-career" value="Career">
+                        <label for="personal-biographer-career">Work/Career</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="ideas" value="Ideas">
-                        <label for="ideas">Ideas</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-ideas" value="Ideas">
+                        <label for="personal-biographer-ideas">Ideas</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="art" value="Art">
-                        <label for="art">Art</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-art" value="Art">
+                        <label for="personal-biographer-art">Art</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="music" value="Music">
-                        <label for="music">Music</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-music" value="Music">
+                        <label for="personal-biographer-music">Music</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="health" value="Health">
-                        <label for="health">Health</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-health" value="Health">
+                        <label for="personal-biographer-health">Health</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="politics" value="Politics">
-                        <label for="politics">Politics</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-politics" value="Politics">
+                        <label for="personal-biographer-politics">Politics</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="family" value="Family">
-                        <label for="family">Family</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-family" value="Family">
+                        <label for="personal-biographer-family">Family</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="culture" value="Culture">
-                        <label for="culture">Culture</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-culture" value="Culture">
+                        <label for="personal-biographer-culture">Culture</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="relationships" value="Relationships">
-                        <label for="relationships">Relationships</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-relationships" value="Relationships">
+                        <label for="personal-biographer-relationships">Relationships</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="academics" value="Academics">
-                        <label for="academics">Academic Pursuits</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-academics" value="Academics">
+                        <label for="personal-biographer-academics">Academic Pursuits</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="sports" value="Sports">
-                        <label for="sports">Sports</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-sports" value="Sports">
+                        <label for="personal-biographer-sports">Sports</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="travel" value="Travel">
-                        <label for="travel">Travel</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-travel" value="Travel">
+                        <label for="personal-biographer-travel">Travel</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="volunteering" value="Volunteering">
-                        <label for="volunteering">Volunteering</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-volunteering" value="Volunteering">
+                        <label for="personal-biographer-volunteering">Volunteering</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="tech" value="Tech">
-                        <label for="tech">Tech</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-tech" value="Tech">
+                        <label for="personal-biographer-tech">Tech</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="food" value="Food">
-                        <label for="food">Food</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-food" value="Food">
+                        <label for="personal-biographer-food">Food</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="social-justice" value="Social Justice">
-                        <label for="social-justice">Social Justice</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-social-justice" value="Social Justice">
+                        <label for="personal-biographer-social-justice">Social Justice</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="hobbies" value="Hobbies">
-                        <label for="hobbies">Hobbies</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-hobbies" value="Hobbies">
+                        <label for="personal-biographer-hobbies">Hobbies</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="business" value="Business">
-                        <label for="business-market">Business</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-business" value="Business">
+                        <label for="personal-biographer-business-market">Business</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="entertainment" value="Entertainment">
-                        <label for="entertainment">Entertainment</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-entertainment" value="Entertainment">
+                        <label for="personal-biographer-entertainment">Entertainment</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="philosophy" value="Philosophy">
-                        <label for="philosophy">Philosophy</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-philosophy" value="Philosophy">
+                        <label for="personal-biographer-philosophy">Philosophy</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="psychology" value="Psychology">
-                        <label for="psychology">Psychology</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-psychology" value="Psychology">
+                        <label for="personal-biographer-psychology">Psychology</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="digital-self" value="Digital Self">
-                        <label for="digital-self-presence">Digital Self</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-digital-self" value="Digital Self">
+                        <label for="personal-biographer-digital-self-presence">Digital Self</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="fashion" value="Fashion">
-                        <label for="fashion">Fashion</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-fashion" value="Fashion">
+                        <label for="personal-biographer-fashion">Fashion</label>
                     </div>
                     <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="science" value="Science">
-                        <label for="science">Science</label>
+                        <input type="checkbox" name="interests" id="personal-biographer-science" value="Science">
+                        <label for="personal-biographer-science">Science</label>
                     </div>                    
                 </div>
             </div>
@@ -134,10 +135,10 @@
                     <span class="left-label">private</span>
                     <span class="right-label">public</span>
                 </div>
-                <input type="range" class="privacy-slider" id="privacy-slider" name="privacy-slider" min="0" max="100">
+                <input type="range" class="privacy-slider" id="personal-biographer-privacy" name="privacy-slider" min="0" max="100">
             </div>
     
-            <button class="button create-bot">Create</button>
+            <button class="button bot-create" id="personal-biographer-create" name="bot-create">Create</button>
         </div>
     </div>
     <div class="bot-container" id="resume">
@@ -170,7 +171,7 @@
                 <label for="privacy-toggle">Public/Private</label>
             </div>
     
-            <button class="button create-bot">Create</button>
+            <button class="button bot-create">Create</button>
         </div>
     </div>    
     <div class="bot-container" id="health">
@@ -227,7 +228,7 @@
                 <label for="privacy-toggle">Public/Private</label>
             </div>
     
-            <button class="button create-bot">Create</button>
+            <button class="button bot-create">Create</button>
         </div>
     </div>
     <div class="bot-container" id="art">
@@ -250,7 +251,7 @@
                 <label for="privacy-toggle">Public/Private</label>
             </div>
     
-            <button class="button create-bot">Create</button>
+            <button class="button bot-create">Create</button>
         </div>
     </div>
     <div class="bot-container" id="coding">
@@ -273,96 +274,7 @@
                 <label for="privacy-toggle">Public/Private</label>
             </div>
     
-            <button class="button create-bot">Create</button>
+            <button class="button bot-create">Create</button>
         </div>
     </div>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    fetchBots();
-});
-document.querySelectorAll('.bot-options').forEach(options => {
-    options.addEventListener('click', function(event) {
-        event.stopPropagation();
-    });
-});
-document.querySelectorAll('.bot-container').forEach(container => {
-    container.addEventListener('click', function() {
-        // First, close any currently open containers and rotate their dropdowns back
-        document.querySelectorAll('.bot-container').forEach(otherContainer => {
-            if (otherContainer !== this) {
-                // Close the bot options
-                var otherContent = otherContainer.querySelector('.bot-options');
-                if (otherContent) {
-                    otherContent.classList.remove('open');
-                }
-                // Rotate back the dropdowns
-                var otherDropdown = otherContainer.querySelector('.bot-options-dropdown');
-                if (otherDropdown) {
-                    otherDropdown.classList.remove('open');
-                }
-            }
-        });
-        // Then, toggle the visibility of the clicked container's content
-        var content = this.querySelector('.bot-options');
-        if (content) {
-            content.classList.toggle('open');
-        }
-        // Also toggle the dropdown rotation
-        var dropdown = this.querySelector('.bot-options-dropdown');
-        if (dropdown) {
-            dropdown.classList.toggle('open');
-        }
-    });
-});
-
-async function fetchBots(){
-    try {
-        console.log('Fetching bots')
-        const _url = window.location.origin + '/members/bots';
-        console.log(_url)
-        const response = await fetch(_url); // Replace with your actual endpoint
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const bots = await response.json();
-        // Process and display the bots here
-        updateBotContainers(bots);
-    } catch (error) {
-        console.log('Error fetching bots:', error);
-    }
-}
-function getBotStatus(_bot, _botIcon){
-    switch (true) {
-        case (_bot?.thread_id?.length>0 || false): // activated
-            console.log('getBotStatus:active', _bot, _botIcon)
-            _botIcon.classList.add('active');
-            _botIcon.classList.remove('inactive');
-            return 'active'
-        case ( _bot?.bot_id?.length>0 || false): // unactivated
-             console.log('getBotStatus:inactive', _bot, _botIcon)
-            _botIcon.classList.add('inactive');
-            _botIcon.classList.remove('active');
-            return 'inactive'
-        default:
-            console.log('getBotStatus:none', _bot?.bot_id, _botIcon)
-            _botIcon.classList.remove('active', 'inactive');
-            return 'none'
-    }
-}
-function updateBotContainers(_bots){
-	_bots.forEach(_bot => {
-        const _botContainer = document.getElementById(_bot.type);
-        if (_botContainer) {
-            const _botStatus = _botContainer.querySelector('.bot-status');
-            const _botIcon = _botStatus.querySelector('.bot-icon');
-            const _botOptions = _botContainer.querySelector('.bot-options');
-            const _botOptionsDropdown = _botStatus.querySelector('.bot-options-dropdown');
-            // based on _bot.thread_id, check if bot is active
-            _bot.status = getBotStatus(_bot, _botIcon);
-        } else {
-            // @todo: push to home-grown bots
-        }
-    });
-}
-</script>
