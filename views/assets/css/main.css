@@ -614,21 +614,7 @@ body {
 	background-color: #ff0;
 }
 .bot-name {
-    background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
-    border: 0.5px solid rgba(255, 255, 255, 0.5); /* Thin white border with 50% opacity */
-    box-shadow: inset -4px -14px 13px 2px rgba(0, 0, 0, 0.5); /* Inset shadow for top and left */
-    border-radius: 0.3em;
-    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
-    white-space: nowrap; /* Prevent text from wrapping to the next line */
-    overflow: hidden; /* Hide the overflowing part of the text */
-    display: block; /* Make it a block element */
-    min-width: 5em; /* Allow the text to shrink */
-    color: rgb(28, 255, 28);
-}
-.bot-name span {
-    display: inline-block; /* Inline block for the animation */
-    padding-left: 110%; /* Space before scrolling starts */
-    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
+	color: inherit;
 }
 .bot-options {
 	border: rgba(0, 0, 0, 0.7) 0.12em solid;
@@ -675,6 +661,7 @@ body {
 	border-radius: .2em;
 	box-shadow: inset 0.3em 0.2em .6em lightblue, 0.1em 0.2em 0.3em black;
 	box-sizing: border-box;
+	cursor: pointer;
 	display: flex;
 	flex-direction: row;
 	justify-content: stretch;
@@ -687,6 +674,27 @@ body {
 	color: aliceblue;
 	margin-right: 1em;
 	flex: 0 0 auto;
+}
+.ticker {
+	background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
+    border: 0.5px solid rgba(255, 255, 255, 0.5); /* Thin white border with 50% opacity */
+    box-shadow: inset -4px -14px 13px 2px rgba(0, 0, 0, 0.5); /* Inset shadow for top and left */
+    border-radius: 0.3em;
+    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
+    white-space: nowrap; /* Prevent text from wrapping to the next line */
+    overflow: hidden; /* Hide the overflowing part of the text */
+    display: block; /* Make it a block element */
+    min-width: 5em; /* Allow the text to shrink */
+    color: rgb(28, 255, 28);
+}
+.ticker span {
+    display: inline-block; /* Inline block for the animation */
+    padding-left: 110%; /* Space before scrolling starts */
+    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
+}
+.ticker span.no-animation {
+    animation: none;
+	padding: 0;
 }
 .mylife-widget.bots {
 	align-items: flex-start;
@@ -774,7 +782,7 @@ body {
 /* bot widget */
 .bot-container {
     /* Basic styling for the bot container */
-    cursor: pointer;
+    cursor: auto;
 }
 .bot-header {
     /* Styling for the header */

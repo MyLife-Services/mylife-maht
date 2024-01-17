@@ -1,12 +1,16 @@
 {
   "name": "mylife-maht",
   "version": "1.0.0",
-  "description": "Maht is a tensorflow.js ai model trained on MyLife corporate private and public materials to assist the Board of Directors for MyLife in governance and growth of the organization in ethical, honest, transparent and impactful ways",
+  "description": "Maht is a an openai model trained on MyLife corporate private and public materials to assist the Board of Directors for MyLife in governance and growth of the organization in ethical, honest, transparent and impactful ways",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "dotenv -e .env nodemon server.js"
+  },
+  "nodemonConfig": {
+    "ignore": ["*.env", "*.env-sample", "*.md", "*.yaml", ".gitignore", ".git/*", "views/*", "inc/js/deprecated/*", "inc/json-schemas/in-progress/*"],
+    "watch": ["server.js", "inc/js/*", "inc/json-schemas/*"]
   },
   "repository": {
     "type": "git",

@@ -4,14 +4,14 @@
         <div class="bot-status" id="personal-biographer-status" name="bot-status">
             <div class="bot-icon" id="personal-biographer-icon" name="bot-icon"></div>
             <div class="bot-type" id="personal-biographer-type" name="bot-type">Biographer Bot</div>
-            <div class="bot-name" id="personal-biographer-name" name="bot-name"><span>system-one-personal-biographer</span></div>
-            <div class="bot-options-dropdown" id="personal-biographer-options"></div><!-- drop-down caret to trigger slide-down of container below -->
+            <div class="bot-name ticker" id="personal-biographer-name" name="bot-name"><span id="personal-biographer-name-ticker">system-one-personal-biographer</span></div>
+            <div class="bot-options-dropdown" id="personal-biographer-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden">
+        <div class="bot-options hidden" id="personal-biographer-options" name="bot-options">
             <!-- Bot Name -->
-            <div class="input-group">
+            <div class="input-group" id="personal-biographer-bot_name">
                 <label for="bot_name">Biographer Name:</label>
-                <input id="personal-biographer-bot_name" name="bot_name" maxlength="256">
+                <input class="bot-name" name="bot_name" maxlength="256">
             </div>
             <!-- Date of Birth -->
             <div class="input-group">
