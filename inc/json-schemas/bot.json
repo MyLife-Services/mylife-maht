@@ -1,10 +1,25 @@
 {
     "$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/bot.json",
-	"required": ["being", "bot_id", "dna", "id", "mbr_id", "model", "provider", "purpose", "type"],
+	"required": ["allowedBeings", "allowMultiple", "being", "bot_id", "id", "instructions",  "mbr_id", "model", "provider", "purpose", "type"],
 	"type": "object",
 	"name": "Bot",
 	"properties": {
+        "allowedBeings": {
+            "default": ["core"],
+            "description": "list of beings that can use this bot-type",
+            "type": "array",
+            "items": {
+                "description": "being that can use this bot-type",
+                "enum": ["core", "object", "other"],
+                "type": "string"
+            }
+        },
+        "allowMultiple": {
+            "description": "whether or not this bot-type allows for multiple instances of itself in core",
+            "type": "boolean",
+            "default": true
+        },
 		"being": {
 			"const": "bot",
 			"description": "root constructor for bot in MyLife",
@@ -15,17 +30,17 @@
             "type": "string",
             "$comment": "bot_id comes from openai specification specifically, @todo: move into provider-schema"
         },
-        "dna": {
-            "description": "micro-instructionset for bot-creation",
-            "maxLength": 2048,
-            "type": "string",
-            "$comment": "Essentially, have a prepackaged instruction set for bot type with direct specifics for individual; if we do not have version of instructions in db for `being` then we ask for it from an LLM and tag for human review"
-        },
 		"id": {
 			"description": "uuid of bot",
 			"format": "uuid",
 			"type": "string"
 		},
+        "instructions": {
+            "description": "micro-instructionset for bot-creation",
+            "maxLength": 2048,
+            "type": "string",
+            "$comment": "Essentially, have a prepackaged instruction set for bot type with direct specifics for individual; if we do not have version of instructions in db for `being` then we ask for it from an LLM and tag for human review"
+        },
 		"mbr_id": {
 			"description": "root member id: [sysName|id]",
 			"type": "string",
@@ -56,5 +71,6 @@
             "$comment": "given together with purpose helps create tailored instructions for bot; which can be bypassed, and certainly should in localdev cases"
         }
     },
-    "additionalProperties": true
+    "additionalProperties": true,
+    "$comments": "at this juncture, additional props are critical; for example, dob is something we could ship along with any interests known, etc."
 }
