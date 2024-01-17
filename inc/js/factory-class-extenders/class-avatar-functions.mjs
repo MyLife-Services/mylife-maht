@@ -151,6 +151,9 @@ function mGetChatCategory(_category) {
     }
     return _proposedCategory
 }
+async function mHydrateBot(_avatar, _id){
+    return await _avatar.bot(_id)
+}
 /**
  * Returns all openai `run` objects for `thread`.
  * @modular
@@ -364,5 +367,6 @@ export {
     mCreateAssistant,
     mGetAssistant,
     mGetChatCategory,
+    mHydrateBot,
     mRuns,
 }

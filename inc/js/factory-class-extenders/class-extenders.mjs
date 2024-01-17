@@ -6,6 +6,7 @@ import {
     mCreateAssistant,
     mGetAssistant,
     mGetChatCategory,
+    mHydrateBot,
     mRuns,
  } from './class-avatar-functions.mjs'
 import {
@@ -26,6 +27,7 @@ import { parse } from 'path'
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
         #activeChatCategory = mGetChatCategory()
+        #bots = []
         #conversations = []
         #emitter = new EventEmitter()
         #evolver
@@ -37,10 +39,20 @@ function extendClass_avatar(_originClass,_references) {
             if(_obj.proxyBeing)
                 this.#proxyBeing = _obj.proxyBeing
             this.#factory = _factory
+            this.#bots = _obj?.bots ?? [] // array of ids
         }
         async init(){
             /* create evolver (exclude MyLife) */
             if(!this.factory.isMyLife){
+                this.#bots = await Promise.all(
+                    this.#bots.map(async _bot => {
+                        try {
+                            return await mHydrateBot(this, _bot);
+                        } catch (error) {
+                            console.error('Error hydrating bot:', error);
+                            return _bot;
+                        }
+                    }))
                 this.#evolver = new EvolutionAssistant(this)
                 mAssignEvolverListeners(this.#evolver, this)
                 /* init evolver */
@@ -148,6 +160,9 @@ function extendClass_avatar(_originClass,_references) {
         */
         get being(){    //  
             return this.#proxyBeing
+        }
+        get bots(){
+            return this.#bots
         }
         get category(){
             return this.#activeChatCategory
