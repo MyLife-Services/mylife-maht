@@ -76,7 +76,6 @@ async function avatarListing(ctx){
 	await ctx.render('avatars')	//	avatars
 }
 async function bots(ctx){
-	console.log('bots', ctx.params)
 	if(ctx.params?.bid?.length){ // specific system bot
 		ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
 	} else { // all system bots

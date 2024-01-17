@@ -24,10 +24,10 @@
                     <span class="left-label">more<br />story-telling</span>
                     <span class="right-label">more<br />interview</span>
                 </div>
-                <input type="range" id="personal-biographer-narrative" name="narrative-slider" min="0" max="100">
-            </div>            
+                <input type="range" id="personal-biographer-narrative" name="narrative-slider" min="1" max="100" value="20">
+            </div>
             <!-- Interests/Hobbies -->
-            <div class="input-group interests">
+            <div class="input-group interests" id="personal-biographer-interests">
                 <label>I enjoy talking about:</label>
                 <div class="checkbox-group">
                     <!-- Repeat for each interest -->
@@ -135,7 +135,7 @@
                     <span class="left-label">private</span>
                     <span class="right-label">public</span>
                 </div>
-                <input type="range" class="privacy-slider" id="personal-biographer-privacy" name="privacy-slider" min="0" max="100">
+                <input type="range" class="privacy-slider" id="personal-biographer-privacy" name="privacy-slider" min="0" max="100" value="0">
             </div>
     
             <button class="button bot-create" id="personal-biographer-create" name="bot-create">Create</button>
