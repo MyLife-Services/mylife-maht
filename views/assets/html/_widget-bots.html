@@ -145,20 +145,23 @@
             <div class="bot-icon" id="resume-icon"></div>
             <div class="bot-type" id="resume-type">Resume Bot</div>
             <div class="bot-name" id="resume-name"></div>
-            <div class="bot-options-dropdown" id="personal-biographer-options"></div><!-- drop-down caret to trigger slide-down of container below -->
+            <div class="bot-options-dropdown" id="resume-options"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
         <div class="bot-options hidden">
-            <!-- Interests/Hobbies -->
+            <!-- Upload -->
             <div class="input-group">
                 <label>Upload:</label>
             </div>
-            <!-- Special Instructions -->
-            <div class="input-group">
-                <label>Special Instructions</label>
-                <select name="starter-questions">
-                    <option value="1">Pretend to be me</option>
-                    <option value="2">get me jobs</option>
-                </select>
+            <!-- Special skills -->
+            <div class="input-group skills">
+                <label>Health-bot should come equipped with:</label>
+                <div class="checkbox-group">
+                    <!-- Repeat for each interest -->
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="medical" value="Medical">
+                        <label for="medical">General Medical</label>
+                    </div>
+                </div>
             </div>
             <!-- Privacy Settings -->
             <div class="input-group toggle-switch">
@@ -171,20 +174,51 @@
         </div>
     </div>    
     <div class="bot-container" id="health">
-        <div class="bot-status" id="status-health"></div>
-        <div class="bot-type">Health Bot</div>
+        <div class="bot-status" id="status-health">
+            <div class="bot-icon" id="health-icon"></div>
+            <div class="bot-type" id="health-type">Resume Bot</div>
+            <div class="bot-name" id="health-name"></div>
+            <div class="bot-options-dropdown" id="health-options"></div><!-- drop-down caret to trigger slide-down of container below -->
+        </div>
         <div class="bot-options hidden">
-            <!-- Interests/Hobbies -->
+            <!-- Uploads -->
             <div class="input-group">
                 <label>Upload Medical:</label>
             </div>
-            <!-- Special Instructions -->
-            <div class="input-group">
-                <label>Special Instructions</label>
-                <select name="starter-questions">
-                    <option value="1">Pretend to be me</option>
-                    <option value="2">get me jobs</option>
-                </select>
+            <!-- Skills -->
+            <div class="input-group medical-skills skills">
+                <label>Health-bot should come equipped with:</label>
+                <div class="checkbox-group" id="health-skills">
+                    <!-- Repeat for each skill -->
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="medical" value="Medical">
+                        <label for="medical">General Medical</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="nurse" id="nurse" value="Nurse">
+                        <label for="nurse">Nursing Care</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="rehabilitation" id="rehabilitation" value="Rehabilitation">
+                        <label for="rehabilitation">Rehabilitation</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="counsel" id="counsel" value="Counsel">
+                        <label for="counsel">Counsel</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="fitness" id="fitness" value="Fitness">
+                        <label for="fitness">Fitness</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="research" id="research" value="Research">
+                        <label for="research">Research</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="medicine" id="medicine" value="Medicine">
+                        <label for="medicine">Medicine</label>
+                    </div>
+                </div>
             </div>
             <!-- Privacy Settings -->
             <div class="input-group toggle-switch">
