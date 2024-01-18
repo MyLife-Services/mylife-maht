@@ -208,6 +208,14 @@ class AgentFactory extends EventEmitter{
 	async registerCandidate(_candidate){
 		return await this.dataservices.registerCandidate(_candidate)
 	}
+	/**
+	 * Adds or updates a bot.
+	 * @public
+	 * @param {object} _bot - bot data.
+	 */
+	async setBot(_bot){
+		return await this.dataservices.setBot(_bot)
+	}
 	//	getters/setters
 	get alerts(){ // currently only returns system alerts
 		return _alerts.system

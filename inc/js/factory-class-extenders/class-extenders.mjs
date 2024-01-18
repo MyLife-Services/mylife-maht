@@ -139,6 +139,21 @@ function extendClass_avatar(_originClass,_references) {
                 this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
             }
         }
+        /**
+         * Set bot.
+         * @param {object} _bot - Bot-data to set.
+         */
+        async setBot(_bot){
+            console.log('setBot', _bot)
+            const existingBot = this.bots.find(bot => bot.id === _bot.id)
+            if(existingBot){
+                // leave id, it will be removed in the end
+                const { mbr_id, parent_id, _object_id, type, ..._botProperties } = _bot
+                Object.assign(existingBot, _botProperties)
+                _bot = _botProperties
+            }
+            this.factory.setBot(_bot)
+        }
         async setConversation(_conversation){
             if(!_conversation){
                 _conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id}, this.factory)

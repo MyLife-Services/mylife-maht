@@ -320,13 +320,18 @@ class Dataservices {
 	 * @param {string} [_path='/'] - The path for patching, defaults to root.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patch(_id,_data,_path='/'){	//	_data is just object of key/value pairs so must be transformed (add/update only)
-		_data = Object.keys(_data)
-			.map(_key=>{
-				return { op: 'add', path: _path+_key, value: _data[_key] }
+	async patch(_id, _data, _path = '/') {
+		// @todo: limit to 10 patch operations
+		// _data is an object of key/value pairs to be transformed into patch operations
+		const patchOperations = Object.keys(_data)
+			// Filtering out keys that should not be included in the patch
+			.filter(_key => !['id', 'being', 'mbr_id'].includes(_key))
+			.map(_key => {
+				return { op: 'replace', path: _path + _key, value: _data[_key] };
 			})
-		return await this.patchItem(_id,_data)
-	}
+		// Performing the patch operation
+		return await this.patchItem(_id, patchOperations);
+	}	
 	/**
 	 * Patches an array within an item by inserting data at a specified index.
 	 * @async
@@ -373,6 +378,15 @@ class Dataservices {
 		_candidate.being = 'registration'
 		_candidate.name = `${_candidate.email.split('@')[0]}-${_candidate.email.split('@')[1]}_${_candidate.id}`
 		return await this.datamanager.registerCandidate(_candidate)
+	}
+	async setBot(_bot){
+		const _originalBot = await this.bot(_bot.id)
+		if(_originalBot){ // update
+			this.patch(_bot.id, _bot)
+		} else { // add
+			this.pushItem(_bot)
+		}
+		return _bot
 	}
 }
 //	exports

@@ -77,6 +77,12 @@ async function avatarListing(ctx){
 }
 async function bots(ctx){
 	if(ctx.params?.bid?.length){ // specific system bot
+		if(ctx.method === 'POST') { // set bot
+			const _bot = ctx.request.body
+			if(ctx.params.bid!==_bot.id) throw new Error('invalid bot data')
+			ctx.body = await ctx.state.avatar.setBot(_bot)
+			return
+		}
 		ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
 	} else { // all system bots
 		ctx.body = await ctx.state.avatar.bots
