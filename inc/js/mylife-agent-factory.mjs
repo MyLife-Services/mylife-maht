@@ -20,9 +20,20 @@ import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
 import { _ } from 'ajv'
-// modular constants
+/* modular constants */
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
-const excludeProperties = {
+const mBotInstructions = {}
+const mPartitionId = process.env.MYLIFE_SERVER_MBR_ID
+const mDataservices = await new Dataservices(mPartitionId).init()
+const mExtensionFunctions = {
+    extendClass_avatar: extendClass_avatar,
+	extendClass_consent: extendClass_consent,
+	extendClass_contribution: extendClass_contribution,
+	extendClass_conversation: extendClass_conversation,
+	extendClass_file: extendClass_file,
+	extendClass_message: extendClass_message,
+}
+const mExcludeProperties = {
 	$schema: true,
 	$id: true,
 	$defs: true,
@@ -30,7 +41,14 @@ const excludeProperties = {
 	definitions: true,
 	name: true
 }
-const path = './inc/json-schemas'
+const mGlobals = new Globals()
+const mOpenAI = new OpenAI({
+	apiKey: process.env.OPENAI_API_KEY,
+	organizationId: process.env.OPENAI_ORG_KEY,
+	timeoutMs: process.env.OPENAI_API_CHAT_TIMEOUT,
+	basePath: process.env.OPENAI_BASE_URL,
+})
+const mPath = './inc/json-schemas'
 const vmClassGenerator = vm.createContext({
 	exports: {},
 	console: console,
@@ -40,19 +58,9 @@ const vmClassGenerator = vm.createContext({
 //	customModule: customModule,
 //	eventEmitter: EventEmitter,
 })
-const dataservicesId = process.env.MYLIFE_SERVER_MBR_ID
-const oDataservices = await new Dataservices(dataservicesId).init()
-// Object of registered extension functions
+/* dependent constants */
 const _alerts = {
-	system: await oDataservices.getAlerts(), // not sure if we need other types in global modular, but feasibly historical alerts could be stored here, etc.
-}
-const oExtensionFunctions = {
-    extendClass_avatar: extendClass_avatar,
-	extendClass_consent: extendClass_consent,
-	extendClass_contribution: extendClass_contribution,
-	extendClass_conversation: extendClass_conversation,
-	extendClass_file: extendClass_file,
-	extendClass_message: extendClass_message,
+	system: await mDataservices.getAlerts(), // not sure if we need other types in global modular, but feasibly historical alerts could be stored here, etc.
 }
 const schemas = {
 	...await loadSchemas(),
@@ -61,20 +69,12 @@ const schemas = {
 	member: Member,
 	session: MylifeMemberSession
 }
-const _Globals = new Globals()
-const openai = new OpenAI({
-	apiKey: process.env.OPENAI_API_KEY,
-	organizationId: process.env.OPENAI_ORG_KEY,
-	timeoutMs: process.env.OPENAI_API_CHAT_TIMEOUT,
-	basePath: process.env.OPENAI_BASE_URL,
-})
-// config: add functionality to known prototypes
 configureSchemaPrototypes()
-//	logging/reporting
+/* logging/reporting */
 console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
 console.log(chalk.greenBright('schema-class-constructs'))
 console.log(schemas)
-// modular classes
+/* modular classes */
 class AgentFactory extends EventEmitter{
 	#dataservices
 	#exposedSchemas = getExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
@@ -82,8 +82,8 @@ class AgentFactory extends EventEmitter{
 	constructor(_mbr_id){
 		super()
 		this.#mbr_id = _mbr_id
-		if(this.mbr_id===dataservicesId)
-			this.#dataservices = oDataservices
+		if(this.mbr_id===mPartitionId)
+			this.#dataservices = mDataservices
 		else
 			console.log(chalk.blueBright('AgentFactory class constructed:'),chalk.bgBlueBright(this.mbr_id))
 	}
@@ -97,7 +97,7 @@ class AgentFactory extends EventEmitter{
 		if(!_mbr_id) // ergo, MyLife does not must not call init()
 			throw new Error('no mbr_id on Factory creation init')
 		this.#mbr_id = _mbr_id
-		if(this.mbr_id!==dataservicesId){
+		if(this.mbr_id!==mPartitionId){
 			this.#dataservices = await new Dataservices(this.mbr_id)
 				.init()
 		}
@@ -110,15 +110,29 @@ class AgentFactory extends EventEmitter{
 	 * @returns {object} - The bot.
 	 */
 	async bot(_bot_id){
-		return await this.dataservices.bot(_bot_id)
+		return await this.dataservices.getItem(_bot_id)
+	}
+	/**
+	 * Gets a member's bots.
+	 * @public
+	 * @param {string} _parent_id - The _parent_id guid of host/avatar.
+	 * @returns {array} - The member's hydrated bots.
+	 */
+	async bots(_parent_id){
+		// @todo: Implement instance for Bot class
+		return await this.dataservices.getItems(
+			'bot',
+			undefined,
+			_parent_id?.length ? [{ name: '@parent_id', value:_parent_id }] : undefined,
+		)
 	}
 	async challengeAccess(_passphrase){
 		//	always look to server to challenge Access; this may remove need to bind
-		return await oDataservices.challengeAccess(this.mbr_id,_passphrase)
+		return await mDataservices.challengeAccess(this.mbr_id,_passphrase)
 	}
 	async getAlert(_alert_id){
 		const _alert = _alerts.system.find(alert => alert.id === _alert_id)
-		return _alert ? _alert : await oDataservices.getAlert(_alert_id)
+		return _alert ? _alert : await mDataservices.getAlert(_alert_id)
 	}
 	/**
 	 * Returns all alerts of a given type, currently only _system_ alerts are available. Refreshes by definition from the database.
@@ -163,7 +177,7 @@ class AgentFactory extends EventEmitter{
 	}
 	async getMyLife(){	//	get server instance
 		//	ensure that factory mbr_id = dataservices mbr_id
-		if(this.mbr_id!==dataservicesId)
+		if(this.mbr_id!==mPartitionId)
 			throw new Error('unauthorized request')
 		return await new (schemas.server)(this).init()
 	}
@@ -176,7 +190,7 @@ class AgentFactory extends EventEmitter{
 		// default is session based around default dataservices [Maht entertains guests]
 		// **note**: conseuquences from this is that I must be careful to not abuse the modular space for sessions, and regard those as _untouchable_
 		return await new (schemas.session)(
-			( new AgentFactory(dataservicesId) ) // no need to init currently as only pertains to non-server adjustments
+			( new AgentFactory(mPartitionId) ) // no need to init currently as only pertains to non-server adjustments
 			// I assume this is where the duplication is coming but no idea why
 		).init()
 	}
@@ -189,7 +203,7 @@ class AgentFactory extends EventEmitter{
 		return new (schemas.consent)(_consent, this)
 	}
 	async getContributionQuestions(_being, _category){
-		return await oDataservices.getContributionQuestions(_being, _category)
+		return await mDataservices.getContributionQuestions(_being, _category)
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof schemas.avatar)
@@ -239,14 +253,14 @@ class AgentFactory extends EventEmitter{
 		return this.schemas.file
 	}
 	get globals(){
-		return _Globals
+		return mGlobals
 	}
 	/**
 	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
 	 * @returns {boolean}
 	*/
 	get isMyLife(){
-		return this.mbr_id===dataservicesId
+		return this.mbr_id===mPartitionId
 	}
 	get mbr_id(){
 		return this.#mbr_id
@@ -399,25 +413,25 @@ async function configureSchemaPrototypes(){	//	add required functionality as dec
 }
 function extendClass(_class) {
 	const _className = _class.name.toLowerCase()
-	if (typeof oExtensionFunctions?.[`extendClass_${_className}`]==='function'){
+	if (typeof mExtensionFunctions?.[`extendClass_${_className}`]==='function'){
 		console.log(`Extension function found for ${_className}`)
 		//	add extension decorations
-		const _references = { openai: openai }
-		_class = oExtensionFunctions[`extendClass_${_className}`](_class,_references)
+		const _references = { openai: mOpenAI }
+		_class = mExtensionFunctions[`extendClass_${_className}`](_class,_references)
 	}
 	return _class
 }
 function generateClassCode(_className,_properties,_schema){
 	//	delete known excluded _properties in source
 	for(const _prop in _properties){
-		if(_prop in excludeProperties){ delete _properties[_prop] }
+		if(_prop in mExcludeProperties){ delete _properties[_prop] }
 	}
 	// Generate class
 	let classCode = `
 // Code will run in vm and pass back class
 class ${_className} {
 // private properties
-#excludeConstructors = ${ '['+Object.keys(excludeProperties).map(key => "'" + key + "'").join(',')+']' }
+#excludeConstructors = ${ '['+Object.keys(mExcludeProperties).map(key => "'" + key + "'").join(',')+']' }
 #name
 `
 	for (const _prop in _properties) {	//	assign default values as animated from schema
@@ -487,6 +501,23 @@ function generateClassFromSchema(_schema) {
 	//	compile class and return
 	return compileClass(_className,_classCode)
 }
+/**
+ * Returns bot instruction set.
+ * @modular
+ * @private
+ * @param {AgentFactory} _factory 
+ * @param {string} _type
+ */
+async function mGetBotInstructionSet(_factory, _type){
+    return await _factory.mGetBotInstructionSet(_type)
+    if(!_type) throw new Error('bot type required')
+    if(!_g_factory_bot_instruction_sets[_type]){
+        // consult db
+        const _instructionSet = await _avatar.factory.mGetBotInstructionSet(_type)
+        _g_factory_bot_instruction_sets[_type] = _instructionSet
+    }
+    return _g_factory_bot_instruction_sets[_type]
+}
 function getExposedSchemas(_factoryBlockedSchemas){
 	const _systemBlockedSchemas = ['dataservices','session']
 	return Object.keys(schemas)
@@ -498,12 +529,12 @@ function getExposedSchemas(_factoryBlockedSchemas){
 }
 async function loadSchemas() {
 	try{
-		let _filesArray = await (fs.readdir(path))
+		let _filesArray = await (fs.readdir(mPath))
 		_filesArray = _filesArray.filter(_filename => _filename.split('.')[1] === 'json')
 		const schemasArray = await Promise.all(
 			_filesArray.map(
 				async _filename => {
-					const _file = await fs.readFile(`${path}/${_filename}`, 'utf8')
+					const _file = await fs.readFile(`${mPath}/${_filename}`, 'utf8')
 					const _fileContent = JSON.parse(_file)
 					const _classArray = [{ [_filename.split('.')[0]]: generateClassFromSchema(_fileContent) }]
 					if (_fileContent.$defs) {
@@ -536,7 +567,7 @@ function sanitizeValue(_value) {
 /* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance
 const _MyLife = await new MyLife(
-	new AgentFactory(dataservicesId)
+	new AgentFactory(mPartitionId)
 )
 	.init()
 /* exports */

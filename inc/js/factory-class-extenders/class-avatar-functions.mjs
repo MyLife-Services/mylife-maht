@@ -1,4 +1,5 @@
 import { Marked } from 'marked'
+/* modular constants */
 /* modular "public" functions */
 /**
  * Assigns evolver listeners.
@@ -106,7 +107,7 @@ async function mChat(_openai, _avatar, _chatMessage){
 async function mCreateAssistant(_openai, _avatar){
     const _core = {
         name: _avatar?.names[0]??_avatar.name,
-        model: process.env.OPENAI_MODEL_CORE,
+        model: process.env.OPENAI_MODEL_CORE_AVATAR,
         description: _avatar.description,
         instructions: _avatar.purpose,
 /* metadata does not function as expected, so need to move to instructions while in bounds, then file attachments 
@@ -124,6 +125,17 @@ async function mCreateAssistant(_openai, _avatar){
         tools: [],	//	only need tools if files
     }
     return await _openai.beta.assistants.create(_core)
+}
+async function mCreateBot(_openai, _bot){
+    // @todo: validate for fields
+    const { bot_name, description, instructions } = _bot
+    _bot = {
+        name: bot_name,
+        model: process.env.OPENAI_MODEL_CORE_BOT,
+        description: description,
+        instructions: instructions,
+    }
+    return await _openai.beta.assistants.create(_bot)
 }
 async function mGetAssistant(_openai, _assistant_id){
     return await _openai.beta.assistants.retrieve(_assistant_id)
@@ -151,8 +163,16 @@ function mGetChatCategory(_category) {
     }
     return _proposedCategory
 }
-async function mHydrateBot(_avatar, _id){
-    return await _avatar.bot(_id)
+function mGetBotDescription(_avatar, _botType){
+    // no need to call db for this, at most, create modular memory cache
+    // primarily cosmetic
+    return `I am a ${_botType} bot for ${_avatar.memberName}`
+}
+async function mGetBotInstructions(_avatar, _bot){
+    if(!_bot.type) throw new Error('bot type required')
+    const _botInstructions = await _avatar.factory.getBotInstructionSet(_bot.type)
+    // personalize _botInstructions
+    return _botInstructions
 }
 /**
  * Returns all openai `run` objects for `thread`.
@@ -198,6 +218,9 @@ function mFormatCategory(_category){
         .slice(0, 128)  //  hard cap at 128 chars
         .replace(/\s+/g, '_')
         .toLowerCase()
+}
+async function mHydrateBot(_avatar, _id){
+    return await _avatar.bot(_id)
 }
 /**
  * returns simple micro-message with category after logic mutation. 
@@ -365,7 +388,10 @@ export {
     mAssignEvolverListeners,
     mChat,
     mCreateAssistant,
+    mCreateBot,
     mGetAssistant,
+    mGetBotDescription,
+    mGetBotInstructions,
     mGetChatCategory,
     mHydrateBot,
     mRuns,

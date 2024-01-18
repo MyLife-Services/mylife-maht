@@ -4,7 +4,10 @@ import {
     mAssignEvolverListeners,
     mChat,
     mCreateAssistant,
+    mCreateBot,
     mGetAssistant,
+    mGetBotDescription,
+    mGetBotInstructions,
     mGetChatCategory,
     mHydrateBot,
     mRuns,
@@ -43,16 +46,11 @@ function extendClass_avatar(_originClass,_references) {
         }
         async init(){
             /* create evolver (exclude MyLife) */
+            // @todo: admin interface for modifying MyLife avatar and their bots
+            // @todo: this.#bots could be derived on-demand? in either case, do not bother with list in db, as all bots would must have mbr_id of Member, but _also_ have `object_id` and/or `parent_id` of this avatar, so can await pull
+            this.#bots = await this.factory.bots(this.id) // limit pull to children of this avatar
             if(!this.factory.isMyLife){
-                this.#bots = await Promise.all(
-                    this.#bots.map(async _bot => {
-                        try {
-                            return await mHydrateBot(this, _bot);
-                        } catch (error) {
-                            console.error('Error hydrating bot:', error);
-                            return _bot;
-                        }
-                    }))
+                console.log('my bots', this.#bots)
                 this.#evolver = new EvolutionAssistant(this)
                 mAssignEvolverListeners(this.#evolver, this)
                 /* init evolver */
@@ -144,13 +142,55 @@ function extendClass_avatar(_originClass,_references) {
          * @param {object} _bot - Bot-data to set.
          */
         async setBot(_bot){
-            console.log('setBot', _bot)
-            const existingBot = this.bots.find(bot => bot.id === _bot.id)
-            if(existingBot){
-                // leave id, it will be removed in the end
-                const { mbr_id, parent_id, _object_id, type, ..._botProperties } = _bot
-                Object.assign(existingBot, _botProperties)
-                _bot = _botProperties
+            /* validation */
+            if(!_bot?.mbr_id?.length)
+                _bot.mbr_id = this.mbr_id
+            else if(_bot.mbr_id!==this.mbr_id)
+                throw new Error('Bot mbr_id cannot be changed')
+            if(!_bot?.type?.length)
+                throw new Error('Bot type required')
+            /* set bot super-properties */
+            if(!_bot?.parent_id?.length)
+                _bot.parent_id = this.id // @todo: decide if preferred mechanic
+            if(!_bot?._object_id?.length)
+                _bot._object_id = this.mbr_id_id
+            /* create or update bot */
+            if(!_bot?.id){
+                _bot.id = this.factory.newGuid
+            } else {
+                const _existingBot = this.bots.find(bot => bot.id === _bot.id)
+                if(_existingBot){
+                    // @todo: validate bot_id, thread_id
+                    if(
+                            _bot.bot_id!==_existingBot.bot_id 
+                        ||  _bot.thread_id!==_existingBot.thread_id
+                    ){
+                        console.log(`ERROR: bot discrepency; bot_id: db=${bot_id}, inc=${_bot.bot_id}; thread_id: db=${thread_id}, inc=${_bot.thread_id}`)
+                        throw new Error('Bot id or thread id cannot attempt to be changed via bot')
+                    }
+                    Object.assign(_existingBot, _bot)
+                }
+            }
+            if(!_bot?.thread_id?.length){
+                // openai spec: threads are independent from assistant_id
+                // @todo: investigate: need to check valid thread_id? does it expire?
+                _bot.thread_id = (await this.setConversation()).thread_id
+            }
+            if(!_bot?.bot_id?.length){
+                // create gpt
+                const _botData = {
+                    bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
+                    description: mGetBotDescription(this, type),
+                    instructions: await mGetBotInstructions(
+                        this,
+                        type,
+                        {
+                            bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
+                        }),
+                }
+                console.log('botData',_botData)
+                abort()
+                _bot.bot_id = (await mCreateBot(this.#openai, _botData)).id
             }
             this.factory.setBot(_bot)
         }
@@ -206,8 +246,18 @@ function extendClass_avatar(_originClass,_references) {
         get emitter(){  //  allows parent to squeeze out an emitter
             return this.#emitter
         }
+        // @todo: return factory privacy
         get factory(){
             return this.#factory
+        }
+        get globals(){
+            return this.factory.globals
+        }
+        get mbr_id(){
+            return this.factory.mbr_id
+        }
+        get mbr_id_id(){
+            return this.factory.mbr_id_id
         }
         /**
          * Get uninstantiated class definition for message.
