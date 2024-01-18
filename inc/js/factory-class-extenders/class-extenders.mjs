@@ -142,57 +142,7 @@ function extendClass_avatar(_originClass,_references) {
          * @param {object} _bot - Bot-data to set.
          */
         async setBot(_bot){
-            /* validation */
-            if(!_bot?.mbr_id?.length)
-                _bot.mbr_id = this.mbr_id
-            else if(_bot.mbr_id!==this.mbr_id)
-                throw new Error('Bot mbr_id cannot be changed')
-            if(!_bot?.type?.length)
-                throw new Error('Bot type required')
-            /* set bot super-properties */
-            if(!_bot?.parent_id?.length)
-                _bot.parent_id = this.id // @todo: decide if preferred mechanic
-            if(!_bot?._object_id?.length)
-                _bot._object_id = this.mbr_id_id
-            /* create or update bot */
-            if(!_bot?.id){
-                _bot.id = this.factory.newGuid
-            } else {
-                const _existingBot = this.bots.find(bot => bot.id === _bot.id)
-                if(_existingBot){
-                    // @todo: validate bot_id, thread_id
-                    if(
-                            _bot.bot_id!==_existingBot.bot_id 
-                        ||  _bot.thread_id!==_existingBot.thread_id
-                    ){
-                        console.log(`ERROR: bot discrepency; bot_id: db=${bot_id}, inc=${_bot.bot_id}; thread_id: db=${thread_id}, inc=${_bot.thread_id}`)
-                        throw new Error('Bot id or thread id cannot attempt to be changed via bot')
-                    }
-                    Object.assign(_existingBot, _bot)
-                }
-            }
-            if(!_bot?.thread_id?.length){
-                // openai spec: threads are independent from assistant_id
-                // @todo: investigate: need to check valid thread_id? does it expire?
-                _bot.thread_id = (await this.setConversation()).thread_id
-            }
-            if(!_bot?.bot_id?.length){
-                // create gpt
-                const _botData = {
-                    bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
-                    description: mGetBotDescription(this, type),
-                    instructions: await mGetBotInstructions(
-                        this,
-                        type,
-                        {
-                            bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
-                        }),
-                }
-                console.log('botData',_botData)
-                abort()
-                _bot.bot_id = (await mCreateBot(this.#openai, _botData)).id
-            }
-            this.factory.setBot(_bot)
+            return await mCreateBot(this, _bot)
         }
         async setConversation(_conversation){
             if(!_conversation){

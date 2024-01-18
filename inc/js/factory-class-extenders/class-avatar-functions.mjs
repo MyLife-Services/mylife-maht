@@ -126,7 +126,62 @@ async function mCreateAssistant(_openai, _avatar){
     }
     return await _openai.beta.assistants.create(_core)
 }
-async function mCreateBot(_openai, _bot){
+async function mCreateBot(_avatar, _bot){
+    /* validation */
+    if(!_bot?.mbr_id?.length)
+        _bot.mbr_id = _avatar.mbr_id
+    else if(_bot.mbr_id!==_avatar.mbr_id)
+        throw new Error('Bot mbr_id cannot be changed')
+    if(!_bot?.type?.length)
+        throw new Error('Bot type required')
+    /* set bot super-properties */
+    if(!_bot?.parent_id?.length)
+        _bot.parent_id = _avatar.id // @todo: decide if preferred mechanic
+    if(!_bot?._object_id?.length)
+        _bot._object_id = _avatar.mbr_id_id
+    /* create or update bot properties */
+    if(!_bot?.id){
+        _bot.id = _avatar.factory.newGuid
+    } else {
+        const _existingBot = _avatar.bots.find(bot => bot.id === _bot.id)
+        if(_existingBot){
+            // @todo: validate bot_id, thread_id
+            if(
+                    _bot.bot_id!==_existingBot.bot_id 
+                ||  _bot.thread_id!==_existingBot.thread_id
+            ){
+                console.log(`ERROR: bot discrepency; bot_id: db=${bot_id}, inc=${_bot.bot_id}; thread_id: db=${thread_id}, inc=${_bot.thread_id}`)
+                throw new Error('Bot id or thread id cannot attempt to be changed via bot')
+            }
+            Object.assign(_existingBot, _bot)
+        }
+    }
+    if(!_bot?.thread_id?.length){
+        // openai spec: threads are independent from assistant_id
+        // @todo: investigate: need to check valid thread_id? does it expire?
+        _bot.thread_id = (await _avatar.setConversation()).thread_id
+    }
+    if(!_bot?.bot_id?.length){
+        // create gpt
+        const _botData = {
+            bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
+            description: mGetBotDescription(_avatar, type),
+            instructions: await mGetBotInstructions(
+                _avatar.factory,
+                type,
+                {
+                    bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
+                }),
+        }
+        console.log('botData',_botData)
+        abort()
+                _bot.bot_id = await (_avatar.factory.createBot(_botData)).id
+            }
+            _avatar.factory.setBot(_bot)
+
+
+
+
     // @todo: validate for fields
     const { bot_name, description, instructions } = _bot
     _bot = {
@@ -168,9 +223,9 @@ function mGetBotDescription(_avatar, _botType){
     // primarily cosmetic
     return `I am a ${_botType} bot for ${_avatar.memberName}`
 }
-async function mGetBotInstructions(_avatar, _bot){
-    if(!_bot.type) throw new Error('bot type required')
-    const _botInstructions = await _avatar.factory.getBotInstructionSet(_bot.type)
+async function mGetBotInstructions(_factory, _type){
+    if(!_type) throw new Error('bot type required to retrieve instructions')
+    const _botInstructions = await _factory.botInstructions(_type)
     // personalize _botInstructions
     return _botInstructions
 }

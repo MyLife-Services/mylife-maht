@@ -112,6 +112,13 @@ class Dataservices {
 	async bot(_bot_id){
 		return await this.getItem(_bot_id)
 	}
+	async botInstructions(_type){
+		return await this.getItems(
+			'bot_instructions',
+			undefined,
+			[{ name: '@type', value: _type }],
+		)
+	}
     /**
      * Challenges access using a member ID and passphrase.
      * @async

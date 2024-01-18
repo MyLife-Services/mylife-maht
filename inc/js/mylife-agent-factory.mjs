@@ -113,6 +113,23 @@ class AgentFactory extends EventEmitter{
 		return await this.dataservices.getItem(_bot_id)
 	}
 	/**
+	 * Returns bot instruction set.
+	 * @modular
+	 * @public
+	 * @param {AgentFactory} _factory 
+	 * @param {string} _type
+	 */
+	async botInstructions(_type){
+		if(!_type) throw new Error('bot type required')
+		if(!mBotInstructions[_type]){
+			// consult db
+			const _instructionSet = await mDataservices.botInstructions(_type)
+			if(!_instructionSet) throw new Error(`no bot instructions found for ${_type}`)
+			mBotInstructions[_type] = _instructionSet
+		}
+		return mBotInstructions[_type]
+	}
+	/**
 	 * Gets a member's bots.
 	 * @public
 	 * @param {string} _parent_id - The _parent_id guid of host/avatar.
@@ -500,23 +517,6 @@ function generateClassFromSchema(_schema) {
 	const _classCode = generateClassCode(_className,_properties,_schema)
 	//	compile class and return
 	return compileClass(_className,_classCode)
-}
-/**
- * Returns bot instruction set.
- * @modular
- * @private
- * @param {AgentFactory} _factory 
- * @param {string} _type
- */
-async function mGetBotInstructionSet(_factory, _type){
-    return await _factory.mGetBotInstructionSet(_type)
-    if(!_type) throw new Error('bot type required')
-    if(!_g_factory_bot_instruction_sets[_type]){
-        // consult db
-        const _instructionSet = await _avatar.factory.mGetBotInstructionSet(_type)
-        _g_factory_bot_instruction_sets[_type] = _instructionSet
-    }
-    return _g_factory_bot_instruction_sets[_type]
 }
 function getExposedSchemas(_factoryBlockedSchemas){
 	const _systemBlockedSchemas = ['dataservices','session']
