@@ -2,6 +2,7 @@
 import Router from 'koa-router'
 import {
     about,
+    activateBot,
     alerts,
     api_register,
     avatarListing,
@@ -54,6 +55,7 @@ _memberRouter.post('/category', category)
 _memberRouter.post('/', chat)
 _memberRouter.post('/upload', _upload)
 _memberRouter.post('/bots', bots)
+_memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('contributions/:cid', contributions)
 _memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths

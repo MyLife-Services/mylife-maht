@@ -93,7 +93,6 @@ async function mBot(_avatar, _bot){
     }
     // update Cosmos (no need async)
     _avatar.factory.setBot(_bot)
-    _bot.active = true
     return _bot
 }
 /**
@@ -107,7 +106,8 @@ async function mBot(_avatar, _bot){
 async function mChat(_avatar, _chatMessage){
     const _openai = _avatar.ai
     const _processStartTime = Date.now()
-    const _conversation = await _avatar.getConversation(_chatMessage.thread_id) // create if not exists
+    // check if active bot, if not use self
+    const _conversation = await _avatar.getConversation(_avatar.activeBot.thread_id) // create if not exists
     _conversation.addMessage(_chatMessage)
     //	@todo: assign uploaded files (optional) and push `retrieval` to tools
     await mRunTrigger(_openai, _avatar, _conversation) // run is triggered by message creation, content embedded/embedding now in _conversation in _avatar.conversations
@@ -136,6 +136,7 @@ async function mChat(_avatar, _chatMessage){
         .map(_msg=>{
             const __message = mPrepareMessage(_msg) // returns object { category, content }
             return {
+                activeBotId: _avatar.activeBotId,
                 agent: 'server',
                 category: __message.category,
                 contributions: [],

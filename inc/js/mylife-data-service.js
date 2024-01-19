@@ -396,7 +396,15 @@ class Dataservices {
 	async setBot(_bot){
 		const _originalBot = await this.bot(_bot.id)
 		if(_originalBot){ // update
-			this.patch(_bot.id, _bot)
+			const _changed = Object.keys(_bot)
+				.filter(key => !key.startsWith('_') && _bot[key] !== _originalBot[key])
+				.reduce((obj, key) => {
+					obj[key] = _bot[key]
+					return obj
+				}, {})
+			if (Object.keys(_changed).length > 0) {
+				this.patch(_bot.id, _changed)
+			}
 		} else { // add
 			this.pushItem(_bot)
 		}

@@ -25,6 +25,7 @@ import { parse } from 'path'
 //  function definitions to extend remarkable classes
 function extendClass_avatar(_originClass,_references) {
     class Avatar extends _originClass {
+        #activeBotId // id of active bot in this.#bots; empty or undefined, then this
         #activeChatCategory = mGetChatCategory()
         #bots = []
         #conversations = []
@@ -39,6 +40,7 @@ function extendClass_avatar(_originClass,_references) {
                 this.#proxyBeing = _obj.proxyBeing
             this.#factory = _factory
             this.#bots = _obj?.bots ?? [] // array of ids
+            this.#activeBotId = this.id
         }
         async init(){
             /* create evolver (exclude MyLife) */
@@ -141,16 +143,14 @@ function extendClass_avatar(_originClass,_references) {
          * Add or update bot, preparing as activated
          * @param {object} _bot - Bot-data to set.
          */
-        async setBot(_bot){
+        async setBot(_bot, _activate=true){
             _bot = await mBot(this, _bot) // returns bot object
             /* add bot to avatar */
-            const _index = this.#bots.findIndex(bot => bot.id === id)
+            const _index = this.#bots.findIndex(bot => bot.id === _bot.id)
             if (_index !== -1) this.#bots[_index] = _bot // update
             else this.#bots.push(_bot) // add
-            /* check activation */
-            if(_bot.active){
-                // switch chat destination to bot-thread/assistant
-            }
+            /* activation */
+            if(_activate) this.activeBotId = _bot.id
             return _bot
         }
         async setConversation(_conversation){
@@ -164,6 +164,31 @@ function extendClass_avatar(_originClass,_references) {
             return _conversation
         }
         /* getters/setters */
+        /**
+         * Get the active bot. If no active bot, return this as default chat engine.
+         * @public
+         * @returns {object} - The active bot.
+         */
+        get activeBot(){
+            return this.#bots.find(_bot=>_bot.id===this.#activeBotId)??this
+        }
+        /**
+         * Get the active bot id.
+         * @public
+         * @returns {string} - The active bot id.
+         */
+        get activeBotId(){
+            return this.#activeBotId
+        }
+        /**
+         * Set the active bot id. If not match found in bot list, then defaults back to this.id
+         * @public
+         * @param {string} _bot_id - The active bot id.
+         * @returns {void}
+         */
+        set activeBotId(_bot_id){
+            this.#activeBotId = !this.#bots.find(_bot=>_bot.id===_bot_id) ? this.id : _bot_id
+        }
         /**
          * Returns provider for avatar intelligence.
          * @public
@@ -238,6 +263,10 @@ function extendClass_avatar(_originClass,_references) {
          */
         get message(){
             return this.factory.message
+        }
+        get thread_id(){
+            // @todo: once avatar extends bot, keep this inside
+            return this.#conversations[0].threadId
         }
     }
     console.log('Avatar class extended')

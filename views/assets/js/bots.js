@@ -32,6 +32,7 @@ document.querySelectorAll('.bot-container').forEach(container => {
                     object_id: this.getAttribute('data-object_id'),
                     provider: this.getAttribute('data-provider'),
                     purpose: this.getAttribute('data-purpose'),
+                    thread_id: this.getAttribute('data-thread_id'),
                     type: this.getAttribute('data-type'),
                 }
                 switch(_bot.type){

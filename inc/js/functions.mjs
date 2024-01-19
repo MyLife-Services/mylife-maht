@@ -6,6 +6,19 @@ async function about(ctx){
 	ctx.state.title = `About MyLife`
 	await ctx.render('about')	//	about
 }
+/**
+ * Activate a bot for the member
+ * @modular
+ * @public
+ * @async
+ * @api no associated view
+ * @param {object} ctx Koa Context object
+ * @returns {object} Koa Context object
+ */
+function activateBot(ctx){
+	ctx.state.avatar.activeBotId = ctx.params.bid
+	ctx.body = { activeBotId: ctx.state.avatar.activeBotId }
+}
 async function alerts(ctx){
 	// @todo: put into ctx the _type_ of alert to return, system use dataservices, member use personal
 	if(ctx.params?.aid){ // specific system alert
@@ -91,6 +104,7 @@ async function bots(ctx){
 				ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
 			} else {
 				ctx.body = {
+					activeBotId: ctx.state.avatar.activeBotId,
 					bots: await ctx.state.avatar.bots,
 					mbr_id: ctx.state.avatar.mbr_id,
 				}
@@ -271,6 +285,7 @@ function mSetContributions(ctx){
 /* exports */
 export {
 	about,
+	activateBot,
 	alerts,
 	api_register,
 	avatarListing,
