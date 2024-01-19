@@ -1,6 +1,24 @@
+import { _ } from 'ajv'
 import { Marked } from 'marked'
 /* modular constants */
 /* modular "public" functions */
+/**
+ * Initializes openAI assistant and returns associated `assistant` object.
+ * @modular
+ * @public
+ * @param {OpenAI} _openai - OpenAI object
+ * @param {object} _botData - bot creation instructions.
+ * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
+ */
+async function mAI_openai(_openai, _botData){
+    const _assistantData = {
+        description: _botData.description,
+        model: _botData.model,
+        name: _botData.bot_name??_botData.name, // take friendly name before Cosmos
+        instructions: _botData.instructions,
+    }
+    return await _openai.beta.assistants.create(_assistantData)
+}
 /**
  * Assigns evolver listeners.
  * @modular
@@ -28,6 +46,7 @@ function mAssignEvolverListeners(_evolver, _avatar){
         _contribution=>{
             // send to gpt for summary
             const _responses = _contribution.responses.join('\n')
+            // @todo: wrong factory?
             const _summary = _avatar.factory.openai.completions.create({
                 model: 'gpt-3.5-turbo-instruct',
                 prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
@@ -43,23 +62,55 @@ function mAssignEvolverListeners(_evolver, _avatar){
         }
     )
 }
+async function mBot(_avatar, _bot){
+    /* validation */
+    if(!_bot?.mbr_id?.length){ _bot.mbr_id = _avatar.mbr_id }
+    else if(_bot.mbr_id!==_avatar.mbr_id){ throw new Error('Bot mbr_id cannot be changed') }
+    if(!_bot?.type?.length){ throw new Error('Bot type required') }
+    /* set required _bot super-properties */
+    if(!_bot?.parent_id?.length){ _bot.parent_id = _avatar.id } // @todo: decide if preferred mechanic
+    if(!_bot?.object_id?.length){ _bot.object_id = _avatar.id }
+    if(!_bot.id){ _bot.id = _avatar.factory.newGuid }
+    const _botSlot = _avatar.bots.findIndex(bot => bot.id === _bot.id)
+    if(_botSlot!==-1){ // update
+        const _existingBot = _avatar.bots[_botSlot]
+        if(
+                _bot.bot_id!==_existingBot.bot_id 
+            ||  _bot.thread_id!==_existingBot.thread_id
+        ){
+            console.log(`ERROR: bot discrepency; bot_id: db=${_existingBot.bot_id}, inc=${_bot.bot_id}; thread_id: db=${_existingBot.thread_id}, inc=${_bot.thread_id}`)
+            throw new Error('Bot id or thread id cannot attempt to be changed via bot')
+        }
+        _bot = {..._existingBot, ..._bot}
+    } else { // add
+        _bot = await mCreateBot(_avatar, _bot) // add in openai
+    }
+    /* create or update bot properties */
+    if(!_bot?.thread_id?.length){
+        // openai spec: threads are independent from assistant_id
+        // @todo: investigate: need to check valid thread_id? does it expire?
+        _bot.thread_id = (await _avatar.setConversation()).thread_id
+    }
+    // update Cosmos (no need async)
+    _avatar.factory.setBot(_bot)
+    _bot.active = true
+    return _bot
+}
 /**
  * Requests and returns chat response from openAI. Call session for conversation id.
  * @modular
  * @public
- * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
  * @param {string} _chatMessage - Chat message
  * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
  */
-async function mChat(_openai, _avatar, _chatMessage){
+async function mChat(_avatar, _chatMessage){
+    const _openai = _avatar.ai
     const _processStartTime = Date.now()
     const _conversation = await _avatar.getConversation(_chatMessage.thread_id) // create if not exists
     _conversation.addMessage(_chatMessage)
-    //  add metadata, optional
-    //	assign uploaded files (optional) and push `retrieval` to tools
+    //	@todo: assign uploaded files (optional) and push `retrieval` to tools
     await mRunTrigger(_openai, _avatar, _conversation) // run is triggered by message creation, content embedded/embedding now in _conversation in _avatar.conversations
-    //	get response data from thread
     const _messages = (await _conversation.getMessages_openai())
         .filter(_msg => _msg.run_id == _avatar.runs[0].id)
         .map(_msg => {
@@ -97,100 +148,34 @@ async function mChat(_openai, _avatar, _chatMessage){
         })
 }
 /**
- * Creates openAI assistant.
+ * Creates bot and returns associated `bot` object.
  * @modular
- * @public
- * @param {OpenAI} _openai - OpenAI object
+ * @private
  * @param {Avatar} _avatar - Avatar object
- * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
- */
-async function mCreateAssistant(_openai, _avatar){
-    const _core = {
-        name: _avatar?.names[0]??_avatar.name,
-        model: process.env.OPENAI_MODEL_CORE_AVATAR,
-        description: _avatar.description,
-        instructions: _avatar.purpose,
-/* metadata does not function as expected, so need to move to instructions while in bounds, then file attachments 
-        metadata: {
-            ...Object.entries(_avatar.categories)
-                .filter(([key, value]) => _avatar[value.replace(' ', '_').toLowerCase()]?.length)
-                .slice(0, 16)
-                .reduce((obj, [key, value]) => ({
-                    ...obj,
-                    [value]: _avatar[value.replace(' ', '_').toLowerCase()],
-                }), {})
-        },
+ * @param {object} _bot - Bot object
+ * @returns {object} - Bot object
 */
-        file_ids: [],	//	no files at birth, can be added later
-        tools: [],	//	only need tools if files
-    }
-    return await _openai.beta.assistants.create(_core)
-}
 async function mCreateBot(_avatar, _bot){
-    /* validation */
-    if(!_bot?.mbr_id?.length)
-        _bot.mbr_id = _avatar.mbr_id
-    else if(_bot.mbr_id!==_avatar.mbr_id)
-        throw new Error('Bot mbr_id cannot be changed')
-    if(!_bot?.type?.length)
-        throw new Error('Bot type required')
-    /* set bot super-properties */
-    if(!_bot?.parent_id?.length)
-        _bot.parent_id = _avatar.id // @todo: decide if preferred mechanic
-    if(!_bot?._object_id?.length)
-        _bot._object_id = _avatar.mbr_id_id
-    /* create or update bot properties */
-    if(!_bot?.id){
-        _bot.id = _avatar.factory.newGuid
-    } else {
-        const _existingBot = _avatar.bots.find(bot => bot.id === _bot.id)
-        if(_existingBot){
-            // @todo: validate bot_id, thread_id
-            if(
-                    _bot.bot_id!==_existingBot.bot_id 
-                ||  _bot.thread_id!==_existingBot.thread_id
-            ){
-                console.log(`ERROR: bot discrepency; bot_id: db=${bot_id}, inc=${_bot.bot_id}; thread_id: db=${thread_id}, inc=${_bot.thread_id}`)
-                throw new Error('Bot id or thread id cannot attempt to be changed via bot')
-            }
-            Object.assign(_existingBot, _bot)
-        }
-    }
-    if(!_bot?.thread_id?.length){
-        // openai spec: threads are independent from assistant_id
-        // @todo: investigate: need to check valid thread_id? does it expire?
-        _bot.thread_id = (await _avatar.setConversation()).thread_id
-    }
-    if(!_bot?.bot_id?.length){
         // create gpt
+        const _description = mGetBotDescription(_avatar, _bot.type)
+        const _instructions = await mGetBotInstructions(_avatar, _bot)
+        const _botName = _bot.bot_name??_bot.name??_bot.type
+        const _cosmosName = _bot.name??`bot_${_bot.type}_${_avatar.id}`
         const _botData = {
-            bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
-            description: mGetBotDescription(_avatar, type),
-            instructions: await mGetBotInstructions(
-                _avatar.factory,
-                type,
-                {
-                    bot_name: _bot?.bot_name??_bot?.name??`bot_${type}_${id}`,
-                }),
+            being: 'bot',
+            bot_name: _botName,
+            description: _description,
+            instructions: _instructions,
+            model: process.env.OPENAI_MODEL_CORE_BOT,
+            name: _cosmosName,
+            object_id: _avatar.id,
+            parent_id: _avatar.id,
+            provider: 'openai',
+            purpose: _description,
         }
-        console.log('botData',_botData)
-        abort()
-                _bot.bot_id = await (_avatar.factory.createBot(_botData)).id
-            }
-            _avatar.factory.setBot(_bot)
-
-
-
-
-    // @todo: validate for fields
-    const { bot_name, description, instructions } = _bot
-    _bot = {
-        name: bot_name,
-        model: process.env.OPENAI_MODEL_CORE_BOT,
-        description: description,
-        instructions: instructions,
-    }
-    return await _openai.beta.assistants.create(_bot)
+        const _openaiGPT = await mAI_openai(_avatar.ai, _botData)
+        _botData.bot_id = _openaiGPT.id
+        return { ..._bot, ..._botData }
 }
 async function mGetAssistant(_openai, _assistant_id){
     return await _openai.beta.assistants.retrieve(_assistant_id)
@@ -223,10 +208,80 @@ function mGetBotDescription(_avatar, _botType){
     // primarily cosmetic
     return `I am a ${_botType} bot for ${_avatar.memberName}`
 }
-async function mGetBotInstructions(_factory, _type){
+/**
+ * Returns MyLife-version of bot instructions.
+ * @modular
+ * @private
+ * @param {Avatar} _avatar - Avatar object
+ * @param {object} _bot - Bot object
+ * @returns {string} - flattened string of instructions
+ */
+async function mGetBotInstructions(_avatar, _bot){
+    const _type = _bot?.type
     if(!_type) throw new Error('bot type required to retrieve instructions')
-    const _botInstructions = await _factory.botInstructions(_type)
-    // personalize _botInstructions
+    let _botInstructionSet = await _avatar.factory.botInstructions(_type)
+    _botInstructionSet = _botInstructionSet?.instructions
+    if(!_botInstructionSet) throw new Error(`bot instructions not found for type: ${_type}`)
+    /* compile instructions */
+    let _botInstructions = ''
+    switch(_type){
+        case 'personal-biographer':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.purpose
+                + _botInstructionSet.prefix
+                + _botInstructionSet.general
+            break
+        default: // avatar
+            _botInstructions += _botInstructionSet.general
+            break
+    }
+    /* apply replacements */
+    _botInstructionSet.replacements = _botInstructionSet?.replacements??[]
+    _botInstructionSet.replacements.forEach(_replacement=>{
+        const _placeholderRegExp = _avatar.globals.getRegExp(_replacement.name, true)
+        const _replacementText = eval(`_avatar?.${_replacement.replacement}`)
+            ?? eval(`_bot?.${_replacement.replacement}`)
+            ?? _replacement?.default
+            ?? '`unknown-value`'
+        _botInstructions = _botInstructions.replace(_placeholderRegExp, () => _replacementText)
+    })
+    /* apply references */
+    _botInstructionSet.references = _botInstructionSet?.references??[]
+    _botInstructionSet.references.forEach(_reference=>{
+        const _referenceText = _reference.insert
+        const _replacementText = eval(`_avatar?.${_reference.value}`)
+            ?? eval(`_bot?.${_reference.value}`)
+            ?? _reference.default
+            ?? '`unknown-value`'
+        switch(_reference.method??'replace'){
+            case 'append-hard':
+                console.log('append-hard::_botInstructions', _referenceText, _replacementText)
+                const _indexHard = _botInstructions.indexOf(_referenceText)
+                if (_indexHard !== -1) {
+                _botInstructions =
+                    _botInstructions.slice(0, _indexHard + _referenceText.length)
+                    + '\n'
+                    + _replacementText
+                    + _botInstructions.slice(_indexHard + _referenceText.length)
+                }
+                break
+            case 'append-soft':
+                const _indexSoft = _botInstructions.indexOf(_referenceText);
+                if (_indexSoft !== -1) {
+                _botInstructions =
+                      _botInstructions.slice(0, _indexSoft + _referenceText.length)
+                    + ' '
+                    + _replacementText
+                    + _botInstructions.slice(_indexSoft + _referenceText.length)
+                }
+                break
+            case 'replace':
+            default:
+                _botInstructions = _botInstructions.replace(_referenceText, _replacementText)
+                break
+        }
+    })
     return _botInstructions
 }
 /**
@@ -440,10 +495,10 @@ async function mRunTrigger(_openai, _avatar, _conversation){
 }
 /* exports */
 export {
+    mAI_openai,
     mAssignEvolverListeners,
+    mBot,
     mChat,
-    mCreateAssistant,
-    mCreateBot,
     mGetAssistant,
     mGetBotDescription,
     mGetBotInstructions,

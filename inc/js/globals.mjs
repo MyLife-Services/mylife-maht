@@ -17,6 +17,11 @@ class Globals extends EventEmitter {
 	extractSysName(_mbr_id){
 		return _mbr_id.split('|')[0]
 	}
+	getRegExp(str, isGlobal = false) {
+		if (typeof str !== 'string' || !str.length)
+			throw new Error('Expected a string')
+		return new RegExp(str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), isGlobal ? 'g' : '')
+	}
 	isValidEmail(_email){
 		return emailRegex.test(_email)
 	}

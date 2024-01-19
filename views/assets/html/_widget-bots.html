@@ -56,12 +56,20 @@
                         <label for="personal-biographer-politics">Politics</label>
                     </div>
                     <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="personal-biographer-pets" value="Pets">
+                        <label for="personal-biographer-pets">Pets</label>
+                    </div>
+                    <div class="checkbox-group-item">
                         <input type="checkbox" name="interests" id="personal-biographer-family" value="Family">
                         <label for="personal-biographer-family">Family</label>
                     </div>
                     <div class="checkbox-group-item">
                         <input type="checkbox" name="interests" id="personal-biographer-culture" value="Culture">
                         <label for="personal-biographer-culture">Culture</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="personal-biographer-literature" value="Literature">
+                        <label for="personal-biographer-literature">Literature</label>
                     </div>
                     <div class="checkbox-group-item">
                         <input type="checkbox" name="interests" id="personal-biographer-relationships" value="Relationships">
@@ -142,11 +150,10 @@
         </div>
     </div>
     <div class="bot-container" id="resume">
-        <div class="bot-status" id="status-resume">
+        <div class="bot-status" id="resume-status">
             <div class="bot-icon" id="resume-icon"></div>
             <div class="bot-type" id="resume-type">Resume Bot</div>
-            <div class="bot-name" id="resume-name"></div>
-            <div class="bot-options-dropdown" id="resume-options"></div><!-- drop-down caret to trigger slide-down of container below -->
+            <div class="bot-options-dropdown" id="resume-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
         <div class="bot-options hidden">
             <!-- Upload -->
@@ -154,16 +161,6 @@
                 <label>Upload:</label>
             </div>
             <!-- Special skills -->
-            <div class="input-group skills">
-                <label>Health-bot should come equipped with:</label>
-                <div class="checkbox-group">
-                    <!-- Repeat for each interest -->
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="medical" value="Medical">
-                        <label for="medical">General Medical</label>
-                    </div>
-                </div>
-            </div>
             <!-- Privacy Settings -->
             <div class="input-group toggle-switch">
                 <label>Privacy:</label>
@@ -175,11 +172,10 @@
         </div>
     </div>    
     <div class="bot-container" id="health">
-        <div class="bot-status" id="status-health">
+        <div class="bot-status" id="health-status">
             <div class="bot-icon" id="health-icon"></div>
-            <div class="bot-type" id="health-type">Resume Bot</div>
-            <div class="bot-name" id="health-name"></div>
-            <div class="bot-options-dropdown" id="health-options"></div><!-- drop-down caret to trigger slide-down of container below -->
+            <div class="bot-type" id="health-type">Health Bot</div>
+            <div class="bot-options-dropdown" id="health-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
         <div class="bot-options hidden">
             <!-- Uploads -->
@@ -232,8 +228,11 @@
         </div>
     </div>
     <div class="bot-container" id="art">
-        <div class="bot-status" id="status-art"></div>
-        <div class="bot-type">Artwork Bot</div>
+        <div class="bot-status" id="art-status">
+            <div class="bot-icon" id="art-icon"></div>
+            <div class="bot-type" id="art-type">Health Bot</div>
+            <div class="bot-options-dropdown" id="art-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+        </div>
         <div class="bot-options hidden">
             <!-- Type of artwork -->
             <div class="input-group">
@@ -255,8 +254,11 @@
         </div>
     </div>
     <div class="bot-container" id="coding">
-        <div class="bot-status" id="status-coding"></div>
-        <div class="bot-type">Coding Assistant</div>
+        <div class="bot-status" id="coding-status">
+            <div class="bot-icon" id="coding-icon"></div>
+            <div class="bot-type" id="coding-type">Health Bot</div>
+            <div class="bot-options-dropdown" id="coding-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+        </div>
         <div class="bot-options hidden">
             <!-- Type of artwork -->
             <div class="input-group">
@@ -278,11 +280,11 @@
         </div>
     </div>
     <div class="bot-container" id="avatar">
-        <div class="bot-status" id="status-avatar">
+        <div class="bot-status" id="avatar-status">
             <div class="bot-icon" id="avatar-icon"></div>
             <div class="bot-type" id="avatar-type">My Avatar</div>
             <div class="bot-name" id="avatar-name"><%= avatar.name %></div>
-            <div class="bot-options-dropdown" id="avatar-options"></div><!-- drop-down caret to trigger slide-down of container below -->
+            <div class="bot-options-dropdown" id="avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
         <div class="bot-options hidden"></div>
     </div>

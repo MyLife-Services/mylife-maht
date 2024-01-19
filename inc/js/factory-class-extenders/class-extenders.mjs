@@ -1,16 +1,12 @@
 import { EventEmitter } from 'events'
 import { EvolutionAssistant } from '../agents/system/evolution-assistant.mjs'
 import {
+    mAI_openai,
     mAssignEvolverListeners,
+    mBot,
     mChat,
-    mCreateAssistant,
-    mCreateBot,
     mGetAssistant,
-    mGetBotDescription,
-    mGetBotInstructions,
     mGetChatCategory,
-    mHydrateBot,
-    mRuns,
  } from './class-avatar-functions.mjs'
 import {
     mGetQuestions,
@@ -80,7 +76,6 @@ function extendClass_avatar(_originClass,_references) {
                 throw new Error('No message provided in context')
             this.setActiveCategory(ctx.state.chatMessage) // also sets evolver contribution
             const _chat = await mChat(
-                this.#openai,
                 this,
                 ctx.state.chatMessage
             )
@@ -101,9 +96,14 @@ function extendClass_avatar(_originClass,_references) {
             this.#emitter.emit(_eventName, ...args)
         }
         async getAssistant(_dataservice){	//	openai `assistant` object
-            //	3 states: 1) no assistant, 2) assistant id, 3) assistant object
+            // @todo: move to modular function and refine instructions as other bots
             if(!this.assistant?.id.length) {
-                this.assistant = await mCreateAssistant(this.#openai, this)
+                this.assistant = await mAI_openai(this.#openai, {
+                    name: this.names?.[0]??this.name,
+                    model: process.env.OPENAI_MODEL_CORE_AVATAR,
+                    description: this.description,
+                    instructions: this.purpose,
+                })
                 //	save id to cosmos
                 _dataservice.patch(this.id, {
                     assistant: {
@@ -111,12 +111,12 @@ function extendClass_avatar(_originClass,_references) {
                     ,	object: 'assistant'
                     }
                 })
-            } else if(!this.assistant?.name?.length){
+            } else if(!this.assistant.name?.length){
                 this.assistant = await mGetAssistant(this.#openai, this.assistant.id)
             }
             return this.assistant
         }
-        async getConversation(_thread_id){
+        async getConversation(_thread_id){ // per bot
             if(!_thread_id){ // add new conversation
                 return await this.setConversation()
             }
@@ -138,11 +138,20 @@ function extendClass_avatar(_originClass,_references) {
             }
         }
         /**
-         * Set bot.
+         * Add or update bot, preparing as activated
          * @param {object} _bot - Bot-data to set.
          */
         async setBot(_bot){
-            return await mCreateBot(this, _bot)
+            _bot = await mBot(this, _bot) // returns bot object
+            /* add bot to avatar */
+            const _index = this.#bots.findIndex(bot => bot.id === id)
+            if (_index !== -1) this.#bots[_index] = _bot // update
+            else this.#bots.push(_bot) // add
+            /* check activation */
+            if(_bot.active){
+                // switch chat destination to bot-thread/assistant
+            }
+            return _bot
         }
         async setConversation(_conversation){
             if(!_conversation){
@@ -155,6 +164,14 @@ function extendClass_avatar(_originClass,_references) {
             return _conversation
         }
         /* getters/setters */
+        /**
+         * Returns provider for avatar intelligence.
+         * @public
+         * @returns {object} - The avatar intelligence provider, currently only openAI API GPT.
+         */
+        get ai(){
+            return this.#openai
+        }
         get avatar(){
             return this.inspect(true)
         }
@@ -208,6 +225,12 @@ function extendClass_avatar(_originClass,_references) {
         }
         get mbr_id_id(){
             return this.factory.mbr_id_id
+        }
+        get memberFirstName(){
+            return this.memberName.split(' ')[0]
+        }
+        get memberName(){
+            return this.factory.memberName
         }
         /**
          * Get uninstantiated class definition for message.

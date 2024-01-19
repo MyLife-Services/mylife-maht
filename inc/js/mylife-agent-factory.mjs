@@ -122,10 +122,9 @@ class AgentFactory extends EventEmitter{
 	async botInstructions(_type){
 		if(!_type) throw new Error('bot type required')
 		if(!mBotInstructions[_type]){
-			// consult db
 			const _instructionSet = await mDataservices.botInstructions(_type)
-			if(!_instructionSet) throw new Error(`no bot instructions found for ${_type}`)
-			mBotInstructions[_type] = _instructionSet
+			if(!_instructionSet?.length) throw new Error(`no bot instructions found for ${_type}`)
+			mBotInstructions[_type] = _instructionSet[0]
 		}
 		return mBotInstructions[_type]
 	}
@@ -287,6 +286,9 @@ class AgentFactory extends EventEmitter{
 	}
 	get mbr_name(){
 		return this.globals.extractSysName(this.mbr_id)
+	}
+	get memberName(){
+		return this.dataservices.core.names?.[0]??this.mbr_name
 	}
 	get message(){
 		return this.schemas.message

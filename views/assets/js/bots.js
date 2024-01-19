@@ -3,23 +3,24 @@ document.addEventListener('DOMContentLoaded', function() {
 })
 document.querySelectorAll('.bot-container').forEach(container => {
     container.addEventListener('click', function(_event) {
-        _event.stopPropagation();
+        _event.stopPropagation()
         // First, close any currently open containers and rotate their dropdowns back
-        // console.log('bot-container::onClick', _event.target)
         const _itemIdSnippet = _event.target.id.split('-').pop()
         switch(_itemIdSnippet){
             case 'create':
                 // validate required fields
+                /*
                 if(!this.getAttribute('data-mbr_id')?.length){
                     alert('Please login to create a bot.')
                     return
                 }
+                */
+               if(!this.getAttribute('data-bot_name')?.length){
+                   this.setAttribute('data-bot_name', `${g_dash(this.getAttribute('data-mbr_handle'))}-${this.getAttribute('data-type')}`)
+               }
                 if(!this.getAttribute('data-dob')?.length){
                     alert('Birthdate is required to calibrate your biographer.')
                     return
-                }
-                if(!this.getAttribute('data-bot_name')?.length){
-                    this.setAttribute('data-bot_name', `${g_dash(this.getAttribute('data-mbr_handle'))}-${this.getAttribute('data-type')}`)
                 }
                 // mutate bot object
                 const _bot = {
@@ -93,16 +94,14 @@ document.querySelectorAll('.bot-container').forEach(container => {
 });
 async function fetchBots(){
     try {
-        const _url = window.location.origin + '/members/bots';
-        const response = await fetch(_url); // Replace with your actual endpoint
+        const _url = window.location.origin + '/members/bots'
+        const response = await fetch(_url) // Replace with your actual endpoint
         if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+            throw new Error(`HTTP error! Status: ${response.status}`)
         }
-        const bots = await response.json();
-        // Process and display the bots here
-        updateBotContainers(bots);
+        updateBotContainers(await response.json())
     } catch (error) {
-        console.log('Error fetching bots:', error);
+        console.log('Error fetching bots:', error)
     }
 }
 function getBotStatus(_bot, _botIcon){
@@ -123,8 +122,9 @@ function getBotStatus(_bot, _botIcon){
 async function setBot(_bot){
     try {
         const _url = window.location.origin + '/members/bots/' + _bot.id
+        const _method = _bot.id?.length ? 'PUT' : 'POST'
         const response = await fetch(_url, {
-            method: 'POST',
+            method: _method,
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -143,90 +143,88 @@ async function setBot(_bot){
     return
 }
 function updateBotContainers(_bots){
-	_bots.forEach(_bot => {
-        console.log('bot-initialization', _bot)
-        const _botContainer = document.getElementById(_bot.type)
-        if (_botContainer) {
-            /* attributes */
-            _botContainer.setAttribute('data-bot_id', _bot?.bot_id??'')
-            _botContainer.setAttribute('data-bot_name', _bot?.bot_name??`${g_dash((_bot?.object_id??_bot.mbr_id).split('|')[0])}-${_type}`)
-            _botContainer.setAttribute('data-id', _bot?.id??'')
-            // _botContainer.setAttribute('data-instructions', _bot?.instructions??'')
-            _botContainer.setAttribute('data-mbr_id', _bot?.mbr_id??'')
-            _botContainer.setAttribute('data-mbr_handle', g_handle( _botContainer.getAttribute('data-mbr_id')))
-            _botContainer.setAttribute('data-object_id', g_id(_bot?.object_id??''))
-            _botContainer.setAttribute('data-provider', _bot?.provider??'')
-            _botContainer.setAttribute('data-purpose', _bot?.purpose??'')
-            _botContainer.setAttribute('data-thread_id', _bot?.thread_id??'')
-            _botContainer.setAttribute('data-type', _bot?.type??'')
-            /* constants */
-            const _type = _botContainer.getAttribute('data-type')
-            const _botStatus = _botContainer.querySelector(`#${_type}-status`)
-            const _botOptions = _botContainer.querySelector(`#${_type}-options`)
-            const _botIcon = _botStatus.querySelector(`#${_type}-icon`)
-//          const _botOptionsDropdown = _botStatus.querySelector(`#${_type}-options-dropdown`);
-            const _botName = _botOptions.querySelector(`#${_type}-bot_name`)
-            const _botNameInput = _botName.querySelector('input')
-            /* logic */
-            _bot.status = getBotStatus(_bot, _botIcon)
-            // @todo: architect mechanic for bot-specific options
-            switch(_botContainer.getAttribute('data-type')){
-                case 'personal-biographer':
-                    _botContainer.setAttribute('data-dob', _bot?.dob.split('T')[0]??'')
-                    _botNameInput.value = _botContainer.getAttribute('data-bot_name')
-                    _botContainer.querySelector(`#${_type}-dob`).value = _botContainer.getAttribute('data-dob')
-                    // Reference to the ticker
-                    const _botNameTicker = document.querySelector(`#${_type}-name-ticker`)
-                    _botNameInput.value = _botContainer.getAttribute('data-bot_name')
+    const { mbr_id, bots } = _bots
+    document.querySelectorAll('.bot-container').forEach(_botContainer => {
+        const _bot = bots.find(_bot => _bot.type === _botContainer.id)??{ status: 'none' }
+        const _type = _botContainer.id
+        const _mbrHandle = g_handle(mbr_id)
+        /* attributes */
+        _botContainer.setAttribute('data-bot_id', _bot?.bot_id??'')
+        _botContainer.setAttribute('data-bot_name', _bot?.bot_name??`${_mbrHandle}-${_type}`)
+        _botContainer.setAttribute('data-id', _bot?.id??'')
+        _botContainer.setAttribute('data-mbr_id', mbr_id)
+        _botContainer.setAttribute('data-mbr_handle', _mbrHandle)
+        _botContainer.setAttribute('data-provider', _bot?.provider??'')
+        _botContainer.setAttribute('data-purpose', _bot?.purpose??'')
+        _botContainer.setAttribute('data-thread_id', _bot?.thread_id??'')
+        _botContainer.setAttribute('data-type', _type)
+        /* constants */
+        const _botStatus = _botContainer.querySelector(`#${_type}-status`)
+        const _botOptions = _botContainer.querySelector(`#${_type}-options`)
+        const _botIcon = _botStatus.querySelector(`#${_type}-icon`)
+        const _botOptionsDropdown = _botStatus.querySelector(`#${_type}-options-dropdown`)
+        /* logic */
+        _bot.status = _bot?.status??getBotStatus(_bot, _botIcon) // fill in activation status
+        console.log('bot-initialization', _bot, _botContainer)
+        // @todo: architect mechanic for bot-specific options
+        switch(_type){
+            case 'personal-biographer':
+                const _botName = _botOptions.querySelector(`#${_type}-bot_name`)
+                const _botNameInput = _botName.querySelector('input')
+                _botNameInput.value = _botContainer.getAttribute('data-bot_name')
+                const _botNameTicker = document.querySelector(`#${_type}-name-ticker`)
+                _botNameInput.value = _botContainer.getAttribute('data-bot_name')
+                if(_botNameTicker) _botNameTicker.innerHTML = _botNameInput.value
+                _botNameInput.addEventListener('input', function() {
+                    _botContainer.setAttribute('data-bot_name', _botNameInput.value)
                     if(_botNameTicker) _botNameTicker.innerHTML = _botNameInput.value
-                    _botNameInput.addEventListener('input', function() {
-                        _botContainer.setAttribute('data-bot_name', _botNameInput.value)
-                        if(_botNameTicker) _botNameTicker.innerHTML = _botNameInput.value
-                    })
-                    const _interests = _botContainer.querySelector(`#${_type}-interests`)
-                    const _checkboxes = _interests.querySelectorAll('input[type="checkbox"]')
-                    if(_bot.interests?.length){
-                        console.log('interests', _bot.interests)
-                        _botContainer.setAttribute('data-interests', _bot.interests)
-                        const _interestsArray = _bot.interests.split('; ')
-                        _checkboxes.forEach(_checkbox => {
-                            if(_interestsArray.includes(_checkbox.value)){
-                                _checkbox.checked = true
-                            }
-                        })
-                    }
-                    /* add listeners to checkboxes */
+                })
+                _botContainer.setAttribute('data-dob', _bot?.dob?.split('T')[0]??'')
+                const _botDob = _botContainer.querySelector(`#${_type}-dob`)
+                _botDob.value = _botContainer.getAttribute('data-dob')
+                _botDob.addEventListener('input', function() {
+                    _botContainer.setAttribute('data-dob', _botDob.value)
+                    _botDob.value = _botContainer.getAttribute('data-dob')
+                })
+                const _interests = _botContainer.querySelector(`#${_type}-interests`)
+                const _checkboxes = _interests.querySelectorAll('input[type="checkbox"]')
+                if(_bot.interests?.length){
+                    _botContainer.setAttribute('data-interests', _bot.interests)
+                    const _interestsArray = _bot.interests.split('; ')
                     _checkboxes.forEach(_checkbox => {
-                        _checkbox.addEventListener('change', function() {
-                            /* concatenate checked values */
-                            const checkedValues = Array.from(_checkboxes)
-                                .filter(cb => cb.checked) // Filter only checked checkboxes
-                                .map(cb => cb.value) // Map to their values
-                                .join('; ')
-                            _botContainer.setAttribute('data-interests', checkedValues)
-                        })
+                        if(_interestsArray.includes(_checkbox.value)){
+                            _checkbox.checked = true
+                        }
                     })
-                    /* narrative slider */
-                    const _narrativeSlider = _botContainer.querySelector(`#${_type}-narrative`)
-                    _botContainer.setAttribute('data-narrative', _bot?.narrative??_narrativeSlider.value)
-                    _narrativeSlider.value = _botContainer.getAttribute('data-narrative')
-                    _narrativeSlider.addEventListener('input', function() {
-                        _botContainer.setAttribute('data-narrative', _narrativeSlider.value);
+                }
+                /* add listeners to checkboxes */
+                _checkboxes.forEach(_checkbox => {
+                    _checkbox.addEventListener('change', function() {
+                        /* concatenate checked values */
+                        const checkedValues = Array.from(_checkboxes)
+                            .filter(cb => cb.checked) // Filter only checked checkboxes
+                            .map(cb => cb.value) // Map to their values
+                            .join('; ')
+                        _botContainer.setAttribute('data-interests', checkedValues)
                     })
-                    /* privacy slider */
-                    const _privacySlider = _botContainer.querySelector(`#${_type}-privacy`)
-                    _botContainer.setAttribute('data-privacy', _bot?.privacy??_privacySlider.value)
-                    _privacySlider.value = _botContainer.getAttribute('data-privacy')
-                    console.log('privacy', _privacySlider.value, _bot.privacy)
-                    _privacySlider.addEventListener('input', function() {
-                        _botContainer.setAttribute('data-privacy', _privacySlider.value);
-                    })
-                    break
-                default:
-                    break
-            }
-        } else {
-            // @todo: push to home-grown bots
+                })
+                /* narrative slider */
+                const _narrativeSlider = _botContainer.querySelector(`#${_type}-narrative`)
+                _botContainer.setAttribute('data-narrative', _bot?.narrative??_narrativeSlider.value)
+                _narrativeSlider.value = _botContainer.getAttribute('data-narrative')
+                _narrativeSlider.addEventListener('input', function() {
+                    _botContainer.setAttribute('data-narrative', _narrativeSlider.value);
+                })
+                /* privacy slider */
+                const _privacySlider = _botContainer.querySelector(`#${_type}-privacy`)
+                _botContainer.setAttribute('data-privacy', _bot?.privacy??_privacySlider.value)
+                _privacySlider.value = _botContainer.getAttribute('data-privacy')
+                _privacySlider.addEventListener('input', function() {
+                    _botContainer.setAttribute('data-privacy', _privacySlider.value);
+                })
+                break
+            default:
+                break
         }
     })
 }

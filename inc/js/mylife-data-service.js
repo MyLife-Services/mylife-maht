@@ -109,14 +109,21 @@ class Dataservices {
 	async addAvatar(_avatar){
 		return await this.pushItem(_avatar)
 	}
+	/**
+	 * Get a bot.
+	 * @public
+	 * @param {string} _bot_id - The bot id.
+	 * @returns {object} - The bot.
+	 */
 	async bot(_bot_id){
 		return await this.getItem(_bot_id)
 	}
 	async botInstructions(_type){
 		return await this.getItems(
-			'bot_instructions',
+			'bot-instructions',
 			undefined,
 			[{ name: '@type', value: _type }],
+			'system'
 		)
 	}
     /**

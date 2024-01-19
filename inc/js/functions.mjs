@@ -76,16 +76,26 @@ async function avatarListing(ctx){
 	await ctx.render('avatars')	//	avatars
 }
 async function bots(ctx){
-	if(ctx.params?.bid?.length){ // specific system bot
-		if(ctx.method === 'POST') { // set bot
-			const _bot = ctx.request.body
+	const _bot = ctx.request.body
+	switch(ctx.method){
+		case 'POST':
+			ctx.body = await ctx.state.avatar.setBot(_bot)
+			break
+		case 'PUT':
 			if(ctx.params.bid!==_bot.id) throw new Error('invalid bot data')
 			ctx.body = await ctx.state.avatar.setBot(_bot)
-			return
-		}
-		ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
-	} else { // all system bots
-		ctx.body = await ctx.state.avatar.bots
+			break
+		case 'GET':
+		default:
+			if(ctx.params?.bid?.length){ // specific bot
+				ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
+			} else {
+				ctx.body = {
+					bots: await ctx.state.avatar.bots,
+					mbr_id: ctx.state.avatar.mbr_id,
+				}
+			}
+			break
 	}
 }
 function category(ctx){ // sets category for avatar
