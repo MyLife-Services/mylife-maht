@@ -279,10 +279,10 @@ async function submitChat(url, options) {
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea() {
-    const inputStyle = window.getComputedStyle(chatInput);
+    const inputStyle = window.getComputedStyle(_chatInput)
     const inputFont = inputStyle.font;
     const textWidth = getTextWidth(_messageInput.value, inputFont); // no trim required
-    const inputWidth = chatInput.offsetWidth;
+    const inputWidth = _chatInput.offsetWidth;
 	/* pulse */
 	clearTimeout(typingTimer);
     _agentSpinner.style.display = 'none';

@@ -190,6 +190,7 @@ function toggleBotContainerOptions(_event){
 function updateBotBar(_bots, _activeBot) {
     const _botBar = document.getElementById('bot-bar')
     const _chatContainer = document.getElementById('chat-container')
+    console.log('updateBotBar', _chatContainer)
     // add personal-avatar
     _bots.unshift({ type: 'personal-avatar' })
     _bots.forEach(_bot => {
@@ -207,10 +208,10 @@ function updateBotBar(_bots, _activeBot) {
         _botBar.appendChild(botIconImage)
     })
     _chatContainer.addEventListener('mouseover', () => {
-        botBar.style.maxHeight = '100px' // Show bot-bar on hover
+        _botBar.style.maxHeight = '100px' // Show bot-bar on hover
     })
     _chatContainer.addEventListener('mouseleave', () => {
-        botBar.style.maxHeight = '0' // Hide bot-bar when not hovered
+        _botBar.style.maxHeight = '0' // Hide bot-bar when not hovered
     })
     _botBar.style.maxHeight = '100px' // Adjust as needed
 }

@@ -1,5 +1,5 @@
 #bot-bar {
-    align-items: center;
+    align-items: flex-end;
     background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center; /* Center items horizontally */
