@@ -1,0 +1,33 @@
+#bot-bar {
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center; /* Center items horizontally */
+    overflow: visible;
+    transition: max-height 0.5s ease-in-out;
+    width: 65%; /* Set width to 65% of the parent container */
+    margin: 0 auto; /* Center the bot-bar itself */
+    transition: max-height 0.5s ease-in-out; /* Animation for the windowshade effect */
+    /* descendent styles */
+    .bot-thumb-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin-right: 1em; /* Space between containers in em */
+        position: relative;
+    }
+    .bot-thumb {
+        width: 40px;
+        height: 40px;
+        transition: transform 0.3s ease, margin 0.3s ease;
+        cursor: pointer;
+        z-index: 1;
+        margin: 0; /* Default margin */
+    }
+    .bot-thumb:hover {
+        transform: scale(1.5);
+        z-index: 2;
+        margin: 0 1em; /* Increase margin on hover in em */
+    }
+}

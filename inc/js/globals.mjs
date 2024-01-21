@@ -11,12 +11,6 @@ class Globals extends EventEmitter {
 		super()
 	}
 	//	public utility functions
-	extractId(_mbr_id){
-		return _mbr_id?.split('|')[1]??_mbr_id
-	}
-	extractSysName(_mbr_id){
-		return _mbr_id.split('|')[0]
-	}
 	getRegExp(str, isGlobal = false) {
 		if (typeof str !== 'string' || !str.length)
 			throw new Error('Expected a string')
@@ -27,6 +21,14 @@ class Globals extends EventEmitter {
 	}
 	isValidGuid(_str='') {
 		return (typeof _str === 'string' && guid_regex.test(_str))
+	}
+	sysId(_mbr_id){
+		if(!typeof _mbr_id==='string' || !_mbr_id.length || !_mbr_id.includes('|'))
+			throw new Error('expected MyLife member id string')
+		return _mbr_id.split('|')[1]
+	}
+	sysName(_mbr_id){
+		return _mbr_id.split('|')[0]
 	}
 	toString(_obj){
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')

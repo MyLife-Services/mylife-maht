@@ -107,6 +107,7 @@ async function bots(ctx){
 					activeBotId: ctx.state.avatar.activeBotId,
 					bots: await ctx.state.avatar.bots,
 					mbr_id: ctx.state.avatar.mbr_id,
+					thread_id: await ctx.state.avatar.thread_id(),
 				}
 			}
 			break
@@ -153,7 +154,7 @@ async function login(ctx){
 	if(!ctx.params?.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
 	ctx.state.mid = decodeURIComponent(ctx.params.mid)
 	ctx.state.title = ''
-	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.extractSysName(ctx.params.mid) }]:`
+	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.sysName(ctx.params.mid) }]:`
 	ctx.session.MemberSession.challenge_id = ctx.params.mid
 	await ctx.render('members-challenge')
 }
@@ -167,7 +168,7 @@ async function loginSelect(ctx){
 			(a, b) => a.localeCompare(b)
 		)
 		.map(
-			_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.extractSysName(_mbr_id) })
+			_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.sysName(_mbr_id) })
 		)
 	ctx.state.subtitle = `Select your personal Avatar to continue:`
 	await ctx.render('members-select')

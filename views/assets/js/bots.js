@@ -1,122 +1,77 @@
-document.addEventListener('DOMContentLoaded', function() {
-    fetchBots()
-})
-document.querySelectorAll('.bot-container').forEach(container => {
-    container.addEventListener('click', function(_event) {
-        _event.stopPropagation()
-        // First, close any currently open containers and rotate their dropdowns back
-        const _itemIdSnippet = _event.target.id.split('-').pop()
-        switch(_itemIdSnippet){
-            case 'create':
-                // validate required fields
-                /*
-                if(!this.getAttribute('data-mbr_id')?.length){
-                    alert('Please login to create a bot.')
-                    return
-                }
-                */
-               if(!this.getAttribute('data-bot_name')?.length){
-                   this.setAttribute('data-bot_name', `${g_dash(this.getAttribute('data-mbr_handle'))}-${this.getAttribute('data-type')}`)
-               }
-                if(!this.getAttribute('data-dob')?.length){
-                    alert('Birthdate is required to calibrate your biographer.')
-                    return
-                }
-                // mutate bot object
-                const _bot = {
-                    bot_id: this.getAttribute('data-bot_id'),
-                    bot_name: this.getAttribute('data-bot_name'),
-                    dob: this.getAttribute('data-dob'),
-                    id: this.getAttribute('data-id'),
-                    mbr_id: this.getAttribute('data-mbr_id'),
-                    object_id: this.getAttribute('data-object_id'),
-                    provider: this.getAttribute('data-provider'),
-                    purpose: this.getAttribute('data-purpose'),
-                    thread_id: this.getAttribute('data-thread_id'),
-                    type: this.getAttribute('data-type'),
-                }
-                switch(_bot.type){
-                    case 'personal-biographer':
-                        _bot.dob = this.getAttribute('data-dob')
-                        _bot.interests = this.getAttribute('data-interests')
-                        const _n = parseInt(this.getAttribute('data-narrative'), 10)
-                        _bot.narrative = isNaN(_n) ? 50 : Math.min(100, Math.max(1, _n))
-                        const _pv = parseInt(this.getAttribute('data-privacy'), 10)
-                        _bot.privacy = isNaN(_pv) ? 50 : Math.min(100, Math.max(0, _pv))
-                        break
-                    default:
-                        break
-                }
-                // post to endpoint
-                const _returnBot = setBot(_bot)
-                /* check for success and activate */
-                return
-            case 'name':
-            case 'ticker':
-                // start/stop ticker
-                // @todo: double-click to edit in place
-                const _span = this.querySelector('span')
-                    ? this.querySelector('span')
-                    : _event.target;
-                _span.classList.toggle('no-animation');
-                return
-            case 'status':
-            case 'type':
-            case 'dropdown':
-                document.querySelectorAll('.bot-container').forEach(otherContainer => {
-                    if (otherContainer !== this) {
-                        // Close the bot options
-                        var otherContent = otherContainer.querySelector('.bot-options');
-                        if (otherContent) {
-                            otherContent.classList.remove('open');
-                        }
-                        // Rotate back the dropdowns
-                        var otherDropdown = otherContainer.querySelector('.bot-options-dropdown');
-                        if (otherDropdown) {
-                            otherDropdown.classList.remove('open');
-                        }
-                    }
-                });
-                // Then, toggle the visibility of the clicked container's content
-                var content = this.querySelector('.bot-options');
-                if (content) {
-                    content.classList.toggle('open');
-                }
-                // Also toggle the dropdown rotation
-                var dropdown = this.querySelector('.bot-options-dropdown');
-                if (dropdown) {
-                    dropdown.classList.toggle('open');
-                }
-                return
-            default:
-                break
+/* bot functionality */
+/**
+ * Paints bot-greeting to column
+ * @param {string|array} _greeting - greeting message(s)
+ * @returns {void}
+ */
+function botGreeting(_greeting){
+    if(!_greeting.length) throw new Error(`No bot-greeting provided.`)
+    if(!Array.isArray(_greeting)) _greeting = [_greeting] // conert -> array
+    /* bot-greeting routine */
+    setTimeout(() => { // Set a timeout for 1 second to wait for the first line to be fully painted
+        // Set another timeout for 7.5 seconds to add the second message
+        const timerId = setTimeout(_addIntroductionMessage, 7500)
+        /* add listeners */
+        window.addEventListener('mousemove', _addIntroductionMessage, { once: true })
+        window.addEventListener('click', _addIntroductionMessage, { once: true })
+        window.addEventListener('focus', _addIntroductionMessage, { once: true })
+        window.addEventListener('scroll', _addIntroductionMessage, { once: true })
+        /* local timeout functions */
+        function _addIntroductionMessage() { // Clear the 7.5 seconds timeout if any event is triggered
+            clearTimeout(timerId)
+            _greeting.forEach(__greeting =>{
+                addMessageToColumn({ message: __greeting })
+            })
+            _cleanupListeners()
         }
-    });
-});
-async function fetchBots(){
-    try {
-        const _url = window.location.origin + '/members/bots'
-        const response = await fetch(_url) // Replace with your actual endpoint
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`)
+        /* cleanup */
+        function _cleanupListeners() {
+            window.removeEventListener('mousemove', _addIntroductionMessage)
+            window.removeEventListener('click', _addIntroductionMessage)
+            window.removeEventListener('focus', _addIntroductionMessage)
+            window.removeEventListener('scroll', _addIntroductionMessage)
         }
-        updateBotContainers(await response.json())
-    } catch (error) {
-        console.log('Error fetching bots:', error)
+    }, 1000)
+}
+function botIcon(_type){
+    switch(_type){
+        case 'personal-biographer':
+            return 'png/biographer-thumb.png'
+        default:
+            return 'png/personal-avatar-thumb.png'
     }
 }
+/**
+ * Fetch bots from server, used primarily for initialization of page, though could be requested on-demand.
+ * @returns {Promise<Array>} bots
+ */
+async function fetchBots(){
+    const _url = window.location.origin + '/members/bots'
+    const response = await fetch(_url)
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    }
+    return await response.json()
+}
+/**
+ * Get bot status based on thread and assistant population.
+ * @public
+ * @param {object} _bot
+ * @param {object} _botIcon - icon <div> element
+ * @returns {string} status
+ */
 function getBotStatus(_bot, _botIcon){
     switch (true) {
         case (_bot?.thread_id?.length>0 || false): // activated
-            _botIcon.classList.add('active');
-            _botIcon.classList.remove('inactive');
+            _botIcon.classList.add('active')
+            _botIcon.classList.remove('inactive')
             return 'active'
         case ( _bot?.bot_id?.length>0 || false): // unactivated
-            _botIcon.classList.add('inactive');
-            _botIcon.classList.remove('active');
+            _botIcon.classList.add('inactive')
+            _botIcon.classList.remove('active')
             return 'inactive'
         default:
-            _botIcon.classList.remove('active', 'inactive');
+            _botIcon.classList.remove('active', 'inactive')
             return 'none'
     }
 }
@@ -132,28 +87,144 @@ async function setBot(_bot){
             body: JSON.stringify(_bot)
         })
         if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+            throw new Error(`HTTP error! Status: ${response.status}`)
         }
-        // Process response here if needed
-        const responseData = await response.json();
-        // Handle successful response data
-        console.log('Success:', responseData);
+        const responseData = await response.json()
+        console.log('Success:', responseData)
     } catch (error) {
-        console.log('Error posting bot data:', error);
+        console.log('Error posting bot data:', error)
     }
     return
 }
-function updateBotContainers(_bots){
-    const { mbr_id, bots } = _bots
+function toggleBotContainerOptions(_event){
+    _event.stopPropagation()
+    // First, close any currently open containers and rotate their dropdowns back
+    const _itemIdSnippet = _event.target.id.split('-').pop()
+    switch(_itemIdSnippet){
+        case 'create':
+            // validate required fields
+            /*
+            if(!this.getAttribute('data-mbr_id')?.length){
+                alert('Please login to create a bot.')
+                return
+            }
+            */
+           if(!this.getAttribute('data-bot_name')?.length){
+               this.setAttribute('data-bot_name', `${g_dash(this.getAttribute('data-mbr_handle'))}-${this.getAttribute('data-type')}`)
+           }
+            if(!this.getAttribute('data-dob')?.length){
+                alert('Birthdate is required to calibrate your biographer.')
+                return
+            }
+            // mutate bot object
+            const _bot = {
+                bot_id: this.getAttribute('data-bot_id'),
+                bot_name: this.getAttribute('data-bot_name'),
+                dob: this.getAttribute('data-dob'),
+                id: this.getAttribute('data-id'),
+                mbr_id: this.getAttribute('data-mbr_id'),
+                object_id: this.getAttribute('data-object_id'),
+                provider: this.getAttribute('data-provider'),
+                purpose: this.getAttribute('data-purpose'),
+                thread_id: this.getAttribute('data-thread_id'),
+                type: this.getAttribute('data-type'),
+            }
+            switch(_bot.type){
+                case 'personal-biographer':
+                    _bot.dob = this.getAttribute('data-dob')
+                    _bot.interests = this.getAttribute('data-interests')
+                    const _n = parseInt(this.getAttribute('data-narrative'), 10)
+                    _bot.narrative = isNaN(_n) ? 50 : Math.min(100, Math.max(1, _n))
+                    const _pv = parseInt(this.getAttribute('data-privacy'), 10)
+                    _bot.privacy = isNaN(_pv) ? 50 : Math.min(100, Math.max(0, _pv))
+                    break
+                default:
+                    break
+            }
+            // post to endpoint
+            const _returnBot = setBot(_bot)
+            /* check for success and activate */
+            activateBot(_bot)
+            return
+        case 'name':
+        case 'ticker':
+            // start/stop ticker
+            // @todo: double-click to edit in place
+            const _span = this.querySelector('span')
+                ? this.querySelector('span')
+                : _event.target
+            _span.classList.toggle('no-animation')
+            return
+        case 'status':
+        case 'type':
+        case 'dropdown':
+            document.querySelectorAll('.bot-container').forEach(otherContainer => {
+                if (otherContainer !== this) {
+                    // Close the bot options
+                    var otherContent = otherContainer.querySelector('.bot-options')
+                    if (otherContent) {
+                        otherContent.classList.remove('open')
+                    }
+                    // Rotate back the dropdowns
+                    var otherDropdown = otherContainer.querySelector('.bot-options-dropdown')
+                    if (otherDropdown) {
+                        otherDropdown.classList.remove('open')
+                    }
+                }
+            });
+            // Then, toggle the visibility of the clicked container's content
+            var content = this.querySelector('.bot-options')
+            if (content) {
+                content.classList.toggle('open')
+            }
+            // Also toggle the dropdown rotation
+            var dropdown = this.querySelector('.bot-options-dropdown')
+            if (dropdown) {
+                dropdown.classList.toggle('open')
+            }
+            return
+        default:
+            break
+    }
+}    
+function updateBotBar(_bots, _activeBot) {
+    const _botBar = document.getElementById('bot-bar')
+    const _chatContainer = document.getElementById('chat-container')
+    // add personal-avatar
+    _bots.unshift({ type: 'personal-avatar' })
+    _bots.forEach(_bot => {
+        // Create a container div for each bot
+        const botContainer = document.createElement('div')
+        botContainer.classList.add('bot-thumb-container')
+        // Create an icon element for each bot container
+        const botIconImage = document.createElement('img')
+        botIconImage.classList.add('bot-thumb')
+        botIconImage.src = botIcon(_bot.type)
+        botIconImage.alt = _bot.type
+        if (_bot.id === _activeBot.id) {
+            botIconImage.classList.add('active-bot') // Apply a special class for the active bot
+        }
+        _botBar.appendChild(botIconImage)
+    })
+    _chatContainer.addEventListener('mouseover', () => {
+        botBar.style.maxHeight = '100px' // Show bot-bar on hover
+    })
+    _chatContainer.addEventListener('mouseleave', () => {
+        botBar.style.maxHeight = '0' // Hide bot-bar when not hovered
+    })
+    _botBar.style.maxHeight = '100px' // Adjust as needed
+}
+function updateBotContainers(_bots, _activeBot){
     document.querySelectorAll('.bot-container').forEach(_botContainer => {
-        const _bot = bots.find(_bot => _bot.type === _botContainer.id)??{ status: 'none' }
+        const _bot = _bots.find(_bot => _bot.type === _botContainer.id)??{ status: 'none' }
         const _type = _botContainer.id
-        const _mbrHandle = g_handle(mbr_id)
+        const _mbrHandle = g_handle(_activeBot.mbr_id)
         /* attributes */
+        _botContainer.setAttribute('data-active', _activeBot.id === _bot.id ? 'true' : 'false' )
         _botContainer.setAttribute('data-bot_id', _bot?.bot_id??'')
         _botContainer.setAttribute('data-bot_name', _bot?.bot_name??`${_mbrHandle}-${_type}`)
         _botContainer.setAttribute('data-id', _bot?.id??'')
-        _botContainer.setAttribute('data-mbr_id', mbr_id)
+        _botContainer.setAttribute('data-mbr_id', _activeBot.mbr_id)
         _botContainer.setAttribute('data-mbr_handle', _mbrHandle)
         _botContainer.setAttribute('data-provider', _bot?.provider??'')
         _botContainer.setAttribute('data-purpose', _bot?.purpose??'')
@@ -164,6 +235,8 @@ function updateBotContainers(_bots){
         const _botOptions = _botContainer.querySelector(`#${_type}-options`)
         const _botIcon = _botStatus.querySelector(`#${_type}-icon`)
         const _botOptionsDropdown = _botStatus.querySelector(`#${_type}-options-dropdown`)
+        /* container listeners */
+        _botContainer.addEventListener('click', toggleBotContainerOptions)
         /* logic */
         _bot.status = _bot?.status??getBotStatus(_bot, _botIcon) // fill in activation status
         console.log('bot-initialization', _bot, _botContainer)

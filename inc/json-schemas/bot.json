@@ -30,6 +30,12 @@
             "type": "string",
             "$comment": "bot_id comes from openai specification specifically, @todo: move into provider-schema"
         },
+        "greeting": {
+            "description": "greeting for bot",
+            "type": "string",
+            "maxLength": 255,
+            "$comment": "greeting is a short string that is used to introduce bot to user, and is used in the bot's first message to user"
+        },
 		"id": {
 			"description": "uuid of bot",
 			"format": "uuid",

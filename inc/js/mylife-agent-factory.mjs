@@ -282,10 +282,10 @@ class AgentFactory extends EventEmitter{
 		return this.#mbr_id
 	}
 	get mbr_id_id(){
-		return this.globals.extractId(this.mbr_id)
+		return this.globals.sysId(this.mbr_id)
 	}
 	get mbr_name(){
-		return this.globals.extractSysName(this.mbr_id)
+		return this.globals.sysName(this.mbr_id)
 	}
 	get memberName(){
 		return this.dataservices.core.names?.[0]??this.mbr_name

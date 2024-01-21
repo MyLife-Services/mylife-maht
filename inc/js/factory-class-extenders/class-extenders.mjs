@@ -13,6 +13,7 @@ import {
     mUpdateContribution,
 } from './class-contribution-functions.mjs'
 import {
+    mInvokeThread,
     mMessages,
     mSaveConversation,
 } from './class-conversation-functions.mjs'
@@ -119,10 +120,13 @@ function extendClass_avatar(_originClass,_references) {
             return this.assistant
         }
         async getConversation(_thread_id){ // per bot
-            if(!_thread_id){ // add new conversation
-                return await this.setConversation()
+            let _conversation = this.#conversations.find(_=>_.thread?.id===_thread_id)
+            if(!_thread_id || !_conversation){
+                _conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id}, this.factory)
+                await _conversation.init(_thread_id)
+                this.#conversations.push(_conversation)
             }
-            return this.#conversations.find(_=>_.thread?.id===_thread_id)
+            return _conversation
         }
         on(_eventName, listener){
             this.#emitter.on(_eventName, listener)
@@ -153,15 +157,13 @@ function extendClass_avatar(_originClass,_references) {
             if(_activate) this.activeBotId = _bot.id
             return _bot
         }
-        async setConversation(_conversation){
-            if(!_conversation){
-                _conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id}, this.factory)
-                await _conversation.init()
-                this.#conversations.push(_conversation)
-            } else {
-// @todo: add update version
+        async thread_id(){
+            // @todo: once avatar extends bot, keep this inside
+            if(!this.#conversations.length){
+                await this.getConversation()
             }
-            return _conversation
+            console.log('thread', this.#conversations[0]?.threadId??this.#conversations)
+            return this.#conversations[0].threadId
         }
         /* getters/setters */
         /**
@@ -170,7 +172,18 @@ function extendClass_avatar(_originClass,_references) {
          * @returns {object} - The active bot.
          */
         get activeBot(){
-            return this.#bots.find(_bot=>_bot.id===this.#activeBotId)??this
+            return this.#bots.find(_bot=>_bot.id===this.#activeBotId)??{
+                bot_id: this.id, // get from thread?
+                bot_name: this.name,
+                id: this.id,
+                mbr_id: this.mbr_id,
+                object_id: this.factory.memberName,
+                name: '',
+                description: this.description,
+                purpose: this.purpose,
+                thread_id: this.thread_id,
+                type: 'bot',
+            }
         }
         /**
          * Get the active bot id.
@@ -249,7 +262,16 @@ function extendClass_avatar(_originClass,_references) {
             return this.factory.mbr_id
         }
         get mbr_id_id(){
-            return this.factory.mbr_id_id
+            return this.mbr_sysId
+        }
+        get mbr_name(){
+            return this.mbr_sysName
+        }
+        get mbr_sysId(){
+            return this.globals.sysId(this.mbr_id)
+        }
+        get mbr_sysName(){
+            return this.globals.sysName(this.mbr_id)
         }
         get memberFirstName(){
             return this.memberName.split(' ')[0]
@@ -263,10 +285,6 @@ function extendClass_avatar(_originClass,_references) {
          */
         get message(){
             return this.factory.message
-        }
-        get thread_id(){
-            // @todo: once avatar extends bot, keep this inside
-            return this.#conversations[0].threadId
         }
     }
     console.log('Avatar class extended')
@@ -372,8 +390,8 @@ function extendClass_conversation(_originClass,_references) {
             super(_obj)
             this.#factory = _factory
         }
-        async init(){
-            this.#thread = await this.invokeThread()
+        async init(_thread_id){
+            this.#thread = await mInvokeThread(this.#openai, _thread_id)
             this.name = `conversation_${this.#factory.mbr_id}_${this.thread_id}`
         }
         //  public functions
@@ -395,9 +413,6 @@ function extendClass_conversation(_originClass,_references) {
             return ( await mMessages(this.#openai, this.thread_id) )
                 .data
         }
-        async invokeThread(){
-            return await this.#openai.beta.threads.create()
-        }    
         async save(){
             // also if this not saved yet, save to cosmos
             if(!this.isSaved){
