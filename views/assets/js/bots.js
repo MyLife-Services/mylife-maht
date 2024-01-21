@@ -33,13 +33,37 @@ function botGreeting(_greeting){
         }
     }, 1000)
 }
+/**
+ * Returns icon path string based on bot type.
+ * @param {string} _type - bot type
+ * @returns {string} icon path
+ */
 function botIcon(_type){
+    let _image = 'png/'
     switch(_type){
+        case 'art':
+            _image+='art-thumb.png'
+            break
+        case 'education':
+            _image+='education-thumb.png'
+            break
+        case 'health':
+            _image+='health-thumb.png'
+            break
         case 'personal-biographer':
             return 'png/biographer-thumb.png'
+        case 'resume':
+            _image+='resume-thumb.png'
+            break
+        case 'avatar':
+        case 'personal-avatar':
+            _image+='personal-avatar-thumb-02.png'
+            break
         default:
-            return 'png/personal-avatar-thumb.png'
+            _image+='work-thumb.png'
+            break
     }
+    return _image
 }
 /**
  * Fetch bots from server, used primarily for initialization of page, though could be requested on-demand.
@@ -189,8 +213,6 @@ function toggleBotContainerOptions(_event){
 }    
 function updateBotBar(_bots, _activeBot) {
     const _botBar = document.getElementById('bot-bar')
-    const _chatContainer = document.getElementById('chat-container')
-    console.log('updateBotBar', _chatContainer)
     // add personal-avatar
     _bots.unshift({ type: 'personal-avatar' })
     _bots.forEach(_bot => {
@@ -207,13 +229,6 @@ function updateBotBar(_bots, _activeBot) {
         }
         _botBar.appendChild(botIconImage)
     })
-    _chatContainer.addEventListener('mouseover', () => {
-        _botBar.style.maxHeight = '100px' // Show bot-bar on hover
-    })
-    _chatContainer.addEventListener('mouseleave', () => {
-        _botBar.style.maxHeight = '0' // Hide bot-bar when not hovered
-    })
-    _botBar.style.maxHeight = '100px' // Adjust as needed
 }
 function updateBotContainers(_bots, _activeBot){
     document.querySelectorAll('.bot-container').forEach(_botContainer => {
@@ -240,7 +255,6 @@ function updateBotContainers(_bots, _activeBot){
         _botContainer.addEventListener('click', toggleBotContainerOptions)
         /* logic */
         _bot.status = _bot?.status??getBotStatus(_bot, _botIcon) // fill in activation status
-        console.log('bot-initialization', _bot, _botContainer)
         // @todo: architect mechanic for bot-specific options
         switch(_type){
             case 'personal-biographer':

@@ -234,6 +234,7 @@ body {
     word-wrap: break-word; /* Ensure long words don't overflow */
 }
 .chat-container {
+	align-items: center;
 	background-image: 
         linear-gradient(
 			to bottom,
@@ -251,19 +252,21 @@ body {
     flex-direction: column;
 	height: fit-content;
 	justify-content: space-between;
-	min-height: 50vh;
     max-height: 80vh;
+	min-height: 50vh;
 	overflow: visible;
-    padding: 13px;
+    padding: 0 1em;
 	position: relative;
 }
 .chat-input {
 	align-items: center;
+	align-self: stretch;
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
 	justify-content: right;
 	margin-top: 1rem;
+	min-width: max-content;
 	overflow: visible;
 }
 .chat-input input {
@@ -310,11 +313,13 @@ body {
     width: 12px; /* Width of the scrollbar */
 }
 .chat-output {
+	align-self: stretch;
 	display: flex;
 	flex-direction: column;
 	flex-grow: 1;
 	flex-wrap: nowrap;
 	justify-content: flex-start;
+	margin-top: 0.6em;
 	max-height: fit-content;
 	overflow-x: hidden;
     overflow-y: scroll;

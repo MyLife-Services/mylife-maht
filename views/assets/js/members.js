@@ -9,12 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     _messageInput = document.getElementById('user-chat-message')
     _submitButton = document.getElementById('submit-button')
     /* page listeners */
-    _botBar.addEventListener('mouseover', () => {
-        _botBar.style.maxHeight = '100px' // Adjust as per actual height
-    })
-    _botBar.addEventListener('mouseleave', () => {
-        _botBar.style.maxHeight = '0'
-    })
     _messageInput.addEventListener('input', toggleInputTextarea);
     _submitButton.addEventListener('click', addUserMessage); // Event listener to submit message
     document.querySelectorAll('.bot-container').forEach(container => { // Event listener to toggle bot containers
