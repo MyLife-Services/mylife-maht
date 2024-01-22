@@ -100,14 +100,38 @@ class Dataservices {
 		return this.#partitionId
 	}
 	//	public functions
-    /**
-     * Proxy to add an avatar to the MyLife Cosmos database.
-     * @async
+	/**
+	 * Get a bot.
 	 * @public
-     * @param {Object} _avatar - The avatar to add.
-     */
-	async addAvatar(_avatar){
-		return await this.pushItem(_avatar)
+	 * @param {string} _bot_id - The bot id.
+	 * @returns {object} - The bot.
+	 */
+	async bot(_bot_id, _bot_type='personal-avatar'){
+		if(_bot_id){
+			return await this.getItem(_bot_id)
+		} else {
+			const _bots = await this.bots(_bot_type)
+			return _bots?.[0]
+		}
+	}
+	async bots(_bot_type){
+		if(_bot_type){
+			return await this.getItems(
+				'bot',
+				['bot_id'],
+				[{ name: '@bot_type', value: _bot_type }],
+			)
+		} else {
+			return await this.getItems('bot')
+		}
+	}
+	async botInstructions(_type){
+		return await this.getItems(
+			'bot-instructions',
+			undefined,
+			[{ name: '@type', value: _type }],
+			'system'
+		)
 	}
     /**
      * Challenges access using a member ID and passphrase.
@@ -163,30 +187,12 @@ class Dataservices {
 			'system',
 		)
 	}
-	/**
-	 * Retrieves a specific avatar by its ID.
-	 * @async
-	 * @public
-	 * @param {string} _avatar_id - The unique identifier for the avatar.
-	 * @returns {Promise<Object>} The avatar corresponding to the provided ID.
-	 */
-	async getAvatar(_avatar_id) {
-		return await this.getItem(_avatar_id)
+	async getAvatar(){
+		const _avatars = await this.getAvatars()
+		return _avatars?.[0]
 	}
-	/**
-	 * Retrieves all avatars associated with a given parent ID.
-	 * This method is typically used to get all avatar entities under a specific object.
-	 * @async
-	 * @public
-	 * @param {string} _object_id - The parent object ID to search for associated avatars.
-	 * @returns {Promise<Array>} An array of avatars associated with the given parent ID.
-	 */
-	async getAvatars(_object_id) {
-		return await this.getItems(
-			'avatar',
-			undefined,
-			[{ name: '@object_id', value: _object_id }],
-		)
+	async getAvatars(){
+		return await this.getItems('avatar')
 	}
 	/**
 	 * Retrieves the first chat associated with a given parent ID.
@@ -317,13 +323,18 @@ class Dataservices {
 	 * @param {string} [_path='/'] - The path for patching, defaults to root.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patch(_id,_data,_path='/'){	//	_data is just object of key/value pairs so must be transformed (add/update only)
-		_data = Object.keys(_data)
-			.map(_key=>{
-				return { op: 'add', path: _path+_key, value: _data[_key] }
+	async patch(_id, _data, _path = '/') {
+		// @todo: limit to 10 patch operations
+		// _data is an object of key/value pairs to be transformed into patch operations
+		const patchOperations = Object.keys(_data)
+			// Filtering out keys that should not be included in the patch
+			.filter(_key => !['id', 'being', 'mbr_id'].includes(_key))
+			.map(_key => {
+				return { op: 'replace', path: _path + _key, value: _data[_key] };
 			})
-		return await this.patchItem(_id,_data)
-	}
+		// Performing the patch operation
+		return await this.patchItem(_id, patchOperations);
+	}	
 	/**
 	 * Patches an array within an item by inserting data at a specified index.
 	 * @async
@@ -370,6 +381,23 @@ class Dataservices {
 		_candidate.being = 'registration'
 		_candidate.name = `${_candidate.email.split('@')[0]}-${_candidate.email.split('@')[1]}_${_candidate.id}`
 		return await this.datamanager.registerCandidate(_candidate)
+	}
+	async setBot(_bot){
+		const _originalBot = await this.bot(_bot.id)
+		if(_originalBot){ // update
+			const _changed = Object.keys(_bot)
+				.filter(key => !key.startsWith('_') && _bot[key] !== _originalBot[key])
+				.reduce((obj, key) => {
+					obj[key] = _bot[key]
+					return obj
+				}, {})
+			if (Object.keys(_changed).length > 0) {
+				this.patch(_bot.id, _changed)
+			}
+		} else { // add
+			this.pushItem(_bot)
+		}
+		return _bot
 	}
 }
 //	exports

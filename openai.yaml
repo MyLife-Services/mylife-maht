@@ -20,11 +20,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [registrationInterests, contact]
+              required:
+                - registrationInterests
+                - contact
               properties:
                 registrationInterests:
                   type: array
-                  default: ['information']
+                  default:
+                    - information
                   minItems: 1
                   maxItems: 4
                   items:
@@ -37,7 +40,9 @@ paths:
                   description: Interests in MyLife, defaults to information.
                 contact:
                   type: object
-                  required: [humanName, email]
+                  required:
+                    - humanName
+                    - email
                   properties:
                     avatarName:
                       type: string
@@ -81,5 +86,8 @@ paths:
                   maxLength: 1024
                   description: Additional information sent from the MyLife GPT instance.
       responses:
-        '200':
+        "200":
           description: Webhook registration data received successfully.
+post:
+  operationId: blah2
+  x-openai-isConsequential: false

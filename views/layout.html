@@ -9,6 +9,13 @@
 		integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
 		crossorigin="anonymous" referrerpolicy="no-referrer">
 	<link rel="stylesheet" href="/css/main.css">
+	<!-- head scripts -->
+	<script src="/js/global.js" defer></script>
+	<!-- do not include if not logged in -->
+<% if (!locked) { %>
+	<script src="/js/members.js"></script>
+	<script src="/js/bots.js"></script>
+<% } %>
 	<title>MyLife Member Services</title>
 </head>
 <body>
@@ -21,8 +28,6 @@
 		</div>
 		<div class="page-column-collection">
 			<div class="main-content">
-				<% if(locals?.title){ %><h1><%= title %></h1><% } %><!-- koa-ejs title inclusion -->
-				<% if(locals?.subtitle){ %><h2><%= subtitle %></h2><% } %><!-- koa-ejs subtitle inclusion -->
 				<%- body %><!-- koa-ejs body inclusion -->
 			</div>
 			<!-- Sidebar area -->

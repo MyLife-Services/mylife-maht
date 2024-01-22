@@ -70,7 +70,7 @@ class MylifeMemberSession extends EventEmitter {
 		//	check-01: url ends in valid guid /:_id
 		const _object_id = ctx.request.header?.referer?.split('/').pop()
 		//	not guid, not consent request, no blocking
-		if(!this.globals.isValidGUID(_object_id)) return true
+		if(!this.globals.isValidGuid(_object_id)) return true
 		console.log('session.requestConsent()', 'mbr_id', this.mbr_id)
 		//	ultimately, applying a disposable agent of intelligence to consent request might be the answer
 		let _consent = this.consents
@@ -87,7 +87,7 @@ class MylifeMemberSession extends EventEmitter {
 			})
 			this.consents.unshift(_consent)
 		}
-		return _consent.allow(_request)	//	might benefit from putting consent into openai assistant metadata with suggestion to adhere when creating content
+		return _consent.allow()	//	might benefit from putting consent into openai assistant metadata with suggestion to adhere when creating content
 		if(!ctx.request.body) return	//	nothing to do
 		//	based on incoming request, parse out consent id and request
 		return this.factory.requestConsent(_consent_id,_request)
@@ -140,7 +140,7 @@ class MylifeMemberSession extends EventEmitter {
 		return this.mbr_id
 	}
 	get mbr_id_id(){
-		return this.globals.extractId( this.mbr_id )
+		return this.globals.sysId( this.mbr_id )
 	}
 	get member(){
 		return this.#Member

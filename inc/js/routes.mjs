@@ -2,14 +2,18 @@
 import Router from 'koa-router'
 import {
     about,
+    activateBot,
     alerts,
     api_register,
     avatarListing,
+    bots,
     category,
     challenge,
     chat,
     contributions,
     index,
+    login,
+    loginSelect,
     members,
     privacyPolicy,
     signup,
@@ -24,9 +28,9 @@ const _apiRouter = new Router()
 _Router.get('/', index)
 _Router.get('/about', about)
 _Router.get('/alerts', alerts)
+_Router.get('/login/:mid', login)
+_Router.get('/select', loginSelect)
 _Router.get('/status', status)
-_Router.get('/members', members) // todo: this should be simpler and more precise a conductor of the request to sub-elements
-_Router.get('/members/:mid', members) // todo: dual purposed at moment, should be part of /login route or something akin
 _Router.get('/privacy-policy', privacyPolicy)
 _Router.get('/signup', status_signup)
 _Router.post('/', chat)
@@ -39,14 +43,21 @@ _apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.post('/register', api_register)
 /* member routes */
 _memberRouter.use(_memberValidate)
-_memberRouter.get('/:mid/contributions/', contributions)
-_memberRouter.get('/:mid/contributions/:cid', contributions)
+_memberRouter.get('/', members)
+_memberRouter.get('/avatars', avatarListing)
+_memberRouter.get('/avatars/:aid', avatarListing)
+_memberRouter.get('/bots', bots)
+_memberRouter.get('/bots/:bid', bots)
+_memberRouter.get('/contributions/', contributions)
+_memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/upload', upload)
 _memberRouter.post('/category', category)
 _memberRouter.post('/', chat)
 _memberRouter.post('/upload', _upload)
-_memberRouter.post('/:mid/contributions/:cid', contributions)
-_memberRouter.get('/:mid/avatars', avatarListing)
+_memberRouter.post('/bots', bots)
+_memberRouter.post('/bots/activate/:bid', activateBot)
+_memberRouter.post('contributions/:cid', contributions)
+_memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
@@ -67,8 +78,12 @@ function connectRoutes(_Menu){
  */
 async function _memberValidate(ctx, next) {
     // validation logic
-    if (ctx.state.locked) {
-        ctx.redirect('/members') // Redirect to /members if not authorized
+    if(ctx.state.locked) {
+        ctx.redirect(
+            ( ctx.params?.mid?.length??false)
+            ?   `/login/${encodeURIComponent(ctx.params.mid)}`
+            :   '/select'
+        ) // Redirect to /members if not authorized
         return
     }
     await next() // Proceed to the next middleware if authorized

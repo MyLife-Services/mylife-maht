@@ -1,0 +1,82 @@
+{
+    "$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/bot.json",
+	"required": ["allowedBeings", "allowMultiple", "being", "bot_id", "id", "instructions",  "mbr_id", "model", "provider", "purpose", "type"],
+	"type": "object",
+	"name": "Bot",
+	"properties": {
+        "allowedBeings": {
+            "default": ["core"],
+            "description": "list of beings that can use this bot-type",
+            "type": "array",
+            "items": {
+                "description": "being that can use this bot-type",
+                "enum": ["core", "object", "other"],
+                "type": "string"
+            }
+        },
+        "allowMultiple": {
+            "description": "whether or not this bot-type allows for multiple instances of itself in core",
+            "type": "boolean",
+            "default": true
+        },
+		"being": {
+			"const": "bot",
+			"description": "root constructor for bot in MyLife",
+			"type": "string"
+		},
+        "bot_id": {
+            "description": "gpt-assistant id",
+            "type": "string",
+            "$comment": "bot_id comes from openai specification specifically, @todo: move into provider-schema"
+        },
+        "greeting": {
+            "description": "greeting for bot",
+            "type": "string",
+            "maxLength": 255,
+            "$comment": "greeting is a short string that is used to introduce bot to user, and is used in the bot's first message to user"
+        },
+		"id": {
+			"description": "uuid of bot",
+			"format": "uuid",
+			"type": "string"
+		},
+        "instructions": {
+            "description": "micro-instructionset for bot-creation",
+            "maxLength": 2048,
+            "type": "string",
+            "$comment": "Essentially, have a prepackaged instruction set for bot type with direct specifics for individual; if we do not have version of instructions in db for `being` then we ask for it from an LLM and tag for human review"
+        },
+		"mbr_id": {
+			"description": "root member id: [sysName|id]",
+			"type": "string",
+			"$comment": "bots render down to member, so 1<=>1 relationship is fine, even if open in public. Meaning for moment, objects do not have bots, easy to extend, just add in object_id, require it and write code to manage"
+		},
+        "provider": {
+            "description": "provider of bot",
+            "default": "openai",
+            "enum": ["azure", "meta", "mylife", "openai", "other"],
+            "type": "string",
+            "$comment": "@todo: breakout into $def for provider, ergo we can include in ecosystem as partner, etc."
+        },
+        "purpose": {
+            "description": "short sub-type/purpose of bot-type, essentially encoded in the instructions, but what type of relationship-bot are you building? friend, lover, self, etc.",
+            "type": "string",
+            "maxLength": 64,
+            "$comment": "bot-type-type:  Oh! This is how we build sceondary personae and NOT have them inherit the sub-bot ability! hurrah!"
+        },
+        "thread_id": {
+            "description": "thread id of bot-conversation",
+            "type": "string",
+            "$comment": "thread_id comes from openai specification specifically, @todo: move into provider-schema"
+        },
+        "type": {
+            "description": "type of bot",
+            "enum": ["biographer", "companion", "identity", "relationship", "self"],
+            "type": "string",
+            "$comment": "given together with purpose helps create tailored instructions for bot; which can be bypassed, and certainly should in localdev cases"
+        }
+    },
+    "additionalProperties": true,
+    "$comments": "at this juncture, additional props are critical; for example, dob is something we could ship along with any interests known, etc."
+}

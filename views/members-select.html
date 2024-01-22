@@ -11,7 +11,7 @@ function submit(_event) {
 	_event.preventDefault();
 	const _mbr_id = document.getElementById('agent-select').value;
 	if(!_mbr_id.length) return
-	window.location = `/members/${_mbr_id}`;
+	window.location = `/login/${_mbr_id}`;
 }
 </script>
 <style>

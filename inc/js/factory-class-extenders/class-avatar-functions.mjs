@@ -1,5 +1,24 @@
+import { _ } from 'ajv'
 import { Marked } from 'marked'
+/* modular constants */
 /* modular "public" functions */
+/**
+ * Initializes openAI assistant and returns associated `assistant` object.
+ * @modular
+ * @public
+ * @param {OpenAI} _openai - OpenAI object
+ * @param {object} _botData - bot creation instructions.
+ * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
+ */
+async function mAI_openai(_openai, _botData){
+    const _assistantData = {
+        description: _botData.description,
+        model: _botData.model,
+        name: _botData.bot_name??_botData.name, // take friendly name before Cosmos
+        instructions: _botData.instructions,
+    }
+    return await _openai.beta.assistants.create(_assistantData)
+}
 /**
  * Assigns evolver listeners.
  * @modular
@@ -27,6 +46,7 @@ function mAssignEvolverListeners(_evolver, _avatar){
         _contribution=>{
             // send to gpt for summary
             const _responses = _contribution.responses.join('\n')
+            // @todo: wrong factory?
             const _summary = _avatar.factory.openai.completions.create({
                 model: 'gpt-3.5-turbo-instruct',
                 prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
@@ -37,32 +57,79 @@ function mAssignEvolverListeners(_evolver, _avatar){
             })
             // evaluate summary
             console.log('on-contribution-submitted', _summary)
-            abort
+            return
             //  if summary is good, submit to cosmos
         }
     )
 }
 /**
+ * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
+ * @param {Avatar} _avatar - Avatar object that will govern bot
+ * @param {object} _bot - Bot object
+ * @returns {object} - Bot object
+ */
+async function mBot(_avatar, _bot={type: 'personal-avatar'}){
+    /* validation */
+    if(!_bot.mbr_id?.length)
+        _bot.mbr_id = _avatar.mbr_id
+    else if(_bot.mbr_id!==_avatar.mbr_id)
+        throw new Error('Bot mbr_id cannot be changed')
+    if(!_bot.type?.length)
+        throw new Error('Bot type required')
+    /* set required _bot super-properties */
+    if(!_bot.object_id?.length)
+        _bot.object_id = _avatar.id
+    if(!_bot.id)
+        _bot.id = _avatar.factory.newGuid
+    const _botSlot = _avatar.bots.findIndex(bot => bot.id === _bot.id)
+    if(_botSlot!==-1){ // update
+        const _existingBot = _avatar.bots[_botSlot]
+        if(
+                _bot.bot_id!==_existingBot.bot_id 
+            ||  _bot.thread_id!==_existingBot.thread_id
+        ){
+            console.log(`ERROR: bot discrepency; bot_id: db=${_existingBot.bot_id}, inc=${_bot.bot_id}; thread_id: db=${_existingBot.thread_id}, inc=${_bot.thread_id}`)
+            throw new Error('Bot id or thread id cannot attempt to be changed via bot')
+        }
+        _bot = {..._existingBot, ..._bot}
+    } else { // add
+        _bot = await mCreateBot(_avatar, _bot) // add in openai
+    }
+    /* create or update bot properties */
+    if(!_bot?.thread_id?.length){
+        // openai spec: threads are independent from assistant_id
+        // @todo: investigate: need to check valid thread_id? does it expire?
+        const _conversation = await _avatar.getConversation()
+        _bot.thread_id = _conversation.thread_id
+    }
+    // update Cosmos (no need async)
+    _avatar.factory.setBot(_bot)
+    return _bot
+}
+/**
  * Requests and returns chat response from openAI. Call session for conversation id.
  * @modular
  * @public
- * @param {OpenAI} _openai - OpenAI object
  * @param {Avatar} _avatar - Avatar object
  * @param {string} _chatMessage - Chat message
  * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
  */
-async function mChat(_openai, _avatar, _chatMessage){
+async function mChat(_avatar, _chatMessage){
+    // note: Q/isMyLife PA bot does not have thread_id intentionally, as every session creates its own
+    const _openai = _avatar.ai
     const _processStartTime = Date.now()
-    const _conversation = await _avatar.getConversation(_chatMessage.thread_id) // create if not exists
+    const _bot = _avatar.activeBot
+    // check if active bot, if not use self
+    const _conversation = await _avatar.getConversation(_bot.thread_id) // create if not exists
     _conversation.addMessage(_chatMessage)
-    //  add metadata, optional
-    //	assign uploaded files (optional) and push `retrieval` to tools
+    //	@todo: assign uploaded files (optional) and push `retrieval` to tools
+    _bot.thread_id = _bot.thread_id??_conversation.thread_id
     await mRunTrigger(_openai, _avatar, _conversation) // run is triggered by message creation, content embedded/embedding now in _conversation in _avatar.conversations
-    //	get response data from thread
     const _messages = (await _conversation.getMessages_openai())
         .filter(_msg => _msg.run_id == _avatar.runs[0].id)
         .map(_msg => {
             return new (_avatar.factory.message)({
+                bot_id: _bot.id,
                 avatar_id: _avatar.id,
                 message: _msg,
                 content: _msg.content[0].text.value,
@@ -79,11 +146,12 @@ async function mChat(_openai, _avatar, _chatMessage){
     if ((_avatar?.factory!==undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE??false)) {
         _conversation.save()
     }
-    //	return response
-    return _messages
+    const _chat = _messages
         .map(_msg=>{
             const __message = mPrepareMessage(_msg) // returns object { category, content }
             return {
+                activeBotId: _bot.id,
+                activeBotAIId: _bot.bot_id,
                 agent: 'server',
                 category: __message.category,
                 contributions: [],
@@ -94,36 +162,43 @@ async function mChat(_openai, _avatar, _chatMessage){
                 type: 'chat',
             }
         })
+    //	return response
+    return _chat
+}
+function mFindBot(_avatar, _botId){
+    return _avatar.bots
+        .filter(_bot=>{ return _bot.id==_botId })
+        [0]
 }
 /**
- * Creates openAI assistant.
+ * Creates bot and returns associated `bot` object.
  * @modular
- * @public
- * @param {OpenAI} _openai - OpenAI object
+ * @private
  * @param {Avatar} _avatar - Avatar object
- * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
- */
-async function mCreateAssistant(_openai, _avatar){
-    const _core = {
-        name: _avatar?.names[0]??_avatar.name,
-        model: process.env.OPENAI_MODEL_CORE,
-        description: _avatar.description,
-        instructions: _avatar.purpose,
-/* metadata does not function as expected, so need to move to instructions while in bounds, then file attachments 
-        metadata: {
-            ...Object.entries(_avatar.categories)
-                .filter(([key, value]) => _avatar[value.replace(' ', '_').toLowerCase()]?.length)
-                .slice(0, 16)
-                .reduce((obj, [key, value]) => ({
-                    ...obj,
-                    [value]: _avatar[value.replace(' ', '_').toLowerCase()],
-                }), {})
-        },
+ * @param {object} _bot - Bot object
+ * @returns {object} - Bot object
 */
-        file_ids: [],	//	no files at birth, can be added later
-        tools: [],	//	only need tools if files
-    }
-    return await _openai.beta.assistants.create(_core)
+async function mCreateBot(_avatar, _bot){
+        // create gpt
+        const _description = _bot.description??mGetBotDescription(_avatar, _bot.type)
+        const _instructions = _bot.instructions??await mGetBotInstructions(_avatar, _bot)
+        const _botName = _bot.bot_name??_bot.name??_bot.type
+        const _cosmosName = _bot.name??`bot_${_bot.type}_${_avatar.id}`
+        const _botData = {
+            being: 'bot',
+            bot_name: _botName,
+            description: _description,
+            instructions: _instructions,
+            model: process.env.OPENAI_MODEL_CORE_BOT,
+            name: _cosmosName,
+            object_id: _avatar.id,
+            parent_id: _avatar.id,
+            provider: 'openai',
+            purpose: _description,
+        }
+        const _openaiGPT = await mAI_openai(_avatar.ai, _botData)
+        _botData.bot_id = _openaiGPT.id
+        return { ..._bot, ..._botData }
 }
 async function mGetAssistant(_openai, _assistant_id){
     return await _openai.beta.assistants.retrieve(_assistant_id)
@@ -150,6 +225,92 @@ function mGetChatCategory(_category) {
             _category?.content // test for undefined
     }
     return _proposedCategory
+}
+function mGetBotDescription(_avatar, _botType){
+    // no need to call db for this, at most, create modular memory cache
+    // primarily cosmetic
+    return `I am a ${_botType} bot for ${_avatar.memberName}`
+}
+/**
+ * Returns MyLife-version of bot instructions.
+ * @modular
+ * @private
+ * @param {Avatar} _avatar - Avatar object
+ * @param {object} _bot - Bot object
+ * @returns {string} - flattened string of instructions
+ */
+async function mGetBotInstructions(_avatar, _bot){
+    const _type = _bot?.type
+    if(!_type) throw new Error('bot type required to retrieve instructions')
+    let _botInstructionSet = await _avatar.factory.botInstructions(_type)
+    _botInstructionSet = _botInstructionSet?.instructions
+    if(!_botInstructionSet) throw new Error(`bot instructions not found for type: ${_type}`)
+    /* compile instructions */
+    let _botInstructions = ''
+    switch(_type){
+        case 'personal-avatar':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.general
+            break
+        case 'personal-biographer':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.purpose
+                + _botInstructionSet.prefix
+                + _botInstructionSet.general
+            break
+        default: // avatar
+            _botInstructions += _botInstructionSet.general
+            break
+    }
+    /* apply replacements */
+    _botInstructionSet.replacements = _botInstructionSet?.replacements??[]
+    _botInstructionSet.replacements.forEach(_replacement=>{
+        const _placeholderRegExp = _avatar.globals.getRegExp(_replacement.name, true)
+        const _replacementText = eval(`_avatar?.${_replacement.replacement}`)
+            ?? eval(`_bot?.${_replacement.replacement}`)
+            ?? _replacement?.default
+            ?? '`unknown-value`'
+        _botInstructions = _botInstructions.replace(_placeholderRegExp, () => _replacementText)
+    })
+    /* apply references */
+    _botInstructionSet.references = _botInstructionSet?.references??[]
+    _botInstructionSet.references.forEach(_reference=>{
+        const _referenceText = _reference.insert
+        const _replacementText = eval(`_avatar?.${_reference.value}`)
+            ?? eval(`_bot?.${_reference.value}`)
+            ?? _reference.default
+            ?? '`unknown-value`'
+        switch(_reference.method??'replace'){
+            case 'append-hard':
+                console.log('append-hard::_botInstructions', _referenceText, _replacementText)
+                const _indexHard = _botInstructions.indexOf(_referenceText)
+                if (_indexHard !== -1) {
+                _botInstructions =
+                    _botInstructions.slice(0, _indexHard + _referenceText.length)
+                    + '\n'
+                    + _replacementText
+                    + _botInstructions.slice(_indexHard + _referenceText.length)
+                }
+                break
+            case 'append-soft':
+                const _indexSoft = _botInstructions.indexOf(_referenceText);
+                if (_indexSoft !== -1) {
+                _botInstructions =
+                      _botInstructions.slice(0, _indexSoft + _referenceText.length)
+                    + ' '
+                    + _replacementText
+                    + _botInstructions.slice(_indexSoft + _referenceText.length)
+                }
+                break
+            case 'replace':
+            default:
+                _botInstructions = _botInstructions.replace(_referenceText, _replacementText)
+                break
+        }
+    })
+    return _botInstructions
 }
 /**
  * Returns all openai `run` objects for `thread`.
@@ -196,6 +357,9 @@ function mFormatCategory(_category){
         .replace(/\s+/g, '_')
         .toLowerCase()
 }
+async function mHydrateBot(_avatar, _id){
+    return await _avatar.bot(_id)
+}
 /**
  * returns simple micro-message with category after logic mutation. 
  * Currently tuned for openAI gpt-assistant responses.
@@ -229,30 +393,28 @@ function mPrepareMessage(_msg){
  * @modular
  * @private
  * @param {OpenAI} _openai - OpenAI object
- * @param {Avatar} _avatar - Avatar object
- * @param {string} _thread_id - Thread id
+ * @param {object} _run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mRunFinish(_openai, _avatar, _thread_id){
-    const _run_id = _avatar.runs[0].id // runs[0] just populated, concretize before async
+async function mRunFinish(_openai, _run){
     return new Promise((resolve, reject) => {
         const checkInterval = setInterval(async () => {
             try {
-                const status = await mRunStatus(_openai, _avatar, _run_id, _thread_id)
+                const status = await mRunStatus(_openai, _run)
                 if (status) {
                     clearInterval(checkInterval)
-                    resolve('Run completed')
+                    resolve(_run)
                 }
             } catch (error) {
                 clearInterval(checkInterval)
                 reject(error)
             }
-        }, process.env?.OPENAI_API_CHAT_RESPONSE_PING_INTERVAL??890)
+        }, process.env.OPENAI_API_CHAT_RESPONSE_PING_INTERVAL??890)
         // Set a timeout to resolve the promise after 55 seconds
         setTimeout(() => {
             clearInterval(checkInterval)
             resolve('Run completed (timeout)')
-        }, process.env?.OPENAI_API_CHAT_TIMEOUT??55000)
+        }, process.env.OPENAI_API_CHAT_TIMEOUT??55000)
     })
 }
 /**
@@ -260,14 +422,14 @@ async function mRunFinish(_openai, _avatar, _thread_id){
  * @modular
  * @private
  * @param {OpenAI} _openai - OpenAI object
- * @param {Avatar} _avatar - Avatar object
+ * @param {string} _assistant_id - Assistant id
  * @param {string} _thread_id - Thread id
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mRunStart(_openai, _avatar, _thread_id){
+async function mRunStart(_openai, _assistant_id, _thread_id){
     return await _openai.beta.threads.runs.create(
         _thread_id,
-        { assistant_id: _avatar.assistant.id }
+        { assistant_id: _assistant_id }
     )
 }
 /**
@@ -275,24 +437,19 @@ async function mRunStart(_openai, _avatar, _thread_id){
  * @modular
  * @private
  * @param {OpenAI} _openai - OpenAI object
- * @param {Avatar} _avatar - Avatar object
- * @param {string} _run_id - Run id
- * @param {string} _thread_id - Thread id
- * @param {number} _callInterval - Interval in milliseconds
+ * @param {object} _run - Run id
  * @returns {boolean} - true if run completed, voids otherwise
  */
-async function mRunStatus(_openai, _avatar, _run_id, _thread_id, _callInterval){
-    const _run = await _openai.beta.threads.runs
+async function mRunStatus(_openai, _run){
+    const __run = await _openai.beta.threads.runs
         .retrieve(
-            _thread_id,
-            _run_id
+            _run.thread_id,
+            _run.id,
         )
-    switch(_run.status){
+    switch(__run.status){
         //	https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
         case 'completed':
-            const _runIndex = _avatar.runs.findIndex(__run => __run.id === _run_id)
-            if(_runIndex === -1) _avatar.runs.unshift(_run)	//	add
-            else _avatar.runs[_runIndex] = _run	//	update via overwrite
+            _run = __run // update via overwrite
             return true
         case 'failed':
         case 'cancelled':
@@ -303,7 +460,7 @@ async function mRunStatus(_openai, _avatar, _run_id, _thread_id, _callInterval){
         case 'in_progress':
         case 'cancelling':
         default:
-            console.log(`...${_run.status}:${_thread_id}...`) // ping check
+            console.log(`...${__run.status}:${_run.thread_id}...`) // ping log
             break
     }
 }
@@ -348,21 +505,29 @@ async function mRunSteps(_avatar, _run_id){
  * @param {string} _conversation - Conversation Object
  * @returns {void} - All content generated by run is available in `avatar`.
  */
-async function mRunTrigger(_openai, _avatar, _conversation){
-    const _run = await mRunStart(_openai, _avatar, _conversation.thread_id)
+async function mRunTrigger(_openai, _avatar){
+    const _bot = _avatar.activeBot
+    const _run = await mRunStart(_openai, _bot.bot_id, _bot.thread_id)
     if(!_run)
         throw new Error('Run failed to start')
+    // @todo: runs are ephemeral-ish, lasting only for session, ensure not stored
     _avatar.runs = _avatar.runs??[]
     _avatar.runs.unshift(_run)
     // ping status
-    return await mRunFinish(_openai, _avatar, _conversation.thread_id)
+    await mRunFinish(_openai, _run) // only returns 
+    return
 }
 /* exports */
 export {
+    mAI_openai,
     mAssignEvolverListeners,
+    mBot,
     mChat,
-    mCreateAssistant,
+    mFindBot,
     mGetAssistant,
+    mGetBotDescription,
+    mGetBotInstructions,
     mGetChatCategory,
+    mHydrateBot,
     mRuns,
 }
