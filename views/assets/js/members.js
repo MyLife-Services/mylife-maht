@@ -35,28 +35,14 @@ document.addEventListener('DOMContentLoaded', () => {
         })
     })
     fetchBots()
-        .then(_botFetch => { // add personal-avatar
-            const { mbr_id, thread_id: _thread_id, bots: _bots, activeBotId: _id } = _botFetch
-            _bots.unshift({
-                being: 'bot',
-                bot_id: 'get-asst-from-server',
-                bot_name: 'Personal Assistant (PA)',
-                description: 'I am  Personal Assistant (PA) is here to help you with any questions you may have.',
-                id: _id,
-                mbr_id: mbr_id,
-                name: `bot-personal-avatar-${mbr_id}`,
-                purpose: 'I am  Personal Assistant (PA) is here to help you with any questions you may have.',
-                thread_id: _thread_id,
-                type: 'personal-avatar'
-            })
-            return { _bots, _id }
-            })
-        .then(({ _bots, _id }) => { // receive processed bots
-            const _activeBot = _bots.find(_bot => _bot.id === _id)
-            // both use _page_ variables
-            updateBotContainers(_bots, _activeBot)
-            updateBotBar(_bots, _activeBot)
-            botGreeting(_activeBot.greeting??_activeBot.description??_activeBot.purpose)
+        .then(async _botFetch => { // peck out the bots and id
+            const { bots: _bots, activeBotId: _id } = _botFetch
+            _pageBots = _bots
+            _activeBot = bot(_id)
+            await setActiveBot()
+            updatePageBots(false) // if not an update per se, force here
+            console.log('active bot:', _activeBot)
+            return
         })
         .catch(err => {
             console.log('Error fetching bots:', err)
@@ -126,7 +112,7 @@ function addMessageToColumn(_message, _options={
 function addUserMessage(_event){
     _event.preventDefault()
     // Dynamically get the current message element (input or textarea)
-    let userMessage = __messageInput.value.trim()
+    let userMessage = _messageInput.value.trim()
     if (!userMessage.length) return
     userMessage = escapeHtml(userMessage) // Escape the user message
     submit(_event, userMessage)
@@ -135,6 +121,9 @@ function addUserMessage(_event){
         _delay: 7,
     })
     _messageInput.value = ''; // Clear the message field
+}
+function bot(_id){
+    return _pageBots.find(bot => bot.id === _id)
 }
 // Function to escape HTML special characters
 function escapeHtml(text) {
@@ -163,6 +152,9 @@ function getTextWidth(text, font) {
     context.font = font;
     return context.measureText(text).width;
 }
+function isActive(_id) {
+    return _id===_activeBot.id
+}
 // Function to replace an element (input/textarea) with a specified type
 function replaceElement(element, newType) {
     const newElement = document.createElement(newType);
@@ -187,17 +179,39 @@ function resetAnimation(element) {
 function scrollToBottom() {
     _chatOutput.scrollTop = _chatOutput.scrollHeight;
 }
-function setActiveBot(botId, thread_id) {
-    _activeBot.id = botId
-    _activeBot.thread_id = thread_id
-    /* set bot-bar */
-    bots.forEach(bot => {
-        const icon = document.createElement('img');
-        icon.src = bot.iconUrl; // Assuming each bot has an icon URL
-        icon.classList.add('bot-icon');
-        icon.dataset.botId = bot.id;
-        botBar.appendChild(icon);
-    })
+async function setActiveBot(_incEventOrBot) {
+    const _activeBotId = _incEventOrBot?.target?.dataset?.botId
+        ?? _incEventOrBot?.target.id?.split('_')[1]
+        ?? _incEventOrBot?.id
+        ?? _activeBot?.id
+        ?? _incEventOrBot
+    if(isActive(_activeBotId)) return
+    /* server request: set active bot */
+    const _id = await fetch(
+        '/members/bots/activate/' + _activeBotId,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(_response => {
+            if (!_response.ok) {
+                throw new Error(`HTTP error! Status: ${_response.status}`)
+            }
+            return _response.json()
+        })
+        .then(_response => {
+            return _response.activeBotId
+        })
+        .catch(error => {
+            console.log('Error:', error)
+            return null
+        })
+    if(isActive(_id)) return
+    /* update active bot */
+    _activeBot = bot(_id)
+    updatePageBots(true)
 }
 async function setActiveCategory(category, contributionId, question) {
     const url = '/members/category'; // Replace with your server's URL

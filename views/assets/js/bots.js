@@ -4,9 +4,15 @@
  * @param {string|array} _greeting - greeting message(s)
  * @returns {void}
  */
-function botGreeting(_greeting){
+function botGreeting(){
+    const _greeting = Array.isArray(_activeBot.greeting)
+        ?   _activeBot.greeting
+        :   [  
+                _activeBot?.greeting
+            ?? _activeBot?.description
+            ?? _activeBot?.purpose
+            ]
     if(!_greeting.length) throw new Error(`No bot-greeting provided.`)
-    if(!Array.isArray(_greeting)) _greeting = [_greeting] // conert -> array
     /* bot-greeting routine */
     setTimeout(() => { // Set a timeout for 1 second to wait for the first line to be fully painted
         // Set another timeout for 7.5 seconds to add the second message
@@ -168,7 +174,7 @@ function toggleBotContainerOptions(_event){
             // post to endpoint
             const _returnBot = setBot(_bot)
             /* check for success and activate */
-            activateBot(_bot)
+            setActiveBot(_bot)
             return
         case 'name':
         case 'ticker':
@@ -210,16 +216,20 @@ function toggleBotContainerOptions(_event){
         default:
             break
     }
-}    
-function updateBotBar(_bots, _activeBot) {
+}
+/**
+ * Activates bot bar icon and container. Creates div and icon in bot bar.
+ * @requires _pageBots
+ * @requires _activeBot
+ */
+function updateBotBar() {
     const _botBar = document.getElementById('bot-bar')
     _botBar.innerHTML = '' // clear existing
     // add personal-avatar
-    _bots.forEach(_bot => {
+    _pageBots.forEach(_bot => {
         // Create a container div for each bot
         const botContainer = document.createElement('div')
         botContainer.classList.add('bot-thumb-container')
-        botContainer.addEventListener('click', _=>setActiveBot(_bot.id, _bot.thread_id))
         // Create an icon element for each bot container
         const botIconImage = document.createElement('img')
         botIconImage.classList.add('bot-thumb')
@@ -228,12 +238,20 @@ function updateBotBar(_bots, _activeBot) {
         if (_bot.id === _activeBot.id) {
             botIconImage.classList.add('active-bot') // Apply a special class for the active bot
         }
+        botIconImage.id = `bot-bar-icon_${_bot.id}`
+        botIconImage.dataset.botId = _bot.id
+        botIconImage.addEventListener('click', setActiveBot)
         _botBar.appendChild(botIconImage)
     })
 }
-function updateBotContainers(_bots, _activeBot){
+/**
+ * Updates bot-widget containers with bot data.
+ * @requires _pageBots
+ * @requires _activeBot
+ */
+function updateBotContainers(){
     document.querySelectorAll('.bot-container').forEach(_botContainer => {
-        const _bot = _bots.find(_bot => _bot.type === _botContainer.id)??{ status: 'none' }
+        const _bot = _pageBots.find(_bot => _bot.type === _botContainer.id)??{ status: 'none' }
         const _type = _botContainer.id
         const _mbrHandle = g_handle(_activeBot.mbr_id)
         /* attributes */
@@ -317,4 +335,12 @@ function updateBotContainers(_bots, _activeBot){
                 break
         }
     })
+}/**
+ * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired.
+ * @param {boolean} bIncludeGreeting 
+ */
+async function updatePageBots(bIncludeGreeting=false){
+    updateBotBar()
+    updateBotContainers()
+    if(bIncludeGreeting) botGreeting()
 }
