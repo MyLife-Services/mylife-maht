@@ -131,16 +131,17 @@ class AgentFactory extends EventEmitter{
 	/**
 	 * Gets a member's bots.
 	 * @public
-	 * @param {string} _parent_id - The _parent_id guid of host/avatar.
+	 * @param {string} _object_id - The _object_id guid of avatar.
 	 * @returns {array} - The member's hydrated bots.
 	 */
-	async bots(_parent_id){
-		// @todo: Implement instance for Bot class
-		return await this.dataservices.getItems(
+	async bots(_object_id){
+		// @todo: develop bot class and implement instance
+		const _bots = await this.dataservices.getItems(
 			'bot',
 			undefined,
-			_parent_id?.length ? [{ name: '@parent_id', value:_parent_id }] : undefined,
+			_object_id?.length ? [{ name: '@object_id', value:_object_id }] : undefined,
 		)
+		return _bots
 	}
 	async challengeAccess(_passphrase){
 		//	always look to server to challenge Access; this may remove need to bind
@@ -161,35 +162,15 @@ class AgentFactory extends EventEmitter{
 		return this.alerts
 	}
 	/**
-	 * Gets factory to product appropriate avatar
-	 * @param {Guid} _avatar_id 
-	 * @param {object} _avatarProperties 
-	 * @returns 
+	 * Constructs and returns an Avatar instance.
+	 * @returns {Avatar} - The avatar.
 	 */
-	async getAvatar(_avatar_id, _avatarProperties,){	//	either send list of properties (pre-retrieved for example from core `this.#avatars`) of known avatar or original object properties that are going to be initially infused into the generated agent; for example, I am a book, and user/gpt have determined that a book (new dynamic object, unknown to schemas) should have a super-intelligence - _that_ book core is sent in _avatarProperties and will imprinted into the initial avatar version of object
-		//	factory determines whether to create or retrieve
-		if(!_avatar_id && !_avatarProperties)
-			throw new Error('no avatar id or properties')
-		_avatarProperties = (_avatar_id)
-			?	await this.dataservices.getAvatar(_avatar_id)	//	retrieve properties from Cosmos
-			:	(_avatarProperties?.id && _avatarProperties?.being==='avatar')
-				?	_avatarProperties	//	already an avatar
-				:	await this.#addAvatar( this.core )//_avatarProperties)	//	add avatar to Cosmos
-		//	enact, instantiate and activate avatar, all under **factory** purview
-		const _Avatar = new (schemas.avatar)(_avatarProperties, this)
-		/* assign listeners */
-		_Avatar.on('on-contribution-new',_contribution=>{
-			this.emit('on-contribution-new',_contribution)
-		})
-		_Avatar.on('avatar-init-end',_avatar=>{
-			this.emit('avatar-init-end',_avatar,mBytes(_avatar))
-		})
-		await _Avatar.init()
-		return _Avatar
-	}
-	async getAvatars(_object_id=this.mbr_id_id){
-		const _avatars = await this.dataservices.getAvatars(_object_id)	//	returns array of _unclassed_, _uninstantiated_ js objects reflecting the core data _of_ a MyLife avatar; perhaps sometimes that inner reflection is all that is needed, such as what is stored as the active avatar inside the requestor
-		return _avatars
+	async getAvatar(){
+		// get avatar from dataservices
+		let _avatarProperties = await this.dataservices.getAvatar()
+		_avatarProperties = {..._avatarProperties??this.core, proxyBeing: this.isMyLife ? 'MyLife' : 'human' }
+		const _avatar = await new (schemas.avatar)(_avatarProperties,this).init()
+		return _avatar
 	}
 	async getMyLife(){	//	get server instance
 		//	ensure that factory mbr_id = dataservices mbr_id
@@ -212,10 +193,7 @@ class AgentFactory extends EventEmitter{
 	}
 	async getConsent(_consent){
 		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
-		//	not stored in cosmos (as of yet, might be different container), so id can be redundant
-		console.log('factory.getConsent():108', _consent)
-		console.log('factory.getConsent():109', 'mbr_id', this.mbr_id)
-		
+		//	@todo: not stored in cosmos (as of yet, might be different container), so id can be redundant
 		return new (schemas.consent)(_consent, this)
 	}
 	async getContributionQuestions(_being, _category){
@@ -316,61 +294,6 @@ class AgentFactory extends EventEmitter{
 	}
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
-	}
-	//	private functions
-	async #addAvatar(_avatarProperties){	//	adds avatar to Cosmos _only_ does not animate or assign animation (unless somehow specified in properties)
-		//	validate required avatarProperties
-		if(!_avatarProperties.mbr_id)
-			throw new Error('requires mbr_id as member reference')
-		const _avatar_objectId = _avatarProperties?.object_id??_avatarProperties?.parent_id??_avatarProperties?.id
-		if(!_avatar_objectId)
-			throw new Error('requires object_id as avatar data reference')
-		if(!_avatarProperties?.names??_avatarProperties?.name)
-			throw new Error('name or names required to construct avatar')
-		if(!_avatarProperties?.categories?.length)
-			throw new Error('malformed object--no data categories')
-		//	set defaults
-		const _avatar_being = _avatarProperties?.being === 'core' ? 'human' : (_avatarProperties?.being ?? 'unknownObject')
-		const _avatar_categories = _avatarProperties.categories
-			.map(category => category.replace(/ /g, '_'))
-		const _avatar_name = _avatarProperties?.names[0]??_avatarProperties?.name??_avatar_being
-		//	contribute context awareness properties to avatarProperties
-		const __avatarProperties = {
-			being: 'avatar',
-			categories: _avatar_categories,
-			context: `This avatar assistant was generated by the MyLife Member Services Platform for Member: ${ this.mbr_id } to assist with the herein metadata-identified purpose using initial categories: ${ JSON.stringify(_avatar_categories) }`,
-			id: this.globals.newGuid,
-			mbr_id: _avatarProperties.mbr_id,
-			metadata: {},
-			names: [..._avatarProperties?.names??[_avatar_name]],
-			object_being: _avatar_being,
-			object_id: _avatar_objectId,
-			purpose: `I am ${_avatar_name}, a MyLife avatar superintelligence created to comprehensively understand, faithfully represent and intelligently evolve the dataset for my underlying object type: ${_avatarProperties?.being??'unknownObject'}, whose core data was initially represented inside me.`,
-		}
-		//	assign categories to metadata [10x(/16) maximum]
-		//	TODO: ensure we don't have underscore/space problems
-		const _categories = _avatar_categories
-			.reduce((acc, _category) => {
-				acc[_category] = _avatarProperties?.[_category]
-					?? _avatarProperties?.[_category.replace(/_/g, ' ')]
-					?? '';
-				return acc
-			}, {})
-		//	assign local and systenm defaults to metadata [6x(/16) maximum]
-		__avatarProperties.metadata={
-			...__avatarProperties.metadata,
-			..._categories,
-			purpose: __avatarProperties.purpose,
-			context: __avatarProperties.context,
-			categories: __avatarProperties.categories.join(','),
-			updates: ''
-		}
-		const _avatar = new (schemas.avatar)(__avatarProperties)
-		_avatar.metadata.description = _avatar.description
-		//	TODO: remove requirement for name to be generated later
-		_avatar.name = `avatar_${_avatar_being}_${_avatar_name.split('_')[0]}`
-		//	add avatar to database
-		return await this.dataservices.addAvatar(_avatar.avatar)
 	}
 }
 // private modular functions

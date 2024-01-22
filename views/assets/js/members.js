@@ -35,25 +35,24 @@ document.addEventListener('DOMContentLoaded', () => {
         })
     })
     fetchBots()
-        .then(_botFetch => { // receive processed bots, minus PA, but PA designated onSession
-            const { mbr_id, thread_id: _thread_id, bots: _bots, activeBotId: _bot_id } = _botFetch
-            const __activeBot = _bots.find(_bot => _bot.id === _botFetch.activeBotId)
-            if(!__activeBot){
-                // create PA
-                _activeBot = {
-                    being: 'bot',
-                    bot_name: 'Personal Assistant (PA)',
-                    description: 'I am  Personal Assistant (PA) is here to help you with any questions you may have.',
-                    id: _bot_id,
-                    mbr_id: mbr_id,
-                    name: `bot-personal-avatar-${mbr_id}`,
-                    purpose: 'I am  Personal Assistant (PA) is here to help you with any questions you may have.',
-                    thread_id: _thread_id,
-                    type: 'personal-avatar'
-                }
-            } else {
-                _activeBot = __activeBot
-            }
+        .then(_botFetch => { // add personal-avatar
+            const { mbr_id, thread_id: _thread_id, bots: _bots, activeBotId: _id } = _botFetch
+            _bots.unshift({
+                being: 'bot',
+                bot_id: 'get-asst-from-server',
+                bot_name: 'Personal Assistant (PA)',
+                description: 'I am  Personal Assistant (PA) is here to help you with any questions you may have.',
+                id: _id,
+                mbr_id: mbr_id,
+                name: `bot-personal-avatar-${mbr_id}`,
+                purpose: 'I am  Personal Assistant (PA) is here to help you with any questions you may have.',
+                thread_id: _thread_id,
+                type: 'personal-avatar'
+            })
+            return { _bots, _id }
+            })
+        .then(({ _bots, _id }) => { // receive processed bots
+            const _activeBot = _bots.find(_bot => _bot.id === _id)
             // both use _page_ variables
             updateBotContainers(_bots, _activeBot)
             updateBotBar(_bots, _activeBot)

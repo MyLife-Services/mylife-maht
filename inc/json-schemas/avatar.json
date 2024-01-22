@@ -5,12 +5,6 @@
 	"type": "object",
 	"name": "Avatar",
 	"properties": {
-		"assistant": {
-			"type": "object",
-			"$ref": "./openai/openai.json#/$defs/openai_gpt_assistant",
-			"description": "assistant object GPT_assistant access",
-			"$comment": "this could become an array of assistants, with `type` going away"
-		},
 		"being": {
 			"type": "string",
 			"const": "avatar",

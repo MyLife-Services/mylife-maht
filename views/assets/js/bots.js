@@ -213,12 +213,13 @@ function toggleBotContainerOptions(_event){
 }    
 function updateBotBar(_bots, _activeBot) {
     const _botBar = document.getElementById('bot-bar')
+    _botBar.innerHTML = '' // clear existing
     // add personal-avatar
-    _bots.unshift({ type: 'personal-avatar' })
     _bots.forEach(_bot => {
         // Create a container div for each bot
         const botContainer = document.createElement('div')
         botContainer.classList.add('bot-thumb-container')
+        botContainer.addEventListener('click', _=>setActiveBot(_bot.id, _bot.thread_id))
         // Create an icon element for each bot container
         const botIconImage = document.createElement('img')
         botIconImage.classList.add('bot-thumb')

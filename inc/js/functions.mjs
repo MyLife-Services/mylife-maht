@@ -76,16 +76,7 @@ async function api_register(ctx){
 }
 async function avatarListing(ctx){
 	ctx.state.title = `Avatars for ${ ctx.state.member.memberName }`
-	ctx.state.avatars = ctx.state.member.avatars
-		.map(
-			_avatar => ({
-				id: _avatar.id,
-				categories: _avatar.categories,
-				description: _avatar.description,
-				name: _avatar?.nickname??_avatar?.names?.[0]??_avatar.name,
-				purpose: _avatar.purpose,
-			})
-		)
+	ctx.state.avatars = []
 	await ctx.render('avatars')	//	avatars
 }
 async function bots(ctx){
@@ -107,7 +98,6 @@ async function bots(ctx){
 					activeBotId: ctx.state.avatar.activeBotId,
 					bots: await ctx.state.avatar.bots,
 					mbr_id: ctx.state.avatar.mbr_id,
-					thread_id: await ctx.state.avatar.thread_id(),
 				}
 			}
 			break
@@ -275,7 +265,6 @@ function mSetContributions(ctx){
 		ctx.throw(400, `missing contribution id`) // currently only accepts single contributions via post with :cid
 	ctx.state.cid = ctx.params.cid
 	const _contribution = ctx.request.body?.contribution??false
-	console.log('test', ctx.state.cid, _contribution)
 	if(!_contribution)
 		ctx.throw(400, `missing contribution data`)
 	ctx.state.avatar.contribution = ctx.request.body.contribution

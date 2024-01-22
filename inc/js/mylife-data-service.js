@@ -100,23 +100,30 @@ class Dataservices {
 		return this.#partitionId
 	}
 	//	public functions
-    /**
-     * Proxy to add an avatar to the MyLife Cosmos database.
-     * @async
-	 * @public
-     * @param {Object} _avatar - The avatar to add.
-     */
-	async addAvatar(_avatar){
-		return await this.pushItem(_avatar)
-	}
 	/**
 	 * Get a bot.
 	 * @public
 	 * @param {string} _bot_id - The bot id.
 	 * @returns {object} - The bot.
 	 */
-	async bot(_bot_id){
-		return await this.getItem(_bot_id)
+	async bot(_bot_id, _bot_type='personal-avatar'){
+		if(_bot_id){
+			return await this.getItem(_bot_id)
+		} else {
+			const _bots = await this.bots(_bot_type)
+			return _bots?.[0]
+		}
+	}
+	async bots(_bot_type){
+		if(_bot_type){
+			return await this.getItems(
+				'bot',
+				['bot_id'],
+				[{ name: '@bot_type', value: _bot_type }],
+			)
+		} else {
+			return await this.getItems('bot')
+		}
 	}
 	async botInstructions(_type){
 		return await this.getItems(
@@ -180,30 +187,12 @@ class Dataservices {
 			'system',
 		)
 	}
-	/**
-	 * Retrieves a specific avatar by its ID.
-	 * @async
-	 * @public
-	 * @param {string} _avatar_id - The unique identifier for the avatar.
-	 * @returns {Promise<Object>} The avatar corresponding to the provided ID.
-	 */
-	async getAvatar(_avatar_id) {
-		return await this.getItem(_avatar_id)
+	async getAvatar(){
+		const _avatars = await this.getAvatars()
+		return _avatars?.[0]
 	}
-	/**
-	 * Retrieves all avatars associated with a given parent ID.
-	 * This method is typically used to get all avatar entities under a specific object.
-	 * @async
-	 * @public
-	 * @param {string} _object_id - The parent object ID to search for associated avatars.
-	 * @returns {Promise<Array>} An array of avatars associated with the given parent ID.
-	 */
-	async getAvatars(_object_id) {
-		return await this.getItems(
-			'avatar',
-			undefined,
-			[{ name: '@object_id', value: _object_id }],
-		)
+	async getAvatars(){
+		return await this.getItems('avatar')
 	}
 	/**
 	 * Retrieves the first chat associated with a given parent ID.

@@ -62,15 +62,25 @@ function mAssignEvolverListeners(_evolver, _avatar){
         }
     )
 }
-async function mBot(_avatar, _bot){
+/**
+ * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
+ * @param {Avatar} _avatar - Avatar object that will govern bot
+ * @param {object} _bot - Bot object
+ * @returns {object} - Bot object
+ */
+async function mBot(_avatar, _bot={type: 'personal-avatar'}){
     /* validation */
-    if(!_bot?.mbr_id?.length){ _bot.mbr_id = _avatar.mbr_id }
-    else if(_bot.mbr_id!==_avatar.mbr_id){ throw new Error('Bot mbr_id cannot be changed') }
-    if(!_bot?.type?.length){ throw new Error('Bot type required') }
+    if(!_bot.mbr_id?.length)
+        _bot.mbr_id = _avatar.mbr_id
+    else if(_bot.mbr_id!==_avatar.mbr_id)
+        throw new Error('Bot mbr_id cannot be changed')
+    if(!_bot.type?.length)
+        throw new Error('Bot type required')
     /* set required _bot super-properties */
-    if(!_bot?.parent_id?.length){ _bot.parent_id = _avatar.id } // @todo: decide if preferred mechanic
-    if(!_bot?.object_id?.length){ _bot.object_id = _avatar.id }
-    if(!_bot.id){ _bot.id = _avatar.factory.newGuid }
+    if(!_bot.object_id?.length)
+        _bot.object_id = _avatar.id
+    if(!_bot.id)
+        _bot.id = _avatar.factory.newGuid
     const _botSlot = _avatar.bots.findIndex(bot => bot.id === _bot.id)
     if(_botSlot!==-1){ // update
         const _existingBot = _avatar.bots[_botSlot]
@@ -105,16 +115,16 @@ async function mBot(_avatar, _bot){
  * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
  */
 async function mChat(_avatar, _chatMessage){
+    // note: Q/isMyLife PA bot does not have thread_id intentionally, as every session creates its own
     const _openai = _avatar.ai
     const _processStartTime = Date.now()
     const _bot = _avatar.activeBot
-    console.log('mChat:start', _chatMessage)
     // check if active bot, if not use self
     const _conversation = await _avatar.getConversation(_bot.thread_id) // create if not exists
     _conversation.addMessage(_chatMessage)
     //	@todo: assign uploaded files (optional) and push `retrieval` to tools
+    _bot.thread_id = _bot.thread_id??_conversation.thread_id
     await mRunTrigger(_openai, _avatar, _conversation) // run is triggered by message creation, content embedded/embedding now in _conversation in _avatar.conversations
-    console.log('mChat:run-triggered', _avatar, _conversation)
     const _messages = (await _conversation.getMessages_openai())
         .filter(_msg => _msg.run_id == _avatar.runs[0].id)
         .map(_msg => {
@@ -132,7 +142,6 @@ async function mChat(_avatar, _chatMessage){
 //        _avatar.#evolver?.setContribution(_avatar.#activeChatCategory, _msg)??false
         await _conversation.addMessage(_msg)
     })
-    console.log('mChat:conversation-add-messages', _conversation)
     //	add/update cosmos
     if ((_avatar?.factory!==undefined) && (process.env?.MYLIFE_DB_ALLOW_SAVE??false)) {
         _conversation.save()
@@ -142,6 +151,7 @@ async function mChat(_avatar, _chatMessage){
             const __message = mPrepareMessage(_msg) // returns object { category, content }
             return {
                 activeBotId: _bot.id,
+                activeBotAIId: _bot.bot_id,
                 agent: 'server',
                 category: __message.category,
                 contributions: [],
@@ -152,9 +162,13 @@ async function mChat(_avatar, _chatMessage){
                 type: 'chat',
             }
         })
-    console.log('mChat:end-return', _chat)
     //	return response
     return _chat
+}
+function mFindBot(_avatar, _botId){
+    return _avatar.bots
+        .filter(_bot=>{ return _bot.id==_botId })
+        [0]
 }
 /**
  * Creates bot and returns associated `bot` object.
@@ -166,8 +180,8 @@ async function mChat(_avatar, _chatMessage){
 */
 async function mCreateBot(_avatar, _bot){
         // create gpt
-        const _description = mGetBotDescription(_avatar, _bot.type)
-        const _instructions = await mGetBotInstructions(_avatar, _bot)
+        const _description = _bot.description??mGetBotDescription(_avatar, _bot.type)
+        const _instructions = _bot.instructions??await mGetBotInstructions(_avatar, _bot)
         const _botName = _bot.bot_name??_bot.name??_bot.type
         const _cosmosName = _bot.name??`bot_${_bot.type}_${_avatar.id}`
         const _botData = {
@@ -234,6 +248,11 @@ async function mGetBotInstructions(_avatar, _bot){
     /* compile instructions */
     let _botInstructions = ''
     switch(_type){
+        case 'personal-avatar':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.general
+            break
         case 'personal-biographer':
             _botInstructions +=
                   _botInstructionSet.preamble
@@ -504,6 +523,7 @@ export {
     mAssignEvolverListeners,
     mBot,
     mChat,
+    mFindBot,
     mGetAssistant,
     mGetBotDescription,
     mGetBotInstructions,

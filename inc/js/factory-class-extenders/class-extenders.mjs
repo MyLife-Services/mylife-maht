@@ -5,6 +5,7 @@ import {
     mAssignEvolverListeners,
     mBot,
     mChat,
+    mFindBot,
     mGetAssistant,
     mGetChatCategory,
  } from './class-avatar-functions.mjs'
@@ -41,19 +42,27 @@ function extendClass_avatar(_originClass,_references) {
                 this.#proxyBeing = _obj.proxyBeing
             this.#factory = _factory
             this.#bots = _obj?.bots ?? [] // array of ids
-            this.#activeBotId = this.id
         }
         async init(){
             /* create evolver (exclude MyLife) */
             // @todo: admin interface for modifying MyLife avatar and their bots
-            // @todo: this.#bots could be derived on-demand? in either case, do not bother with list in db, as all bots would must have mbr_id of Member, but _also_ have `object_id` and/or `parent_id` of this avatar, so can await pull
-            this.#bots = await this.factory.bots(this.id) // limit pull to children of this avatar
+            this.#bots = await this.factory.bots(this.id)
+            let _activeBot = this.avatarBot
             if(!this.factory.isMyLife){
-                console.log('my bots', this.#bots)
+                if(!_activeBot.id){ // create: but do not want to call setBot() to activate
+                    _activeBot = await mBot(this)
+                    this.#bots.unshift(_activeBot)
+                }
+                this.activeBotId = _activeBot.id
                 this.#evolver = new EvolutionAssistant(this)
                 mAssignEvolverListeners(this.#evolver, this)
                 /* init evolver */
                 await this.#evolver.init()
+            } else { // Q-specific
+                this.activeBotId = this.avatarBot.id
+                this.avatarBot.bot_id = (process.env.OPENAI_MAHT_GPT_OVERRIDE) ? process.env.OPENAI_MAHT_GPT_OVERRIDE : this.avatarBot.bot_id
+                let _conversation = await this.getConversation()
+                this.avatarBot.thread_id = _conversation.threadId
             }
             this.emit('avatar-init-end',this)
             return this
@@ -77,7 +86,6 @@ function extendClass_avatar(_originClass,_references) {
         async chatRequest(ctx){
             if(!ctx?.state?.chatMessage)
                 throw new Error('No message provided in context')
-            this.setActiveCategory(ctx.state.chatMessage) // also sets evolver contribution
             const _chat = await mChat(
                 this,
                 ctx.state.chatMessage
@@ -144,17 +152,20 @@ function extendClass_avatar(_originClass,_references) {
             }
         }
         /**
-         * Add or update bot, preparing as activated
+         * Add or update bot, and identifies as activated, unless otherwise specified.
          * @param {object} _bot - Bot-data to set.
          */
         async setBot(_bot, _activate=true){
             _bot = await mBot(this, _bot) // returns bot object
             /* add bot to avatar */
             const _index = this.#bots.findIndex(bot => bot.id === _bot.id)
-            if (_index !== -1) this.#bots[_index] = _bot // update
-            else this.#bots.push(_bot) // add
+            if(_index !== -1) // update
+                this.#bots[_index] = _bot
+            else // add
+                this.#bots.push(_bot)
             /* activation */
-            if(_activate) this.activeBotId = _bot.id
+            if(_activate)
+                this.activeBotId = _bot.id
             return _bot
         }
         async thread_id(){
@@ -162,7 +173,6 @@ function extendClass_avatar(_originClass,_references) {
             if(!this.#conversations.length){
                 await this.getConversation()
             }
-            console.log('thread', this.#conversations[0]?.threadId??this.#conversations)
             return this.#conversations[0].threadId
         }
         /* getters/setters */
@@ -172,18 +182,10 @@ function extendClass_avatar(_originClass,_references) {
          * @returns {object} - The active bot.
          */
         get activeBot(){
-            return this.#bots.find(_bot=>_bot.id===this.#activeBotId)??{
-                bot_id: this.id, // get from thread?
-                bot_name: this.name,
-                id: this.id,
-                mbr_id: this.mbr_id,
-                object_id: this.factory.memberName,
-                name: '',
-                description: this.description,
-                purpose: this.purpose,
-                thread_id: this.thread_id,
-                type: 'bot',
-            }
+            return this.#bots.find(_bot=>_bot.id===this.activeBotId)
+        }
+        get aiId(){
+            return this.conversation[0]
         }
         /**
          * Get the active bot id.
@@ -199,8 +201,9 @@ function extendClass_avatar(_originClass,_references) {
          * @param {string} _bot_id - The active bot id.
          * @returns {void}
          */
-        set activeBotId(_bot_id){
-            this.#activeBotId = !this.#bots.find(_bot=>_bot.id===_bot_id) ? this.id : _bot_id
+        set activeBotId(_bot_id){ // default PA
+            if(!_bot_id?.length) _bot_id = this.avatarBot.id
+            this.#activeBotId = mFindBot(this, _bot_id)?.id??this.avatarBot.id
         }
         /**
          * Returns provider for avatar intelligence.
@@ -212,6 +215,9 @@ function extendClass_avatar(_originClass,_references) {
         }
         get avatar(){
             return this.inspect(true)
+        }
+        get avatarBot(){
+            return this.#bots.find(_bot=>_bot.type==='personal-avatar')
         }
         /**
          * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
@@ -241,11 +247,18 @@ function extendClass_avatar(_originClass,_references) {
            this.#evolver.contribution = _contribution
         }
         /**
-         * Get uninstantiated class definition for conversation.
+         * Get uninstantiated class definition for conversation. If getting a specific conversation, use .conversation(id).
          * @returns {class} - class definition for conversation
          */
         get conversation(){
             return this.factory.conversation
+        }
+        /**
+         * Get conversations. If getting a specific conversation, use .conversation(id).
+         * @returns {array} - The conversations.
+         */
+        get conversations(){
+            return this.#conversations
         }
         // todo: deprecate to available convenience public emit() function
         get emitter(){  //  allows parent to squeeze out an emitter
@@ -450,9 +463,7 @@ function extendClass_conversation(_originClass,_references) {
             return this
         }
     }
-
     return Conversation
-
 }
 function extendClass_file(_originClass,_references) {
     class File extends _originClass {
@@ -470,6 +481,7 @@ function extendClass_file(_originClass,_references) {
         //  public getters/setters
         //  private functions
     }
+    return File
 }
 function extendClass_message(_originClass,_references) {
     /**
