@@ -1,0 +1,38 @@
+#bot-bar {
+    align-items: flex-end;
+    align-self: center;
+    background: rgba(0, 0, 0, 0.25); /* url('../png/circuit-background.png') no-repeat center/250% */
+    border-radius: 10px;
+    display: flex;
+    justify-content: center; /* Center items horizontally */
+    overflow: hidden;
+    width: 65%; /* Set width to 65% of the parent container */
+    max-height: 0.5em; /* Start with a small height */
+    transition: max-height 0.5s ease-in-out; /* Animation for the windowshade effect */
+    /* descendent styles */
+    .bot-thumb-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin-right: 1em; /* Space between containers in em */
+        position: relative;
+    }
+    .bot-thumb {
+        width: 40px;
+        height: 40px;
+        transition: transform 0.3s ease, margin 0.3s ease;
+        cursor: pointer;
+        z-index: 1;
+        margin: 0; /* Default margin */
+    }
+    .bot-thumb:hover {
+        transform: scale(1.5);
+        z-index: 2;
+        margin: 0 1em; /* Increase margin on hover in em */
+    }
+}
+#bot-bar:hover {
+    max-height: 100px; /* Adjust to desired expanded height */
+    overflow: visible; /* Make overflow visible on hover */
+}

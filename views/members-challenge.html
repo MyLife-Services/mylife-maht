@@ -21,7 +21,7 @@ async function submit(_event) {
 		body: JSON.stringify({passphrase: _passphrase }),
 	};
 	const _validatePassphrase = await submitPassphrase(url, options);
-	if(_validatePassphrase) location.reload(); //	reload page
+	if(_validatePassphrase) location.href = '/members'; //	reload page
 	//	passphrase is invalid
 	document.getElementById('error').innerHTML = 'Invalid passphrase: please try again and remember that passphrases are case sensitive.';
 	_submitButton.style.disabled = false;

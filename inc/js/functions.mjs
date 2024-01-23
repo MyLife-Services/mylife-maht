@@ -6,6 +6,19 @@ async function about(ctx){
 	ctx.state.title = `About MyLife`
 	await ctx.render('about')	//	about
 }
+/**
+ * Activate a bot for the member
+ * @modular
+ * @public
+ * @async
+ * @api no associated view
+ * @param {object} ctx Koa Context object
+ * @returns {object} Koa Context object
+ */
+function activateBot(ctx){
+	ctx.state.avatar.activeBotId = ctx.params.bid
+	ctx.body = { activeBotId: ctx.state.avatar.activeBotId }
+}
 async function alerts(ctx){
 	// @todo: put into ctx the _type_ of alert to return, system use dataservices, member use personal
 	if(ctx.params?.aid){ // specific system alert
@@ -63,17 +76,32 @@ async function api_register(ctx){
 }
 async function avatarListing(ctx){
 	ctx.state.title = `Avatars for ${ ctx.state.member.memberName }`
-	ctx.state.avatars = ctx.state.member.avatars
-		.map(
-			_avatar => ({
-				id: _avatar.id,
-				categories: _avatar.categories,
-				description: _avatar.description,
-				name: _avatar?.nickname??_avatar?.names?.[0]??_avatar.name,
-				purpose: _avatar.purpose,
-			})
-		)
+	ctx.state.avatars = []
 	await ctx.render('avatars')	//	avatars
+}
+async function bots(ctx){
+	const _bot = ctx.request.body
+	switch(ctx.method){
+		case 'POST':
+			ctx.body = await ctx.state.avatar.setBot(_bot)
+			break
+		case 'PUT':
+			if(ctx.params.bid!==_bot.id) throw new Error('invalid bot data')
+			ctx.body = await ctx.state.avatar.setBot(_bot)
+			break
+		case 'GET':
+		default:
+			if(ctx.params?.bid?.length){ // specific bot
+				ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
+			} else {
+				ctx.body = {
+					activeBotId: ctx.state.avatar.activeBotId,
+					bots: await ctx.state.avatar.bots,
+					mbr_id: ctx.state.avatar.mbr_id,
+				}
+			}
+			break
+	}
 }
 function category(ctx){ // sets category for avatar
 	ctx.state.category = ctx.request.body
@@ -110,32 +138,34 @@ async function index(ctx){
 	ctx.state.title = `${ctx.state.member.agentDescription}`
 	await ctx.render('index')
 }
-async function members(ctx){
-	ctx.state.mid = ctx.params?.mid??false	//	member id
-	ctx.state.title = `Your MyLife Digital Home`
-	switch (true) {
-		case !ctx.state.mid && ctx.state.locked:
-			//	listing comes from state.hostedMembers
-			ctx.state.hostedMembers = ctx.hostedMembers
-				.sort(
-					(a, b) => a.localeCompare(b)
-				)
-				.map(
-					_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.extractSysName(_mbr_id) })
-				)
-			ctx.state.subtitle = `Select your membership to continue:`
-			await ctx.render('members-select')
-			break
-		case ctx.state.locked:
-			ctx.session.MemberSession.challenge_id = ctx.state.mid
-			ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.extractSysName(ctx.state.mid) }]:`
-			await ctx.render('members-challenge')
-			break
-		default:
-			ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
-			await ctx.render('members')
-			break
-	}
+async function login(ctx){
+	// @todo: remove from params and include in post
+	console.log('members-login', ctx.params)
+	if(!ctx.params?.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
+	ctx.state.mid = decodeURIComponent(ctx.params.mid)
+	ctx.state.title = ''
+	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.sysName(ctx.params.mid) }]:`
+	ctx.session.MemberSession.challenge_id = ctx.params.mid
+	await ctx.render('members-challenge')
+}
+async function loginSelect(ctx){
+	ctx.state.title = ''
+	//	listing comes from state.hostedMembers
+	// @todo: should obscure and hash ids in session.mjs
+	// @todo: set and read long-cookies for seamless login
+	ctx.state.hostedMembers = ctx.hostedMembers
+		.sort(
+			(a, b) => a.localeCompare(b)
+		)
+		.map(
+			_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.sysName(_mbr_id) })
+		)
+	ctx.state.subtitle = `Select your personal Avatar to continue:`
+	await ctx.render('members-select')
+}
+async function members(ctx){ // members home
+	ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
+	await ctx.render('members')
 }
 async function privacyPolicy(ctx){
 	ctx.state.title = `MyLife Privacy Policy`
@@ -235,7 +265,6 @@ function mSetContributions(ctx){
 		ctx.throw(400, `missing contribution id`) // currently only accepts single contributions via post with :cid
 	ctx.state.cid = ctx.params.cid
 	const _contribution = ctx.request.body?.contribution??false
-	console.log('test', ctx.state.cid, _contribution)
 	if(!_contribution)
 		ctx.throw(400, `missing contribution data`)
 	ctx.state.avatar.contribution = ctx.request.body.contribution
@@ -246,14 +275,18 @@ function mSetContributions(ctx){
 /* exports */
 export {
 	about,
+	activateBot,
 	alerts,
 	api_register,
 	avatarListing,
+	bots,
 	category,
 	challenge,
 	chat,
 	contributions,
 	index,
+	login,
+	loginSelect,
 	members,
 	privacyPolicy,
 	signup,

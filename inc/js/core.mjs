@@ -8,7 +8,6 @@ import { _ } from 'ajv'
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#avatar
-	#avatars = []
 	#categories = [
 		'Abilities',
 		'Artifacts',
@@ -41,15 +40,7 @@ class Member extends EventEmitter {
 	 * @returns {Promise} Promise resolves to this Member class instantiation
 	 */
 	async init(){
-		this.#avatars = await this.factory.getAvatars()	//	defaults to `this.core` which factory owns; **note**: getAvatars() normally accepts the object dna
-		if(!this.#avatars.length)
-			console.log(chalk.red('no avatars found'))	//	create avatar
-		const _avatarProperties = {
-			...this?.avatars[0]??this.core,
-			proxyBeing: this.being,
-		}
-		this.avatar = await this.factory
-			.getAvatar(undefined,_avatarProperties)	//	not pulling from db
+		this.#avatar = await this.factory.getAvatar() // returns fully functional and initializaed avatar
 		return this
 	}
 	/**
@@ -102,9 +93,6 @@ class Member extends EventEmitter {
 		if(!this.factory.isAvatar(_Avatar))
 			throw new Error('avatar requires Avatar Class')
 		this.#avatar = _Avatar
-	}
-	get avatars(){
-		return this.#avatars
 	}
 	/**
 	 * Gets being type. Members are _only_ human prototypes, and presents as human, even though the current manifestation is a datacore `core` being.
@@ -205,15 +193,6 @@ class Member extends EventEmitter {
 		return this.core.values
 	}
 	//	public functions
-	async setAvatar(_avatar){	//	whether new or existing, _avatar is an object
-		const _a = this.#avatars
-			?.filter(_=>{ return _.id === _avatar.id })[0]
-			??null
-		if(!_a || !_a.length){	//	if no avatar found, push generated avatar
-			_a = await this.factory.pushItem(_avatar)
-			this.#avatars.push(_a)
-		}
-	}
 	async testEmitters(){
 		//	test emitters with callbacks
 		this.emit('testEmitter',_response=>{

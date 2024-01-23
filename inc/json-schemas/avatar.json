@@ -5,16 +5,21 @@
 	"type": "object",
 	"name": "Avatar",
 	"properties": {
-		"assistant": {
-			"type": "object",
-			"$ref": "./openai/openai.json#/$defs/openai_gpt_assistant",
-			"description": "assistant object GPT_assistant access",
-			"$comment": "this could become an array of assistants, with `type` going away"
-		},
 		"being": {
 			"type": "string",
 			"const": "avatar",
 			"description": "root constructor for avatar/agent in MyLife"
+		},
+		"bots": {
+			"type": "array",
+			"description": "array of external bot-agents of avatar",
+			"items": {
+				"type": "object",
+				"$ref": "./bot.json",
+				"maxItems": 32,
+				"description": "external bot-agent object",
+				"$comment": "essentially the bot-agent legion created from self-defining instructionsets, currently leveraging OpenAI API GPTs"
+			}
 		},
 		"categories": {
 			"type": "array",
@@ -27,6 +32,7 @@
 					"enum": [
 						"assistant",
 						"being",
+						"bots",
 						"categories",
 						"command_word",
 						"context",

@@ -24,7 +24,6 @@
 /* constants */
 const awaitButton = document.getElementById('await-button');
 const agentSpinner = document.getElementById('agent-spinner');
-const chatContainer = document.querySelector('.chat-container');
 const chatLabel = document.getElementById('user-chat-label');
 const chatOutput = document.getElementById('chat-output');
 const chatInput = document.getElementById('chat-input');
@@ -38,21 +37,39 @@ let _chatBubbleCount = 0;
 let messageInput = document.getElementById('user-chat-message');
 let _thread_id = null;
 let typingTimer;
+/* onLoad */
+awaitButton.style.display = 'none';
+/* welcome-01 */
+addMessageToColumn({
+	message: _greeting[0],
+});
+/* welcome-02 */
+setTimeout(() => { // Set a timeout for 1 second to wait for the first line to be fully painted
+    // Set another timeout for 7.5 seconds to add the second message
+    const timerId = setTimeout(_addIntroductionMessage, 7500);
+    // Event listeners for member interactions
+    window.addEventListener('mousemove', _addIntroductionMessage, { once: true });
+    window.addEventListener('click', _addIntroductionMessage, { once: true });
+    window.addEventListener('focus', _addIntroductionMessage, { once: true });
+    window.addEventListener('scroll', _addIntroductionMessage, { once: true });
+    /* local timeout functions */
+    function _addIntroductionMessage() { // Clear the 7.5 seconds timeout if any event is triggered
+        clearTimeout(timerId);
+        addMessageToColumn({ message: _greeting[1] });
+        _cleanupListeners();
+    }
+	// Cleanup function to remove event listeners
+	function _cleanupListeners() {
+		window.removeEventListener('mousemove', _addIntroductionMessage);
+		window.removeEventListener('click', _addIntroductionMessage);
+		window.removeEventListener('focus', _addIntroductionMessage);
+		window.removeEventListener('scroll', _addIntroductionMessage);
+}
+}, 1000);
 /* add listeners */
 // add listener to address chat button, on input for message I guess
 messageInput.addEventListener('input', toggleInputTextarea); // Event listener to check length of input and convert to textarea
 submitButton.addEventListener('click', addUserMessage); // Event listener to submit message
-//	bootup
-awaitButton.style.display = 'none';
-/* welcome-01 */
-addMessageToColumn({
-	message: _greeting[0]
-});
-/* welcome-01 */
-setTimeout(
-	()=> addMessageToColumn({ message: _greeting[1] }),
-	1500
-);
 /* page functions */
 function addMessageToColumn(_message, _options={
 	bubbleClass: 'agent-bubble',
