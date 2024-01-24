@@ -3,6 +3,7 @@
 import { CosmosClient } from '@azure/cosmos'
 import Config from './mylife-datasource-config.mjs'
 import chalk from 'chalk'
+import { _ } from 'ajv'
 //	define class
 class Datamanager {
 	#containers
@@ -59,15 +60,13 @@ class Datamanager {
 		return this.#core?.resource
 	}
 	//	public functions
-	async challengeAccess(_mbr_id,_passphrase){
-		//	execute store procedure with passphrase and this mbr_id? yes, so won't be charged to user if bad password attempts
+	async challengeAccess(_mbr_id, _passphrase){
 		//	in order to obscure passphrase, have db make comparison (could include flag for case insensitivity)
-		const challengeOptions = { partitionKey: _mbr_id }
 		// Execute the stored procedure
 		const { resource: _result } = await this.#containers['members']
 			.scripts
 			.storedProcedure('checkMemberPassphrase')
-			.execute(_mbr_id,_passphrase,true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
+			.execute(_mbr_id, _passphrase, true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
 		return _result
 	}
 	async deleteItem(_id) {}

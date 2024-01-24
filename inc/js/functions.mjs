@@ -109,6 +109,7 @@ function category(ctx){ // sets category for avatar
 	ctx.body = ctx.state.avatar.category
 }
 async function challenge(ctx){
+	if(!ctx.params.mid?.length) ctx.throw(400, `requires member id`)
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
