@@ -5,7 +5,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
+    "start": "dotenv -e .env node server.js",
     "dev": "dotenv -e .env nodemon server.js"
   },
   "nodemonConfig": {
