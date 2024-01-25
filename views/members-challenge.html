@@ -12,7 +12,8 @@ async function submit(_event) {
 	const _passphrase = document.getElementById('member-challenge').value;
 	if(!_passphrase.length) return
 	//	test passphrase against url
-	const url = window.location.origin+'/challenge';
+	const _mbr_id = window.location.pathname.split('/')[window.location.pathname.split('/').length-1]
+	const url = window.location.origin+`/challenge/${_mbr_id}`;
 	const options = {
 		method: 'POST',
 		headers: {

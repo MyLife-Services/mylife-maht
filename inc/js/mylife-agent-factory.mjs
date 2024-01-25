@@ -143,9 +143,8 @@ class AgentFactory extends EventEmitter{
 		)
 		return _bots
 	}
-	async challengeAccess(_passphrase){
-		//	always look to server to challenge Access; this may remove need to bind
-		return await mDataservices.challengeAccess(this.mbr_id,_passphrase)
+	async challengeAccess(_mbr_id, _passphrase){
+		return await mDataservices.challengeAccess(_mbr_id, _passphrase)
 	}
 	async getAlert(_alert_id){
 		const _alert = _alerts.system.find(alert => alert.id === _alert_id)

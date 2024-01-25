@@ -55,7 +55,7 @@ class MylifeMemberSession extends EventEmitter {
 	async challengeAccess(_passphrase){
 		if(this.locked){
 			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
-			if(!this.factory.challengeAccess(_passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
+			if(!await this.factory.challengeAccess(this.challenge_id, _passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
 			//	init member
 			this.#locked = false
 			this.emit('member-unlocked', this.challenge_id)
