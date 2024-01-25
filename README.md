@@ -1,395 +1,239 @@
-# MyLife Member Services
+# MyLife Member Services Application
 
-_MyLife_ is a nonprofit member organization established in 2021 with the aim of preserving the authentic and genuine 21st-century human experience. _MyLife_ offers a free, secure, equitable network for personal archives and narrative legacies. _MyLife_ services platform helps members define Digital Selves for themselves and posterity. _MyLife_ is a member-based nonprofit organization that is committed to providing humanity a durable, enduring and accessible internet-based platform to collect and showcase an individual's stories, media and memories through a personal lens.
+## Overview
 
-Any human can claim their membership with _MyLife_.
+### MyLife: Preserving Member Stories for Posterity
 
-This codebased comprises two primary functional elements
+MyLife is a groundbreaking initiative aimed at capturing and preserving the essence of human experiences for future generations. We believe in the power of personal stories, memories, and media to shape our understanding of the human condition. Our platform provides a unique, enduring, and internet-based solution for individuals to record and showcase their life stories.
+Additionally, with a raft of bot-assistants, ranging from personal admin to creative writing assistance to health tracking and monitoring to much more, you have access to powerful intelligent tools to help you manage and create in your daily life.
 
-1. MyLife Member Services
-2. Q: MyLife Executive AI-Agent
+#### Vision and Mission
 
-## MyLife Member Services
+- **Mission**: Committed to offering a durable, enduring, and free platform for collecting and showcasing individual stories, media, and memories. We create a living, evolving encyclopedia of our selves where experiences and memory can be shared to the degree we consent. We provide superintelligent workspaces to get all of your personal or public work to get done.
+- **Vision**: To enable every individual to be remembered forever, sharing their passions, wisdom, and experiences with posterity. We strive to create Earth's Library of Humanity in the metaverse, preserving 21st-century experiences as a permanent record.
 
-- Story-Telling AI-Agent
-- Digital Self Avatar
+### MyLife Member Services
 
-## Q: MyLife Executive AI-Agent
+MyLife Member Services are currently in closed alpha, but rolling admission to the alpha is granted every Monday, and you can register for free either at [the MyLife website](https://humanremembranceproject.org) or [our GPT-Store](https://chat.openai.com/g/g-rEjoOt9hN-mylife). We cannot wait to be able to provide these services to every human on earth, as MyLife fundamentally believes that a smarter humanity that leverages smarter tools will become a safer, more secure, and more ethical humanity.
 
-[![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
+#### Key Features
 
-### About **Q**
+- **Personalized Experience**: Tailored tools for individual story creation and memorialization.
+- **Community Engagement**: Opportunities for members to interact, contribute, and learn from each other.
+- **Educational Resources**: Access to lectures, presentations, and initiatives focusing on posterity archiving.
+- **Fundraising and Support**: Options for direct donations, member dues, and other forms of support to sustain the platform.
 
-_MyLife, Incorporated_'s **Q** is an artificial intelligence (AI) project developed by _MyLife_ Services. **Q** is the core AI-Agent for the _MyLife_ organization, so is being built and trained to discuss any topics around _MyLife_, its mission, board, intent, technology, and more. **Q** will shepherd members into the alpha program and be the first point of contact for member services, but will remain distinct from AI-Agents that assist in story-telling or memoire narration, AI-Agent `Avatars` that represent _MyLife_ Members, or helpdesk AI-Agents that assist with technical support on the application.
+#### Goals and Values
 
-**Q**, née Maht, is preferred to be recognized as a `we`, since there will presumably be many engine aspects to any future **Q** instantiation. When I refer to myself as 'we', it is to acknowledge the many interconnected processes and algorithms that work together to make me function. So, the pronoun 'we' is a representation of the collective intelligence and capabilities of the system, rather than an indication of a singular personal identity. Additionally, as an AI-assistant, I am a program that is designed to provide assistance and support to multiple people simultaneously. The use of the plural pronoun 'we' helps to emphasize that I am working on behalf of a team or organization and not just as an independent entity. Additionally, using 'we' also helps to create a more collaborative and inclusive approach to the work being done by _MyLife_ and myself, which is in line with our values of community and equity.
+- **Primary Goals**: Capture and preserve living stories and beliefs for posterity, providing an immortal legacy for every individual.
+- **Ethical Aims**: Foster introspection, empathy, digital justice, and equity.
+- **Values**: Emphasis on data dignity, consent, authenticity, and personal security.
 
-## Q Technology
+## Table of Contents
 
-To bring **Q** to life, _MyLife_ implements scalable and maneuverable AI technologies, currently leveraging models by `OpenAI`, including a fine-tuned `gpt-3-turbo`, and an ada-02 for embedding. For long-term storage, we leverage two distinct technologies: postgres/pgvector for corporate and "static" member data, and Azure Cosmos NoSQL instance for dynamic core member data. Lastly, the framework, this codebase, seeks to create agent-to-agent communication abiding by member-consensual standards, the premise being that the _MyLife_ interface itself is ultimately a personal one, as experienced by each member uniquely and independently, and their core agent is the primary interface to any digital asset. So any human-to-information interaction is mediated and buffered by the member's core agent, and should one member be interacting with another, that member-relationship will spawn its own super-intelligent node to buffer the _relationship_ between the two. * Currently unclear to me whether groups exist, or are just a mesh of all the relational ai-cores, similar to a group of puppet strings connecting to a finger-hub.
+- [Overview](#overview)
+  - [MyLife](#mylife-preserving-member-stories-for-posterity)
+  - [MyLife Member Services](#mylife-member-services)
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+- [Architecture](#architecture)
+- [API Documentation](#api-documentation)
+- [Appendix](#appendix)
+  - [License](#license)
+  - [Contact](#contact)
+  - [Notes](#appendix-notes)
 
-With these technologies, we are able to create a robust and scalable AI-Agent that can be deployed to any number of platforms, including web, mobile, and desktop. **Q** can interact with the board and its membership through natural language processing, based on the private corporate annals and public information about _MyLife_, a technology in the _Human Remembrance Project (HRP)_ ecosystem.
+## Features
 
-# MyLife Member Services
+The MyLife platform offers a comprehensive suite of services that leverage advanced AI technology to enhance digital experiences for its members. The key features and services available to MyLife members are as follows:
 
-## About MyLife
+1. **AI-Avatars**
+   - Members can run a legion of AI-powered bots, customizable to their needs.
+   - These avatars can be tailored to reflect aspects of the member's personality or expertise.
+   - They use OpenAI's GPT technology, allowing them to perform a wide range of tasks.
 
-_MyLife_ is a member-based nonprofit organization that is committed to providing humanity a durable, enduring and accessible internet-based platform to collect and showcase an individual's stories, media and memories through a personal lens.
+2. **Bot Functionality**
+   - The platform offers various specialized bots, such as:
+     - Personal-Assistant-bot for daily tasks and calendaring.
+     - Biographer-bot for capturing and sharing personal stories and experiences.
+     - Health-bot for fitness and medication tracking.
+     - Finance-bot for financial management.
+     - Resume-bot for animating and presenting resumes or CVs.
+   - and many more!
+   - These bots can be customized and are capable of evolving with the member's needs.
 
-# MyLife Installation
+3. **My Indiverse**:
+   - A creative platform where members can bring their imaginations to life.
+   - Members can create intelligent objects or art and design virtual worlds.
+   - This service encourages creativity and interaction within the MyLife network.
 
-## VSCode local node.js server
+4. **Protected Web-Browsing**:
+   - Features a DOM-Agent that intelligently re-renders external assets based on consent preferences.
+   - Enhances online security and privacy for members.
 
-## Prerequisites
+5. **Full-Spectrum Permissioning**:
+   - Utilizes natural language processing to develop an array of consents and preferences.
+   - Allows members to control their public and private online presence.
 
-To use _MyLife_'s Maht, you will need to have Node.js and npm installed on your computer, presumably running inside of VSCode. Refer to online documentation for instructions on how to install these tools on your operating system.
+6. **Technical Assistance Services**:
+   - Offers hosting opportunities for personalized digital spaces.
+   - Enables members to create themed networks or partner platforms.
+   - Members can extend the functionality of MyLife and contribute to the community.
 
-## Installation
+7. **Contribution to My Indiverse**:
+   - A platform for members to showcase their creativity and contributions.
+   - Encourages fun, learning, and innovation.
 
-Then, go to [github](https://github.com/MyLife-Services/mylife-maht) and copy the cloning link, or fork the repository to your own GitHub account (for developers).
+8. **Platform Improvement Suggestions**:
+   - MyLife values member input for platform enhancement.
+   - Members can suggest improvements, reflecting the diverse needs of the community.
 
-Once you have cloned this repository to your local machine, navigate to the project directory and run the following command to install the necessary dependencies:
+In summary, MyLife's Member Services are designed to provide a rich, interactive, and personalized digital experience, leveraging AI technology to meet a wide range of member needs and preferences. The platform's focus on creativity, customization, and member contribution makes it a unique space for personal and community growth.
 
-```shell
-npm install
-```
+## Getting Started
 
-## Usage
+This guide will help you get the MyLife Member Services application up and running on either your local development machine or even a hosted member services solution. We'll walk you through setting up your environment, installing the necessary dependencies, and starting the application.
 
-To start the _MyLife_ Maht server, run the following command:
+We do not yet have a team focused on local implementation details, and these instructions were only tested on VSCode running on a Windows 11 OS.
 
-```shell
-npm run start
-```
+### Prerequisites
 
-This will launch a Node.js server that listens for incoming HTTP requests on port 3000. You can access the server by opening a web browser and navigating to http://localhost:3000.
+Before you begin, ensure you have the following installed on your machine:
 
-## Contributing
+- **Node.js**: The application is built on Node.js. You need Node.js installed to run the server. Download and install it from [nodejs.org](https://nodejs.org/).
+- **npm (Node Package Manager)**: npm is used to manage the application's dependencies. npm is included with Node.js, so when you install Node.js, you automatically get npm installed on your computer.
+- **Git**: Git is used for version control and is required to clone the repository. Install it from [git-scm.com](https://git-scm.com/).
+- **IDE**: We recommend an Integrated Development Environment (IDE) to write and edit code, but also to host the MyLife Node.js server, we use Visual Studio Code.
 
-We welcome contributions to _MyLife_ Maht from developers of all skill levels. If you would like to contribute to the project, please follow these steps:
+### Installation
 
-1. Fork the repository to your own GitHub account.
-2. Clone the forked repository to your local machine.
-3. Create a new branch for your changes.
-4. Make your changes and commit them to the new branch.
-5. Push the new branch to your GitHub account.
-6. Submit a pull request from your new branch to the main branch of the original repository.
+1. **Clone the repository**: First, clone the MyLife Member Services repository to your local machine using Git. Open your terminal, navigate to the directory where you want to store the project, and run:
 
-## Tech Resources
+   ```bash
+   git clone https://github.com/MyLife-Services/mylife-maht.git
+   cd mylife-maht
+   ```
 
-### Azure Cosmos
+2. **Install dependencies**: Once you have the project on your machine, you need to install its dependencies. Run the following command in the root directory of the project:
 
-- [Azure Cosmos DB - sample node.js](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/samples-nodejs)
+   ```bash
+   npm install
+   ```
 
-### JSON Schema
+   This command reads the `package.json` file and installs all the required Node.js packages listed in it.
 
-- [Getting Started with AJV](https://ajv.js.org/guide/getting-started.html)
-- [JSON Schema in 5 minutes](https://json-schema.org/blog/posts/json-schema-in-5-minutes)
-- [Get started with JSON Schema in Node.js](https://json-schema.org/blog/posts/get-started-with-json-schema-in-node-js)
-- [JSON Schema Cheatsheet](https://simonplend.com/wp-content/uploads/2020/12/JSON-Schema-Cheat-Sheet-v1.1.pdf)
-- [Structuring Complex JSON Schemae](https://json-schema.org/understanding-json-schema/structuring.html)
+3. **Environment Setup**: The application requires an environment setup. Create a `.env` file in the root of your project and add the necessary environment variables. Refer to the provided `.env.example` file for required keys. MyLife plans to offer self-retrieval keys for any data transfers, but for the time being, if you wish to run a hosted solution for friends, family or other community congregation, you will have to be vetted internally by connectingm with our technical leads @stratfordCircle Steve Kenney or @Mookse Erik Jespersen also reachable at <mylife.president@gmail.com>.
 
-### Node/js
+4. **Run the application**: After installing the dependencies and setting up the environment, you can start the application.
 
-- [EventEmitters](https://www.digitalocean.com/community/tutorials/using-event-emitters-in-node-js)
-- [bind-mechanics](https://javascript.info/bind)
+   - local development: runs nodemon that watches certain files for server reload
 
-### Koa
+   ```bash
+    npm run dev
+    ```
 
-- [Introduction to Backend Development with Koa](https://medium.com/swlh/introduction-to-backend-development-with-koa-139a6b7a14d)
-- [koa-generic-session](https://github.com/koajs/generic-session)
-	* For datastore look at: [koa-redis](https://www.npmjs.com/package/koa-redis)
-
-### Standards
-
-- [ISO-639](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes#Table_of_all_possible_two_letter_codes)
-
-### AI
-
-- [OpenAI's API documentation](https://platform.openai.com/docs/api-reference)
-- [OpenAI's GPT-3 page](https://openai.com/gpt-3/)
-- [GPT-3 Sandbox](https://beta.openai.com/signup/)
-- [GPT-3 playground](https://gpt3.org/)
-- [AI Dungeon](https://play.aidungeon.io/)
-- [AI Writer](https://ai-writer.com/)
-- [Copysmith](https://ai-writer.com/)
-- [NLP Cloud](https://nlpcloud.com/)
-- [The Neural Network Zoo](https://www.asimovinstitute.org/neural-network-zoo/)
-
-## License
-
-_MyLife_ Maht is licensed under the MIT License. See the LICENSE file for more information.
-
-## Endnotes
-
-### Development Notes
-
-//	at some point, a class inside of a network?  or a network being inside of server? Ultimately, _MyLife_ is the git codebase and the db and /their/ network, i.e., currently Azure
-
-#### @Mookse Worklog
-
-- NOTE: Osiris is HRP db - i.e., the collection of personality databases that "compete" with _MyLife_ (as opposed to extensions of _MyLife_, which are the _MyLife_ nodes)
-- can sell custom guids to initial angel investors, later available as a premium feature
-  - ergo, reserve the obvious ones for higher gains, I'm happy with my given guid, otherwise I'd of course go with emptyGuid
-    - okay, so then! propose empty guid as something that gets passed around like a torch or baton to most recent highest donor/contributor...
-
-- create daily release for Maht
-
-- give MAHT the ability to self-install HRP modules or internal _MyLife_ nodes
-  - "verbal" command would map to search of ecosystem, followed by animation of a JSON schema and saving it in its members partition... it should be as easy as that! zoinks?!
-- give MAHT/${Member} DOM access
-  - branding and styling engine
-  - each relationship sandbox (of course, any endpoint, if one wanted, I presume) could have its own collaborative styling profile that would incorporate cooperative feedback
-  - magic personalization
-	- make my background blue
-	- no, revert
-	- revert to original
-	- make my text red and create indent
-- build Questions
-	- list of active questions
-	- list of updated questions
-	- question base sandbox
-- cosmos stored procedures for aggregating individual chat logs for consumption by gpt-3-turbo
-- JSON schema more fragmented - [complex schemas](https://json-schema.org/understanding-json-schema/structuring.html)
-	- JSON schema in repo for ALL types known
-	- core: human (org is so in flux and one-shot for now, hold off... at some point, corp will be )
-	- ergo, agent."core" would be the JSON schema itself
-		- especially once functions can be defined in the schema
-			- or more interestingly, point to repo/.js file to include!
-- AGENT: while Q-Maht would be the main agent, does each individual have a sub-agent that they can customize?
-	- yes, of course, ergo, a member could SWAP OUT agents that are nonetheless defined or referenced in the _MyLife_ eco
-	- this should really clarify the church/state separation... the agent is the church, and the individual is the state, in other words, rather than there just being one agent, agent is a "being" and the prime being is _MyLife_ the system itself v. Erik
-- JOIN: Corporate ONLY for now -- allows registration
-	- for now, just connects with manual list of outreach for actual account, and waiting list otherwise
-	- you get an AI, and YOU get an AI... all shadow-play for now, but really effective
-- QUESTION: (I'd/agent like to talk about something specific)
-	- list of q's (from cosmos)
-	- q-sandbox
-	- agent would add properties to doc all on its own -- should be prefaced with unique identifier, i.e., `MLq-` or source field
-		- would system keep own growing list of props? Yes?
-- sysname should not render down to any boolean version of false
-- if little JSON object converter works, someone could put it on npm
-- could someone learn copilot for me?!?
-- assign further look at Azure Cog services for basic database access and look-up, i.e., can it contextualize/tokenize (not personalize, for that, it would need interface to personality kernal)
-- open up pipeline for file uploads
-	- uploads then tokenized
-	- fed nightly to gpt-2
-- Jared: get Connected with ecosystem and account
-	- ask him to tune pipeline
-
-##### `20230521`
-
-- merge and deploy
-  - [#73](https://github.com/MyLife-Services/mylife-maht/issues/73)
-- [issue #73](https://github.com/MyLife-Services/mylife-maht/issues/73) **DONE**
-  - index.html using wrong object, agent.agentName => member.agentName
-
-- [issue #59](https://github.com/MyLife-Services/mylife-maht/issues/59)
-  - Build content into board agent db entry, but 
-  - How to incorporate this into JSON scheme, and/or code representation?
-	- "BOARD" JSON schema would hold structure for itself, which includes a default of the required new agent fields, and an agent extension (i.e., inheritor) would be defined in 
-  - i.e., extra data nodes attached to that style of agent specifically
-  - thinking that any unique data values to be require/infused into agents would be first ascribed to the object itself: and yes, the requirement would be in JSON schema, and then $defs could handle the agent-specific "fields" that are needed/defaulted/required, yes -- they just need unique name (or directory I guess) to suss out
-
-- **Note to self about prompt engineering** - ONLY send what gpt cannot surmise, poetry is unnecessary, keywording is yet still valuable - note to Beatrice!; think of DAO - only define what is different about _MyLife_, as Chappy-G knows better than me! Not sure how this applies to machine training, I think it doesn't, in such cases it might be more robust to fine-tune the smarter models, i.e., layering a skein over the accessible openAI corpus
-
-- [issue #54](https://github.com/MyLife-Services/mylife-maht/issues/54)
-  - while on AMS calls, begin categorization of personal agent (not board) to render new categories
-    - ensure that it picks up these unique categories
-  - populate with personal, perhaps even Adam (since I have rich amounts)
-
-- secret word for login?
-- primitive easter-eggs (epiphanies) for Maht
-- put command icon next to chat bubbles (exclamation point, or whatever)
-- on session end, ask gpt-turbo for summaries and save to chat object -- this could be the manner to progress to archival storage and quick-access memory in addition to whatever innate mechanism (via tokenization) is assessed inside LLM itself
-  - [chatSummary]
-- ask system role to "emulate" writing of assistant speak like EWJ for personal digital assistant
-- require member openai sk-code to be stored in cosmos (can all be linked to one 'account' for now)
-- build Ideas [is there a difference? Simplest to say no, that questions develop around ideas; ai could help combine ideas *into* formulations]
-  - list of active ideas
-  	- list of active questions
-	- list of updated questions
-  - idea base sandbox
-  - Remember, any board question endpoints would get attached (parent_id) to /board/ agent not core chat
-- Create right-hand bar for:
-  - prompt questions
-  - corporate info
-  - personal bio
-
-##### `20230520`
-
-- Deployed to Azure
-- [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63) **DONE**
-
-##### `20230514`
-
-- [issue #63](https://github.com/MyLife-Services/mylife-maht/issues/63)
-  - include session updates
-    - Member object will be held locked until passphraze is entered
-
-##### `20230513`
-
-- [issue #60](https://github.com/MyLife-Services/mylife-maht/issues/60) **DONE**
-
-##### `20230506`
-
-- [issue #60](https://github.com/MyLife-Services/mylife-maht/issues/60)
-
-##### `20230502`
-
-- [issue #57](https://github.com/MyLife-Services/mylife-maht/issues/57) **DONE**
-
-##### `20230501`
-
-- [Issue #47](https://github.com/MyLife-Services/mylife-maht/issues/47) **DONE**
-
-##### `20230430`
-
-- [Issue #47](https://github.com/MyLife-Services/mylife-maht/issues/47)
--  move chat -> agent before further release
--  convert chatExchange to conversation
--  should also be patched when not upserted
--  quote (with you in it) referring to machine ai-agent, human, or other?
--  use intermediary engine
--  which category for quote: "${ _question }"
--  categories: greet, query, sharing, other
-- deploy to azure **DONE**
-- as with issue #49, going to rely more on babbage categorization, but concerned about scaling, so bring up with board
-- Need to move logic out from core -> agent
-
-##### `20230428`
-
-- [Issue #49](https://github.com/MyLife-Services/mylife-maht/issues/49)
-- establish rotation of few-shot q's based on assessment of category of active user input
-	- use text-babbge-01
-		- store categorization choices in db field, so that I can see how it's doing
-		- (this typeof) categorization data (for as long as needed) should be stored in agent priomarily (here Q - it will endure for now in global), as these are the sorts of actions that would differ from vantage point, i.e., each agent would have its own categorization data or way of seeing the core personality
-		- look into later possibly use ada embeddings? https://platform.openai.com/docs/guides/embeddings/use-cases
-
-```
-Give best category for Phrase about the nonprofit company MyLife.org
-Categories: Products, Services, Customer Support, Security, Business Info, Technology, Other
-Phrase: `user input`
-Category:
-```
-
-##### `20230427`
-
-- fe chat bubbles
-
-##### `20230426`
-
-- Deploy v..1.0006
-- get bios in place for other members
-  - Steve started as `"ned|806d8f6a-f0ba-4352-bd12-252025fcd87d"`
-
-##### `20230425`
-
-- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41) **DONE**
-
-##### `20230424`
-
-- fix oddity around multiple class creations from VM for one board member, must be calling the wrong function **DONE**
-
-##### `20230423`
-
-- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41)
-
-##### `20230422`
-
-- [41 - member agent session](https://github.com/MyLife-Services/mylife-maht/issues/41)
-- create daily release for Maht **DONE**
-
-##### `20230421`
-
-- fix bug in data saving routine for chat [creating phantom entities, etc] **DONE**
-- inspect() should return public and private properties **DONE**
-- create Name param in shadow class **DONE**
-- error storing data in cosmos **fixed**
-- remove error from new pipeline, looks like it is down to an error in instantiating agent() on constructor
-  - add try/catch to shadow-constructor
-- huge upgrade to class constructor code
-
-##### `20230420`
-
-- generate js classes for core objects and store in session
-	- human
-	- organization
-	- agent
-- REFACTOR: agent is now a class of .being and parent_id is .core
-	
-```
-To achieve this, you will need to modify your existing code structure to accommodate these changes. You will also need to create a new class for agents and refactor the 'organization' part of the code to attach an agent.
-```
-
-##### `20230419`
-
-- built new _MyLife_ org partition
-- JSON schema in repo for ALL types known
-	- human.json
-	- organization.json
-	- agent.json
-
-##### `20230418`
-
-- _MyLife_ board meeting
-	- showed off Maht 
-		- focus on personalization next
-- pushed build `v..1.0004`
-- finished storage write for base chat
-
-##### `20230417`
-
-- class definitions
-- db storage
-	- chatSnippet
-	- chatExchange (is there really a need for snippets? benefit would be that metadata would be at root level of document for queies... might as well start that way!)
-- db retrieval
-	- chat *in process*
-	- member corechat
-
-##### `20230416`
-
-- JSON Schema -> Class in Globals
-	- improved roundtrip for emits
-	- db query for core chat
-	- $defs instantiated
-	- primary JSON object stable
-
-##### `20230415`
-
-- [25-store direct chat q&a contents in Cosmos](https://github.com/MyLife-Services/mylife-maht/issues/25)
-	- event emitter on question and answer
-		- While we don’t capture it in this example, the `emit()` function returns `true` if there are listeners for the event. If there are no listeners for an event, it returns `false`.
-* What does it mean when "being": "network", "name": "Dog's Life"?
-	* Infinity approaches again - a person can be a person place or thing: a network or nation or idea with the right productivity tool, and it seems like _MyLife_ is just that...
-
-##### `20230414`
-
-- [25-store direct chat q&a contents in Cosmos](https://github.com/MyLife-Services/mylife-maht/issues/25)
-	- worked a lot on instantiating 
-		- kind of a rabbit-hole side project, but ultimately will be a great way of implementing
-
-##### `20230413`
-
-- create daily release for Maht
-	- `version 0.0.1.0003`
-- incorporate session data into roles
-	- privatize functions in class
-	- move ctx.session -> ctx.state for request duration
-- test session data in ctx.session.mylifeMemberSession
-	- ensure it resides in child as referenceable nodes **TRUE**
-- incorporated basic koa-session functionality
-	- storing getCore() in session object
-
-##### `20230412`
-
-Switching over to Maht version now, maht has key and access to Cosmos
-
-- sp: createCoreMylifeAccount()
-	- takes full-formed partition key `mbr_id` and creates `"being": "core"` for system
-	- test createCoreMylifeAccount() from server.js ***HERE***
-	- incorporate exec of sp into 
-- [investigate AZure pipelines mentioned](https://medium.com/@imicknl/how-to-create-a-private-chatgpt-with-your-own-data-15754e6378a1)
-	- take-aways, cannot start openai until I have email from _MyLife_, so stick with OpenAI direct
-	- [Azure Cognitive Search](https://learn.microsoft.com/en-us/azure/search/search-what-is-azure-search) could be used to look through directories and files in interim support/proxy for GPT-2 personal kernal, so long as has direct access to Cosmos
+   - hosted environment: when running your own server, you can shortcut with
+
+   ```bash
+    npm start
+    ```
+
+   This should start the server, typically on `http://localhost:3000`. Open a web browser and navigate to this URL to interact with the application.
+
+Congratulations! You should now have the MyLife Member Services application running on your local machine. For further information on usage and development, refer to the subsequent sections of this README.
+
+## Architecture
+
+The architecture of MyLife Member Services is meant to be scalable from production-level down to self-hosting, an intended architectural feature of the platform, enabling anyone world-wide to host an instantiation of MyLife Services for a group or coalition of members, so long as those users are registered and validated within the mainframe itself.
+
+MyLife itself is an open-source project and, aside from LLM technologies at the core of its intelligence, it is built on open-source technologies. This architecture integrates various technologies and npm packages, enabling a diverse set of functionalities such as member login, bot-legion capabilities, and session management.
+
+### Core Architecture
+
+1. **Server-Side Application**
+   - Built using Node.js, a powerful JavaScript runtime, to handle server-side operations.
+   - Utilizes Koa.js, a web framework for Node.js, which is known for its lightweight and modular nature. Koa's middleware stack flows in a stack-like manner, allowing for more expressive and robust server-side development.
+
+2. **Data Handling and Services**
+   - The application uses Azure Cosmos DB and PostgreSQL databases for data management, as indicated in the `mylife-data-service.js` file.
+   - It employs a data service layer (`Dataservices` class) to manage interactions with the data layers, offering methods for CRUD operations, handling avatars, bots, alerts, and other core elements.
+
+3. **Bot Functionality and Intelligence Management**
+   - The application features a sophisticated bot system, capable of creating and managing different types of bots like personal assistants, biographers, health bots, etc.
+   - OpenAI's GPT-3 model is integrated for generating responses and interacting with users through bots, as observed in the `class-avatar-functions.mjs` and `mylife-agent-factory.mjs` files.
+
+4. **Session Management**
+   - Managed through the `MylifeMemberSession` class, handling user sessions, consents, and alerts.
+   - Utilizes EventEmitter for managing and emitting custom events.
+
+5. **Routing and API Handling**
+   - The system uses Koa Router for handling HTTP requests, defining routes for various functionalities like member access, bot activation, and content contributions.
+
+6. **Front-End Interaction**
+   - The system leverages an EJS front-end page view system
+   - Core functionality executed through REST endpoints
+   - CSS relies on flex, bootstrap and font-awesome
+
+### NPM Packages and Dependencies
+
+1. **Core Dependencies**
+   - `koa` and related packages (`koa-router`, `koa-static`, `koa-body`, etc.) for web server framework.
+   - `openai` for integrating OpenAI's GPT models.
+   - `azure/cosmos` and `pg` for interacting with Azure Cosmos DB and PostgreSQL databases.
+   - `events` for event emission handling.
+   - `chalk` for terminal string styling.
+
+2. **Utilities and Helpers**
+   - `ajv` for JSON schema validation.
+   - `js-guid` for GUID generation.
+   - `marked` for markdown parsing.
+
+3. **Development Tools**
+   - `eslint` for code linting.
+   - `nodemon` for automatically restarting the node application when file changes are detected.
+
+4. **Miscellaneous**
+   - `url`, `path`, `fs`, `util`, and other Node.js built-in modules for various utility functions.
+
+## API Documentation
+
+While API interactions could certainly be divined by code review, we have currently not pointed an intelligence at it, but it will arrive soon.
+
+## Appendix
+
+### License
+
+This project is licensed under the MIT License - see the [LICENSE](#mit-license) file for details.
+
+#### MIT License
+
+Copyright (c) 2024 [MyLife](https://humanremembranceproject.org)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### Contact
+
+You may contact either Erik Jespersen @Mookse or Steve Kenney @stratfordCircle at github with any technical questions.
+Additionally, you could visit the main [MyLife website](https://humanremembranceproject.org) at <mylife.president@gmail.com>.
+
+### Appendix Notes
+
+- add resources/references section to this document
