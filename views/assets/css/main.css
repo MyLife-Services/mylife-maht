@@ -202,6 +202,10 @@ body {
     color: #ffffff; /* White text for better readability */
     margin-left: 0;
 }
+.agent-bubble a {
+	font-size: 1em;
+    color: #dcb6ff; /* White text for better readability */
+}
 .button.chat-submit {
 	flex: 0 0 auto;
 	color: rgba(65, 84, 104, 0.85);
@@ -367,8 +371,12 @@ body {
 .member-bubble, .user-bubble {
     background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
     color: #333333; /* Dark grey for contrast and easy reading */
+	font-size: .75em;
     margin-left: auto;
 	margin-right: 12px;
+}
+.member-bubble a, .user-bubble a {
+	color: #333333; /* Dark grey for contrast and easy reading */
 }
 #message {
 	margin-right: 0.5rem;
