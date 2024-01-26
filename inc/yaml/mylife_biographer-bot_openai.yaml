@@ -12,79 +12,32 @@ paths:
   /story:
     post:
       operationId: MyLifeBiographerStoryCreation
-      summary: MyLife Biographer Bot will access this endpoint to generate a .
+      summary: MyLife Biographer Bot will access this endpoint to generate a `bio-story` document in MyLife Cosmos.
       description: Endpoint for handling incoming registration webhook data from the MyLife GPT service.
       requestBody:
         required: true
         content:
           application/json:
             schema:
+              description: The `story` data sent by MyLife Biographer BOt.
               type: object
               required:
-                - registrationInterests
-                - contact
+                - assistantType
+                - memberKey
+                - storySummary
               properties:
-                registrationInterests:
-                  type: array
-                  default:
-                    - information
-                  minItems: 1
-                  maxItems: 4
-                  items:
-                    type: string
-                    enum:
-                      - membership
-                      - volunteer
-                      - donate
-                      - information
-                  description: Interests in MyLife, defaults to information.
-                contact:
-                  type: object
-                  required:
-                    - humanName
-                    - email
-                  properties:
-                    avatarName:
-                      type: string
-                      description: The avatar name desired by the person registering.
-                    humanName:
-                      type: string
-                      description: The name, can be nickname or short name, of the person registering.
-                    humanDateOfBirth:
-                      type: string
-                      format: date
-                      description: The date of birth of the person registering; could be as little as a year.
-                    email:
-                      type: string
-                      description: The email of the person registering.
-                    city:
-                      type: string
-                      description: The city of the person registering.
-                    state:
-                      type: string
-                      description: The state of the person registering.
-                    country:
-                      type: string
-                      description: The country of the person registering.
-                  description: The registration data sent from the MyLife GPT instance.
-                personalInterests:
-                  type: array
-                  default: []
-                  minItems: 0
-                  maxItems: 5
-                  items:
-                    type: string
-                    enum:
-                      - archivist
-                      - humanist
-                      - ethicist
-                      - technologist
-                      - futurist
-                  description: The driving personal interests of the person registering.
-                additionalInfo:
+                assistantType:
+                  default: MyLife-Biographer-Bot
+                  description: The type of assistant that generated the story.
                   type: string
-                  maxLength: 1024
-                  description: Additional information sent from the MyLife GPT instance.
+                memberKey:
+                  description: Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition.
+                  maxLength: 256
+                  type: string
+                storySummary:
+                  description: MyLife Biographer Bot summary of identified `story`.
+                  maxLength: 20480
+                  type: string
       responses:
         "200":
           description: Webhook registration data received successfully.
