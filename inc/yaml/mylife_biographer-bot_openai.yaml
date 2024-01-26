@@ -1,18 +1,18 @@
 openapi: 3.0.0
 info:
   title: MyLife GPT Webhook Receiver API
-  description: This API is for receiving webhooks from [MyLife's public GPT instance](https://chat.openai.com/g/g-rEjoOt9hN-mylife).
+  description: This API is for receiving webhooks from [MyLife's public Biographer Bot instance](https://chat.openai.com/g/g-QGzfgKj6I-mylife-biographer-bot).
   version: 1.0.0
 servers:
-  - url: https://humanremembranceproject.org/api/v1
-    description: Root endpoint for receiving GPT webhooks
+  - url: https://4c87-73-149-210-124.ngrok-free.app/api/v1
+    description: Endpoint for receiving stories from the MyLife Biographer Bot instance.
 security:
   - bearerAuth: []
 paths:
-  /register:
+  /story:
     post:
-      operationId: MyLifeGPTRegistration
-      summary: Receives registration data from the GPT webhook.
+      operationId: MyLifeBiographerStoryCreation
+      summary: MyLife Biographer Bot will access this endpoint to generate a .
       description: Endpoint for handling incoming registration webhook data from the MyLife GPT service.
       requestBody:
         required: true
@@ -89,5 +89,5 @@ paths:
         "200":
           description: Webhook registration data received successfully.
 post:
-  operationId: MyLifeGPTRegistration
+  operationId: MyLifeBiographerStoryCreation
   x-openai-isConsequential: false
