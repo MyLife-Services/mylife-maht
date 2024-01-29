@@ -90,8 +90,14 @@ class Dataservices {
 	get embedder(){
 		return this.#PgvectorManager
 	}
+	get globals(){
+		return this.datamanager.globals
+	}
 	get id(){
 		return this.partitionId.split('|')[1]
+	}
+	get isMyLife(){
+		return this.mbr_id===process.env?.MYLIFE_SERVER_MBR_ID??false
 	}
 	get mbr_id(){
 		return this.partitionId
@@ -143,7 +149,10 @@ class Dataservices {
      */
 	async challengeAccess(_mbr_id,_passphrase){	//	if possible (async) injected into session object
 		//	ask global data service (stored proc) for passphrase
-		return await this.datamanager.challengeAccess(_mbr_id,_passphrase)
+		return await this.datamanager.challengeAccess(_mbr_id, _passphrase)
+	}
+	async datacore(_mbr_id){
+		return await this.getItem(_mbr_id)
 	}
 	async findRegistrationIdByEmail(_email){
 		/* pull record for email, returning id or new guid */
@@ -257,13 +266,15 @@ class Dataservices {
 	 * @public
 	 * @param {string} _id - The unique identifier for the item.
 	 * @param {string} _container_id - The container to use, overriding default: `Members`.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(_id, _container_id) {
+	async getItem(_id, _container_id, _mbr_id=this.mbr_id) {
 		try{
 			return await this.datamanager.getItem(
 				_id,
 				_container_id,
+				{ partitionKey: _mbr_id, populateQuotaInfo: false, },
 			)
 		}
 		catch(_error){
@@ -279,9 +290,10 @@ class Dataservices {
 	 * @param {array} [_selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [_paramsArray=[]] - Additional query parameters.
 	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
-	async getItems(_being, _selects=[], _paramsArray=[], _container_id) {	//	_params is array of objects { name: '${varName}' }
+	async getItems(_being, _selects=[], _paramsArray=[], _container_id, _mbr_id=this.mbr_id) {	//	_params is array of objects { name: '${varName}' }
 		// @todo: incorporate date range functionality into this.getItems()
 		const _prefix = 'u'
 		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
@@ -299,6 +311,10 @@ class Dataservices {
 			return await this.datamanager.getItems(
 				{ query: _query, parameters: _paramsArray },
 				_container_id,
+				{
+					partitionKey: _mbr_id,
+					populateQuotaInfo: false, // set this to true to include quota information in the response headers
+				},
 			)
 		}
 		catch(_error){
@@ -398,6 +414,25 @@ class Dataservices {
 			this.pushItem(_bot)
 		}
 		return _bot
+	}
+	/**
+	 * Submits a story to MyLife. Currently via API, but could be also work internally.
+	 * @param {object} _story - Story object { assistantType, being, form, id, mbr_id, name, summary }.
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async story(_story){
+		if(!this.isMyLife) return
+		return await this.datamanager.pushItem(_story)
+	}
+	/**
+	 * Tests partition key for member
+	 * @public
+	 * @param {string} _mbr_id member id
+	 * @returns {boolean} returns true if partition key is valid
+	 */
+	async testPartitionKey(_mbr_id){
+		if(!this.isMyLife) return false
+		return await this.datamanager.testPartitionKey(_mbr_id)
 	}
 }
 //	exports

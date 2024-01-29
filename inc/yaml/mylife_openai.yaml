@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: MyLife GPT Webhook Receiver API
-  description: This API is for receiving webhooks from MyLife's public GPT instance found at []().
+  description: This API is for receiving webhooks from [MyLife's public GPT instance](https://chat.openai.com/g/g-rEjoOt9hN-mylife).
   version: 1.0.0
 servers:
   - url: https://humanremembranceproject.org/api/v1
@@ -89,5 +89,5 @@ paths:
         "200":
           description: Webhook registration data received successfully.
 post:
-  operationId: blah2
+  operationId: MyLifeGPTRegistration
   x-openai-isConsequential: false

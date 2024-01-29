@@ -279,6 +279,10 @@ class MyLife extends Organization {	//	form=server
 	constructor(_Factory){	//	no session presumed to exist
 		super(_Factory)
 	}
+	async datacore(_mbr_id){
+		if(!_mbr_id || _mbr_id===this.mbr_id) throw new Error('datacore cannot be accessed')
+		return await this.factory.datacore(_mbr_id)
+	}
 	/* public functions */
 	/**
 	 * Server MyLife _Maht instantiation uses this function to populate the most current alerts in the modular factory memoryspace. Currently only applicable to system types, but since this is implemented at the `core.mjs` scope, we can account
@@ -298,6 +302,37 @@ class MyLife extends Organization {	//	form=server
 	 */
 	async registerCandidate(_candidate){
 		return await this.factory.registerCandidate(_candidate)
+	}
+	/**
+	 * Submits a story to MyLife via API. Unclear if can be dual-purposed for internal, or if internal still instantiates API context.
+	 * @public
+	 * @param {string} _mbr_id - Member id
+	 * @param {string} _assistantType - String name of assistant type
+	 * @param {string} _summary - String summary of story
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async story(_mbr_id, _assistantType, storySummary){
+		const id = this.globals.newGuid
+		const _story = {
+			assistantType: _assistantType,
+			being: 'story',
+			form: _assistantType,
+			id,
+			mbr_id: _mbr_id,
+			name: `${_assistantType}-story_${_mbr_id}_${id}`,
+			summary: storySummary,
+		}
+		const _storyCosmos = await this.factory.story(_story)
+		return this.globals.stripCosmosFields(_storyCosmos)
+	}
+	/**
+	 * Tests partition key for member
+	 * @public
+	 * @param {string} _mbr_id member id
+	 * @returns {boolean} returns true if partition key is valid
+	 */
+	async testPartitionKey(_mbr_id){
+		return await this.factory.testPartitionKey(_mbr_id)
 	}
 	/* getters/setters */
 	/**

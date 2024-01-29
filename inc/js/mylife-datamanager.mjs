@@ -1,9 +1,12 @@
 /* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
-import Config from './mylife-datasource-config.mjs'
 import chalk from 'chalk'
 import { _ } from 'ajv'
+import Config from './mylife-datasource-config.mjs'
+import Globals from './globals.mjs'
+/* modular constants */
+const mGlobals = new Globals()
 //	define class
 class Datamanager {
 	#containers
@@ -31,7 +34,7 @@ class Datamanager {
 		}
 		this.requestOptions = {
 			partitionKey: this.#partitionId,
-			populateQuotaInfo: true, // set this to true to include quota information in the response headers
+			populateQuotaInfo: false, // set this to true to include quota information in the response headers
 		}
 	}
 	//	init function
@@ -86,11 +89,11 @@ class Datamanager {
 	async getItems(_querySpec, _container_id=this.containerDefault, _options=this.requestOptions ){
 		const { resources } = await this.#containers[_container_id]
 			.items
-			.query(_querySpec,_options)
+			.query(_querySpec, _options)
 			.fetchAll()
 		return resources
 	}
-	async patchItem(_id, _item, _container_id=this.containerDefault) {	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+	async patchItem(_id, _item, _container_id=this.containerDefault){	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(_item)) _item = [_item]
 		const { resource: _update } = await this.#containers[_container_id]
@@ -98,7 +101,9 @@ class Datamanager {
 			.patch(_item)	//	see below for filter-patch example
 		return _update
 	}
-	async pushItem(_item, _container_id=this.containerDefault) {	//	post or insert, depends on whether it finds id or not, will overwrite all existing fields
+	async pushItem(_item, _container_id=this.containerDefault){
+		_item.id = _item?.id??this.globals.newGuid
+		_item.mbr_id = _item?.mbr_id??this.#partitionId
 		const { resource: doc } = await this.#containers[_container_id]
 			.items
 			.upsert(_item)
@@ -114,6 +119,17 @@ class Datamanager {
 			.items
 			.upsert(_candidate)
 		return doc
+	}
+	async testPartitionKey(_mbr_id){
+		const { resource: _result } = await this.#containers['members']
+			.scripts
+			.storedProcedure('testPartitionKey')
+			.execute(_mbr_id)	//	first parameter is partition key, second is passphrase, third is case sensitivity
+		return _result
+	}
+	/* getters/setters */
+	get globals(){
+		return mGlobals
 	}
 }
 //	exports

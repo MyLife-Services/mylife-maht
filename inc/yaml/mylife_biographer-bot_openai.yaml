@@ -1,0 +1,94 @@
+openapi: 3.0.0
+info:
+  title: MyLife GPT Webhook Receiver API
+  description: This API is for receiving webhooks from [MyLife's public Biographer Bot instance](https://chat.openai.com/g/g-QGzfgKj6I-mylife-biographer-bot).
+  version: 1.0.0
+servers:
+  - url: https://humanremembranceproject.org/api/v1
+    description: Endpoint for receiving stories from the MyLife Biographer Bot instance.
+security:
+  - bearerAuth: []
+paths:
+  /keyValidation/{mid}:
+    post:
+      x-openai-isConsequential: false
+      operationId: MyLifeKeyValidation
+      summary: MyLife Biographer Bot will access this endpoint to validate a `memberKey` in MyLife Cosmos.
+      description: Endpoint for handling incoming registration webhook data from the MyLife GPT service.
+      parameters:
+        - name: mid
+          in: path
+          required: true
+          description: The `memberKey` data to be sent by MyLife Biographer Bot. Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition.
+          schema:
+            maxLength: 256
+            minLength: 40
+            type: string
+      responses:
+        "200":
+          description: A successful response indicating the member key is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Valid member.
+                  data:
+                    type: object
+                    properties:
+                      mbr_id:
+                        maxLength: 256
+                        minLength: 40
+                        type: string
+                      updates:
+                        type: string
+                      interests:
+                        type: string
+                      birthDate:
+                        type: string
+                        format: date-time
+                      birthPlace:
+                        type: string
+                      fullName:
+                        type: string
+                      preferredName:
+                        type: string
+        "400":
+          description: Invalid member. Field `memberKey` is not valid, check again with member.
+  /story/{mid}:
+    post:
+      x-openai-isConsequential: false
+      operationId: MyLifeBiographerStoryCreation
+      summary: MyLife Biographer Bot will access this endpoint to generate a `bio-story` document in MyLife Cosmos.
+      description: Endpoint for handling incoming registration webhook data from the MyLife GPT service.
+      parameters:
+        - name: mid
+          in: path
+          required: true
+          description: The `memberKey` data to be sent by MyLife Biographer Bot. Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition.
+          schema:
+            maxLength: 256
+            minLength: 40
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: The `story` data sent by MyLife Biographer BOt.
+              type: object
+              required:
+                - storySummary
+              properties:
+                storySummary:
+                  description: MyLife Biographer Bot summary of identified `story`.
+                  maxLength: 20480
+                  type: string
+      responses:
+        "200":
+          description: Webhook registration data received successfully.
