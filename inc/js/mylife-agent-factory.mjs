@@ -5,7 +5,6 @@ import EventEmitter from 'events'
 import vm from 'vm'
 import util from 'util'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
-import Globals from './globals.mjs'
 import Dataservices from './mylife-data-service.js'
 import { Member, MyLife } from './core.mjs'
 import {
@@ -41,7 +40,6 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
-const mGlobals = new Globals()
 const mOpenAI = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 	organizationId: process.env.OPENAI_ORG_KEY,
@@ -146,6 +144,16 @@ class AgentFactory extends EventEmitter{
 	async challengeAccess(_mbr_id, _passphrase){
 		return await mDataservices.challengeAccess(_mbr_id, _passphrase)
 	}
+	async datacore(_mbr_id){
+		const _core = await mDataservices.getItems(
+			'core',
+			undefined,
+			undefined,
+			undefined,
+			_mbr_id,
+		)
+		return _core?.[0]??{}
+	}
 	async getAlert(_alert_id){
 		const _alert = _alerts.system.find(alert => alert.id === _alert_id)
 		return _alert ? _alert : await mDataservices.getAlert(_alert_id)
@@ -223,6 +231,24 @@ class AgentFactory extends EventEmitter{
 	async setBot(_bot){
 		return await this.dataservices.setBot(_bot)
 	}
+	/**
+	 * Submits a story to MyLife. Currently via API, but could be also work internally.
+	 * @param {object} _story - Story object { assistantType, being, form, id, mbr_id, name, summary }.
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async story(_story){
+		return await this.dataservices.story(_story)
+	}
+	/**
+	 * Tests partition key for member
+	 * @public
+	 * @param {string} _mbr_id member id
+	 * @returns {boolean} returns true if partition key is valid
+	 */
+	async testPartitionKey(_mbr_id){
+		if(!this.isMyLife) return false
+		return await mDataservices.testPartitionKey(_mbr_id)
+	}
 	//	getters/setters
 	get alerts(){ // currently only returns system alerts
 		return _alerts.system
@@ -246,7 +272,7 @@ class AgentFactory extends EventEmitter{
 		return this.schemas.file
 	}
 	get globals(){
-		return mGlobals
+		return this.dataservices.globals
 	}
 	/**
 	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.

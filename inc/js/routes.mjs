@@ -4,7 +4,6 @@ import {
     about,
     activateBot,
     alerts,
-    api_register,
     avatarListing,
     bots,
     category,
@@ -20,6 +19,12 @@ import {
     upload,
     _upload
 } from './functions.mjs'
+import {
+    keyValidation,
+    register,
+    story,
+    tokenValidation,
+} from './api-functions.mjs'
 // variables
 const _Router = new Router()
 const _memberRouter = new Router()
@@ -37,12 +42,17 @@ _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/signup', signup)
 /* api webhook routes */
-_apiRouter.use(_tokenValidate)
+_apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
-_apiRouter.post('/register', api_register)
+//_apiRouter.get('/keyValidation', (ctx)=>{console.log('48', ctx.request)})
+//_apiRouter.get('/keyValidation/:mid', keyValidation)
+//_apiRouter.head('/keyValidation/:mid', keyValidation)
+_apiRouter.post('/keyValidation/:mid', keyValidation)
+_apiRouter.post('/register', register)
+_apiRouter.post('/story/:mid', story)
 /* member routes */
-_memberRouter.use(_memberValidate)
+_memberRouter.use(memberValidation)
 _memberRouter.get('/', members)
 _memberRouter.get('/avatars', avatarListing)
 _memberRouter.get('/avatars/:aid', avatarListing)
@@ -77,7 +87,7 @@ function connectRoutes(_Menu){
  * @param {function} next Koa next function
  * @returns {function} Koa next function
  */
-async function _memberValidate(ctx, next) {
+async function memberValidation(ctx, next) {
     // validation logic
     if(ctx.state.locked) {
         ctx.redirect(
@@ -104,38 +114,6 @@ function status(ctx){	//	currently returns reverse "locked" status, could send o
  */
 function status_signup(ctx){
 	ctx.body = ctx.session.signup
-}
-/**
- * Validates api token
- * @param {object} ctx Koa context object
- * @param {function} next Koa next function
- * @returns {function} Koa next function
- */
-async function _tokenValidate(ctx, next) {
-    try {
-        const authHeader = ctx.request.headers['authorization']
-        if(!authHeader){
-            ctx.status = 401
-            ctx.body = { error: 'Authorization header is missing' }
-            return
-        }
-        const _token = authHeader.split(' ')[1] // Bearer TOKEN_VALUE
-        if(_token!==process.env.OPENAI_JWT_SECRET){
-            ctx.status = 401
-            ctx.body = { error: 'Authorization token failure' }
-            return
-        }
-        await next()
-    }  catch (error) {
-        ctx.status = 401
-        const _error = {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-        }
-        ctx.body = { message: 'Unauthorized Access', error: _error }
-        return
-    }
 }
 // exports
 export default function init(_Menu) {

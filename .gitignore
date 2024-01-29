@@ -11,3 +11,5 @@ __*/ # ignore all folders starting with an underscore
 .tmp
 .DS_Store
 .code-workspace
+.postman
+postman

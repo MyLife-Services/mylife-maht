@@ -27,53 +27,6 @@ async function alerts(ctx){
 		ctx.body = await ctx.state.MemberSession.alerts(ctx.request.body)
 	}
 }
-async function api_register(ctx){
-	const _registrationData = ctx.request.body
-	const {
-		registrationInterests,
-		contact={}, // as to not elicit error destructuring
-		personalInterests,
-		additionalInfo
-	} = _registrationData
-	const {
-		avatarName,
-		humanName,
-		humanDateOfBirth,
-		email,
-		city,
-		state,
-		country,
-	} = contact
-	if (!humanName?.length || !email?.length){
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-            success: false,
-            message: 'Missing required contact information: humanName and/or email are required.',
-        }
-        return
-    }
-	// Email validation
-    if (!ctx.Globals.isValidEmail(contact.email)) {
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-            success: false,
-            message: 'Invalid email format.',
-        }
-        return
-    }
-	// throttle requests?
-	// write to cosmos db
-	_registrationData.email = email // required at root for select
-	const _ = ctx.MyLife.registerCandidate(_registrationData)
-	const { mbr_id, ..._return } = _registrationData // abstract out the mbr_id
-	ctx.status = 200
-    ctx.body = {
-        success: true,
-        message: 'Registration completed successfully.',
-		data: _return,
-    }
-	return
-}
 async function avatarListing(ctx){
 	ctx.state.title = `Avatars for ${ ctx.state.member.memberName }`
 	ctx.state.avatars = []
@@ -278,7 +231,6 @@ export {
 	about,
 	activateBot,
 	alerts,
-	api_register,
 	avatarListing,
 	bots,
 	category,
