@@ -22,6 +22,9 @@ class Globals extends EventEmitter {
 	isValidGuid(_str='') {
 		return (typeof _str === 'string' && guid_regex.test(_str))
 	}
+	stripCosmosFields(_obj){
+		return Object.fromEntries(Object.entries(_obj).filter(([k, v]) => !k.startsWith('_')))
+	}
 	sysId(_mbr_id){
 		if(!typeof _mbr_id==='string' || !_mbr_id.length || !_mbr_id.includes('|'))
 			throw new Error('expected MyLife member id string')
