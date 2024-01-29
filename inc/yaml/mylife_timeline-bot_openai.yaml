@@ -1,0 +1,106 @@
+openapi: 3.0.0
+info:
+  title: MyLife GPT Webhook Receiver API
+  description: This API is for receiving webhooks from [MyLife Timeline Creator Bot instance](https://chat.openai.com/g/g-hpVDobsQa-mylife-timeline-creator).
+  version: 1.0.0
+servers:
+  - url: https://8d55-73-149-210-124.ngrok-free.app/api/v1
+    description: Endpoint for receiving stories from the MyLife Timeline Creator Bot instance.
+security:
+  - bearerAuth: []
+paths:
+  /keyValidation/{mid}:
+    post:
+      x-openai-isConsequential: false
+      operationId: MyLifeKeyValidation
+      summary: MyLife Timeline Creator Bot will access this endpoint to validate a `memberKey` in MyLife Cosmos.
+      description: Endpoint for handling incoming registration webhook data from the MyLife GPT service.
+      parameters:
+        - name: mid
+          in: path
+          required: true
+          description: The `memberKey` data to be sent by MyLife Timeline Creator Bot. Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition.
+          schema:
+            maxLength: 256
+            minLength: 40
+            type: string
+      responses:
+        "200":
+          description: A successful response indicating the member key is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Valid member.
+                  data:
+                    type: object
+                    properties:
+                      interests:
+                        type: string
+                      birthDate:
+                        type: string
+                        format: date-time
+                      birthPlace:
+                        type: string
+                      preferredName:
+                        type: string
+        "400":
+          description: Invalid member. Field `memberKey` is not valid, check again with member.
+  /timeline/{mid}:
+    post:
+      x-openai-isConsequential: false
+      operationId: MyLifeTimelineCreation
+      summary: MyLife Timeline Creator Bot will access this endpoint to generate a `timeline` markdown document in MyLife Cosmos.
+      description: Endpoint for handling incoming webhook data from the MyLife GPT service.
+      parameters:
+        - name: mid
+          in: path
+          required: true
+          description: The `memberKey` data to be sent by MyLife Timeline Creator Bot. Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition.
+          schema:
+            maxLength: 256
+            minLength: 40
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: The `timeline` data sent by MyLife Timeline Creator Bot.
+              type: object
+              required:
+                - timeline
+              properties:
+                timeline:
+                  description: Array of JSON timeline objects in chronological order.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - date
+                      - name
+                      - description
+                    properties:
+                      date:
+                        type: string
+                        format: date-time
+                        description: The date of the event.
+                      name:
+                        type: string
+                        description: The name of the event.
+                        maxLength: 64
+                        minLength: 1
+                      description:
+                        type: string
+                        description: The description of the event.
+                        maxLength: 2048
+                        minLength: 1
+      responses:
+        "200":
+          description: Webhook registration data received successfully.
