@@ -240,6 +240,14 @@ class AgentFactory extends EventEmitter{
 		return await this.dataservices.story(_story)
 	}
 	/**
+	 * Submits a timeline to MyLife. Currently via API, but could be also work internally.
+	 * @param {object} _timeline - Timeline object { assistantType, being, id, mbr_id, name, timeline }.
+	 * @returns {object} - The timeline document from Cosmos.
+	 */
+	async timeline(_timeline){
+		return await this.dataservices.timeline(_timeline)
+	}
+	/**
 	 * Tests partition key for member
 	 * @public
 	 * @param {string} _mbr_id member id

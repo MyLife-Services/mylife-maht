@@ -425,6 +425,15 @@ class Dataservices {
 		return await this.datamanager.pushItem(_story)
 	}
 	/**
+	 * Submits a timeline to MyLife. Currently via API, but could be also work internally.
+	 * @param {object} _timeline - Timeline object { assistantType, being, id, mbr_id, name, timeline }.
+	 * @returns {object} - The timeline document from Cosmos.
+	 */
+	async timeline(_timeline){
+		if(!this.isMyLife) return
+		return await this.datamanager.pushItem(_timeline)
+	}
+	/**
 	 * Tests partition key for member
 	 * @public
 	 * @param {string} _mbr_id member id

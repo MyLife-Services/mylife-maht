@@ -308,7 +308,7 @@ class MyLife extends Organization {	//	form=server
 	 * @public
 	 * @param {string} _mbr_id - Member id
 	 * @param {string} _assistantType - String name of assistant type
-	 * @param {string} _summary - String summary of story
+	 * @param {string} storySummary - String summary of story
 	 * @returns {object} - The story document from Cosmos.
 	 */
 	async story(_mbr_id, _assistantType, storySummary){
@@ -324,6 +324,27 @@ class MyLife extends Organization {	//	form=server
 		}
 		const _storyCosmos = await this.factory.story(_story)
 		return this.globals.stripCosmosFields(_storyCosmos)
+	}
+	/**
+	 * Submits a timeline to MyLife via API. Unclear if can be dual-purposed for internal, or if internal still instantiates API context.
+	 * @public
+	 * @param {string} _mbr_id - Member id
+	 * @param {string} _assistantType - String name of assistant type
+	 * @param {string} _timeline - array of timeline objects { name, date, derscription }
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async timeline(_mbr_id, _assistantType, timeline){
+		const id = this.globals.newGuid
+		const _timeline = {
+			assistantType: _assistantType,
+			being: 'timeline',
+			id,
+			mbr_id: _mbr_id,
+			name: `${_assistantType}-timeline_${_mbr_id}_${id}`,
+			timeline,
+		}
+		const _timelineCosmos = await this.factory.timeline(_timeline)
+		return this.globals.stripCosmosFields(_timelineCosmos)
 	}
 	/**
 	 * Tests partition key for member

@@ -144,6 +144,34 @@ async function story(ctx){
     return
 }
 /**
+ * Functionality around individual timeline contributions and portrayals
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object
+ */
+async function timeline(ctx){
+    await _keyValidation(ctx) // sets ctx.state.mbr_id and more
+    const { assistantType, mbr_id } = ctx.state
+    const { timeline } = ctx.request?.body??{}
+    if(Array.isArray(timeline) && !timeline?.length){
+        ctx.status = 400 // Bad Request
+        ctx.body = {
+            success: false,
+            message: 'No timeline array provided. Use `timeline` field.',
+        }
+        return
+    }
+    const _timeline = await ctx.MyLife.timeline(mbr_id, assistantType, timeline) // @todo: remove await
+    console.log(chalk.yellowBright('timeline submitted:'), _timeline)
+    ctx.status = 200 // OK
+    ctx.body = {
+        success: true,
+        message: 'timeline submitted successfully.',
+        timeline: _timeline,
+    }
+    return
+
+}
+/**
  * Validates api token
  * @modular
  * @public
@@ -184,5 +212,6 @@ export {
     keyValidation,
     register,
     story,
+    timeline,
     tokenValidation,
 }
