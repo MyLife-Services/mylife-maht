@@ -32,7 +32,6 @@ function _tokenValidation(_token){
 }
 /* public modular functions */
 async function keyValidation(ctx){
-    console.log(chalk.yellowBright('keyValidation()'), ctx.request.body)
     await _keyValidation(ctx)
     if(!ctx.state.isValidated){
         ctx.status = 400 // Bad Request
@@ -66,7 +65,7 @@ async function keyValidation(ctx){
         message: 'Valid member.',
         data: _memberCoreData,
     }
-    console.log(chalk.yellowBright('keyValidation()'), _memberCoreData, )
+    console.log(chalk.yellowBright(`keyValidation():${_memberCoreData.mbr_id}`), _memberCoreData.fullName)
     return
 }
 async function register(ctx){
