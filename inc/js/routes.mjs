@@ -21,6 +21,7 @@ import {
 } from './functions.mjs'
 import {
     keyValidation,
+    library,
     register,
     story,
     tokenValidation,
@@ -45,10 +46,9 @@ _Router.post('/signup', signup)
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
-//_apiRouter.get('/keyValidation', (ctx)=>{console.log('48', ctx.request)})
-//_apiRouter.get('/keyValidation/:mid', keyValidation)
-//_apiRouter.head('/keyValidation/:mid', keyValidation)
+_apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
+_apiRouter.post('/library/:mid', library)
 _apiRouter.post('/register', register)
 _apiRouter.post('/story/:mid', story)
 /* member routes */

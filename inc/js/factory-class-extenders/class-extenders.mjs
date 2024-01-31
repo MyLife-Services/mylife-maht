@@ -394,6 +394,7 @@ function extendClass_contribution(_originClass,_references) {
 }
 function extendClass_conversation(_originClass,_references) {
     class Conversation extends _originClass {
+        // @todo: convert parent_id -> object_id
         #factory
         #messages = []
         #openai = _references?.openai

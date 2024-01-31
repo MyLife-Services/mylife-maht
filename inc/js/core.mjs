@@ -296,6 +296,30 @@ class MyLife extends Organization {	//	form=server
 		return await this.factory.getMyLifeSession()
 	}
 	/**
+	 * Submits an array of library items to MyLife via API.
+	 * @public
+	 * @param {string} _mbr_id - Member id.
+	 * @param {string} _assistantType - String name of assistant type.
+	 * @param {string} _library - Library entry array.
+	 * @returns {object} - The library document from Cosmos.
+	 */
+	async library(_mbr_id, _assistantType, _library){
+		const id = this.globals.newGuid
+		const _form = 'book'
+		const _libraryItems = _library
+			.map(_item=>({
+				assistantType: _assistantType,
+				being: 'library-item',
+				form: _form,
+				id,
+				mbr_id: _mbr_id,
+				name: `${_assistantType}_library-${_form}_${_mbr_id}_${id}`,
+				item: _item,
+			}))
+		const _libraryItemsCosmos = await this.factory.library(_libraryItems)
+		return _libraryItemsCosmos
+	}
+	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
 	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }

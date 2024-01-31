@@ -47,7 +47,7 @@ class Dataservices {
      * database queries within this service.
      * @private
      */
-    #rootSelect = ['id', 'mbr_id', 'parent_id', 'being']
+    #rootSelect = ['being', 'id', 'mbr_id', 'object_id', ]
     /**
      * Constructor for Dataservices class.
      * @param {string} _mbr_id - Member ID to partition data.
@@ -107,12 +107,14 @@ class Dataservices {
 	}
 	//	public functions
 	/**
-	 * Get a bot.
+	 * Get a bot specified by id or type.
 	 * @public
 	 * @param {string} _bot_id - The bot id.
-	 * @returns {object} - The bot.
+	 * @param {string} _bot_type - The bot type.
+	 * @param {string} _mbr_id - The member id.
+	 * @returns {object} - The bot or `undefined` if no bot found.
 	 */
-	async bot(_bot_id, _bot_type='personal-avatar'){
+	async bot(_bot_id, _bot_type='personal-avatar', _mbr_id=this.mbr_id){
 		if(_bot_id){
 			return await this.getItem(_bot_id)
 		} else {
@@ -120,22 +122,36 @@ class Dataservices {
 			return _bots?.[0]
 		}
 	}
-	async bots(_bot_type){
+	/**
+	 * Gets all bots of a given type for a given member.
+	 * @param {string} _bot_type - The bot type.
+	 * @param {string} _mbr_id - The member id.
+	 * @returns {array} - The bots or empty array if no bots found.
+	 */
+	async bots(_bot_type, _mbr_id=this.mbr_id){
 		if(_bot_type){
 			return await this.getItems(
 				'bot',
 				['bot_id'],
 				[{ name: '@bot_type', value: _bot_type }],
+				undefined,
+				_mbr_id,
 			)
 		} else {
 			return await this.getItems('bot')
 		}
 	}
+	/**
+	 * Retrieves a specific bot instruction by its ID.
+	 * @param {string} _type - The type of bot instruction.
+	 * @returns {array} - An array of bot instruction or `undefined` if no bot instruction found.
+	 */
 	async botInstructions(_type){
+		if(_type?.length) _type = [{ name: '@type', value: _type }]
 		return await this.getItems(
 			'bot-instructions',
 			undefined,
-			[{ name: '@type', value: _type }],
+			_type,
 			'system'
 		)
 	}
@@ -198,10 +214,15 @@ class Dataservices {
 	}
 	async getAvatar(){
 		const _avatars = await this.getAvatars()
-		return _avatars?.[0]
+		return _avatars
 	}
+	/**
+	 * Get all Member Avatars, but given 1-to-1 relationship, only returns first.
+	 * @returns {object} - The avatar document or `undefined` if no avatar found.
+	 */
 	async getAvatars(){
-		return await this.getItems('avatar')
+		const _avatars = await this.getItems('avatar')
+		return _avatars?.[0]
 	}
 	/**
 	 * Retrieves the first chat associated with a given parent ID.
@@ -330,6 +351,20 @@ class Dataservices {
 	 */
 	async getLocalRecords(_question){
 		return await this.embedder.getLocalRecords(_question)
+	}
+	/**
+	 * Adds or updates a library with items outlined in request array.
+	 * @param {Array} _libraryItems - array of library items to be added to member's library.
+	 * @returns {Array} - array of library items added to member's library.
+	 */
+	async library(_libraryItems){
+		// extract member ID from first item in array
+		// get current library doc or create
+		// add/update _libraryItems to library doc
+		// save library doc
+		// return library doc
+		return _libraryItems
+			.map(_=>({..._, success: false, message: 'not implemented'}))
 	}
 	/**
 	 * Patches an item by its ID with the provided data.

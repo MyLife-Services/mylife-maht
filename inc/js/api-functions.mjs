@@ -68,6 +68,28 @@ async function keyValidation(ctx){
     console.log(chalk.yellowBright(`keyValidation():${_memberCoreData.mbr_id}`), _memberCoreData.fullName)
     return
 }
+async function library(ctx){
+    await _keyValidation(ctx) // sets ctx.state.mbr_id and more
+    const { assistantType, mbr_id } = ctx.state
+    const { library } = ctx.request?.body??{}
+    if(!Array.isArray(library) || !library?.length){
+        ctx.status = 400 // Bad Request
+        ctx.body = {
+            success: false,
+            message: 'No library provided. Use `library` field.',
+        }
+        return
+    }
+    // write to cosmos db
+    const _library = await ctx.MyLife.library(mbr_id, assistantType, library) // @todo: remove await
+    console.log(chalk.yellowBright('library submitted, #items:'), _library?.length)
+    ctx.status = 200 // OK
+    ctx.body = {
+        success: true,
+        message: `${_library?.length} # library item(s) submitted successfully.`,
+    }
+    return
+}
 async function register(ctx){
 	const _registrationData = ctx.request.body
 	const {
@@ -139,7 +161,6 @@ async function story(ctx){
     ctx.body = {
         success: true,
         message: 'Story submitted successfully.',
-        story: _story,
     }
     return
 }
@@ -182,6 +203,7 @@ async function tokenValidation(ctx, next) {
 /* exports */
 export {
     keyValidation,
+    library,
     register,
     story,
     tokenValidation,

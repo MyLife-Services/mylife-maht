@@ -14,7 +14,7 @@ import {
     extendClass_conversation,
     extendClass_file,
 	extendClass_message,
-} from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in configureSchemaPrototypes()
+} from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
 import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
@@ -24,6 +24,7 @@ import { _ } from 'ajv'
 const mBotInstructions = {}
 const mPartitionId = process.env.MYLIFE_SERVER_MBR_ID
 const mDataservices = await new Dataservices(mPartitionId).init()
+const mDefaultBotType = 'personal-avatar'
 const mExtensionFunctions = {
     extendClass_avatar: extendClass_avatar,
 	extendClass_consent: extendClass_consent,
@@ -67,62 +68,78 @@ const schemas = {
 	member: Member,
 	session: MylifeMemberSession
 }
-configureSchemaPrototypes()
+mConfigureSchemaPrototypes()
+mPopulateBotInstructions()
 /* logging/reporting */
 console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
 console.log(chalk.greenBright('schema-class-constructs'))
 console.log(schemas)
 /* modular classes */
-class AgentFactory extends EventEmitter{
+class BotFactory extends EventEmitter{
+	// micro-hydration version of factory for use _by_ the MyLife server
 	#dataservices
-	#exposedSchemas = getExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#mbr_id
-	constructor(_mbr_id){
+	constructor(_mbr_id, _directHydration=true){
 		super()
 		this.#mbr_id = _mbr_id
-		if(this.mbr_id===mPartitionId)
+		if(mIsMyLife(_mbr_id) && _directHydration)
+			throw new Error('MyLife server cannot be accessed as a BotFactory alone')
+		else if(mIsMyLife(this.mbr_id))
 			this.#dataservices = mDataservices
-		else
-			console.log(chalk.blueBright('AgentFactory class constructed:'),chalk.bgBlueBright(this.mbr_id))
+		else if(_directHydration)
+			console.log(chalk.blueBright('BotFactory class instance for hydration request'), chalk.bgRed(this.mbr_id))
 	}
 	/* public functions */
 	/**
-	 * Initialization routine required for all AgentFactory instances save MyLife server
+	 * Initialization routine required for all bot instances.
 	 * @param {Guid} _mbr_id 
 	 * @returns {AgentFactory} this
 	 */
-	async init(_mbr_id){
-		if(!_mbr_id) // ergo, MyLife does not must not call init()
-			throw new Error('no mbr_id on Factory creation init')
-		this.#mbr_id = _mbr_id
-		if(this.mbr_id!==mPartitionId){
-			this.#dataservices = await new Dataservices(this.mbr_id)
-				.init()
-		}
+	async init(){
+		this.#dataservices = new Dataservices(this.mbr_id)
+		await this.#dataservices.init()
+		this.core.avatar_id = this.core?.avatar_id ?? (await this.dataservices.getAvatar()).id
 		return this
 	}
 	/**
-	 * Get a bot.
+	 * Get a bot, either by id (when known) or bot-type (default=mDefaultBotType). If bot id is not found, then it cascades to the first entity of bot-type it finds, and if none found, and rules allow [in instances where there may be a violation of allowability], a new bot is created.
+	 * If caller is `MyLife` then bot is found or created and then activated via a micro-hydration.
+	 * @todo - determine if spotlight-bot is required for any animation, or a micro-hydrated bot is sufficient.
 	 * @public
 	 * @param {string} _bot_id - The bot id.
+	 * @param {string} _bot_type - The bot type.
 	 * @returns {object} - The bot.
 	 */
-	async bot(_bot_id){
-		return await this.dataservices.getItem(_bot_id)
+	async bot(_bot_id, _bot_type=mDefaultBotType, _mbr_id){
+		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
+			console.log(chalk.yellowBright('bot not found, creating...'), _bot_id, _bot_type, _mbr_id)
+			if(!_mbr_id)
+				throw new Error('mbr_id required for BotFactory hydration')
+			const _botFactory = new BotFactory(_mbr_id)
+			await _botFactory.init()
+			_botFactory.bot = await _botFactory.bot(_bot_id, _bot_type, _mbr_id)
+			if(!_botFactory?.bot){ // create bot on member behalf
+				console.log(chalk.magenta(`bot hydration-create::${_bot_type}`))
+				// do not need intelligence behind this object yet, for that, spotlight is a mini-avatar
+				_botFactory.bot = await _botFactory.setBot({ type: _bot_type })
+			}
+			return _botFactory
+		} else if(_bot_id?.length){
+			return await this.dataservices.getItem(_bot_id)
+		} else {
+			return await this.bots(undefined, _bot_type)?.[0]
+		}
 	}
 	/**
 	 * Returns bot instruction set.
-	 * @modular
 	 * @public
-	 * @param {AgentFactory} _factory 
 	 * @param {string} _type
 	 */
-	async botInstructions(_type){
+	botInstructions(_type){
 		if(!_type) throw new Error('bot type required')
 		if(!mBotInstructions[_type]){
-			const _instructionSet = await mDataservices.botInstructions(_type)
-			if(!_instructionSet?.length) throw new Error(`no bot instructions found for ${_type}`)
-			mBotInstructions[_type] = _instructionSet[0]
+			if(!_instructionSet) throw new Error(`no bot instructions found for ${_type}`)
+			mBotInstructions[_type] = _instructionSet
 		}
 		return mBotInstructions[_type]
 	}
@@ -130,16 +147,92 @@ class AgentFactory extends EventEmitter{
 	 * Gets a member's bots.
 	 * @public
 	 * @param {string} _object_id - The _object_id guid of avatar.
+	 * @param {string} _bot_type - The bot type.
 	 * @returns {array} - The member's hydrated bots.
 	 */
-	async bots(_object_id){
+	async bots(_object_id, _bot_type){
 		// @todo: develop bot class and implement instance
+		const _params = _object_id?.length
+			? [{ name: '@object_id', value:_object_id }]
+			: _bot_type?.length
+				? [{ name: '@bot_type', value:_bot_type }]
+				: undefined
 		const _bots = await this.dataservices.getItems(
 			'bot',
 			undefined,
-			_object_id?.length ? [{ name: '@object_id', value:_object_id }] : undefined,
+			_params,
 		)
 		return _bots
+	}
+	async createBot(_bot={ type: mDefaultBotType }){
+		_bot.id = this.newGuid
+		return mCreateBot(this, _bot)
+	}
+	/**
+	 * Adds or updates a bot.
+	 * @public
+	 * @param {object} _bot - bot data.
+	 * @returns {object} - The Cosmos bot.
+	 */
+	async setBot(_bot={ type: mDefaultBotType }){
+		if(!_bot?.id?.length)
+			_bot = await this.createBot(_bot)
+		return await this.dataservices.setBot(_bot)
+	}
+	/* getters/setters */
+	get avatarId(){
+		return this.core?.avatar_id
+	}
+	get core(){
+		return this.dataservices.core
+	}
+	get dataservices(){
+		return this.#dataservices
+	}
+	get factory(){	//	get self
+		return this
+	}
+	get globals(){
+		return this.dataservices.globals
+	}
+	/**
+	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
+	 * @returns {boolean}
+	*/
+	get isMyLife(){
+		return mIsMyLife(this.mbr_id)
+	}
+	get mbr_id(){
+		return this.#mbr_id
+	}
+	get mbr_id_id(){
+		return this.globals.sysId(this.mbr_id)
+	}
+	get mbr_name(){
+		return this.globals.sysName(this.mbr_id)
+	}
+	get memberName(){
+		return this.dataservices.core.names?.[0]??this.mbr_name
+	}
+	get newGuid(){
+		return this.globals.newGuid
+	}
+}
+class AgentFactory extends BotFactory{
+	#exposedSchemas = getExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
+	constructor(_mbr_id){
+		super(_mbr_id, false)
+	}
+	/* public functions */
+	/**
+	 * Initialization routine required for all AgentFactory instances save MyLife server.
+	 * @returns {AgentFactory} this
+	 */
+	async init(){
+		if(mIsMyLife(_mbr_id))
+			throw new Error('MyLife server AgentFactory cannot be initialized, as it references modular dataservices on constructor().')
+		await super.init()
+		return this
 	}
 	async challengeAccess(_mbr_id, _passphrase){
 		return await mDataservices.challengeAccess(_mbr_id, _passphrase)
@@ -170,7 +263,7 @@ class AgentFactory extends EventEmitter{
 	}
 	/**
 	 * Constructs and returns an Avatar instance.
-	 * @returns {Avatar} - The avatar.
+	 * @returns {Avatar} - The Avatar instance.
 	 */
 	async getAvatar(){
 		// get avatar from dataservices
@@ -216,20 +309,27 @@ class AgentFactory extends EventEmitter{
 		return (_session instanceof schemas.session)
 	}
 	/**
+	 * Adds or updates a library with items outlined in request array.
+	 * @param {Array} _libraryItems - array of library items to be added to member's library.
+	 * @returns {Array} - array of library items added to member's library.
+	 */
+	async library(_libraryItems){
+		// factory makes bots in general, so this is the appropriate place to establish the library bot and then require it to make its own saves
+		// - factory calls member's bot into existence to complete the task
+		const { mbr_id } = _libraryItems[0]
+		const _microBot = await this.bot(undefined, 'library', mbr_id)
+		// find the correct library, default to core (object_id=avatar_id)
+		// compare library items that exist, and those in library items
+		_microBot.library = _libraryItems
+		console.log(chalk.bgMagentaBright('library bot'), _microBot)
+	}
+	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
 	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
 	async registerCandidate(_candidate){
 		return await this.dataservices.registerCandidate(_candidate)
-	}
-	/**
-	 * Adds or updates a bot.
-	 * @public
-	 * @param {object} _bot - bot data.
-	 */
-	async setBot(_bot){
-		return await this.dataservices.setBot(_bot)
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
@@ -259,48 +359,14 @@ class AgentFactory extends EventEmitter{
 	get conversation(){
 		return this.schemas.conversation
 	}
-	get core(){
-		return this.dataservices.core
-	}
-	get dataservices(){
-		return this.#dataservices
-	}
-	get factory(){	//	get self
-		return this
-	}
 	get file(){
 		return this.schemas.file
-	}
-	get globals(){
-		return this.dataservices.globals
-	}
-	/**
-	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
-	 * @returns {boolean}
-	*/
-	get isMyLife(){
-		return this.mbr_id===mPartitionId
-	}
-	get mbr_id(){
-		return this.#mbr_id
-	}
-	get mbr_id_id(){
-		return this.globals.sysId(this.mbr_id)
-	}
-	get mbr_name(){
-		return this.globals.sysName(this.mbr_id)
-	}
-	get memberName(){
-		return this.dataservices.core.names?.[0]??this.mbr_name
 	}
 	get message(){
 		return this.schemas.message
 	}
 	get MyLife(){	//	**caution**: returns <<PROMISE>>
 		return this.getMyLife()
-	}
-	get newGuid(){
-		return this.globals.newGuid
 	}
 	get organization(){
 		return this.schemas.organization
@@ -368,7 +434,7 @@ function compileClass(_className, classCode) {
 	// Return the compiled class
 	return vmClassGenerator.exports[_className]
 }
-async function configureSchemaPrototypes(){	//	add required functionality as decorated extension class
+async function mConfigureSchemaPrototypes(){	//	add required functionality as decorated extension class
 	for(const _className in schemas){
 		//	global injections; maintained _outside_ of eval class
 		Object.assign(
@@ -377,6 +443,113 @@ async function configureSchemaPrototypes(){	//	add required functionality as dec
 		)
 		schemas[_className] = extendClass(schemas[_className])
 	}
+}
+/**
+ * Creates bot and returns associated `bot` object.
+ * @modular
+ * @private
+ * @param {BotFactory} _factory - BotFactory object
+ * @param {object} _bot - Bot object, must include `type` property.
+ * @returns {object} - Bot object
+*/
+function mCreateBot(_factory, _bot){
+	// create gpt
+	const _description = _bot.description??`I am a ${_bot.type} bot for ${_factory.memberName}`
+	const _instructions = _bot.instructions??mCreateBotInstructions(_factory, _bot.type)
+	const _botName = _bot.bot_name??_bot.name??_bot.type
+	const _cosmosName = _bot.name??`bot_${_bot.type}_${_factory.avatarId}`
+	if(!_factory?.avatarId) throw new Error('avatar id required to create bot')
+	const _botData = {
+		being: 'bot',
+		bot_name: _botName,
+		description: _description,
+		instructions: _instructions,
+		model: process.env.OPENAI_MODEL_CORE_BOT,
+		name: _cosmosName,
+		object_id: _factory.avatarId,
+		provider: 'openai',
+		purpose: _description,
+	}
+	return _botData
+}
+/**
+ * Returns MyLife-version of bot instructions.
+ * @modular
+ * @private
+ * @param {BotFactory} _factory - Factory object
+ * @param {object} _bot - Bot object
+ * @returns {string} - flattened string of instructions
+ */
+function mCreateBotInstructions(_factory, _type=mDefaultBotType){
+    let _botInstructionSet = _factory.botInstructions(_type) // no need to wait, should be updated or refresh server
+    _botInstructionSet = _botInstructionSet?.instructions
+    if(!_botInstructionSet) throw new Error(`bot instructions not found for type: ${_type}`)
+    /* compile instructions */
+    let _botInstructions = ''
+    switch(_type){
+        case 'personal-avatar':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.general
+            break
+        case 'personal-biographer':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.purpose
+                + _botInstructionSet.prefix
+                + _botInstructionSet.general
+            break
+        default: // avatar
+            _botInstructions += _botInstructionSet.general
+            break
+    }
+    /* apply replacements */
+    _botInstructionSet.replacements = _botInstructionSet?.replacements??[]
+    _botInstructionSet.replacements.forEach(_replacement=>{
+        const _placeholderRegExp = _factory.globals.getRegExp(_replacement.name, true)
+        const _replacementText = eval(`_factory?.${_replacement.replacement}`)
+            ?? eval(`_bot?.${_replacement.replacement}`)
+            ?? _replacement?.default
+            ?? '`unknown-value`'
+        _botInstructions = _botInstructions.replace(_placeholderRegExp, () => _replacementText)
+    })
+    /* apply references */
+    _botInstructionSet.references = _botInstructionSet?.references??[]
+    _botInstructionSet.references.forEach(_reference=>{
+        const _referenceText = _reference.insert
+        const _replacementText = eval(`_factory?.${_reference.value}`)
+            ?? eval(`_bot?.${_reference.value}`)
+            ?? _reference.default
+            ?? '`unknown-value`'
+        switch(_reference.method??'replace'){
+            case 'append-hard':
+                console.log('append-hard::_botInstructions', _referenceText, _replacementText)
+                const _indexHard = _botInstructions.indexOf(_referenceText)
+                if (_indexHard !== -1) {
+                _botInstructions =
+                    _botInstructions.slice(0, _indexHard + _referenceText.length)
+                    + '\n'
+                    + _replacementText
+                    + _botInstructions.slice(_indexHard + _referenceText.length)
+                }
+                break
+            case 'append-soft':
+                const _indexSoft = _botInstructions.indexOf(_referenceText);
+                if (_indexSoft !== -1) {
+                _botInstructions =
+                      _botInstructions.slice(0, _indexSoft + _referenceText.length)
+                    + ' '
+                    + _replacementText
+                    + _botInstructions.slice(_indexSoft + _referenceText.length)
+                }
+                break
+            case 'replace':
+            default:
+                _botInstructions = _botInstructions.replace(_referenceText, _replacementText)
+                break
+        }
+    })
+    return _botInstructions
 }
 function extendClass(_class) {
 	const _className = _class.name.toLowerCase()
@@ -477,6 +650,14 @@ function getExposedSchemas(_factoryBlockedSchemas){
 			return obj
 		}, {})
 }
+/**
+ * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
+ * @param {string} _mbr_id 
+ * @returns {boolean} true if factory is MyLife server
+ */
+function mIsMyLife(_mbr_id){
+	return _mbr_id===mPartitionId
+}
 async function loadSchemas() {
 	try{
 		let _filesArray = await (fs.readdir(mPath))
@@ -501,6 +682,12 @@ async function loadSchemas() {
 		console.log(err)
 		if(schemasArray) console.log(schemasArray)
 	}
+}
+async function mPopulateBotInstructions(){
+	const _botInstructionSets = await mDataservices.botInstructions()
+	_botInstructionSets.forEach(_instructionSet=>{
+		mBotInstructions[_instructionSet.type] = _instructionSet
+	})
 }
 function sanitizeValue(_value) {
     if (typeof _value !== 'string') return _value

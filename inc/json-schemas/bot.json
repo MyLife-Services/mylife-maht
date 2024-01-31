@@ -72,7 +72,7 @@
         },
         "type": {
             "description": "type of bot",
-            "enum": ["biographer", "companion", "identity", "relationship", "self"],
+            "enum": ["biographer", "companion", "identity", "library", "relationship", "self"],
             "type": "string",
             "$comment": "given together with purpose helps create tailored instructions for bot; which can be bypassed, and certainly should in localdev cases"
         }

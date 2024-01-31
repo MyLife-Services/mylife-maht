@@ -113,7 +113,32 @@ paths:
                         type: string
                         description: A natural language description of when the ibrary item was read, whether it be a date, year, event, phase of life or educational study.
                         maxlength: 256
-
       responses:
         "200":
-          description: Webhook registration data received successfully.
+          description: Library submitted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                    example: true
+                  message:
+                    type: string
+                    example: Library submitted successfully.
+        "400":
+          description: No library summary provided. Use `library` field.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: false
+                    example: false
+                  message:
+                    type: string
+                    example: No library summary provided. Use `library` field.
