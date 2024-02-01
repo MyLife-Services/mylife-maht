@@ -314,14 +314,32 @@ class AgentFactory extends BotFactory{
 	 * @returns {Array} - array of library items added to member's library.
 	 */
 	async library(_libraryItems){
-		// factory makes bots in general, so this is the appropriate place to establish the library bot and then require it to make its own saves
-		// - factory calls member's bot into existence to complete the task
+		if(!Array.isArray(_libraryItems) || !_libraryItems.length)
+			throw new Error('library items must be an array')
 		const { mbr_id } = _libraryItems[0]
-		const _microBot = await this.bot(undefined, 'library', mbr_id)
-		// find the correct library, default to core (object_id=avatar_id)
+		// @todo: micro-avatar for representation of bot(s)
+		// @todo: Bot class with extension for things like handling libraries
+		// @todo: bot-extenders so that I can get this functionality into that object context
+		/* hydrate library micro-bot */
+		const _microBot = await this.bot(undefined, 'library', mbr_id) // do not need intelligent bot for basic operations below, if I did, I would would utilise spolight-bot (micro-avatar)
+		/* parse and cast _libraryItems */
+		// add/get correct library; default to core (object_id=avatar_id)
+		const _avatar_id = _microBot.avatarId
+		_microBot.library = _microBot.library??{}
+		_microBot.library[_avatar_id] = _microBot.library[_avatar_id]??{
+			being: `library`,
+			id: this.newGuid,
+			libraryItems: [],
+			mbr_id: _microBot.mbr_id,
+			object_id: _microBot.avatarId,
+		}
+		const { libraryItems: _storedLibraryItems } = _microBot.library[_avatar_id]
+		if(!_storedLibraryItems.libraryItems?.length){
+			_storedLibraryItems = _libraryItems
+		}
+		console.log(chalk.bgMagentaBright('hydrated library micro-bot'), _microBot)
 		// compare library items that exist, and those in library items
 		_microBot.library = _libraryItems
-		console.log(chalk.bgMagentaBright('library bot'), _microBot)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -469,6 +487,7 @@ function mCreateBot(_factory, _bot){
 		object_id: _factory.avatarId,
 		provider: 'openai',
 		purpose: _description,
+		type: _bot.type,
 	}
 	return _botData
 }
