@@ -5,12 +5,6 @@
     "name": "library-bot",
     "type": "object",
     "properties": {
-        "libraries": {
-            "type": "array",
-            "items": {
-                "$ref": "#/$defs/library"
-            }
-        }
     },
     "$defs": {
         "library": {
@@ -26,7 +20,7 @@
                     "format": "uuid",
                     "type": "string"
                 },
-                "libraryItems": {
+                "items": {
                     "default": [],
                     "description": "array of library items; get max from memory usage",
                     "items": {
@@ -42,18 +36,33 @@
                     "type": "string",
                     "$comment": "also partitionId for container"
                 },
+                "name": {
+                    "default": "library",
+                    "description": "name of library for Cosmos",
+                    "type": "string",
+                    "maxLength": 1024,
+                    "minLength": 1
+                },
                 "object_id": {
                     "description": "reference object: whose library is this; properties such as `type` will need to be read from this entity; for instance, if the library may be a member, i.e., `core`, and that would lend different instructions to the library bot",
                     "format": "uuid",
                     "type": "string"
+                },
+                "type": {
+                    "default": "personal",
+                    "description": "purpose of library, meta terminology for library bot; could be any description, but presume a number of FE-generated defaults: personal, book, record, etc.",
+                    "type": "string",
+                    "$comment": "presumably a library artifact could be anything [why limit to \"tangible\" and not conceptual, as example?], but we'll start with these."
                 }
             },
             "required": [
                 "being",
                 "id",
-                "libraryItems",
+                "items",
                 "mbr_id",
-                "object_id"
+                "name",
+                "object_id",
+                "type"
             ],
             "type": "object"
         },
@@ -66,6 +75,18 @@
                     "default": "mylife-library",
                     "type": "string"
                 },
+                "author_match": {
+                    "description": "author of library item",
+                    "default": ["unknown-author"],
+                    "items": {
+                        "description": "array of strings for all elements of author's name as split on ' '",
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "$comment": "can start as one word, or multiple words, possibly alpha order by last name. Not worth standardizing long-term?"
+                },
                 "being": {
                     "const": "library-item",
                     "type": "string"
@@ -75,7 +96,7 @@
                     "format": "date-time",
                     "type": "string"
                 },
-                "form": {
+                "format": {
                     "type": "string"
                 },
                 "id": {
@@ -84,6 +105,11 @@
                 },
                 "item": {
                     "$ref": "#/$defs/libraryItemItem"
+                },
+                "title_match": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1
                 }
             },
             "type": "object",

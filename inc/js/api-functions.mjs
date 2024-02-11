@@ -71,17 +71,17 @@ async function keyValidation(ctx){
 async function library(ctx){
     await _keyValidation(ctx) // sets ctx.state.mbr_id and more
     const { assistantType, mbr_id } = ctx.state
-    const { library } = ctx.request?.body??{}
-    if(!Array.isArray(library) || !library?.length){
+    const { items } = ctx.request?.body??false
+    if(!Array.isArray(items) || !items?.length){
         ctx.status = 400 // Bad Request
         ctx.body = {
             success: false,
-            message: 'No library provided. Use `library` field.',
+            message: 'No library provided. Use `items` field.',
         }
         return
     }
     // write to cosmos db
-    const _library = await ctx.MyLife.library(mbr_id, assistantType, library) // @todo: remove await
+    const _library = await ctx.MyLife.library(mbr_id, assistantType, ctx.request.body) // @todo: remove await
     console.log(chalk.yellowBright('library submitted, #items:'), _library?.length)
     ctx.status = 200 // OK
     ctx.body = {

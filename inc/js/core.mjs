@@ -298,26 +298,18 @@ class MyLife extends Organization {	//	form=server
 	/**
 	 * Submits an array of library items to MyLife via API.
 	 * @public
-	 * @param {string} _mbr_id - Member id.
+	 * @param {string} _mbr_id - Requesting Member id.
 	 * @param {string} _assistantType - String name of assistant type.
 	 * @param {string} _library - Library entry array.
 	 * @returns {object} - The library document from Cosmos.
 	 */
 	async library(_mbr_id, _assistantType, _library){
-		const id = this.globals.newGuid
-		const _form = 'book'
-		const _libraryItems = _library
-			.map(_item=>({
-				assistantType: _assistantType,
-				being: 'library-item',
-				form: _form,
-				id,
-				mbr_id: _mbr_id,
-				name: `${_assistantType}_library-${_form}_${_mbr_id}_${id}`,
-				item: _item,
-			}))
-		const _libraryItemsCosmos = await this.factory.library(_libraryItems)
-		return _libraryItemsCosmos
+		_library.assistantType = _assistantType
+		_library.id = _library.id && this.globals.isValidGuid(_library.id) ? _library.id : this.globals.newGuid
+		_library.mbr_id = _mbr_id
+		_library.type = _library.type??_assistantType??'personal'
+		const _libraryCosmos = await this.factory.library(_library)
+		return _libraryCosmos
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -343,11 +335,23 @@ class MyLife extends Organization {	//	form=server
 			form: _assistantType,
 			id,
 			mbr_id: _mbr_id,
-			name: `${_assistantType}-story_${_mbr_id}_${id}`,
+			name: `story_${_assistantType}_${_mbr_id}`,
 			summary: storySummary,
 		}
 		const _storyCosmos = await this.factory.story(_story)
 		return this.globals.stripCosmosFields(_storyCosmos)
+	}
+	/**
+	 * Returns a specific (or default) story library for MyLife Member.
+	 * @public
+	 * @param {string} _library_id - Library id
+	 * @returns {object} - The story library document from Cosmos.
+	 */
+	async storyLibrary(_library_id){
+		// if no library_id, return default library
+		// create default story library if it doesn't exist
+		// collect any story events since last visit
+		// member can have multiple story libraries
 	}
 	/**
 	 * Tests partition key for member

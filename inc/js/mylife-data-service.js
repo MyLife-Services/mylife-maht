@@ -291,6 +291,7 @@ class Dataservices {
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
 	async getItem(_id, _container_id, _mbr_id=this.mbr_id) {
+		if(!_id) return
 		try{
 			return await this.datamanager.getItem(
 				_id,
@@ -301,7 +302,47 @@ class Dataservices {
 		catch(_error){
 			console.log('mylife-data-service::getItem() error')
 			console.log(_error, _id, _container_id,)
+			return
 		}
+	}
+	/**
+	 * Retrieves first item based on specified parameters.
+	 * @async
+	 * @public
+	 * @param {string} _being 
+	 * @param {string} _field - Field name to match.
+	 * @param {string} _value - Value to match.
+	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @returns {Promise<object>} An object (initial of arrau) matching the query parameters.
+	 */
+	async getItemByField(_being, _field, _value, _container_id, _mbr_id=this.mbr_id){
+		const _item =  await this.getItemByFields(
+			_being,
+			[{ name: `@${_field}`, value: _value }],
+			_container_id,
+			_mbr_id,
+		)
+		return _item
+	}
+	/**
+	 * Retrieves first item based on specified parameters.
+	 * @async
+	 * @public
+	 * @param {string} _being 
+	 * @param {array} _fields - Array of name/value pairs to select, format: [{name: `@${_field}`, value: _value}],
+	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @returns {Promise<object>} An object (initial of arrau) matching the query parameters.
+	 */
+	async getItemByFields(_being, _fields, _container_id, _mbr_id=this.mbr_id){
+		const _items =  await this.getItemsByFields(
+			_being,
+			_fields,
+			_container_id,
+			_mbr_id,
+		)
+		return _items?.[0]
 	}
 	/**
 	 * Retrieves items based on specified parameters.
@@ -344,6 +385,26 @@ class Dataservices {
 		}
 	}
 	/**
+	 * Retrieve items based on specified parameters.
+	 * @async
+	 * @public
+	 * @param {string} _being 
+	 * @param {array} _fields - Array of name/value pairs to select, format: [{name: `@${_field}`, value: _value}],
+	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @returns {Promise<Array>} An array of items matching the query parameters.
+	 */
+	async getItemsByFields(_being, _fields, _container_id, _mbr_id=this.mbr_id){
+		const _items =  await this.getItems(
+			_being, 
+			undefined,
+			_fields, 
+			_container_id,
+			_mbr_id,
+		)
+		return _items
+	}
+	/**
 	 * Retrieves local records based on a query.
 	 * @async
 	 * @param {string} _question - The query to retrieve records.
@@ -353,18 +414,25 @@ class Dataservices {
 		return await this.embedder.getLocalRecords(_question)
 	}
 	/**
-	 * Adds or updates a library with items outlined in request array.
-	 * @param {Array} _libraryItems - array of library items to be added to member's library.
+	 * Gets library from database.
+	 * @async
+	 * @public
+	 * @param {string} _library_id - The unique identifier for the library.
+	 * @param {string} _object_id - The unique identifier for the underlying avatar.
+	 * @param {string} _type - The type of the library.
 	 * @returns {Array} - array of library items added to member's library.
 	 */
-	async library(_libraryItems){
-		// extract member ID from first item in array
-		// get current library doc or create
-		// add/update _libraryItems to library doc
-		// save library doc
-		// return library doc
-		return _libraryItems
-			.map(_=>({..._, success: false, message: 'not implemented'}))
+	async library(_library_id, _object_id, _type){
+		return ( await this.getItem(_library_id) )
+			?? ( await this.getItemByFields(
+				'library',
+				[
+					{ name: '@object_id', value: _object_id },
+					{ name: '@type', value: _type }
+				],
+				undefined,
+				this.mbr_id,
+			) )
 	}
 	/**
 	 * Patches an item by its ID with the provided data.
@@ -381,25 +449,10 @@ class Dataservices {
 			// Filtering out keys that should not be included in the patch
 			.filter(_key => !['id', 'being', 'mbr_id'].includes(_key))
 			.map(_key => {
-				return { op: 'replace', path: _path + _key, value: _data[_key] };
+				return { op: 'replace', path: _path + _key, value: _data[_key] }
 			})
 		// Performing the patch operation
-		return await this.patchItem(_id, patchOperations);
-	}	
-	/**
-	 * Patches an array within an item by inserting data at a specified index.
-	 * @async
-	 * @param {string} _id - The unique identifier for the item to be patched.
-	 * @param {string} _node - The node within the item where data is to be inserted.
-	 * @param {Array<Object>} _data - The data to be inserted.
-	 * @param {number} [_index=0] - The index at which to insert the data.
-	 * @returns {Promise<Object>} The result of the patch operation.
-	 */
-	async patchArrayItems(_id,_node,_data){	//	_data is array of objects to be inserted into _node at _index
-		// changed to hard overwrite as the unshift was not working
-		// @todo: remove index
-		const __data = [{ op: 'replace', path: `/${_node}`, value: _data }]
-		return await this.patchItem(_id,__data)
+		return await this.patchItem(_id, patchOperations)
 	}
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
@@ -408,8 +461,8 @@ class Dataservices {
 	 * @param {Array<Object>} _data - The data for patching, including the path and operation.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(_id,_data){ // path Embedded in _data
-		return await this.datamanager.patchItem(_id,_data)
+	async patchItem(_id, _data){ // path Embedded in _data
+		return await this.datamanager.patchItem(_id ,_data)
 	}
     /**
      * Pushes a new item to the data manager

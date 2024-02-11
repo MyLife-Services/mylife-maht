@@ -41,6 +41,7 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
+const mNewGuid = ()=>Guid.newGuid().toString()
 const mOpenAI = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 	organizationId: process.env.OPENAI_ORG_KEY,
@@ -112,7 +113,7 @@ class BotFactory extends EventEmitter{
 	 */
 	async bot(_bot_id, _bot_type=mDefaultBotType, _mbr_id){
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
-			console.log(chalk.yellowBright('bot not found, creating...'), _bot_id, _bot_type, _mbr_id)
+			console.log(chalk.yellowBright('locating member bot...'), _bot_id, _bot_type, _mbr_id)
 			if(!_mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
 			const _botFactory = new BotFactory(_mbr_id)
@@ -123,12 +124,18 @@ class BotFactory extends EventEmitter{
 				// do not need intelligence behind this object yet, for that, spotlight is a mini-avatar
 				_botFactory.bot = await _botFactory.setBot({ type: _bot_type })
 			}
+			// rather than just a bot in this event, return micro-hydrated bot (mini-avatar ultimately)
 			return _botFactory
-		} else if(_bot_id?.length){
-			return await this.dataservices.getItem(_bot_id)
-		} else {
-			return await this.bots(undefined, _bot_type)?.[0]
 		}
+		return ( await this.dataservices.getItem(_bot_id) )
+			?? ( await this.dataservices.getItemByField(
+					'bot',
+					'type',
+					_bot_type,
+					undefined,
+					_mbr_id
+				) )
+			?? ( await this.bots(undefined,_bot_type)?.[0] )
 	}
 	/**
 	 * Returns bot instruction set.
@@ -167,6 +174,17 @@ class BotFactory extends EventEmitter{
 	async createBot(_bot={ type: mDefaultBotType }){
 		_bot.id = this.newGuid
 		return mCreateBot(this, _bot)
+	}
+	/**
+	 * Gets Library from database.
+	 * @public
+	 * @param {string} _id - The library id.
+	 * @param {string} _avatar_id - The avatar id.
+	 * @param {string} _format - The format of the library.
+	 * @returns {object} - The library.
+	 */
+	async library(_id, _avatar_id, _format){
+		return await this.dataservices.library(_id, _avatar_id, _format)
 	}
 	/**
 	 * Adds or updates a bot.
@@ -215,7 +233,7 @@ class BotFactory extends EventEmitter{
 		return this.dataservices.core.names?.[0]??this.mbr_name
 	}
 	get newGuid(){
-		return this.globals.newGuid
+		return mNewGuid()
 	}
 }
 class AgentFactory extends BotFactory{
@@ -309,37 +327,13 @@ class AgentFactory extends BotFactory{
 		return (_session instanceof schemas.session)
 	}
 	/**
-	 * Adds or updates a library with items outlined in request array.
-	 * @param {Array} _libraryItems - array of library items to be added to member's library.
-	 * @returns {Array} - array of library items added to member's library.
+	 * Adds or updates a library with items outlined in request array. Note: currently an override for bot function .library which returns a library item from the database.
+	 * @todo: finalize mechanic for overrides
+	 * @param {Object} _library - The library object, including items to be added to member's library.
+	 * @returns {Object} - The complete library object from Cosmos.
 	 */
-	async library(_libraryItems){
-		if(!Array.isArray(_libraryItems) || !_libraryItems.length)
-			throw new Error('library items must be an array')
-		const { mbr_id } = _libraryItems[0]
-		// @todo: micro-avatar for representation of bot(s)
-		// @todo: Bot class with extension for things like handling libraries
-		// @todo: bot-extenders so that I can get this functionality into that object context
-		/* hydrate library micro-bot */
-		const _microBot = await this.bot(undefined, 'library', mbr_id) // do not need intelligent bot for basic operations below, if I did, I would would utilise spolight-bot (micro-avatar)
-		/* parse and cast _libraryItems */
-		// add/get correct library; default to core (object_id=avatar_id)
-		const _avatar_id = _microBot.avatarId
-		_microBot.library = _microBot.library??{}
-		_microBot.library[_avatar_id] = _microBot.library[_avatar_id]??{
-			being: `library`,
-			id: this.newGuid,
-			libraryItems: [],
-			mbr_id: _microBot.mbr_id,
-			object_id: _microBot.avatarId,
-		}
-		const { libraryItems: _storedLibraryItems } = _microBot.library[_avatar_id]
-		if(!_storedLibraryItems.libraryItems?.length){
-			_storedLibraryItems = _libraryItems
-		}
-		console.log(chalk.bgMagentaBright('hydrated library micro-bot'), _microBot)
-		// compare library items that exist, and those in library items
-		_microBot.library = _libraryItems
+	async library(_library){
+		return await mLibrary(this, _library)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -668,6 +662,112 @@ function getExposedSchemas(_factoryBlockedSchemas){
 			obj[key] = schemas[key]
 			return obj
 		}, {})
+}
+/**
+ * Inflates library item with required values and structure. Object structure expected from API, librayItemItem in JSON.
+ * root\inc\json-schemas\bots\library-bot.json
+ * @param {object} _item - Library item (API) object. { author: string, enjoymentLevel: number, format: string, insights: string, personalImpact: string, title: string, whenRead: string }
+ * @param {string} _library_id - Library id
+ * @param {string} _mbr_id - Member id
+ * @returns 
+ */
+function mInflateLibraryItem(_item, _library_id, _mbr_id){
+	const _id = _item.id??mNewGuid()
+	return {
+		assistantType: _item.assistantType??'mylife-library',
+		author_match: (_item.author??'unknown-author')
+			.trim()
+			.toLowerCase()
+			.split(' '),
+		being: 'library-item',
+		date: _item.date??new Date().toISOString(),
+		format: _item.format??_item.form??_item.type??'book',
+		id: _id,
+		item: {..._item, id: _id },
+		library_id: _library_id,
+		object_id: _library_id,
+		title_match: (_item.title??'untitled')
+			.trim()
+			.toLowerCase(),
+	}
+}
+async function mLibrary(_factory, _library){
+	// @todo: micro-avatar for representation of bot(s)
+	// @todo: Bot class with extension for things like handling libraries
+	// @todo: bot-extenders so that I can get this functionality into that object context
+	/* constants */
+	const { assistantType, id, items: _libraryItems, mbr_id, type } = _library
+	/* hydrate library micro-bot */
+	const _microBot = await _factory.bot(undefined, 'library', mbr_id) // grab shell for display
+	/* parse and cast _libraryItems */
+	// add/get correct library; default to core (object_id=avatar_id && type)
+	const _avatar_id = _microBot.avatarId
+	let _libraryCosmos = await _microBot.library(id, _avatar_id, type)
+	// @dodo: currently only book library items are supported, ergo one library type (the universe I've books I have read or want to read [i.e., universe of books I am concerned with])
+	if(!_libraryCosmos){ // create when undefined
+		// @todo: microbot should have a method for these
+		const _library_id = _factory.newGuid
+		_libraryCosmos = {
+			being: `library`,
+			id: _library_id,
+			items: _libraryItems.map(_item=>mInflateLibraryItem(_item, _library_id, mbr_id)),
+			mbr_id: mbr_id,
+			name: `library_${type}_${_avatar_id}`,
+			object_id: _avatar_id, // or bot_id? stick with avatar_id for now, as it manages bots
+			type: type,
+		}
+		// _microBot.libraries.push(_library)
+		_microBot.dataservices.pushItem(_libraryCosmos) // push to Cosmos
+	} else {
+		// @todo: manage multiple libraries
+		const { id: _library_id, items: _storedLibraryItems } = _libraryCosmos
+		_libraryItems.forEach(_item => {
+			_item = mInflateLibraryItem(_item,_library_id, mbr_id)
+			const matchIndex = _storedLibraryItems.findIndex(storedItem => { // Find the index of the item in the stored library items that matches the criteria
+				if(storedItem.id===_item.id || storedItem.title_match===_item.title_match)
+				return true
+			const storedAuthorWords = storedItem.author_match
+			const incomingAuthorWords = _item.author_match
+			const authorMatches = (() => {
+				if (storedAuthorWords.length === 1 || incomingAuthorWords.length === 1) { // If either author array has a length of 1, check for any matching word
+					return storedAuthorWords.some(word => incomingAuthorWords.includes(word))
+				} else { // If both have 2+ lengths, ensure at least 2 items match
+					const matches = storedAuthorWords.filter(word => incomingAuthorWords.includes(word))
+						return matches.length >= 2
+					}
+				})()
+				if (authorMatches && matchIndex !== -1) { // Mutate the author to the one with more details if needed
+					if (incomingAuthorWords.length > storedAuthorWords.length) {
+						_storedLibraryItems[matchIndex].author_match = incomingAuthorWords // Update to more detailed author
+					}
+				}
+				return authorMatches
+			})
+			if (matchIndex!== -1) { // If a match is found, update the entry
+				_storedLibraryItems[matchIndex] = {
+					..._storedLibraryItems[matchIndex],  // Keep existing properties
+					..._item,  // Overwrite and add new properties from _item
+					id: _storedLibraryItems[matchIndex].id??_factory.newGuid, // if for some reason object hasn't id
+					object_id: _library_id,
+					type: _item.type??'book',
+				}
+			} else {
+				_storedLibraryItems.push({ // If no match is found, add the item to the library
+					..._item,
+					id: _item.id??_factory.newGuid, // Ensure each item has a unique ID
+					mbr_id: _microBot.mbr_id,
+					object_id: _library_id,
+					type: _item.type??'book',
+				})
+			}
+		})
+		// save library to Cosmos @todo: microbot should have a method for this
+		_libraryCosmos.items = _storedLibraryItems
+		// @todo: remove await; NOTE: patch returns entire document, not just updated items
+		await _microBot.dataservices.patch(_library_id, {items: _libraryCosmos.items})
+	}
+	console.log(chalk.bgMagentaBright('hydrated library | microBot'), _libraryCosmos)
+	return _libraryCosmos
 }
 /**
  * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
