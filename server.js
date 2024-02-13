@@ -37,7 +37,6 @@ setInterval(checkForLiveAlerts, process.env?.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL?
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
-//	app.context.AgentFactory = _Maht.factory	//	todo: remove ctx.AgentFactory, rely on ctx.MyLife, no direct access to manipulate system factory
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
 app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id

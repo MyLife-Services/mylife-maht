@@ -69,6 +69,7 @@ function mAssignEvolverListeners(_evolver, _avatar){
  * @returns {object} - Bot object
  */
 async function mBot(_avatar, _bot={type: 'personal-avatar'}){
+    // @todo: there will be occasions where there will be no object_id property to use, as it was created through a hydration method based on API usage, so will be attached to mbr_id, but NOT avatar.id
     /* validation */
     if(!_bot.mbr_id?.length)
         _bot.mbr_id = _avatar.mbr_id
@@ -180,22 +181,8 @@ function mFindBot(_avatar, _botId){
 */
 async function mCreateBot(_avatar, _bot){
         // create gpt
-        const _description = _bot.description??mGetBotDescription(_avatar, _bot.type)
-        const _instructions = _bot.instructions??await mGetBotInstructions(_avatar, _bot)
-        const _botName = _bot.bot_name??_bot.name??_bot.type
-        const _cosmosName = _bot.name??`bot_${_bot.type}_${_avatar.id}`
-        const _botData = {
-            being: 'bot',
-            bot_name: _botName,
-            description: _description,
-            instructions: _instructions,
-            model: process.env.OPENAI_MODEL_CORE_BOT,
-            name: _cosmosName,
-            object_id: _avatar.id,
-            parent_id: _avatar.id,
-            provider: 'openai',
-            purpose: _description,
-        }
+        const _botData = await _avatar.factory.createBot(_bot)
+        _botData.object_id = _avatar.id
         const _openaiGPT = await mAI_openai(_avatar.ai, _botData)
         _botData.bot_id = _openaiGPT.id
         return { ..._bot, ..._botData }
@@ -225,92 +212,6 @@ function mGetChatCategory(_category) {
             _category?.content // test for undefined
     }
     return _proposedCategory
-}
-function mGetBotDescription(_avatar, _botType){
-    // no need to call db for this, at most, create modular memory cache
-    // primarily cosmetic
-    return `I am a ${_botType} bot for ${_avatar.memberName}`
-}
-/**
- * Returns MyLife-version of bot instructions.
- * @modular
- * @private
- * @param {Avatar} _avatar - Avatar object
- * @param {object} _bot - Bot object
- * @returns {string} - flattened string of instructions
- */
-async function mGetBotInstructions(_avatar, _bot){
-    const _type = _bot?.type
-    if(!_type) throw new Error('bot type required to retrieve instructions')
-    let _botInstructionSet = await _avatar.factory.botInstructions(_type)
-    _botInstructionSet = _botInstructionSet?.instructions
-    if(!_botInstructionSet) throw new Error(`bot instructions not found for type: ${_type}`)
-    /* compile instructions */
-    let _botInstructions = ''
-    switch(_type){
-        case 'personal-avatar':
-            _botInstructions +=
-                  _botInstructionSet.preamble
-                + _botInstructionSet.general
-            break
-        case 'personal-biographer':
-            _botInstructions +=
-                  _botInstructionSet.preamble
-                + _botInstructionSet.purpose
-                + _botInstructionSet.prefix
-                + _botInstructionSet.general
-            break
-        default: // avatar
-            _botInstructions += _botInstructionSet.general
-            break
-    }
-    /* apply replacements */
-    _botInstructionSet.replacements = _botInstructionSet?.replacements??[]
-    _botInstructionSet.replacements.forEach(_replacement=>{
-        const _placeholderRegExp = _avatar.globals.getRegExp(_replacement.name, true)
-        const _replacementText = eval(`_avatar?.${_replacement.replacement}`)
-            ?? eval(`_bot?.${_replacement.replacement}`)
-            ?? _replacement?.default
-            ?? '`unknown-value`'
-        _botInstructions = _botInstructions.replace(_placeholderRegExp, () => _replacementText)
-    })
-    /* apply references */
-    _botInstructionSet.references = _botInstructionSet?.references??[]
-    _botInstructionSet.references.forEach(_reference=>{
-        const _referenceText = _reference.insert
-        const _replacementText = eval(`_avatar?.${_reference.value}`)
-            ?? eval(`_bot?.${_reference.value}`)
-            ?? _reference.default
-            ?? '`unknown-value`'
-        switch(_reference.method??'replace'){
-            case 'append-hard':
-                console.log('append-hard::_botInstructions', _referenceText, _replacementText)
-                const _indexHard = _botInstructions.indexOf(_referenceText)
-                if (_indexHard !== -1) {
-                _botInstructions =
-                    _botInstructions.slice(0, _indexHard + _referenceText.length)
-                    + '\n'
-                    + _replacementText
-                    + _botInstructions.slice(_indexHard + _referenceText.length)
-                }
-                break
-            case 'append-soft':
-                const _indexSoft = _botInstructions.indexOf(_referenceText);
-                if (_indexSoft !== -1) {
-                _botInstructions =
-                      _botInstructions.slice(0, _indexSoft + _referenceText.length)
-                    + ' '
-                    + _replacementText
-                    + _botInstructions.slice(_indexSoft + _referenceText.length)
-                }
-                break
-            case 'replace':
-            default:
-                _botInstructions = _botInstructions.replace(_referenceText, _replacementText)
-                break
-        }
-    })
-    return _botInstructions
 }
 /**
  * Returns all openai `run` objects for `thread`.
@@ -525,8 +426,6 @@ export {
     mChat,
     mFindBot,
     mGetAssistant,
-    mGetBotDescription,
-    mGetBotInstructions,
     mGetChatCategory,
     mHydrateBot,
     mRuns,

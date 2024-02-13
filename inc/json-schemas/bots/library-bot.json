@@ -1,0 +1,184 @@
+{
+    "$schema": "http://json-schema.org/schema",
+    "$id": "https://maht.azurewebsites.net/inc/json-schemas/library-bot.json",
+    "allOf": [{"$ref": "bot.json"}],
+    "name": "library-bot",
+    "type": "object",
+    "properties": {
+    },
+    "$defs": {
+        "library": {
+            "additionalProperties": true,
+            "description": "A MyLife library object will be saved to Cosmos as it's own object, so can grow to full length, and could be instantiated by a library bot or spotlight bot.",
+            "properties": {
+                "being": {
+                    "const": "library",
+                    "type": "string"
+                },
+                "form": {
+                    "default": "collection",
+                    "description": "Conceptual grouping of library items, such as 'collection' or 'playlist' or 'album' or 'bookshelf' or 'record crate' or 'movie theater' or 'tv station' or 'series' or 'other'.",
+                    "maxLength": 256,
+                    "type": "string"
+                },
+                "id": {
+                    "description": "uuid of library",
+                    "format": "uuid",
+                    "type": "string"
+                },
+                "items": {
+                    "default": [],
+                    "description": "array of library items; get max from memory usage",
+                    "items": {
+                        "$ref": "#/$defs/libraryItem"
+                    },
+                    "minLength": 0,
+                    "maxLength": 2000,
+                    "type": "array",
+                    "uniqueItems": true
+                },
+                "mbr_id": {
+                    "description": "root member id: [sysName|id]",
+                    "type": "string",
+                    "$comment": "also partitionId for container"
+                },
+                "name": {
+                    "default": "library",
+                    "description": "name of library for Cosmos",
+                    "type": "string",
+                    "maxLength": 1024,
+                    "minLength": 1
+                },
+                "object_id": {
+                    "description": "reference object: whose library is this; properties such as `type` will need to be read from this entity; for instance, if the library may be a member, i.e., `core`, and that would lend different instructions to the library bot",
+                    "format": "uuid",
+                    "type": "string"
+                },
+                "type": {
+                    "default": "personal",
+                    "description": "purpose of library, meta terminology for library bot; could be any description, but presume a number of FE-generated defaults: personal, book, record, etc.",
+                    "type": "string",
+                    "$comment": "presumably a library artifact could be anything [why limit to \"tangible\" and not conceptual, as example?], but we'll start with these."
+                }
+            },
+            "required": [
+                "being",
+                "form",
+                "id",
+                "items",
+                "mbr_id",
+                "name",
+                "object_id",
+                "type"
+            ],
+            "type": "object"
+        },
+        "libraryItem": {
+            "additionalProperties": false,
+            "description": "MyLife Wrapper object for specific library item metadata.",
+            "properties": {
+                "assistantType": {
+                    "description": "assistant type who submitted the library item",
+                    "default": "mylife-library",
+                    "type": "string"
+                },
+                "author_match": {
+                    "description": "author of library item",
+                    "default": ["unknown-author"],
+                    "items": {
+                        "description": "array of strings for all elements of author's name as split on ' '",
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "$comment": "can start as one word, or multiple words, possibly alpha order by last name. Not worth standardizing long-term?"
+                },
+                "being": {
+                    "const": "library-item",
+                    "type": "string"
+                },
+                "date": {
+                    "description": "date of submission",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "item": {
+                    "$ref": "#/$defs/libraryItemItem"
+                },
+                "title_match": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1
+                }
+            },
+            "type": "object",
+            "$comment": "useful abstraction layer to coat the library item with metadata, such as date, form, assistantType, etc."
+        },
+        "libraryItemItem": {
+            "additionalProperties": true,
+            "description": "Library item submitted by member.",
+            "properties": {
+                "author": {
+                    "description": "author of library item",
+                    "type": "string"
+                },
+                "enjoymentLevel": {
+                    "description": "enjoyment level of library item, roughly expressed on slider",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "number",
+                    "$comment": "@todo: add slider to library bot then improve mechanic"
+                },
+                "format": {
+                    "description": "format of library item",
+                    "enum": [
+                        "book",
+                        "record",
+                        "song",
+                        "video",
+                        "movie",
+                        "tv",
+                        "series",
+                        "other"
+                    ],
+                    "type": "string",
+                    "$comment": "presumably a library artifact could be anything [why limit to \"tangible\" and not conceptual, as example?], but we'll start with these."
+                },
+                "insights": {
+                    "description": "personal insights interpreted by LLM regarding library item.",
+                    "type": "string"
+                },
+                "personalImpact": {
+                    "description": "personal impact of library item interpreted by LLM.",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1
+                },
+                "whenRead": {
+                    "description": "when library item was read",
+                    "maxlength": 256,
+                    "type": "string",
+                    "$comment": "could be a time of life, year, event, or anything, not locked to format"
+                }
+            },
+            "required": [
+                "author",
+                "format",
+                "title"
+            ],
+            "type": "object",
+            "$comment": "currently coming from GPT-store MyLife Library Bot"
+        }
+    }
+}

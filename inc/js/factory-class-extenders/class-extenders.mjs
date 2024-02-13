@@ -394,6 +394,7 @@ function extendClass_contribution(_originClass,_references) {
 }
 function extendClass_conversation(_originClass,_references) {
     class Conversation extends _originClass {
+        // @todo: convert parent_id -> object_id
         #factory
         #messages = []
         #openai = _references?.openai
@@ -432,10 +433,10 @@ function extendClass_conversation(_originClass,_references) {
                 await mSaveConversation(this.#factory, this)
             }
             //  save messages to cosmos
-            await this.#factory.dataservices.patchArrayItems( // no need to await
+            // @todo: no need to await
+            await this.#factory.dataservices.patch(
                 this.id,
-                'messages',
-                this.messages.map(_msg=>_msg.micro),
+                { messages: this.messages.map(_msg=>_msg.micro), }
             )
             // flag as saved
             this.#saved = true

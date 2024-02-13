@@ -296,6 +296,22 @@ class MyLife extends Organization {	//	form=server
 		return await this.factory.getMyLifeSession()
 	}
 	/**
+	 * Submits a request for a library item from MyLife via API.
+	 * @public
+	 * @param {string} _mbr_id - Requesting Member id.
+	 * @param {string} _assistantType - String name of assistant type.
+	 * @param {string} _library - Library entry with or without `items`.
+	 * @returns {object} - The library document from Cosmos.
+	 */
+	async library(_mbr_id, _assistantType, _library){
+		_library.assistantType = _assistantType
+		_library.id = _library.id && this.globals.isValidGuid(_library.id) ? _library.id : this.globals.newGuid
+		_library.mbr_id = _mbr_id
+		_library.type = _library.type??_assistantType??'personal'
+		const _libraryCosmos = await this.factory.library(_library)
+		return this.globals.stripCosmosFields(_libraryCosmos)
+	}
+	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
 	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
@@ -319,7 +335,7 @@ class MyLife extends Organization {	//	form=server
 			form: _assistantType,
 			id,
 			mbr_id: _mbr_id,
-			name: `${_assistantType}-story_${_mbr_id}_${id}`,
+			name: `story_${_assistantType}_${_mbr_id}`,
 			summary: storySummary,
 		}
 		const _storyCosmos = await this.factory.story(_story)

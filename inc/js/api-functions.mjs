@@ -68,6 +68,31 @@ async function keyValidation(ctx){
     console.log(chalk.yellowBright(`keyValidation():${_memberCoreData.mbr_id}`), _memberCoreData.fullName)
     return
 }
+/**
+ * All functionality related to a library. Note: Had to be consolidated, as openai GPT would only POST.
+ * @modular
+ * @public
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object
+ */
+async function library(ctx){
+    await _keyValidation(ctx) // sets ctx.state.mbr_id and more
+    const {
+        assistantType,
+        mbr_id,
+        library = ctx.request?.body?.library
+            ?? ctx.request?.body
+            ?? {}
+    } = ctx.state
+    const _library = await ctx.MyLife.library(mbr_id, assistantType, library)
+    ctx.status = 200 // OK
+    ctx.body = {
+        library: _library,
+        message: `library function(s) completed successfully.`,
+        success: true,
+    }
+    return
+}
 async function register(ctx){
 	const _registrationData = ctx.request.body
 	const {
@@ -116,7 +141,7 @@ async function register(ctx){
 	return
 }
 /**
- * Functionality around story contributions and portrayals
+ * Functionality around story contributions.
  * @param {Koa} ctx - Koa Context object
  * @returns {Koa} Koa Context object
  */
@@ -139,9 +164,23 @@ async function story(ctx){
     ctx.body = {
         success: true,
         message: 'Story submitted successfully.',
-        story: _story,
     }
     return
+}
+/**
+ * Management of Member Story Libraries. Note: Key validation is performed in library(). Story library may have additional functionality inside of core/MyLife
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object. Body = { data: library, success: boolean, message: string }
+ */
+async function storyLibrary(ctx){
+    const { id, form='biographer' } = ctx.request?.body??{}
+    const type = 'story' // force constant
+    ctx.state.library = {
+        id,
+        type,
+        form,
+    }
+    const _library = await library(ctx) // returns ctx.body
 }
 /**
  * Validates api token
@@ -182,7 +221,9 @@ async function tokenValidation(ctx, next) {
 /* exports */
 export {
     keyValidation,
+    library,
     register,
     story,
+    storyLibrary,
     tokenValidation,
 }

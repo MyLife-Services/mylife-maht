@@ -47,7 +47,7 @@ class Dataservices {
      * database queries within this service.
      * @private
      */
-    #rootSelect = ['id', 'mbr_id', 'parent_id', 'being']
+    #rootSelect = ['being', 'id', 'mbr_id', 'object_id', ]
     /**
      * Constructor for Dataservices class.
      * @param {string} _mbr_id - Member ID to partition data.
@@ -107,12 +107,14 @@ class Dataservices {
 	}
 	//	public functions
 	/**
-	 * Get a bot.
+	 * Get a bot specified by id or type.
 	 * @public
 	 * @param {string} _bot_id - The bot id.
-	 * @returns {object} - The bot.
+	 * @param {string} _bot_type - The bot type.
+	 * @param {string} _mbr_id - The member id.
+	 * @returns {object} - The bot or `undefined` if no bot found.
 	 */
-	async bot(_bot_id, _bot_type='personal-avatar'){
+	async bot(_bot_id, _bot_type='personal-avatar', _mbr_id=this.mbr_id){
 		if(_bot_id){
 			return await this.getItem(_bot_id)
 		} else {
@@ -120,22 +122,36 @@ class Dataservices {
 			return _bots?.[0]
 		}
 	}
-	async bots(_bot_type){
+	/**
+	 * Gets all bots of a given type for a given member.
+	 * @param {string} _bot_type - The bot type.
+	 * @param {string} _mbr_id - The member id.
+	 * @returns {array} - The bots or empty array if no bots found.
+	 */
+	async bots(_bot_type, _mbr_id=this.mbr_id){
 		if(_bot_type){
 			return await this.getItems(
 				'bot',
 				['bot_id'],
 				[{ name: '@bot_type', value: _bot_type }],
+				undefined,
+				_mbr_id,
 			)
 		} else {
 			return await this.getItems('bot')
 		}
 	}
+	/**
+	 * Retrieves a specific bot instruction by its ID.
+	 * @param {string} _type - The type of bot instruction.
+	 * @returns {array} - An array of bot instruction or `undefined` if no bot instruction found.
+	 */
 	async botInstructions(_type){
+		if(_type?.length) _type = [{ name: '@type', value: _type }]
 		return await this.getItems(
 			'bot-instructions',
 			undefined,
-			[{ name: '@type', value: _type }],
+			_type,
 			'system'
 		)
 	}
@@ -198,10 +214,15 @@ class Dataservices {
 	}
 	async getAvatar(){
 		const _avatars = await this.getAvatars()
-		return _avatars?.[0]
+		return _avatars
 	}
+	/**
+	 * Get all Member Avatars, but given 1-to-1 relationship, only returns first.
+	 * @returns {object} - The avatar document or `undefined` if no avatar found.
+	 */
 	async getAvatars(){
-		return await this.getItems('avatar')
+		const _avatars = await this.getItems('avatar')
+		return _avatars?.[0]
 	}
 	/**
 	 * Retrieves the first chat associated with a given parent ID.
@@ -270,6 +291,7 @@ class Dataservices {
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
 	async getItem(_id, _container_id, _mbr_id=this.mbr_id) {
+		if(!_id) return
 		try{
 			return await this.datamanager.getItem(
 				_id,
@@ -280,7 +302,47 @@ class Dataservices {
 		catch(_error){
 			console.log('mylife-data-service::getItem() error')
 			console.log(_error, _id, _container_id,)
+			return
 		}
+	}
+	/**
+	 * Retrieves first item based on specified parameters.
+	 * @async
+	 * @public
+	 * @param {string} _being 
+	 * @param {string} _field - Field name to match.
+	 * @param {string} _value - Value to match.
+	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @returns {Promise<object>} An object (initial of arrau) matching the query parameters.
+	 */
+	async getItemByField(_being, _field, _value, _container_id, _mbr_id=this.mbr_id){
+		const _item =  await this.getItemByFields(
+			_being,
+			[{ name: `@${_field}`, value: _value }],
+			_container_id,
+			_mbr_id,
+		)
+		return _item
+	}
+	/**
+	 * Retrieves first item based on specified parameters.
+	 * @async
+	 * @public
+	 * @param {string} _being 
+	 * @param {array} _fields - Array of name/value pairs to select, format: [{name: `@${_field}`, value: _value}],
+	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @returns {Promise<object>} An object (initial of arrau) matching the query parameters.
+	 */
+	async getItemByFields(_being, _fields, _container_id, _mbr_id=this.mbr_id){
+		const _items =  await this.getItemsByFields(
+			_being,
+			_fields,
+			_container_id,
+			_mbr_id,
+		)
+		return _items?.[0]
 	}
 	/**
 	 * Retrieves items based on specified parameters.
@@ -323,6 +385,26 @@ class Dataservices {
 		}
 	}
 	/**
+	 * Retrieve items based on specified parameters.
+	 * @async
+	 * @public
+	 * @param {string} _being 
+	 * @param {array} _fields - Array of name/value pairs to select, format: [{name: `@${_field}`, value: _value}],
+	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @returns {Promise<Array>} An array of items matching the query parameters.
+	 */
+	async getItemsByFields(_being, _fields, _container_id, _mbr_id=this.mbr_id){
+		const _items =  await this.getItems(
+			_being, 
+			undefined,
+			_fields, 
+			_container_id,
+			_mbr_id,
+		)
+		return _items
+	}
+	/**
 	 * Retrieves local records based on a query.
 	 * @async
 	 * @param {string} _question - The query to retrieve records.
@@ -330,6 +412,29 @@ class Dataservices {
 	 */
 	async getLocalRecords(_question){
 		return await this.embedder.getLocalRecords(_question)
+	}
+	/**
+	 * Gets library from database.
+	 * @async
+	 * @public
+	 * @param {string} _library_id - The unique identifier for the library.
+	 * @param {string} _object_id - The unique identifier for the underlying avatar.
+	 * @param {string} _type - The type of the library.
+	 * @param {string} _form - The form of the library.
+	 * @returns {Array} - array of library items added to member's library.
+	 */
+	async library(_library_id, _object_id, _type, _form){
+		return ( await this.getItem(_library_id) )
+			?? ( await this.getItemByFields(
+				'library',
+				[
+					{ name: '@object_id', value: _object_id },
+					{ name: '@type', value: _type },
+					{ name: '@form', value: _form },
+				].filter(_=>_?.value!==undefined),
+				undefined,
+				this.mbr_id,
+			) )
 	}
 	/**
 	 * Patches an item by its ID with the provided data.
@@ -346,25 +451,10 @@ class Dataservices {
 			// Filtering out keys that should not be included in the patch
 			.filter(_key => !['id', 'being', 'mbr_id'].includes(_key))
 			.map(_key => {
-				return { op: 'replace', path: _path + _key, value: _data[_key] };
+				return { op: 'add', path: _path + _key, value: _data[_key] }
 			})
 		// Performing the patch operation
-		return await this.patchItem(_id, patchOperations);
-	}	
-	/**
-	 * Patches an array within an item by inserting data at a specified index.
-	 * @async
-	 * @param {string} _id - The unique identifier for the item to be patched.
-	 * @param {string} _node - The node within the item where data is to be inserted.
-	 * @param {Array<Object>} _data - The data to be inserted.
-	 * @param {number} [_index=0] - The index at which to insert the data.
-	 * @returns {Promise<Object>} The result of the patch operation.
-	 */
-	async patchArrayItems(_id,_node,_data){	//	_data is array of objects to be inserted into _node at _index
-		// changed to hard overwrite as the unshift was not working
-		// @todo: remove index
-		const __data = [{ op: 'replace', path: `/${_node}`, value: _data }]
-		return await this.patchItem(_id,__data)
+		return await this.patchItem(_id, patchOperations)
 	}
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
@@ -373,8 +463,8 @@ class Dataservices {
 	 * @param {Array<Object>} _data - The data for patching, including the path and operation.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(_id,_data){ // path Embedded in _data
-		return await this.datamanager.patchItem(_id,_data)
+	async patchItem(_id, _data){ // path Embedded in _data
+		return await this.datamanager.patchItem(_id ,_data)
 	}
     /**
      * Pushes a new item to the data manager
