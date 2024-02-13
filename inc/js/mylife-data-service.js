@@ -420,16 +420,18 @@ class Dataservices {
 	 * @param {string} _library_id - The unique identifier for the library.
 	 * @param {string} _object_id - The unique identifier for the underlying avatar.
 	 * @param {string} _type - The type of the library.
+	 * @param {string} _form - The form of the library.
 	 * @returns {Array} - array of library items added to member's library.
 	 */
-	async library(_library_id, _object_id, _type){
+	async library(_library_id, _object_id, _type, _form){
 		return ( await this.getItem(_library_id) )
 			?? ( await this.getItemByFields(
 				'library',
 				[
 					{ name: '@object_id', value: _object_id },
-					{ name: '@type', value: _type }
-				],
+					{ name: '@type', value: _type },
+					{ name: '@form', value: _form },
+				].filter(_=>_?.value!==undefined),
 				undefined,
 				this.mbr_id,
 			) )
@@ -449,7 +451,7 @@ class Dataservices {
 			// Filtering out keys that should not be included in the patch
 			.filter(_key => !['id', 'being', 'mbr_id'].includes(_key))
 			.map(_key => {
-				return { op: 'replace', path: _path + _key, value: _data[_key] }
+				return { op: 'add', path: _path + _key, value: _data[_key] }
 			})
 		// Performing the patch operation
 		return await this.patchItem(_id, patchOperations)

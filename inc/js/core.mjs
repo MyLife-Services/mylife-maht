@@ -296,11 +296,11 @@ class MyLife extends Organization {	//	form=server
 		return await this.factory.getMyLifeSession()
 	}
 	/**
-	 * Submits an array of library items to MyLife via API.
+	 * Submits a request for a library item from MyLife via API.
 	 * @public
 	 * @param {string} _mbr_id - Requesting Member id.
 	 * @param {string} _assistantType - String name of assistant type.
-	 * @param {string} _library - Library entry array.
+	 * @param {string} _library - Library entry with or without `items`.
 	 * @returns {object} - The library document from Cosmos.
 	 */
 	async library(_mbr_id, _assistantType, _library){
@@ -309,7 +309,7 @@ class MyLife extends Organization {	//	form=server
 		_library.mbr_id = _mbr_id
 		_library.type = _library.type??_assistantType??'personal'
 		const _libraryCosmos = await this.factory.library(_library)
-		return _libraryCosmos
+		return this.globals.stripCosmosFields(_libraryCosmos)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -340,18 +340,6 @@ class MyLife extends Organization {	//	form=server
 		}
 		const _storyCosmos = await this.factory.story(_story)
 		return this.globals.stripCosmosFields(_storyCosmos)
-	}
-	/**
-	 * Returns a specific (or default) story library for MyLife Member.
-	 * @public
-	 * @param {string} _library_id - Library id
-	 * @returns {object} - The story library document from Cosmos.
-	 */
-	async storyLibrary(_library_id){
-		// if no library_id, return default library
-		// create default story library if it doesn't exist
-		// collect any story events since last visit
-		// member can have multiple story libraries
 	}
 	/**
 	 * Tests partition key for member

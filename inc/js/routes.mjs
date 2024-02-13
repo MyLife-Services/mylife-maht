@@ -24,6 +24,7 @@ import {
     library,
     register,
     story,
+    storyLibrary,
     tokenValidation,
 } from './api-functions.mjs'
 // variables
@@ -50,6 +51,7 @@ _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/library/:mid', library)
 _apiRouter.post('/register', register)
+_apiRouter.post('/story/library/:mid', storyLibrary) /* ordered first for path rendering */
 _apiRouter.post('/story/:mid', story)
 /* member routes */
 _memberRouter.use(memberValidation)

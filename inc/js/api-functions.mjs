@@ -68,25 +68,28 @@ async function keyValidation(ctx){
     console.log(chalk.yellowBright(`keyValidation():${_memberCoreData.mbr_id}`), _memberCoreData.fullName)
     return
 }
+/**
+ * All functionality related to a library. Note: Had to be consolidated, as openai GPT would only POST.
+ * @modular
+ * @public
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object
+ */
 async function library(ctx){
     await _keyValidation(ctx) // sets ctx.state.mbr_id and more
-    const { assistantType, mbr_id } = ctx.state
-    const { items } = ctx.request?.body??false
-    if(!Array.isArray(items) || !items?.length){
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-            success: false,
-            message: 'No library provided. Use `items` field.',
-        }
-        return
-    }
-    // write to cosmos db
-    const _library = await ctx.MyLife.library(mbr_id, assistantType, ctx.request.body) // @todo: remove await
-    console.log(chalk.yellowBright('library submitted, #items:'), _library?.length)
+    const {
+        assistantType,
+        mbr_id,
+        library = ctx.request?.body?.library
+            ?? ctx.request?.body
+            ?? {}
+    } = ctx.state
+    const _library = await ctx.MyLife.library(mbr_id, assistantType, library)
     ctx.status = 200 // OK
     ctx.body = {
+        library: _library,
+        message: `library function(s) completed successfully.`,
         success: true,
-        message: `${_library?.length} # library item(s) submitted successfully.`,
     }
     return
 }
@@ -138,7 +141,7 @@ async function register(ctx){
 	return
 }
 /**
- * Functionality around story contributions and portrayals
+ * Functionality around story contributions.
  * @param {Koa} ctx - Koa Context object
  * @returns {Koa} Koa Context object
  */
@@ -163,6 +166,21 @@ async function story(ctx){
         message: 'Story submitted successfully.',
     }
     return
+}
+/**
+ * Management of Member Story Libraries. Note: Key validation is performed in library(). Story library may have additional functionality inside of core/MyLife
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object. Body = { data: library, success: boolean, message: string }
+ */
+async function storyLibrary(ctx){
+    const { id, form='biographer' } = ctx.request?.body??{}
+    const type = 'story' // force constant
+    ctx.state.library = {
+        id,
+        type,
+        form,
+    }
+    const _library = await library(ctx) // returns ctx.body
 }
 /**
  * Validates api token
@@ -206,5 +224,6 @@ export {
     library,
     register,
     story,
+    storyLibrary,
     tokenValidation,
 }

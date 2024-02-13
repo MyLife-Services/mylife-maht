@@ -15,6 +15,12 @@
                     "const": "library",
                     "type": "string"
                 },
+                "form": {
+                    "default": "collection",
+                    "description": "Conceptual grouping of library items, such as 'collection' or 'playlist' or 'album' or 'bookshelf' or 'record crate' or 'movie theater' or 'tv station' or 'series' or 'other'.",
+                    "maxLength": 256,
+                    "type": "string"
+                },
                 "id": {
                     "description": "uuid of library",
                     "format": "uuid",
@@ -57,6 +63,7 @@
             },
             "required": [
                 "being",
+                "form",
                 "id",
                 "items",
                 "mbr_id",

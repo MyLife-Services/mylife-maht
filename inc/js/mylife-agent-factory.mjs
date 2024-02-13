@@ -113,7 +113,7 @@ class BotFactory extends EventEmitter{
 	 */
 	async bot(_bot_id, _bot_type=mDefaultBotType, _mbr_id){
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
-			console.log(chalk.yellowBright('locating member bot...'), _bot_id, _bot_type, _mbr_id)
+			console.log(chalk.yellowBright('locating member bot...'), _bot_type, _mbr_id, _bot_id)
 			if(!_mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
 			const _botFactory = new BotFactory(_mbr_id)
@@ -176,15 +176,47 @@ class BotFactory extends EventEmitter{
 		return mCreateBot(this, _bot)
 	}
 	/**
-	 * Gets Library from database.
+	 * Gets, creates or updates Library in Cosmos.
+	 * @todo - institute bot for library mechanics.
 	 * @public
-	 * @param {string} _id - The library id.
-	 * @param {string} _avatar_id - The avatar id.
-	 * @param {string} _format - The format of the library.
+	 * @param {Object} _library - The library object, including items to be added to/updated in member's library.
 	 * @returns {object} - The library.
 	 */
-	async library(_id, _avatar_id, _format){
-		return await this.dataservices.library(_id, _avatar_id, _format)
+	async library(_library){
+		const _updatedLibrary = await mLibrary(this, _library)
+		// test the type/form of Library
+		switch(_updatedLibrary.type){
+			case 'story':
+				if(_updatedLibrary.form==='biographer'){
+					// inflate and update library with stories
+					const _stories = ( await this.stories(_updatedLibrary.form) )
+						.filter(_story=>!this.globals.isValidGuid(_story?.library_id))
+						.map(_story=>{
+							_story.id = _story.id??this.newGuid
+							_story.author = _story.author??this.mbr_name
+							_story.title = _story.title??_story.id
+							return mInflateLibraryItem(_story, _updatedLibrary.id, this.mbr_id)
+						})
+					_updatedLibrary.items = [
+						..._updatedLibrary.items,
+						..._stories,
+					]
+					/* update stories (no await) */
+					_stories.forEach(_story=>this.dataservices.patch(
+						_story.id,
+						{ library_id: _updatedLibrary.id },
+					))
+					/* update library (no await) */
+					this.dataservices.patch(
+						_updatedLibrary.id,
+						{ items: _updatedLibrary.items },
+					)
+				}
+				break
+			default:
+				break
+		}
+		return _updatedLibrary
 	}
 	/**
 	 * Adds or updates a bot.
@@ -196,6 +228,18 @@ class BotFactory extends EventEmitter{
 		if(!_bot?.id?.length)
 			_bot = await this.createBot(_bot)
 		return await this.dataservices.setBot(_bot)
+	}
+	/**
+	 * Gets a collection of stories of a certain format.
+	 * @todo - currently disconnected from a library, but no decisive mechanic for incorporating library shell.
+	 * @param {*} _form 
+	 * @returns 
+	 */
+	async stories(_form){
+		return await this.dataservices.getItemsByFields(
+			'story',
+			[{ name: '@form', value: _form }],
+		)
 	}
 	/* getters/setters */
 	get avatarId(){
@@ -327,13 +371,19 @@ class AgentFactory extends BotFactory{
 		return (_session instanceof schemas.session)
 	}
 	/**
-	 * Adds or updates a library with items outlined in request array. Note: currently an override for bot function .library which returns a library item from the database.
+	 * Adds or updates a library with items outlined in request `library.items` array. Note: currently the override for `botFactory` function .library which returns a library item from the database.
 	 * @todo: finalize mechanic for overrides
 	 * @param {Object} _library - The library object, including items to be added to member's library.
 	 * @returns {Object} - The complete library object from Cosmos.
 	 */
 	async library(_library){
-		return await mLibrary(this, _library)
+		/* hydrate library micro-bot */
+		const { bot_id, mbr_id } = _library
+		const _microBot = await this.libraryBot(bot_id, mbr_id)
+		return await _microBot.library(_library)
+	}
+	async libraryBot(_bot_id, _mbr_id){
+		return await this.bot(_bot_id, 'library', _mbr_id)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -691,33 +741,39 @@ function mInflateLibraryItem(_item, _library_id, _mbr_id){
 			.toLowerCase(),
 	}
 }
+/**
+ * Hydrates library and returns library object.
+ * @modular
+ * @private
+ * @param {BotFactory} _factory - BotFactory object
+ * @param {object} _library - Library object
+ * @returns {object} - Library object
+ */
 async function mLibrary(_factory, _library){
 	// @todo: micro-avatar for representation of bot(s)
 	// @todo: Bot class with extension for things like handling libraries
 	// @todo: bot-extenders so that I can get this functionality into that object context
 	/* constants */
-	const { assistantType, id, items: _libraryItems, mbr_id, type } = _library
-	/* hydrate library micro-bot */
-	const _microBot = await _factory.bot(undefined, 'library', mbr_id) // grab shell for display
-	/* parse and cast _libraryItems */
+	const { assistantType, form='collection', id, items: _libraryItems=[], mbr_id, type } = _library
+	const _avatar_id = _factory.avatarId
 	// add/get correct library; default to core (object_id=avatar_id && type)
-	const _avatar_id = _microBot.avatarId
-	let _libraryCosmos = await _microBot.library(id, _avatar_id, type)
-	// @dodo: currently only book library items are supported, ergo one library type (the universe I've books I have read or want to read [i.e., universe of books I am concerned with])
+	/* parse and cast _libraryItems */
+	let _libraryCosmos = await _factory.dataservices.library(id, _avatar_id, type, form)
+	// @dodo: currently only book/story library items are supported
 	if(!_libraryCosmos){ // create when undefined
 		// @todo: microbot should have a method for these
 		const _library_id = _factory.newGuid
 		_libraryCosmos = {
 			being: `library`,
+			form: form,
 			id: _library_id,
 			items: _libraryItems.map(_item=>mInflateLibraryItem(_item, _library_id, mbr_id)),
 			mbr_id: mbr_id,
-			name: `library_${type}_${_avatar_id}`,
-			object_id: _avatar_id, // or bot_id? stick with avatar_id for now, as it manages bots
+			name: ['library',type,form,_avatar_id].join('_'),
+			object_id: _avatar_id,
 			type: type,
 		}
-		// _microBot.libraries.push(_library)
-		_microBot.dataservices.pushItem(_libraryCosmos) // push to Cosmos
+		_factory.dataservices.pushItem(_libraryCosmos) // push to Cosmos
 	} else {
 		// @todo: manage multiple libraries
 		const { id: _library_id, items: _storedLibraryItems } = _libraryCosmos
@@ -733,7 +789,7 @@ async function mLibrary(_factory, _library){
 					return storedAuthorWords.some(word => incomingAuthorWords.includes(word))
 				} else { // If both have 2+ lengths, ensure at least 2 items match
 					const matches = storedAuthorWords.filter(word => incomingAuthorWords.includes(word))
-						return matches.length >= 2
+					return matches.length >= 2
 					}
 				})()
 				if (authorMatches && matchIndex !== -1) { // Mutate the author to the one with more details if needed
@@ -755,7 +811,7 @@ async function mLibrary(_factory, _library){
 				_storedLibraryItems.push({ // If no match is found, add the item to the library
 					..._item,
 					id: _item.id??_factory.newGuid, // Ensure each item has a unique ID
-					mbr_id: _microBot.mbr_id,
+					mbr_id: _factory.mbr_id,
 					object_id: _library_id,
 					type: _item.type??'book',
 				})
@@ -763,10 +819,8 @@ async function mLibrary(_factory, _library){
 		})
 		// save library to Cosmos @todo: microbot should have a method for this
 		_libraryCosmos.items = _storedLibraryItems
-		// @todo: remove await; NOTE: patch returns entire document, not just updated items
-		await _microBot.dataservices.patch(_library_id, {items: _libraryCosmos.items})
+		_factory.dataservices.patch(_library_id, {items: _libraryCosmos.items})
 	}
-	console.log(chalk.bgMagentaBright('hydrated library | microBot'), _libraryCosmos)
 	return _libraryCosmos
 }
 /**
