@@ -5,10 +5,10 @@ import EventEmitter from 'events'
 import vm from 'vm'
 import util from 'util'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
+import Avatar from './mylife-avatar.mjs'
 import Dataservices from './mylife-data-service.js'
 import { Member, MyLife } from './core.mjs'
 import {
-	extendClass_avatar,
 	extendClass_consent,
 	extendClass_contribution,
     extendClass_conversation,
@@ -26,7 +26,6 @@ const mPartitionId = process.env.MYLIFE_SERVER_MBR_ID
 const mDataservices = await new Dataservices(mPartitionId).init()
 const mDefaultBotType = 'personal-avatar'
 const mExtensionFunctions = {
-    extendClass_avatar: extendClass_avatar,
 	extendClass_consent: extendClass_consent,
 	extendClass_contribution: extendClass_contribution,
 	extendClass_conversation: extendClass_conversation,
@@ -296,6 +295,16 @@ class AgentFactory extends BotFactory{
 		await super.init()
 		return this
 	}
+	async avatarProperties(){
+		return ( await this.dataservices.getAvatar() )
+			?? mAvatarProperties(this.core)
+	}
+	/**
+	 * Accesses MyLife Dataservices to challenge access to a member's account.
+	 * @param {string} _mbr_id 
+	 * @param {string} _passphrase 
+	 * @returns {object} - Returns passphrase document if access is granted.
+	 */
 	async challengeAccess(_mbr_id, _passphrase){
 		return await mDataservices.challengeAccess(_mbr_id, _passphrase)
 	}
@@ -328,20 +337,20 @@ class AgentFactory extends BotFactory{
 	 * @returns {Avatar} - The Avatar instance.
 	 */
 	async getAvatar(){
-		// get avatar from dataservices
-		let _avatarProperties = await this.dataservices.getAvatar()
-		_avatarProperties = {..._avatarProperties??this.core, proxyBeing: this.isMyLife ? 'MyLife' : 'human' }
-		const _avatar = await new (schemas.avatar)(_avatarProperties,this).init()
+		const _avatar = await ( new Avatar(this, mOpenAI) )
+			.init()
 		return _avatar
 	}
 	async getMyLife(){	//	get server instance
 		//	ensure that factory mbr_id = dataservices mbr_id
 		if(this.mbr_id!==mPartitionId)
 			throw new Error('unauthorized request')
-		return await new (schemas.server)(this).init()
+		const _myLife = await ( new (schemas.server)(this) )
+			.init()
+		return _myLife
 	}
 	async getMyLifeMember(){
-		const _r =  await new (schemas.member)(this)
+		const _r =  await ( new (schemas.member)(this) )
 			.init()
 		return _r
 	}
@@ -485,6 +494,49 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 				default:
 					return null
 			}
+	}
+}
+/**
+ * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
+ * @modular
+ * @param {object} _core - Datacore object
+ * @returns {object} - Avatar property data package
+ */
+function mAvatarProperties(_core){
+	const {
+		mbr_id,
+		names=['default-name-error'],
+		..._avatarProperties
+	} = _core
+	[
+		"assistant",
+		"being",
+		"bots",
+		"command_word",
+		"contributions",
+		"conversations",
+		"id",
+		"mbr_id",
+		"messages",
+		"metadata",
+		"name",
+		"names",
+		"object_id",
+		"proxyBeing",
+		"type"
+	].forEach(_prop=>{
+		delete _avatarProperties[_prop]
+	})
+	return {
+		..._avatarProperties,
+		being: 'avatar',
+		id: mNewGuid(),
+		mbr_id: mbr_id,
+		name: `avatar_${mbr_id}`,
+		names: names,
+		nickname: _avatarProperties.nickname??names[0],
+		proxyBeing: mIsMyLife(mbr_id) ? 'MyLife' : 'human',
+		type: 'openai_assistant',
 	}
 }
 function mBytes(_object){

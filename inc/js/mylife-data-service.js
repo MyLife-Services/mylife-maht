@@ -525,5 +525,5 @@ class Dataservices {
 		return await this.datamanager.testPartitionKey(_mbr_id)
 	}
 }
-//	exports
+/* exports */
 export default Dataservices

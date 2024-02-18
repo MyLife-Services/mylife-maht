@@ -1,46 +1,28 @@
 //	imports
 import EventEmitter from 'events'
 import chalk from 'chalk'
-//	import { _ } from 'ajv'
+import { _ } from 'ajv'
 //	server-specific imports
 import initRouter from './routes.mjs'
-import { _ } from 'ajv'
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#avatar
-	#categories = [
-		'Abilities',
-		'Artifacts',
-		'Beliefs',
-		'Biography',
-		'Challenges',
-		'Future',
-		'Goals',
-		'Health',
-		'Identity',
-		'Interests',
-		'Outlook',
-		'Personality',
-		'Preferences',
-		'Relationships',
-		'Sexuality',
-		'Updates'
-	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
-	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
+	#factory
 	constructor(_Factory){
 		super()
-		this.#factory = _Factory
+		this.#factory = _Factory // member will need factory after avatar is created for datacore evolutionary agent, et likely al.
 		/* assign factory/avatar listeners */
 		this.attachListeners()
 	}
 	/**
-	 * Initializes Member class instantiation and returns `this`
+	 * Initializes `this.#avatar` and returns `this`. The Avatar will thence be primary point of interaction with Session and Server. Only upon dissolution of Avatar [sessionEnd] is triggered an internal `this` evolution evaluation based on upon the conduct of Avatar.
 	 * @async
 	 * @public
 	 * @returns {Promise} Promise resolves to this Member class instantiation
 	 */
 	async init(){
-		this.#avatar = await this.factory.getAvatar() // returns fully functional and initializaed avatar
+		this.#avatar = await this.factory.getAvatar()
+		// @todo: add consent and evolution agents for self-evolution from avatar data
 		return this
 	}
 	/**
