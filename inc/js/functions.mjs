@@ -27,11 +27,6 @@ async function alerts(ctx){
 		ctx.body = await ctx.state.MemberSession.alerts(ctx.request.body)
 	}
 }
-async function avatarListing(ctx){
-	ctx.state.title = `Avatars for ${ ctx.state.member.memberName }`
-	ctx.state.avatars = []
-	await ctx.render('avatars')	//	avatars
-}
 async function bots(ctx){
 	const _bot = ctx.request.body
 	switch(ctx.method){
@@ -231,7 +226,6 @@ export {
 	about,
 	activateBot,
 	alerts,
-	avatarListing,
 	bots,
 	category,
 	challenge,

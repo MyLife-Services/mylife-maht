@@ -4,7 +4,6 @@ import {
     about,
     activateBot,
     alerts,
-    avatarListing,
     bots,
     category,
     challenge,
@@ -56,8 +55,6 @@ _apiRouter.post('/story/:mid', story)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.get('/', members)
-_memberRouter.get('/avatars', avatarListing)
-_memberRouter.get('/avatars/:aid', avatarListing)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
 _memberRouter.get('/contributions/', contributions)
