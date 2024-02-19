@@ -1,5 +1,6 @@
 import { Marked } from 'marked'
 import EventEmitter from 'events'
+import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 /* modular constants */
 /**
  * @class

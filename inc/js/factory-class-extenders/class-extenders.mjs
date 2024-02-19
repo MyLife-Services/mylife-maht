@@ -1,5 +1,4 @@
 import { EventEmitter } from 'events'
-import { EvolutionAssistant } from '../agents/system/evolution-assistant.mjs'
 import {
     mGetQuestions,
     mUpdateContribution,

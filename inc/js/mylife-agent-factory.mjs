@@ -91,14 +91,16 @@ class BotFactory extends EventEmitter{
 	}
 	/* public functions */
 	/**
-	 * Initialization routine required for all bot instances.
+	 * Initialization routine required for all bot instances. Note: MyLife cannot be constructed as a botFactory, so should never be called as such.
 	 * @param {Guid} _mbr_id 
 	 * @returns {AgentFactory} this
 	 */
-	async init(){
+	async init(_mbr_id=this.mbr_id){
+		this.#mbr_id = _mbr_id
 		this.#dataservices = new Dataservices(this.mbr_id)
 		await this.#dataservices.init()
-		this.core.avatar_id = this.core?.avatar_id ?? (await this.dataservices.getAvatar()).id
+		this.core.avatar_id = this.core?.avatar_id
+			?? (await this.dataservices.getAvatar()).id
 		return this
 	}
 	/**
@@ -289,10 +291,10 @@ class AgentFactory extends BotFactory{
 	 * Initialization routine required for all AgentFactory instances save MyLife server.
 	 * @returns {AgentFactory} this
 	 */
-	async init(){
+	async init(_mbr_id){
 		if(mIsMyLife(_mbr_id))
 			throw new Error('MyLife server AgentFactory cannot be initialized, as it references modular dataservices on constructor().')
-		await super.init()
+		await super.init(_mbr_id)
 		return this
 	}
 	async avatarProperties(){
