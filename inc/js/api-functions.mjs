@@ -93,6 +93,20 @@ async function library(ctx){
     }
     return
 }
+/**
+ * Login function for member. Requires mid in params.
+ * @modular
+ * @public
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object
+ * @property {string} ctx.body.challengeId
+ */
+async function login(ctx){
+	if(!ctx.params.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
+	ctx.session.MemberSession.challenge_id = decodeURIComponent(ctx.params.mid)
+    ctx.body = { challengeId: ctx.session.MemberSession.challenge_id }
+    return
+}
 async function register(ctx){
 	const _registrationData = ctx.request.body
 	const {
@@ -222,6 +236,7 @@ async function tokenValidation(ctx, next) {
 export {
     keyValidation,
     library,
+    login,
     register,
     story,
     storyLibrary,

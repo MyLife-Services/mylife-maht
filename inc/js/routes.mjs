@@ -10,6 +10,7 @@ import {
     chat,
     contributions,
     index,
+    interfaceMode,
     login,
     loginSelect,
     members,
@@ -21,6 +22,7 @@ import {
 import {
     keyValidation,
     library,
+    login as apiLogin,
     register,
     story,
     storyLibrary,
@@ -46,7 +48,9 @@ _Router.post('/signup', signup)
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
+_apiRouter.get('/login/:mid', apiLogin)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
+_apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/library/:mid', library)
 _apiRouter.post('/register', register)
@@ -59,14 +63,16 @@ _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
 _memberRouter.get('/contributions/', contributions)
 _memberRouter.get('/contributions/:cid', contributions)
+_memberRouter.get('/mode', interfaceMode)
 _memberRouter.get('/select', loginSelect)
 _memberRouter.get('/upload', upload)
-_memberRouter.post('/category', category)
 _memberRouter.post('/', chat)
-_memberRouter.post('/upload', _upload)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/activate/:bid', activateBot)
+_memberRouter.post('/category', category)
 _memberRouter.post('contributions/:cid', contributions)
+_memberRouter.post('/mode', interfaceMode)
+_memberRouter.post('/upload', _upload)
 _memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())

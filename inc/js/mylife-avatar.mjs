@@ -2,6 +2,7 @@ import { Marked } from 'marked'
 import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 /* modular constants */
+const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
 /**
  * @class
  * @extends EventEmitter
@@ -15,6 +16,7 @@ class Avatar extends EventEmitter {
     #evolver
     #factory // do not expose
     #llm
+    #mode = 'standard' // interface-mode from modular `mAvailableModes`
     #proxyBeing = 'human'
     /**
      * @constructor
@@ -62,6 +64,7 @@ class Avatar extends EventEmitter {
             this.avatarBot.bot_id = process.env?.OPENAI_MAHT_GPT_OVERRIDE??this.avatarBot.bot_id
             const _conversation = await this.getConversation()
             this.avatarBot.thread_id = _conversation.threadId
+            this.#proxyBeing = 'MyLife'
         }
         this.emit('avatar-init-end', this)
         return this
@@ -93,32 +96,6 @@ class Avatar extends EventEmitter {
             _chat.alerts = ctx.state.MemberSession.alerts()
         }
         return _chat
-    }
-    /**
-     * @todo - review and refactor; unclear if required, trace if the avatar _is_ the assistant or will have access to all bot assistants - how does this differ from getting a bot in other words?
-     * @param {Dataservices} _dataservice 
-     * @returns 
-     */
-    async getAssistant(_dataservice){	//	openai `assistant` object
-        // @todo: move to modular function and refine instructions as other bots
-        if(!this.assistant?.id.length) {
-            this.assistant = await mAI_openai(this.#llm, {
-                name: this.names?.[0]??this.name,
-                model: process.env.OPENAI_MODEL_CORE_AVATAR,
-                description: this.description,
-                instructions: this.purpose,
-            })
-            //	save id to cosmos
-            _dataservice.patch(this.id, {
-                assistant: {
-                    id: this.assistant.id
-                ,	object: 'assistant'
-                }
-            })
-        } else if(!this.assistant.name?.length){
-            this.assistant = await mGetAssistant(this.#llm, this.assistant.id)
-        }
-        return this.assistant
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
@@ -285,7 +262,6 @@ class Avatar extends EventEmitter {
     get conversations(){
         return this.#conversations
     }
-    
     /**
      * Get the Avatar's Factory.
      * @todo - deprecate if possible, return to private
@@ -371,10 +347,28 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get uninstantiated class definition for message.
+     * @public
      * @returns {class} - class definition for message
      */
     get message(){
         return this.factory.message
+    }
+    /**
+     * Get the mode.
+     * @public
+     * @returns {string} - The current active mode.
+     */
+    get mode(){
+        return this.#mode
+    }
+    /**
+     * Set the mode. If mode request is invalid, does not change mode and throws error in order to identify failure.
+     * @public
+     * @param {string} _mode - The new mode.
+     * @returns {void}
+     */
+    set mode(_mode){
+        this.#mode = mValidateMode(_requestedMode, _currentMode)
     }
 }
 /* modular functions */
@@ -505,16 +499,8 @@ async function mCancelRun(_openai, _thread_id, _run_id,){
  * @param {string} _chatMessage - Chat message
  * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
  */
-/**
- * Requests and returns chat response from openAI. Call session for conversation id.
- * @todo - reinstate contribution
- * @modular
- * @param {Avatar} _avatar - Avatar object
- * @param {string} _chatMessage - Chat message
- * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
- */
 async function mChat(_avatar, _chatMessage){
-    // note: Q/isMyLife PA bot does not have thread_id intentionally, as every session creates its own
+    // **note**: Q/isMyLife PA bot does not have thread_id intentionally, as every session creates its own
     const _openai = _avatar.ai
     const _processStartTime = Date.now()
     const _bot = _avatar.activeBot
@@ -604,16 +590,6 @@ function mFormatCategory(_category){
         .slice(0, 128)  //  hard cap at 128 chars
         .replace(/\s+/g, '_')
         .toLowerCase()
-}
-/**
- * Gets OpenAI Assistant.
- * @modular
- * @param {OpenAI} _openai - OpenAI object
- * @param {string} _assistant_id - Assistant id
- * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/assistants/retrieve)
- */
-async function mGetAssistant(_openai, _assistant_id){
-    return await _openai.beta.assistants.retrieve(_assistant_id)
 }
 /**
  * Returns MyLife-version of chat category object
@@ -801,6 +777,20 @@ async function mRunTrigger(_openai, _avatar){
     // ping status
     await mRunFinish(_openai, _run) // only returns 
     return
+}
+function mValidateMode(_requestedMode, _currentMode){
+    if(!mAvailableModes.includes(_requestedMode))
+        throw new Error('Invalid interface mode request. Mode not altered.')
+    switch(_requestedMode){
+        case 'admin':
+            console.log('Admin interface not currently implemented. Mode not altered.')
+            return _currentMode
+        case 'experience':
+        case 'standard':
+        case 'restore':
+        default:
+            return _requestedMode
+    }
 }
 /* exports */
 export default Avatar
