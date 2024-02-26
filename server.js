@@ -65,6 +65,17 @@ app.use(koaBody({
 			},
 			app
 		))
+	.use(async (ctx,next) => { // GLOBAL ERROR `.catch()` to present in ctx format.
+		try {
+			await next()
+		} catch (err) {
+			ctx.status = err.statusCode || err.status || 500
+			ctx.body = {
+				message: err.message
+			}
+			console.error(err)
+		}
+	})
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
