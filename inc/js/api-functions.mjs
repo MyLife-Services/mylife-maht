@@ -2,6 +2,58 @@ import chalk from "chalk"
 /* variables */
 const mBotSecrets = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 /* private modular functions */
+// @todo implement builder functionality, allowing for interface creation of experiences by members
+// @todo implement access to exposed member experiences using `mbr_key` as parameter to `factory.getItem()`
+async function experienceBuilder(ctx){
+    await _keyValidation(ctx)
+    const { assistantType, mbr_id } = ctx.state
+    const { eid, sid } = ctx.params
+    const { experience } = ctx.request.body?.experience
+    console.log(chalk.yellowBright('experienceBuilder()'), { assistantType, mbr_id, eid, sid, experience })
+    if(!experience)
+        ctx.throw(400, 'No experience provided for builder. Use `experience` field.')
+}
+/**
+ * Conducts active Living-Experience for member. Passes data to avatar to manages the start, execution and completion of a member experience.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {Promise<object>} - Promise object represents object with following properties.
+ * @property {boolean} success - Success status.
+ * @property {array} events - Array of next Event(s).
+ * @property {object} scene - Scene data, regardless if "current" or new.
+ */
+async function experience(ctx){
+    // if needs to send update OTHER than member input ctx.request.body.memberInput
+    await _keyValidation(ctx)
+    const { assistantType, mbr_id } = ctx.state
+    const { eid, sid } = ctx.params
+    const { memberInput } = ctx.request.body
+    return ctx.state.avatar.experienceUpdate(eid, sid, memberInput)
+}
+async function experienceEnd(ctx){
+    await _keyValidation(ctx)
+    const { assistantType, mbr_id } = ctx.state
+    const { eid } = ctx.params
+    return ctx.state.avatar.experienceEnd(eid)
+}
+/**
+ * Delivers the manifest of an experience. Manifests are the data structures that define the experience, including scenes, events, and other data. Experience must be "started" in order to request.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns 
+ */
+async function experienceManifest(ctx){
+    await _keyValidation(ctx)
+    const { assistantType, mbr_id } = ctx.state
+    const { eid } = ctx.params
+    const { manifest } = ctx.request.body
+    console.log(chalk.yellowBright('experienceManifest()'), { assistantType, mbr_id, eid, manifest })
+    return ctx.state.avatar.experienceManifest(eid, manifest)
+}
+/**
+ * Validates key and sets `ctx.state` and `ctx.session` properties.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {Promise<void>} - Promise object represents void.
+ * @property {string} ctx.state.mbr_id - Member ID
+ */
 async function _keyValidation(ctx){ // transforms ctx.state
     if(ctx.params.mid === ':mid') ctx.params.mid = undefined
     // ctx session alternatives to hitting DB every time? can try...
@@ -124,23 +176,11 @@ async function register(ctx){
 		state,
 		country,
 	} = contact
-	if (!humanName?.length || !email?.length){
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-            success: false,
-            message: 'Missing required contact information: humanName and/or email are required.',
-        }
-        return
-    }
+	if (!humanName?.length || !email?.length)
+        ctx.throw(400, 'Missing required contact information: humanName and/or email are required.')
 	// Email validation
-    if (!ctx.Globals.isValidEmail(contact.email)) {
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-            success: false,
-            message: 'Invalid email format.',
-        }
-        return
-    }
+    if (!ctx.Globals.isValidEmail(contact.email))
+        ctx.throw(400, 'Invalid email format.')
 	// throttle requests?
 	// write to cosmos db
 	_registrationData.email = email // required at root for select
@@ -163,14 +203,8 @@ async function story(ctx){
     await _keyValidation(ctx) // sets ctx.state.mbr_id and more
     const { assistantType, mbr_id } = ctx.state
     const { storySummary } = ctx.request?.body??{}
-    if(!storySummary?.length){
-        ctx.status = 400 // Bad Request
-        ctx.body = {
-            success: false,
-            message: 'No story summary provided. Use `storySummary` field.',
-        }
-        return
-    }
+    if(!storySummary?.length)
+        ctx.throw(400, 'No story summary provided. Use `storySummary` field.')
     // write to cosmos db
     const _story = await ctx.MyLife.story(mbr_id, assistantType, storySummary) // @todo: remove await
     console.log(chalk.yellowBright('story submitted:'), _story)
@@ -234,6 +268,9 @@ async function tokenValidation(ctx, next) {
 }
 /* exports */
 export {
+    experience,
+    experienceEnd,
+    experienceManifest,
     keyValidation,
     library,
     login,

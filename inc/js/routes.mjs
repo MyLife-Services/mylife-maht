@@ -20,6 +20,9 @@ import {
     _upload
 } from './functions.mjs'
 import {
+    experience,
+    experienceEnd,
+    experienceManifest,
     keyValidation,
     library,
     login as apiLogin,
@@ -50,6 +53,10 @@ _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.get('/login/:mid', apiLogin)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
+_apiRouter.patch('/experiences/:mid/end', experienceEnd)
+_apiRouter.patch('/experiences/:mid/experience/:eid', experience)
+//_apiRouter.patch('/experiences/:mid/experience/:eid(/scene/:sid)?', experience)
+_apiRouter.patch('/experiences/:mid/experience/:eid/manifest', experienceManifest)
 _apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/library/:mid', library)
@@ -66,7 +73,7 @@ _memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/mode', interfaceMode)
 _memberRouter.get('/select', loginSelect)
 _memberRouter.get('/upload', upload)
-_memberRouter.post('/', chat)
+_memberRouter.patch('/experiences/:mid/experience/:eid', experience)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)

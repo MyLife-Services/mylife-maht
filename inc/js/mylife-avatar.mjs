@@ -1,20 +1,28 @@
 import { Marked } from 'marked'
 import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
+import { _ } from 'ajv'
+import { inspect } from 'util'
 /* modular constants */
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
 /**
  * @class
  * @extends EventEmitter
  * @description An avatar is a digital self proxy of Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The Avatar is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
+ * @todo - deprecate `factory` getter
+ * @todo - determine how best to collect and present experience data; currently bound in 3 #-scope variables [livedExperience, experience, livingExperience]
  */
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
     #activeChatCategory = mGetChatCategory()
     #bots = []
+    #cast
     #conversations = []
+    #experience
     #evolver
     #factory // do not expose
+    #livedExperiences = [] // array of ids for lived experiences
+    #livingExperience
     #llm
     #mode = 'standard' // interface-mode from modular `mAvailableModes`
     #proxyBeing = 'human'
@@ -96,6 +104,78 @@ class Avatar extends EventEmitter {
             _chat.alerts = ctx.state.MemberSession.alerts()
         }
         return _chat
+    }
+    /**
+     * Processes and executes incoming experience request.
+     * @public
+     * @param {string} experience_id - The experience id.
+     * @param {string} scene_id - The scene id.
+     * @param {object} memberInput - The member input.
+     * @returns {Promise<array>} - The next sequence of evets in experience for front-end.
+     */
+    async experienceUpdate(experience_id, scene_id, memberInput){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot present experiences to itself.')
+        if(this.mode!=='experience'){ // start experience
+            await mExperienceStart(this, this.#factory, experience_id, scene_id) // @note - mutates `this`
+            const { id, scenes } = this.#experience
+            if(id!==experience_id)
+                throw new Error('Experience failure, unexpected id mismatch.')
+            this.#livingExperience = new (this.#factory.livedExperience)({
+                conversation: await this.getConversation(),
+                experience_id: id,
+                location: {
+                    experience_id: id,
+                    scene_id: scenes[0].id,
+                    event_id: scenes[0].events[0].id,
+                },
+                mbr_id: this.mbr_id,
+                version: this.#experience.version??0,
+            }) // create shell for storing lived experience
+            this.#cast = mCast(this.#factory, this.#experience.cast)
+        }
+        const { scene_id: _scene_id, event_id } = this.#livingExperience.location
+        const _currentScene = this.#experience.scenes.find(
+            _scene=>_scene.id==_scene_id
+        )
+        const _currentEventIndex = _currentScene.events.findIndex(
+            _event=>_event.id==event_id
+        )
+        if(_currentEventIndex===-1)
+            throw new Error('Experience failure, could not find event.')
+        // @todo: if continuing, update event with memberInput
+        // loop through scene events until next pointer or end of scene
+        const _eventSequence = []
+        let i = _currentEventIndex
+        while(i < _currentScene.events.length){
+            const _event = new (this.#factory.experienceEvent)(_currentScene.events[i])
+            _eventSequence.push(_event)
+            if(_event.action === "input") {
+                // complete when action equals "input"
+                break
+            }
+            i++
+        }
+        // interpret dynamic script instructions when not straight dialog
+        console.log('experienceUpdate', _eventSequence.map(_=>_.inspect(true)))
+        abort
+        // log to livedExperience
+        // log to conversation
+        // package for front end (use self-declaration? in experience extender?)
+    }
+    async experienceEnd(experience_id){
+        if(this.mode!=='experience')
+            throw new Error('Avatar is not currently in an experience.')
+        if(this.experience.id!==experience_id)
+            throw new Error('Avatar is not currently in the requested experience.')
+        if(!this.experience.skippable) // @todo - even if skippable, won't this function still process?
+            throw new Error('Avatar cannot end this experience at this time, experience is not skippable.')
+        this.mode = 'standard'
+        // delete this.experience
+        return true
+    }
+    async experienceManifest(experience_id){
+        // includes cast, scenes, and navigable events
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
@@ -262,6 +342,16 @@ class Avatar extends EventEmitter {
     get conversations(){
         return this.#conversations
     }
+    get experience(){
+        return this.#experience
+    }
+    /**
+     * @todo - test _experience for type and validity.
+     * @param {any} _experience - The new experience.
+     */
+    set experience(_experience){
+        this.#experience = _experience
+    }
     /**
      * Get the Avatar's Factory.
      * @todo - deprecate if possible, return to private
@@ -367,8 +457,8 @@ class Avatar extends EventEmitter {
      * @param {string} _mode - The new mode.
      * @returns {void}
      */
-    set mode(_mode){
-        this.#mode = mValidateMode(_requestedMode, _currentMode)
+    set mode(_requestedMode){
+        this.#mode = mValidateMode(_requestedMode, this.mode)
     }
 }
 /* modular functions */
@@ -492,6 +582,19 @@ async function mCancelRun(_openai, _thread_id, _run_id,){
     )
 }
 /**
+ * Creates cast and returns associated `cast` object.
+ * @modular
+ * @param {AgentFactory} _factory - Agent Factory object
+ * @param {array} _cast - Array of cast objects
+ * @returns {Promise<array>} - Array of ExperienceCastMember instances
+ */
+async function mCast(_factory, _cast){
+    _cast = await Promise.all(_cast.map(async _castMember=>{
+        return new (_factory.castMember)(_castMember)
+    }))
+    return _cast
+}
+/**
  * Requests and returns chat response from openAI. Call session for conversation id.
  * @todo - reinstate contribution
  * @modular
@@ -565,6 +668,27 @@ async function mCreateBot(_avatar, _bot){
     const _openaiGPT = await mAI_openai(_avatar.ai, _botData)
     _botData.bot_id = _openaiGPT.id
     return { ..._bot, ..._botData }
+}
+async function mExperience(){
+    // 
+}
+async function mExperienceStart(_avatar, _factory, _experience_id, _scene_id){
+    let _experience = await _factory.getExperience(_experience_id)
+    if(!_experience)
+        throw new Error('Experience not found')
+    // get scene from experience (test skippable/ requested scene prior reqs)
+    if(_scene_id?.length){
+        const _scene = _experience.scenes.find(_scene=>_scene.id==_scene_id)
+        throw new Error('Starting experiences at subsequent scenes not yet implemented')
+    }
+    /* hydrate experience */
+    _experience = new (_factory.experience)(_experience, _factory)
+    if(!_experience instanceof _factory.experience)
+        throw new Error('Experience not valid')
+    /* mutate avatar */
+    _avatar.experience = await _experience.init() // `init` starts experience
+    _avatar.mode = 'experience' // also testing that internal `set` logic
+    return // returns void as avatar mutatation is essential
 }
 /**
  * Gets bot by id.
