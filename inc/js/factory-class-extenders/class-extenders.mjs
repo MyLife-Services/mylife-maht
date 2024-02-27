@@ -8,6 +8,13 @@ import {
     mMessages,
     mSaveConversation,
 } from './class-conversation-functions.mjs'
+import{
+    mAppear,
+    mDialog,
+    mGetEvent,
+    mInput,
+    mGetScene,
+} from './class-experience-functions.mjs'
 import {
     mGetMessage,
 	mAssignContent,
@@ -198,6 +205,16 @@ function extendClass_experience(_originClass, _references){
             console.log('experience initialized', this.scenes)
             return this
         }
+        dialog(eventId, iteration=0){
+            return mDialog(this.event(eventId), iteration)
+        }
+        event(eventId){
+            return mGetEvent(this.scenes, eventId)
+        }
+        scene(sceneId){
+            return mGetScene(this.scenes, sceneId)
+        }
+        /* getters/setters */
     }
     return Experience
 }
