@@ -24,6 +24,29 @@
 			},
 			"type": "array"
 		},
+		"dates": {
+			"default": { "created": "2024-02-25T18:00:00Z" },
+			"description": "dates for the experience",
+			"properties": {
+				"created": {
+					"description": "date the experience was created",
+					"format": "date-time",
+					"type": "string",
+					"$comment": "defaults to current date-time"
+				},
+				"run-start": {
+					"description": "date the experience begins running",
+					"format": "date-time",
+					"type": "string"
+				},
+				"run-end": {
+					"description": "date the experience ends running",
+					"format": "date-time",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
 		"description": {
 			"description": "description of the experience",
 			"maxLength": 1024,
@@ -90,6 +113,17 @@
 			"default": false,
 			"description": "show the cast by default in the experience",
 			"type": "boolean"
+		},
+		"status": {
+			"default": "draft",
+			"description": "status of the experience",
+			"enum": ["draft", "active", "archived"],
+			"type": "string"
+		},
+		"version": {
+			"default": 1,
+			"description": "version of the experience",
+			"type": "integer"
 		}
 	},
 	"additionalProperties": true,
@@ -116,10 +150,11 @@
 					"type": "string"
 				},
 				"name": {
-					"description": "name of the cast member in the experience.",
+					"description": "attributed name of the cast member.",
 					"type": "string",
 					"minLength": 1,
-					"maxLength": 128
+					"maxLength": 128,
+					"$comment": "In short, the name of the \"actor\". As a role, they can be playing themselves, 'Q' as the first example."
 				},
 				"role": {
 					"description": "named role of the cast member in the experience.",
@@ -139,7 +174,7 @@
 		},
 		"experience-event": {
 			"name": "Experience-Event",
-			"required": ["id", "name"],
+			"required": ["duration", "id", "name"],
 			"type": "object",
 			"properties": {
 				"action": {
@@ -147,6 +182,12 @@
 					"enum": ["chat", "narration", "input"],
 					"maxLength": 256,
 					"type": "string"
+				},
+				"actor": {
+					"description": "id of the cast member referenced in this action",
+					"format": "uuid",
+					"type": "string",
+					"$comment": "current limitation: only one actor per event, no duets!"
 				},
 				"animation": {
 					"description": "animation of the event, object of animation depends on action, cast member and event itself",
@@ -159,20 +200,19 @@
 					"type": "string",
 					"$comment": "event-level backdrop override, if any."
 				},
-				"cast-member-id": {
-					"description": "id of the cast member referenced in this action",
-					"format": "uuid",
-					"type": "string",
-					"$comment": "current limitation: only one actor per event, no duets!"
-				},
 				"description": {
 					"description": "description of the event",
 					"maxLength": 1024,
 					"type": "string"
 				},
+				"duration": {
+					"default": 0,
+					"description": "duration of the event in seconds, default is 0, i.e., immediate, note: negative values indicate duration _before_ action",
+					"type": "integer"
+				},
 				"effect": {
 					"description": "effect of the event, default inherits from scene",
-					"enum": ["fade", "spotlight"],
+					"enum": ["fade", "spotlight", "typewrite"],
 					"type": "string"
 				},
 				"hooks": {

@@ -178,6 +178,29 @@ function extendClass_conversation(_originClass,_references) {
     }
     return Conversation
 }
+function extendClass_experience(_originClass, _references){
+    class Experience extends _originClass {
+        constructor(_obj) {
+            super(_obj)
+        }
+        /* public functions */
+        init(){
+            /* self-validation */
+            if(!this.scenes || !this.scenes.length)
+                throw new Error('No scenes provided for experience')
+            /* sort scenes/events by order in place */
+            this.scenes.sort((_a, _b)=>(_a?.order??0)-(_b.order??0))
+            this.scenes.forEach(_scene=>{
+                if(!_scene.events || !_scene.events.length)
+                    throw new Error('No events provided for scene')
+                _scene.events.sort((_a, _b)=>(_a?.order??0)-(_b.order??0))
+            })
+            console.log('experience initialized', this.scenes)
+            return this
+        }
+    }
+    return Experience
+}
 function extendClass_file(_originClass,_references) {
     class File extends _originClass {
         #contents   //  utilized _only_ for text files
@@ -281,6 +304,7 @@ export {
 	extendClass_consent,
     extendClass_contribution,
     extendClass_conversation,
+    extendClass_experience,
     extendClass_file,
 	extendClass_message,
 }

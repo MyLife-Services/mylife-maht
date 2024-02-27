@@ -12,6 +12,7 @@ import {
 	extendClass_consent,
 	extendClass_contribution,
     extendClass_conversation,
+	extendClass_experience,
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
@@ -29,6 +30,7 @@ const mExtensionFunctions = {
 	extendClass_consent: extendClass_consent,
 	extendClass_contribution: extendClass_contribution,
 	extendClass_conversation: extendClass_conversation,
+	extendClass_experience: extendClass_experience,
 	extendClass_file: extendClass_file,
 	extendClass_message: extendClass_message,
 }
@@ -180,6 +182,18 @@ class BotFactory extends EventEmitter{
 		return mCreateBot(this, _bot)
 	}
 	/**
+	 * Gets a specified `experience` from database.
+	 * @public
+	 * @param {guid} _experience_id - The experience id in Cosmos.
+	 * @returns {Promise<object>} - The experience.
+	 */
+	async getExperience(_experience_id){
+		if(!_experience_id) 
+			throw new Error('factory.experience: experience id required')
+		// @todo remove restriction (?) for all experiences to be stored under MyLife `mbr_id`
+		return await mDataservices.getItem(_experience_id, 'system')
+	}
+	/**
 	 * Gets, creates or updates Library in Cosmos.
 	 * @todo - institute bot for library mechanics.
 	 * @public
@@ -255,7 +269,17 @@ class BotFactory extends EventEmitter{
 	get dataservices(){
 		return this.#dataservices
 	}
-	get factory(){	//	get self
+	/**
+	 * Returns experience class definition.
+	 */
+	get experience(){
+		return this.schemas.Experience
+	}
+	/**
+	 * Returns the factory itself.
+	 * @todo - deprecate?
+	 */
+	get factory(){
 		return this
 	}
 	get globals(){
@@ -267,6 +291,13 @@ class BotFactory extends EventEmitter{
 	*/
 	get isMyLife(){
 		return mIsMyLife(this.mbr_id)
+	}
+	/**
+	 * Returns the ExperieceLived class definition.
+	 * @returns {object} - The ExperienceLived class definition.
+	 */
+	get livedExperience(){
+		return this.schemas.ExperienceLived
 	}
 	get mbr_id(){
 		return this.#mbr_id
@@ -421,11 +452,25 @@ class AgentFactory extends BotFactory{
 	get alerts(){ // currently only returns system alerts
 		return mAlerts.system
 	}
+	/**
+	 * Returns the ExperienceCastMember class definition.
+	 * @returns {object} - ExperienceCastMember class definition.
+	 */
+	get castMember(){
+		return this.schemas.ExperienceCastMember
+	}
 	get contribution(){
 		return this.schemas.Contribution
 	}
 	get conversation(){
 		return this.schemas.Conversation
+	}
+	/**
+	 * Returns the ExperienceEvent class definition.
+	 * @returns {object} - ExperienceEvent class definition.
+	 */
+	get experienceEvent(){
+		return this.schemas.ExperienceEvent
 	}
 	get file(){
 		return this.schemas.File
@@ -696,7 +741,7 @@ function mExtendClass(_class) {
 		console.log(`Extension function found for ${_className}`)
 		//	add extension decorations
 		const _references = { openai: mOpenAI }
-		_class = mExtensionFunctions[`extendClass_${_className}`](_class,_references)
+		_class = mExtensionFunctions[`extendClass_${_className}`](_class, _references)
 	}
 	return _class
 }
