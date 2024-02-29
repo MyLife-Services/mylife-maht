@@ -134,10 +134,10 @@
 			"type": "object",
 			"properties": {
 				"bot_id": {
-					"description": "id of the bot",
+					"description": "database id of the bot to fulfill role; required for `creator` actors",
 					"format": "uuid",
 					"type": "string",
-					"$comment": "only creator bots have bot_id, Q, etc left blank"
+					"$comment": "only _creator_ bots have bot_id, Q, etc left blank; note that in our semantic code most bots are known by _type_ of bot they are, enscribing the functions they perform"
 				},
 				"icon": {
 					"description": "icon for cast member",
@@ -148,6 +148,12 @@
 					"description": "id of the cast member",
 					"format": "uuid",
 					"type": "string"
+				},
+				"mbr_id": {
+					"description": "id of the member; required for `creator` actors",
+					"format": "uuid",
+					"type": "string",
+					"$comment": "Q, etc. left blank"
 				},
 				"name": {
 					"description": "attributed name of the cast member.",

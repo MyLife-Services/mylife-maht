@@ -258,8 +258,8 @@ class Organization extends Member {	//	form=organization
 	}
 }
 class MyLife extends Organization {	//	form=server
-	constructor(_Factory){	//	no session presumed to exist
-		super(_Factory)
+	constructor(factory){	//	no session presumed to exist
+		super(factory)
 	}
 	async datacore(_mbr_id){
 		if(!_mbr_id || _mbr_id===this.mbr_id) throw new Error('datacore cannot be accessed')

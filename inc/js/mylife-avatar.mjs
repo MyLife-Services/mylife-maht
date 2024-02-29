@@ -3,6 +3,7 @@ import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import { _ } from 'ajv'
 import { inspect } from 'util'
+import { experience } from './api-functions.mjs'
 /* modular constants */
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
 /**
@@ -11,6 +12,7 @@ const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restor
  * @description An avatar is a digital self proxy of Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The Avatar is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
  * @todo - deprecate `factory` getter
  * @todo - determine how best to collect and present experience data; currently bound in 3 #-scope variables [livedExperience, experience, livingExperience]
+ * @todo - more efficient management of modular constants, should be classes?
  */
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
@@ -18,8 +20,17 @@ class Avatar extends EventEmitter {
     #bots = []
     #cast
     #conversations = []
-    #experience
     #evolver
+    #experience
+    #experienceVariables = {
+        age: undefined,
+        birthdate: undefined,
+        birthplace: undefined,
+        interests: undefined,
+        memberName: undefined,
+        name: undefined, // memberName
+        nickname: undefined,
+    } // object of experience variables
     #factory // do not expose
     #livedExperiences = [] // array of ids for lived experiences
     #livingExperience
@@ -29,12 +40,13 @@ class Avatar extends EventEmitter {
     /**
      * @constructor
      * @param {Object} obj - The data object from which to create the avatar
-     * @param {Factory} _factory - The member factory on which avatar relies for all service interactions
+     * @param {Factory} factory - The member factory on which avatar relies for all service interactions
+     * @param {OpenAI} llm - The openAI object
      */
-    constructor(_factory, _llm){
+    constructor(factory, llm){
         super()
-        this.#factory = _factory
-        this.#llm = _llm
+        this.#factory = factory
+        this.#llm = llm
     }
     /* public functions */
     /**
@@ -63,6 +75,7 @@ class Avatar extends EventEmitter {
                 this.#bots.unshift(_activeBot)
             }
             this.activeBotId = _activeBot.id
+            this.#experienceVariables = mAssignExperienceVariables(this.#experienceVariables, this)
             this.#evolver = new EvolutionAssistant(this)
             mAssignEvolverListeners(this.#evolver, this)
             /* init evolver */
@@ -108,65 +121,57 @@ class Avatar extends EventEmitter {
     /**
      * Processes and executes incoming experience request.
      * @public
-     * @param {string} experience_id - The experience id.
-     * @param {string} scene_id - The scene id.
+     * @param {string} experienceId - The experience id.
+     * @param {string} sceneId - The scene id.
      * @param {object} memberInput - The member input.
      * @returns {Promise<array>} - The next sequence of evets in experience for front-end.
      */
-    async experienceUpdate(experience_id, scene_id, memberInput){
+    async experienceUpdate(experienceId, sceneId, memberInput){
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot present experiences to itself.')
         if(this.mode!=='experience'){ // start experience
-            await mExperienceStart(this, this.#factory, experience_id, scene_id) // @note - mutates `this`
-            const { id, scenes } = this.#experience
-            if(id!==experience_id)
+            const experience = await mExperienceStart(this.#factory, experienceId, sceneId)
+            /* mutate avatar (this) */
+            this.experience = await experience.init() // `init` starts experience
+            this.experience.experienceVariables = this.#experienceVariables // assign known variables (is additive-only setter, non-destructive to experience vars)
+            const conversation = this.conversations.find(_=>_.type==='experience')??await this.getConversation(undefined, 'experience')
+            const dialog = this.conversations.find(_=>_.type==='dialog')??await this.getConversation(undefined, 'dialog')
+            this.#conversations = [ ...this.conversations, conversation, dialog]
+            this.mode = 'experience'
+            const { id, scenes } = this.experience
+            if(id!==experienceId)
                 throw new Error('Experience failure, unexpected id mismatch.')
             this.#livingExperience = new (this.#factory.livedExperience)({
-                conversation: await this.getConversation(),
+                conversation: conversation,
+                dialog: dialog,
                 experience_id: id,
                 location: {
-                    experience_id: id,
-                    scene_id: scenes[0].id,
-                    event_id: scenes[0].events[0].id,
+                    experienceId: id,
+                    sceneId: scenes[0].id,
+                    eventId: scenes[0].events[0].id,
                 },
                 mbr_id: this.mbr_id,
-                version: this.#experience.version??0,
+                version: this.experience.version??0,
             }) // create shell for storing lived experience
-            this.#cast = mCast(this.#factory, this.#experience.cast)
+            this.#cast = await mCast(this.#factory, this.experience.cast)
         }
-        const { scene_id: _scene_id, event_id } = this.#livingExperience.location
-        const _currentScene = this.#experience.scenes.find(
-            _scene=>_scene.id==_scene_id
+        const response = await mExperienceUpdate(
+            this,
+            this.#factory,
+            this.#llm,
+            this.experience,
+            this.#livingExperience,
+            this.#cast,
+            memberInput,
         )
-        const _currentEventIndex = _currentScene.events.findIndex(
-            _event=>_event.id==event_id
-        )
-        if(_currentEventIndex===-1)
-            throw new Error('Experience failure, could not find event.')
-        // @todo: if continuing, update event with memberInput
-        // loop through scene events until next pointer or end of scene
-        const _eventSequence = []
-        let i = _currentEventIndex
-        while(i < _currentScene.events.length){
-            const _event = new (this.#factory.experienceEvent)(_currentScene.events[i])
-            _eventSequence.push(_event)
-            if(_event.action === "input") {
-                // complete when action equals "input"
-                break
-            }
-            i++
-        }
-        // interpret dynamic script instructions when not straight dialog
-        console.log('experienceUpdate', _eventSequence.map(_=>_.inspect(true)))
-        abort
-        // log to livedExperience
-        // log to conversation
-        // package for front end (use self-declaration? in experience extender?)
+        return response
     }
-    async experienceEnd(experience_id){
+    async experienceEnd(experienceId){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot conduct nor end experiences.')
         if(this.mode!=='experience')
             throw new Error('Avatar is not currently in an experience.')
-        if(this.experience.id!==experience_id)
+        if(this.experience.id!==experienceId)
             throw new Error('Avatar is not currently in the requested experience.')
         if(!this.experience.skippable) // @todo - even if skippable, won't this function still process?
             throw new Error('Avatar cannot end this experience at this time, experience is not skippable.')
@@ -174,22 +179,23 @@ class Avatar extends EventEmitter {
         // delete this.experience
         return true
     }
-    async experienceManifest(experience_id){
+    async experienceManifest(experienceId){
         // includes cast, scenes, and navigable events
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
-     * @param {string} _thread_id - openai thread id
+     * @param {string} thread_id - openai thread id
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
      * @returns 
      */
-    async getConversation(_thread_id){ // per bot
-        let _conversation = this.#conversations.find(_=>_.thread?.id===_thread_id)
-        if(!_thread_id || !_conversation){
-            _conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id}, this.factory)
-            await _conversation.init(_thread_id)
-            this.#conversations.push(_conversation)
+    async getConversation(thread_id, type='chat'){
+        let conversation = this.#conversations.find(_=>_.thread?.id===thread_id)
+        if(!thread_id || !conversation){
+            conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.factory)
+            await conversation.init(thread_id)
+            this.#conversations.push(conversation)
         }
-        return _conversation
+        return conversation
     }
     /**
      * Processes and executes incoming category set request.
@@ -232,7 +238,7 @@ class Avatar extends EventEmitter {
     /* getters/setters */
     /**
      * Get the active bot. If no active bot, return this as default chat engine.
-     * @public
+     * @getter
      * @returns {object} - The active bot.
      */
     get activeBot(){
@@ -240,7 +246,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the active bot id.
-     * @public
+     * @getter
      * @returns {string} - The active bot id.
      */
     get activeBotId(){
@@ -248,7 +254,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set the active bot id. If not match found in bot list, then defaults back to this.id
-     * @public
+     * @setter
      * @param {string} _bot_id - The active bot id.
      * @returns {void}
      */
@@ -257,24 +263,46 @@ class Avatar extends EventEmitter {
         this.#activeBotId = mFindBot(this, _bot_id)?.id??this.avatarBot.id
     }
     /**
+     * Get actor or default avatar bot.
+     * @getter
+     * @returns {object} - The actor bot (or default bot).
+     */
+    get actorBot(){
+        return this.#bots.find(_bot=>_bot.type==='actor')??this.avatarBot
+    }
+    /**
+     * Get the age of the member.
+     * @getter
+     * @returns {number} - The member's age.
+     */
+    get age(){
+        if(!this.birthdate)
+            return 0
+        const birthdate = new Date(this.birthdate)
+        const today = new Date()
+        let age = today.getFullYear() - birthdate.getFullYear();
+        const isBirthdayPassedThisYear = today.getMonth() > birthdate.getMonth()
+        || (
+                today.getMonth() === birthdate.getMonth() 
+            &&  today.getDate() >= birthdate.getDate()
+            )
+        if (!isBirthdayPassedThisYear) {
+            age -= 1 // Subtract a year if the birthday hasn't occurred yet this year
+        }
+        return age
+    }
+    /**
      * Returns provider for avatar intelligence.
-     * @public
+     * @getter
      * @returns {object} - The avatar intelligence provider, currently only openAI API GPT.
      */
     get ai(){
         return this.#llm
     }
     /**
-     * Gets Avatar inspectable properties.
-     * @todo - deprecate if possible, but otherwise needs to create exposable object, preferably a modular function for self-portrayal as object.
-     * @public
-     * @returns {object} - The avatar properties.
-     */
-    get avatar(){
-        return m
-    }
-    /**
      * Get the personal avatar bot.
+     * @getter
+     * @returns {object} - The personal avatar bot.
      */
     get avatarBot(){
         return this.#bots.find(_bot=>_bot.type==='personal-avatar')
@@ -282,15 +310,35 @@ class Avatar extends EventEmitter {
     /**
      * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
      * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
-     * @public
+     * @getter
      * @returns {string} The object being the avatar is emulating.
     */
     get being(){    //  
         return this.#proxyBeing
     }
     /**
+     * Get the birthdate of _member_ from `#factory`.
+     * @getter
+     * @returns {string} - The member's birthdate.
+     */
+    get birthdate(){
+        return this.core?.birthdate
+            ?? this.core?.birth?.date
+            ?? this.core?.birth?.[0]?.date
+    }
+    /**
+     * Get the birthplace of _member_ from `#factory`.
+     * @getter
+     * @returns {string} - The member's birthplace.
+     */
+    get birthplace(){
+        return this.core.birthplace
+            ?? this.core.birth?.place
+            ?? this.core.birth?.[0]?.place
+    }
+    /**
      * Gets all Avatar bots.
-     * @public
+     * @getter
      * @returns {array} - The bots.
      */
     get bots(){
@@ -298,7 +346,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the active chat category.
-     * @public
+     * @getter
      * @returns {string} - The active chat category.
      */
     get category(){
@@ -306,7 +354,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set the active chat category.
-     * @public
+     * @setter
      * @param {string} _category - The new active chat category.
      * @returns {void}
      */
@@ -315,7 +363,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get contributions.
-     * @public
+     * @getter
      * @returns {array} - The contributions.
      */
     get contributions(){
@@ -323,6 +371,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set incoming contribution.
+     * @setter
      * @param {object} _contribution
     */
     set contribution(_contribution){
@@ -330,6 +379,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get uninstantiated class definition for conversation. If getting a specific conversation, use .conversation(id).
+     * @getter
      * @returns {class} - class definition for conversation
      */
     get conversation(){
@@ -337,25 +387,41 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get conversations. If getting a specific conversation, use .conversation(id).
+     * @getter
      * @returns {array} - The conversations.
      */
     get conversations(){
         return this.#conversations
     }
+    /**
+     * Get the datacore.
+     * @getter
+     * @returns {object} - The Member's datacore.
+     */
+    get core(){
+        return this.#factory.core
+    }
+    /**
+     * Get the current experience.
+     * @getter
+     * @returns {object} - The current experience.
+     */
     get experience(){
         return this.#experience
     }
     /**
-     * @todo - test _experience for type and validity.
-     * @param {any} _experience - The new experience.
+     * Set the experience.
+     * @setter
+     * @todo - test experience for type and validity.
+     * @param {any} experience - The new experience.
      */
-    set experience(_experience){
-        this.#experience = _experience
+    set experience(experience){
+        this.#experience = experience
     }
     /**
      * Get the Avatar's Factory.
      * @todo - deprecate if possible, return to private
-     * @public
+     * @getter
      * @returns {AgentFactory} - The Avatar's Factory.
      */
     get factory(){
@@ -363,7 +429,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Globals shortcut.
-     * @public
+     * @getter
      * @returns {object} - The globals.
      */
     get globals(){
@@ -371,7 +437,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Whether or not the avatar is the MyLife avatar.
-     * @public
+     * @getter
      * @returns {boolean} - true if the avatar is the MyLife avatar. 
      */
     get isMyLife(){
@@ -379,7 +445,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the member id.
-     * @public
+     * @getter
      * @returns {string} - The member's id.
      */
     get mbr_id(){
@@ -388,7 +454,7 @@ class Avatar extends EventEmitter {
     /**
      * Get the guid portion of member id.
      * @todo - deprecate to `mbr_sysId`
-     * @public
+     * @getter
      * @returns {guid} - The member's core guid.
      */
     get mbr_id_id(){
@@ -397,7 +463,7 @@ class Avatar extends EventEmitter {
     /**
      * Get the system name portion of member id.
      * @todo - deprecate to `mbr_sysName`
-     * @public
+     * @getter
      * @returns {guid} - The member's system name.
      */
     get mbr_name(){
@@ -405,7 +471,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the guid portion of member id.
-     * @public
+     * @getter
      * @returns {guid} - The member's core guid.
      */
     get mbr_sysId(){
@@ -413,7 +479,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the system name portion of member id.
-     * @public
+     * @getter
      * @returns {guid} - The member's system name.
      */
     get mbr_sysName(){
@@ -421,7 +487,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Gets first name of member from `#factory`.
-     * @public
+     * @getter
      * @returns {guid} - The member's core guid.
      */
     get memberFirstName(){
@@ -429,7 +495,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Gets full name of member from `#factory`.
-     * @public
+     * @getter
      * @returns {guid} - The member's core guid.
      */
     get memberName(){
@@ -437,7 +503,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get uninstantiated class definition for message.
-     * @public
+     * @getter
      * @returns {class} - class definition for message
      */
     get message(){
@@ -445,7 +511,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the mode.
-     * @public
+     * @getter
      * @returns {string} - The current active mode.
      */
     get mode(){
@@ -453,12 +519,12 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set the mode. If mode request is invalid, does not change mode and throws error in order to identify failure.
-     * @public
-     * @param {string} _mode - The new mode.
+     * @setter
+     * @param {string} requestedMode - The new mode.
      * @returns {void}
      */
-    set mode(_requestedMode){
-        this.#mode = mValidateMode(_requestedMode, this.mode)
+    set mode(requestedMode){
+        this.#mode = mValidateMode(requestedMode, this.mode)
     }
 }
 /* modular functions */
@@ -522,6 +588,25 @@ function mAssignEvolverListeners(_evolver, _avatar){
     )
 }
 /**
+ * Assigns (directly mutates) private experience variables from avatar.
+ * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
+ * @modular
+ * @param {object} experienceVariables - Experience variables object from Avatar class definition.
+ * @param {Avatar} avatar - Avatar instance.
+ * @returns {void} - mutates experienceVariables
+ */
+function mAssignExperienceVariables(experienceVariables, avatar){
+    Object.keys(experienceVariables).forEach(_key=>{
+        experienceVariables[_key] = avatar[_key]
+    })
+    /* handle unique variable instances (jic) */
+    const localOverrides = {
+        name: avatar.memberName,
+        nickname: avatar.memberFirstName
+    }
+    return {...experienceVariables, ...localOverrides}
+}
+/**
  * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
  * @todo Fix occasions where there will be no object_id property to use, as it was created through a hydration method based on API usage, so will be attached to mbr_id, but NOT avatar.id
  * @modular
@@ -568,6 +653,49 @@ async function mBot(_avatar, _bot={type: 'personal-avatar'}){
     return _bot
 }
 /**
+ * Pruned version of mChat where call is internal via experience or member avatar dial-up. Direct member bot access is through mChat. Mutates conversation, but unclear if _ever_ saved from this function.
+ * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
+ * @modular
+ * @param {OpenAI} llm - OpenAI object currently
+ * @param {Conversation} conversation - Conversation object
+ * @param {string} prompt - dialog-prompt/message for llm
+ * @param {string} botId - bot id
+ * @returns {string} - text content from llm
+ */
+async function mCallLLM(llm, conversation, prompt, botId){
+    const { thread_id: threadId } = conversation
+    if(!threadId)
+        throw new Error('No `thread_id` found for conversation')
+    // **note**: creates own synthetic thread that _should not be stored_.
+    // @todo: test db to ensure conversations are not stored
+    prompt = {
+        message: prompt,
+        role: 'user'
+    } // in this context, the actor is the 'user' in order to request a piece of dialog. See, not confusing at all!
+    conversation.addMessage(prompt)
+    const runs = await mRunTrigger(llm, undefined, botId, threadId)
+    const messages = await conversation.getMessages_openai()
+    const _messages = messages
+        .filter(message => message.run_id === runs[0].id)
+/*
+        .map(_msg => {
+            return new (_avatar.factory.message)({
+                bot_id: _bot.id,
+                avatar_id: _avatar.id,
+                message: _msg,
+                content: _msg.content[0].text.value,
+                mbr_id: _avatar.mbr_id,
+                role: 'assistant',
+            })
+        })
+*/
+    _messages.forEach(async _msg => {
+        await conversation.addMessage(_msg)
+    })
+    if(process.env?.MYLIFE_DB_ALLOW_SAVE){} //	add/update cosmos (?)
+    return _messages
+}
+/**
  * Cancels openAI run.
  * @modular
  * @param {OpenAI} _openai - OpenAI object
@@ -583,19 +711,37 @@ async function mCancelRun(_openai, _thread_id, _run_id,){
 }
 /**
  * Creates cast and returns associated `cast` object.
+ * @todo - move as much functionality for actor into `init()` as makes sense
+ * @todo - any trouble retrieving a known actor should be understudied by... Q? or personal-avatar? yes, personal avatar for now
+ * @todo - implement `creator` version of actor
  * @modular
- * @param {AgentFactory} _factory - Agent Factory object
- * @param {array} _cast - Array of cast objects
+ * @param {AgentFactory} factory - Agent Factory object
+ * @param {array} cast - Array of cast objects
  * @returns {Promise<array>} - Array of ExperienceCastMember instances
  */
-async function mCast(_factory, _cast){
-    _cast = await Promise.all(_cast.map(async _castMember=>{
-        return new (_factory.castMember)(_castMember)
+async function mCast(factory, cast){
+    // create `actors`, may need to create class
+    cast = await Promise.all(cast.map(async castMember=>{
+        const actor = new (factory.castMember)(castMember)
+        switch(castMember.type.toLowerCase()){
+            case 'mylife':
+            case 'q':
+            case 'system':
+                actor.bot = await factory.systemActor
+                break
+            case 'bot':
+            case 'member':
+            case 'member-bot':
+            default:
+                actor.bot = await factory.bot() // should be new-member safe, but check
+                break
+        }
+        return actor
     }))
-    return _cast
+    return cast
 }
 /**
- * Requests and returns chat response from openAI. Call session for conversation id.
+ * Requests and returns chat response from openAI.
  * @todo - reinstate contribution
  * @modular
  * @param {Avatar} _avatar - Avatar object
@@ -604,7 +750,6 @@ async function mCast(_factory, _cast){
  */
 async function mChat(_avatar, _chatMessage){
     // **note**: Q/isMyLife PA bot does not have thread_id intentionally, as every session creates its own
-    const _openai = _avatar.ai
     const _processStartTime = Date.now()
     const _bot = _avatar.activeBot
     // check if active bot, if not use self
@@ -612,7 +757,8 @@ async function mChat(_avatar, _chatMessage){
     _conversation.addMessage(_chatMessage)
     //	@todo: assign uploaded files (optional) and push `retrieval` to tools
     _bot.thread_id = _bot.thread_id??_conversation.thread_id
-    await mRunTrigger(_openai, _avatar, _conversation) // run is triggered by message creation, content embedded/embedding now in _conversation in _avatar.conversations
+    const { id: botId, thread_id: threadId } = _bot
+    _avatar.runs = await mRunTrigger(_avatar.ai, _avatar.runs??[], botId, threadId) // run is triggered by message creation, content embedded/embedding now in _conversation in _avatar.conversations
     const _messages = (await _conversation.getMessages_openai())
         .filter(_msg => _msg.run_id == _avatar.runs[0].id)
         .map(_msg => {
@@ -669,26 +815,201 @@ async function mCreateBot(_avatar, _bot){
     _botData.bot_id = _openaiGPT.id
     return { ..._bot, ..._botData }
 }
-async function mExperience(){
-    // 
+/**
+ * Returns a processed appearance event.
+ * @param {ExperienceEvent} event - Event object
+ * @returns {ExperienceEvent} - Event object
+ */
+function mEventAppear(event){
+    return event
 }
-async function mExperienceStart(_avatar, _factory, _experience_id, _scene_id){
-    let _experience = await _factory.getExperience(_experience_id)
-    if(!_experience)
+/**
+ * Returns a processed dialog event.
+ * @todo - allow for removing an event by logic and handled at scale above this function
+ * @modular
+ * @public
+ * @param {OpenAI} llm - OpenAI object currently
+ * @param {Experience} experience - Experience class instance.
+ * @param {LivedExperience} livingExperience - LivedExperience object
+ * @param {array} cast - Array of ExperienceCastMember instances
+ * @param {ExperienceEvent} event - Event object
+ * @param {number} iteration - The current iteration number
+ * @returns {Promise<object>} - Synthetic Dialog object
+ * @property {number} currentIteration - The current iteration number
+ * @property {string} dialog - The dialog content
+ * @property {string} example - The example content
+ * @property {string} id - The event id
+ * @property {string} type - The event type
+ * @property {number} maxIterations - The maximum iterations
+ * @property {number} minIterations - The minimum iterations
+ * @property {string} prompt - The prompt content
+ * @property {string} variable - The variable content
+ * @property {array} variables - The variables content
+ */
+async function mEventDialog(llm, experience, livingExperience, cast, event, iteration=0){
+    /* reject */
+    if(event?.action!=='dialog')
+        throw new Error('mEventDialog: event.action must be "dialog"')
+    const { actor, id, type='script' } = event
+    const dialog = experience.dialog(id, iteration)
+    if(!dialog)
+        throw new Error('Dialog error, could not establish dialog.')
+    // process instructions
+    switch(type){
+        case 'script':
+        case 'scripts':
+            event.type = 'script' // force standardization
+            return dialog.dialog
+        case 'prompt':
+        case 'prompts':
+            event.type = 'prompt' // force standardization
+            let prompt = dialog.prompt
+            if(dialog.example?.length??dialog.examples?.length){
+                if(dialog.examples?.length && Array.isArray(dialog.examples)){
+                    dialog.example = dialog.examples[0]
+                } // boild down example from array to string
+                prompt = `using example: "${dialog.example}";\n` + prompt
+            }
+            // check for content variables and replace
+            if(dialog.variables?.length){
+                dialog.variables.forEach(keyName=>{
+                    // ensure variable exists in eventVariables
+                    // @todo: create mechanic to put values into eventVariables on input event
+                    const value = experience.experienceVariables[keyName]
+                    if(!value){
+                        // @todo: find input event where variable is identified as input and insert (if logic allows, otherwise error)
+                        console.log('mEventDialog: variable not found', keyName)
+                        return
+                    }
+                    console.log('keyName', keyName)
+                    prompt = prompt.replace(new RegExp(`{${keyName}}`, 'g'), value)
+                })
+            }
+            // @todo: variable unfound, check to see if event can be found that will provide it
+            // do I reproduce mChat with what I have? sure - it may ultimately be more streamlined without the request of the avatar?
+            // **note**: system chat would refer to Q, but I want any internal chat to go through this channel, depending on cast member
+            // set botId from cast
+            const castMember = cast.find(_castMember=>_castMember.id===actor)
+            const botId = castMember?.bot?.bot_id
+            if(!botId)
+                throw new Error('No bot found for actor')
+            const _dialog = await mCallLLM(llm, livingExperience.dialog, prompt, botId)
+            return _dialog
+        default:
+            throw new Error(`Dialog type \`${type}\` not recognized`)
+    }   
+    // log to livedExperience
+    // log to conversation(?)
+    // mSanitizeExperience package for front end (use self-declaration? in experience extender?)
+}
+/**
+ * Returns a processed memberInput event.
+ * @modular
+ * @public
+ * @param {OpenAI} llm - OpenAI object currently
+ * @param {Experience} experience - Experience class instance.
+ * @param {ExperienceEvent} event - Event object
+ * @param {LivedExperience} livingExperience - LivedExperience object
+ * @param {object} memberInput - Member input data
+ * @returns {Promise<ExperienceEvent>} - Event object
+ */
+async function mEventInput(llm, experience, event, livingExperience, memberInput){
+    return event
+}
+/**
+ * Processes an event and returns a avatar-usable dialog package.
+ * @modular
+ * @public
+ * @param {OpenAI} llm - OpenAI object currently
+ * @param {Experience} experience - Experience class instance.
+ * @param {array} cast - Array of ExperienceCastMember instances
+ * @param {LivedExperience} livingExperience - LivedExperience object
+ * @param {ExperienceEvent} event - Event object
+ * @param {object} memberInput - Member input
+ * @returns {Promise<ExperienceEvent>} - Event object
+ */
+async function mEventProcess(llm, experience, cast, livingExperience, event, memberInput){
+    switch(event.action){
+        case 'appear': // front-end only pass-throughs
+            return mEventAppear(event)
+        case 'dialog': // requires processing
+            // need livingExperience vars to manage flow
+            const dialog = await mEventDialog(llm, experience, livingExperience, cast, event, livingExperience.currentIteration)
+            // @todo - keep track of iterations inside livingExperience to manage flow
+            livingExperience.location.eventId = dialog.id
+            return dialog
+        case 'input': // requires processing
+            return await mEventInput(llm, experience, event, livingExperience, memberInput)
+        default: // error/failure
+            throw new Error('Event action not recognized')
+    }
+}
+/**
+ * Starts or continues experience with avatar functionality as director/puppeteer. Everything is herein mutated and returned as one final experience instructionset to front-end.
+ * @todo - allow auto-skip to scene/event?
+ * @modular
+ * @public
+ * @param {Avatar} avatar - Avatar object
+ * @param {AgentFactory} factory - AgentFactory object
+ * @param {object} llm - ai interface object
+ * @param {Experience} experience - Experience object
+ * @param {LivedExperience} livingExperience - LivedExperience object
+ * @param {array} cast - Array of ExperienceCastMember instances
+ * @param {object} memberInput - Member input
+ * @returns {object} - A JSON-serializable experience sequence object for front-end
+ */
+async function mExperienceUpdate(avatar, factory, llm, experience, livingExperience, cast, memberInput){
+    const { sceneId, eventId } = livingExperience.location
+    const currentScene = experience.scenes.find(
+        _scene=>_scene.id==sceneId
+    )
+    const currentEventIndex = currentScene.events.findIndex(
+        event=>event.id==eventId
+    )
+    if(currentEventIndex===-1)
+        throw new Error('Experience failure, could not find event.')
+    // @todo: if continuing, update event with memberInput
+    const eventSequence = []
+    let i = currentEventIndex
+    while(i < currentScene.events.length){
+        const event = new (factory.experienceEvent)(currentScene.events[i])
+        eventSequence.push(event)
+        if(event.action === "input") {
+            // complete when action equals "input", event which is included in processing instructions `eventSequence`
+            break
+        }
+        i++
+    }
+    // use for() loop as we must keep `await`s in _order_ for conversation to be created and used in dialog
+    for (let index = 0; index < eventSequence.length; index++) {
+        const event = await mEventProcess(llm, experience, cast, livingExperience, eventSequence[index], memberInput)
+        eventSequence[index] = event
+    }
+    return eventSequence
+}
+/**
+ * Starts Experience.
+ * @param {AgentFactory} factory - AgentFactory object.
+ * @param {guid} experienceId - Experience id.
+ * @param {guid} sceneId
+ * @param {object} experienceVariables - Experience variables object from Avatar class definition.
+ * @returns {Experience} - Experience object
+ */
+async function mExperienceStart(factory, experienceId, sceneId, experienceVariables){
+    let experience = await factory.getExperience(experienceId)
+    if(!experience)
         throw new Error('Experience not found')
-    // get scene from experience (test skippable/ requested scene prior reqs)
-    if(_scene_id?.length){
-        const _scene = _experience.scenes.find(_scene=>_scene.id==_scene_id)
+    if(sceneId?.length){
+        // get scene from experience (test skippable/ requested scene prior reqs)
+        const _scene = experience.scenes.find(_scene=>_scene.id==sceneId)
         throw new Error('Starting experiences at subsequent scenes not yet implemented')
     }
     /* hydrate experience */
-    _experience = new (_factory.experience)(_experience, _factory)
-    if(!_experience instanceof _factory.experience)
+    const _experience = new (factory.experience)(experience)
+    if(!_experience instanceof factory.experience)
         throw new Error('Experience not valid')
-    /* mutate avatar */
-    _avatar.experience = await _experience.init() // `init` starts experience
-    _avatar.mode = 'experience' // also testing that internal `set` logic
-    return // returns void as avatar mutatation is essential
+    _experience.experienceVariables = { ..._experience.experienceVariables, ...experienceVariables }
+    return _experience
 }
 /**
  * Gets bot by id.
@@ -885,22 +1206,20 @@ async function mRunSteps(_avatar, _run_id){
 /**
  * Triggers openAI run and updates associated `run` object.
  * @modular
- * @param {OpenAI} _openai - OpenAI object
- * @param {Avatar} _avatar - Avatar object
- * @param {string} _conversation - Conversation Object
+ * @param {OpenAI} openai - OpenAI object
+ * @param {object} runs - Array of Run objects
+ * @param {string} botId - Bot id
+ * @param {string} threadId - Thread id
  * @returns {void} - All content generated by run is available in `avatar`.
  */
-async function mRunTrigger(_openai, _avatar){
-    const _bot = _avatar.activeBot
-    const _run = await mRunStart(_openai, _bot.bot_id, _bot.thread_id)
-    if(!_run)
+async function mRunTrigger(openai, runs=[], botId, threadId){
+    const run = await mRunStart(openai, botId, threadId)
+    if(!run)
         throw new Error('Run failed to start')
-    // @todo: runs are ephemeral-ish, lasting only for session, ensure not stored
-    _avatar.runs = _avatar.runs??[]
-    _avatar.runs.unshift(_run)
+    runs.unshift(run)
     // ping status
-    await mRunFinish(_openai, _run) // only returns 
-    return
+    await mRunFinish(openai, run) // returns void, but updates run
+    return runs
 }
 function mValidateMode(_requestedMode, _currentMode){
     if(!mAvailableModes.includes(_requestedMode))

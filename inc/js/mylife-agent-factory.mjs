@@ -73,6 +73,8 @@ const mSchemas = {
 	member: Member,
 	session: MylifeMemberSession
 }
+const mSystemActor = await mDataservices.bot(undefined, 'actor', undefined)
+/* modular construction functions */
 mConfigureSchemaPrototypes()
 mPopulateBotInstructions()
 /* logging/reporting */
@@ -114,21 +116,21 @@ class BotFactory extends EventEmitter{
 	 * @todo - determine if spotlight-bot is required for any animation, or a micro-hydrated bot is sufficient.
 	 * @public
 	 * @param {string} _bot_id - The bot id.
-	 * @param {string} _bot_type - The bot type.
+	 * @param {string} type - The bot type.
 	 * @returns {object} - The bot.
 	 */
-	async bot(_bot_id, _bot_type=mDefaultBotType, _mbr_id){
+	async bot(_bot_id, type=mDefaultBotType, _mbr_id){
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
-			console.log(chalk.yellowBright('locating member bot...'), _bot_type, _mbr_id, _bot_id)
+			console.log(chalk.yellowBright('locating member bot...'), type, _mbr_id, _bot_id)
 			if(!_mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
 			const _botFactory = new BotFactory(_mbr_id)
 			await _botFactory.init()
-			_botFactory.bot = await _botFactory.bot(_bot_id, _bot_type, _mbr_id)
+			_botFactory.bot = await _botFactory.bot(_bot_id, type, _mbr_id)
 			if(!_botFactory?.bot){ // create bot on member behalf
-				console.log(chalk.magenta(`bot hydration-create::${_bot_type}`))
+				console.log(chalk.magenta(`bot hydration-create::${type}`))
 				// do not need intelligence behind this object yet, for that, spotlight is a mini-avatar
-				_botFactory.bot = await _botFactory.setBot({ type: _bot_type })
+				_botFactory.bot = await _botFactory.setBot({ type: type })
 			}
 			// rather than just a bot in this event, return micro-hydrated bot (mini-avatar ultimately)
 			return _botFactory
@@ -137,11 +139,11 @@ class BotFactory extends EventEmitter{
 			?? ( await this.dataservices.getItemByField(
 					'bot',
 					'type',
-					_bot_type,
+					type,
 					undefined,
 					_mbr_id
 				) )
-			?? ( await this.bots(undefined,_bot_type)?.[0] )
+			?? ( await this.bots(undefined,type)?.[0] )
 	}
 	/**
 	 * Returns bot instruction set.
@@ -160,15 +162,15 @@ class BotFactory extends EventEmitter{
 	 * Gets a member's bots.
 	 * @public
 	 * @param {string} _object_id - The _object_id guid of avatar.
-	 * @param {string} _bot_type - The bot type.
+	 * @param {string} type - The bot type.
 	 * @returns {array} - The member's hydrated bots.
 	 */
-	async bots(_object_id, _bot_type){
+	async bots(_object_id, type){
 		// @todo: develop bot class and implement instance
 		const _params = _object_id?.length
 			? [{ name: '@object_id', value:_object_id }]
-			: _bot_type?.length
-				? [{ name: '@bot_type', value:_bot_type }]
+			: type?.length
+				? [{ name: '@bot_type', value: type }]
 				: undefined
 		const _bots = await this.dataservices.getItems(
 			'bot',
@@ -263,6 +265,12 @@ class BotFactory extends EventEmitter{
 	get avatarId(){
 		return this.core?.avatar_id
 	}
+	/**
+	 * Returns member's dataservice core. USE WITH CAUTION!
+	 * @todo - determine if this can be hidden from public access
+	 * @getter
+	 * @returns {object} - The Experience class definition.
+	 */
 	get core(){
 		return this.dataservices.core
 	}
@@ -314,23 +322,35 @@ class BotFactory extends EventEmitter{
 	get newGuid(){
 		return mNewGuid()
 	}
+	/**
+	 * @todo - determine hydration method, timing and requirements for `actor`(s); they remain currently unhydrated, only need `bot_id`
+	 * @returns {object} - The system actor bot data.
+	 */
+	get systemActor(){
+		return mSystemActor
+	}
 }
 class AgentFactory extends BotFactory{
 	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
-	constructor(_mbr_id){
-		super(_mbr_id, false)
+	constructor(mbr_id){
+		super(mbr_id, false)
 	}
 	/* public functions */
 	/**
 	 * Initialization routine required for all AgentFactory instances save MyLife server.
+	 * @param {string} mbr_id - Member id.
 	 * @returns {AgentFactory} this
 	 */
-	async init(_mbr_id){
-		if(mIsMyLife(_mbr_id))
+	async init(mbr_id){
+		if(mIsMyLife(mbr_id))
 			throw new Error('MyLife server AgentFactory cannot be initialized, as it references modular dataservices on constructor().')
-		await super.init(_mbr_id)
+		await super.init(mbr_id)
 		return this
 	}
+	/**
+	 * Retrieves avatar properties from Member factory dataservices, or inherits the core data from Member class.
+	 * @returns {object} - Avatar properties.
+	 */
 	async avatarProperties(){
 		return ( await this.dataservices.getAvatar() )
 			?? mAvatarProperties(this.core)

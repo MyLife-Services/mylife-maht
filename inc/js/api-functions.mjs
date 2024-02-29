@@ -27,7 +27,9 @@ async function experience(ctx){
     const { assistantType, mbr_id } = ctx.state
     const { eid, sid } = ctx.params
     const { memberInput } = ctx.request.body
-    return ctx.state.avatar.experienceUpdate(eid, sid, memberInput)
+    const experience = await ctx.state.avatar.experienceUpdate(eid, sid, memberInput)
+    ctx.body = experience
+    return
 }
 async function experienceEnd(ctx){
     await _keyValidation(ctx)

@@ -126,9 +126,11 @@ function extendClass_conversation(_originClass,_references) {
         async init(_thread_id){
             this.#thread = await mInvokeThread(this.#openai, _thread_id)
             this.name = `conversation_${this.#factory.mbr_id}_${this.thread_id}`
+            this.type = this.type??'chat'
         }
         //  public functions
         async addMessage(_chatMessage){
+            const _ = new (this.#factory.message)(_chatMessage)
             const _message = (_chatMessage.id?.length)
                 ?   _chatMessage
                 :   await ( new (this.#factory.message)(_chatMessage) ).init(this.thread)
@@ -187,10 +189,16 @@ function extendClass_conversation(_originClass,_references) {
 }
 function extendClass_experience(_originClass, _references){
     class Experience extends _originClass {
+        #experienceVariables
         constructor(_obj) {
             super(_obj)
         }
         /* public functions */
+        /**
+         * Initialize the experience.
+         * @todo - implement building classes either on-demand or on-init to create scene and event classes
+         * @returns {Experience} - The initialized experience.
+         */
         init(){
             /* self-validation */
             if(!this.scenes || !this.scenes.length)
@@ -202,7 +210,11 @@ function extendClass_experience(_originClass, _references){
                     throw new Error('No events provided for scene')
                 _scene.events.sort((_a, _b)=>(_a?.order??0)-(_b.order??0))
             })
-            console.log('experience initialized', this.scenes)
+            // turn array this.variables into object with key[name from array]/value[undefined]
+            this.#experienceVariables = this.variables.reduce((obj, keyName) => {
+                obj[keyName] = undefined
+                return obj
+            }, {})
             return this
         }
         dialog(eventId, iteration=0){
@@ -215,6 +227,23 @@ function extendClass_experience(_originClass, _references){
             return mGetScene(this.scenes, sceneId)
         }
         /* getters/setters */
+        /**
+         * Get the experience variables.
+         * @getter
+         * @returns {object} - The experience variables object.
+         */
+        get experienceVariables(){
+            return this.#experienceVariables
+        }
+        /**
+         * Set the experience variables.
+         * @setter
+         * @param {object} obj - The object to set the experience variables to.
+         * @returns {void}
+         */
+        set experienceVariables(obj){
+            this.#experienceVariables = { ...this.#experienceVariables, ...obj }
+        }
     }
     return Experience
 }
@@ -250,7 +279,7 @@ function extendClass_message(_originClass,_references) {
         constructor(_obj) {
             super(_obj)
             /* category population */
-            if(!_obj.content) mAssignContent(this, _obj)
+            if(!_obj?.content) mAssignContent(this, _obj)
         }
         /* public functions */
         async init(_thread){ // only required if user message

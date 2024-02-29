@@ -27,7 +27,7 @@ class MylifeMemberSession extends EventEmitter {
 		if(this.mbr_id && this.mbr_id !== _mbr_id) { // unlocked, initialize member session
 			this.#mbr_id = _mbr_id
 			mAssignFactoryListeners(this.#factory)
-			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
+			await this.#factory.init(this.mbr_id, )	//	needs only `init()` with different `mbr_id` to reset
 			this.#Member = await this.factory.getMyLifeMember()
 			this.emit('onInit-member-initialize', this.#Member.memberName)
 			console.log(

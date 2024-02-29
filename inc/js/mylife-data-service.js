@@ -124,18 +124,18 @@ class Dataservices {
 	}
 	/**
 	 * Gets all bots of a given type for a given member.
-	 * @param {string} _bot_type - The bot type.
-	 * @param {string} _mbr_id - The member id.
+	 * @param {string} type - The bot type.
+	 * @param {string} mbr_id - The member id.
 	 * @returns {array} - The bots or empty array if no bots found.
 	 */
-	async bots(_bot_type, _mbr_id=this.mbr_id){
-		if(_bot_type){
+	async bots(type, mbr_id=this.mbr_id){
+		if(type){
 			return await this.getItems(
 				'bot',
-				['bot_id'],
-				[{ name: '@bot_type', value: _bot_type }],
 				undefined,
-				_mbr_id,
+				[{ name: '@type', value: type }],
+				undefined,
+				mbr_id,
 			)
 		} else {
 			return await this.getItems('bot')

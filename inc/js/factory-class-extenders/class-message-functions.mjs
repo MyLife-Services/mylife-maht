@@ -3,16 +3,25 @@
  * Assigns content (from _message.message) to message object.
  * @modular
  * @public
- * @param {Message} _message Message object
+ * @param {Message} message Message object
  * @param {object} _obj Object to assign to message
  */
-function mAssignContent(_message, _obj){
-    _message.content = (_obj?.category?.length)
+function mAssignContent(message, _obj){
+    if(!_obj)
+        throw new Error('mAssignContent: no object to assign to message')
+    // test if obj is string
+    if(typeof _obj === 'object'){
+        message.content = (_obj?.category?.length)
         ?   `Category Mode: ${_obj.category}. If asked: ${_obj.question}, I would say: ` + _obj.message // todo: cleanse/prepare message function
-        :   _obj?.message??
-            _obj?.content??
-            _message?.content??
-            ''
+        :   _obj?.message
+            ?? _obj?.content
+            ?? message?.content
+            ?? ''
+    } else if(typeof _obj === 'string') {
+        message.content = _obj
+    } else {
+        message.content = `${_obj}`
+    }
 }
 /**
  * add or update openai portion of `this.message`

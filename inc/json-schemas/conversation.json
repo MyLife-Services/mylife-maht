@@ -5,6 +5,13 @@
 	"type": "object",
 	"name": "Conversation",
 	"properties": {
+		"action": {
+			"default": "chat",
+			"description": "type of conversation, chat, dialog, experience, system",
+			"enum": ["chat", "dialog", "experience", "system"],
+			"type": "string",
+			"$comment": "`action` added after `Experience` was coded as a way to partition logic so that some elements are saved independently"
+		},
 		"id": {
 			"type": "string",
 			"format": "uuid"
