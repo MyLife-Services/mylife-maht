@@ -21,6 +21,7 @@ import {
 } from './class-message-functions.mjs'
 import { _ } from 'ajv'
 import { parse } from 'path'
+import { Guid } from 'js-guid'
 //  function definitions to extend remarkable classes
 function extendClass_consent(_originClass,_references) {
     class Consent extends _originClass {
@@ -130,11 +131,10 @@ function extendClass_conversation(_originClass,_references) {
         }
         //  public functions
         async addMessage(_chatMessage){
-            const _ = new (this.#factory.message)(_chatMessage)
             const _message = (_chatMessage.id?.length)
                 ?   _chatMessage
                 :   await ( new (this.#factory.message)(_chatMessage) ).init(this.thread)
-            this.#messages.unshift(_message)
+             this.messages.unshift(_message)
         }
         findMessage(_message_id){
             //  given this conversation, retrieve message by id
@@ -179,17 +179,12 @@ function extendClass_conversation(_originClass,_references) {
         get threadId(){
             return this.thread.id
         }
-        //  private functions
-        async #add(){
-            //  add to cosmos
-            return this
-        }
     }
     return Conversation
 }
 function extendClass_experience(_originClass, _references){
     class Experience extends _originClass {
-        #experienceVariables
+        #experienceVariables = {}
         constructor(_obj) {
             super(_obj)
         }
@@ -197,9 +192,10 @@ function extendClass_experience(_originClass, _references){
         /**
          * Initialize the experience.
          * @todo - implement building classes either on-demand or on-init to create scene and event classes
+         * @param {object} experienceVariables - The experience variables to initialize with.
          * @returns {Experience} - The initialized experience.
          */
-        init(){
+        init(experienceVariables={}){
             /* self-validation */
             if(!this.scenes || !this.scenes.length)
                 throw new Error('No scenes provided for experience')
@@ -210,19 +206,46 @@ function extendClass_experience(_originClass, _references){
                     throw new Error('No events provided for scene')
                 _scene.events.sort((_a, _b)=>(_a?.order??0)-(_b.order??0))
             })
-            // turn array this.variables into object with key[name from array]/value[undefined]
-            this.#experienceVariables = this.variables.reduce((obj, keyName) => {
+            this.experienceVariables = this.variables.reduce((obj, keyName) => {
                 obj[keyName] = undefined
                 return obj
-            }, {})
+            }, {}) // turn array this.variables into object with key[name from array]/value[undefined]
+            this.experienceVariables = experienceVariables
             return this
         }
+        /**
+         * From specified event, returns `synthetic` Dialog data package, see `mDialog` in `class-experience-functions.mjs`.
+         * @param {Guid} eventId - The event id.
+         * @param {number} iteration - The iteration number, array-variant.
+         * @returns {object} - `synthetic` Dialog data package.
+         */
         dialog(eventId, iteration=0){
             return mDialog(this.event(eventId), iteration)
         }
+        /**
+         * Gets a specified event from the experience. Throws error if not found.
+         * @param {Array} scenes - The array of scenes to search.
+         * @param {Guid} eventId - The event id.
+         * @returns {object} - The event object data.
+         * @throws {Error} - If event not found.
+         */
         event(eventId){
             return mGetEvent(this.scenes, eventId)
         }
+        /**
+         * From specified event, returns `synthetic` Input data package, see `mInput` in `class-experience-functions.mjs`.
+         * @param {Guid} eventId - The event id.
+         * @param {number} iteration - The iteration number, array-variant.
+         * @returns {object} - `synthetic` Input data package.
+         */
+        input(eventId, iteration=0){
+            return mInput(this.event(eventId), iteration)
+        }
+        /**
+         * Gets a specified scene from the experience. Throws error if not found.
+         * @param {Guid} sceneId 
+         * @returns {object} - The scene object data.
+         */
         scene(sceneId){
             return mGetScene(this.scenes, sceneId)
         }
@@ -238,7 +261,7 @@ function extendClass_experience(_originClass, _references){
         /**
          * Set the experience variables.
          * @setter
-         * @param {object} obj - The object to set the experience variables to.
+         * @param {object} obj - The object to set the experience variables to, ergo can have any number of properties.
          * @returns {void}
          */
         set experienceVariables(obj){

@@ -28,9 +28,10 @@ class Avatar extends EventEmitter {
         birthplace: undefined,
         interests: undefined,
         memberName: undefined,
+        memberFirstName: undefined,
         name: undefined, // memberName
         nickname: undefined,
-    } // object of experience variables
+    } // object of experience variables, comprise `system` "hard-coded" variables
     #factory // do not expose
     #livedExperiences = [] // array of ids for lived experiences
     #livingExperience
@@ -130,20 +131,20 @@ class Avatar extends EventEmitter {
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot present experiences to itself.')
         if(this.mode!=='experience'){ // start experience
-            const experience = await mExperienceStart(this.#factory, experienceId, sceneId)
+            const experience = await mExperienceStart(this.#factory, experienceId, sceneId, this.#experienceVariables)
             /* mutate avatar (this) */
-            this.experience = await experience.init() // `init` starts experience
-            this.experience.experienceVariables = this.#experienceVariables // assign known variables (is additive-only setter, non-destructive to experience vars)
-            const conversation = this.conversations.find(_=>_.type==='experience')??await this.getConversation(undefined, 'experience')
-            const dialog = this.conversations.find(_=>_.type==='dialog')??await this.getConversation(undefined, 'dialog')
-            this.#conversations = [ ...this.conversations, conversation, dialog]
             this.mode = 'experience'
-            const { id, scenes } = this.experience
+            const { id, scenes } = experience
             if(id!==experienceId)
                 throw new Error('Experience failure, unexpected id mismatch.')
+            this.experience = experience
+            let [conversation, scriptDialog] = await Promise.all([
+                this.getConversation(undefined, 'experience'),
+                this.getConversation(undefined, 'dialog')
+            ]) // async cobstruction
             this.#livingExperience = new (this.#factory.livedExperience)({
-                conversation: conversation,
-                dialog: dialog,
+                conversation,
+                scriptDialog,
                 experience_id: id,
                 location: {
                     experienceId: id,
@@ -156,7 +157,6 @@ class Avatar extends EventEmitter {
             this.#cast = await mCast(this.#factory, this.experience.cast)
         }
         const response = await mExperienceUpdate(
-            this,
             this.#factory,
             this.#llm,
             this.experience,
@@ -491,7 +491,7 @@ class Avatar extends EventEmitter {
      * @returns {guid} - The member's core guid.
      */
     get memberFirstName(){
-        return this.memberName.split(' ')[0]
+        return this.memberName.split(' ')[0]??this.nickname??this.name
     }
     /**
      * Gets full name of member from `#factory`.
@@ -660,7 +660,7 @@ async function mBot(_avatar, _bot={type: 'personal-avatar'}){
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
  * @param {string} botId - bot id
- * @returns {string} - text content from llm
+ * @returns {void} - Conversation dialog is mutated
  */
 async function mCallLLM(llm, conversation, prompt, botId){
     const { thread_id: threadId } = conversation
@@ -672,28 +672,23 @@ async function mCallLLM(llm, conversation, prompt, botId){
         message: prompt,
         role: 'user'
     } // in this context, the actor is the 'user' in order to request a piece of dialog. See, not confusing at all!
-    conversation.addMessage(prompt)
+    await conversation.addMessage(prompt)
     const runs = await mRunTrigger(llm, undefined, botId, threadId)
     const messages = await conversation.getMessages_openai()
     const _messages = messages
         .filter(message => message.run_id === runs[0].id)
-/*
-        .map(_msg => {
-            return new (_avatar.factory.message)({
-                bot_id: _bot.id,
-                avatar_id: _avatar.id,
-                message: _msg,
-                content: _msg.content[0].text.value,
-                mbr_id: _avatar.mbr_id,
-                role: 'assistant',
-            })
-        })
-*/
-    _messages.forEach(async _msg => {
-        await conversation.addMessage(_msg)
-    })
-    if(process.env?.MYLIFE_DB_ALLOW_SAVE){} //	add/update cosmos (?)
-    return _messages
+        .map(_msg =>({
+            bot_id: botId,
+            content: _msg.content[0].text.value,
+            role: 'assistant',
+        }))
+    await Promise.all(
+        _messages.map(async _msg => await conversation.addMessage(_msg))
+    )
+    if(process.env?.MYLIFE_DB_ALLOW_SAVE){
+        conversation.save()
+    } //	add/update cosmos (?)
+    return
 }
 /**
  * Cancels openAI run.
@@ -714,6 +709,7 @@ async function mCancelRun(_openai, _thread_id, _run_id,){
  * @todo - move as much functionality for actor into `init()` as makes sense
  * @todo - any trouble retrieving a known actor should be understudied by... Q? or personal-avatar? yes, personal avatar for now
  * @todo - implement `creator` version of actor
+ * @todo - include variables for names of roles/actors
  * @modular
  * @param {AgentFactory} factory - Agent Factory object
  * @param {array} cast - Array of cast objects
@@ -824,8 +820,8 @@ function mEventAppear(event){
     return event
 }
 /**
- * Returns a processed dialog event.
- * @todo - allow for removing an event by logic and handled at scale above this function
+ * Returns processed dialog as string.
+ * @todo - when `variable` undefined in `experience.variables`, check to see if event can be found that will provide it
  * @modular
  * @public
  * @param {OpenAI} llm - OpenAI object currently
@@ -833,25 +829,13 @@ function mEventAppear(event){
  * @param {LivedExperience} livingExperience - LivedExperience object
  * @param {array} cast - Array of ExperienceCastMember instances
  * @param {ExperienceEvent} event - Event object
- * @param {number} iteration - The current iteration number
- * @returns {Promise<object>} - Synthetic Dialog object
- * @property {number} currentIteration - The current iteration number
- * @property {string} dialog - The dialog content
- * @property {string} example - The example content
- * @property {string} id - The event id
- * @property {string} type - The event type
- * @property {number} maxIterations - The maximum iterations
- * @property {number} minIterations - The minimum iterations
- * @property {string} prompt - The prompt content
- * @property {string} variable - The variable content
- * @property {array} variables - The variables content
+ * @param {number} iteration - The current iteration number (iterations _also_ allow for `refresh` of dialog front-end)
+ * @returns {Promise<string>} - Parsed piece of event dialog
  */
 async function mEventDialog(llm, experience, livingExperience, cast, event, iteration=0){
-    /* reject */
-    if(event?.action!=='dialog')
-        throw new Error('mEventDialog: event.action must be "dialog"')
+    if(!event.data) return // no dialog to parse
     const { actor, id, type='script' } = event
-    const dialog = experience.dialog(id, iteration)
+    let dialog = experience.dialog(id, iteration)
     if(!dialog)
         throw new Error('Dialog error, could not establish dialog.')
     // process instructions
@@ -859,11 +843,16 @@ async function mEventDialog(llm, experience, livingExperience, cast, event, iter
         case 'script':
         case 'scripts':
             event.type = 'script' // force standardization
-            return dialog.dialog
+            return dialog?.dialog
+                ?? dialog?.text
+                ?? dialog?.prompt
+                ?? dialog?.content
+                ?? 'No dialog developed for script'
         case 'prompt':
         case 'prompts':
             event.type = 'prompt' // force standardization
-            let prompt = dialog.prompt
+            let prompt = dialog.prompt??'no prompt content for dynamic script!'
+            const promptFallback = dialog.promptFallback??`No dialog developed for prompt: ${prompt}`
             if(dialog.example?.length??dialog.examples?.length){
                 if(dialog.examples?.length && Array.isArray(dialog.examples)){
                     dialog.example = dialog.examples[0]
@@ -873,19 +862,14 @@ async function mEventDialog(llm, experience, livingExperience, cast, event, iter
             // check for content variables and replace
             if(dialog.variables?.length){
                 dialog.variables.forEach(keyName=>{
-                    // ensure variable exists in eventVariables
-                    // @todo: create mechanic to put values into eventVariables on input event
                     const value = experience.experienceVariables[keyName]
-                    if(!value){
+                    if(value){
                         // @todo: find input event where variable is identified as input and insert (if logic allows, otherwise error)
-                        console.log('mEventDialog: variable not found', keyName)
-                        return
+                        prompt = prompt.replace(new RegExp(`@@${keyName}`, 'g'), value)
                     }
-                    console.log('keyName', keyName)
-                    prompt = prompt.replace(new RegExp(`{${keyName}}`, 'g'), value)
                 })
+                console.log('mEventDialog: prompt variables updated', prompt, dialog.prompt)
             }
-            // @todo: variable unfound, check to see if event can be found that will provide it
             // do I reproduce mChat with what I have? sure - it may ultimately be more streamlined without the request of the avatar?
             // **note**: system chat would refer to Q, but I want any internal chat to go through this channel, depending on cast member
             // set botId from cast
@@ -893,31 +877,45 @@ async function mEventDialog(llm, experience, livingExperience, cast, event, iter
             const botId = castMember?.bot?.bot_id
             if(!botId)
                 throw new Error('No bot found for actor')
-            const _dialog = await mCallLLM(llm, livingExperience.dialog, prompt, botId)
-            return _dialog
+            const { scriptDialog } = livingExperience
+            await mCallLLM(llm, scriptDialog, prompt, botId) // mutates scriptDialog
+            return scriptDialog.messages[0].content??promptFallback
         default:
             throw new Error(`Dialog type \`${type}\` not recognized`)
     }   
-    // log to livedExperience
-    // log to conversation(?)
-    // mSanitizeExperience package for front end (use self-declaration? in experience extender?)
 }
 /**
  * Returns a processed memberInput event.
  * @modular
  * @public
- * @param {OpenAI} llm - OpenAI object currently
+ * @param {OpenAI} llm - OpenAI object currently.
  * @param {Experience} experience - Experience class instance.
- * @param {ExperienceEvent} event - Event object
- * @param {LivedExperience} livingExperience - LivedExperience object
- * @param {object} memberInput - Member input data
- * @returns {Promise<ExperienceEvent>} - Event object
+ * @param {LivedExperience} livingExperience - LivedExperience object.
+ * @param {array} cast - Array of ExperienceCastMember instances.
+ * @param {ExperienceEvent} event - Event object.
+ * @param {number} iteration - The current iteration number.
+ * @param {object} memberInput - Member input, any data type.
+ * @returns {Promise<object>} - Synthetic Input Event.
  */
-async function mEventInput(llm, experience, event, livingExperience, memberInput){
-    return event
+async function mEventInput(llm, experience, livingExperience, cast, event, iteration, memberInput){
+    const { actor, id, type='script' } = event
+    const input = experience.input(id, iteration)
+    if(!input)
+        throw new Error('Script input error, could not establish input parameters.')
+    if(memberInput??false){/* WRITE SCRIPT */
+        console.log('mEventInput::Input Script Event', input)
+        throw new Error('`memberInput` Input script not yet implemented')
+    }
+    return input
 }
 /**
- * Processes an event and returns a avatar-usable dialog package.
+ * Processes an event and adds appropriate accessors to `ExperienceEvent` passed instance.
+ *   1. Stage `event.stage`
+ *   2. Dialog `event.dialog`
+ *   3. Input `event.input`
+ * @todo - keep track of iterations inside livingExperience to manage flow
+ * @todo - mutations should be handled by `ExperienceEvent` extenders.
+ * @todo - script dialog change, input assessment, success evals to completions or cheaper? babbage-002 ($0.40/m) is only cheaper than 3.5 ($3.00/m); can test efficacy for dialog completion, otherwise, 3.5 exceptional
  * @modular
  * @public
  * @param {OpenAI} llm - OpenAI object currently
@@ -931,25 +929,33 @@ async function mEventInput(llm, experience, event, livingExperience, memberInput
 async function mEventProcess(llm, experience, cast, livingExperience, event, memberInput){
     switch(event.action){
         case 'appear': // front-end only pass-throughs
-            return mEventAppear(event)
+            event.stage = mEventAppear() // stage will handle front-end instructions
+            break
         case 'dialog': // requires processing
             // need livingExperience vars to manage flow
-            const dialog = await mEventDialog(llm, experience, livingExperience, cast, event, livingExperience.currentIteration)
-            // @todo - keep track of iterations inside livingExperience to manage flow
-            livingExperience.location.eventId = dialog.id
-            return dialog
+            event.dialog = await mEventDialog(llm, experience, livingExperience, cast, event, livingExperience.currentIteration)
+            livingExperience.location.eventId = event.dialog.id
+            break
         case 'input': // requires processing
-            return await mEventInput(llm, experience, event, livingExperience, memberInput)
+            // create `dialog` string and `input` synthetic object in `event`
+            event.dialog = await mEventDialog(llm, experience, livingExperience, cast, event, livingExperience.currentIteration)
+            event.input = await mEventInput(llm, experience, livingExperience, cast, event, livingExperience.currentIteration)
+            livingExperience.location.eventId = event.dialog.id
+            event.breakpoint = true
+            break
         default: // error/failure
             throw new Error('Event action not recognized')
     }
+    // iteration logging, etc? to livedExperience which holds conversation(s)
+    return mSanitizeEvent(event)
 }
 /**
  * Starts or continues experience with avatar functionality as director/puppeteer. Everything is herein mutated and returned as one final experience instructionset to front-end.
  * @todo - allow auto-skip to scene/event?
+ * @todo - allow for memberInput to be processed
+ * @todo - ExperienceScene and ExperienceEvent should be classes?
  * @modular
  * @public
- * @param {Avatar} avatar - Avatar object
  * @param {AgentFactory} factory - AgentFactory object
  * @param {object} llm - ai interface object
  * @param {Experience} experience - Experience object
@@ -958,7 +964,7 @@ async function mEventProcess(llm, experience, cast, livingExperience, event, mem
  * @param {object} memberInput - Member input
  * @returns {object} - A JSON-serializable experience sequence object for front-end
  */
-async function mExperienceUpdate(avatar, factory, llm, experience, livingExperience, cast, memberInput){
+async function mExperienceUpdate(factory, llm, experience, livingExperience, cast, memberInput){
     const { sceneId, eventId } = livingExperience.location
     const currentScene = experience.scenes.find(
         _scene=>_scene.id==sceneId
@@ -972,18 +978,19 @@ async function mExperienceUpdate(avatar, factory, llm, experience, livingExperie
     const eventSequence = []
     let i = currentEventIndex
     while(i < currentScene.events.length){
-        const event = new (factory.experienceEvent)(currentScene.events[i])
-        eventSequence.push(event)
-        if(event.action === "input") {
-            // complete when action equals "input", event which is included in processing instructions `eventSequence`
-            break
-        }
+        const _event = new (factory.experienceEvent)(currentScene.events[i])
+        const event = await mEventProcess(llm, experience, cast, livingExperience, _event, memberInput)
+        eventSequence[i] = event
+        livingExperience.location.eventId = event.id
+        // livingExperience.conversation.addMessage(event.dialog)
+
+
+
+
+
         i++
-    }
-    // use for() loop as we must keep `await`s in _order_ for conversation to be created and used in dialog
-    for (let index = 0; index < eventSequence.length; index++) {
-        const event = await mEventProcess(llm, experience, cast, livingExperience, eventSequence[index], memberInput)
-        eventSequence[index] = event
+        if(event.breakpoint)
+            break
     }
     return eventSequence
 }
@@ -993,10 +1000,10 @@ async function mExperienceUpdate(avatar, factory, llm, experience, livingExperie
  * @param {guid} experienceId - Experience id.
  * @param {guid} sceneId
  * @param {object} experienceVariables - Experience variables object from Avatar class definition.
- * @returns {Experience} - Experience object
+ * @returns {Experience} - Experience initialized instance.
  */
 async function mExperienceStart(factory, experienceId, sceneId, experienceVariables){
-    let experience = await factory.getExperience(experienceId)
+    let experience = await factory.getExperience(experienceId) // database object
     if(!experience)
         throw new Error('Experience not found')
     if(sceneId?.length){
@@ -1008,7 +1015,7 @@ async function mExperienceStart(factory, experienceId, sceneId, experienceVariab
     const _experience = new (factory.experience)(experience)
     if(!_experience instanceof factory.experience)
         throw new Error('Experience not valid')
-    _experience.experienceVariables = { ..._experience.experienceVariables, ...experienceVariables }
+    await _experience.init(experienceVariables)
     return _experience
 }
 /**
@@ -1220,6 +1227,23 @@ async function mRunTrigger(openai, runs=[], botId, threadId){
     // ping status
     await mRunFinish(openai, run) // returns void, but updates run
     return runs
+}
+function mSanitizeEvent(event){
+    const { action, actor, animation, breakpoint, dialog, duration, effect, effects, id, input, order, stage, type,  } = event
+    return {
+        action,
+        actor,
+        animation,
+        breakpoint,
+        dialog,
+        duration,
+        effects: effects??[effect],
+        id,
+        input,
+        order,
+        stage,
+        type,
+    }
 }
 function mValidateMode(_requestedMode, _currentMode){
     if(!mAvailableModes.includes(_requestedMode))

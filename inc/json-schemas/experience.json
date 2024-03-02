@@ -247,6 +247,11 @@
 					"description": "timing of the event",
 					"enum": ["immediate", "delayed"],
 					"type": "string"
+				},
+				"variables": {
+					"description": "array of variable used in this event.",
+					"type": "array",
+					"$comment": "includes _all_ dialog, input or stage variables in use for event data."
 				}
 			},
 			"additionalProperties": true
