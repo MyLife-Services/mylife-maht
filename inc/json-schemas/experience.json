@@ -104,6 +104,12 @@
 			"type": "array",
 			"$comment": "artificial cap of 6 scenes for alpha, keeps trudge down."
 		},
+		"scriptAdvisorBotId": {
+			"const": "asst_NonLpXQ5maLpIciwxwGqsMwV",
+			"description": "botId for system script advisor for the experience",
+			"type": "string",
+			"$comment": "deprecate in favor of single actor in MyLife instance"
+		},
 		"skippable": {
 			"default": true,
 			"description": "if the experience is skippable, only system experiences could be non-skippable. If skippable, then the experience can be skipped by the experiencer.",

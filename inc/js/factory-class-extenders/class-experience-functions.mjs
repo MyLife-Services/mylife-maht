@@ -51,7 +51,7 @@ function mDialog(event, iteration=0){
         variables.push(variable)
     /* return */
     return { 
-        currentIteration: iteration++,
+        currentIteration: iteration,
         dialog,
         example,
         id,
@@ -99,16 +99,21 @@ function mGetEvent(scenes, eventId){
  * @property {any} variable - Variable name, only one allowed per `input` event, but could be any type.
  */
 function mInput(event, iteration=0){
-    const { failure, inputFailure, inputId, inputPlaceholder, inputSuccess, inputType, placeholder, success, type, variable, variables } = event
+    const { data: eventData, id: eventId, type: eventType, variable: eventVariable, variables: eventVariables } = event
+    const { condition, failure, followup, inputId, inputPlaceholder, inputType, outcome, placeholder, success, type, variable, variables } = eventData
     // add synthetic input object
     const input = {
-        currentIteration: iteration++,
-        inputFailure: inputFailure ?? failure ?? 'Input failed, please try again.',
+        condition: condition, // true would indicate that any input is successful, presume to trim, etc
+        currentIteration: iteration,
+        failure: failure, // default is to stay on current event
+        followup: followup ?? 'Something went wrong, please enter again.',
         inputId: inputId ?? event.id,
         inputPlaceholder: inputPlaceholder ?? placeholder ?? 'Type here...',
-        inputSuccess: inputSuccess ?? success ?? true, // true would indicate that any input is successful, presume to trime etc
-        inputType: inputType ?? type ?? 'text',
-        variable: variable ?? variables?.[0] ?? 'input',
+        inputType: inputType ?? type ?? 'input',
+        outcome: outcome, // no variables, just success boolean
+        success: success, // what system should do on success, guid for eventId or default is next
+        variable: variable ?? variables?.[0] ?? eventVariable ?? eventVariables?.[0] ?? 'input',
+        variables: variables ?? eventVariables ?? ['input'],
     }
     return input
 }

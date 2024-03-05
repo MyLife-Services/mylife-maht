@@ -14,7 +14,7 @@ async function experienceBuilder(ctx){
         ctx.throw(400, 'No experience provided for builder. Use `experience` field.')
 }
 /**
- * Conducts active Living-Experience for member. Passes data to avatar to manages the start, execution and completion of a member experience.
+ * Conducts active Living-Experience for member. Passes data to avatar to manages the start, execution and completion of a member experience. Note: ctx.request.body is free JSON in order to tolerate a number of success/failure conditions.
  * @param {Koa} ctx - Koa Context object.
  * @returns {Promise<object>} - Promise object represents object with following properties.
  * @property {boolean} success - Success status.
@@ -25,10 +25,13 @@ async function experience(ctx){
     // if needs to send update OTHER than member input ctx.request.body.memberInput
     await _keyValidation(ctx)
     const { assistantType, mbr_id } = ctx.state
-    const { eid, sid } = ctx.params
-    const { memberInput } = ctx.request.body
-    const experience = await ctx.state.avatar.experienceUpdate(eid, sid, memberInput)
-    ctx.body = experience
+    const { eid, sid, vid } = ctx.params
+    if(ctx.state.MemberSession.experienceLock)
+        ctx.throw(500, 'Experience is locked. Wait for previous event to complete. If bugged, end experience and begin again.')
+    ctx.state.MemberSession.experienceLock = true
+    const events = await ctx.state.avatar.experienceUpdate(eid, sid, vid, ctx.request.body)
+    ctx.state.MemberSession.experienceLock = false
+    ctx.body = events
     return
 }
 async function experienceEnd(ctx){
