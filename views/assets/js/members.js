@@ -26,6 +26,26 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     /* onLoad */
     _awaitButton.style.display = 'none'
+
+    fetchExperiences()
+        .then(async data => {
+            const { "auto-play": autoPlayGuid, experiences } = data
+
+            if (autoPlayGuid) {
+                const experienceToPlay = experiences.find(exp => exp.guid === autoPlayGuid)
+                if (experienceToPlay) {
+                    // Assuming you have a function to start the experience
+                    await startExperience(experienceToPlay)
+                }
+            } else {
+                // Handle the scenario where there's no auto-play but experiences are available
+                console.log("No auto-play. Experiences available:", experiences);
+                // You could prompt the user to select an experience or handle this as needed
+            }
+        })
+    
+    console.log('test')
+
     /* page-greeting */
     _greeting.forEach(_greet=>{
         _chatBubbleCount++
@@ -135,6 +155,23 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+async function fetchExperiences() {
+    const _id = await fetch('/members/experiences/')
+        .then(_response => {
+            if (!_response.ok) {
+                throw new Error(`HTTP error! Status: ${_response.status}`)
+            }
+            return _response.json()
+        })
+        .then(_response => {
+            return _response.activeBotId
+        })
+        .catch(error => {
+            console.log('Error:', error)
+            return null
+        })
+    return fetch('/api/experiences').then(res => res.json()); // Adjust API endpoint as needed
 }
 // Function to focus on the textarea and move cursor to the end
 function focusAndSetCursor(textarea) {

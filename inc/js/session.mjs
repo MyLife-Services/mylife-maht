@@ -21,13 +21,13 @@ class MylifeMemberSession extends EventEmitter {
 			chalk.bgYellowBright(this.factory.mbr_id),
 		)
 	}
-	async init(_mbr_id=this.mbr_id){
+	async init(mbr_id=this.mbr_id){
 		if(this.locked){
-			if(this.#Member?.mbr_id??_mbr_id !== _mbr_id)
+			if(this.#Member?.mbr_id??mbr_id !== mbr_id)
 				console.log(chalk.bgRed('cannot initialize, member locked'))
 		}
-		if(this.mbr_id && this.mbr_id !== _mbr_id) { // unlocked, initialize member session
-			this.#mbr_id = _mbr_id
+		if(this.mbr_id && this.mbr_id !== mbr_id) { // unlocked, initialize member session
+			this.#mbr_id = mbr_id
 			mAssignFactoryListeners(this.#factory)
 			await this.#factory.init(this.mbr_id, )	//	needs only `init()` with different `mbr_id` to reset
 			this.#Member = await this.factory.getMyLifeMember()
@@ -76,7 +76,7 @@ class MylifeMemberSession extends EventEmitter {
 	 * @property {Object[]} experiences - Array of experiences.
 	 */
 	async experiences(includeLived=false){
-		if(this.locked) return false
+		if(this.locked) return {}
 		const { avatar } = this.#Member
 		const experiences = await avatar.experiences(includeLived)
 		console.log('experiences', experiences)
@@ -164,10 +164,6 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	get mbr_id(){
 		return this.#mbr_id
-	}
-	set mbr_id(_mbr_id){
-		this.#mbr_id = _mbr_id
-		return this.mbr_id
 	}
 	get mbr_id_id(){
 		return this.globals.sysId( this.mbr_id )

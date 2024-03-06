@@ -69,7 +69,7 @@ async function experienceManifest(ctx){
  */
 async function experiences(ctx){
     await _keyValidation(ctx)
-    const { assistantType, mbr_id, MemberSession } = ctx.state
+    const { assistantType, MemberSession } = ctx.state
     // limit one mandatory experience (others could be highlighted in alerts) per session
     const experiencesObject = await MemberSession.experiences()
     ctx.body = experiencesObject
