@@ -184,6 +184,40 @@ class BotFactory extends EventEmitter{
 		return mCreateBot(this, _bot)
 	}
 	/**
+	 * Gets array of member `experiences` from database. When placed here, it allows for a bot to be spawned who has access to this information, which would make sense for a mini-avatar whose aim is to report what experiences a member has endured.
+	 * @public
+	 * @returns {Promise<array>} - Array of shorthand experience objects.
+	 * @property {string<Guid>} id - The experience id.
+	 * 
+	 */
+	async experiences(includeLived=false){
+		// check consents for test-experiences [stub]
+		let testExperiences = []
+		// currently only system experiences exist
+		let experiences = await mDataservices.getItems(
+			'experience',
+			undefined,
+			[{ name: '@status', value: 'active' }],
+			'system',
+			) ?? []
+		if(!includeLived){
+			const livedExperiences = await this.experiencesLived() ?? []
+			experiences = experiences.filter(
+				// filter out those not found (by id in lived experiences)
+				_experience=>!livedExperiences.find(
+					_livedExperience=>_livedExperience.experienceId===_experience.id
+				)
+			)
+		}
+		return experiences
+	}
+	async experiencesLived(){
+		const livedExperiences = await this.dataservices.getItems(
+			'experience-lived',
+			['experienceId'], // default includes being, id, mbr_id, object_id
+		)
+	}
+	/**
 	 * Gets a specified `experience` from database.
 	 * @public
 	 * @param {guid} _experience_id - The experience id in Cosmos.

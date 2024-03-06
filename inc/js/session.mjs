@@ -2,8 +2,10 @@ import { EventEmitter } from 'events'
 import chalk from 'chalk'
 class MylifeMemberSession extends EventEmitter {
 	#alertsShown = [] // array of alert_id's shown to member in this session
+	#autoplayed = false // flag for autoplayed experience, one per session
 	#consents = []	//	consents are stored in the session
 	#contributions = []	//	intended to hold all relevant contribution questions for session
+	#experiences = []	//	holds id for experiences conducted in this session
 	#factory
 	#locked = true	//	locked by default
 	#mbr_id = false
@@ -29,6 +31,7 @@ class MylifeMemberSession extends EventEmitter {
 			mAssignFactoryListeners(this.#factory)
 			await this.#factory.init(this.mbr_id, )	//	needs only `init()` with different `mbr_id` to reset
 			this.#Member = await this.factory.getMyLifeMember()
+			this.#autoplayed = false // resets autoplayed flag, although should be impossible as only other "variant" requires guest status, as one day experiences can be run for guests also [for pay]
 			this.emit('onInit-member-initialize', this.#Member.memberName)
 			console.log(
 				chalk.bgBlue('created-member:'),
@@ -41,16 +44,16 @@ class MylifeMemberSession extends EventEmitter {
 		return this.factory.getAlert(_alert_id)
 	}
 	async alerts(_type){
-		let _currentAlerts = this.factory.alerts
+		let currentAlerts = this.factory.alerts
 		// remove alerts already shown to member in this session
-		_currentAlerts = _currentAlerts
+		currentAlerts = currentAlerts
 			.filter(_alert=>{
 				return !this.#alertsShown.includes(_alert.id)
 			})
-		_currentAlerts.forEach(_alert=>{
+		currentAlerts.forEach(_alert=>{
 			this.#alertsShown.push(_alert.id)
 		})
-		return _currentAlerts
+		return currentAlerts
 	}
 	async challengeAccess(_passphrase){
 		if(this.locked){
@@ -62,6 +65,33 @@ class MylifeMemberSession extends EventEmitter {
 			await this.init(this.challenge_id)
 		}
 		return !this.locked
+	}
+	/**
+	 * Gets experiences for the member session. Identifies if autoplay is required, and if so, begins avatar experience via this.#Member. Ergo, Session can request avatar directly from Member, which was generated on `.init()`.
+	 * @todo - get and compare list of lived-experiences
+	 * @param {boolean} includeLived - Include lived experiences in the list.
+	 * @returns {Promise<object>} - Experiences shorthand: { autoplay: guid??false, events: [], experiences: [] }
+	 * @property {Guid} autoplay - Autoplay experience id.
+	 * @property {Object[]} events - Array of events.
+	 * @property {Object[]} experiences - Array of experiences.
+	 */
+	async experiences(includeLived=false){
+		if(this.locked) return false
+		const { avatar } = this.#Member
+		const experiences = await avatar.experiences(includeLived)
+		console.log('experiences', experiences)
+		let autoplay = experiences
+            ?.find(experience=>experience.autoplay)
+			?.id
+			?? false
+		let events = []
+		/* trigger auto-play from session */
+		if(avatar.mode !== 'experience' && this.globals.isValidGuid(autoplay)){
+            events = await avatar.experienceUpdate(autoplay)
+			this.#autoplayed = true
+			console.log('autoplay triggered', autoplay, events)
+        }
+		return { autoplay, events, experiences }
 	}
 	//	consent functionality
 	async requestConsent(ctx){
@@ -142,7 +172,7 @@ class MylifeMemberSession extends EventEmitter {
 	get mbr_id_id(){
 		return this.globals.sysId( this.mbr_id )
 	}
-	get member(){
+	get member(){ // @todo - deprecate and funnel through any requests
 		return this.#Member
 	}
 	get subtitle(){

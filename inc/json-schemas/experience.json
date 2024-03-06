@@ -74,10 +74,6 @@
 			"format": "uuid",
 			"type": "string"
 		},
-		"manifest": {
-			"description": "Special case object: Produced by `Avatar` in experience mode [can be requested at any time, but provided in initial experience push] used for front-end display and tracking in `XP-bar`. Essentially exists as an independent short-form of a given experience. No cast is built nor provided, that would be a separate request.",
-			"$ref": "/$defs/experience-manifest"
-		},
 		"mbr_id": {
 			"minLength": 40,
 			"type": "string",
@@ -299,11 +295,25 @@
 		"experience-lived": {
 			"description": "Special case object: Represents the actual 'lived' experience, stored on member-basis, tracks progress inside of a specific experience, ergo is not required [nor do we currently] to save the entire experience in the member's record, but the 'conversation' for now of the experience. **note**: conversation will contain the thread information; one thread per member experience-lived.",
 			"name": "Experience-Lived",
-			"required": ["conversation", "id", "name", "version"],
+			"required": ["being", "conversation", "id", "name", "version"],
 			"type": "object",
 			"properties": {
+				"being": {
+					"const": "experience-lived",
+					"description": "type of object, always `experience-lived`.",
+					"type": "string"
+				},
 				"conversation": {
 					"$ref": "conversation.json"
+				},
+				"events":{
+					"description": "events of the experience for the member",
+					"items": {
+						"description": "Event of the experience for the member, in shorthand form.",
+						"$ref": "/$defs/experience-manifest-event"
+					},
+					"minItems": 1,
+					"type": "array"
 				},
 				"id": {
 					"description": "id of the lived experience",

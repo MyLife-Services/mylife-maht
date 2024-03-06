@@ -23,6 +23,7 @@ import {
     experience,
     experienceEnd,
     experienceManifest,
+    experiences,
     keyValidation,
     library,
     login as apiLogin,
@@ -51,6 +52,7 @@ _Router.post('/signup', signup)
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
+_apiRouter.get('/experiences/:mid', experiences)
 _apiRouter.get('/login/:mid', apiLogin)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.patch('/experiences/:mid/end', experienceEnd)

@@ -201,14 +201,14 @@ class Dataservices {
 	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID.
 	 */
 	async getAlerts(){	
-		const _paramsArray = [
+		const paramsArray = [
 			{ name: '@being', value: 'alert' },
 			{ name: '@currentDate', value: new Date().toISOString() }
 		]
-		const _query = `SELECT * FROM c WHERE c.being = @being AND @currentDate >= c.timestampRange['start'] AND @currentDate <= c.timestampRange['end']`
+		const query = `SELECT * FROM c WHERE c.being = @being AND @currentDate >= c.timestampRange['start'] AND @currentDate <= c.timestampRange['end']`
 
 		return await this.datamanager.getItems(
-			{ query: _query, parameters: _paramsArray },
+			{ query: query, parameters: paramsArray },
 			'system',
 		)
 	}
@@ -265,13 +265,13 @@ class Dataservices {
 	 * Retrieves all seed contribution questions associated with being & category.
 	 * @async
 	 * @public
-	 * @param {string} _being - The type of underlying datacore.
+	 * @param {string} being - The type of underlying datacore.
 	 * @param {string} _category - The category of seed questions to retrieve.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getContributionQuestions(_being, _category, _maxNumber=3){
+	async getContributionQuestions(being, _category, _maxNumber=3){
 		return (await this.getItems(
-			_being,
+			being,
 			['questions'],
 			[{ name: '@category', value: _category }],
 			'contribution_responses',
@@ -286,22 +286,22 @@ class Dataservices {
 	 * @async
 	 * @public
 	 * @param {string} _id - The unique identifier for the item.
-	 * @param {string} _container_id - The container to use, overriding default: `Members`.
+	 * @param {string} container_id - The container to use, overriding default: `Members`.
 	 * @param {string} _mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(_id, _container_id, _mbr_id=this.mbr_id) {
+	async getItem(_id, container_id, _mbr_id=this.mbr_id) {
 		if(!_id) return
 		try{
 			return await this.datamanager.getItem(
 				_id,
-				_container_id,
+				container_id,
 				{ partitionKey: _mbr_id, populateQuotaInfo: false, },
 			)
 		}
 		catch(_error){
 			console.log('mylife-data-service::getItem() error')
-			console.log(_error, _id, _container_id,)
+			console.log(_error, _id, container_id,)
 			return
 		}
 	}
@@ -309,18 +309,18 @@ class Dataservices {
 	 * Retrieves first item based on specified parameters.
 	 * @async
 	 * @public
-	 * @param {string} _being 
+	 * @param {string} being 
 	 * @param {string} _field - Field name to match.
 	 * @param {string} _value - Value to match.
-	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} container_id - The container name to use, overriding default.
 	 * @param {string} _mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<object>} An object (initial of arrau) matching the query parameters.
 	 */
-	async getItemByField(_being, _field, _value, _container_id, _mbr_id=this.mbr_id){
+	async getItemByField(being, _field, _value, container_id, _mbr_id=this.mbr_id){
 		const _item =  await this.getItemByFields(
-			_being,
+			being,
 			[{ name: `@${_field}`, value: _value }],
-			_container_id,
+			container_id,
 			_mbr_id,
 		)
 		return _item
@@ -329,17 +329,17 @@ class Dataservices {
 	 * Retrieves first item based on specified parameters.
 	 * @async
 	 * @public
-	 * @param {string} _being 
+	 * @param {string} being 
 	 * @param {array} _fields - Array of name/value pairs to select, format: [{name: `@${_field}`, value: _value}],
-	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} container_id - The container name to use, overriding default.
 	 * @param {string} _mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<object>} An object (initial of arrau) matching the query parameters.
 	 */
-	async getItemByFields(_being, _fields, _container_id, _mbr_id=this.mbr_id){
+	async getItemByFields(being, _fields, container_id, _mbr_id=this.mbr_id){
 		const _items =  await this.getItemsByFields(
-			_being,
+			being,
 			_fields,
-			_container_id,
+			container_id,
 			_mbr_id,
 		)
 		return _items?.[0]
@@ -348,31 +348,31 @@ class Dataservices {
 	 * Retrieves items based on specified parameters.
 	 * @async
 	 * @public
-	 * @param {string} _being - The type of items to retrieve.
-	 * @param {array} [_selects=[]] - Fields to select; if empty, selects all fields.
-	 * @param {Array<Object>} [_paramsArray=[]] - Additional query parameters.
-	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} being - The type of items to retrieve.
+	 * @param {array} [selects=[]] - Fields to select; if empty, selects all fields.
+	 * @param {Array<Object>} [paramsArray=[]] - Additional query parameters.
+	 * @param {string} container_id - The container name to use, overriding default.
 	 * @param {string} _mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
-	async getItems(_being, _selects=[], _paramsArray=[], _container_id, _mbr_id=this.mbr_id) {	//	_params is array of objects { name: '${varName}' }
+	async getItems(being, selects=[], paramsArray=[], container_id, _mbr_id=this.mbr_id) {	//	paramsArray is array of objects { name: '${varName}' }
 		// @todo: incorporate date range functionality into this.getItems()
 		const _prefix = 'u'
-		_paramsArray.unshift({ name: '@being', value: _being })	//	add primary parameter to array at beginning
-		const _selectFields = (_selects.length)
-			?	[...this.#rootSelect, ..._selects].map(_=>(`${_prefix}.`+_)).join(',')
+		paramsArray.unshift({ name: '@being', value: being })	//	add primary parameter to array at beginning
+		const _selectFields = (selects.length)
+			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${_prefix}.`+field)).join(',')
 			:	'*'
-		let _query = `select ${_selectFields} from ${_prefix}`	//	@being is required
-		_paramsArray	//	iterate through parameters
-			.forEach(_param=>{	//	param is an object of name, value pairs
-				_query += (_param.name==='@being')
-					?	` where ${_prefix}.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
-					:	` and ${_prefix}.${_param.name.split('@')[1]}=${_param.name}`	//	only manages string so far
+		let query = `select ${_selectFields} from ${_prefix}`	//	@being is required
+		paramsArray	//	iterate through parameters
+			.forEach(param=>{	//	param is an object of name, value pairs
+				query += (param.name==='@being')
+					?	` where ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
+					:	` and ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
 		})
 		try{
 			return await this.datamanager.getItems(
-				{ query: _query, parameters: _paramsArray },
-				_container_id,
+				{ query: query, parameters: paramsArray },
+				container_id,
 				{
 					partitionKey: _mbr_id,
 					populateQuotaInfo: false, // set this to true to include quota information in the response headers
@@ -381,25 +381,25 @@ class Dataservices {
 		}
 		catch(_error){
 			console.log('mylife-data-service::getItems() error')
-			console.log(_error, _being, _query, _paramsArray, _container_id,)
+			console.log(_error, being, query, paramsArray, container_id,)
 		}
 	}
 	/**
 	 * Retrieve items based on specified parameters.
 	 * @async
 	 * @public
-	 * @param {string} _being 
+	 * @param {string} being - The type of items to retrieve.
 	 * @param {array} _fields - Array of name/value pairs to select, format: [{name: `@${_field}`, value: _value}],
-	 * @param {string} _container_id - The container name to use, overriding default.
+	 * @param {string} container_id - The container name to use, overriding default.
 	 * @param {string} _mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
-	async getItemsByFields(_being, _fields, _container_id, _mbr_id=this.mbr_id){
+	async getItemsByFields(being, _fields, container_id, _mbr_id=this.mbr_id){
 		const _items =  await this.getItems(
-			_being, 
+			being, 
 			undefined,
 			_fields, 
-			_container_id,
+			container_id,
 			_mbr_id,
 		)
 		return _items

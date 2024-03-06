@@ -24,21 +24,27 @@ async function experienceBuilder(ctx){
 async function experience(ctx){
     // if needs to send update OTHER than member input ctx.request.body.memberInput
     await _keyValidation(ctx)
-    const { assistantType, mbr_id } = ctx.state
+    const { assistantType, avatar, mbr_id } = ctx.state
     const { eid, sid, vid } = ctx.params
     if(ctx.state.MemberSession.experienceLock)
         ctx.throw(500, 'Experience is locked. Wait for previous event to complete. If bugged, end experience and begin again.')
     ctx.state.MemberSession.experienceLock = true
-    const events = await ctx.state.avatar.experienceUpdate(eid, sid, vid, ctx.request.body)
+    const events = await avatar.experienceUpdate(eid, sid, vid, ctx.request.body)
     ctx.state.MemberSession.experienceLock = false
     ctx.body = events
     return
 }
+/**
+ * Request to end an active Living-Experience for member.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns 
+ */
 async function experienceEnd(ctx){
     await _keyValidation(ctx)
-    const { assistantType, mbr_id } = ctx.state
+    const { assistantType, avatar, mbr_id } = ctx.state
     const { eid } = ctx.params
-    return ctx.state.avatar.experienceEnd(eid)
+    ctx.body = avatar.experienceEnd(eid)
+    return
 }
 /**
  * Delivers the manifest of an experience. Manifests are the data structures that define the experience, including scenes, events, and other data. Experience must be "started" in order to request.
@@ -47,11 +53,27 @@ async function experienceEnd(ctx){
  */
 async function experienceManifest(ctx){
     await _keyValidation(ctx)
-    const { assistantType, mbr_id } = ctx.state
+    const { assistantType, avatar, mbr_id } = ctx.state
     const { eid } = ctx.params
     const { manifest } = ctx.request.body
     console.log(chalk.yellowBright('experienceManifest()'), { assistantType, mbr_id, eid, manifest })
-    return ctx.state.avatar.experienceManifest(eid, manifest)
+    ctx.body = avatar.experienceManifest(eid, manifest)
+    return
+}
+/**
+ * Returns experiences relevant to member. If first request of session, will return mandatory system experience, if exists **and begin executing it**! On subsequent requests, just returns experiences.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {Promise<object>} - Promise object represents `ctx.body` object with following properties.
+ * @property {string<Guid>} autoplay - Autoplay Experience with this id.
+ * @property {array} experiences - Array of Experience shorthand objects.
+ */
+async function experiences(ctx){
+    await _keyValidation(ctx)
+    const { assistantType, mbr_id, MemberSession } = ctx.state
+    // limit one mandatory experience (others could be highlighted in alerts) per session
+    const experiencesObject = await MemberSession.experiences()
+    ctx.body = experiencesObject
+    return
 }
 /**
  * Validates key and sets `ctx.state` and `ctx.session` properties.
@@ -276,6 +298,7 @@ export {
     experience,
     experienceEnd,
     experienceManifest,
+    experiences,
     keyValidation,
     library,
     login,

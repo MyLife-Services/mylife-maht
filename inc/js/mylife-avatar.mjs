@@ -186,8 +186,24 @@ class Avatar extends EventEmitter {
         // delete this.experience
         return true
     }
+    async experiencesLived(){
+        // get experiences-lived [stub]
+        const livedExperiences = await this.#factory.experiencesLived()
+    }
     async experienceManifest(experienceId){
         // includes cast, scenes, and navigable events
+    }
+    /**
+     * Returns array of available experiences for the member in shorthand object format, i.e., not a full `Experience` class instance. That is only required when performing.
+     * @public
+     * @param {boolean} includeLived - Include lived experiences in the list.
+     * @returns {Promise<Object[]>} - Array of Experiences "shorthand" objects.
+     * @property {Guid} autoplay - The id of the experience to autoplay, if any.
+     * @property {Object[]} experiences - Array of shorthand experiences.
+     */
+    async experiences(includeLived=false){
+        const experiences = mExperiences(await this.#factory.experiences(includeLived))
+        return experiences
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
@@ -1074,6 +1090,45 @@ async function mExperienceUpdate(factory, llm, experience, livingExperience, cas
             break
     }
     return eventSequence
+}
+/**
+ * Takes an experience document and converts it to use by frontend. Also filters out any inappropriate experiences.
+ * @param {array<object>} experiences - Array of Experience document objects.
+ * @returns {array<object>} - Array of Experience shorthand objects.
+ * @property {boolean} autoplay - Whether or not the experience is autoplay.
+ * @property {string} description - The description of the experience.
+ * @property {guid} id - The id of the experience.
+ * @property {string} name - The name of the experience.
+ * @property {string} purpose - The purpose of the experience.
+ * @property {boolean} skippable - Whether or not the experience is skippable
+ */
+function mExperiences(experiences){
+    return experiences
+        .filter(experience=>{
+            const { status, dates, } = experience
+            const { end, runend, runEnd, runstart, runStart, start, } = dates
+            const now = Date.now()
+            const startDate = start || runstart || runStart
+                ? new Date(start ?? runstart ?? runStart).getTime()
+                : now
+            const endDate = end || runend || runEnd
+                ? new Date(end ?? runend ?? runEnd).getTime()
+                : now          
+            return status==='active'
+                && startDate <= now 
+                && endDate >= now
+        })
+        .map(experience=>{ // map to display versions
+            const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
+            return {
+                autoplay,
+                description,
+                id,
+                name,
+                purpose,
+                skippable,
+            }
+        })
 }
 /**
  * Starts Experience.
