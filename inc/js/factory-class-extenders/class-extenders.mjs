@@ -4,8 +4,6 @@ import {
     mUpdateContribution,
 } from './class-contribution-functions.mjs'
 import {
-    mInvokeThread,
-    mMessages,
     mSaveConversation,
 } from './class-conversation-functions.mjs'
 import{
@@ -16,7 +14,6 @@ import{
     mGetScene,
 } from './class-experience-functions.mjs'
 import {
-    mGetMessage,
 	mAssignContent,
 } from './class-message-functions.mjs'
 import { _ } from 'ajv'
@@ -41,7 +38,7 @@ function extendClass_contribution(_originClass,_references) {
     class Contribution extends _originClass {
         #emitter = new EventEmitter()
         #factory
-        #openai = _references?.openai
+        #llm = _references?.openai
         constructor(_obj) {
             super(_obj)
         }
@@ -54,7 +51,7 @@ function extendClass_contribution(_originClass,_references) {
          */
         async init(_factory){
             this.#factory = _factory
-            this.request.questions = await mGetQuestions(this, this.#openai) // generate question(s) from cosmos or openAI
+            this.request.questions = await mGetQuestions(this, this.#llm) // generate question(s) from cosmos or openAI
             this.id = this.factory.newGuid
             this.status = 'prepared'
             this.emit('on-contribution-new',this)
@@ -102,7 +99,7 @@ function extendClass_contribution(_originClass,_references) {
             return this.inspect(true)
         }
         get openai(){
-            return this.#openai
+            return this.#llm
         }
         get questions(){
             return this?.questions??[]
@@ -112,41 +109,62 @@ function extendClass_contribution(_originClass,_references) {
 
     return Contribution
 }
-function extendClass_conversation(_originClass,_references) {
+function extendClass_conversation(_originClass, _references) {
     class Conversation extends _originClass {
         // @todo: convert parent_id -> object_id
         #factory
         #messages = []
-        #openai = _references?.openai
         #saved = false
         #thread
         constructor(_obj, _factory) {
             super(_obj)
             this.#factory = _factory
         }
-        async init(_thread_id){
-            this.#thread = await mInvokeThread(this.#openai, _thread_id)
-            this.name = `conversation_${this.#factory.mbr_id}_${this.thread_id}`
+        async init(thread){
+            this.#thread = thread
+            this.name = `conversation_${this.#factory.mbr_id}_${thread.thread_id}`
             this.type = this.type??'chat'
         }
-        //  public functions
-        async addMessage(_chatMessage){
-            const _message = (_chatMessage.id?.length)
-                ?   _chatMessage
-                :   await ( new (this.#factory.message)(_chatMessage) ).init(this.thread)
-             this.messages.unshift(_message)
-        }
-        findMessage(_message_id){
-            //  given this conversation, retrieve message by id
-            return this.messages.find(_msg=>_msg.id===_message_id)
-        }
-        async getMessage(_msg_id){	//	returns openai `message` object
+        /* public functions */
+        /**
+         * Adds a `Message` instances to the conversation.
+         * @public
+         * @param {Object|Message} message - Message instance or object data to add.
+         * @returns {Object[]} - The updated messages array.
+         */
+        addMessage(message){
+            if(this.messages.find(_message=>_message.id===message.id))
+                return this.messages
+            if(!(message instanceof this.#factory.message)){
+                if(typeof message!=='object')
+                    message = { content: message }
+                message = new (this.#factory.message)(message)
+            }
+            this.#messages = [message, ...this.messages]
             return this.messages
-                .filter(_msg=>{ return _msg.id==_msg_id })
         }
-        async getMessages_openai(){ // refresh from opanAI
-            return ( await mMessages(this.#openai, this.thread_id) )
-                .data
+        /**
+         * Adds an array of `Message` instances to the conversation.
+         * @public
+         * @param {Object[]} messages - Array of messages to add.
+         * @returns {Object[]} - The updated messages array.
+         */
+        addMessages(messages){
+            messages
+                .sort((mA, mB) => mA.created_at - mB.created_at)
+                .forEach(message => this.addMessage(message))
+            return this.messages
+        }
+        /**
+         * Get the message by id, or defaults to last message added.
+         * @public
+         * @param {Guid} messageId - The message id.
+         * @returns {object} - The openai `message` object.
+         */
+        async getMessage(messageId){
+            return messageId && this.messages?.[0]?.id!==messageId
+                ? this.messages.find(message=>message.id===messageId)
+                : this.message
         }
         async save(){
             // also if this not saved yet, save to cosmos
@@ -167,8 +185,24 @@ function extendClass_conversation(_originClass,_references) {
         get isSaved(){
             return this.#saved
         }
+        /**
+         * Get the most recently added message.
+         * @getter
+         * @returns {Message} - The most recent message.
+         */
+        get message(){
+            return this.messages[0]
+        }
         get messages(){
             return this.#messages
+        }
+        /**
+         * Gets most recent dialog contribution to conversation.
+         * @getter
+         * @returns {object} - Most recent facet of dialog from conversation.
+         */
+        get mostRecentDialog(){
+            return this.message.content
         }
         get thread(){
             return this.#thread
@@ -184,6 +218,7 @@ function extendClass_conversation(_originClass,_references) {
 }
 function extendClass_experience(_originClass, _references){
     class Experience extends _originClass {
+        #cast = []
         #experienceVariables = {}
         constructor(_obj) {
             super(_obj)
@@ -251,6 +286,36 @@ function extendClass_experience(_originClass, _references){
         }
         /* getters/setters */
         /**
+         * Get the cast of the experience.
+         * @getter
+         * @returns {ExperienceCastMember[]} - The array of cast members.
+         */
+        get castMembers(){
+            return this.cast.map(castMember=>{
+                const { bot_id, icon, id, name, role, type, } = castMember
+                return { bot_id, icon, id, name, role, type, }
+            })
+        }
+        /**
+         * Get the experience in frontend format. Currently intentionally omitting manifest, grab separately, they are not "required". Scenes and events are only required in `eventSequences`.
+         * @getter
+         * @returns {object} - The `synthetic` experience object.
+         */
+        get experience(){
+            const { autoplay, description, goal, id, location, purpose, skippable, title, version } = this
+            return {
+                autoplay,
+                description,
+                goal,
+                id,
+                location,
+                purpose,
+                skippable,
+                title,
+                version: version ?? 0,
+            }
+        }
+        /**
          * Get the experience variables.
          * @getter
          * @returns {object} - The experience variables object.
@@ -266,6 +331,19 @@ function extendClass_experience(_originClass, _references){
          */
         set experienceVariables(obj){
             this.#experienceVariables = { ...this.#experienceVariables, ...obj }
+        }
+        /**
+         * Get the manifest of the experience.
+         * @getter
+         * @returns {object} - The manifest of the experience.
+         * @property {array} cast - The cast array of the experience.
+         * @property {object} navigation - The navigation object of the experience.
+         */
+        get manifest(){
+            return {
+                cast: this.castMembers,
+                navigation: this.navigation,
+            }
         }
     }
     return Experience
@@ -293,77 +371,36 @@ function extendClass_message(_originClass,_references) {
      * Message class.
      * @class
      * @extends _originClass - variable that defines the _actual_ class to extend, here message.
-     * @param {object} _obj - The object to construct the message from..
+     * @param {object} obj - The object to construct the message from..
      */
     class Message extends _originClass {
-        #maxContextWindow = Math.min((process.env.OPENAI_MAX_CONTEXT_WINDOW || 2000), 5000)    //  default @2k chars, hard cap @5k
-        #message
-        #openai = _references?.openai
-        constructor(_obj) {
+        #content
+        constructor(obj) {
+            const { content, ..._obj } = obj
             super(_obj)
-            /* category population */
-            if(!_obj?.content) mAssignContent(this, _obj)
-        }
-        /* public functions */
-        async init(_thread){ // only required if user message
-            if((!this.content & !this.files)||!_thread)
-                throw new Error('Insufficient data provided for message init()')
-            /* todo: limit requirements for context window, generate file and attach to file_ids array
-            if(this.content.length > this.#maxContextWindow) {
-                //  TODO: generate file and attach to file_ids array
-                throw new Error('unimplemented')
-                const _file = await this.#constructFile(this.content)
-                this.files.push(_file)
-                this.content = `user posted content length greater than context window: find request in related file, file_id: ${_file.id}`      //   default content points to file
-            }*/
-            this.#message = await mGetMessage(
-                this.#openai,
-                _thread,
-                this.content,
-                this.message?.id,
-            )
-            return this
+            try{
+                this.#content = mAssignContent(content??obj)
+            } catch(e){
+                console.log('Message::constructor::ERROR', e)
+                this.#content = ''
+            }
         }
         /* getters/setters */
+        get content(){
+            return this.#content
+        }
+        set content(_content){
+            try{
+                this.#content = mAssignContent(_content)
+            } catch(e){
+                console.log('Message::content::ERROR', e)
+            }
+        }
         get message(){
-            return this.#message
+            return this
         }
         get micro(){
             return { content: this.content, role: this.role??'user' }
-        }
-        get text(){
-            switch (this.type) {
-                case 'chat':
-                    switch (this.system) {
-                        case 'openai_assistant':
-                            return this.message.content[0].text.value
-                        default:
-                            break
-                    }
-                default:
-                    return 'no content derived'
-            }
-        }
-        /* private functions */
-        /**
-         * When incoming text is too large for a single message, generate dynamic text file and attach/submit.
-         * @private
-         * @param {string} _file - The file to construct.
-         * @returns 
-         */
-        async #constructFile(_file){
-            //  construct file object
-            const __file = new (this.factory.file)({
-                name: `file_message_${this.id}`,
-                type: 'text',
-                contents: _file,
-            })
-            //  save to embedder
-            return {
-                name: __file.name,
-                type: __file.type,
-                contents: await __file.arrayBuffer(),
-            }
         }
     }
     return Message

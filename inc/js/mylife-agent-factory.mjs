@@ -1,5 +1,4 @@
 //	imports
-import OpenAI from 'openai'
 import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
@@ -16,6 +15,7 @@ import {
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
+import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
@@ -42,13 +42,8 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
+const mLLMServices = new LLMServices()
 const mNewGuid = ()=>Guid.newGuid().toString()
-const mOpenAI = new OpenAI({
-	apiKey: process.env.OPENAI_API_KEY,
-	organizationId: process.env.OPENAI_ORG_KEY,
-	timeoutMs: process.env.OPENAI_API_CHAT_TIMEOUT,
-	basePath: process.env.OPENAI_BASE_URL,
-})
 const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
 const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
@@ -85,6 +80,7 @@ console.log(mSchemas)
 class BotFactory extends EventEmitter{
 	// micro-hydration version of factory for use _by_ the MyLife server
 	#dataservices
+	#llmServices = mLLMServices
 	#mbr_id
 	constructor(_mbr_id, _directHydration=true){
 		super()
@@ -366,6 +362,7 @@ class BotFactory extends EventEmitter{
 }
 class AgentFactory extends BotFactory{
 	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
+	#llmServices = mLLMServices
 	constructor(mbr_id){
 		super(mbr_id, false)
 	}
@@ -379,6 +376,7 @@ class AgentFactory extends BotFactory{
 		if(mIsMyLife(mbr_id))
 			throw new Error('MyLife server AgentFactory cannot be initialized, as it references modular dataservices on constructor().')
 		await super.init(mbr_id)
+		this.#llmServices = new LLMServices(this.core.openaiapikey, this.core.openaiorgkey)
 		return this
 	}
 	/**
@@ -427,7 +425,7 @@ class AgentFactory extends BotFactory{
 	 * @returns {Avatar} - The Avatar instance.
 	 */
 	async getAvatar(){
-		const _avatar = await ( new Avatar(this, mOpenAI) )
+		const _avatar = await ( new Avatar(this, this.#llmServices) )
 			.init()
 		return _avatar
 	}
@@ -656,7 +654,6 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
  * @returns {object} - Bot object
 */
 function mCreateBot(_factory, _bot){
-	// create gpt
 	const _description = _bot.description??`I am a ${_bot.type} bot for ${_factory.memberName}`
 	const _instructions = _bot.instructions??mCreateBotInstructions(_factory, _bot.type)
 	const _botName = _bot.bot_name??_bot.name??_bot.type
@@ -783,10 +780,6 @@ function mExtractClassesFromSchema(_schema){
 			})
 	}
 	_extractClasses(_schema)
-	if(_schema.$defs?.length){
-		console.log('object has defs', _classes)
-		abort
-	}
 	return _classes
 }
 function mExtendClass(_class) {
@@ -794,7 +787,7 @@ function mExtendClass(_class) {
 	if (typeof mExtensionFunctions?.[`extendClass_${_className}`]==='function'){
 		console.log(`Extension function found for ${_className}`)
 		//	add extension decorations
-		const _references = { openai: mOpenAI }
+		const _references = { openai: mLLMServices }
 		_class = mExtensionFunctions[`extendClass_${_className}`](_class, _references)
 	}
 	return _class
@@ -849,16 +842,16 @@ constructor(obj){
 		const _type = _properties[_prop].type
 		// generate getters/setters
 		classCode += `
-get ${_prop}() {
+get ${_prop}(){
 	return this.#${_prop}
 }
 set ${_prop}(_value) {	// setter with type validation
-	if (typeof _value !== '${_type}') {
+	if(typeof _value !== '${_type}' && '${_type}' !== 'undefined'){
 		if(!('${_type}'==='array' && Array.isArray(_value))){
 			throw new Error('Invalid type for property ${_prop}: expected ${_type}')
 		}
 	}
-	if( this?.#${_prop} ) this.#${_prop} = _value
+	if(this?.#${_prop}) this.#${_prop} = _value
 	else this.${_prop} = _value
 }`
 	}

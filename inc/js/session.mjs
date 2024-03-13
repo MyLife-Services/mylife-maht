@@ -79,19 +79,18 @@ class MylifeMemberSession extends EventEmitter {
 		if(this.locked) return {}
 		const { avatar } = this.#Member
 		const experiences = await avatar.experiences(includeLived)
-		console.log('experiences', experiences)
 		let autoplay = experiences
             ?.find(experience=>experience.autoplay)
 			?.id
 			?? false
 		let events = []
 		/* trigger auto-play from session */
-		if(avatar.mode !== 'experience' && this.globals.isValidGuid(autoplay)){
-            events = await avatar.experienceUpdate(autoplay)
+		if(!this.#autoplayed && this.globals.isValidGuid(autoplay)){
+            await avatar.experienceStart(autoplay)
 			this.#autoplayed = true
 			console.log('autoplay triggered', autoplay, events)
         }
-		return { autoplay, events, experiences }
+		return { autoplay, experiences, mbr_id: this.mbr_id }
 	}
 	//	consent functionality
 	async requestConsent(ctx){

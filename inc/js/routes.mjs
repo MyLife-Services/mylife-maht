@@ -21,8 +21,10 @@ import {
 } from './functions.mjs'
 import {
     experience,
+    experienceCast,
     experienceEnd,
     experienceManifest,
+    experienceNavigation,
     experiences,
     keyValidation,
     library,
@@ -52,14 +54,14 @@ _Router.post('/signup', signup)
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
-_apiRouter.get('/experiences/:mid', experiences)
+_apiRouter.get('/experiences/:mid', experiences) // **note**: currently triggers autoplay experience
 _apiRouter.get('/login/:mid', apiLogin)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
-_apiRouter.patch('/experiences/:mid/end', experienceEnd)
-_apiRouter.patch('/experiences/:mid/experience/:eid', experience)
-_apiRouter.patch('/experiences/:mid/experience/:eid/scene/:sid', experience)
-_apiRouter.patch('/experiences/:mid/experience/:eid/scene/:sid/event/:vid', experience)
-_apiRouter.patch('/experiences/:mid/experience/:eid/manifest', experienceManifest)
+_apiRouter.patch('/experiences/:mid/experience/:eid/cast', experienceCast)
+_apiRouter.patch('/experiences/:mid/experience/:eid/manifest', experienceManifest) // proxy for both cast and navigation
+_apiRouter.patch('/experiences/:mid/experience/:eid/navigation', experienceNavigation)
+_apiRouter.patch('/experiences/:mid/experience/:eid/end', experienceEnd)
+_apiRouter.patch('/experiences/:mid/experience/:eid(.*)?', experience) // **note**: This line should be the last one alphabetically due to the wildcard.
 _apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/library/:mid', library)
@@ -77,7 +79,8 @@ _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/mode', interfaceMode)
 _memberRouter.get('/select', loginSelect)
 _memberRouter.get('/upload', upload)
-_memberRouter.patch('/experiences/:mid/experience/:eid', experience)
+_memberRouter.patch('/experience/:eid', experience)
+_memberRouter.patch('/experience/:eid/manifest', experienceManifest)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)

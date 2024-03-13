@@ -103,6 +103,7 @@ function mInput(event, iteration=0){
     const { condition, failure, followup, inputId, inputPlaceholder, inputType, outcome, placeholder, success, type, variable, variables } = eventData
     // add synthetic input object
     const input = {
+        complete: false, // default is false, true would indicate that input has been successfully complete
         condition: condition, // true would indicate that any input is successful, presume to trim, etc
         currentIteration: iteration,
         failure: failure, // default is to stay on current event
@@ -112,6 +113,7 @@ function mInput(event, iteration=0){
         inputType: inputType ?? type ?? 'input',
         outcome: outcome, // no variables, just success boolean
         success: success, // what system should do on success, guid for eventId or default is next
+        useDialogCache: false, // if true, will use dialog cache (if exists) for input and dialog (if dynamic)
         variable: variable ?? variables?.[0] ?? eventVariable ?? eventVariables?.[0] ?? 'input',
         variables: variables ?? eventVariables ?? ['input'],
     }

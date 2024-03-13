@@ -85,6 +85,11 @@
 			"type": "string",
 			"$comment": "name of the experience is only displayed in "
 		},
+		"public": {
+			"default": false,
+			"description": "if the experience is public, then it can be accessed by guest/Maht",
+			"type": "boolean"
+		},
 		"purpose": {
 			"description": "purpose of the experience",
 			"maxLength": 2048,
@@ -240,6 +245,24 @@
 					"maxLength": 128,
 					"type": "string"
 				},
+				"navigation": {
+					"additionalProperties": true,
+					"description": "navigation of the event, skippable, show on manifest, etc.",
+					"properties": {
+						"navigable": {
+							"default": false,
+							"description": "if the event is navigable, then the experiencer can navigate to the event.",
+							"type": "boolean",
+							"$comment": "manifest is built from the population of these properties."
+						},
+						"skippable": {
+							"default": true,
+							"description": "so that navigation item can be displayed differently.",
+							"type": "boolean"
+						}
+					},
+					"type": "object"
+				},
 				"order": {
 					"default": 1,
 					"description": "order of the event in the scene, if same integer then order is linear.",
@@ -303,14 +326,11 @@
 					"description": "type of object, always `experience-lived`.",
 					"type": "string"
 				},
-				"conversation": {
-					"$ref": "conversation.json"
-				},
 				"events":{
-					"description": "events of the experience for the member",
+					"description": "Events of the member' experience",
 					"items": {
-						"description": "Event of the experience for the member, in shorthand form.",
-						"$ref": "/$defs/experience-manifest-event"
+						"description": "Event of the member' experience",
+						"$ref": "/$defs/experience-event"
 					},
 					"minItems": 1,
 					"type": "array"
@@ -331,7 +351,8 @@
 					"type": "integer"
 				}
 			},
-			"additionalProperties": true
+			"additionalProperties": true,
+			"$comment": "**note**: removed .dialog and .scriptDialog as their ref types were not working with the this.# mechanic"
 		},
 		"experience-manifest": {
 			"description": "Special case object: Produced by `Avatar` in experience mode [can be requested at any time, but provided in initial experience push] used for front-end display and tracking in `XP-bar`. Essentially exists as an independent short-form of a given experience. No cast is built nor provided, that would be a separate request.",
@@ -390,7 +411,7 @@
 		"experience-manifest-scene": {
 			"description": "Scene of the experience for `XP-bar` display , in shortest form, i.e., required fields only.",
 			"name": "Experience-Manifest-Scene",
-			"required": ["description", "id", "title"],
+			"required": ["description", "id", "order", "required", "skippable", "title"],
 			"type": "object",
 			"properties": {
 				"description": {
@@ -420,7 +441,17 @@
 					"default": 1,
 					"description": "order of the scene in the experience, if same integer then order is linear.",
 					"type": "integer",
-					"$comment": "display notes: can imagine in tree form being displayed as 1.1 and 1.2 as sub-nodes that share the same core scene number."
+					"$comment": "display notes: can imagine in tree form being displayed as 1.1 and 1.2 as sub-nodes that share the same core scene number. Ergo scenes that might be consider super-branches might not each be required."
+				},
+				"required": {
+					"default": false,
+					"description": "if the scene is required, then the experiencer must experience the scene.",
+					"type": "boolean"
+				},
+				"skippable": {
+					"default": true,
+					"description": "if the scene is skippable, then the experiencer can skip the scene.",
+					"type": "boolean"
 				},
 				"title": {
 					"description": "title of the scene, optional",
@@ -476,6 +507,24 @@
 					"description": "name of the scene",
 					"maxLength": 128,
 					"type": "string"
+				},
+				"navigation": {
+					"additionalProperties": true,
+					"description": "navigation of the event, skippable, show on manifest, etc.",
+					"properties": {
+						"navigable": {
+							"default": false,
+							"description": "if the event is navigable, then the experiencer can navigate to the event.",
+							"type": "boolean",
+							"$comment": "manifest is built from the population of these properties."
+						},
+						"skippable": {
+							"default": true,
+							"description": "so that navigation item can be displayed differently.",
+							"type": "boolean"
+						}
+					},
+					"type": "object"
 				},
 				"order": {
 					"default": 1,

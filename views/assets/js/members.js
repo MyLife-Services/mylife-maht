@@ -1,3 +1,4 @@
+import { mStartExperience } from './experience.mjs'
 document.addEventListener('DOMContentLoaded', () => {
     /* vars */
     _awaitButton = document.getElementById('await-button')
@@ -28,24 +29,20 @@ document.addEventListener('DOMContentLoaded', () => {
     _awaitButton.style.display = 'none'
 
     fetchExperiences()
-        .then(async data => {
-            const { "auto-play": autoPlayGuid, experiences } = data
-
-            if (autoPlayGuid) {
-                const experienceToPlay = experiences.find(exp => exp.guid === autoPlayGuid)
-                if (experienceToPlay) {
+        .then(async experienceObject => {
+            // @todo - find better way to manage mbr_id at login, set page js vars
+            const { autoplay, experiences, mbr_id } = experienceObject
+            if(autoplay && experiences.find(experience => experience.id === autoplay)){
+                const experience = experiences.find(exp => exp.guid === autoplay)
+                if(experience) {
                     // Assuming you have a function to start the experience
-                    await startExperience(experienceToPlay)
+                    await mStartExperience(experience)
                 }
-            } else {
-                // Handle the scenario where there's no auto-play but experiences are available
-                console.log("No auto-play. Experiences available:", experiences);
-                // You could prompt the user to select an experience or handle this as needed
             }
         })
     
     console.log('test')
-
+// alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
     /* page-greeting */
     _greeting.forEach(_greet=>{
         _chatBubbleCount++
@@ -157,21 +154,17 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 async function fetchExperiences() {
-    const _id = await fetch('/members/experiences/')
-        .then(_response => {
-            if (!_response.ok) {
-                throw new Error(`HTTP error! Status: ${_response.status}`)
-            }
-            return _response.json()
-        })
-        .then(_response => {
-            return _response.activeBotId
+    const experienceObject = await fetch('/members/experiences/')
+        .then(response=>{
+            if(!response.ok)
+                throw new Error(`HTTP error! Status: ${response.status}`)
+            return response.json()
         })
         .catch(error => {
             console.log('Error:', error)
             return null
         })
-    return fetch('/api/experiences').then(res => res.json()); // Adjust API endpoint as needed
+    return experienceObject
 }
 // Function to focus on the textarea and move cursor to the end
 function focusAndSetCursor(textarea) {
