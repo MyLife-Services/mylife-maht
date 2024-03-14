@@ -307,6 +307,11 @@ function mAPIKeyValidation(ctx){ // transforms ctx.state
     if(ctx.params.mid === ':mid') ctx.params.mid = undefined
     // ctx session alternatives to hitting DB every time? can try...
     const mbr_id = ctx.params.mid??ctx.request.body.memberKey
+    const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID??'[]')
+    const localHostedMembers = [
+        'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
+    ].filter(member=>serverHostedMembers.includes(member)) // none currently
+    serverHostedMembers.push(...localHostedMembers)
     if(!mbr_id?.length)
         ctx.throw(400, 'Missing member key.')
     /* inline function definitions */
@@ -318,7 +323,7 @@ function mAPIKeyValidation(ctx){ // transforms ctx.state
             ){
                 resolve(true)
             }
-            if(process.env.MYLIFE_HOSTED_MBR_ID.includes(mbr_id)){ // initial full validation
+            if(serverHostedMembers.includes(mbr_id)){ // initial full validation
                 resolve( await ctx.MyLife.testPartitionKey(mbr_id) )
             }
             resolve(false)

@@ -20,10 +20,17 @@ import { _ } from 'ajv'
 import { parse } from 'path'
 import { Guid } from 'js-guid'
 //  function definitions to extend remarkable classes
-function extendClass_consent(_originClass,_references) {
-    class Consent extends _originClass {
-        constructor(_obj) {
-            super(_obj)
+/**
+ * Extends the `Consent` class.
+ * @todo - global conversion of parent_id -> object_id
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Consent} - The extended class definition.
+ */
+function extendClass_consent(originClass, referencesObject) {
+    class Consent extends originClass {
+        constructor(obj) {
+            super(obj)
         }
         //  public functions
         async allow(_request){
@@ -34,11 +41,17 @@ function extendClass_consent(_originClass,_references) {
 
     return Consent
 }
-function extendClass_contribution(_originClass,_references) {
-    class Contribution extends _originClass {
+/**
+ * Extends the `Contribution` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Contribution} - The `Contribution` extended class definition.
+ */
+function extendClass_contribution(originClass, referencesObject) {
+    class Contribution extends originClass {
         #emitter = new EventEmitter()
         #factory
-        #llm = _references?.openai
+        #llm = referencesObject?.openai
         constructor(_obj) {
             super(_obj)
         }
@@ -109,19 +122,31 @@ function extendClass_contribution(_originClass,_references) {
 
     return Contribution
 }
-function extendClass_conversation(_originClass, _references) {
-    class Conversation extends _originClass {
-        // @todo: convert parent_id -> object_id
+/**
+ * Extends the `Conversation` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Conversation} - The `Conversation` extended class definition.
+ */
+function extendClass_conversation(originClass, referencesObject) {
+    class Conversation extends originClass {
+        #botId
         #factory
         #messages = []
         #saved = false
         #thread
-        constructor(_obj, _factory) {
-            super(_obj)
-            this.#factory = _factory
-        }
-        async init(thread){
+        /**
+         * 
+         * @param {Object} obj - The object to construct the conversation from.
+         * @param {AgentFactory} factory - The factory instance.
+         * @param {Object} thread - The thread instance.
+         * @param {Guid} botId - The initial active bot id (can mutate)
+         */
+        constructor(obj, factory, thread, botId) {
+            super(obj)
+            this.#factory = factory
             this.#thread = thread
+            this.#botId = botId
             this.name = `conversation_${this.#factory.mbr_id}_${thread.thread_id}`
             this.type = this.type??'chat'
         }
@@ -182,6 +207,15 @@ function extendClass_conversation(_originClass, _references) {
             return this
         }
         //  public getters/setters
+        get bot_id(){
+            return this.#botId
+        }
+        get botId(){
+            return this.bot_id
+        }
+        set botId(_botId){
+            this.#botId = _botId
+        }
         get isSaved(){
             return this.#saved
         }
@@ -216,12 +250,18 @@ function extendClass_conversation(_originClass, _references) {
     }
     return Conversation
 }
-function extendClass_experience(_originClass, _references){
-    class Experience extends _originClass {
+/**
+ * Extends the `Experience` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Experience} - The `Experience` extended class definition.
+ */
+function extendClass_experience(originClass, referencesObject){
+    class Experience extends originClass {
         #cast = []
         #experienceVariables = {}
-        constructor(_obj) {
-            super(_obj)
+        constructor(obj) {
+            super(obj)
         }
         /* public functions */
         /**
@@ -348,8 +388,14 @@ function extendClass_experience(_originClass, _references){
     }
     return Experience
 }
-function extendClass_file(_originClass,_references) {
-    class File extends _originClass {
+/**
+ * Extends the `File` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {File} - The `File` extended class definition.
+ */
+function extendClass_file(originClass, referencesObject) {
+    class File extends originClass {
         #contents   //  utilized _only_ for text files
         constructor(_obj) {
             super(_obj)
@@ -366,14 +412,20 @@ function extendClass_file(_originClass,_references) {
     }
     return File
 }
-function extendClass_message(_originClass,_references) {
+/**
+ * Extends the `Message` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Message} - The `Message` extended class definition.
+ */
+function extendClass_message(originClass, referencesObject) {
     /**
      * Message class.
      * @class
-     * @extends _originClass - variable that defines the _actual_ class to extend, here message.
+     * @extends originClass - variable that defines the _actual_ class to extend, here message.
      * @param {object} obj - The object to construct the message from..
      */
-    class Message extends _originClass {
+    class Message extends originClass {
         #content
         constructor(obj) {
             const { content, ..._obj } = obj

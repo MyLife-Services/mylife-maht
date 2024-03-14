@@ -21,18 +21,19 @@ class LLMServices {
     /* public methods */
     /**
      * Given member input, get a response from the specified LLM service.
+     * @param {string} threadId - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} prompt - Member input.
-     * @param {string} threadId - Thread id.
      * @returns {Promise<Object[]>} - Array of openai `message` objects.
      */
-    async getLLMResponse(botId, prompt, threadId){
+    async getLLMResponse(threadId, botId, prompt){
         await mAssignRequestToThread(this.openai, threadId, prompt)
         const run = await mRunTrigger(this.openai, botId, threadId)
         const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run
         const llmMessageObject = await mMessages(this.provider, threadId)
         const { data: llmMessages} = llmMessageObject
         return llmMessages
+            .filter(message=>message.role=='assistant' && message.run_id==run_id)
     }
     /**
      * Create a new OpenAI thread.

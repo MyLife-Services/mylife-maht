@@ -66,23 +66,26 @@ class Avatar extends EventEmitter {
         /* create evolver (exclude MyLife) */
         // @todo: admin interface for modifying MyLife avatar and their bots
         this.#bots = await this.#factory.bots(this.id)
-        let _activeBot = this.avatarBot
+        let activeBot = this.avatarBot
         if(!this.isMyLife){
-            if(!_activeBot.id){ // create: but do not want to call setBot() to activate
-                _activeBot = await mBot(this)
-                this.#bots.unshift(_activeBot)
+            if(!activeBot.id){ // create: but do not want to call setBot() to activate
+                activeBot = await mBot(this)
+                this.#bots.unshift(activeBot)
             }
-            this.activeBotId = _activeBot.id
+            this.activeBotId = activeBot.id
+            this.#llmServices.botId = activeBot.bot_id
             this.#experienceVariables = mAssignExperienceVariables(this.#experienceVariables, this)
             this.#evolver = new EvolutionAssistant(this)
             mAssignEvolverListeners(this.#evolver, this)
             /* init evolver */
             await this.#evolver.init()
         } else { // Q-specific, leave as `else` as is near always false
-            this.activeBotId = this.avatarBot.id
-            this.avatarBot.bot_id = process.env?.OPENAI_MAHT_GPT_OVERRIDE??this.avatarBot.bot_id
-            const conversation = await this.getConversation()
-            this.avatarBot.thread_id = conversation.threadId
+            // @todo - something doesn't smell right in how session would handle conversations - investigate logic; fine if new Avatar instance is spawned for each session, which might be true
+            this.activeBotId = activeBot.id
+            activeBot.bot_id = process.env?.OPENAI_MAHT_GPT_OVERRIDE??activeBot.bot_id
+            this.#llmServices.botId = activeBot.bot_id
+            const conversation = await this.createConversation()
+            activeBot.thread_id = conversation.threadId
             this.#proxyBeing = 'MyLife'
         }
         this.emit('avatar-init-end', this.conversations)
@@ -99,22 +102,63 @@ class Avatar extends EventEmitter {
     }
     /**
      * Processes and executes incoming chat request.
+     * @todo - cleanup/streamline frontend communication as it really gets limited to Q&A... other events would fire API calls on the same same session, so don't need to be in chat or conversation streams
      * @public
      * @param {object} ctx - The context object.
      * @returns {object} - The response(s) to the chat request.
     */
     async chatRequest(ctx){
-        if(!ctx?.state?.chatMessage)
+        const processStartTime = Date.now()
+        const { chatMessage, } = ctx.state
+        const { message: prompt, role, thread_id, } = chatMessage
+        if(!prompt)
             throw new Error('No message provided in context')
-        const _chat = await mChat(
-            this,
-            ctx.state.chatMessage
-        )
-        const _activeAlerts = ctx.state.MemberSession.alerts()
-        if(_activeAlerts?.length){
-            _chat.alerts = ctx.state.MemberSession.alerts()
+        // send active bot? send active conversation?
+        let conversation = this.getConversation(this.activeBot.thread_id)
+        if(!conversation){
+            conversation = await this.createConversation('chat')
         }
-        return _chat
+        conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
+        const messages = await mCallLLM(this.#llmServices, conversation, prompt)
+        conversation.addMessages(messages)
+        console.log('here', messages.map(message=>message.content[0].text))
+        if(JSON.parse(process.env.MYLIFE_DB_ALLOW_SAVE ?? 'false')){
+            conversation.save()
+        } else {
+            console.log('chatRequest::BYPASS-SAVE', conversation.message)
+        }
+        /* frontend mutations */
+        const { activeBot: bot } = this
+        // current fe will loop through messages in reverse chronological order
+        const chat = conversation.messages
+            .filter(message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
+                return messages.find(_message=>_message.id===message.id)
+                    && message.type==='chat'
+                    && message.role!=='user'
+            })
+            .map(message=>{
+                message = mPrepareMessage(message.content) // returns object { category, content }
+                const { category, content } = message
+                return {
+                    activeBotId: bot.id,
+                    activeBotAIId: bot.bot_id,
+                    agent: 'server',
+                    category: category,
+                    contributions: [],
+                    message: content,
+                    purpose: 'chat response',
+                    response_time: Date.now()-processStartTime,
+                    thread_id: conversation.thread_id,
+                    type: 'chat',
+                }
+            })
+        return chat
+    }
+    async createConversation(type='chat'){
+        const thread = await this.#llmServices.thread()
+        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
+        this.#conversations.push(conversation)
+        return conversation
     }
     /**
      * Ends an experience.
@@ -201,17 +245,11 @@ class Avatar extends EventEmitter {
      * Gets Conversation object. If no thread id, creates new conversation.
      * @param {string} thread_id - openai thread id
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
-     * @returns 
+     * @returns {Conversation} - The conversation object.
      */
-    async getConversation(thread_id, type='chat'){
-        let conversation = this.#conversations.find(_=>_.thread?.id===thread_id)
-        if(!thread_id || !conversation){
-            conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory)
-            const thread = await this.#llmServices.thread()
-            conversation.init(thread)
-            this.#conversations.push(conversation)
-        }
-        return conversation
+    getConversation(thread_id){
+        return this.#conversations
+            .find(_=>_.thread?.id===thread_id)
     }
     /**
      * Processes and executes incoming category set request.
@@ -259,6 +297,9 @@ class Avatar extends EventEmitter {
      */
     get activeBot(){
         return this.#bots.find(_bot=>_bot.id===this.activeBotId)
+    }
+    get activeBotAIId(){
+        return this.activeBot.bot_id
     }
     /**
      * Get the active bot id.
@@ -743,23 +784,22 @@ async function mBot(_avatar, _bot={type: 'personal-avatar'}){
     return _bot
 }
 /**
- * Pruned version of mChat where call is internal via experience or member avatar dial-up. Direct member bot access is through mChat. Mutates conversation, but unclear if _ever_ saved from this function.
+ * Makes call to LLM and to return response(s) to prompt.\
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
  * @todo - address disconnect between conversations held in memory in avatar and those in openAI threads; use `addLLMMessages` to post internally
  * @modular
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
- * @param {string} botId - bot id
- * @param {boolean} forceSave - Force save to cosmos
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
  */
-async function mCallLLM(llmServices, conversation, prompt, botId, forceSave=false){
+async function mCallLLM(llmServices, conversation, prompt){
     const { thread_id: threadId } = conversation
     if(!threadId)
         throw new Error('No `thread_id` found for conversation')
-    // **note**: creates own synthetic thread that _should not be stored_.
-    const messages = await llmServices.getLLMResponse(botId, prompt, threadId)
+    if(!conversation.botId)
+        throw new Error('No `botId` found for conversation')
+    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })
@@ -769,14 +809,14 @@ async function mCallLLM(llmServices, conversation, prompt, botId, forceSave=fals
  * Cancels openAI run.
  * @modular
  * @param {LLMServices} llmServices - OpenAI object
- * @param {string} _thread_id - Thread id
- * @param {string} run_id - Run id
+ * @param {string} threadId - Thread id
+ * @param {string} runId - Run id
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mCancelRun(llmServices, _thread_id, run_id,){
+async function mCancelRun(llmServices, threadId, runId,){
     return await llmServices.beta.threads.runs.cancel(
-        _thread_id,
-        run_id
+        threadId,
+        runId
     )
 }
 /**
@@ -814,59 +854,6 @@ async function mCast(factory, cast){
     return cast
 }
 /**
- * Requests and returns chat response from openAI.
- * @todo - reinstate contribution
- * @todo - assign uploaded files (optional) and push `retrieval` to tools
- * @modular
- * @param {Avatar} _avatar - Avatar object
- * @param {string} chatMessage - Chat message
- * @returns {array} - array of front-end MyLife chat response objects { agent, category, contributions, message, response_time, purpose, type }
- */
-async function mChat(_avatar, chatMessage){
-    // **note**: Q/isMyLife PA bot does not have thread_id intentionally, as every session creates its own
-    const _processStartTime = Date.now()
-    const _bot = _avatar.activeBot
-    // check if active bot, if not use self
-    const conversation = await _avatar.getConversation(_bot.thread_id) // create if not exists
-    await conversation.getLLMResponse(chatMessage)
-
-    
-
-
-abort // fix
-
-
-
-    conversation.addMessage(_chatMessage)
-    //	@todo: assign uploaded files (optional) and push `retrieval` to tools
-    _bot.thread_id = _bot.thread_id??conversation.thread_id
-    const { id: botId, thread_id: threadId } = _bot
-    _avatar.runs = await mRunTrigger(_avatar.ai, _avatar.runs??[], botId, threadId) // mutates (unshift) _avatar.runs
-    await conversation.addLLMMessages(runs[0])
-    //	add/update cosmos
-    if(process.env.MYLIFE_DB_ALLOW_SAVE ?? false){
-        conversation.save()
-    }
-    const _chat = _messages
-        .map(_msg=>{
-            const __message = mPrepareMessage(_msg) // returns object { category, content }
-            return {
-                activeBotId: _bot.id,
-                activeBotAIId: _bot.bot_id,
-                agent: 'server',
-                category: __message.category,
-                contributions: [],
-                message: __message.content,
-                purpose: 'chat response',
-                response_time: Date.now()-_processStartTime,
-                thread_id: conversation.thread_id,
-                type: 'chat',
-            }
-        })
-    //	return response
-    return _chat
-}
-/**
  * Creates bot and returns associated `bot` object.
  * @modular
  * @private
@@ -892,6 +879,7 @@ function mEventAppear(event){
 }
 /**
  * Returns processed dialog as string.
+ * @todo - add LLM usage data to conversation
  * @todo - when `variable` undefined in `experience.variables`, check to see if event can be found that will provide it
  * @modular
  * @public
@@ -945,26 +933,26 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
                 })
             }
             // **note**: system chat would refer to `Q`, but I want any internal chat to go through this channel, depending on cast member
-            const { cast } = experience
+            const { cast, scriptAdvisorBotId } = experience
             const { dialog: coreDialog, scriptDialog } = livingExperience
             const castMember = cast.find(castMember=>castMember.id===actor)
-            const botId = castMember.bot?.bot_id
-            if(!botId)
-                throw new Error('No bot found for actor')
-            const messages = await mCallLLM(llm, scriptDialog, prompt, botId) // mutates scriptDialog
+            scriptDialog.botId = castMember.bot?.bot_id ?? scriptAdvisorBotId ?? this.activebot.bot_id // set llm assistant id
+            const messages = await mCallLLM(llm, scriptDialog, prompt) ?? []
+            if(!messages.length){
+                console.log('mEventDialog::no messages returned from LLM', prompt, scriptDialog.botId)
+                messages.push(promptFallback) // can accept string
+            }
             scriptDialog.addMessages(messages)
-            console.log('mEventDialog::messages', messages, scriptDialog.mostRecentDialog)
-            abort
-            await coreDialog.addMessage(messages[0])
-            const response = scriptDialog.mostRecentDialog
-            console.log('mEventDialog::response', response, promptFallback, coreDialog.mostRecentDialog)
-            return response??promptFallback
+            coreDialog.addMessage(scriptDialog.mostRecentDialog)
+            console.log('mEventDialog::dialog response:', coreDialog.mostRecentDialog)
+            return coreDialog.mostRecentDialog
         default:
             throw new Error(`Dialog type \`${type}\` not recognized`)
     }   
 }
 /**
  * Returns a processed memberInput event.
+ * @todo - once conversations are not spurred until needed, add a third conversation to the experience, which would be the scriptAdvisor (not actor) to determine success conditions for scene, etc.
  * @todo - success condition
  * @todo - turn input.outcome into actual JSON object and stringify it for LLM
  * @modular
@@ -980,7 +968,7 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
  */
 async function mEventInput(llm, experience, livingExperience, event, iteration=0, memberInput){
     const { actor, id, type='script' } = event
-    const { dialog, events, scriptDialog, } = livingExperience
+    const { dialog, events, scriptAdvisor, scriptDialog, } = livingExperience
     const hasMemberInput = 
             ( typeof memberInput==='object' && Object.keys(memberInput)?.length )
          || ( memberInput?.trim() ?? memberInput?.length ?? false )
@@ -994,12 +982,6 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
     /* return request for memberInput */
     if(!hasMemberInput)
         return input
-
-
-
-
-    abort // fix
-    dialog.addMessage({ content: memberInput }) // add to livingExperience, no need to `await`
     /* process and flatten memberInput */
     switch(input.inputType){
         case 'input':
@@ -1036,24 +1018,31 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
     if(input.outcome?.trim()?.length)
         prompt += 'OUTCOME: return JSON-parsable object = '
             + input.outcome.trim()
-    await mCallLLM(llm, scriptDialog, prompt, experience.scriptAdvisorBotId)
+    const scriptAdvisorBotId = experience.scriptAdvisorBotId ?? actor.bot_id ?? this.activebot.bot_id
+    const scriptConsultant = scriptAdvisor ?? scriptDialog ?? dialog
+    scriptConsultant.botId = scriptAdvisorBotId
+    const messages = await mCallLLM(llm, scriptConsultant, prompt) ?? []
+    if(!messages.length){
+        console.log('mEventInput::no messages returned from LLM', prompt, scriptAdvisorBotId, scriptConsultant)
+        throw new Error('No messages returned from LLM')
+    }
+    scriptConsultant.addMessages(messages)
     /* validate return from LLM */
-    let evaluationResponse = scriptDialog.messages[0].content
-    switch(typeof evaluationResponse){
-        case 'string':
-            evaluationResponse = evaluationResponse.trim()
-            if(!evaluationResponse.length)
-                throw new Error('LLM content did not return a string')
-            evaluationResponse = evaluationResponse.replace(/\\n|\n/g, '')
-            try{
-                evaluationResponse = JSON.parse(evaluationResponse) // convert to JSON
-            } catch(err){
-                console.log('JSON PARSING ERROR', err, evaluationResponse)
-                // issue is that keys were not wrapped in quotes, fix
-                evaluationResponse = evaluationResponse.replace(/([a-zA-Z0-9_$\-]+):/g, '"$1":')
-                evaluationResponse = JSON.parse(evaluationResponse)
-            }
-            break
+    let evaluationResponse = scriptConsultant.mostRecentDialog
+    console.log('mEventInput::response', evaluationResponse)
+    if(!evaluationResponse.length)
+        throw new Error('LLM content did not return a string')
+    evaluationResponse = evaluationResponse.replace(/\\n|\n/g, '')
+    evaluationResponse = evaluationResponse.substring(
+        evaluationResponse.indexOf('{'),
+        evaluationResponse.lastIndexOf('}')+1,
+    )
+    try{
+        evaluationResponse = JSON.parse(evaluationResponse) // convert to JSON
+    } catch(err){
+        console.log('JSON PARSING ERROR', err, evaluationResponse)
+        evaluationResponse = evaluationResponse.replace(/([a-zA-Z0-9_$\-]+):/g, '"$1":') // keys must be in quotes
+        evaluationResponse = JSON.parse(evaluationResponse)
     }
     if(!evaluationResponse.success??false){
         // @todo - handle failure; run through script again, probably at one layer up from here
@@ -1066,13 +1055,13 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
             experience.experienceVariables[_variable] = evaluationResponse.outcome[_variable]
         })
     }
-    input.complete = input.success ?? false
     if(typeof input.success === 'object'){
         // @todo - handle object success object conditions
         // denotes multiple potential success outcomes, currently scene/event branching based on content
         // See success_complex in API script, key is variable, value is potential values _or_ event guid
         // loop through keys and compare to experience.experienceVariables
     }
+    input.complete = input.success ?? false
     return input
 }
 /**
@@ -1231,8 +1220,8 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
     experience.navigation = mNavigation(scenes) // hydrate scene data for navigation
     /* assign living experience */
     let [dialog, scriptDialog] = await Promise.all([
-        avatar.getConversation(undefined, 'experience'),
-        avatar.getConversation(undefined, 'dialog')
+        avatar.createConversation('experience'),
+        avatar.createConversation('dialog')
     ]) // async cobstruction
     livingExperience.dialog = dialog
     livingExperience.scriptDialog = scriptDialog
@@ -1313,6 +1302,34 @@ function mNavigation(scenes){
         .sort((a,b)=>{
             return a.order - b.order
         })
+}
+/**
+ * returns simple micro-message with category after logic mutation. 
+ * Currently tuned for openAI gpt-assistant responses.
+ * @modular
+ * @private
+ * @param {string} _msg text of message, currently from gpt-assistants
+ * @returns {object} { category, content }
+ */
+function mPrepareMessage(_msg){
+    /* parse message */
+    // Regular expression to match the pattern "Category Mode: {category}. " or "Category Mode: {category}\n"; The 'i' flag makes the match case-insensitive
+    const _categoryRegex = /^Category Mode: (.*?)\.?$/gim
+    const _match = _categoryRegex.exec(_msg)
+    const _messageCategory = mFormatCategory(_match?.[1]??'')
+    if(_msg.content) _msg = _msg.content
+    // Remove from _msg
+    _msg = _msg.replace(_categoryRegex, '')
+    const _content = _msg.split('\n')
+        .filter(_line => _line.trim() !== '') // Remove empty lines
+        .map(_msg=>{
+            return new Marked().parse(_msg)
+        })
+        .join('\n')
+    return {
+        category: _messageCategory,
+        content: _content,
+    }
 }
 /**
  * Returns a sanitized event.
