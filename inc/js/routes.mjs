@@ -58,10 +58,10 @@ _apiRouter.get('/experiences/:mid', experiences) // **note**: currently triggers
 _apiRouter.get('/login/:mid', apiLogin)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.patch('/experiences/:mid/experience/:eid/cast', experienceCast)
+_apiRouter.patch('/experiences/:mid/experience/:eid/end', experienceEnd)
 _apiRouter.patch('/experiences/:mid/experience/:eid/manifest', experienceManifest) // proxy for both cast and navigation
 _apiRouter.patch('/experiences/:mid/experience/:eid/navigation', experienceNavigation)
-_apiRouter.patch('/experiences/:mid/experience/:eid/end', experienceEnd)
-_apiRouter.patch('/experiences/:mid/experience/:eid(.*)?', experience) // **note**: This line should be the last one alphabetically due to the wildcard.
+_apiRouter.patch('/experiences/:mid/experience/:eid', experience) // **note**: This line should be the last one alphabetically due to the wildcard.
 _apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/library/:mid', library)
@@ -80,6 +80,7 @@ _memberRouter.get('/mode', interfaceMode)
 _memberRouter.get('/select', loginSelect)
 _memberRouter.get('/upload', upload)
 _memberRouter.patch('/experience/:eid', experience)
+_memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/activate/:bid', activateBot)
