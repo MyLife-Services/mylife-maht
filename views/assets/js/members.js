@@ -1,3 +1,4 @@
+import { mStartExperience } from './experience.mjs'
 document.addEventListener('DOMContentLoaded', () => {
     /* vars */
     _awaitButton = document.getElementById('await-button')
@@ -26,6 +27,22 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     /* onLoad */
     _awaitButton.style.display = 'none'
+
+    fetchExperiences()
+        .then(async experienceObject => {
+            // @todo - find better way to manage mbr_id at login, set page js vars
+            const { autoplay, experiences, mbr_id } = experienceObject
+            if(autoplay && experiences.find(experience => experience.id === autoplay)){
+                const experience = experiences.find(exp => exp.guid === autoplay)
+                if(experience) {
+                    // Assuming you have a function to start the experience
+                    await mStartExperience(experience)
+                }
+            }
+        })
+    
+    console.log('test')
+// alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
     /* page-greeting */
     _greeting.forEach(_greet=>{
         _chatBubbleCount++
@@ -135,6 +152,19 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+async function fetchExperiences() {
+    const experienceObject = await fetch('/members/experiences/')
+        .then(response=>{
+            if(!response.ok)
+                throw new Error(`HTTP error! Status: ${response.status}`)
+            return response.json()
+        })
+        .catch(error => {
+            console.log('Error:', error)
+            return null
+        })
+    return experienceObject
 }
 // Function to focus on the textarea and move cursor to the end
 function focusAndSetCursor(textarea) {

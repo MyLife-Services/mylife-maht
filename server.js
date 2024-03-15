@@ -37,7 +37,6 @@ setInterval(checkForLiveAlerts, process.env?.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL?
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
-//	app.context.AgentFactory = _Maht.factory	//	todo: remove ctx.AgentFactory, rely on ctx.MyLife, no direct access to manipulate system factory
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
 app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
@@ -66,6 +65,17 @@ app.use(koaBody({
 			},
 			app
 		))
+	.use(async (ctx,next) => { // GLOBAL ERROR `.catch()` to present in ctx format.
+		try {
+			await next()
+		} catch (err) {
+			ctx.status = err.statusCode || err.status || 500
+			ctx.body = {
+				message: err.message
+			}
+			console.error(err)
+		}
+	})
 	.use(async (ctx,next) => {	//	SESSION: member login
 		//	system context, koa: https://koajs.com/#request
 		if(!ctx.session?.MemberSession){
@@ -81,8 +91,8 @@ app.use(koaBody({
 		ctx.state.member = ctx.state.MemberSession?.member
 			??	ctx.MyLife	//	point member to session member (logged in) or MAHT (not logged in)
 		ctx.state.avatar = ctx.state.member.avatar
-		ctx.state.avatar.name = ctx.state.avatar.names[0]
 		ctx.state.contributions = ctx.state.avatar.contributions
+		ctx.state.interfaceMode = ctx.state.avatar?.mode??'standard'
 		ctx.state.menu = ctx.MyLife.menu
 		if(!await ctx.state.MemberSession.requestConsent(ctx))
 			ctx.throw(404,'asset request rejected by consent')

@@ -11,7 +11,7 @@ let Globals
 //	modular class definition
 class oAIAssetAssistant {
 	//	pseudo-constructor
-	#ctx
+	#ctx // @todo: only useful if assistant only exists for duration of request
 	#file
 	#mbr_id
 	constructor(_ctx){

@@ -13,13 +13,14 @@
 	<script src="/js/global.js" defer></script>
 	<!-- do not include if not logged in -->
 <% if (!locked) { %>
-	<script src="/js/members.js"></script>
+	<script type="module" src="/js/members.js"></script>
 	<script src="/js/bots.js"></script>
 <% } %>
 	<title>MyLife Member Services</title>
 </head>
 <body>
 	<div class="page-container">
+		<div id="experienceModal"></div><!--- modal experience screen -->
 		<div id="navigation-container" class="navigation-container">
 			<% include assets/html/_navbar %>
 		</div>

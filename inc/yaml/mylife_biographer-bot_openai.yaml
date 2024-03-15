@@ -89,6 +89,32 @@ paths:
                   description: MyLife Biographer Bot summary of identified `story`.
                   maxLength: 20480
                   type: string
-      responses:
-        "200":
-          description: Webhook registration data received successfully.
+responses:
+  "200":
+    description: Story submitted successfully.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              const: true
+              example: true
+            message:
+              type: string
+              example: Story submitted successfully.
+  "400":
+    description: No story summary provided. Use `storySummary` field.
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              const: false
+              example: false
+            message:
+              type: string
+              example: No story summary provided. Use `storySummary` field.

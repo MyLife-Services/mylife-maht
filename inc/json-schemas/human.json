@@ -1,10 +1,15 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/human.json",
-	"required": ["id", "mbr_id", "being", "categories", "emails", "language"],
+	"required": ["avatar_id", "id", "mbr_id", "being", "categories", "emails", "language"],
 	"type": "object",
 	"name": "Human",
 	"properties": {
+		"avatar_id": {
+			"type": "string",
+			"format": "uuid",
+			"description": "uuid of the avatar document for member"
+		},
 		"id": {
 			"description": "uuid of the human member",
 			"type": "string",
@@ -14,10 +19,6 @@
 			"type": "string",
 			"description": "root member id: [sysName|id]",
 			"$comment": "also prtitionId for container; NOTE: sysName should not render down to any boolean version of false"
-		},
-		"parent_id": {
-			"type": "string",
-			"format": "uuid"
 		},
 		"being": {
 			"type": "string",
