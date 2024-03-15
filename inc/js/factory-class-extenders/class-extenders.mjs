@@ -12,6 +12,7 @@ import{
     mGetEvent,
     mInput,
     mGetScene,
+    mGetSceneNext,
 } from './class-experience-functions.mjs'
 import {
 	mAssignContent,
@@ -323,6 +324,9 @@ function extendClass_experience(originClass, referencesObject){
          */
         scene(sceneId){
             return mGetScene(this.scenes, sceneId)
+        }
+        sceneNext(sceneId){
+            return mGetSceneNext(this.scenes, sceneId)
         }
         /* getters/setters */
         /**

@@ -178,7 +178,7 @@ class Avatar extends EventEmitter {
         this.experience = undefined
         // save living experience (no need to await cosmos)
         this.#livedExperiences.push(this.#livingExperience.id)
-        console.log('experienceEnd', this.#livingExperience)
+        console.log('experienceEnd', this.#livingExperience.dialog.messages.map(message=>message.content))
         this.#livingExperience = undefined
         return true
     }
@@ -204,7 +204,7 @@ class Avatar extends EventEmitter {
             this.#livingExperience,
             memberInput,
         )
-        return events
+        return events // final manifest of events [question, could manifest still be needed?]
     }
     /**
      * Returns array of available experiences for the member in shorthand object format, i.e., not a full `Experience` class instance. That is only required when performing.
@@ -953,8 +953,7 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
 /**
  * Returns a processed memberInput event.
  * @todo - once conversations are not spurred until needed, add a third conversation to the experience, which would be the scriptAdvisor (not actor) to determine success conditions for scene, etc.
- * @todo - success condition
- * @todo - turn input.outcome into actual JSON object and stringify it for LLM
+ * @todo - handle complex success conditions
  * @modular
  * @public
  * @param {LLMServices} llm - OpenAI object currently.
@@ -1018,7 +1017,9 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
     if(input.outcome?.trim()?.length)
         prompt += 'OUTCOME: return JSON-parsable object = '
             + input.outcome.trim()
-    const scriptAdvisorBotId = experience.scriptAdvisorBotId ?? actor.bot_id ?? this.activebot.bot_id
+    const scriptAdvisorBotId = experience.scriptAdvisorBotId
+        ?? experience.cast.find(castMember=>castMember.id===actor)?.bot?.bot_id
+        ?? experience.cast[0]?.bot?.bot_id
     const scriptConsultant = scriptAdvisor ?? scriptDialog ?? dialog
     scriptConsultant.botId = scriptAdvisorBotId
     const messages = await mCallLLM(llm, scriptConsultant, prompt) ?? []
@@ -1029,7 +1030,6 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
     scriptConsultant.addMessages(messages)
     /* validate return from LLM */
     let evaluationResponse = scriptConsultant.mostRecentDialog
-    console.log('mEventInput::response', evaluationResponse)
     if(!evaluationResponse.length)
         throw new Error('LLM content did not return a string')
     evaluationResponse = evaluationResponse.replace(/\\n|\n/g, '')
@@ -1044,19 +1044,19 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
         evaluationResponse = evaluationResponse.replace(/([a-zA-Z0-9_$\-]+):/g, '"$1":') // keys must be in quotes
         evaluationResponse = JSON.parse(evaluationResponse)
     }
-    if(!evaluationResponse.success??false){
+    const evaluationSuccess = evaluationResponse.success
+        || (typeof evaluationResponse === 'object' && Object.keys(evaluationResponse).length)
+    if(!evaluationSuccess){ // default to true, as object may well have been returned
         // @todo - handle failure; run through script again, probably at one layer up from here
         input.followup = evaluationResponse.followup ?? input.followup
         return input
     }
-    if(typeof evaluationResponse.outcome === 'object'){
-        // when variables found, add to experience.experienceVariables
-        input.variables.forEach(_variable=>{
-            experience.experienceVariables[_variable] = evaluationResponse.outcome[_variable]
-        })
-    }
-    if(typeof input.success === 'object'){
-        // @todo - handle object success object conditions
+    input.variables.forEach(_variable=>{ // when variables found, add to experience.experienceVariables
+        console.log('mEventInput::evaluationResponse', _variable, evaluationResponse)
+        experience.experienceVariables[_variable] = evaluationResponse.outcome?.[_variable]
+            ?? evaluationResponse?.[_variable] // when wrong bot used, will send back raw JSON object
+    })
+    if(typeof input.success === 'object'){ // @stub - handle complex object success object conditions
         // denotes multiple potential success outcomes, currently scene/event branching based on content
         // See success_complex in API script, key is variable, value is potential values _or_ event guid
         // loop through keys and compare to experience.experienceVariables
@@ -1086,12 +1086,10 @@ async function mEventProcess(llm, experience, livingExperience, event, memberInp
     const { events, location, } = livingExperience
     switch(event.action){ // **note**: intentional pass-throughs on `switch`
         case 'input':
-            
             const input = await mEventInput(llm, experience, livingExperience, event, undefined, memberInput)
             event.input = input
-            event.breakpoint = (!input.complete)??true
             event.complete = input.complete
-            event.skip = input.complete
+            event.skip = input.complete // member input need not be in event scheme
             event.useDialogCache = input.useDialogCache
             if(event.complete)
                 break
@@ -1100,7 +1098,7 @@ async function mEventProcess(llm, experience, livingExperience, event, memberInp
             event.dialog = await mEventDialog(llm, experience, livingExperience, event)
         case 'stage':
             event.stage = mEventAppear() // stage will handle front-end instructions
-            event.complete = event.complete??true // when `false`, retained
+            event.complete = event.complete ?? true // when `false`, value retained
             break
         default: // error/failure
             throw new Error('Event action not recognized')
@@ -1117,7 +1115,7 @@ async function mEventProcess(llm, experience, livingExperience, event, memberInp
 /**
  * Starts or continues experience with avatar functionality as director/puppeteer. Everything is herein mutated and returned as one final experience instructionset to front-end.
  * @todo - allow auto-skip to scene/event?
- * @todo - allow for memberInput to be processed
+ * @todo - Branching and requirements for scene entry and completion
  * @todo - ExperienceScene and ExperienceEvent should be classes?
  * @modular
  * @public
@@ -1129,31 +1127,62 @@ async function mEventProcess(llm, experience, livingExperience, event, memberInp
  * @returns {Promise<Array>} - An array of ExperienceEvent objects.
  */
 async function mExperiencePlay(factory, llm, experience, livingExperience, memberInput){
-    // there should be some way of storing the current event and scene in the livingExperience, or painting in lived experiences with successful event runs
     // okay, here is thinking - the living experience stores the important outcomes, and if they need to be relived, a different call is made to pull from the lived event in the /living experience
     // always pitch current event, and no other when "repeated"
     const { sceneId, eventId } = livingExperience.location
     let currentEvent = experience.event(eventId)
     const currentScene = experience.scene(sceneId)
-    const eventSequence = []
     let eventIndex = currentScene.events.findIndex(event => event.id === currentEvent.id)
-    const maxSceneIndex = currentScene.events.length - 1
     if(eventIndex === -1)
         throw new Error('Event not found in scene')
+    const eventSequence = []
+    const maxSceneIndex = currentScene.events.length - 1
+    console.log('mExperiencePlay:', currentEvent, currentScene, eventIndex, maxSceneIndex, memberInput)
+    let sceneComplete = true // presume to display entire scene from eventIndex
     while(eventIndex <= maxSceneIndex){
         const _event = new (factory.experienceEvent)(currentScene.events[eventIndex])
         const event = await mEventProcess(llm, experience, livingExperience, _event, memberInput)
-        if(event.skip){
-            console.log('mExperiencePlay: event skipped')
+        if(event.skip){ // currently no occasion
+            console.log('mExperiencePlay: event skipped, not presented to frontend')
         } else {
             eventSequence.push(event)
         }
-        eventIndex++
-        // @todo - case for event skips to something OTHER than next event
-        if(event.breakpoint) // INPUT event
+        if(!event.complete){
+            console.log('mExperiencePlay: event incomplete', event)
+            sceneComplete = false
             break
+        } // INPUT event incomplete
+        eventIndex++
     }
-    return eventSequence
+    /* end-of-scene */
+    if(sceneComplete){
+        // @stub - check for additional scene requirements (beyond being finished)
+        // @stub - check for scene branching
+        eventSequence.push({
+            action: 'end',
+            complete: true,
+            id: sceneId,
+            experienceId: experience.id,
+            sceneId: sceneId,
+            type: 'scene',
+        }) // provide marker for front-end [end of event dequence]; begin next scene with next request
+        const nextScene = experience.sceneNext(currentScene.id)
+        if(nextScene){
+            livingExperience.location.sceneId = nextScene.id
+            livingExperience.location.eventId = nextScene.events[0].id
+            console.log('mExperiencePlay: next scene', nextScene)
+        } else {
+            /* end-of-experience */
+            eventSequence.push({
+                action: 'end',
+                complete: true,
+                id: experience.id,
+                experienceId: experience.id,
+                type: 'experience',
+            }) // provide marker for front-end [end of event sequence]
+        }
+    }
+return eventSequence
 }
 /**
  * Takes an experience document and converts it to use by frontend. Also filters out any inappropriate experiences.
@@ -1338,12 +1367,13 @@ function mPrepareMessage(_msg){
  * @returns {object} - Synthetic Event object.
  */
 function mSanitizeEvent(event){
-    const { action, actor, animation, breakpoint, dialog, duration, effect, effects, experienceId, id, input, order, sceneId, skip=false, stage, type,  } = event
+    const { action, actor, animation, breakpoint, complete, dialog, duration, effect, effects, experienceId, id, input, order, sceneId, skip=false, stage, type, useDialogCache,  } = event
     return {
         action,
         actor,
         animation,
         breakpoint,
+        complete,
         dialog,
         duration,
         effects: effects??[effect],
@@ -1355,6 +1385,7 @@ function mSanitizeEvent(event){
         skip,
         stage,
         type,
+        useDialogCache,
     }
 }
 function mValidateMode(_requestedMode, _currentMode){

@@ -119,11 +119,27 @@ function mInput(event, iteration=0){
     }
     return input
 }
+/**
+ * From an array of scenes, returns a scene object given a specific sceneId. Note: Scenes are presorted by order prior to arrival.
+ * @param {Object[]} scenes - Array of scenes to pull from.
+ * @param {Guid} sceneId - Scene id to search for.
+ * @returns {ExperienceScene} - Scene object.
+ */
 function mGetScene(scenes, sceneId){
     const scene = scenes.find(_scene=>_scene.id===sceneId)
     if(!scene)
         throw new Error(`mGetScene: scene_id "${sceneId}" not found in scenes`)
     return scene
+}
+/**
+ * From an array of scenes, returns a scene object that follows after the specific sceneId. If scene is last in array, then return `null`. Note: Scenes are presorted by order prior to arrival.
+ * @param {Object[]} scenes - Array of scenes to pull from.
+ * @param {Guid} sceneId - Scene id to follow.
+ * @returns {ExperienceScene} - Following scene object.
+ */
+function mGetSceneNext(scenes, sceneId){
+    const nextIndex = scenes.findIndex(scene=>scene.id===sceneId) + 1
+    return scenes?.[nextIndex] ?? null
 }
 /* exports */
 export {
@@ -132,4 +148,5 @@ export {
     mGetEvent,
     mInput,
     mGetScene,
+    mGetSceneNext,
 }

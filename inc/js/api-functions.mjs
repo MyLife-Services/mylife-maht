@@ -54,18 +54,24 @@ async function experience(ctx){
         else {
             const eventSequence = await avatar.experiencePlay(eid, ctx.request.body)
             events = eventSequence
+            console.log(chalk.yellowBright('experience() events'), events?.length)
         } 
     } catch (error){
-        console.log(chalk.redBright('experience() error'), error)
-        const { _experience } = avatar
-        _experience.errors = _experience.errors ?? []
-        _experience.errors.push(error)
-        console.log(chalk.redBright('experience() _experience'), _experience)
+        console.log(chalk.redBright('experience() error'), error, avatar.experience)
+        const { experience } = avatar
+        if(experience){ // embed error in experience
+            experience.errors = experience.errors ?? []
+            experience.errors.push(error)
+        }
     }
     const { experience } = avatar
     experience.events = events
     ctx.body = experience
     ctx.state.MemberSession.experienceLock = false
+    if(events.find(event=>{ return event.action==='end' && event.type==='experience' })){
+        if(!avatar.experienceEnd(eid)) // attempt to end experience
+            throw new Error('Experience failed to end.')
+    }
     return
 }
 /**
