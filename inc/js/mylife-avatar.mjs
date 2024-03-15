@@ -3,7 +3,10 @@ import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import { _ } from 'ajv'
 /* modular constants */
+const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
+const allowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
+const botIdOverride = OPENAI_MAHT_GPT_OVERRIDE
 /**
  * @class
  * @extends EventEmitter
@@ -82,7 +85,7 @@ class Avatar extends EventEmitter {
         } else { // Q-specific, leave as `else` as is near always false
             // @todo - something doesn't smell right in how session would handle conversations - investigate logic; fine if new Avatar instance is spawned for each session, which might be true
             this.activeBotId = activeBot.id
-            activeBot.bot_id = process.env?.OPENAI_MAHT_GPT_OVERRIDE??activeBot.bot_id
+            activeBot.bot_id = botIdOverride ?? activeBot.bot_id
             this.#llmServices.botId = activeBot.bot_id
             const conversation = await this.createConversation()
             activeBot.thread_id = conversation.threadId
@@ -122,11 +125,10 @@ class Avatar extends EventEmitter {
         const messages = await mCallLLM(this.#llmServices, conversation, prompt)
         conversation.addMessages(messages)
         console.log('here', messages.map(message=>message.content[0].text))
-        if(JSON.parse(process.env.MYLIFE_DB_ALLOW_SAVE ?? 'false')){
+        if(allowSave)
             conversation.save()
-        } else {
+        else
             console.log('chatRequest::BYPASS-SAVE', conversation.message)
-        }
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order

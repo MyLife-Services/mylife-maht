@@ -12,10 +12,10 @@ import serve from 'koa-static'
 import chalk from 'chalk'
 //	local services
 import MyLife from './inc/js/mylife-agent-factory.mjs'
-import { _ } from 'ajv'
 //	constants/variables
+// @todo - parse environment variables in Globals and then have them available via as values
 const app = new Koa()
-const port = process.env.PORT || 3000
+const port = JSON.parse(process.env.PORT ?? '3000')
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const MemoryStore = new session.MemoryStore()
@@ -33,7 +33,7 @@ render(app, {
 	debug: false,
 })
 // Set an interval to check for alerts every minute (60000 milliseconds)
-setInterval(checkForLiveAlerts, process.env?.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL??60000)
+setInterval(checkForLiveAlerts, JSON.parse(process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL ?? '60000'))
 //	app bootup
 //	app context (ctx) modification
 app.context.MyLife = _Maht
@@ -41,7 +41,7 @@ app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
 app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)	//	array of mbr_id
 //	does _Maht, as uber-sessioned, need to have ctx injected?
-app.keys = [process.env.MYLIFE_SESSION_KEY || `mylife-session-failsafe|${_Maht.newGuid()}`]
+app.keys = [process.env.MYLIFE_SESSION_KEY ?? `mylife-session-failsafe|${_Maht.newGuid()}`]
 // Enable Koa body w/ configuration
 app.use(koaBody({
     multipart: true,
@@ -54,7 +54,7 @@ app.use(koaBody({
 		session(	//	session initialization
 			{
 				key: 'mylife.sid',   // cookie session id
-				maxAge: process.env.MYLIFE_SESSION_TIMEOUT_MS,     // session lifetime in milliseconds
+				maxAge: parseInt(process.env.MYLIFE_SESSION_TIMEOUT_MS) || 900000,     // session lifetime in milliseconds
 				autoCommit: true,
 				overwrite: true,
 				httpOnly: false,

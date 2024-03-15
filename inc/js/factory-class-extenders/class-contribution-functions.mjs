@@ -1,3 +1,6 @@
+/* variables */
+const { MYLIFE_ALLOW_INTELLIGENT_QUESTIONS } = process.env
+const allowLLMQuestions = JSON.parse(MYLIFE_ALLOW_INTELLIGENT_QUESTIONS ?? 'false')
 /* contribution modular functions */
 /**
  * Gets questions from Cosmos, but could request from openAI.
@@ -18,7 +21,7 @@ async function mGetQuestions(_contribution, _openai){
         )
         return _response
     }
-    if(!process.env?.MYLIFE_ALLOW_INTELLIGENT_QUESTIONS??false)
+    if(!allowLLMQuestions)
         return ['What is the meaning of life?']
 /* @todo: refactor for gpt's
     const _response = await _evoAgent.openai.completions.create({
