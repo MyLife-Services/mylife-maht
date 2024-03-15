@@ -310,16 +310,17 @@ async function tokenValidation(ctx, next) {
  * @returns {void}
  */
 function mAPIKeyValidation(ctx){ // transforms ctx.state
+    if(!ctx.state.locked) return
     if(ctx.params.mid === ':mid') ctx.params.mid = undefined
     // ctx session alternatives to hitting DB every time? can try...
     const mbr_id = ctx.params.mid??ctx.request.body.memberKey
+    if(!mbr_id?.length)
+        ctx.throw(400, 'Missing member key.')
     const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID??'[]')
     const localHostedMembers = [
         'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
     ].filter(member=>serverHostedMembers.includes(member)) // none currently
     serverHostedMembers.push(...localHostedMembers)
-    if(!mbr_id?.length)
-        ctx.throw(400, 'Missing member key.')
     /* inline function definitions */
     function _keyValidation(ctx, mbr_id){ // returns Promise<boolean>
         return new Promise(async (resolve, reject) => {

@@ -108,7 +108,7 @@ function connectRoutes(_Menu){
  */
 async function memberValidation(ctx, next) {
     // validation logic
-    if(ctx.state.locked) {
+    if(ctx.state.locked){
         ctx.redirect(
             ( ctx.params?.mid?.length??false)
             ?   `/login/${encodeURIComponent(ctx.params.mid)}`
