@@ -1,4 +1,21 @@
 import { mStartExperience } from './experience.mjs'
+import { fetchBots, updatePageBots } from './bots.mjs'
+/* page chat vars */
+/* define variables */
+const _greeting = [`So nice to see you!`]
+let activeBot // replaced with pageBots[reference]
+let chatBubbleCount = 0
+let pageBots = [] // send for processing
+let typingTimer
+/* page div vars */
+let _awaitButton
+let _agentSpinner
+let _botBar
+let _chatInput
+let _chatLabel
+let _chatOutput
+let _messageInput
+let _submitButton
 document.addEventListener('DOMContentLoaded', () => {
     /* vars */
     _awaitButton = document.getElementById('await-button')
@@ -27,38 +44,33 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     /* onLoad */
     _awaitButton.style.display = 'none'
-
     fetchExperiences()
         .then(async experienceObject => {
             // @todo - find better way to manage mbr_id at login, set page js vars
             const { autoplay, experiences, mbr_id } = experienceObject
             if(autoplay && experiences.find(experience => experience.id === autoplay)){
                 const experience = experiences.find(exp => exp.guid === autoplay)
-                if(experience) {
-                    // Assuming you have a function to start the experience
+                if(experience){
                     await mStartExperience(experience)
                 }
             }
         })
-    
-    console.log('test')
 // alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
-    /* page-greeting */
+    /* page-greeting 
     _greeting.forEach(_greet=>{
-        _chatBubbleCount++
+        chatBubbleCount++
         addMessageToColumn({
             message: _greet,
-            chatBubbleCount: _chatBubbleCount,
+            chatBubbleCount: chatBubbleCount,
         })
-    })
+    })*/
     fetchBots()
-        .then(async _botFetch => { // peck out the bots and id
-            const { bots: _bots, activeBotId: _id } = _botFetch
-            _pageBots = _bots
-            _activeBot = bot(_id)
+        .then(async _bots => { // peck out the bots and id
+            const { bots, activeBotId: _id } = _bots
+            pageBots = bots
+            activeBot = bot(_id)
             await setActiveBot()
-            updatePageBots(false) // if not an update per se, force here
-            console.log('active bot:', _activeBot)
+            updatePageBots(false)
             return
         })
         .catch(err => {
@@ -66,27 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // alert(`Error fetching bots. Please try again later. ${err.message}`)
         })
 })
-/* page chat vars */
-/* define variables */
-const _greeting = [`So nice to see you!`]
-let _activeBot // replaced with _pagebots[reference]
-let _chatBubbleCount = 0
-let _pageBots = [] // send for processing
-let typingTimer
-/* page div vars */
-let _awaitButton
-let _agentSpinner
-let _botBar
-let _chatInput
-let _chatLabel
-let _chatOutput
-let _messageInput
-let _submitButton
 /* page functions */
 function addMessageToColumn(_message, _options={
 	bubbleClass: 'agent-bubble',
 	_delay: 15,
-    _chatBubbleCount: 0,
+    chatBubbleCount: 0,
 	_typewrite: true,
 }){
 	const {
@@ -99,11 +95,11 @@ function addMessageToColumn(_message, _options={
 	const {
 		bubbleClass,
 		_delay,
-        _chatBubbleCount,
+        chatBubbleCount,
 		_typewrite,
 	} = _options
 	const chatBubble = document.createElement('div')
-	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`)
+	chatBubble.setAttribute('id', `chat-bubble-${chatBubbleCount}`)
 	chatBubble.className = `chat-bubble ${bubbleClass}`
 	_chatOutput.appendChild(chatBubble)
 	_message = escapeHtml(message)
@@ -140,7 +136,7 @@ function addUserMessage(_event){
     _messageInput.value = ''; // Clear the message field
 }
 function bot(_id){
-    return _pageBots.find(bot => bot.id === _id)
+    return pageBots.find(bot => bot.id === _id)
 }
 // Function to escape HTML special characters
 function escapeHtml(text) {
@@ -183,7 +179,7 @@ function getTextWidth(text, font) {
     return context.measureText(text).width;
 }
 function isActive(_id) {
-    return _id===_activeBot.id
+    return _id===activeBot.id
 }
 // Function to replace an element (input/textarea) with a specified type
 function replaceElement(element, newType) {
@@ -210,15 +206,15 @@ function scrollToBottom() {
     _chatOutput.scrollTop = _chatOutput.scrollHeight;
 }
 async function setActiveBot(_incEventOrBot) {
-    const _activeBotId = _incEventOrBot?.target?.dataset?.botId
+    const activeBotId = _incEventOrBot?.target?.dataset?.botId
         ?? _incEventOrBot?.target.id?.split('_')[1]
         ?? _incEventOrBot?.id
-        ?? _activeBot?.id
+        ?? activeBot?.id
         ?? _incEventOrBot
-    if(isActive(_activeBotId)) return
+    if(isActive(activeBotId)) return
     /* server request: set active bot */
     const _id = await fetch(
-        '/members/bots/activate/' + _activeBotId,
+        '/members/bots/activate/' + activeBotId,
         {
             method: 'POST',
             headers: {
@@ -240,7 +236,7 @@ async function setActiveBot(_incEventOrBot) {
         })
     if(isActive(_id)) return
     /* update active bot */
-    _activeBot = bot(_id)
+    activeBot = bot(_id)
     updatePageBots(true)
 }
 async function setActiveCategory(category, contributionId, question) {
@@ -273,6 +269,12 @@ async function setActiveCategory(category, contributionId, question) {
 			console.log('Error setting active category:', err);
 			// Handle errors as needed
 		});
+}
+function state(){
+    return {
+        activeBot,
+        pageBots,
+    }
 }
 async function submit(_event, _message) {
 	_event.preventDefault()
@@ -340,4 +342,13 @@ function toggleInputTextarea() {
 }
 function toggleSubmitButtonState() {
 	_submitButton.disabled = !_messageInput.value?.trim()?.length??true;
+}
+/* exports */
+export {
+    addMessageToColumn,
+    setActiveBot,
+    setActiveCategory,
+    state,
+    submit,
+    toggleInputTextarea,
 }
