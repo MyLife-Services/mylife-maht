@@ -1,17 +1,235 @@
 /* modal experience screen */
-.modalScreen {
-    display: none;
+.modal-screen {
+    display: flex;
+    flex-direction: column;
     position: fixed;
-    z-index: 1;
+    z-index: 10;
     left: 0;
-    top: -100%; /* Start above the screen */
+    top: -100vh; /* Start above the screen */
+    width: 100vw;
+    height: 100vh;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.88); /* Black with opacity */
+    animation: dropDown 1.5s forwards;
+    border: 16px solid rgb(36, 36, 36);
+    cursor: progress;
+}
+/* experience baseline content */
+#experience-breadcrumb {
+    color: #ccc; /* Light gray text */
+    flex-grow: 1; /* Allow breadcrumb to take up remaining space */
+    padding: 0 15px;
+}
+#experience-close, #experience-skip {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #000;
+    color: red;
+    font-size: 24px; /* Adjust size as needed */
+    cursor: pointer;
+}
+.experience-transport {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: #000; /* Solid black background */
+}
+.experience-transport-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* experience manifest */
+.experience-manifest {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px; /* Space from the transport controls */
+}
+.experience-cast-container, .experience-navigation-container {
+    flex-basis: 49%; /* Splits the container space equally with a little gap */
+    padding: 10px;
+    background-color: #f0f0f0; /* Light grey background */
+    border-radius: 5px; /* Rounded corners */
+}
+.experience-cast-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start; /* Align cast icons and text to start */
+    gap: 10px; /* Space between cast items */
+}
+.experience-navigation-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-around; /* Evenly space navigation boxes */
+}
+/* experience stage */
+.experience-stage {
+    display: flex;
+    position: relative;
     width: 100%;
     height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.8); /* Black with opacity */
-    animation: dropDown 0.5s forwards;
+    background-color: darkorange;
+    overflow: hidden;
 }
-/* Keyframes for the drop-down effect */
+/* backstage */
+.experience-backstage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Align content to the top */
+    animation: fadeIn 5s ease-in-out forwards;
+    z-index: 15; /* Ensure it's behind the mainstage */
+}
+.experience-explanation, .experience-title, .experience-description {
+    text-align: center; /* Center text for direct children */
+    width: 80%; /* Adjust width as needed */
+    margin: 2em 0;
+    padding: 0 2em;
+    display: flex;
+    flex-direction: column;
+    font-size: 1em;
+    justify-content: center; /* Center content vertically */
+    align-items: center; /* Center content horizontally */
+    color: white;
+}
+.experience-explanation h2 {
+    font-size: 2em; /* Larger font for the welcome message */
+    animation: textFadeIn 3s ease-in-out forwards;
+}
+.experience-explanation p {
+    color: greenyellow;
+    margin-top: .2em;
+    animation: textFadeIn 5s ease-in-out forwards;
+}
+.experience-start-button {
+    display: flex;
+    align-items: center; /* Center text vertically */
+    justify-content: center; /* Center text horizontally */
+    flex-direction: column; /* Stack text lines */
+    margin-top: .3em;
+    margin-bottom: .3em;
+    padding: 20px; /* Adjust padding to maintain the circle shape */
+    width: 100px; /* Fixed width */
+    height: 100px; /* Fixed height to match width for circle */
+    font-size: 1.2em;
+    line-height: 1.2; /* Adjust line spacing */
+    border: 2px solid black; /* Black border */
+    border-radius: 50%; /* Essential for circle */
+    background-color: green;
+    color: white;
+    cursor: pointer;
+    animation: blink 1.5s infinite;
+    text-align: center; /* Ensure text is centered */
+    white-space: normal; /* Override any parent white-space properties */
+    box-shadow: inset 0 0 10px #000000, /* Inner shadow */
+                0 0 20px rgba(255, 255, 255, 0.7); /* Glow effect */
+    position: relative;
+    overflow: hidden;
+}
+.experience-start-button::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(45deg);
+    pointer-events: none;
+    filter: blur(5px);
+}
+.experience-start-button:hover {
+    background-color: #9ACD32; /* Yellow-Green color */
+    box-shadow: inset 0 0 10px #000000, 0 0 20px rgba(255, 255, 255, 0.9); /* Adjust glow effect if needed */
+    color: black;
+}
+.experience-title {
+    animation: textFadeIn 3s ease-in-out forwards;
+    font-weight: bold;
+    font-size: 2em; /* Larger font for the title */
+    margin: 0.2em 0;
+    text-decoration: underline;
+}
+.experience-description {
+    animation: textFadeIn 5s ease-in-out forwards;
+}
+/* mainstage */
+.experience-mainstage {
+    display: flex; /* Enables flexbox layout */
+    flex-direction: column; /* Stack children vertically */
+    justify-content: center; /* Center children vertically in the container */
+    align-items: center; /* Center children horizontally in the container */
+    width: 100%; /* Fill the width of its parent container */
+    height: 100%; /* Fill the height of its parent container */
+    background-color: rgba(245, 245, 245, 0.18); /* Light grey background, as you had */
+    border-radius: 15px; /* Adjust as needed for desired roundness */
+    overflow: hidden; /* Ensures content respects the border radius */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08); /* Optional: adds shadow for depth */
+    transition: all 0.3s ease-in-out; /* Smooth transition for any changes */
+    /* Ensure it starts off-screen */
+    transform: translateY(100%);
+    opacity: 1; /* In case you want to make it visible */
+    position: absolute; /* Or fixed, depending on layout */
+    top: 0;
+    left: 0;
+    z-index: 20; /* Ensure it's above the backstage */
+}
+
+/* Example styling for cast icons and navigation boxes */
+.cast-icon, .navigation-box {
+    width: 50px; /* Example size, adjust as needed */
+    height: 50px;
+    border-radius: 50%; /* Circular icons and navigation boxes */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #320606; /* Example color, adjust as needed */
+    color: #000;
+    font-weight: bold;
+}
+.navigation-box.active {
+    background-color: #4CAF50; /* Highlight color for active navigation box */
+}
+/* utility classes */
+.fade-out {
+    animation: fadeOut 2s ease-in-out forwards;
+}
+.slide-up {
+    animation: slideInFromBottom 2s ease-in-out forwards;
+}
+/* Keyframes */
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    60% { opacity: 0.5; }
+}
 @keyframes dropDown {
-    to { top: 0; }
+    100% { top: 0; }
 }
+@keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+@keyframes textFadeIn {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    100% { opacity: 0; }    
+}
+@keyframes slideInFromBottom {
+    0% { transform: translateY(100%); }
+    100% { transform: translateY(0); }
+}
+
+/* Font Awesome CDN if needed */
+@import url('https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css');

@@ -1,4 +1,7 @@
-import { mStartExperience } from './experience.mjs'
+import {
+    mExperienceEnd,
+    mExperienceStart,
+} from './experience.mjs'
 import { fetchBots, updatePageBots } from './bots.mjs'
 /* page chat vars */
 /* define variables */
@@ -46,12 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
     _awaitButton.style.display = 'none'
     fetchExperiences()
         .then(async experienceObject => {
-            // @todo - find better way to manage mbr_id at login, set page js vars
             const { autoplay, experiences, mbr_id } = experienceObject
-            if(autoplay && experiences.find(experience => experience.id === autoplay)){
-                const experience = experiences.find(exp => exp.guid === autoplay)
+            const experience = experiences.find(experience => experience.id === autoplay)
+            if(autoplay && experience){
                 if(experience){
-                    await mStartExperience(experience)
+                    await mExperienceStart(experience)
                 }
             }
         })
