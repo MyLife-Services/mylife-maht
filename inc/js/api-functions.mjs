@@ -77,7 +77,8 @@ async function experience(ctx){
 /**
  * Request to end an active Living-Experience for member.
  * @param {Koa} ctx - Koa Context object.
- * @returns 
+ * @returns {Object} - Represents `ctx.body` object with following `experience` properties.
+ * @property {boolean} success - Success status, true/false.
  */
 function experienceEnd(ctx){
     mAPIKeyValidation(ctx)
