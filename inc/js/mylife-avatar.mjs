@@ -972,7 +972,8 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
     const { dialog, events, scriptAdvisor, scriptDialog, } = livingExperience
     const hasMemberInput = 
             ( typeof memberInput==='object' && Object.keys(memberInput)?.length )
-         || ( memberInput?.trim() ?? memberInput?.length ?? false )
+         || ( typeof memberInput==='string' && ( memberInput.trim().length ?? false ) )
+         || ( Array.isArray(memberInput) && memberInput.length && memberInput[0])
     const livingEvent = events.find(_event=>_event.id===id)
     /* return repeat request */
     if(livingEvent && !hasMemberInput){
