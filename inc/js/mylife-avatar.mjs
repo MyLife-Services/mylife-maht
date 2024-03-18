@@ -180,7 +180,6 @@ class Avatar extends EventEmitter {
         this.experience = undefined
         // save living experience (no need to await cosmos)
         this.#livedExperiences.push(this.#livingExperience.id)
-        console.log('experienceEnd', this.#livingExperience.dialog.messages.map(message=>message.content))
         this.#livingExperience = undefined
         return true
     }
@@ -946,7 +945,6 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
             }
             scriptDialog.addMessages(messages)
             coreDialog.addMessage(scriptDialog.mostRecentDialog)
-            console.log('mEventDialog::dialog response:', coreDialog.mostRecentDialog)
             return coreDialog.mostRecentDialog
         default:
             throw new Error(`Dialog type \`${type}\` not recognized`)
@@ -1140,7 +1138,6 @@ async function mExperiencePlay(factory, llm, experience, livingExperience, membe
         throw new Error('Event not found in scene')
     const eventSequence = []
     const maxSceneIndex = currentScene.events.length - 1
-    console.log('mExperiencePlay:', currentEvent, currentScene, eventIndex, maxSceneIndex, memberInput)
     let sceneComplete = true // presume to display entire scene from eventIndex
     while(eventIndex <= maxSceneIndex){
         const _event = new (factory.experienceEvent)(currentScene.events[eventIndex])
