@@ -874,12 +874,38 @@ async function mCreateBot(_avatar, _bot){
     return { ..._bot, ..._botData }
 }
 /**
- * Returns a processed appearance event.
- * @param {ExperienceEvent} event - Event object
- * @returns {ExperienceEvent} - Event object
+ * Returns a processed stage event.
+ * @todo - add LLM usage data to conversation.
+ * @todo - when `action==='stage'`, deprecate effects and actor
+ * @modular
+ * @public
+ * @param {LLMServices} llm - OpenAI object currently.
+ * @param {Experience} experience - Experience class instance.
+ * @param {Object} stage - `Event.stage` data object.
+ * @returns {Object} - Synthetic Stage object.
  */
-function mEventAppear(event){
-    return event
+function mEventStage(llm, experience, stage){
+    if(!stage)
+        return // no stage to parse
+    let { animation, animationDirection, animationDelay, animationDuration, animationIterationCount, animationTimingFunction, characterId, eventId, prompt, sfx, stageDirection, type } = stage
+    // @stub - llm call for dynamic stage instructions
+    let animationClass = animation
+    if(animationClass && animationDirection)
+        animationClass += `-${animationDirection}`
+    stage = {
+        animation: animationClass,
+        animationDelay,
+        animationDuration,
+        animationIterationCount,
+        animationTimingFunction,
+        characterId,
+        eventId,
+        prompt,
+        sfx,
+        stageDirection,
+        type,
+    }
+    return stage
 }
 /**
  * Returns processed dialog as string.
@@ -1074,6 +1100,7 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
  *   2. Dialog `event.dialog`
  *   3. Input `event.input`
  * @todo - keep track of iterations inside livingExperience to manage flow
+ * @todo - JSON data should NOT be in data, but instead one of the three wrappers: stage, dialog, input; STAGE done
  * @todo - mutations should be handled by `ExperienceEvent` extenders.
  * @todo - script dialog change, input assessment, success evals to completions or cheaper? babbage-002 ($0.40/m) is only cheaper than 3.5 ($3.00/m); can test efficacy for dialog completion, otherwise, 3.5 exceptional
  * @todo - iterations need to be re-included, although for now, one dialog for experience is fine
@@ -1088,6 +1115,7 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
  */
 async function mEventProcess(llm, experience, livingExperience, event, memberInput){
     const { events, location, } = livingExperience
+    let { stage, } = event
     switch(event.action){ // **note**: intentional pass-throughs on `switch`
         case 'input':
             const input = await mEventInput(llm, experience, livingExperience, event, undefined, memberInput)
@@ -1101,7 +1129,7 @@ async function mEventProcess(llm, experience, livingExperience, event, memberInp
             // dialog from inputs cascading down already have iteration information
             event.dialog = await mEventDialog(llm, experience, livingExperience, event)
         case 'stage':
-            event.stage = mEventAppear() // stage will handle front-end instructions
+            stage = mEventStage(llm, experience, stage)
             event.complete = event.complete ?? true // when `false`, value retained
             break
         default: // error/failure
@@ -1185,7 +1213,7 @@ async function mExperiencePlay(factory, llm, experience, livingExperience, membe
             }) // provide marker for front-end [end of event sequence]
         }
     }
-return eventSequence
+    return eventSequence
 }
 /**
  * Takes an experience document and converts it to use by frontend. Also filters out any inappropriate experiences.
@@ -1370,16 +1398,13 @@ function mPrepareMessage(_msg){
  * @returns {object} - Synthetic Event object.
  */
 function mSanitizeEvent(event){
-    const { action, actor, animation, breakpoint, complete, dialog, duration, effect, effects, experienceId, id, input, order, sceneId, skip=false, stage, type, useDialogCache,  } = event
+    const { action, actor, breakpoint, complete, dialog, experienceId, id, input, order, sceneId, skip=false, stage, type, useDialogCache,  } = event
     return {
         action,
         actor,
-        animation,
         breakpoint,
         complete,
         dialog,
-        duration,
-        effects: effects??[effect],
         experienceId,
         id,
         input,
