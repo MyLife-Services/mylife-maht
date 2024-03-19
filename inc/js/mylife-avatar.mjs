@@ -164,6 +164,8 @@ class Avatar extends EventEmitter {
     }
     /**
      * Ends an experience.
+     * @todo - save living experience to cosmos, no need to await
+     * @todo - relived experiences? If only saving by experience id then maybe create array?
      * @param {Guid} experienceId 
      * @returns {boolean}
      */
@@ -178,8 +180,9 @@ class Avatar extends EventEmitter {
             throw new Error('Avatar cannot end this experience at this time, experience is not skippable.')
         this.mode = 'standard'
         this.experience = undefined
-        // save living experience (no need to await cosmos)
         this.#livedExperiences.push(this.#livingExperience.id)
+        // @stub - save living experience to cosmos
+        console.log('experienceEnd::ended experience:', this.#livingExperience.name)
         this.#livingExperience = undefined
         return true
     }

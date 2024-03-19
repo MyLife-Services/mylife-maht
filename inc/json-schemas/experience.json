@@ -181,6 +181,11 @@
 					"enum": ["bot", "member", "member-bot", "MyLife", "Q", "system"],
 					"type": "string",
 					"$comment": "Defaults to system explanation or engagement with experiencer."
+				},
+				"url": {
+					"description": "url for cast member, local or external.",
+					"type": "string",
+					"format": "uri"
 				}
 			},
 			"additionalProperties": true

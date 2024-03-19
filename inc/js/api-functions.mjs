@@ -84,8 +84,8 @@ function experienceEnd(ctx){
     mAPIKeyValidation(ctx)
     const { assistantType, avatar, mbr_id } = ctx.state
     const { eid } = ctx.params
-    ctx.state.MemberSession.experienceLock = false
     ctx.body = avatar.experienceEnd(eid)
+    ctx.state.MemberSession.experienceLock = !ctx.body
     return
 }
 /**

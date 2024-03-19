@@ -336,8 +336,8 @@ function extendClass_experience(originClass, referencesObject){
          */
         get castMembers(){
             return this.cast.map(castMember=>{
-                const { bot_id, icon, id, name, role, type, } = castMember
-                return { bot_id, icon, id, name, role, type, }
+                const { bot_id, icon, id, name, role, type, url, } = castMember
+                return { bot_id, icon, id, name, role, type, url, }
             })
         }
         /**

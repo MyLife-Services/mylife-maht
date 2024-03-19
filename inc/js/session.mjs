@@ -86,9 +86,9 @@ class MylifeMemberSession extends EventEmitter {
 		let events = []
 		/* trigger auto-play from session */
 		if(!this.#autoplayed && this.globals.isValidGuid(autoplay)){
-            await avatar.experienceStart(autoplay)
+            const _start = await avatar.experienceStart(autoplay)
 			this.#autoplayed = true
-			console.log('autoplay triggered', autoplay, events)
+			console.log('autoplay triggered', _start)
         }
 		return { autoplay, experiences, mbr_id: this.mbr_id }
 	}
