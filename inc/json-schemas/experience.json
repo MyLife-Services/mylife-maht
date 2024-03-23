@@ -192,7 +192,7 @@
 		},
 		"experience-event": {
 			"name": "Experience-Event",
-			"required": ["duration", "id", "name"],
+			"required": ["action", "id", "order"],
 			"type": "object",
 			"properties": {
 				"action": {
@@ -201,36 +201,14 @@
 					"maxLength": 256,
 					"type": "string"
 				},
-				"actor": {
+				"character": {
 					"description": "id of the cast member referenced in this action",
-					"format": "uuid",
-					"type": "string",
+					"type": "object",
 					"$comment": "current limitation: only one actor per event, no duets!"
 				},
-				"animation": {
-					"description": "animation of the event, object of animation depends on action, cast member and event itself",
-					"enum": ["fade", "spotlight"],
-					"type": "string"
-				},
-				"backdrop": {
-					"description": "MyLife interface backdrop for the event, default inherits from scene",
-					"enum": ["full", "nav", "chat", "sidebar"],
-					"type": "string",
-					"$comment": "event-level backdrop override, if any."
-				},
 				"description": {
-					"description": "description of the event",
+					"description": "description of the event, optional",
 					"maxLength": 1024,
-					"type": "string"
-				},
-				"duration": {
-					"default": 0,
-					"description": "duration of the event in seconds, default is 0, i.e., immediate, note: negative values indicate duration _before_ action",
-					"type": "integer"
-				},
-				"effect": {
-					"description": "effect of the event, default inherits from scene",
-					"enum": ["fade", "spotlight", "typewrite"],
 					"type": "string"
 				},
 				"hooks": {
@@ -245,8 +223,13 @@
 					"format": "uuid",
 					"type": "string"
 				},
+				"input": {
+					"description": "input for the event",
+					"type": "object",
+					"$comment": "Data structure outlining any input required for the event"
+				},
 				"name": {
-					"description": "name of the event",
+					"description": "name of the event, optional",
 					"maxLength": 128,
 					"type": "string"
 				},
@@ -273,10 +256,10 @@
 					"description": "order of the event in the scene, if same integer then order is linear.",
 					"type": "integer"
 				},
-				"timing": {
-					"description": "timing of the event",
-					"enum": ["immediate", "delayed"],
-					"type": "string"
+				"stage": {
+					"description": "stage action for the event",
+					"type": "object",
+					"$comment": "Data structure outlining any changes or contingencies regarding the stage"
 				},
 				"variables": {
 					"description": "array of variable used in this event.",

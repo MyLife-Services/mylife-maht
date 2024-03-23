@@ -33,34 +33,39 @@ function mAppear(event){
  * @property {array} variables - Variable names.
  */
 function mDialog(event, iteration=0){
+    let { dialog } = event
+    if(!dialog)
+        return
     /* validate */
-    const { data: eventData, id, type, maxIterations, minIterations, variable, variables=[] } = event
+    const { animation, animationDetail, animationDelay, animationDuration, dialog: characterDialog, effect, example, maxIterations=1, minIterations=1, text, type, variable: dialogVariable, variables: dialogVariables=[] } = dialog
+    let { prompt, } = dialog
     if(!mAvailableEventActionMap.dialog.types.includes(type))
         throw new Error(`mDialog: event.type must be one of ${mAvailableEventActionMap.dialog.types.join(', ')}`)
     // **note**: `prompt` and `dialog` variables can be array or string, here converted to string if array; once iterations pass content limit, it reverts to beginning; avatar will manage iteration _logic_ this only provides its best approximation of the iteration data string content
     /* compile */
-    const dialog = Array.isArray(eventData.dialog) ? eventData.dialog?.[iteration]??eventData.dialog[0] : eventData.dialog
-    const example = eventData.example
-    const prompt = Array.isArray(eventData.prompt) ? eventData.prompt?.[iteration]??eventData.prompt[0] : eventData.prompt
-    const localVariableArray = eventData.variables??[]
-    localVariableArray
-        .forEach(_var=>{
-            if(!variables.includes(_var)) variables.push(_var)
-        })
-    if(variable && !variables.includes(variable))
-        variables.push(variable)
+    dialog = Array.isArray(characterDialog)
+        ? (characterDialog?.[iteration] ?? characterDialog[0])
+        : characterDialog
+    prompt = Array.isArray(prompt)
+        ? (prompt?.[iteration] ?? prompt[0])
+        : prompt
+    if(dialogVariable && !dialogVariables.includes(dialogVariable))
+        dialogVariables.push(dialogVariable)
     /* return */
-    return { 
+    return {
+        animation,
+        animationDetail,
+        animationDelay,
+        animationDuration,
         currentIteration: iteration,
         dialog,
+        effect,
         example,
-        id,
+        maxIterations,
+        minIterations,
         type,
-        maxIterations: maxIterations??1,
-        minIterations: minIterations??1,
         prompt,
-        variable: variable,
-        variables: variables,
+        variables: dialogVariables,
     }
 }
 /**
@@ -98,7 +103,7 @@ function mGetEvent(scenes, eventId){
  * @property {string} inputType - Input type.
  * @property {any} variable - Variable name, only one allowed per `input` event, but could be any type.
  */
-function mInput(event, iteration=0){
+function mInput(event, iteration=0){ // deprecate or fix
     const { data: eventData, id: eventId, type: eventType, variable: eventVariable, variables: eventVariables } = event
     const { condition, failure, followup, inputId, inputPlaceholder, inputType, outcome, placeholder, success, type, variable, variables } = eventData
     // add synthetic input object

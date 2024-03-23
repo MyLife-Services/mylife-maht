@@ -2,6 +2,7 @@ import { Marked } from 'marked'
 import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import { _ } from 'ajv'
+import { abort } from 'process'
 /* modular constants */
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
 const allowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
@@ -887,23 +888,9 @@ async function mCreateBot(_avatar, _bot){
 function mEventStage(llm, experience, stage){
     if(!stage)
         return // no stage to parse
-    let { animation, animationDirection, animationDelay, animationDuration, animationIterationCount, animationTimingFunction, characterId, eventId, prompt, sfx, stageDirection, type } = stage
-    // @stub - llm call for dynamic stage instructions
-    let animationClass = animation
-    if(animationClass && animationDirection)
-        animationClass += `-${animationDirection}`
-    stage = {
-        animation: animationClass,
-        animationDelay,
-        animationDuration,
-        animationIterationCount,
-        animationTimingFunction,
-        characterId,
-        eventId,
-        prompt,
-        sfx,
-        stageDirection,
-        type,
+    if((stage.type??'script')!=='script'){
+        console.log('Dynamic stage effects not yet implemented')
+        stage.type = 'script' // force standardization
     }
     return stage
 }
@@ -921,32 +908,32 @@ function mEventStage(llm, experience, stage){
  * @returns {Promise<string>} - Parsed piece of event dialog
  */
 async function mEventDialog(llm, experience, livingExperience, event, iteration=0){
-    if(!event.data) return // no dialog to parse
-    const { actor, id, type='script', useDialogCache, } = event
+    const { character, dialog: eventDialog, id: eventId, type='script', useDialogCache, } = event
+    if(!eventDialog || !Object.keys(eventDialog).length)
+        return // no dialog to parse
+    if(!character)
+        throw new Error('Dialog error, no character identified.')
+    const { characterId: _id, id } = character
+    const characterId = id ?? _id
     if(useDialogCache){
         const livingEvent = livingExperience.events.find(_event=>_event.id===id)
         if(livingEvent)
             return livingEvent.dialog
     }
-    let dialog = experience.dialog(id, iteration)
+    let dialog = experience.dialog(eventId, iteration)
     if(!dialog)
         throw new Error('Dialog error, could not establish dialog.')
-    // process instructions
     switch(type){
         case 'script':
-        case 'scripts':
-            event.type = 'script' // force standardization
-            return dialog?.dialog
-                ?? dialog?.text
-                ?? dialog?.prompt
-                ?? dialog?.content
+            return dialog.dialog
+                ?? dialog.text
+                ?? dialog.prompt
+                ?? dialog.content
                 ?? 'No dialog developed for script'
         case 'prompt':
-        case 'prompts':
-            event.type = 'prompt' // force standardization
-            let prompt = dialog.prompt??'no prompt content for dynamic script!'
-            const promptFallback = dialog.promptFallback??`No dialog developed for prompt: ${prompt}`
-            if(dialog.example?.length??dialog.examples?.length){
+            let prompt = dialog.prompt ?? 'no prompt content for dynamic script!'
+            const promptFallback = dialog.promptFallback ?? `No dialog developed for prompt`
+            if(dialog.example?.length ?? dialog.examples?.length){
                 if(dialog.examples?.length && Array.isArray(dialog.examples)){
                     dialog.example = dialog.examples[0]
                 } // boild down example from array to string
@@ -965,7 +952,7 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
             // **note**: system chat would refer to `Q`, but I want any internal chat to go through this channel, depending on cast member
             const { cast, scriptAdvisorBotId } = experience
             const { dialog: coreDialog, scriptDialog } = livingExperience
-            const castMember = cast.find(castMember=>castMember.id===actor)
+            const castMember = cast.find(castMember=>castMember.id===characterId)
             scriptDialog.botId = castMember.bot?.bot_id ?? scriptAdvisorBotId ?? this.activebot.bot_id // set llm assistant id
             const messages = await mCallLLM(llm, scriptDialog, prompt) ?? []
             if(!messages.length){
@@ -995,22 +982,24 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
  * @note - review https://platform.openai.com/docs/assistants/tools/defining-functions
  */
 async function mEventInput(llm, experience, livingExperience, event, iteration=0, memberInput){
-    const { actor, id, type='script' } = event
+    const { character, id: eventId, input, type='script' } = event
+    const { characterId: _id, id } = character
+    const characterId = id ?? _id
     const { dialog, events, scriptAdvisor, scriptDialog, } = livingExperience
     const hasMemberInput = 
             ( typeof memberInput==='object' && Object.keys(memberInput)?.length )
          || ( typeof memberInput==='string' && ( memberInput.trim().length ?? false ) )
          || ( Array.isArray(memberInput) && memberInput.length && memberInput[0])
-    const livingEvent = events.find(_event=>_event.id===id)
-    /* return repeat request */
-    if(livingEvent && !hasMemberInput){
-        livingEvent.input.useDialogCache = true
-        return livingEvent.input
-    }
-    const input = experience.input(id, iteration) // get data
-    /* return request for memberInput */
-    if(!hasMemberInput)
+    const livingEvent = events.find(_event=>_event.id===eventId)
+    /* return initial or repeat request without input */
+    input.complete = false
+    if(!hasMemberInput){
+        if(livingEvent){
+            livingEvent.input.useDialogCache = true
+            return livingEvent.input
+        }
         return input
+    }
     /* process and flatten memberInput */
     switch(input.inputType){
         case 'input':
@@ -1048,7 +1037,7 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
         prompt += 'OUTCOME: return JSON-parsable object = '
             + input.outcome.trim()
     const scriptAdvisorBotId = experience.scriptAdvisorBotId
-        ?? experience.cast.find(castMember=>castMember.id===actor)?.bot?.bot_id
+        ?? experience.cast.find(castMember=>castMember.id===characterId)?.bot?.bot_id
         ?? experience.cast[0]?.bot?.bot_id
     const scriptConsultant = scriptAdvisor ?? scriptDialog ?? dialog
     scriptConsultant.botId = scriptAdvisorBotId
@@ -1115,21 +1104,27 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
  */
 async function mEventProcess(llm, experience, livingExperience, event, memberInput){
     const { events, location, } = livingExperience
-    let { stage, } = event
-    switch(event.action){ // **note**: intentional pass-throughs on `switch`
+    const { action, id } = event
+    let { character, dialog, input, stage, } = event
+    switch(action){ // **note**: intentional pass-throughs on `switch`
         case 'input':
-            const input = await mEventInput(llm, experience, livingExperience, event, undefined, memberInput)
-            event.input = input
-            event.complete = input.complete
-            event.skip = input.complete // member input need not be in event scheme
-            event.useDialogCache = input.useDialogCache
+            if(input && Object.keys(input).length){
+                const _input = await mEventInput(llm, experience, livingExperience, event, undefined, memberInput)
+                input = _input
+                event.complete = input.complete
+                event.skip = input.complete // member input need not be in event scheme
+                event.useDialogCache = input.useDialogCache
+            }
             if(event.complete)
                 break
         case 'dialog':
             // dialog from inputs cascading down already have iteration information
-            event.dialog = await mEventDialog(llm, experience, livingExperience, event)
+            if(dialog && Object.keys(dialog).length)
+                dialog.dialog = await mEventDialog(llm, experience, livingExperience, event)
+        case 'character':
         case 'stage':
-            stage = mEventStage(llm, experience, stage)
+            if(stage && Object.keys(stage).length)
+                stage = mEventStage(llm, experience, stage)
             event.complete = event.complete ?? true // when `false`, value retained
             break
         default: // error/failure
@@ -1398,10 +1393,10 @@ function mPrepareMessage(_msg){
  * @returns {object} - Synthetic Event object.
  */
 function mSanitizeEvent(event){
-    const { action, actor, breakpoint, complete, dialog, experienceId, id, input, order, sceneId, skip=false, stage, type, useDialogCache,  } = event
+    const { action, character, breakpoint, complete, dialog, experienceId, id, input, order, sceneId, skip=false, stage, type, useDialogCache,  } = event
     return {
         action,
-        actor,
+        character,
         breakpoint,
         complete,
         dialog,
