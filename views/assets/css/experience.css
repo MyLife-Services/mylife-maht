@@ -1,20 +1,20 @@
 /* modal experience screen */
 .modal-screen {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    z-index: 10;
-    left: 0;
-    top: -100vh; /* Start above the screen */
-    width: 100vw;
-    height: 100vh;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.88); /* Black with opacity */
     animation: dropDown 1.5s forwards;
+    background-color: rgba(0, 0, 0, 0.88); /* Black with opacity */
     border: 16px solid rgb(36, 36, 36);
     cursor: progress;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    left: 0;
+    overflow: auto;
+    position: fixed;
+    top: -100vh; /* Start above the screen */
+    width: 100vw;
+    z-index: 10;
 }
-/* experience baseline content */
+/* experience transport */
 #experience-breadcrumb {
     color: #ccc; /* Light gray text */
     flex-grow: 1; /* Allow breadcrumb to take up remaining space */
@@ -30,7 +30,7 @@
     cursor: pointer;
 }
 .experience-transport {
-    display: flex;
+    display: none; /* Hide transport controls by default */
     justify-content: space-between;
     align-items: center;
     padding: 10px;
@@ -48,20 +48,19 @@
     margin-top: 10px; /* Space from the transport controls */
 }
 .experience-cast-container, .experience-navigation-container {
+    display: none; /* Hide cast and navigation by default */
     flex-basis: 49%; /* Splits the container space equally with a little gap */
     padding: 10px;
     background-color: #f0f0f0; /* Light grey background */
     border-radius: 5px; /* Rounded corners */
 }
 .experience-cast-container {
-    display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start; /* Align cast icons and text to start */
     gap: 10px; /* Space between cast items */
 }
 .experience-navigation-container {
-    display: flex;
     align-items: center;
     justify-content: space-around; /* Evenly space navigation boxes */
 }
@@ -71,22 +70,22 @@
     position: relative;
     width: 100%;
     height: 100%;
-    background-color: darkorange;
+    background-color: rgb(0, 0, 0);
     overflow: hidden;
 }
 /* backstage */
 .experience-backstage {
+    align-items: center;
+    animation: fadeIn 2s ease-out forwards;
+    background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
+    display: none; /* Hide by default */
+    flex-direction: column;
+    height: 100%;
+    justify-content: flex-start; /* Align content to the top */
+    left: 0;
     position: absolute;
     top: 0;
-    left: 0;
     width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start; /* Align content to the top */
-    animation: fadeIn 5s ease-in-out forwards;
     z-index: 15; /* Ensure it's behind the mainstage */
 }
 .experience-explanation, .experience-title, .experience-description {
@@ -103,37 +102,46 @@
 }
 .experience-explanation h2 {
     font-size: 2em; /* Larger font for the welcome message */
-    animation: textFadeIn 3s ease-in-out forwards;
+    animation: textFadeIn 1s ease-in-out forwards;
 }
 .experience-explanation p {
     color: greenyellow;
     margin-top: .2em;
-    animation: textFadeIn 5s ease-in-out forwards;
+    animation: textFadeIn 2s ease-in forwards;
+}
+.experience-start {
+    align-items: center;
+    animation: fadeIn 3s ease forwards;
+    display: none; /* Hide the start button by default */
+    flex-direction: column;
+    height: 100%;
+    justify-content: center;
+    width: 100%;
 }
 .experience-start-button {
-    display: flex;
     align-items: center; /* Center text vertically */
-    justify-content: center; /* Center text horizontally */
-    flex-direction: column; /* Stack text lines */
-    margin-top: .3em;
-    margin-bottom: .3em;
-    padding: 20px; /* Adjust padding to maintain the circle shape */
-    width: 100px; /* Fixed width */
-    height: 100px; /* Fixed height to match width for circle */
-    font-size: 1.2em;
-    line-height: 1.2; /* Adjust line spacing */
+    animation: blink 1.5s infinite;
     border: 2px solid black; /* Black border */
     border-radius: 50%; /* Essential for circle */
     background-color: green;
-    color: white;
-    cursor: pointer;
-    animation: blink 1.5s infinite;
-    text-align: center; /* Ensure text is centered */
-    white-space: normal; /* Override any parent white-space properties */
     box-shadow: inset 0 0 10px #000000, /* Inner shadow */
                 0 0 20px rgba(255, 255, 255, 0.7); /* Glow effect */
-    position: relative;
+    color: white;
+    cursor: pointer;
+    display: none;
+    flex-direction: column; /* Stack text lines */
+    font-size: 1.2em;
+    height: 100px; /* Fixed height to match width for circle */
+    justify-content: center; /* Center text horizontally */
+    line-height: 1.2; /* Adjust line spacing */
+    margin-top: .3em;
+    margin-bottom: .3em;
     overflow: hidden;
+    padding: 20px; /* Adjust padding to maintain the circle shape */
+    position: relative;
+    text-align: center; /* Ensure text is centered */
+    white-space: normal; /* Override any parent white-space properties */
+    width: 100px; /* Fixed width */
 }
 .experience-start-button::before {
     content: '';
@@ -164,26 +172,161 @@
 }
 /* mainstage */
 .experience-mainstage {
-    display: flex; /* Enables flexbox layout */
-    flex-direction: column; /* Stack children vertically */
-    justify-content: center; /* Center children vertically in the container */
     align-items: center; /* Center children horizontally in the container */
-    width: 100%; /* Fill the width of its parent container */
-    height: 100%; /* Fill the height of its parent container */
-    background-color: rgba(245, 245, 245, 0.18); /* Light grey background, as you had */
+    background-color: rgba(252, 192, 124, 0.2); /* Light grey background, as you had */
     border-radius: 15px; /* Adjust as needed for desired roundness */
-    overflow: hidden; /* Ensures content respects the border radius */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08); /* Optional: adds shadow for depth */
-    transition: all 0.3s ease-in-out; /* Smooth transition for any changes */
-    /* Ensure it starts off-screen */
-    transform: translateY(100%);
+    display: none; /* Hide by default */
+    flex-direction: column; /* Stack children vertically */
+    height: 100%; /* Fill the height of its parent container */
+    justify-content: center; /* Center children vertically in the container */
+    left: 0;
     opacity: 1; /* In case you want to make it visible */
+    overflow: hidden; /* Ensures content respects the border radius */
     position: absolute; /* Or fixed, depending on layout */
     top: 0;
-    left: 0;
+    /* transition: all 0.3s ease-in-out; /* Smooth transition for any changes */
+    width: 100%; /* Fill the width of its parent container */
     z-index: 20; /* Ensure it's above the backstage */
 }
+.experience-scenestage {
+    display: flex; /* Use flexbox instead of grid */
+    flex-direction: row; /* Add entities horizontally */
+    align-items: flex-start; /* Align items to the start of the flex container */
+    height: 100%; /* Fill the height of its parent container */
+    overflow-y: auto; /* Enable vertical scrolling for many characters */
+    padding: 2em; /* Adjust as needed */
+    width: 100%; /* Span the full width of the parent container */
+}
+/* experience moderator */
+/* experience input */
+.experience-moderater, .experience-input {
+    padding: 1em; /* Adjust as needed */
+}
+.experience-moderator {
+    justify-content: space-between; /* Distribute space between items */
+    padding: 10px;
+    margin-top: auto; /* Push to the bottom */
+    max-height: 10em; /* Limit the height of the moderator */
+    width: 100%; /* Span the full width of the parent container */
+}
+.experience-moderator-icon, .experience-moderator-dialog, .experience-moderator-props, .experience-input {
+    display: none; /* Hide by default */
+}
+.experience-moderator-dialog {
+    background-color: rgba(255, 212, 72, 0.4); /* Semi-transparent white background */
+}
+.experience-moderator-icon {
+    background-color: rgba(168, 250, 4, 0.765); /* Semi-transparent white background */
+}
+.experience-moderator-props {
+    width: 0% !important; /* @todo - fix whatever causes character props to be added as class */
+}
+.experience-input {
+    display: none;
+    padding: 1em; /* Adjust as needed */
+}
+.input-text {
+    box-sizing: border-box;
+    max-height: calc(1.2em * 3); /* Limit the height to 3 lines of text */
+    min-height: 1.2em;
+    overflow: auto; /* Add a scrollbar when the content exceeds the max height */
+    padding: 0.1em;
+    resize: none; /* height is calculated */
+    width: 100em; /* Adjust as needed */
+}
+/* character lane */
+.char-lane {
+    align-items: flex-start; /* Align items to the start (left) of the container */
+    background: white; /* Assuming a light background to contrast the shadow */
+    border: 4px solid black; /* Thick black border */
+    border-radius: 8px; /* Slightly rounded corners */
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5); /* Inset shadow for depth */
+    box-sizing: border-box; /* Ensure padding is included in width/height */
+    display: none; /* keep hidden at start, use classes .hide/.show */
+    flex-direction: column;
+    justify-content: flex-start; /* Align items to the start of the container */
+    height: 100%;
+    padding: 16px; /* Add some padding inside the lane */
+    width: 100%; /* Fill the width of its parent container */
+}
+.char-icon, .char-dialog, .char-props {
+    display: flex;
+    width: 100%; /* Each character item fills the width */
+}
+/* Base dialog style */
+.char-dialog {
+    display: flex;
+    max-width: 90%; /* Dialog box maximum width */
+    margin: 0 auto; /* Center the dialog box */
+}
+.char-dialog-box {
+    border-radius: 8px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+    display: none; /* Hide by default */
+    margin-bottom: 10px; /* Space between dialog boxes */
+    padding: 8px 12px;
+    position: relative; /* For positioning the arrow */
 
+}
+/* Speech bubble arrow */
+.char-dialog-box::after {
+    content: '';
+    position: absolute;
+    bottom: -10px; /* Adjust based on the size of the arrow */
+    left: 20px;
+    border-width: 10px 10px 0;
+    border-style: solid;
+    border-color: #000 transparent transparent transparent;
+}
+/* Type 1: Classic white bubble */
+.dialog-type-1 {
+    background-color: white;
+    color: blueviolet;
+}
+/* Type 2: Think bubble - dotted border */
+.dialog-type-2 {
+    border-style: dotted;
+    background-color: white;
+    color: #330058;
+}
+/* Type 3: Shout bubble - spike border */
+.dialog-type-3 {
+    /* clip-path: polygon(0 0, 94% 0, 100% 50%, 94% 100%, 0 100%); */
+    color: blue;
+    background-color: #ffcccc; /* Light red background */
+}
+.dialog-type-moderator {
+    background-color: #32e4ff; /* Light red background */
+    color: #330058;
+}
+/* character icon */
+.char-icon {
+    flex-direction: row;
+    height: 5em;
+    justify-content: flex-start;
+    margin-bottom: 1em;
+}
+.char-icon-image {
+    flex: 0 1 auto; /* Allow the container to shrink and grow */
+    height: 100%; /* Fill the height of the parent container */
+}
+.char-icon-image img {
+    max-height: 100%; /* Make the image's height not exceed the parent container's height */
+    max-width: 100%; /* Make the image's width not exceed the parent container's width */
+    height: auto; /* Keep the aspect ratio of the image */
+    width: auto; /* Allow the width to automatically adjust based on the height */
+}
+.char-icon-text {
+    color: antiquewhite;
+    display: flex;
+    flex-direction: column;
+    font-size: 2vw; /* Adjust font size as needed */
+    justify-content: center;
+    margin-left: 1em; /* Space between the image and the text */
+    text-shadow: 2px 2px #000;
+}
 /* Example styling for cast icons and navigation boxes */
 .cast-icon, .navigation-box {
     width: 50px; /* Example size, adjust as needed */
@@ -199,12 +342,67 @@
 .navigation-box.active {
     background-color: #4CAF50; /* Highlight color for active navigation box */
 }
+/* footer */
+.experience-footer {
+    align-items: center;
+    background-color: #330058; /* Solid black background */
+    color: whitesmoke;
+    display: none; /* Hide by default */
+    height: fit-content;
+    justify-content: space-between;
+    margin: 0;
+    padding: 0;
+}
 /* utility classes */
+.animate, .appear {
+    animation: fadeIn 0.2s ease-in forwards;
+}
+.fade-in {
+    animation: fadeIn 1s ease-out forwards;
+}
+.fade-in-slow {
+    animation: fadeIn 6s ease-in forwards;
+}
+.animation-default {
+    animation: fadeIn 2s ease-out forwards;
+}
 .fade-out {
-    animation: fadeOut 2s ease-in-out forwards;
+    animation: fadeOut 2s ease-out forwards;
+}
+.hide {
+    animation: none !important;
+    display: none !important;
+}
+.loading-text {
+    color: yellowgreen;
+    font-size: 1.1em;
+    margin: 0;
+    padding: 0;
+}
+.show {
+    display: flex !important;
+}
+.slide, .slide-right, .slide-in {
+    animation: slideInFromLeft 2s ease-in-out forwards;
+}
+.slide-down {
+    animation: slideInFromTop 2s ease-in-out forwards;
+}
+.slide-left, .slide-out {
+    animation: slideInFromRight 2s ease-in-out forwards;
 }
 .slide-up {
     animation: slideInFromBottom 2s ease-in-out forwards;
+}
+.spinner {
+    animation: spin 1.7s infinite linear;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #09f;
+    border-radius: 50%;
+    display: inline-flex;
+    height: 1.2em;
+    margin: auto 0.4em;
+    width: 1.2em;
 }
 /* Keyframes */
 @keyframes blink {
@@ -230,6 +428,51 @@
     0% { transform: translateY(100%); }
     100% { transform: translateY(0); }
 }
-
+@keyframes slideInFromLeft {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(0); }
+}
+@keyframes slideInFromRight {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(0); }
+}
+@keyframes slideInFromTop {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(0); }
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+/* squeeze-out */
+@keyframes squeezeOutFromBottom {
+    from { transform: scaleY(0); transform-origin: bottom; } /* Ensure scaling happens from the left */
+    to { transform: scaleY(1); }
+}
+@keyframes squeezeOutFromLeft {
+    from { transform: scaleX(0); transform-origin: left; } /* Ensure scaling happens from the left */
+    to { transform: scaleX(1); }
+}
+@keyframes squeezeOutFromRight {
+    from { transform: scaleX(0); transform-origin: right; } /* Ensure scaling happens from the left */
+    to { transform: scaleX(1); }
+}
+@keyframes squeezeOutFromTop {
+    from { transform: scaleY(0); transform-origin: top; } /* Ensure scaling happens from the left */
+    to { transform: scaleY(1); }
+}
 /* Font Awesome CDN if needed */
 @import url('https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css');
+/* media queries */
+/* Set a minimum font size */
+@media (max-width: 480px) {
+    .char-icon-text {
+        font-size: 1.2em; /* Minimum font size */
+    }
+}
+/* Set a maximum font size */
+@media (min-width: 800px) {
+    .char-icon-text {
+        font-size: 2em; /* Maximum font size */
+    }
+}

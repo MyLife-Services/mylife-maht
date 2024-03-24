@@ -1,37 +1,42 @@
+/* imports */
 import {
     mExperienceEnd,
+    mExperiencePlay,
+    mExperienceSkip,
     mExperienceStart,
 } from './experience.mjs'
 import { fetchBots, updatePageBots } from './bots.mjs'
-/* page chat vars */
-/* define variables */
-const _greeting = [`So nice to see you!`]
-let activeBot // replaced with pageBots[reference]
-let chatBubbleCount = 0
-let pageBots = [] // send for processing
-let typingTimer
-/* page div vars */
-let _awaitButton
-let _agentSpinner
-let _botBar
-let _chatInput
-let _chatLabel
-let _chatOutput
-let _messageInput
-let _submitButton
+/* variables */
+/* constants    */
+const mExperiences = []
+/* variables */
+let activeBot, // replaced with pageBots[reference]
+    chatBubbleCount = 0,
+    pageBots = [], // @todo convert to const
+    typingTimer
+/* page div variables */
+let mAwaitButton,
+    mAgentSpinner,
+    mBotBar,
+    mChatInput,
+    mChatLabel,
+    mChatOutput,
+    mMessageInput,
+    mSubmitButton
+/* page load listener */
 document.addEventListener('DOMContentLoaded', () => {
-    /* vars */
-    _awaitButton = document.getElementById('await-button')
-    _agentSpinner = document.getElementById('agent-spinner')
-    _botBar = document.getElementById('bot-bar')
-    _chatInput = document.getElementById('chat-input')
-    _chatLabel = document.getElementById('user-chat-label')
-    _chatOutput = document.getElementById('chat-output')
-    _messageInput = document.getElementById('user-chat-message')
-    _submitButton = document.getElementById('submit-button')
+    /* variable population */
+    mAwaitButton = document.getElementById('await-button')
+    mAgentSpinner = document.getElementById('agent-spinner')
+    mBotBar = document.getElementById('bot-bar')
+    mChatInput = document.getElementById('chat-input')
+    mChatLabel = document.getElementById('user-chat-label')
+    mChatOutput = document.getElementById('chat-output')
+    mMessageInput = document.getElementById('user-chat-message')
+    mSubmitButton = document.getElementById('submit-button')
     /* page listeners */
-    _messageInput.addEventListener('input', toggleInputTextarea);
-    _submitButton.addEventListener('click', addUserMessage); // Event listener to submit message
+    mMessageInput.addEventListener('input', toggleInputTextarea);
+    mSubmitButton.addEventListener('click', addUserMessage); // Event listener to submit message
     document.querySelectorAll('.bot-container').forEach(container => { // Event listener to toggle bot containers
         container.addEventListener('click', function() {
             // First, close any currently open containers
@@ -46,18 +51,20 @@ document.addEventListener('DOMContentLoaded', () => {
         })
     })
     /* onLoad */
-    _awaitButton.style.display = 'none'
+    mAwaitButton.style.display = 'none'
     fetchExperiences()
-        .then(async experienceObject => {
-            const { autoplay, experiences, mbr_id } = experienceObject
-            const experience = experiences.find(experience => experience.id === autoplay)
-            if(autoplay && experience){
+        .then(async experiencesObject => {
+            if(experiencesObject){
+                const { autoplay, experiences, mbr_id } = experiencesObject
+                mExperiences.push(...experiences.filter(experience => !mExperiences.some(e => e.id === experience.id))) // only push `unknown` experiences
+                const experience = experiences.find(experience => experience.id === autoplay)
+                /* autoplay experience */
                 if(experience){
-                    await mExperienceStart(experience)
+                    await mExperienceStart(experience) // includes play at the end once welcome button and data is loaded
                 }
             }
         })
-// alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
+    .catch(err => console.log('Error fetching experiences:', err));// alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
     /* page-greeting 
     _greeting.forEach(_greet=>{
         chatBubbleCount++
@@ -103,7 +110,7 @@ function addMessageToColumn(_message, _options={
 	const chatBubble = document.createElement('div')
 	chatBubble.setAttribute('id', `chat-bubble-${chatBubbleCount}`)
 	chatBubble.className = `chat-bubble ${bubbleClass}`
-	_chatOutput.appendChild(chatBubble)
+	mChatOutput.appendChild(chatBubble)
 	_message = escapeHtml(message)
 	if (_typewrite) {
 		let i = 0;
@@ -127,7 +134,7 @@ function addMessageToColumn(_message, _options={
 function addUserMessage(_event){
     _event.preventDefault()
     // Dynamically get the current message element (input or textarea)
-    let userMessage = _messageInput.value.trim()
+    let userMessage = mMessageInput.value.trim()
     if (!userMessage.length) return
     userMessage = escapeHtml(userMessage) // Escape the user message
     submit(_event, userMessage)
@@ -135,7 +142,7 @@ function addUserMessage(_event){
         bubbleClass: 'user-bubble',
         _delay: 7,
     })
-    _messageInput.value = ''; // Clear the message field
+    mMessageInput.value = ''; // Clear the message field
 }
 function bot(_id){
     return pageBots.find(bot => bot.id === _id)
@@ -151,18 +158,14 @@ function escapeHtml(text) {
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
-async function fetchExperiences() {
-    const experienceObject = await fetch('/members/experiences/')
+function fetchExperiences(){
+    return fetch('/members/experiences/')
         .then(response=>{
             if(!response.ok)
                 throw new Error(`HTTP error! Status: ${response.status}`)
             return response.json()
         })
-        .catch(error => {
-            console.log('Error:', error)
-            return null
-        })
-    return experienceObject
+        .catch(error=>console.log('fetchExperiences::Error()', error))
 }
 // Function to focus on the textarea and move cursor to the end
 function focusAndSetCursor(textarea) {
@@ -205,7 +208,7 @@ function resetAnimation(element) {
     element.style.animation = '';
 }
 function scrollToBottom() {
-    _chatOutput.scrollTop = _chatOutput.scrollHeight;
+    mChatOutput.scrollTop = mChatOutput.scrollHeight;
 }
 async function setActiveBot(_incEventOrBot) {
     const activeBotId = _incEventOrBot?.target?.dataset?.botId
@@ -282,10 +285,10 @@ async function submit(_event, _message) {
 	_event.preventDefault()
 	if(!_message.length??false)
 		throw new Error('submit(): `message` property is required')
-	_submitButton.style.display = 'none';
-	_awaitButton.style.display = 'block';
-	_agentSpinner.classList.remove('text-light');
-	_agentSpinner.classList.add('text-primary');
+	mSubmitButton.style.display = 'none';
+	mAwaitButton.style.display = 'block';
+	mAgentSpinner.classList.remove('text-light');
+	mAgentSpinner.classList.add('text-primary');
 	const url = window.location.origin + '/members';
 	const _request = {
 			agent: 'member',
@@ -303,10 +306,10 @@ async function submit(_event, _message) {
 	_MyLifeResponseArray.forEach(_MyLifeResponse => {
 		addMessageToColumn({ message: _MyLifeResponse.message })
 	});
-	_awaitButton.style.display = 'none';
-	_submitButton.style.display = 'block';
-	_agentSpinner.classList.remove('text-primary');
-	_agentSpinner.classList.add('text-light');
+	mAwaitButton.style.display = 'none';
+	mSubmitButton.style.display = 'block';
+	mAgentSpinner.classList.remove('text-primary');
+	mAgentSpinner.classList.add('text-light');
 }
 async function submitChat(url, options) {
 	try {
@@ -320,30 +323,30 @@ async function submitChat(url, options) {
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea() {
-    const inputStyle = window.getComputedStyle(_chatInput)
+    const inputStyle = window.getComputedStyle(mChatInput)
     const inputFont = inputStyle.font;
-    const textWidth = getTextWidth(_messageInput.value, inputFont); // no trim required
-    const inputWidth = _chatInput.offsetWidth;
+    const textWidth = getTextWidth(mMessageInput.value, inputFont); // no trim required
+    const inputWidth = mChatInput.offsetWidth;
 	/* pulse */
 	clearTimeout(typingTimer);
-    _agentSpinner.style.display = 'none';
-    resetAnimation(_agentSpinner); // Reset animation
+    mAgentSpinner.style.display = 'none';
+    resetAnimation(mAgentSpinner); // Reset animation
     typingTimer = setTimeout(() => {
-        _agentSpinner.style.display = 'block';
-        resetAnimation(_agentSpinner); // Restart animation
+        mAgentSpinner.style.display = 'block';
+        resetAnimation(mAgentSpinner); // Restart animation
     }, 2000);
 
-    if (textWidth > inputWidth && _messageInput.tagName !== 'TEXTAREA') { // Expand to textarea
-        _messageInput = replaceElement(_messageInput, 'textarea');
-        focusAndSetCursor(_messageInput);
-    } else if (textWidth <= inputWidth && _messageInput.tagName === 'TEXTAREA' ) { // Revert to input
-		_messageInput = replaceElement(_messageInput, 'input');
-        focusAndSetCursor(_messageInput);
+    if (textWidth > inputWidth && mMessageInput.tagName !== 'TEXTAREA') { // Expand to textarea
+        mMessageInput = replaceElement(mMessageInput, 'textarea');
+        focusAndSetCursor(mMessageInput);
+    } else if (textWidth <= inputWidth && mMessageInput.tagName === 'TEXTAREA' ) { // Revert to input
+		mMessageInput = replaceElement(mMessageInput, 'input');
+        focusAndSetCursor(mMessageInput);
     }
 	toggleSubmitButtonState();
 }
 function toggleSubmitButtonState() {
-	_submitButton.disabled = !_messageInput.value?.trim()?.length??true;
+	mSubmitButton.disabled = !mMessageInput.value?.trim()?.length??true;
 }
 /* exports */
 export {
