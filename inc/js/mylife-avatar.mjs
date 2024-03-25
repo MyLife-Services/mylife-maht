@@ -898,6 +898,7 @@ function mEventStage(llm, experience, stage){
  * Returns processed dialog as string.
  * @todo - add LLM usage data to conversation
  * @todo - when `variable` undefined in `experience.variables`, check to see if event can be found that will provide it
+ * @todo - seems unnecessary to have experience extension handling basic data construction at this stage... refactor, tho?
  * @modular
  * @public
  * @param {LLMServices} llm - OpenAI object currently
@@ -908,7 +909,7 @@ function mEventStage(llm, experience, stage){
  * @returns {Promise<string>} - Parsed piece of event dialog
  */
 async function mEventDialog(llm, experience, livingExperience, event, iteration=0){
-    const { character, dialog: eventDialog, id: eventId, type='script', useDialogCache, } = event
+    const { character, dialog: eventDialog, id: eventId, useDialogCache, } = event
     if(!eventDialog || !Object.keys(eventDialog).length)
         return // no dialog to parse
     if(!character)
@@ -923,25 +924,26 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
     let dialog = experience.dialog(eventId, iteration)
     if(!dialog)
         throw new Error('Dialog error, could not establish dialog.')
+    const { content, dialog: dialogDialog, example, prompt: dialogPrompt, text, type, variables } = dialog
+    const dialogVariables = variables ?? event.variables ?? experience.variables ?? []
     switch(type){
         case 'script':
-            return dialog.dialog
-                ?? dialog.text
-                ?? dialog.prompt
-                ?? dialog.content
-                ?? 'No dialog developed for script'
+            const scriptedDialog = dialogDialog
+                ?? text
+                ?? dialogPrompt
+                ?? content
+            if(!scriptedDialog)
+                throw new Error('Script line requested, no content identified.')
+            return scriptedDialog
         case 'prompt':
-            let prompt = dialog.prompt ?? 'no prompt content for dynamic script!'
-            const promptFallback = dialog.promptFallback ?? `No dialog developed for prompt`
-            if(dialog.example?.length ?? dialog.examples?.length){
-                if(dialog.examples?.length && Array.isArray(dialog.examples)){
-                    dialog.example = dialog.examples[0]
-                } // boild down example from array to string
-                prompt = `using example: "${dialog.example}";\n` + prompt
-            }
+            if(!dialogPrompt)
+                throw new Error('Dynamic script requested, no prompt identified.')
+            let prompt = dialogPrompt
+            if(example?.length)
+                prompt = `using example: "${example}";\n` + prompt
             // check for content variables and replace
-            if(dialog.variables?.length){
-                dialog.variables.forEach(keyName=>{
+            if(dialogVariables.length){
+                dialogVariables.forEach(keyName=>{
                     const value = experience.experienceVariables[keyName]
                     if(value){
                         // @todo: find input event where variable is identified as input and insert (if logic allows, otherwise error)
@@ -957,7 +959,6 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
             const messages = await mCallLLM(llm, scriptDialog, prompt) ?? []
             if(!messages.length){
                 console.log('mEventDialog::no messages returned from LLM', prompt, scriptDialog.botId)
-                messages.push(promptFallback) // can accept string
             }
             scriptDialog.addMessages(messages)
             coreDialog.addMessage(scriptDialog.mostRecentDialog)

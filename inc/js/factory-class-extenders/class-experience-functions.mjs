@@ -37,7 +37,7 @@ function mDialog(event, iteration=0){
     if(!dialog)
         return
     /* validate */
-    const { animation, animationDetail, animationDelay, animationDuration, dialog: characterDialog, effect, example, maxIterations=1, minIterations=1, text, type, variable: dialogVariable, variables: dialogVariables=[] } = dialog
+    const { animation, animationDetail, animationDelay, animationDuration, dialog: characterDialog, effect, example, maxIterations=1, minIterations=1, text, type='script', variable: dialogVariable, variables: dialogVariables=[] } = dialog
     let { prompt, } = dialog
     if(!mAvailableEventActionMap.dialog.types.includes(type))
         throw new Error(`mDialog: event.type must be one of ${mAvailableEventActionMap.dialog.types.join(', ')}`)
@@ -101,9 +101,12 @@ function mGetEvent(scenes, eventId){
  * @property {string} inputPlaceholder - Input placeholder string.
  * @property {string} inputShadow - Input shadow string.
  * @property {string} inputType - Input type.
+ * @property {string} inputVariableName - Input variable name.
  * @property {string} outcome - Input success string.
  * @property {string} success - Input success string.
+ * @property {string} type - Input type ['script', 'prompt'].
  * @property {any} variable - Variable name, only one allowed per `input` event, but could be any type.
+ * @property {array} variables - Variable names including in event.
  */
 function mInput(event, iteration=0){ // deprecate or fix
     const { data: eventData, id: eventId, type: eventType, variable: eventVariable, variables: eventVariables } = event
@@ -115,14 +118,14 @@ function mInput(event, iteration=0){ // deprecate or fix
         currentIteration: iteration,
         failure: failure, // default is to stay on current event
         followup: followup ?? 'Something went wrong, please enter again.',
-        inputId: inputId ?? event.id,
+        inputId: inputId ?? eventId,
         inputPlaceholder: inputPlaceholder ?? 'Type here...',
         inputShadow: inputShadow ?? 'Please enter your response below',
-        inputType: inputType ?? type ?? 'input',
+        inputType: inputType ?? type ?? 'text',
+        inputVariableName: variable ?? variables?.[0] ?? eventVariable ?? eventVariables?.[0] ?? 'input',
         outcome: outcome, // no variables, just success boolean
         success: success, // what system should do on success, guid for eventId or default is next
         useDialogCache: false, // if true, will use dialog cache (if exists) for input and dialog (if dynamic)
-        variable: variable ?? variables?.[0] ?? eventVariable ?? eventVariables?.[0] ?? 'input',
         variables: variables ?? eventVariables ?? ['input'],
     }
     return input
