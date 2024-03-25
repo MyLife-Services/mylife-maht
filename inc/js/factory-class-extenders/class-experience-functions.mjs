@@ -99,13 +99,15 @@ function mGetEvent(scenes, eventId){
  * @property {string} inputFailure - Input failure string.
  * @property {Guid} inputId - Input id.
  * @property {string} inputPlaceholder - Input placeholder string.
- * @property {string} inputSuccess - Input success string.
+ * @property {string} inputShadow - Input shadow string.
  * @property {string} inputType - Input type.
+ * @property {string} outcome - Input success string.
+ * @property {string} success - Input success string.
  * @property {any} variable - Variable name, only one allowed per `input` event, but could be any type.
  */
 function mInput(event, iteration=0){ // deprecate or fix
     const { data: eventData, id: eventId, type: eventType, variable: eventVariable, variables: eventVariables } = event
-    const { condition, failure, followup, inputId, inputPlaceholder, inputType, outcome, placeholder, success, type, variable, variables } = eventData
+    const { condition, failure, followup, inputId, inputPlaceholder, inputShadow, inputType, outcome, success, type, variable, variables } = eventData
     // add synthetic input object
     const input = {
         complete: false, // default is false, true would indicate that input has been successfully complete
@@ -114,7 +116,8 @@ function mInput(event, iteration=0){ // deprecate or fix
         failure: failure, // default is to stay on current event
         followup: followup ?? 'Something went wrong, please enter again.',
         inputId: inputId ?? event.id,
-        inputPlaceholder: inputPlaceholder ?? placeholder ?? 'Type here...',
+        inputPlaceholder: inputPlaceholder ?? 'Type here...',
+        inputShadow: inputShadow ?? 'Please enter your response below',
         inputType: inputType ?? type ?? 'input',
         outcome: outcome, // no variables, just success boolean
         success: success, // what system should do on success, guid for eventId or default is next
