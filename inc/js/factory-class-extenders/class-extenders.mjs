@@ -288,7 +288,7 @@ function extendClass_experience(originClass, referencesObject){
          * @param {number} iteration - The iteration number, array-variant.
          * @returns {object} - `synthetic` Dialog data package.
          */
-        dialog(eventId, iteration=0){
+        dialogData(eventId, iteration=0){
             return mDialog(this.event(eventId), iteration)
         }
         /**
