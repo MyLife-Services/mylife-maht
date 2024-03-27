@@ -1186,26 +1186,32 @@ async function mExperiencePlay(factory, llm, experience, livingExperience, membe
     if(sceneComplete){
         // @stub - check for additional scene requirements (beyond being finished)
         // @stub - check for scene branching
-        eventSequence.push({
-            action: 'end',
-            complete: true,
-            id: sceneId,
-            experienceId: experience.id,
-            sceneId: sceneId,
-            type: 'scene',
-        }) // provide marker for front-end [end of event sequence]; begin next scene with next request
-        const nextScene = experience.sceneNext(currentScene.id)
+        const nextScene = experience.sceneNext(sceneId)
         if(nextScene){
+            eventSequence.push({
+                action: 'end',
+                complete: true,
+                id: sceneId,
+                experienceId: experience.id,
+                sceneId: sceneId,
+                title: currentScene.title,
+                type: 'scene',
+            }) // provide marker for front-end [end of event sequence]; begin next scene with next request
             livingExperience.location.sceneId = nextScene.id
             livingExperience.location.eventId = nextScene.events[0].id
             console.log('mExperiencePlay: next scene', nextScene)
         } else {
             /* end-of-experience */
+            const { goal, id: experienceId, name: experienceName, title, } = experience
+            const name = experienceName ?? 'MyLife Experience'
             eventSequence.push({
                 action: 'end',
                 complete: true,
-                id: experience.id,
-                experienceId: experience.id,
+                goal: goal,
+                id: experienceId,
+                experienceId: experienceId,
+                name: name,
+                title: title ?? name,
                 type: 'experience',
             }) // provide marker for front-end [end of event sequence]
         }
