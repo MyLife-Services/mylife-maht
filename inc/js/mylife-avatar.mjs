@@ -23,7 +23,7 @@ class Avatar extends EventEmitter {
     #conversations = []
     #evolver
     #experience
-    #experienceVariables = {
+    #experienceGenericVariables = {
         age: undefined,
         birthdate: undefined,
         birthplace: undefined,
@@ -78,7 +78,7 @@ class Avatar extends EventEmitter {
             }
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
-            this.#experienceVariables = mAssignExperienceVariables(this.#experienceVariables, this)
+            this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             this.#evolver = new EvolutionAssistant(this)
             mAssignEvolverListeners(this.#evolver, this)
             /* init evolver */
@@ -242,9 +242,8 @@ class Avatar extends EventEmitter {
             this,
             this.#factory,
             experienceId,
-            this.#experienceVariables
+            this.#experienceGenericVariables
         )
-        return
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
@@ -723,6 +722,9 @@ function mAssignEvolverListeners(_evolver, _avatar){
         }
     )
 }
+function mAssignExperienceVariables(){
+
+}
 /**
  * Assigns (directly mutates) private experience variables from avatar.
  * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
@@ -731,7 +733,7 @@ function mAssignEvolverListeners(_evolver, _avatar){
  * @param {Avatar} avatar - Avatar instance.
  * @returns {void} - mutates experienceVariables
  */
-function mAssignExperienceVariables(experienceVariables, avatar){
+function mAssignGenericExperienceVariables(experienceVariables, avatar){
     Object.keys(experienceVariables).forEach(_key=>{
         experienceVariables[_key] = avatar[_key]
     })
@@ -909,6 +911,7 @@ function mEventStage(llm, experience, stage){
  * @returns {Promise<string>} - Parsed piece of event dialog
  */
 async function mEventDialog(llm, experience, livingExperience, event, iteration=0){
+    console.log('mEventDialog::livingExperience.variabless', livingExperience.variables)
     const { character, dialog: eventDialog, id: eventId, useDialogCache, } = event
     if(!eventDialog || !Object.keys(eventDialog).length)
         return // no dialog to parse
@@ -928,38 +931,30 @@ async function mEventDialog(llm, experience, livingExperience, event, iteration=
     const dialogVariables = variables ?? event.variables ?? experience.variables ?? []
     switch(type){
         case 'script':
-            const scriptedDialog = dialogDialog
+            let scriptedDialog = dialogDialog
                 ?? text
                 ?? dialogPrompt
                 ?? content
             if(!scriptedDialog)
                 throw new Error('Script line requested, no content identified.')
+            if(dialogVariables.length && scriptedDialog.includes('@@'))
+                scriptedDialog = mReplaceVariables(scriptedDialog, dialogVariables, livingExperience.variables)
             return scriptedDialog
         case 'prompt':
             if(!dialogPrompt)
                 throw new Error('Dynamic script requested, no prompt identified.')
             let prompt = dialogPrompt
-            if(example?.length)
-                prompt = `using example: "${example}";\n` + prompt
-            // check for content variables and replace
-            if(dialogVariables.length){
-                dialogVariables.forEach(keyName=>{
-                    const value = experience.experienceVariables[keyName]
-                    if(value){
-                        // @todo: find input event where variable is identified as input and insert (if logic allows, otherwise error)
-                        prompt = prompt.replace(new RegExp(`@@${keyName}`, 'g'), value)
-                    }
-                })
-            }
-            // **note**: system chat would refer to `Q`, but I want any internal chat to go through this channel, depending on cast member
             const { cast, scriptAdvisorBotId } = experience
-            const { dialog: coreDialog, scriptDialog } = livingExperience
+            const { dialog: coreDialog, scriptDialog, variables: experienceVariables, } = livingExperience
             const castMember = cast.find(castMember=>castMember.id===characterId)
             scriptDialog.botId = castMember.bot?.bot_id ?? scriptAdvisorBotId ?? this.activebot.bot_id // set llm assistant id
+            if(example?.length)
+                prompt = `using example: "${example}";\n` + prompt
+            if(dialogVariables.length)
+                prompt = mReplaceVariables(prompt, dialogVariables, experienceVariables)
             const messages = await mCallLLM(llm, scriptDialog, prompt) ?? []
-            if(!messages.length){
+            if(!messages.length)
                 console.log('mEventDialog::no messages returned from LLM', prompt, scriptDialog.botId)
-            }
             scriptDialog.addMessages(messages)
             coreDialog.addMessage(scriptDialog.mostRecentDialog)
             return coreDialog.mostRecentDialog
@@ -987,10 +982,11 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
     const { characterId: _id, id } = character
     const characterId = id ?? _id
     const { dialog, events, scriptAdvisor, scriptDialog, } = livingExperience
-    const hasMemberInput = 
+    const hasMemberInput = memberInput && (
             ( typeof memberInput==='object' && Object.keys(memberInput)?.length )
          || ( typeof memberInput==='string' && ( memberInput.trim().length ?? false ) )
          || ( Array.isArray(memberInput) && memberInput.length && memberInput[0])
+        )
     const livingEvent = events.find(_event=>_event.id===eventId)
     /* return initial or repeat request without input */
     input.complete = false
@@ -1071,10 +1067,11 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
         input.followup = evaluationResponse.followup ?? input.followup
         return input
     }
-    input.variables.forEach(_variable=>{ // when variables found, add to experience.experienceVariables
-        console.log('mEventInput::evaluationResponse', _variable, evaluationResponse)
-        experience.experienceVariables[_variable] = evaluationResponse.outcome?.[_variable]
-            ?? evaluationResponse?.[_variable] // when wrong bot used, will send back raw JSON object
+    input.variables.forEach(variable=>{ // when variables, add/overwrite `livingExperience.variables`
+        livingExperience.variables[variable] = evaluationResponse.outcome?.[variable]
+            ?? evaluationResponse?.[variable] // when wrong bot used, will send back raw JSON object
+            ?? livingExperience.variables?.[variable]
+            ?? evaluationResponse
     })
     if(typeof input.success === 'object'){ // @stub - handle complex object success object conditions
         // denotes multiple potential success outcomes, currently scene/event branching based on content
@@ -1104,13 +1101,15 @@ async function mEventInput(llm, experience, livingExperience, event, iteration=0
  * @returns {Promise<ExperienceEvent>} - Event object
  */
 async function mEventProcess(llm, experience, livingExperience, event, memberInput){
-    const { events, location, } = livingExperience
+    const { events, location, variables } = livingExperience
     const { action, id } = event
     let { character, dialog, input, stage, } = event
     switch(action){ // **note**: intentional pass-throughs on `switch`
         case 'input':
             if(input && Object.keys(input).length){
                 const _input = await mEventInput(llm, experience, livingExperience, event, undefined, memberInput)
+                if(memberInput)
+                    memberInput = undefined // clear for next event
                 input = _input
                 event.complete = input.complete
                 event.skip = input.complete // member input need not be in event scheme
@@ -1169,6 +1168,8 @@ async function mExperiencePlay(factory, llm, experience, livingExperience, membe
     while(eventIndex <= maxSceneIndex){
         const _event = new (factory.experienceEvent)(currentScene.events[eventIndex])
         const event = await mEventProcess(llm, experience, livingExperience, _event, memberInput)
+        if(memberInput)
+            memberInput = null // clear for next event
         if(event.skip){ // currently no occasion
             console.log('mExperiencePlay: event skipped, not presented to frontend')
         } else {
@@ -1192,7 +1193,7 @@ async function mExperiencePlay(factory, llm, experience, livingExperience, membe
             experienceId: experience.id,
             sceneId: sceneId,
             type: 'scene',
-        }) // provide marker for front-end [end of event dequence]; begin next scene with next request
+        }) // provide marker for front-end [end of event sequence]; begin next scene with next request
         const nextScene = experience.sceneNext(currentScene.id)
         if(nextScene){
             livingExperience.location.sceneId = nextScene.id
@@ -1257,7 +1258,7 @@ function mExperiences(experiences){
  * @param {AgentFactory} factory - AgentFactory object.
  * @param {guid} experienceId - Experience id.
  * @param {object} avatarExperienceVariables - Experience variables object from Avatar class definition.
- * @returns {Promise<void>} - Successfully mutated avatar.
+ * @returns {Promise} - Promise indicating successfully mutated avatar.
  */
 async function mExperienceStart(avatar, factory, experienceId, avatarExperienceVariables){
     let _experience = await factory.getExperience(experienceId) // database object
@@ -1266,7 +1267,7 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
     /* hydrate experience */
     avatar.mode = 'experience'
     avatar.experience = await ( new (factory.experience)(_experience) )
-        .init(avatarExperienceVariables)
+        .init()
     const { livingExperience, experience, mode } = avatar
     const { id, scenes } = experience
     if(id!==experienceId)
@@ -1281,7 +1282,7 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
     ]) // async cobstruction
     livingExperience.dialog = dialog
     livingExperience.scriptDialog = scriptDialog
-    return
+    livingExperience.variables = avatarExperienceVariables
 }
 /**
  * Gets bot by id.
@@ -1386,6 +1387,26 @@ function mPrepareMessage(_msg){
         category: _messageCategory,
         content: _content,
     }
+}
+/**
+ * Replaces variables in prompt with Experience values.
+ * @todo - variables should be back populated to experience, confirm
+ * @todo - events could be identified where these were input if empty
+ * @modular
+ * @private
+ * @param {string} prompt - Dialog prompt, replace variables.
+ * @param {string[]} variableList - List of variables to replace.
+ * @param {object} variableValues - Object with variable values.
+ * @returns {string} - Dialog prompt with variables replaced.
+ */
+function mReplaceVariables(prompt, variableList, variableValues){
+    console.log(mReplaceVariables, prompt, variableList, variableValues)
+    variableList.forEach(keyName=>{
+        const value = variableValues[keyName] ?? 'xxxxxx'
+        if(value)
+            prompt = prompt.replace(new RegExp(`@@${keyName}`, 'g'), value)
+    })
+    return prompt
 }
 /**
  * Returns a sanitized event.

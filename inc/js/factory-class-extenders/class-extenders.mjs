@@ -260,7 +260,6 @@ function extendClass_conversation(originClass, referencesObject) {
 function extendClass_experience(originClass, referencesObject){
     class Experience extends originClass {
         #cast = []
-        #experienceVariables = {}
         constructor(obj) {
             super(obj)
         }
@@ -268,10 +267,9 @@ function extendClass_experience(originClass, referencesObject){
         /**
          * Initialize the experience.
          * @todo - implement building classes either on-demand or on-init to create scene and event classes
-         * @param {object} experienceVariables - The experience variables to initialize with.
          * @returns {Experience} - The initialized experience.
          */
-        init(experienceVariables={}){
+        init(){
             /* self-validation */
             if(!this.scenes || !this.scenes.length)
                 throw new Error('No scenes provided for experience')
@@ -282,11 +280,6 @@ function extendClass_experience(originClass, referencesObject){
                     throw new Error('No events provided for scene')
                 _scene.events.sort((_a, _b)=>(_a?.order??0)-(_b.order??0))
             })
-            this.experienceVariables = this.variables.reduce((obj, keyName) => {
-                obj[keyName] = undefined
-                return obj
-            }, {}) // turn array this.variables into object with key[name from array]/value[undefined]
-            this.experienceVariables = experienceVariables
             return this
         }
         /**
@@ -358,23 +351,6 @@ function extendClass_experience(originClass, referencesObject){
                 title,
                 version: version ?? 0,
             }
-        }
-        /**
-         * Get the experience variables.
-         * @getter
-         * @returns {object} - The experience variables object.
-         */
-        get experienceVariables(){
-            return this.#experienceVariables
-        }
-        /**
-         * Set the experience variables.
-         * @setter
-         * @param {object} obj - The object to set the experience variables to, ergo can have any number of properties.
-         * @returns {void}
-         */
-        set experienceVariables(obj){
-            this.#experienceVariables = { ...this.#experienceVariables, ...obj }
         }
         /**
          * Get the manifest of the experience.
