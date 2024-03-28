@@ -703,9 +703,6 @@ function mAssignEvolverListeners(_evolver, _avatar){
         }
     )
 }
-function mAssignExperienceVariables(){
-
-}
 /**
  * Assigns (directly mutates) private experience variables from avatar.
  * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
@@ -877,23 +874,24 @@ async function mEventDialog(llm, experience, event, iteration=0){
     const { character, dialog: eventDialog, id: eventId, useDialogCache, } = event
     if(!eventDialog || !Object.keys(eventDialog).length)
         return // no dialog to parse
+    if(useDialogCache){
+        const livedEvent = experience.events.find(event=>event.id===eventId)
+        if(livedEvent)
+            return livedEvent.dialog.dialog
+    }
     if(!character)
         throw new Error('Dialog error, no character identified.')
     const { characterId: _id, id } = character
     const characterId = id ?? _id
-    if(useDialogCache){
-        const livingEvent = experience.events.find(event=>event.id===eventId)
-        if(livingEvent)
-            return livingEvent.dialog
-    }
     let dialog = experience.dialogData(eventId, iteration)
+    console.log('mEventDialog::eventDialog', eventDialog, dialog)
     if(!dialog)
         throw new Error('Dialog error, could not establish dialog.')
-    const { content, dialog: dialogDialog, example, prompt: dialogPrompt, text, type, variables } = dialog
+    const { content, dialog: dialogText, example, prompt: dialogPrompt, text, type, variables } = dialog
     const dialogVariables = variables ?? event.variables ?? []
     switch(type){
         case 'script':
-            let scriptedDialog = dialogDialog
+            let scriptedDialog = dialogText
                 ?? text
                 ?? dialogPrompt
                 ?? content
@@ -906,7 +904,7 @@ async function mEventDialog(llm, experience, event, iteration=0){
             if(!dialogPrompt)
                 throw new Error('Dynamic script requested, no prompt identified.')
             let prompt = dialogPrompt
-            const { cast, dialog: coreDialog, scriptAdvisorBotId, scriptDialog, variables: experienceVariables, } = experience
+            const { cast, memberDialog, scriptAdvisorBotId, scriptDialog, variables: experienceVariables, } = experience
             const castMember = cast.find(castMember=>castMember.id===characterId)
             scriptDialog.botId = castMember.bot?.bot_id ?? scriptAdvisorBotId ?? this.activebot.bot_id // set llm assistant id
             if(example?.length)
@@ -917,8 +915,8 @@ async function mEventDialog(llm, experience, event, iteration=0){
             if(!messages.length)
                 console.log('mEventDialog::no messages returned from LLM', prompt, scriptDialog.botId)
             scriptDialog.addMessages(messages)
-            coreDialog.addMessage(scriptDialog.mostRecentDialog)
-            return coreDialog.mostRecentDialog
+            memberDialog.addMessage(scriptDialog.mostRecentDialog)
+            return memberDialog.mostRecentDialog
         default:
             throw new Error(`Dialog type \`${type}\` not recognized`)
     }   
@@ -1149,13 +1147,11 @@ async function mExperiencePlay(factory, llm, experience, memberInput){
         const event = await mEventProcess(llm, experience, _event, memberInput)
         if(memberInput)
             memberInput = null // clear for next event
-        if(event.skip){ // currently no occasion
+        if(event.skip) // currently no occasion
             console.log('mExperiencePlay: event skipped, not presented to frontend')
-        } else {
+        else
             eventSequence.push(event)
-        }
         if(!event.complete){
-            console.log('mExperiencePlay: event incomplete', event)
             sceneComplete = false
             break
         } // INPUT event incomplete
@@ -1269,11 +1265,11 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
     experience.navigation = mNavigation(scenes) // hydrate scene data for navigation
     experience.variables = avatarExperienceVariables
     /* assign living experience */
-    let [dialog, scriptDialog] = await Promise.all([
+    let [memberDialog, scriptDialog] = await Promise.all([
         avatar.createConversation('experience'),
         avatar.createConversation('dialog')
     ]) // async cobstruction
-    experience.dialog = dialog
+    experience.memberDialog = memberDialog
     experience.scriptDialog = scriptDialog
 }
 /**
