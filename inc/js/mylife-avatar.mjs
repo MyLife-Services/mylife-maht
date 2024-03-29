@@ -854,8 +854,31 @@ async function mCreateBot(_avatar, _bot){
     _botData.bot_id = _openaiGPT.id
     return { ..._bot, ..._botData }
 }
-async function mEventCharacter(){
-
+/**
+ * Takes character data and makes necessary adjustments to roles, urls, etc.
+ * @todo - icon and background changes
+ * @todo - bot changes... allowed?
+ * @param {LLMServices} llm - OpenAI object.
+ * @param {Experience} experience - Experience class instance.
+ * @param {Object} character - Synthetic character object
+ */
+async function mEventCharacter(llm, experience, character){
+    const { characterId, name, role, variables, } = character
+    const castMember = experience.cast.find(castMember=>castMember.id===characterId)
+    if(!castMember)
+        throw new Error('Character not found in cast.')
+    if(name)
+        castMember.name = name.includes('@@') 
+            ? mReplaceVariables(name, variables, experience.variables)
+            : name
+    if(role){
+        castMember.role = role.includes('@@')
+            ? mReplaceVariables(role, variables, experience.variables)
+            : role
+        character.role = castMember.role
+        console.log('mEventCharacter::returnCharacter', character, castMember.role)
+    }
+    return character
 }
 /**
  * Returns processed dialog as string.
@@ -884,7 +907,6 @@ async function mEventDialog(llm, experience, event, iteration=0){
     const { characterId: _id, id } = character
     const characterId = id ?? _id
     let dialog = experience.dialogData(eventId, iteration)
-    console.log('mEventDialog::eventDialog', eventDialog, dialog)
     if(!dialog)
         throw new Error('Dialog error, could not establish dialog.')
     const { content, dialog: dialogText, example, prompt: dialogPrompt, text, type, variables } = dialog
@@ -1079,7 +1101,7 @@ async function mEventProcess(llm, experience, event, memberInput){
                 dialog.dialog = await mEventDialog(llm, experience, event)
         case 'character':
             if(character && Object.keys(character).length)
-                character = await mEventCharacter(llm, experience, event)
+                character = await mEventCharacter(llm, experience, character)
         case 'stage':
             if(stage && Object.keys(stage).length)
                 stage = mEventStage(llm, experience, stage)
@@ -1388,9 +1410,8 @@ function mPrepareMessage(_msg){
  * @returns {string} - Dialog prompt with variables replaced.
  */
 function mReplaceVariables(prompt, variableList, variableValues){
-    console.log(mReplaceVariables, prompt, variableList, variableValues)
     variableList.forEach(keyName=>{
-        const value = variableValues[keyName] ?? 'xxxxxx'
+        const value = variableValues[keyName]
         if(value)
             prompt = prompt.replace(new RegExp(`@@${keyName}`, 'g'), value)
     })
