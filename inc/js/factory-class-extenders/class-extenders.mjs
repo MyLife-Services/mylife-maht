@@ -45,11 +45,10 @@ function extendClass_avatar(_originClass,_references) {
         }
         async init(){
             /* create evolver (exclude MyLife) */
-            // @todo: admin interface for modifying MyLife avatar and their bots
             this.#bots = await this.factory.bots(this.id)
             let _activeBot = this.avatarBot
             if(!this.factory.isMyLife){
-                if(!_activeBot.id){ // create: but do not want to call setBot() to activate
+                if(!_activeBot?.id){
                     _activeBot = await mBot(this)
                     this.#bots.unshift(_activeBot)
                 }
