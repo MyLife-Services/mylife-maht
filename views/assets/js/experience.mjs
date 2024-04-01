@@ -12,6 +12,8 @@ const backstage = document.getElementById('experience-backstage'),
     moderatorDialog = document.getElementById('experience-moderator-dialog'),
     moderatorProps = document.getElementById('experience-moderator-props'),
     navigation = document.getElementById('experience-navigation'),
+    sceneContinue = document.getElementById('experience-continue'),
+    sceneContinueText = document.getElementById('experience-continue-text'),
     sceneStage = document.getElementById('experience-scenestage'),
     screen = document.getElementById('experience-modal'),
     skip = document.getElementById('experience-skip'),
@@ -24,6 +26,8 @@ const backstage = document.getElementById('experience-backstage'),
 /* variables */
 let mEvent,
     mExperience,
+    mLoading = true,
+    mMainstagePrepared = false,
     mModerator,
     mWelcome = true
 /* public functions */
@@ -48,14 +52,16 @@ async function mExperienceEnd(){
  * Play experience onscreen, mutates `mExperience` object.
  * @public
  * @async
+ * @requires mExperience
+ * @param {Object} memberInput - Member Input in form of object.
  * @returns {Promise<void>} - The return is its own success.
  */
-async function mExperiencePlay(){
+async function mExperiencePlay(memberInput){
     if(!mExperience)
         throw new Error("Experience not found!")
     let events
     if(!mWelcome){
-        events = await mEvents()
+        events = await mEvents(memberInput)
     } else {
         mStageTransition()
         events = mExperience.events ?? await mEvents() // use any pre-filled defaults from fetch
@@ -70,47 +76,42 @@ async function mExperiencePlay(){
         })
     const newEvents = events.filter(incEvent=>!mExperience.events.some(event => event.id === incEvent.id))
     mExperience.events = [...mExperience.events, ...newEvents]
-    // determine how many characters over all 'current' events
-    const characters = [...new Set(events.map(event=>event.character.characterId))]
-    console.log('mExperiencePlay', characters)
+    const characters = [...new Set(events.map(event=>event.character?.characterId).filter(Boolean))] // unique characters over current events
     mUpdateCharacters(characters)
     /* mainstage action */
+    const animationSequence = []
     events
         .sort((eA, eB)=>eA.order - eB.order)
         .forEach(event=>{
             mEvent = event
-            mEvent.animationSequence = {
-                stage: mEventStage(),
-                character: mEventCharacter(),
-                dialog: mEventDialog(),
-                input: mEventInput(),
-            }
+            animationSequence.push(
+                ...mEventStage(),
+                ...mEventCharacter(),
+                ...mEventDialog(),
+                ...mEventInput()
+            )
         })
-    /* clear previous? */
     /* play experience */
-    const { character, dialog, input, stage, } = mEvent.animationSequence
-    const animationSequence = [...stage, ...character, ...dialog, ...input]
-    animationSequence.forEach(animationEvent=>{
-        const { action, animation, dismiss, elementId, halt, type, } = animationEvent
-        const element = document.getElementById(elementId)
-        if(!element)
-            throw new Error(`Element not found! ${elementId}`)
-        if(animation){
-            const { animationClass, animationDelay, animationDirection, animationDuration, animationIterationCount } = animation
-            if(animationClass)
-                element.classList.add(animationClass)
-            if(animationDelay)
-                element.style.animationDelay = `${animationDelay}s`
-            if(animationDirection)
-                element.style.animationDirection = animationDirection
-            if(animationDuration)
-                element.style.animationDuration = `${animationDuration}s`
-            if(animationIterationCount)
-                element.style.animationIterationCount = animationIterationCount
+    console.log('mExperiencePlay::animationSequence', animationSequence)
+    for(const animationEvent of animationSequence){
+        try {
+            const { elementId } = animationEvent
+            const element = document.getElementById(elementId)
+            if( // skip if already shown or hidden, move variants or other animations, may have more than one
+                    animationEvent.action==='appear' && element.classList.contains('show')
+                ||  animationEvent.action==='disappear' && !element.classList.contains('show')
+            )
+                continue
+            await mAnimateElement(animationEvent, element)
+            console.log('mExperiencePlay::animation construction complete', animationEvent)
+            if(animationEvent.halt && !animationEvent.dismissable){
+                await mWaitForUserAction() // This function would also return a Promise
+                console.log('mExperiencePlay::halt clicked, proceeded', animationEvent)
+            }
+        } catch(error) {
+            console.error('mExperiencePlay::animation error:', error)
         }
-        mShow(element)
-        console.log('mExperiencePlay::animationEvent', animationEvent)
-    })
+    }
 }
 /**
  * Skips a skippable scene in Experience.
@@ -141,11 +142,59 @@ async function mExperienceStart(experience){
     if(!Array.isArray(manifest.cast)) // cast required, navigation not required
         throw new Error("Experience cast not found")
     mExperience = { ...mExperience, ...manifest }
+    mLoading = false
     /* welcome complete */
     /* display experience-start-button */
     mUpdateStartButton()
 }
 /* private functions */
+/**
+ * Animate an element based on the animation event object.
+ * @todo - remove requirement for `animationend` specifically, to allow for non animation-based events to have callbacks.
+ * @private
+ * @param {Object} animationEvent - The animation event data object.
+ * @param {HTMLElement} element - The element to animate.
+ * @returns {Promise} - The return is the promise that requires resolution in order to fire.
+ */
+function mAnimateElement(animationEvent, element) {
+    return new Promise((resolve, reject) => {
+        const { action, animation, dismissable, elementId, halt, type, } = animationEvent
+        if(!element)
+            return reject(new Error(`Element not found: ${animationEvent.elementId}`))
+        const { animationClass, animationDelay, animationDirection, animationDuration, animationIterationCount } = animation ?? { animationClass: 'animate' }
+        element.classList.add(animationClass)
+        element.style.animationFillMode = 'forwards'; // Ensure final state is kept
+        if(animationDelay)
+            element.style.animationDelay = `${animationDelay}s`
+        if(animationDirection)
+            element.style.animationDirection = animationDirection
+        if(animationDuration)
+            element.style.animationDuration = `${animationDuration}s`
+        if(animationIterationCount)
+            element.style.animationIterationCount = animationIterationCount
+        const handleAnimationEnd = ()=>{
+            element.removeEventListener('animationend', handleAnimationEnd)
+            resolve()
+        }
+        element.addEventListener('animationend', handleAnimationEnd)
+        if(dismissable){
+            const fastForwardAnimation = () => { // Skip to the end of the animation
+                element.removeEventListener('animationend', handleAnimationEnd)
+                element.classList.remove(animationClass)
+                element.classList.add(`${animationClass}-final`)
+                resolve()
+            }
+            // Add event listeners for dismissible actions
+            document.addEventListener('click', fastForwardAnimation, { once: true })
+            document.addEventListener('keydown', event=>{
+                const { code } = event
+                if(['space', 'escape', 'esc', 'enter'].includes(code.toLowerCase()))
+                    fastForwardAnimation()
+            }, { once: true })
+        }
+        mShow(element)
+    })
+}
 /**
  * Callback function for ending an animation. Currently only stops propagation.
  * @private
@@ -228,7 +277,6 @@ function mCreateCharacterLane(character){
     const characterDiv = document.createElement('div')
     characterDiv.id = `char-lane-${characterId}`
     characterDiv.name = `${role}-${characterId}`
-    characterDiv.classList.add('char-lane')
     if(url?.length){
         if(!url.includes('http://')){
             const imageType = url.includes('.')
@@ -245,6 +293,7 @@ function mCreateCharacterLane(character){
         characterDiv.style.backgroundRepeat = 'space'
         characterDiv.style.backgroundPosition = 'right'
     }
+    characterDiv.classList.add('char-lane')
     const characterIconDiv = document.createElement('div'),
         characterIconImageDiv = document.createElement('div'),
         characterIconTextDiv = document.createElement('div')
@@ -288,12 +337,12 @@ function mCreateCharacterLane(character){
  * @returns {HTMLDivElement} - The moderator input prompt div.
  */
 function mCreateModeratorInputPrompt(){
-    const { inputId: id, inputPlaceholder: placeholder, inputType: type } = mEvent.input
+    const { inputId: id, inputPlaceholder, inputShadow, inputType: type } = mEvent.input
     const inputPromptDiv = document.createElement('div')
     inputPromptDiv.id = `prompt-${id}`
     inputPromptDiv.classList.add('char-dialog-box')
     inputPromptDiv.classList.add('dialog-type-moderator')
-    inputPromptDiv.textContent = placeholder ?? `What do _you_ think?`
+    inputPromptDiv.textContent = inputShadow ?? inputPlaceholder ?? `Type in your response below.`
     const spinnerDiv = document.createElement('div')
     spinnerDiv.id = `spinner-${id}`
     spinnerDiv.classList.add('spinner')
@@ -322,13 +371,22 @@ async function mEndServerExperience(){
  */
 function mEventCharacter(){
     const { character: characterData, } = mEvent
+    console.log('mEventCharacter::characterData', characterData)
     const animationSequence = []
     if(characterData){
-        const { animation, animationDirection, animationDelay, animationDuration, animationIterationCount, characterId: _id, id, prompt, sfx, stageDirection, type, } = characterData
-        const characterId = id ?? _id
-        const character = mExperience.cast.find(member=>member.id === characterId)
+        const { animation, animationDirection, animationDelay, animationDuration, animationIterationCount, characterId, name, prompt, role, sfx, stageDirection, type, } = characterData
+        const character = mExperience.cast.find(character=>character.id === characterId)
         if(!character)
             throw new Error(`Character not found in cast! ${characterId}`)
+        /* update `name` and `role` */
+        if(role){
+            console.log('mEventCharacter::role', role)
+            character.role = role
+            document.getElementById(`icon-text-${characterId}`).textContent = role
+        }
+        if(name)
+            character.name = name
+        /* animate character */
         const characterLane = document.getElementById(`char-lane-${characterId}`)
         if(!characterLane)
             throw new Error(`Character lane not found! ${stage.characterId}`)
@@ -354,9 +412,9 @@ function mEventCharacter(){
                     action: 'appear',
                     // class: '', /* @stub - add dynamic css stage direction */
                     animation: animationDetails,
-                    dismiss: false, /* click will dismiss animation */
+                    dismissable: false, /* click will dismiss animation */
                     elementId: `char-lane-${characterId}`,
-                    halt: true, /* requires next in animationSequence to await for this completion, default=true */
+                    halt: false, /* requires next in animationSequence to await for this completion, default=true */
                     type: 'character',
                 })
                 break
@@ -378,16 +436,15 @@ function mEventCharacter(){
  */
 function mEventDialog(){
     const { character, dialog, } = mEvent
-    const { characterId } = character
     const animationSequence = []
     if(!dialog || !Object.keys(dialog).length)
-        return
-
+        return animationSequence
+    const { characterId } = character
     const characterDialog = document.getElementById(`char-dialog-${characterId}`)
     if(!characterDialog)
         throw new Error(`Character dialog not found! ${characterId}`)
     const dialogDiv = mCreateCharacterDialog()
-    characterDialog.appendChild(dialogDiv)
+    characterDialog.prepend(dialogDiv)
     const { animationDirection, animationDelay, animationDuration, animationIterationCount, effect, } = dialog
     let { animation, } = dialog
     if(animation)
@@ -398,13 +455,14 @@ function mEventDialog(){
             animationDuration: animationDuration ?? 1,
             animationIterationCount: animationIterationCount ?? 1,
         }
+    else animation = { animationClass: 'dialog-fade' }
     animationSequence.push({
         action: 'appear',
         animation,
-        dismiss: true, /* click will fast-forward animation */
+        dismissable: true, /* click will fast-forward animation */
         effect,
         elementId: dialogDiv.id,
-        halt: false, /* requires next in animationSequence to await its completion */
+        halt: true, /* requires next in animationSequence to await its completion */
         type: 'dialog',
     })
     return animationSequence
@@ -421,7 +479,7 @@ function mEventInput(){
     const animationSequence = []
     if(!input)
         return animationSequence
-    const { complete, failure, followup, inputId: id, inputPlaceholder: placeholderText, inputType: type, variables, } = input
+    const { complete, failure, followup, inputId: id, inputPlaceholder, inputType: type, variables, } = input
     if(complete) // @stub - if complete, do not re-render? determine reaction; is it replay?
         return
     let { variable, } = input
@@ -438,9 +496,10 @@ function mEventInput(){
             inputField.classList.add('input-text')
             inputField.id = `input-${id}`
             inputField.name = `input-${id}`
-            inputField.placeholder = placeholderText ?? `What do _you_ think?`
+            inputField.placeholder = inputPlaceholder ?? `What do _you_ think?`
             inputField.rows = 3 // for textarea calculations
             inputLane.appendChild(inputField)
+            // @todo - change submit button to prop?
             const submitButton = document.createElement('button')
             submitButton.id = `submit-${id}`
             submitButton.name = `submit-${id}`
@@ -449,7 +508,12 @@ function mEventInput(){
             submitButton.classList.add('input-submit')
             submitButton.addEventListener('click', (event) => {
                 event.preventDefault() // Prevent the default form submission
-                mSubmitInput() // Call your form submission function
+                mHide(submitButton) // Hide the submit button (if not already hidden)
+                const eventContinue = mSubmitInput(inputField)
+                if(!eventContinue)
+                    mShow(submitButton) // Show the submit button again
+                else
+                    mHide(moderator) // Hide the moderator element entirely
             }, { once: true })
             inputLane.appendChild(submitButton)
             inputField.addEventListener('input', ()=>{ // Show the submit button when the user starts typing
@@ -469,23 +533,23 @@ function mEventInput(){
             animationDuration: 1,
             animationIterationCount: 1,
         },
-        dismiss: true, /* click will fast-forward animation */
+        dismissable: true, /* click will fast-forward animation */
         effect: undefined,
         elementId: moderator.id,
-        halt: true, /* requires next in animationSequence to await its completion */
+        halt: false, /* requires next in animationSequence to await its completion */
         type: 'moderator',
     },{ /* moderatorDialog */
         action: 'appear',
-        animation: { animationClass: 'appear' },
-        dismiss: true, /* click will fast-forward animation */
+        animation: undefined,
+        dismissable: true, /* click will fast-forward animation */
         effect: undefined,
         elementId: `prompt-${eventId}`,
-        halt: false, /* requires next in animationSequence to await its completion */
+        halt: false, /* next in animationSequence must await its completion */
         type: 'moderator',
     },{ /* moderatorIcon */
         action: 'appear',
         animation: undefined,
-        dismiss: true, /* click will fast-forward animation */
+        dismissable: true, /* click will fast-forward animation */
         effect: undefined,
         elementId: `experience-moderator-icon`,
         halt: false, /* requires next in animationSequence to await its completion */
@@ -493,7 +557,7 @@ function mEventInput(){
     },{ /* input elements */
         action: 'appear',
         animation: { animationClass: 'slide-up' },
-        dismiss: false, /* click will fast-forward animation */
+        dismissable: false, /* click will fast-forward animation */
         effect: undefined,
         elementId: inputLane.id,
         halt: false, /* requires next in animationSequence to await its completion */
@@ -514,7 +578,7 @@ async function mEvents(memberInput){
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(memberInput),
+        body: memberInput ? JSON.stringify(memberInput) : null,
     })
     if(!response.ok)
         throw new Error(`HTTP error! Status: ${response.status}`)
@@ -529,7 +593,7 @@ async function mEvents(memberInput){
  * @returns {Object[]} - Array of animation objects.
  */
 function mEventStage(){
-    const { action, stage, } = mEvent
+    const { action, stage, type, } = mEvent
     const animationSequence = []
     if(stage && Object.keys(stage).length){
         /* animate stage */
@@ -540,12 +604,41 @@ function mEventStage(){
                 action: 'click',
                 // class: '', /* @stub - add dynamic css stage direction */
                 // animation: '', /* @stub - add dynamic css stage direction */
-                dismiss: true, /* click will dismiss animation */
+                dismissable: true, /* click will dismiss animation */
                 elementId: 'experience-continue',
-                halt: false, /* requires next in animationSequence to await its completion */
+                halt: true, /* requires next in animationSequence to await its completion */
                 type: 'stage',
             })
         }
+    }
+    if(action==='end'){
+        const { type, } = mEvent
+        console.log('mEventStage::end', mEvent)
+        sceneContinueText.textContent = `End of ${ type }: ` + mEvent.title
+        sceneContinue.classList.add('slide-down')
+        mShow(sceneContinue, ()=>{
+            console.log('mEventStage::end::show', sceneContinue)
+            mWaitForUserAction()
+                .then(response=>{
+                    console.log('mEventStage::end', response)
+                    sceneContinue.classList.add('slide-up')
+                    mHide(sceneContinue)
+                    switch(type){
+                        case 'experience':
+                            /* close show */
+                            mExperienceEnd()
+                            return
+                        case 'scene':
+                            /* play next scene */
+                            mExperiencePlay() // next scene should be auto-loaded on server
+                            return [] // @todo - unclear if should not return or put case in ePlay to avoid? [i.e., it has now been handed off to a _different_ instantion of ePlay]
+                    }
+                })
+                .catch(err=>{
+                    console.log('mEventStage::end ERROR', err.stack)
+                })
+        })
+
     }
     return animationSequence
 }
@@ -555,8 +648,7 @@ function mEventStage(){
  * @returns {void}
  */
 function mExperienceClose(){
-    screen.classList.remove('modal-screen')
-    screen.style.display = 'none'
+    mHide(screen)
     /* remove listeners */
     closeButton.removeEventListener('click', mExperienceClose)
     skip.removeEventListener('click', mExperienceSkip)
@@ -666,7 +758,7 @@ function mShow(element, listenerFunction){
     element.addEventListener('animationend', animationEvent=>mAnimationEnd(animationEvent, listenerFunction), { once: true })
     if(!element.classList.contains('show')){
         element.classList.remove('hide') // courtesy, shouldn't exist
-        // element.style.animation = 'none' /* stop/rewind all running animations */
+        /* **note**: do not remove or rewind animations, as classList additions fail to fire */
         element.classList.add('show')
     }
 }
@@ -720,15 +812,29 @@ function mStageTransition(){
         mainstageAnimation.stopPropagation()
         /* final mainstage preparations */
         console.log('mStageTransition::mainstageAnimation', mainstageAnimation)
+        mMainstagePrepared = true
     })
 }
 /**
- * Submits member experience    input to the server.
+ * Submits experience member input to the server. **Note**: This function is not yet implemented.
+ * @todo - deprecate `variable` in favor of `inputVariableName` on backend.
+ * @todo - case for click-reponse only to forward (scene end) [although that should be in stage directions?]
  * @private
  * @requires mEvent - The current event object.
+ * @param {HTMLInputElement} input - The member input element.
  */
-async function mSubmitInput(){
-
+function mSubmitInput(input){
+    const { id: eventId, input: eventInput, } = mEvent
+    const { value, } = input
+    const { inputVariableName, variable } = eventInput
+    let eventContinue = false
+    if(value.length){
+        const memberInput = { [inputVariableName ?? variable]: value }
+        mExperiencePlay(memberInput)
+            .catch(err=> console.log('mSubmitInput::mExperiencePlay independent fire ERROR', err.stack, err, memberInput))
+        eventContinue = true
+    }
+    return eventContinue
 }
 /**
  * Receives a list of characters and performs any updates upon the char-lane objects required, show, hide, effects, icon-change, name-change, etc.
@@ -785,21 +891,30 @@ function mUpdateModerator(){
     // @stub - unclear if required or base css is sufficient, as modified on mInput
 }
 /**
- * Displays the `Welcome` start button, once backstage animations are complete.
+ * Displays the `Welcome` start button, completing instantly all backstage animations.
  * @modular
  */
 function mUpdateStartButton(){
-    backstage.addEventListener('animationend', animation=>{
-        animation.stopPropagation()
-        startButton.textContent = 'click me'
-        startButton.classList.add('pulse')
-        startSpinner.classList.add('fade-out')
-        console.log('mUpdateStartButton::_show', startSpinner.animation)
-        mHide(startSpinner, animation=>{
-            console.log('mUpdateStartButton::hide spinner show button', startButton.classList,)
-            mShow(startButton)
-        })
-    }, { once: true })
+    // stop all animations running
+    backstage.style.animation = 'none'
+    startSpinner.classList.add('fade-out')
+    startButton.textContent = 'click me'
+    startButton.classList.add('pulse')
+    mHide(startSpinner, animation=>{
+        console.log('mUpdateStartButton::hide spinner show button', animation, startButton.classList)
+        mShow(startButton)
+    })
+}
+/**
+ * Waits for user action.
+ * @private
+ * @returns {Promise<void>} - The return is its own success.
+ */
+function mWaitForUserAction(){
+    return new Promise((resolve)=>{
+        // wait for a click event and/or some other condition
+        document.addEventListener('click', ()=>{resolve()}, { once: true })
+    })
 }
 /* exports */
 export {

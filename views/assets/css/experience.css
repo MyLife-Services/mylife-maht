@@ -1,3 +1,7 @@
+/* css experience variables */
+:root {
+    --dialog-final-opacity: 0.5;
+}
 /* modal experience screen */
 .modal-screen {
     animation: dropDown 1.5s forwards;
@@ -171,6 +175,17 @@
     animation: textFadeIn 5s ease-in-out forwards;
 }
 /* mainstage */
+.experience-continue {
+    display: none; /* Hidden by default */
+    width: 100%;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+    color: #fff;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100; /* Ensure it's on top of other content */
+}
 .experience-mainstage {
     align-items: center; /* Center children horizontally in the container */
     background-color: rgba(252, 192, 124, 0.2); /* Light grey background, as you had */
@@ -182,7 +197,8 @@
     justify-content: center; /* Center children vertically in the container */
     left: 0;
     opacity: 1; /* In case you want to make it visible */
-    overflow: hidden; /* Ensures content respects the border radius */
+    overflow-x: hidden; /* Ensures content respects the border radius */
+    overflow-y: hidden;
     position: absolute; /* Or fixed, depending on layout */
     top: 0;
     /* transition: all 0.3s ease-in-out; /* Smooth transition for any changes */
@@ -192,39 +208,95 @@
 .experience-scenestage {
     display: flex; /* Use flexbox instead of grid */
     flex-direction: row; /* Add entities horizontally */
+    flex-grow: 1; /* Allow the scene stage to grow */
+    flex-shrink: 1; /* Allow the scene stage to shrink */
     align-items: flex-start; /* Align items to the start of the flex container */
     height: 100%; /* Fill the height of its parent container */
-    overflow-y: auto; /* Enable vertical scrolling for many characters */
-    padding: 2em; /* Adjust as needed */
+    overflow: auto;
+    overflow-y: hidden;
+    padding: 1.2em; /* Adjust as needed */
     width: 100%; /* Span the full width of the parent container */
 }
 /* experience moderator */
 /* experience input */
-.experience-moderater, .experience-input {
-    padding: 1em; /* Adjust as needed */
+.experience-input {
+    align-items: center;
+    color: #000; /* Text color for input */
+    display: none; /* Hide by default */
+    margin: 0.4em 0;
+    width: 100%;
+}
+.experience-input-dialog {
+    display: flex;
+    flex-direction: column; /* Stack items vertically */
+    height: 100%; /* Fill the height of its parent container */
+    justify-content: flex-start; /* Align content to the start */
+    overflow: hidden; /* Hide overflow content */
+    padding-left: 1.2em;
+    width: 80%; /* Take up the rest of the space */
 }
 .experience-moderator {
+    align-items: flex-start; /* Align items to the start of the cross axis */
+    /* background-color: #e7c5ff; /* TEST: Solid black background */
+    display: none; /* Hide by default */
+    flex-direction: column;
+    flex-grow: 0; /* Do not allow the moderator to grow */
+    flex-shrink: 1;
+    flex-wrap: wrap; /* Allow items to wrap to the next line */
     justify-content: space-between; /* Distribute space between items */
     padding: 10px;
     margin-top: auto; /* Push to the bottom */
     max-height: 10em; /* Limit the height of the moderator */
     width: 100%; /* Span the full width of the parent container */
 }
-.experience-moderator-icon, .experience-moderator-dialog, .experience-moderator-props, .experience-input {
-    display: none; /* Hide by default */
+.experience-moderator-icon, .experience-moderator-dialog, .experience-moderator-props {
+    min-width: 0; /* Allow items to shrink below their content width */
 }
 .experience-moderator-dialog {
-    background-color: rgba(255, 212, 72, 0.4); /* Semi-transparent white background */
+    display: flex;
+    flex-basis: 70%; /* Span the full width of the parent container */
+    flex-direction: row;
+    flex-grow: 1; /* Allow the dialog to grow */
+    flex-shrink: 1; /* Allow the dialog to shrink */
+    height: 100%;
+    overflow: hidden;
+    width: 100%;
 }
 .experience-moderator-icon {
-    background-color: rgba(168, 250, 4, 0.765); /* Semi-transparent white background */
+    align-items: center; /* Align items to the center of the container */
+    display: flex; /* show by default */
+    flex-shrink: 0; /* Do not allow the icon to shrink */
+    height: auto;
+    justify-content: center; /* Center items horizontally */
+    padding: 0.2em; /* Adjust as needed */
+    width: 20%; /* Span 20% of the parent container */
+}
+.experience-moderator-icon img {
+    max-height: 100%; /* Make the image's height not exceed the parent container's height */
+    max-width: 100%; /* Make the image's width not exceed the parent container's width */
 }
 .experience-moderator-props {
     width: 0% !important; /* @todo - fix whatever causes character props to be added as class */
 }
-.experience-input {
-    display: none;
-    padding: 1em; /* Adjust as needed */
+.input-submit {
+    background-color: cadetblue;
+    border-color: aliceblue;
+    border-width: thin;
+    border-style: solid;
+    color: aliceblue;
+    cursor: pointer; /* Change cursor to indicate it's clickable */
+    display: flex;
+    font-size: 1em;
+    margin: 0.5em;
+    padding: 0.5em;
+}
+.input-submit:hover {
+    background-color: orange;
+    border-color: yellowgreen;
+    color: bisque;
+    font-weight: bold;
+    text-shadow: 0.1em 0.1em rgba(0,0,0,.7);
+    transform: scale(1.05);
 }
 .input-text {
     box-sizing: border-box;
@@ -233,7 +305,7 @@
     overflow: auto; /* Add a scrollbar when the content exceeds the max height */
     padding: 0.1em;
     resize: none; /* height is calculated */
-    width: 100em; /* Adjust as needed */
+    width: 85%; /* Adjust as needed */
 }
 /* character lane */
 .char-lane {
@@ -247,38 +319,42 @@
     flex-direction: column;
     justify-content: flex-start; /* Align items to the start of the container */
     height: 100%;
+    overflow: hidden;
     padding: 16px; /* Add some padding inside the lane */
     width: 100%; /* Fill the width of its parent container */
 }
-.char-icon, .char-dialog, .char-props {
+.char-icon, .char-props {
     display: flex;
     width: 100%; /* Each character item fills the width */
 }
 /* Base dialog style */
 .char-dialog {
     display: flex;
-    max-width: 90%; /* Dialog box maximum width */
+    flex-direction: column; /* Stack items vertically and reverse the order */
+    max-width: 100%; /* Dialog box maximum width */
     margin: 0 auto; /* Center the dialog box */
+    /* overflow-x: hidden; /* Hide horizontal overflow */
+    overflow-y: auto; /* Add a scrollbar when the content exceeds the box height */
+    padding: 0.2em; /* Adjust padding as needed */
 }
 .char-dialog-box {
-    border-radius: 8px;
-    border: 2px solid #000;
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
     display: none; /* Hide by default */
+    border-radius: 8px;
+    border: .1em solid #000;
+    box-shadow: .1em .1em 0 rgba(0, 0, 0, 0.1);
     margin-bottom: 10px; /* Space between dialog boxes */
     padding: 8px 12px;
     position: relative; /* For positioning the arrow */
-
 }
 /* Speech bubble arrow */
 .char-dialog-box::after {
     content: '';
     position: absolute;
-    bottom: -10px; /* Adjust based on the size of the arrow */
-    left: 20px;
-    border-width: 10px 10px 0;
+    top: -1em; /* Adjust based on the size of the arrow */
+    left: 2em; /* Adjust based on the size of the arrow */
+    border-width: 0 1em 1em;
     border-style: solid;
-    border-color: #000 transparent transparent transparent;
+    border-color: transparent transparent #000 transparent;
 }
 /* Type 1: Classic white bubble */
 .dialog-type-1 {
@@ -300,6 +376,9 @@
 .dialog-type-moderator {
     background-color: #32e4ff; /* Light red background */
     color: #330058;
+    margin: 0.1em;
+    max-width: 70%;
+    min-width: 40%;
 }
 /* character icon */
 .char-icon {
@@ -354,17 +433,26 @@
     padding: 0;
 }
 /* utility classes */
-.animate, .appear {
-    animation: fadeIn 0.2s ease-in forwards;
+.animate {
+    animation: fadeIn 500ms;
+}
+.animation-default {
+    animation: fadeIn 2s ease-out forwards;
+}
+.appear {
+    animation: fadeIn 200ms ease-in forwards;
+}
+.dialog-fade {
+    animation: dialogFade 12s;
+}
+.dialog-fade-final {
+    opacity: var(--dialog-final-opacity);
 }
 .fade-in {
     animation: fadeIn 1s ease-out forwards;
 }
 .fade-in-slow {
     animation: fadeIn 6s ease-in forwards;
-}
-.animation-default {
-    animation: fadeIn 2s ease-out forwards;
 }
 .fade-out {
     animation: fadeOut 2s ease-out forwards;
@@ -378,6 +466,9 @@
     font-size: 1.1em;
     margin: 0;
     padding: 0;
+}
+.pulse {
+    animation: blink 1.5s infinite;
 }
 .show {
     display: flex !important;
@@ -408,6 +499,12 @@
 @keyframes blink {
     0%, 100% { opacity: 1; }
     60% { opacity: 0.5; }
+}
+@keyframes dialogFade {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: var(--dialog-final-opacity); }
 }
 @keyframes dropDown {
     100% { top: 0; }

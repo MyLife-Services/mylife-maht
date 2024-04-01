@@ -212,7 +212,7 @@ function scrollToBottom() {
 }
 async function setActiveBot(_incEventOrBot) {
     const activeBotId = _incEventOrBot?.target?.dataset?.botId
-        ?? _incEventOrBot?.target.id?.split('_')[1]
+        ?? _incEventOrBot?.target?.id?.split('_')[1]
         ?? _incEventOrBot?.id
         ?? activeBot?.id
         ?? _incEventOrBot

@@ -37,14 +37,21 @@
         <div id="experience-description" class="experience-description"></div>
     </div>
     <div id="experience-mainstage" class="experience-mainstage">
-        <div id="experience-continue" class="experience-continue"></div><!-- growing button until bright, and then alpha occluding to cover entire screen except for dialog, if any... -->
+        <div id="experience-continue" class="experience-continue">
+            <div id="experience-continue-text" class="experience-continue-text"></div>
+            <div id="experience-continue-click-text" class="experience-continue-click-text pulse">
+                ...click anywhere to continue...
+            </div>
+        </div><!-- growing button until bright, and then alpha occluding to cover entire screen except for dialog, if any... -->
         <div id="experience-scenestage" class="experience-scenestage"></div>
         <div id="experience-moderator" class="experience-moderator">
             <div id="experience-moderator-icon" class="experience-moderator-icon"></div><!--- contains dynamic character lanes -->
-            <div id="experience-moderator-dialog" class="experience-moderator-dialog"></div>
+            <div id="experience-input-dialog" class="experience-input-dialog">
+                <div id="experience-moderator-dialog" class="experience-moderator-dialog"></div>
+                <div id="experience-input" class="experience-input"></div>
+            </div>
             <div id="experience-moderator-props" class="char-props experience-moderator-props"></div>
             <!--- member entry area, monitored by avatar, only appears when active input is required -->
-            <div id="experience-input" class="experience-input"></div>
         </div>
     </div>
 </div>
