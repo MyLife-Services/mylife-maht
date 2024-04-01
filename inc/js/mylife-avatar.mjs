@@ -2,6 +2,7 @@ import { Marked } from 'marked'
 import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import { _ } from 'ajv'
+import LLMServices from './mylife-llm-services.mjs'
 /* modular constants */
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
 const allowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
@@ -69,15 +70,15 @@ class Avatar extends EventEmitter {
         this.#bots = await this.#factory.bots(this.id)
         let activeBot = this.avatarBot
         if(!this.isMyLife){
-            if(!activeBot.id){ // create: but do not want to call setBot() to activate
-                activeBot = await mBot(this)
+            if(!activeBot?.id){ // create: but do not want to call setBot() to activate
+                activeBot = await mBot(this.#llmServices, this.#factory, this, { type: 'personal-avatar' })
                 this.#bots.unshift(activeBot)
             }
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             this.#evolver = new EvolutionAssistant(this)
-            mAssignEvolverListeners(this.#evolver, this)
+            mAssignEvolverListeners(this.#factory, this.#evolver, this)
             /* init evolver */
             await this.#evolver.init()
         } else { // Q-specific, leave as `else` as is near always false
@@ -116,9 +117,8 @@ class Avatar extends EventEmitter {
             throw new Error('No message provided in context')
         // send active bot? send active conversation?
         let conversation = this.getConversation(this.activeBot.thread_id)
-        if(!conversation){
+        if(!conversation)
             conversation = await this.createConversation('chat')
-        }
         conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, prompt)
         conversation.addMessages(messages)
@@ -264,25 +264,21 @@ class Avatar extends EventEmitter {
     }
     /**
      * Add or update bot, and identifies as activated, unless otherwise specified.
-     * @param {object} _bot - Bot-data to set.
+     * @param {object} bot - Bot-data to set.
      */
-    async setBot(_bot, _activate=true){
-        _bot = await mBot(this, _bot) // returns bot object
+    async setBot(bot, activate=true){
+        bot = await mBot(this.#llmServices, this.#factory, this, bot)
         /* add bot to avatar */
-        const _index = this.#bots.findIndex(bot => bot.id === _bot.id)
-        if(_index !== -1) // update
-            this.#bots[_index] = _bot
-        else // add
-            this.#bots.push(_bot)
+        if(!this.#bots.some(_bot => _bot.id === bot.id))
+            this.#bots.push(bot)
         /* activation */
-        if(_activate)
-            this.activeBotId = _bot.id
-        return _bot
+        if(activate)
+            this.activeBotId = bot.id
+        return bot
     }
     async thread_id(){
-        // @todo: once avatar extends bot, keep this inside
         if(!this.#conversations.length){
-            await this.getConversation()
+            await this.createConversation()
         }
         return this.#conversations[0].threadId
     }
@@ -645,51 +641,35 @@ class Avatar extends EventEmitter {
 }
 /* modular functions */
 /**
- * Initializes openAI assistant and returns associated `assistant` object.
- * @modular
- * @param {LLMServices} llmServices - OpenAI object
- * @param {object} _botData - bot creation instructions.
- * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
- */
-async function mAI_openai(llmServices, _botData){
-    const _assistantData = {
-        description: _botData.description,
-        model: _botData.model,
-        name: _botData.bot_name??_botData.name, // take friendly name before Cosmos
-        instructions: _botData.instructions,
-    }
-    return await llmServices.beta.assistants.create(_assistantData)
-}
-/**
  * Assigns evolver listeners.
  * @modular
- * @param {EvolutionAssistant} _evolver - Evolver object
- * @param {Avatar} _avatar - Avatar object
+ * @param {AgentFactory} factory - Agent Factory object
+ * @param {EvolutionAssistant} evolver - Evolver object
+ * @param {Avatar} avatar - Avatar object
  * @returns {void}
  */
-function mAssignEvolverListeners(_evolver, _avatar){
+function mAssignEvolverListeners(factory, evolver, avatar){
     /* assign evolver listeners */
-    _evolver.on(
+    evolver.on(
         'on-contribution-new',
         _contribution=>{
             _contribution.emit('on-contribution-new', _contribution)
         }
     )
-    _evolver.on(
+    evolver.on(
         'avatar-change-category',
         (_current, _proposed)=>{
-            _avatar.category = _proposed
-            console.log('avatar-change-category', _avatar.category.category)
+            avatar.category = _proposed
+            console.log('avatar-change-category', avatar.category.category)
         }
     )
-    _evolver.on(
+    evolver.on(
         'on-contribution-submitted',
         _contribution=>{
             // send to gpt for summary
             const _responses = _contribution.responses.join('\n')
-            // @todo: wrong factory?
-            const _summary = _avatar.factory.openai.completions.create({
-                model: 'gpt-3.5-turbo-instruct',
+            const _summary = factory.openai.completions.create({
+                model: 'gpt-3.5-turbo',
                 prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
                 temperature: 1,
                 max_tokens: 700,
@@ -726,46 +706,33 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
  * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
  * @todo Fix occasions where there will be no object_id property to use, as it was created through a hydration method based on API usage, so will be attached to mbr_id, but NOT avatar.id
  * @modular
- * @param {Avatar} _avatar - Avatar object that will govern bot
- * @param {object} _bot - Bot object
+ * @param {LLMServices} llm - OpenAI object
+ * @param {AgentFactory} factory - Agent Factory object
+ * @param {Avatar} avatar - Avatar object that will govern bot
+ * @param {object} bot - Bot object
  * @returns {object} - Bot object
  */
-async function mBot(_avatar, _bot={type: 'personal-avatar'}){
+async function mBot(llm, factory, avatar, bot){
     /* validation */
-    if(!_bot.mbr_id?.length)
-        _bot.mbr_id = _avatar.mbr_id
-    else if(_bot.mbr_id!==_avatar.mbr_id)
-        throw new Error('Bot mbr_id cannot be changed')
-    if(!_bot.type?.length)
-        throw new Error('Bot type required')
-    /* set required _bot super-properties */
-    if(!_bot.object_id?.length)
-        _bot.object_id = _avatar.id
-    if(!_bot.id)
-        _bot.id = _avatar.factory.newGuid
-    const _botSlot = _avatar.bots.findIndex(bot => bot.id === _bot.id)
-    if(_botSlot!==-1){ // update
-        const _existingBot = _avatar.bots[_botSlot]
-        if(
-                _bot.bot_id!==_existingBot.bot_id 
-            ||  _bot.thread_id!==_existingBot.thread_id
-        ){
-            console.log(`ERROR: bot discrepency; bot_id: db=${_existingBot.bot_id}, inc=${_bot.bot_id}; thread_id: db=${_existingBot.thread_id}, inc=${_bot.thread_id}`)
-            throw new Error('Bot id or thread id cannot attempt to be changed via bot')
-        }
-        _bot = {..._existingBot, ..._bot}
-    } else { // add
-        _bot = await mCreateBot(_avatar, _bot) // add in openai
-    }
+    const { bots, id: avatarId, } = avatar
+    const { mbr_id, } = factory
+    const { bot_id, id: botId, mbr_id: botMbr_id, thread_id, type, } = bot
+    /* set required bot super-properties */
+    bot.mbr_id = bot.botMbr_id ?? factory.mbr_id
+    bot.type = bot.type ?? mDefaultBotType
+    bot.object_id = bot.object_id ?? avatarId
+    bot.id =  botId ?? factory.newGuid // **note**: _this_ is a Cosmos id, not an openAI id
+    let _bot = bots.find(oBot=>oBot.id===bot.id)
+        ?? await factory.createBot(bot)
+    /* update bot */
+    _bot = {..._bot, ...bot}
     /* create or update bot properties */
-    if(!_bot?.thread_id?.length){
-        // openai spec: threads are independent from assistant_id
-        // @todo: investigate: need to check valid thread_id? does it expire?
-        const conversation = await _avatar.getConversation()
+    if(!_bot.thread_id?.length){
+        const conversation = await avatar.createConversation()
         _bot.thread_id = conversation.thread_id
     }
     // update Cosmos (no need async)
-    _avatar.factory.setBot(_bot)
+    factory.setBot(_bot)
     return _bot
 }
 /**
@@ -837,22 +804,6 @@ async function mCast(factory, cast){
         return actor
     }))
     return cast
-}
-/**
- * Creates bot and returns associated `bot` object.
- * @modular
- * @private
- * @param {Avatar} _avatar - Avatar object
- * @param {object} _bot - Bot object
- * @returns {object} - Bot object
-*/
-async function mCreateBot(_avatar, _bot){
-    // create gpt
-    const _botData = await _avatar.factory.createBot(_bot)
-    _botData.object_id = _avatar.id
-    const _openaiGPT = await mAI_openai(_avatar.ai, _botData)
-    _botData.bot_id = _openaiGPT.id
-    return { ..._bot, ..._botData }
 }
 /**
  * Takes character data and makes necessary adjustments to roles, urls, etc.
@@ -1297,12 +1248,12 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
 /**
  * Gets bot by id.
  * @modular
- * @param {object} _avatar - Avatar instance.
+ * @param {object} avatar - Avatar instance.
  * @param {string} _botId - Bot id
  * @returns {object} - Bot object
  */
-function mFindBot(_avatar, _botId){
-    return _avatar.bots
+function mFindBot(avatar, _botId){
+    return avatar.bots
         .filter(_bot=>{ return _bot.id==_botId })
         [0]
 }

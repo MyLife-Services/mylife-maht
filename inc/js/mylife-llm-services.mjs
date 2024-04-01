@@ -22,6 +22,14 @@ class LLMServices {
     }
     /* public methods */
     /**
+     * Creates openAI GPT API assistant.
+     * @param {object} assistant - Assistant object
+     * @returns {Promise<object>} - openai assistant object
+     */
+    async createBot(assistant){
+        return await this.openai.beta.assistants.create(assistant)
+    }
+    /**
      * Given member input, get a response from the specified LLM service.
      * @param {string} threadId - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
