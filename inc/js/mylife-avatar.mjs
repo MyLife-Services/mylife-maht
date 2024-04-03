@@ -1147,7 +1147,6 @@ async function mExperiencePlay(factory, llm, experience, memberInput){
             }) // provide marker for front-end [end of event sequence]; begin next scene with next request
             experience.location.sceneId = nextScene.id
             experience.location.eventId = nextScene.events[0].id
-            console.log('mExperiencePlay: next scene', nextScene)
         } else {
             /* end-of-experience */
             const { goal, id: experienceId, name: experienceName, title, } = experience
@@ -1307,18 +1306,20 @@ function mGetChatCategory(_category) {
 function mNavigation(scenes){
     return scenes
         .map(scene=>{
-            const { id, description, order=1, required=false, skippable=true, title=`untitled` } = scene
+            const { backdrop, hooks, description, id, order, required=false, skippable=true, title=`untitled`, type, } = scene
             return {
+                backdrop,
                 id,
                 description,
                 order,
                 required,
                 skippable,
                 title,
+                type,
             }
         })
         .sort((a,b)=>{
-            return a.order - b.order
+            return (a.order ?? 0) - (b.order ?? 0)
         })
 }
 /**

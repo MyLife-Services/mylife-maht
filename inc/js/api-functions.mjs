@@ -65,8 +65,13 @@ async function experience(ctx){
         }
     }
     const { experience } = avatar
-    experience.events = events
-    ctx.body = experience
+    const { autoplay, location, title, } = experience
+    ctx.body = {
+        autoplay,
+        events,
+        location,
+        title,
+    }
     ctx.state.MemberSession.experienceLock = false
     if(events.find(event=>{ return event.action==='end' && event.type==='experience' })){
         if(!avatar.experienceEnd(eid)) // attempt to end experience
