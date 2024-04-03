@@ -1,3 +1,5 @@
+/* Font Awesome CDN if needed */
+@import url('https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css');
 /* css experience variables */
 :root {
     --dialog-final-opacity: 0.5;
@@ -558,8 +560,6 @@
     from { transform: scaleY(0); transform-origin: top; } /* Ensure scaling happens from the left */
     to { transform: scaleY(1); }
 }
-/* Font Awesome CDN if needed */
-@import url('https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css');
 /* media queries */
 /* Set a minimum font size */
 @media (max-width: 480px) {
