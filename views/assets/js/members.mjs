@@ -1,9 +1,9 @@
 /* imports */
 import {
-    mExperienceEnd,
-    mExperiencePlay,
-    mExperienceSkip,
-    mExperienceStart,
+    experienceEnd,
+    experiencePlay,
+    experienceSkip,
+    experienceStart,
 } from './experience.mjs'
 import { fetchBots, updatePageBots } from './bots.mjs'
 /* variables */
@@ -59,12 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 mExperiences.push(...experiences.filter(experience => !mExperiences.some(e => e.id === experience.id))) // only push `unknown` experiences
                 const experience = experiences.find(experience => experience.id === autoplay)
                 /* autoplay experience */
-                if(experience){
-                    await mExperienceStart(experience) // includes play at the end once welcome button and data is loaded
+                if(experience)
+                    await experienceStart(experience) // includes play at the end once welcome button and data is loaded
+                if(mExperiences.length){
+                    // display experience-bot (flobt) in the bot bar
                 }
             }
         })
-    .catch(err => console.log('Error fetching experiences:', err));// alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
+        .catch(err => console.log('Error fetching experiences:', err)) // alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
     /* page-greeting 
     _greeting.forEach(_greet=>{
         chatBubbleCount++

@@ -24,7 +24,9 @@ const backstage = document.getElementById('experience-backstage'),
     title = document.getElementById('experience-title'),
     transport = document.getElementById('experience-transport')
 /* variables */
-let mEvent,
+let mBackdrop, // enum: [chat, interface, full]; default: full
+    mBackdropDefault = 'full',
+    mEvent,
     mExperience,
     mLoading = true,
     mMainstagePrepared = false,
@@ -37,13 +39,13 @@ let mEvent,
  * @async
  * @returns {Promise<void>} - The return is its own success, having cleared all active experience data.
  */
-async function mExperienceEnd(){
+async function experienceEnd(){
     /* end experience on server */
     const endExperience = await mEndServerExperience()
-    console.log('mExperienceEnd::endExperience', endExperience)
+    console.log('experienceEnd::endExperience', endExperience)
     if(!endExperience)
         throw new Error("Could not end experience on server!")
-    console.log('mExperienceEnd::experience ended', mExperience)
+    console.log('experienceEnd::experience ended', mExperience)
     mExperience = null
     /* end experience onscreen */
     mExperienceClose()
@@ -56,7 +58,7 @@ async function mExperienceEnd(){
  * @param {Object} memberInput - Member Input in form of object.
  * @returns {Promise<void>} - The return is its own success.
  */
-async function mExperiencePlay(memberInput){
+async function experiencePlay(memberInput){
     if(!mExperience)
         throw new Error("Experience not found!")
     let events
@@ -64,7 +66,9 @@ async function mExperiencePlay(memberInput){
         events = await mEvents(memberInput)
     } else {
         mStageTransition()
-        events = mExperience.events ?? await mEvents() // use any pre-filled defaults from fetch
+        events = mExperience.events
+            ?? await mEvents() // use any pre-filled defaults from fetch
+        console.log('experiencePlay::mExperience', mExperience)
         mWelcome = false
     }
     /* prepare mainstage */
@@ -72,7 +76,8 @@ async function mExperiencePlay(memberInput){
         throw new Error("No events found")
     mExperience.events = mExperience.events
         .map(event=>{
-            return events.find(_event => _event.id === event.id) ?? event
+            return events.find(_event => _event.id === event.id)
+                ?? event
         })
     const newEvents = events.filter(incEvent=>!mExperience.events.some(event => event.id === incEvent.id))
     mExperience.events = [...mExperience.events, ...newEvents]
@@ -92,25 +97,17 @@ async function mExperiencePlay(memberInput){
             )
         })
     /* play experience */
-    console.log('mExperiencePlay::animationSequence', animationSequence)
-    for(const animationEvent of animationSequence){
-        try {
-            const { elementId } = animationEvent
-            const element = document.getElementById(elementId)
-            if( // skip if already shown or hidden, move variants or other animations, may have more than one
-                    animationEvent.action==='appear' && element.classList.contains('show')
-                ||  animationEvent.action==='disappear' && !element.classList.contains('show')
-            )
-                continue
-            await mAnimateElement(animationEvent, element)
-            console.log('mExperiencePlay::animation construction complete', animationEvent)
-            if(animationEvent.halt && !animationEvent.dismissable){
-                await mWaitForUserAction() // This function would also return a Promise
-                console.log('mExperiencePlay::halt clicked, proceeded', animationEvent)
-            }
-        } catch(error) {
-            console.error('mExperiencePlay::animation error:', error)
-        }
+    mShow(stage) // brute force
+    switch(mBackdrop){
+        case 'interface':
+            // interface keeps all elements of the interface, and full control given to experience
+        case 'chat':
+            // chat refers to control over system-chat window experience only
+        case 'full':
+        default:
+            if(!await mAnimateEvents(animationSequence))
+                throw new Error("Animation sequence failed!")
+            break
     }
 }
 /**
@@ -118,8 +115,8 @@ async function mExperiencePlay(memberInput){
  * @public
  * @returns {void}
  */
-function mExperienceSkip(){
-    console.log('mExperienceSkip::skipping experience', mExperience)
+function experienceSkip(){
+    console.log('experienceSkip::skipping experience', mExperience)
 }
 /**
  * Start experience onscreen, displaying welcome ande loading remaining data.
@@ -127,11 +124,11 @@ function mExperienceSkip(){
  * @param {Guid} experience - The Experience object.
  * @returns {Promise<void>} - The return is its own success.
  */
-async function mExperienceStart(experience){
+async function experienceStart(experience){
     /* load experience data */
     mExperience = experience
     /* present stage */
-    mStageWelcome(mExperience)
+    mStageWelcome()
     mInitListeners()
     const { description, events: _events=[], id, name, purpose, title, skippable=false } = mExperience
     mExperience.events = (_events.length) ? _events : await mEvents()
@@ -207,6 +204,36 @@ function mAnimationEnd(animation, callbackFunction){
     if(callbackFunction)
         callbackFunction(animation)
     // @stub - add animation sequence alterations? rewind?
+}
+/**
+ * Animate a sequence of elements based on the incoming array of animation instructions.
+ * @param {Object[]} animationSequence - Array of animation events to be played.
+ * @returns {Promise<boolean>} - Success or failure of the animation sequence.
+ */
+async function mAnimateEvents(animationSequence){
+    for(const animationEvent of animationSequence){
+        const { elementId } = animationEvent
+        const element = document.getElementById(elementId)
+        if(!element){
+            console.log('experiencePlay::ERROR::element not found', elementId)
+            continue
+        }
+        try {
+            if( // skip if already shown or hidden, move variants or other animations, may have more than one
+                    animationEvent.action==='appear' && element.classList.contains('show')
+                ||  animationEvent.action==='disappear' && !element.classList.contains('show')
+            )
+                continue
+            await mAnimateElement(animationEvent, element)
+            if(animationEvent.halt && !animationEvent.dismissable){
+                await mWaitForUserAction() // This function would also return a Promise
+            }
+        } catch(error) {
+            console.error('experiencePlay::animation error:', error)
+            return false
+        }
+    }
+    return true
 }
 /**
  * Assigns icon image for Character/Avatar/Moderator.
@@ -380,7 +407,6 @@ function mEventCharacter(){
             throw new Error(`Character not found in cast! ${characterId}`)
         /* update `name` and `role` */
         if(role){
-            console.log('mEventCharacter::role', role)
             character.role = role
             document.getElementById(`icon-text-${characterId}`).textContent = role
         }
@@ -389,7 +415,7 @@ function mEventCharacter(){
         /* animate character */
         const characterLane = document.getElementById(`char-lane-${characterId}`)
         if(!characterLane)
-            throw new Error(`Character lane not found! ${stage.characterId}`)
+            throw new Error(`Character lane not found! ${characterId}`)
         const animationDetails = {
             animationClass: animation ?? 'slide-in',
             animationDelay: animationDelay ?? 0,
@@ -596,10 +622,19 @@ function mEventStage(){
     const { action, stage, type, } = mEvent
     const animationSequence = []
     if(stage && Object.keys(stage).length){
+        const { backdrop=mBackdropDefault, click, type: stageType } = stage
         /* animate stage */
-        if((stage.type ?? 'script')!==`script`) // enum: [script, prompt, ...?]
-            throw new Error(`Stage type not implemented: ${stage.type}`) // @stub - add dynamic css stage direction
-        if(stage.click){
+        if((stageType ?? 'script')!==`script`) // enum: [script, prompt, ...?]
+            throw new Error(`Stage type not implemented: ${stageType}`) // @stub - add dynamic css stage direction
+        if(!mBackdrop || backdrop !== mBackdrop){
+            // may need to revisit experience start and route it through here
+            console.log('mEventStage::backdrop', backdrop, mBackdrop)
+            mBackdrop = backdrop
+            mSceneTransition() // hide mainstage
+            mHide(stage)
+            // @todo - push backdrop animation
+        }
+        if(click){
             animationSequence.push({
                 action: 'click',
                 // class: '', /* @stub - add dynamic css stage direction */
@@ -626,11 +661,11 @@ function mEventStage(){
                     switch(type){
                         case 'experience':
                             /* close show */
-                            mExperienceEnd()
+                            experienceEnd()
                             return
                         case 'scene':
                             /* play next scene */
-                            mExperiencePlay() // next scene should be auto-loaded on server
+                            experiencePlay() // next scene should be auto-loaded on server
                             return [] // @todo - unclear if should not return or put case in ePlay to avoid? [i.e., it has now been handed off to a _different_ instantion of ePlay]
                     }
                 })
@@ -651,8 +686,8 @@ function mExperienceClose(){
     mHide(screen)
     /* remove listeners */
     closeButton.removeEventListener('click', mExperienceClose)
-    skip.removeEventListener('click', mExperienceSkip)
-    startButton.removeEventListener('click', mExperiencePlay)
+    skip.removeEventListener('click', experienceSkip)
+    startButton.removeEventListener('click', experiencePlay)
 }
 /**
  * Hides an element, pre-executing any included callback function.
@@ -696,9 +731,9 @@ function mImageSource(icon, type){
  */
 function mInitListeners(){
     if(mExperience.skippable)
-        closeButton.addEventListener('click', mExperienceEnd)
-    skip.addEventListener('click', mExperienceSkip)
-    startButton.addEventListener('click', mExperiencePlay)
+        closeButton.addEventListener('click', experienceEnd)
+    skip.addEventListener('click', experienceSkip)
+    startButton.addEventListener('click', experiencePlay)
     return
 }
 /**
@@ -748,6 +783,27 @@ async function mManifest(id) {
     }
 }
 /**
+ * Scene-end transition(s). Currently just hide.
+ * @private
+ * @returns {void}
+ */
+function mSceneTransition(){
+    switch(mBackdrop){
+        case 'interface':
+            // keep experience bar, overlay main menu
+            mHide(stage) // brute force
+            // in interface mode, icons and characters are no longer lanes, but instead objects that get painted to the chat portion of the window, they can still maintain iconography and color for dialog
+            // disable or send back data back to main interface
+            break
+        case 'full':
+        default:
+            mMainstagePrepared = false
+            mHide(mainstage) // brute force
+            break
+    }
+    console.log('mSceneTransition::scene transition', mBackdrop)
+}
+/**
  * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
  * @private
  * @param {HTMLElement} element - The element to show.
@@ -765,14 +821,15 @@ function mShow(element, listenerFunction){
 /**
  * Introduces the concept of an Experience to the member.
  * @private
- * @param {Experience} experience - The Experience object.
+ * @requires mExperience - The Experience object.
  * @returns {void}
  */
-function mStageWelcome(experience){
-    breadcrumb.innerHTML = `Experience: ${experience.name}`
-    title.textContent = experience.title ?? experience.name ?? `Untitled Production`
-    if(experience.description?.length)
-        description.textContent = experience.description
+function mStageWelcome(){
+    const { description: experienceDescription, name: experienceName, title: experienceTitle, } = mExperience
+    breadcrumb.innerHTML = `Experience: ${experienceName}`
+    title.textContent = experienceTitle ?? experienceName ?? `Untitled Production`
+    if(experienceDescription?.length)
+        description.textContent = experienceDescription
     mShow(transport)
     mShow(footer)
     screen.addEventListener('animationend', animation=>{
@@ -806,7 +863,6 @@ function mStageTransition(){
     })
     /* animate backstage removal */
     mHide(backstage)
-    /* trigger mainstage */
     mainstage.classList.add('appear') // requires animation to trigger others
     mShow(mainstage, mainstageAnimation=>{
         mainstageAnimation.stopPropagation()
@@ -830,8 +886,8 @@ function mSubmitInput(input){
     let eventContinue = false
     if(value.length){
         const memberInput = { [inputVariableName ?? variable]: value }
-        mExperiencePlay(memberInput)
-            .catch(err=> console.log('mSubmitInput::mExperiencePlay independent fire ERROR', err.stack, err, memberInput))
+        experiencePlay(memberInput)
+            .catch(err=> console.log('mSubmitInput::experiencePlay independent fire ERROR', err.stack, err, memberInput))
         eventContinue = true
     }
     return eventContinue
@@ -918,10 +974,10 @@ function mWaitForUserAction(){
 }
 /* exports */
 export {
-    mExperienceEnd,
-    mExperiencePlay,
-    mExperienceSkip,
-    mExperienceStart,
+    experienceEnd,
+    experiencePlay,
+    experienceSkip,
+    experienceStart,
 }
 /* end notes
 ===============================================================================
