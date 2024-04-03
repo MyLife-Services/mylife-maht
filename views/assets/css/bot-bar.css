@@ -36,3 +36,249 @@
     max-height: 100px; /* Adjust to desired expanded height */
     overflow: visible; /* Make overflow visible on hover */
 }
+/* bot widget */
+.bot-container {
+    /* Basic styling for the bot container */
+    cursor: auto;
+}
+.bot-header {
+    /* Styling for the header */
+	font-size: 1.2em;
+}
+.bot-content {
+    /* Hidden by default */
+    display: none;
+    overflow: hidden;
+}
+.bot-content.visible {
+    /* Show content when active */
+    display: block;
+}
+.toggle-switch {
+    /* Styling for toggle switch */
+	background-color: #ccc;
+}
+/* bot legion */
+.bot { /* along with widget */
+	align-items: stretch;
+}
+.bot-container {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	margin: 0.2rem 0;
+}
+.bot-icon {
+	background-color: rgb(142, 142, 142);
+	background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
+	border: rgba(0, 0, 0, 0.7) 0.12em solid;
+	border-radius: 50%;
+	box-shadow: 0.6px 2px 3px rgba(0, 0, 0, 0.6);
+	flex: 0 0 auto;
+	height: 1.5em;
+	margin: .4em;
+	position: relative;
+	width: 1.5em;
+}
+.bot-icon.active {
+	animation: _statusBlinkActive 10s infinite;
+	background-image: radial-gradient(circle at 0.1em 0.1em, #ecffea 0%, #1e4e2d 40%, rgb(55, 255, 41) 80%, #3b3b3b 100%);
+	box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6);
+}
+.bot-icon.inactive {
+	animation-name: _statusBlinkShadowInactive, _statusBlinkInactive;
+    animation-duration: 8s, 3s;
+    animation-timing-function: linear, linear;
+    animation-iteration-count: infinite, infinite;
+}
+.bot-icon:hover {
+	background-color: #ff0;
+}
+.bot-name {
+	color: inherit;
+}
+.bot-options {
+	border: rgba(0, 0, 0, 0.7) 0.12em solid;
+	border-radius: 0 0 0.22em 0.22em;
+	border-top: none;
+	box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+	display: none; /* Initially not displayed */
+    margin: 0em 1em 1em 1em;
+	padding: 0.5em;
+}
+.bot-options.open {
+    display: flex; /* Make it flex when open */
+    flex-direction: row;
+    flex-wrap: wrap;
+    animation: _slideBotOptions 0.5s forwards;
+}
+.bot-options-dropdown {
+    align-items: center;
+    background-color: rgba(255, 255, 255, .7); /* Circle color */
+	border: rgba(0, 0, 0, 0.7) 0.12em solid;
+    border-radius: 50%; /* Make it round */
+    display: flex;
+	flex: 0 0 auto;
+    height: 1.5em; /* Size of the circle */
+    justify-content: center;
+	margin-left: 0.8em;
+    width: 1.5em; /* Size of the circle */
+}
+.bot-options-dropdown::before {
+    content: '';
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 10px solid rgba(29, 29, 70, .6); /* Triangle color */
+    transform: rotate(90deg); /* Initial rotation */
+    transition: transform 0.3s ease; /* Smooth rotation transition */
+}
+.bot-options-dropdown.open::before {
+    transform: rotate(0deg); /* Rotation when open */
+}
+.bot-status {
+	align-items: center;
+	background-color: #007BFF;
+	border: rgba(0, 0, 0, 0.1) 0.12em solid;
+	border-radius: .2em;
+	box-shadow: inset 0.3em 0.2em .6em lightblue, 0.1em 0.2em 0.3em black;
+	box-sizing: border-box;
+	cursor: pointer;
+	display: flex;
+	flex-direction: row;
+	justify-content: stretch;
+	margin: 0.2em 0.2em 0em 0.2em;
+	padding: 0.2em;
+}
+.bot-type {
+	font-size: 0.8em;
+	font-weight: bold;
+	color: aliceblue;
+	margin-right: 1em;
+	flex: 0 0 auto;
+}
+.ticker {
+	background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
+    border: 0.5px solid rgba(255, 255, 255, 0.5); /* Thin white border with 50% opacity */
+    box-shadow: inset -4px -14px 13px 2px rgba(0, 0, 0, 0.5); /* Inset shadow for top and left */
+    border-radius: 0.3em;
+    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
+    white-space: nowrap; /* Prevent text from wrapping to the next line */
+    overflow: hidden; /* Hide the overflowing part of the text */
+    display: block; /* Make it a block element */
+    min-width: 5em; /* Allow the text to shrink */
+    color: rgb(28, 255, 28);
+}
+.ticker span {
+    display: inline-block; /* Inline block for the animation */
+    padding-left: 110%; /* Space before scrolling starts */
+    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
+}
+.ticker span.no-animation {
+    animation: none;
+	padding: 0;
+}
+.mylife-widget.bots {
+	align-items: flex-start;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	max-width: 100%;
+}
+/* bot slider */
+.input-group {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.input-group label {
+    display: block;
+    margin-bottom: 10px;
+}
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 0.4em; /* Height of the track */
+    margin: 0.75em 0;
+    width: 100%;
+    background: black; /* Black track */
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #9faee7; /* Fader color */
+    cursor: pointer;
+    height: 2em; /* Height of the fader */
+    width: 1em; /* Width of the fader */
+    border-radius: 0.2em; /* Slightly rounded edges */
+    border: 1px solid #666; /* Border for fader */
+}
+input[type="range"]::-moz-range-thumb {
+    background: #9faee7;
+    cursor: pointer;
+    height: 2em;
+    width: 1em;
+    border-radius: 0.2em;
+    border: 1px solid #666;
+}
+.privacy-slider {
+	width: 100%;
+}
+.slider {
+	width: 100%;
+}
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+	width: 100%;
+}
+
+.slider-labels span {
+	text-align: center;
+}
+/* interests */
+.checkbox-group {
+    display: flex; /* Use Flexbox */
+    flex-wrap: wrap; /* Allow items to wrap into new lines */
+    justify-content: flex-start; /* Align items to the left */
+    max-height: 100px; /* Adjust as needed */
+    overflow-y: auto; /* Make it scrollable */
+    font-size: 0.9em; /* Shrink text */
+}
+.checkbox-group-item {
+	align-items: center;
+	display: flex;
+    flex: 0 0 48%; /* Each item takes up roughly half the container width */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Add ellipsis for overflow */
+    white-space: nowrap; /* Keep text on one line */
+}
+.checkbox-group label {
+	padding-left: 0.5em;
+	margin: 0;
+}
+/* keyframes */
+@keyframes _scrollText {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
+}
+@keyframes _slideBotOptions { /* @todo: make slide down from under status */
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes _statusBlinkInactive {
+	0% {
+		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
+	}
+	80% {
+		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
+	}
+	100% {
+		background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
+	}
+}
+@keyframes _statusBlinkShadowInactive {
+	0% { box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6); }
+	70% { box-shadow: 1px 2.2px 6px rgba(255, 0, 0, 0.4); }
+	100% { box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.75); }
+}
