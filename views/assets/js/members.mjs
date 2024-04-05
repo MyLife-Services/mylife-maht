@@ -18,9 +18,9 @@ let activeBot, // replaced with pageBots[reference]
 let mAwaitButton,
     mAgentSpinner,
     mBotBar,
-    mChatInput,
+    mchatMember,
     mChatLabel,
-    mChatOutput,
+    mchatSystem,
     mMessageInput,
     mSubmitButton
 /* page load listener */
@@ -29,9 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mAwaitButton = document.getElementById('await-button')
     mAgentSpinner = document.getElementById('agent-spinner')
     mBotBar = document.getElementById('bot-bar')
-    mChatInput = document.getElementById('chat-input')
+    mchatMember = document.getElementById('chat-member')
     mChatLabel = document.getElementById('user-chat-label')
-    mChatOutput = document.getElementById('chat-output')
+    mchatSystem = document.getElementById('chat-system')
     mMessageInput = document.getElementById('user-chat-message')
     mSubmitButton = document.getElementById('submit-button')
     /* page listeners */
@@ -112,7 +112,7 @@ function addMessageToColumn(_message, _options={
 	const chatBubble = document.createElement('div')
 	chatBubble.setAttribute('id', `chat-bubble-${chatBubbleCount}`)
 	chatBubble.className = `chat-bubble ${bubbleClass}`
-	mChatOutput.appendChild(chatBubble)
+	mchatSystem.appendChild(chatBubble)
 	_message = escapeHtml(message)
 	if (_typewrite) {
 		let i = 0;
@@ -210,7 +210,7 @@ function resetAnimation(element) {
     element.style.animation = '';
 }
 function scrollToBottom() {
-    mChatOutput.scrollTop = mChatOutput.scrollHeight;
+    mchatSystem.scrollTop = mchatSystem.scrollHeight;
 }
 async function setActiveBot(_incEventOrBot) {
     const activeBotId = _incEventOrBot?.target?.dataset?.botId
@@ -325,10 +325,10 @@ async function submitChat(url, options) {
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea() {
-    const inputStyle = window.getComputedStyle(mChatInput)
+    const inputStyle = window.getComputedStyle(mchatMember)
     const inputFont = inputStyle.font;
     const textWidth = getTextWidth(mMessageInput.value, inputFont); // no trim required
-    const inputWidth = mChatInput.offsetWidth;
+    const inputWidth = mchatMember.offsetWidth;
 	/* pulse */
 	clearTimeout(typingTimer);
     mAgentSpinner.style.display = 'none';

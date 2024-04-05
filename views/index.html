@@ -1,9 +1,9 @@
 <hr><!-- begin with break for scroll -->
 <div class="chat-container">
-	<div class="chat-output" id="chat-output">
+	<div class="chat-system" id="chat-system">
 		<!-- Agent and User messages will be added via innerHTML here -->
 	</div>
-	<div class="chat-input" name="chat-input" id="chat-input">
+	<div class="chat-member" name="chat-member" id="chat-member">
 		<div class="label-spinner-container">
 			<div id="agent-spinner" class="label-spinner spinner-grow spinner-green-glow" role="status">
 				<span class="visually-hidden"></span>
@@ -25,8 +25,8 @@
 const awaitButton = document.getElementById('await-button');
 const agentSpinner = document.getElementById('agent-spinner');
 const chatLabel = document.getElementById('user-chat-label');
-const chatOutput = document.getElementById('chat-output');
-const chatInput = document.getElementById('chat-input');
+const chatSystem = document.getElementById('chat-system');
+const chatMember = document.getElementById('chat-member');
 const submitButton = document.getElementById('submit-button');
 const _greeting = [
 	`Hi, I'm <%= avatar.name %>, so nice to meet you!`,
@@ -82,7 +82,7 @@ function addMessageToColumn(_message, _options={
 	const chatBubble = document.createElement('div');
 	chatBubble.setAttribute('id', `chat-bubble-${_chatBubbleCount}`);
 	chatBubble.className = `chat-bubble ${bubbleClass}`;
-	chatOutput.appendChild(chatBubble);
+	chatSystem.appendChild(chatBubble);
 	_message = escapeHtml(message);
 	if (_typewrite) {
 		let i = 0;
@@ -154,7 +154,7 @@ function replaceElement(element, newType) {
         newElement.setAttribute('rows', '3');
     }
     newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
-    chatInput.replaceChild(newElement, element);
+    chatMember.replaceChild(newElement, element);
     return newElement;
 }
 function resetAnimation(element) {
@@ -164,7 +164,7 @@ function resetAnimation(element) {
     element.style.animation = '';
 }
 function scrollToBottom() {
-    chatOutput.scrollTop = chatOutput.scrollHeight;
+    chatSystem.scrollTop = chatSystem.scrollHeight;
 }
 async function submit(_event, _message) {
 	_event.preventDefault();
@@ -211,10 +211,10 @@ async function submitChat(url, options) {
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea() {
-    const inputStyle = window.getComputedStyle(chatInput);
+    const inputStyle = window.getComputedStyle(chatMember);
     const inputFont = inputStyle.font;
     const textWidth = getTextWidth(messageInput.value, inputFont); // no trim required
-    const inputWidth = chatInput.offsetWidth;
+    const inputWidth = chatMember.offsetWidth;
 	/* pulse */
 	clearTimeout(typingTimer);
     agentSpinner.style.display = 'none';

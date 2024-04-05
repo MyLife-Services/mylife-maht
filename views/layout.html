@@ -19,7 +19,18 @@
 </head>
 <body>
 	<div class="page-container">
-		<div id="experience-modal"><% include assets/html/_experience %></div><!--- modal experience screen -->
+		<div id="experience-transport" class="experience-transport">
+			<div id="experience-close" class="experience-transport-item" title="End and Close Experience">
+				<i class="fa fa-times" aria-hidden="true"></i>
+			</div>
+			<div id="experience-breadcrumb" class="experience-transport-item">
+				<!-- Breadcrumb items will be dynamically inserted here -->
+			</div>
+			<div id="experience-skip" class="experience-transport-item" title="Skip to Next Scene">
+				<i class="fa fa-forward" aria-hidden="true"></i>
+			</div>
+		</div>
+		<div id="experience-modal" class="experience-modal"><% include assets/html/_experience %></div><!--- modal experience screen -->
 		<div id="navigation-container" class="navigation-container">
 			<% include assets/html/_navbar %>
 		</div>
@@ -31,7 +42,7 @@
 				<%- body %><!-- koa-ejs body inclusion -->
 			</div>
 			<!-- Sidebar area -->
-			<div class="sidebar">
+			<div id="page-sidebar" class="sidebar">
 				<% include assets/html/_sidebar %>
 			</div>
 		</div>
