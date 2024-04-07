@@ -89,7 +89,15 @@ function experienceEnd(ctx){
     mAPIKeyValidation(ctx)
     const { assistantType, avatar, mbr_id } = ctx.state
     const { eid } = ctx.params
-    ctx.body = avatar.experienceEnd(eid)
+    let endSuccess = false
+    try {
+        endSuccess = avatar.experienceEnd(eid)
+    } catch(err) {
+        console.log(chalk.redBright('experienceEnd() error'), err)
+        // can determine if error is critical or not, currently implies there is no running experience
+        endSuccess = true
+    }
+    ctx.body = endSuccess
     ctx.state.MemberSession.experienceLock = !ctx.body
     return
 }
