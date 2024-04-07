@@ -1,3 +1,14 @@
+/* imports */
+import {
+    getMemberChatSystem,
+    getMemberModerator,
+    hide,
+    hideMemberChat,
+    show,
+    showMemberChat,
+    stageTransition,
+    waitForUserAction,
+} from './members.mjs'
 /* constants */
 const backstage = document.getElementById('experience-backstage'),
     botbar = document.getElementById('bot-bar'),
@@ -7,13 +18,9 @@ const backstage = document.getElementById('experience-backstage'),
     description = document.getElementById('experience-description'),
     footer = document.getElementById('experience-footer'),
     inputLane = document.getElementById(`experience-input`),
+    mainContent = document.getElementById('main-content'),
     mainstage = document.getElementById('experience-mainstage'),
     manifest = document.getElementById('experience-manifest'),
-    memberChatContainer = document.getElementById('chat-container'),
-    memberChatInput = document.getElementById('chat-member'),
-    memberChatSystem = document.getElementById('chat-system'),
-    memberModerator = document.getElementById('experience-member-moderator'),
-    memberNavigation = document.getElementById('navigation-container'),
     modal = document.getElementById('experience-modal'),
     moderator = document.getElementById('experience-moderator'),
     moderatorIcon = document.getElementById('experience-moderator-icon'),
@@ -24,7 +31,6 @@ const backstage = document.getElementById('experience-backstage'),
     sceneContinueText = document.getElementById('experience-continue-text'),
     sceneStage = document.getElementById('experience-scenestage'),
     screen = document.getElementById('experience-modal'),
-    sidebar = document.getElementById('page-sidebar'),
     skip = document.getElementById('experience-skip'),
     stage = document.getElementById('experience-stage'),
     start = document.getElementById('experience-start'),
@@ -64,7 +70,8 @@ async function experienceEnd(){
     skip.removeEventListener('click', experienceSkip)
     startButton.removeEventListener('click', experiencePlay)
     /* end experience onscreen */
-    mExperienceClose()
+    console.log('experienceEnd::endExperience', endExperience)
+    stageTransition(true) // request force-clear of member experience
 }
 /**
  * Play experience onscreen, mutates `mExperience` object.
@@ -126,7 +133,7 @@ async function experiencePlay(memberInput){
             // chat refers to control over system-chat window experience only
         case 'full':
         default:
-            mShow(stage) // brute force
+            show(stage) // brute force
             if(!await mAnimateEvents(animationSequence))
                 throw new Error("Animation sequence failed!")
             break
@@ -219,21 +226,8 @@ function mAnimateElement(element, animationEvent) {
                     fastForwardAnimation()
             }, { once: true })
         }
-        mShow(element)
+        show(element)
     })
-}
-/**
- * Callback function for ending an animation. Currently only stops propagation.
- * @private
- * @param {Animation} animation - The animation object.
- * @param {function} callbackFunction - The listener function, defaults to `mAnimationEnd`.
- * @returns {void}
- */
-function mAnimationEnd(animation, callbackFunction){
-    animation.stopPropagation()
-    if(callbackFunction)
-        callbackFunction(animation)
-    // @stub - add animation sequence alterations? rewind?
 }
 /**
  * Animate a sequence of elements based on the incoming array of animation instructions.
@@ -245,16 +239,14 @@ async function mAnimateEvents(animationSequence){
         const { action, dismissable, elementId, halt, sceneId, type, } = animationEvent
         /* special case: end-scene/act stage animation */
         if(action==='end'){
-            await mWaitForUserAction()
-            sceneContinue.classList.remove('slide-down')
-            mShow(sceneContinue)
-            await mWaitForUserAction()
+            console.log('mAnimateEvents::end', action, type, sceneId,)
+            await waitForUserAction()
             if(type==='experience'){ /* close show */
+                console.log('experienceEnd', animationEvent)
                 experienceEnd()
                 return true
             } else { /* scene */
-                sceneContinue.classList.add('slide-up')
-                mHide(sceneContinue)
+                console.log('sceneEnd', animationEvent)
                 experiencePlay()
                 return true
             }
@@ -281,12 +273,15 @@ async function mAnimateEvents(animationSequence){
                 const characterLanes = document.querySelectorAll('.char-lane:not(.hide)')
                 characterLanes.forEach(lane=>{
                     if(lane.id!==elementId)
-                        mHide(lane)
+                        hide(lane)
                 })
+            }
+            if(element.id==='experience-continue'){
+                throw new Error('experiencePlay::animationEvent::continue')
             }
             await mAnimateElement(element, animationEvent)
             if(halt && !dismissable){
-                await mWaitForUserAction() // This function would also return a Promise
+                await waitForUserAction() // This function would also return a Promise
             }
         } catch(error) {
             console.error('experiencePlay::animation error:', error)
@@ -447,8 +442,10 @@ async function mEndServerExperience(){
     const response = await fetch(`/members/experience/${id}/end`, {
         method: 'PATCH',
     })
-    if(!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`)
+    if(!response.ok){
+        console.log(`HTTP error! Status: ${response}`)
+        return true
+    }
     return await response.json()
 }
 /**
@@ -489,7 +486,7 @@ function mEventCharacter(){
             case 'move':
                 throw new Error(`Stage direction not implemented: ${stageDirection}`) // @stub - add dynamic css stage direction
             case 'disappear':
-                mHide(characterLane)
+                hide(characterLane)
                 break
             case 'appear':
             default:
@@ -569,8 +566,8 @@ function mEventInput(){
     if(complete) // @stub - if complete, do not re-render? determine reaction; is it replay?
         return
     let { variable, } = input
-    let moderatorContainer = memberModerator
-    let moderatorInput = memberModerator
+    let moderatorContainer = getMemberModerator()
+    let moderatorInput = moderatorContainer
     /* moderator lane is puppeteer */
     if(mBackdrop==='full'){
         moderatorContainer = moderatorDialog
@@ -600,18 +597,18 @@ function mEventInput(){
             submitButton.classList.add('input-submit')
             submitButton.addEventListener('click', (event) => {
                 event.preventDefault() // Prevent the default form submission
-                mHide(submitButton) // Hide the submit button (if not already hidden)
+                hide(submitButton) // Hide the submit button (if not already hidden)
                 const eventContinue = mSubmitInput(inputField)
                 if(!eventContinue)
-                    mShow(submitButton) // Show the submit button again
+                    show(submitButton) // Show the submit button again
                 else
-                    mHide(moderator) // Hide the moderator element entirely
+                    hide(moderator) // Hide the moderator element entirely
             }, { once: true })
             moderatorInput.appendChild(submitButton)
             inputField.addEventListener('input', ()=>{ // Show the submit button when the user starts typing
                 inputField.value.trim()
-                    ? mShow(submitButton)
-                    : mHide(submitButton)
+                    ? show(submitButton)
+                    : hide(submitButton)
             })
             break
     }
@@ -714,19 +711,9 @@ function mEventStage(){
     if(action==='end'){
         const { type: eventType, title, } = mEvent
         sceneContinueText.textContent = `End of ${ eventType }: ` + title
-        animationSequence.push({ action: 'end', eventType, sceneId }) // minified to trigger functionality
-        console.log('mEventStage::end', eventType, title)
+        animationSequence.push({ action: 'end', type: eventType, sceneId }) // minified to trigger functionality
     }
     return animationSequence
-}
-/**
- * Close visual experience onscreen.
- * @private
- * @returns {void}
- */
-function mExperienceClose(){
-    mHide(transport)
-    mHide(screen)
 }
 /**
  * Get scene data from navigation.
@@ -738,28 +725,6 @@ function mExperienceClose(){
 function mGetScene(sceneId){
     const { navigation, } = mExperience
     return navigation.find(nav=>nav.id===sceneId)
-}
-/**
- * Hides an element, pre-executing any included callback function.
- * @private
- * @param {HTMLElement} element - The element to hide.
- * @param {function} callbackFunction - The callback function to execute after the element is hidden.
- */
-function mHide(element, callbackFunction){
-    if(!element) {
-        console.log('mHide::element not found', element, document.getElementById('chat-member'))
-        return
-    }
-    element.classList.remove('show')
-    if(element.getAnimations().length){
-        element.addEventListener('animationend', function() {
-            element.classList.add('hide')
-        }, { once: true }) // The listener is removed after it's invoked
-    }
-    // element.style.animation = 'none' /* stop/rewind all running animations */
-    if(callbackFunction)
-        callbackFunction()
-    element.classList.add('hide')
 }
 /**
  * Returns the presumed source of an image based on type and icon data.
@@ -855,8 +820,7 @@ function mSceneTransition(){
         switch(mBackdrop){
             case 'chat':
             case 'interface':
-                console.log('mSceneTransition::interface')
-                /* add character lanes */
+                /* character lanes */
                 cast
                     .filter(character=>{
                         const { type, } = character
@@ -864,17 +828,11 @@ function mSceneTransition(){
                     })
                     .forEach(character=>{
                         const characterLane = mCreateCharacterLane(character)
-                        console.log('mSceneTransition::interface::characterLane', character)
-                        if(characterLane){
-                            memberChatSystem.appendChild(characterLane)
-                            console.log('mSceneTransition::interface::characterLane', memberChatSystem, characterLane)
-                        } else {
-                            console.log('mSceneTransition::interface::characterLane not found', character)
-                        }
+                        if(!characterLane)
+                            throw new Error(`Character lane not found! ${character.id}`)
+                        getMemberChatSystem().appendChild(characterLane)
                     })
-                mHide(modal)
-                // active char-lane should be only one shown, have to be able to switch between them
-                mShow(memberChatSystem)
+                showMemberChat()
                 break
             case 'full':
             default:
@@ -887,15 +845,16 @@ function mSceneTransition(){
                     })
                     .forEach(character=>{
                         const characterLane = mCreateCharacterLane(character)
-                        if(characterLane)
-                            sceneStage.appendChild(characterLane)
+                        if(!characterLane)
+                            throw new Error(`Character lane not found! ${character.id}`)
+                        sceneStage.appendChild(characterLane)
                     })
                 /* set initial moderator */
                 mUpdateModerator()
                 /* animate backstage removal */
-                mHide(backstage)
+                hide(backstage)
                 mainstage.classList.add('appear') // requires animation to trigger others
-                mShow(mainstage, mainstageAnimation=>{
+                show(mainstage, mainstageAnimation=>{
                     mainstageAnimation.stopPropagation()
                     /* final mainstage preparations */
                 })
@@ -903,21 +862,6 @@ function mSceneTransition(){
             }
         }
         mMainstagePrepared = true
-}
-/**
- * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
- * @private
- * @param {HTMLElement} element - The element to show.
- * @param {function} listenerFunction - The listener function, defaults to `mAnimationEnd`.
- * @returns {void}
- */
-function mShow(element, listenerFunction){
-    element.addEventListener('animationend', animationEvent=>mAnimationEnd(animationEvent, listenerFunction), { once: true })
-    if(!element.classList.contains('show')){
-        element.classList.remove('hide') // courtesy, shouldn't exist
-        /* **note**: do not remove or rewind animations, as classList additions fail to fire */
-        element.classList.add('show')
-    }
 }
 /**
  * Special Showcase: Shows the transport element.
@@ -929,12 +873,9 @@ function mShowTransport(){
     const { name, skippable=true, } = mExperience
     mInitListeners(skippable)
     breadcrumb.innerHTML = `Experience: ${name}`
-    if(mBackdrop==='interface'){
-        mHide(memberNavigation)
-        mHide(memberChatInput)
-        mHide(sidebar)
-    }
-    mShow(transport)
+    if(mBackdrop==='interface')
+        hideMemberChat()
+    show(transport)
 }
 /**
  * Introduces the concept of an Experience to the member.
@@ -947,13 +888,13 @@ function mStageWelcome(){
     title.textContent = experienceTitle ?? experienceName ?? `Untitled Production`
     if(experienceDescription?.length)
         description.textContent = experienceDescription
-    mShow(footer)
+    show(footer)
     mShowTransport()
     startButton.addEventListener('click', experiencePlay)
     screen.addEventListener('animationend', animation=>{
         animation.stopPropagation()
-        mShow(backstage, animation=>{
-            mShow(start)
+        show(backstage, animation=>{
+            show(start)
         })
     }, { once: true })
     screen.classList.add('modal-screen')
@@ -1005,7 +946,7 @@ function mUpdateCharacters(characters){
                 /* update (if not visible, always-extant) moderator lane */
                 mUpdateModerator()
                 moderator.classList.add('slide-up')
-                mShow(moderator)
+                show(moderator)
                 // update dialog ?
                 break
             case 'actor':
@@ -1044,20 +985,9 @@ function mUpdateStartButton(){
     startSpinner.classList.add('fade-out')
     startButton.textContent = 'click me'
     startButton.classList.add('pulse')
-    mHide(startSpinner, animation=>{
+    hide(startSpinner, animation=>{
         console.log('mUpdateStartButton::hide spinner show button', animation, startButton.classList)
-        mShow(startButton)
-    })
-}
-/**
- * Waits for user action.
- * @private
- * @returns {Promise<void>} - The return is its own success.
- */
-function mWaitForUserAction(){
-    return new Promise((resolve)=>{
-        // wait for a click event and/or some other condition
-        document.addEventListener('click', ()=>{resolve()}, { once: true })
+        show(startButton)
     })
 }
 /* exports */

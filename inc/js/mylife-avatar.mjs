@@ -178,7 +178,6 @@ class Avatar extends EventEmitter {
         this.mode = 'standard'
         this.#livedExperiences.push(this.experience.id)
         // @stub - save living experience to cosmos
-        console.log('experienceEnd::ended experience:', this.experience.name)
         this.experience = undefined
         return true
     }

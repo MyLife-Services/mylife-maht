@@ -3,7 +3,7 @@
     align-self: center;
     background: rgba(0, 0, 0, 0.25); /* url('../png/circuit-background.png') no-repeat center/250% */
     border-radius: 10px;
-    display: flex;
+    display: none;
     justify-content: center; /* Center items horizontally */
     overflow: hidden;
     width: 65%; /* Set width to 65% of the parent container */

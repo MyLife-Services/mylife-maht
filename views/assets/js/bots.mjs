@@ -1,6 +1,10 @@
 /* bot functionality */
 /* imports */
-import { setActiveBot, state, } from './members.mjs'
+import {
+    addMessageToColumn,
+    setActiveBot,
+    state,
+} from './members.mjs'
 /* variables */
 let mState
 /* public functions */
@@ -19,33 +23,35 @@ async function fetchBots(){
 /**
  * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
  * @public
+ * @requires mState
  * @param {boolean} bIncludeGreeting - Include bot-greeting.
  * @returns {void}
  */
 async function updatePageBots(bIncludeGreeting=false){
     mState = state()
-    const { activeBot, pageBots, } = mState
     updateBotBar()
     updateBotContainers()
     if(bIncludeGreeting)
-        botGreeting()
+        mGreeting()
 }
 /* private functions */
 /**
  * Paints bot-greeting to column
  * @private
+ * @requires mState
  * @returns {void}
  */
-function botGreeting(){
-    const { activeBot, pageBots, } = mState
+function mGreeting(){
+    const { activeBot, } = mState
     const greeting = Array.isArray(activeBot.greeting)
         ?   activeBot.greeting
-        :   [  
+        :   [
                 activeBot?.greeting
             ?? activeBot?.description
             ?? activeBot?.purpose
             ]
-    if(!greeting.length) throw new Error(`No bot-greeting provided.`)
+    if(!greeting.length)
+        throw new Error(`No bot-greeting provided.`)
     /* bot-greeting routine */
     setTimeout(() => { // Set a timeout for 1 second to wait for the first line to be fully painted
         // Set another timeout for 7.5 seconds to add the second message

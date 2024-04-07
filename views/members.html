@@ -1,4 +1,4 @@
-<div class="chat-container" id="chat-container">
+<div id="chat-container" class="chat-container">
 	<div id="chat-refresh" class="chat-refresh">
 		<i class="fas fa-redo"></i>
 	</div>
@@ -10,13 +10,13 @@
 			<div id="agent-spinner" class="label-spinner spinner-grow spinner-green-glow" role="status">
 				<span class="visually-hidden"></span>
 			</div>
-			<label class="label" for="user-chat-message" id="user-chat-label">chat</label>
+			<label class="label" for="member-chat-message" id="user-chat-label">chat</label>
 		</div>
-		<input id="user-chat-message" name="user-chat-message" required />
+		<input id="member-chat-message" name="member-chat-message" required />
 		<button class="button chat-submit" id="submit-button" type="submit" disabled>Submit</button>
-		<button id="await-button" name="await-button" class="btn btn-primary" type="button" disabled>
-			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-			Connecting with <%= avatar.name %>...
-		</button>
 	</div>
+	<button id="await-button" class="await-button" type="button" disabled>
+		<span class="spinner-border spinner-border-sm await-button-spinner" role="status" aria-hidden="true"></span>
+		Connecting with <%= avatar.name %>...
+	</button>
 </div>

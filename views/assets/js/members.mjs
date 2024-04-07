@@ -5,151 +5,117 @@ import {
     experienceSkip,
     experienceStart,
 } from './experience.mjs'
-import { fetchBots, updatePageBots } from './bots.mjs'
+import {
+    fetchBots,
+    updatePageBots,
+} from './bots.mjs'
 /* variables */
-/* constants    */
+/* constants */
 const mExperiences = []
 /* variables */
 let activeBot, // replaced with pageBots[reference]
+    mAutoplay=false,
     chatBubbleCount = 0,
+    mExperience,
+    mMemberId,
     pageBots = [], // @todo convert to const
     typingTimer
 /* page div variables */
-let mAwaitButton,
-    mAgentSpinner,
-    mBotBar,
-    mchatMember,
-    mChatLabel,
-    mchatSystem,
-    mMessageInput,
-    mSubmitButton
+let activeCategory,
+    awaitButton,
+    chatContainer,
+    mainContent,
+    memberChatContainer,
+    memberChatInput,
+    memberChatInputField,
+    memberChatSystem,
+    memberModerator,
+    memberNavigation,
+    memberSubmit,
+    sceneContinue,
+    screen,
+    sidebar,
+    spinner,
+    systemChat,
+    transport
 /* page load listener */
-document.addEventListener('DOMContentLoaded', () => {
-    /* variable population */
-    mAwaitButton = document.getElementById('await-button')
-    mAgentSpinner = document.getElementById('agent-spinner')
-    mBotBar = document.getElementById('bot-bar')
-    mchatMember = document.getElementById('chat-member')
-    mChatLabel = document.getElementById('user-chat-label')
-    mchatSystem = document.getElementById('chat-system')
-    mMessageInput = document.getElementById('user-chat-message')
-    mSubmitButton = document.getElementById('submit-button')
-    /* page listeners */
-    mMessageInput.addEventListener('input', toggleInputTextarea);
-    mSubmitButton.addEventListener('click', addUserMessage); // Event listener to submit message
-    document.querySelectorAll('.bot-container').forEach(container => { // Event listener to toggle bot containers
-        container.addEventListener('click', function() {
-            // First, close any currently open containers
-            document.querySelectorAll('.bot-container .bot-content.visible').forEach(openContainer => {
-                if (openContainer.parentElement !== this) { // Check to avoid closing the current container
-                    openContainer.classList.remove('visible')
-                }
-            });
-            // Then, toggle the visibility of the clicked container's content
-            var content = this.querySelector('.bot-content')
-            if(content?.length) content.classList.toggle('visible')
+document.addEventListener('DOMContentLoaded', ()=>{
+    /* post-DOM population constants */
+    awaitButton = document.getElementById('await-button')
+    chatContainer = document.getElementById('chat-container')
+    mainContent = document.getElementById('main-content')
+    memberChatContainer = document.getElementById('chat-container')
+    memberChatInput = document.getElementById('chat-member')
+    memberChatInputField = document.getElementById('member-chat-message')
+    memberChatSystem = document.getElementById('chat-system')
+    memberModerator = document.getElementById('experience-member-moderator')
+    memberNavigation = document.getElementById('navigation-container')
+    memberSubmit = document.getElementById('submit-button')
+    sceneContinue = document.getElementById('experience-continue')
+    sidebar = document.getElementById('page-sidebar')
+    spinner = document.getElementById('agent-spinner')
+    transport = document.getElementById('experience-transport')
+    screen = document.getElementById('experience-modal')
+    systemChat = document.getElementById('chat-system')
+    /* determine mode, default = member bot interface */
+    mInitialize()
+        .then(success=>{
+            if(!success)
+                throw new Error('CRITICAL::mInitialize::Error()', success)
+            stageTransition()
         })
-    })
-    /* onLoad */
-    mAwaitButton.style.display = 'none'
-    fetchExperiences()
-        .then(async experiencesObject => {
-            if(experiencesObject){
-                const { autoplay, experiences, mbr_id } = experiencesObject
-                mExperiences.push(...experiences.filter(experience => !mExperiences.some(e => e.id === experience.id))) // only push `unknown` experiences
-                const experience = experiences.find(experience => experience.id === autoplay)
-                /* autoplay experience */
-                if(experience)
-                    await experienceStart(experience) // includes play at the end once welcome button and data is loaded
-                if(mExperiences.length){
-                    // display experience-bot (flobt) in the bot bar
-                }
-            }
+        .catch(err=>{
+            console.log('CRITICAL::mInitialize::Error()', err)
         })
-        .catch(err => console.log('Error fetching experiences:', err)) // alter server-side logic to accommodate a "dry" version of start (without attached events, maybe only set avatar.mode='experience')
-    /* page-greeting 
-    _greeting.forEach(_greet=>{
-        chatBubbleCount++
-        addMessageToColumn({
-            message: _greet,
-            chatBubbleCount: chatBubbleCount,
-        })
-    })*/
-    fetchBots()
+    fetchBots() // regardless, fetch member bot array
         .then(async _bots => { // peck out the bots and id
-            const { bots, activeBotId: _id } = _bots
+            const { bots, activeBotId: id } = _bots
             pageBots = bots
-            activeBot = bot(_id)
+            activeBot = bot(id)
             await setActiveBot()
-            updatePageBots(false)
-            return
+            updatePageBots(true)
         })
         .catch(err => {
-            console.log('Error fetching bots:', err)
-            // alert(`Error fetching bots. Please try again later. ${err.message}`)
+            console.log('CRITICAL::Error fetching bots:', err)
         })
 })
-/* page functions */
-function addMessageToColumn(_message, _options={
+/* public functions */
+/**
+ * Pushes content to the chat column.
+ * @public
+ * @param {string} message - The message object to add to column.
+ * @param {object} options - The options object.
+ */
+function addMessageToColumn(message, options={
 	bubbleClass: 'agent-bubble',
-	_delay: 15,
+	_delay: 10,
     chatBubbleCount: 0,
 	_typewrite: true,
 }){
-	const {
-		category=null,
-		contributions=[],
-		id=null,
-		message,
-		question=null
-	} = _message
+    let messageContent = message.message ?? message
 	const {
 		bubbleClass,
 		_delay,
         chatBubbleCount,
 		_typewrite,
-	} = _options
+	} = options
 	const chatBubble = document.createElement('div')
 	chatBubble.setAttribute('id', `chat-bubble-${chatBubbleCount}`)
 	chatBubble.className = `chat-bubble ${bubbleClass}`
-	mchatSystem.appendChild(chatBubble)
-	_message = escapeHtml(message)
-	if (_typewrite) {
-		let i = 0;
-		let tempMessage = '';
-		function typeAgentMessage() {
-			if (i < message.length) {
-				tempMessage += message.charAt(i);
-				chatBubble.innerHTML = '';
-				chatBubble.insertAdjacentHTML('beforeend', tempMessage);
-				i++;
-				setTimeout(typeAgentMessage, _delay); // Adjust the typing speed here (50ms)
-			} else {
-				chatBubble.setAttribute('status', 'done');
-			}
-		}
-		typeAgentMessage();
-	} else {
-		chatBubble.insertAdjacentHTML('beforeend', message);
-	}
+	systemChat.appendChild(chatBubble)
+	// messageContent = escapeHtml(messageContent)
+    console.log('messageContent', messageContent)
+	if(_typewrite)
+		mTypewriteMessage(chatBubble, messageContent, _delay)
+	else
+		chatBubble.insertAdjacentHTML('beforeend', messageContent)
 }
-function addUserMessage(_event){
-    _event.preventDefault()
-    // Dynamically get the current message element (input or textarea)
-    let userMessage = mMessageInput.value.trim()
-    if (!userMessage.length) return
-    userMessage = escapeHtml(userMessage) // Escape the user message
-    submit(_event, userMessage)
-    addMessageToColumn({ message: userMessage }, {
-        bubbleClass: 'user-bubble',
-        _delay: 7,
-    })
-    mMessageInput.value = ''; // Clear the message field
-}
-function bot(_id){
-    return pageBots.find(bot => bot.id === _id)
-}
-// Function to escape HTML special characters
+/**
+ * Escapes HTML text.
+ * @public
+ * @param {string} text - The text to escape.
+ * @returns {string} - The escaped HTML text.
+ */
 function escapeHtml(text) {
     const map = {
         '&': '&amp;',
@@ -160,14 +126,158 @@ function escapeHtml(text) {
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
-function fetchExperiences(){
+/**
+ * Gets the member chat system DOM element.
+ * @returns {HTMLDivElement} - The member chat system element.
+ */
+function getMemberChatSystem(){
+    return memberChatSystem
+}
+function getMemberModerator(){
+    return memberModerator
+}
+/**
+ * Hides an element, pre-executing any included callback function.
+ * @public
+ * @param {HTMLElement} element - The element to hide.
+ * @param {function} callbackFunction - The callback function to execute after the element is hidden.
+ */
+function hide(element, callbackFunction){
+    if(!element) {
+        console.log('mHide::element not found', element, document.getElementById('chat-member'))
+        return
+    }
+    element.classList.remove('show')
+    if(element.getAnimations().length){
+        element.addEventListener('animationend', function() {
+            element.classList.add('hide')
+        }, { once: true }) // The listener is removed after it's invoked
+    }
+    // element.style.animation = 'none' /* stop/rewind all running animations */
+    if(callbackFunction)
+        callbackFunction()
+    element.classList.add('hide')
+}
+function hideMemberChat(){
+    hide(memberNavigation)
+    hide(memberChatInput)
+    hide(sidebar)
+}
+/**
+ * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
+ * @public
+ * @param {HTMLElement} element - The element to show.
+ * @param {function} listenerFunction - The listener function, defaults to `mAnimationEnd`.
+ * @returns {void}
+ */
+function show(element, listenerFunction){
+    element.addEventListener(
+        'animationend',
+        animationEvent=>mAnimationEnd(animationEvent, listenerFunction),
+        { once: true },
+    )
+    if(!element.classList.contains('show')){
+        element.classList.remove('hide')
+        element.classList.add('show')
+    }
+}
+function showMemberChat(){
+    hide(screen)
+    show(mainContent)
+    show(memberChatContainer)
+    show(memberChatSystem)
+}
+/**
+ * Enacts stage transition.
+ * @public
+ * @requires mExperience
+ * @returns {void}
+ */
+function stageTransition(endExperience=false){
+    if(endExperience)
+        mExperience = null
+    if(mExperience?.id) // begin with empty canvas
+        experienceStart(mExperience)
+    else
+        mStageTransitionMember()
+}
+/**
+ * Waits for user action.
+ * @public
+ * @returns {Promise<void>} - The return is its own success.
+ */
+function waitForUserAction(){
+    return new Promise((resolve)=>{
+        show(sceneContinue)
+        document.addEventListener('click', ()=>{
+            hide(sceneContinue)
+            resolve()
+        }, { once: true })
+    })
+}
+/* private functions */
+/**
+ * Callback function for ending an animation. Currently only stops propagation.
+ * @private
+ * @param {Animation} animation - The animation object.
+ * @param {function} callbackFunction - The listener function, defaults to `mAnimationEnd`.
+ * @returns {void}
+ */
+function mAnimationEnd(animation, callbackFunction){
+    animation.stopPropagation()
+    if(callbackFunction)
+        callbackFunction(animation)
+}
+/**
+ * Adds a message to the chat column on member's behalf.
+ * @private
+ * @async
+ * @param {} event - 
+ * @returns 
+ */
+async function mAddMemberDialog(event){
+    event.stopPropagation()
+	event.preventDefault()
+    // Dynamically get the current message element (input or textarea)
+    let memberMessage = memberChatInputField.value.trim()
+    if (!memberMessage.length)
+        return
+    // memberMessage = escapeHtml(memberMessage) // Escape the user message
+
+	hide(memberChatInput)
+    memberChatInput.classList.remove('fade-in')
+    awaitButton.classList.add('slide-up')
+    show(awaitButton)
+
+    addMessageToColumn({ message: memberMessage }, {
+        bubbleClass: 'user-bubble',
+        _delay: 7,
+    })
+
+    const responses = await submit(memberMessage, false)
+    console.log('responses', responses)
+	responses.forEach(response => {
+		addMessageToColumn({ message: response.message })
+	})
+
+    hide(awaitButton)
+    awaitButton.classList.remove('slide-up')
+    memberChatInput.classList.add('fade-in')
+    show(memberChatInput)
+
+    memberChatInputField.value = null // Clear the message field
+}
+function bot(_id){
+    return pageBots.find(bot => bot.id === _id)
+}
+function mFetchExperiences(){
     return fetch('/members/experiences/')
         .then(response=>{
             if(!response.ok)
                 throw new Error(`HTTP error! Status: ${response.status}`)
             return response.json()
         })
-        .catch(error=>console.log('fetchExperiences::Error()', error))
+        .catch(error=>console.log('mFetchExperiences::Error()', error))
 }
 // Function to focus on the textarea and move cursor to the end
 function focusAndSetCursor(textarea) {
@@ -175,8 +285,8 @@ function focusAndSetCursor(textarea) {
     // Move the cursor to the end of the text
     textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
 }
-function getActiveCategory() {
-	return _activeCategory;
+function getActiveCategory(){
+	return activeCategory
 }
 function getTextWidth(text, font) {
     // Create a temporary canvas element to measure text width
@@ -184,6 +294,41 @@ function getTextWidth(text, font) {
     let context = canvas.getContext("2d");
     context.font = font;
     return context.measureText(text).width;
+}
+/**
+ * Initialize modular variables based on server fetch.
+ * @private
+ * @requires mExperience
+ * @requires mExperiences
+ * @requires mMemberId
+ * @returns {Promise<boolean>} - The return is a boolean indicating success.
+ */
+function mInitialize(){
+    /* page listeners */
+    mInitializePageListeners()
+    /* experiences */
+    return mFetchExperiences()
+        .then(experiencesObject=>{
+            const { autoplay, experiences, mbr_id } = experiencesObject
+            mExperiences.push(...experiences.filter(experience => !mExperiences.some(e => e.id === experience.id))) // only `unknown`
+            mMemberId = mbr_id /* should exist regardless, though should apply independently */
+            return autoplay
+        })
+        .then(autoplay=>{
+            console.log('autoplay', autoplay)
+            if(autoplay)
+                mExperience = mExperiences.find(experience => experience.id===autoplay)
+            return true
+        })
+        .catch(err => {
+            console.log('Error fetching experiences:', err)
+        })
+}
+function mInitializePageListeners(){
+    /* page listeners */
+    memberChatInputField.addEventListener('input', toggleInputTextarea)
+    // **note**: listener for `memberSubmit` added as required by event or chat
+    memberSubmit.addEventListener('click', mAddMemberDialog, { once: true })
 }
 function isActive(_id) {
     return _id===activeBot.id
@@ -210,7 +355,7 @@ function resetAnimation(element) {
     element.style.animation = '';
 }
 function scrollToBottom() {
-    mchatSystem.scrollTop = mchatSystem.scrollHeight;
+    systemChat.scrollTop = systemChat.scrollHeight;
 }
 async function setActiveBot(_incEventOrBot) {
     const activeBotId = _incEventOrBot?.target?.dataset?.botId
@@ -267,15 +412,20 @@ async function setActiveCategory(category, contributionId, question) {
 			return _response.json();
 		})
 		.then(_response => {
-			_activeCategory = {
+			activeCategory = {
 				contributionId: _response.contributionId,
 				category: _response.category,
 			}
 		})
 		.catch(err => {
-			console.log('Error setting active category:', err);
-			// Handle errors as needed
-		});
+			console.log('Error setting active category:', err)
+		})
+}
+function mStageTransitionMember(){
+    hide(transport)
+    hide(screen)
+    show(mainContent)
+    show(chatContainer)
 }
 function state(){
     return {
@@ -283,19 +433,22 @@ function state(){
         pageBots,
     }
 }
-async function submit(_event, _message) {
-	_event.preventDefault()
-	if(!_message.length??false)
-		throw new Error('submit(): `message` property is required')
-	mSubmitButton.style.display = 'none';
-	mAwaitButton.style.display = 'block';
-	mAgentSpinner.classList.remove('text-light');
-	mAgentSpinner.classList.add('text-primary');
+/**
+ * Submits a message to MyLife Member Services chat.
+ * @param {string} message - The message to submit.
+ * @param {boolean} bypass - The bypass-server flag.
+ * @returns 
+ */
+async function submit(message, bypass=false){
+    if(bypass)
+        return [{ message: message }]
+	if(!message?.length)
+		throw new Error('submit(): `message` argument is required')
 	const url = window.location.origin + '/members';
 	const _request = {
 			agent: 'member',
 			id: null,
-			message: _message,
+			message: message,
 		}
 	const options = {
 		method: 'POST',
@@ -303,15 +456,15 @@ async function submit(_event, _message) {
 			'Content-Type': 'application/json',
 		},
 		body: JSON.stringify(_request),	//	todo: pull json schema for this object from `/messages/$defs/message_member_chat`
-	};
-	const _MyLifeResponseArray = await submitChat(url, options);
-	_MyLifeResponseArray.forEach(_MyLifeResponse => {
-		addMessageToColumn({ message: _MyLifeResponse.message })
-	});
-	mAwaitButton.style.display = 'none';
-	mSubmitButton.style.display = 'block';
-	mAgentSpinner.classList.remove('text-primary');
-	mAgentSpinner.classList.add('text-light');
+	}
+	const chatResponse = await submitChat(url, options)
+    return chatResponse
+/*
+    spinner.classList.remove('text-light');
+	spinner.classList.add('text-primary');
+	spinner.classList.remove('text-primary');
+	spinner.classList.add('text-light');
+*/
 }
 async function submitChat(url, options) {
 	try {
@@ -324,38 +477,62 @@ async function submitChat(url, options) {
 	}
 }
 // Function to toggle between textarea and input based on character count
-function toggleInputTextarea() {
-    const inputStyle = window.getComputedStyle(mchatMember)
-    const inputFont = inputStyle.font;
-    const textWidth = getTextWidth(mMessageInput.value, inputFont); // no trim required
-    const inputWidth = mchatMember.offsetWidth;
+function toggleInputTextarea(){
+    const inputStyle = window.getComputedStyle(memberChatInput)
+    const inputFont = inputStyle.font
+    const textWidth = getTextWidth(memberChatInputField.value, inputFont) // no trim required
+    const inputWidth = memberChatInput.offsetWidth
 	/* pulse */
 	clearTimeout(typingTimer);
-    mAgentSpinner.style.display = 'none';
-    resetAnimation(mAgentSpinner); // Reset animation
+    spinner.style.display = 'none';
+    resetAnimation(spinner); // Reset animation
     typingTimer = setTimeout(() => {
-        mAgentSpinner.style.display = 'block';
-        resetAnimation(mAgentSpinner); // Restart animation
+        spinner.style.display = 'block';
+        resetAnimation(spinner); // Restart animation
     }, 2000);
 
-    if (textWidth > inputWidth && mMessageInput.tagName !== 'TEXTAREA') { // Expand to textarea
-        mMessageInput = replaceElement(mMessageInput, 'textarea');
-        focusAndSetCursor(mMessageInput);
-    } else if (textWidth <= inputWidth && mMessageInput.tagName === 'TEXTAREA' ) { // Revert to input
-		mMessageInput = replaceElement(mMessageInput, 'input');
-        focusAndSetCursor(mMessageInput);
+    if (textWidth > inputWidth && memberChatInputField.tagName !== 'TEXTAREA') { // Expand to textarea
+        memberChatInputField = replaceElement(memberChatInputField, 'textarea');
+        focusAndSetCursor(memberChatInputField);
+    } else if (textWidth <= inputWidth && memberChatInputField.tagName === 'TEXTAREA' ) { // Revert to input
+		memberChatInputField = replaceElement(memberChatInputField, 'input');
+        focusAndSetCursor(memberChatInputField);
     }
 	toggleSubmitButtonState();
 }
 function toggleSubmitButtonState() {
-	mSubmitButton.disabled = !mMessageInput.value?.trim()?.length??true;
+	memberSubmit.disabled = !memberChatInputField.value?.trim()?.length??true;
+}
+/**
+ * Typewrites a message to a chat bubble.
+ * @param {HTMLDivElement} chatBubble - The chat bubble element.
+ * @param {string} message - The message to type.
+ * @param {number} delay - The delay between iterations.
+ * @param {number} i - The iteration number.
+ */
+function mTypewriteMessage(chatBubble, message, delay=10, i=0){
+    if(i<message.length){
+        chatBubble.innerHTML += message.charAt(i)
+        i++
+        setTimeout(()=>mTypewriteMessage(chatBubble, message, delay, i), delay)
+    } else {
+        chatBubble.setAttribute('status', 'done')
+    }
 }
 /* exports */
 export {
     addMessageToColumn,
+    getMemberChatSystem,
+    getMemberModerator,
+    hide,
+    hideMemberChat,
     setActiveBot,
     setActiveCategory,
+    show,
+    showMemberChat,
+    stageTransition,
     state,
     submit,
     toggleInputTextarea,
+    waitForUserAction,
 }

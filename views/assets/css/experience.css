@@ -179,15 +179,26 @@
 }
 /* mainstage */
 .experience-continue {
-    display: none; /* Hidden by default */
-    width: 100%;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
-    color: #fff;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 100; /* Ensure it's on top of other content */
+    align-items: center; /* Center children horizontally */
+    background: linear-gradient(0deg, transparent, black 30%, black 70%, transparent);
+    color: aliceblue;
+    display: none; /* Use flexbox for layout */
+    flex-direction: column; /* Stack children vertically */
+    height: 40vw; /* Auto height based on content */
+    justify-content: center; /* Center children vertically */
+    left: 50%; /* Center horizontally */
+    padding: 20px; /* Padding around the content */
+    position: fixed; /* Position it relative to the viewport */
+    top: 50%; /* Center vertically */
+    transform: translate(-50%, -50%); /* Adjust the position to truly center the element */
+    width: 100vw; /* Auto width based on content */
+    z-index: 1000; /* Ensure it's above all other items */
+}
+.experience-continue-text, .experience-continue-click-text {
+    text-align: center; /* Center the text inside the divs */
+}
+.experience-continue-click-text.pulse {
+    animation: blink 1.5s infinite;
 }
 .experience-mainstage {
     align-items: center; /* Center children horizontally in the container */
