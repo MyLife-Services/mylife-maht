@@ -176,8 +176,8 @@ class Avatar extends EventEmitter {
         if(!this.experience.skippable) // @todo - even if skippable, won't this function still process?
             throw new Error('Avatar cannot end this experience at this time, not yet implmented.')
         this.mode = 'standard'
-        this.#livedExperiences.push(this.experience.id)
         // @stub - save living experience to cosmos
+        this.#livedExperiences.push(this.experience.id)
         this.experience = undefined
         return true
     }
