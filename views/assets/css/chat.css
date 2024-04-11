@@ -8,25 +8,20 @@
 	font-size: 1em;
     color: #dcb6ff; /* White text for better readability */
 }
-.button.chat-submit {
-	flex: 0 0 auto;
-	color: rgba(65, 84, 104, 0.85);
-	background-color: rgba(183, 203, 225, 0.85);
-	margin: 0px;
-	white-space: nowrap; /* Prevents text wrapping in the button */
+.await-button {
+	background-color: #007BFF;
+	border: aliceblue solid thin;
+	border-radius: 0.3em;
+	box-shadow: inset 7px 3px 6px 0px rgba(0, 0, 0, 0.3);
+	color: #fff;
+	cursor: not-allowed;
+	display: none;
+	font-size: 1em;
+	padding: 0.5em 1em;
+	margin: 0.5em;
 }
-.button.chat-submit:hover {
-	background-color: rgba(195, 203, 52, 0.85);
-	color: #061320;
-}
-.button.chat-submit:focus {
-    outline: none; /* Remove the default focus outline */
-    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.6); /* Yellow glow */
-}
-.button.chat-submit:disabled {
-	background-color: rgba(63, 75, 83, 0.2);
-	border-color: rgba(146, 157, 163, .7);
-	color: rgba(146, 157, 163, .9);
+.await-button-spinner {
+	margin-right: 0.5em;
 }
 .chat-bubble {
     border-radius: 18px; /* Rounded corners for a modern look */
@@ -51,18 +46,19 @@
         url('../jpg/cosmos.jpg'); /* Your original background image */
     background-size: cover; /* Ensures the image covers the whole area */
     background-position: center; /* Centers the image */
-    border-radius: 0 0 22px 22px;
+    border-radius: 22px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 	box-sizing: border-box;
-    display: flex;
+    display: none;
     flex-direction: column;
-	height: fit-content;
+	height: 100%;
 	justify-content: space-between;
-    max-height: 80vh;
-	min-height: 50vh;
+    /* max-height: 80vh;
+	min-height: 50vh; */
 	overflow: visible;
     padding: 0 1em;
 	position: relative;
+	width: 100%;
 }
 .chat-member {
 	align-items: center;
@@ -118,17 +114,48 @@
 	background-color: rgba(255, 255, 255, 0.8); /* Track background color */
     width: 12px; /* Width of the scrollbar */
 }
+.chat-refresh {
+	position: absolute; /* Position relative to parent */
+	top: 0; /* Adjust as needed */
+	right: 0.3em; /* Adjust as needed */
+	background-color: transparent; /* Transparent background */
+	border: none; /* No border */
+	color: #888; /* Icon color, change as needed */
+	font-size: 24px; /* Icon size, adjust as needed */
+	cursor: pointer; /* Pointer cursor on hover */
+	z-index: 2; /* Ensure it's above other content */
+}
+.chat-submit {
+	flex: 0 0 auto;
+	color: rgba(65, 84, 104, 0.85);
+	background-color: rgba(183, 203, 225, 0.85);
+	margin: 0px;
+	white-space: nowrap; /* Prevents text wrapping in the button */
+}
+.chat-submit:hover {
+	background-color: rgba(195, 203, 52, 0.85);
+	color: #061320;
+}
+.chat-submit:focus {
+    outline: none; /* Remove the default focus outline */
+    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.6); /* Yellow glow */
+}
+.chat-submit:disabled {
+	background-color: rgba(63, 75, 83, 0.2);
+	border-color: rgba(146, 157, 163, .7);
+	color: rgba(146, 157, 163, .9);
+}
 .chat-system {
-	align-self: stretch;
-	display: flex;
+	display: none;
 	flex-direction: column;
 	flex-grow: 1;
 	flex-wrap: nowrap;
+	height: 100%;
 	justify-content: flex-start;
 	margin-top: 0.6em;
-	max-height: fit-content;
 	overflow-x: hidden;
     overflow-y: scroll;
+	width: 100%;
 }
 /* Styles the scrollbar itself */
 .chat-system::-webkit-scrollbar {
@@ -156,7 +183,6 @@
 	font-stretch: condensed;
 	font-weight: bold;
 	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-	transition: visibility 0s, opacity 0.7s linear;
 }
 .label-spinner {
     position: absolute;
@@ -200,3 +226,9 @@
 #response {
 	margin-top: 1rem;
 }
+/* keyframes */
+@keyframes spinner-grow {
+	0% { transform: scale(0.5); }
+	50% { transform: scale(1); }
+	100% { transform: scale(0.5); }
+  }

@@ -37,13 +37,18 @@
     overflow: visible; /* Make overflow visible on hover */
 }
 /* bot widget */
-.bot-container {
-    /* Basic styling for the bot container */
-    cursor: auto;
+.bot { /* along with widget */
+	align-items: stretch;
 }
-.bot-header {
-    /* Styling for the header */
-	font-size: 1.2em;
+.bot-container {
+	box-sizing: border-box;
+    cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	margin: 0.2rem 0;
+    max-width: 100%;
+    width: 100%;
 }
 .bot-content {
     /* Hidden by default */
@@ -54,20 +59,9 @@
     /* Show content when active */
     display: block;
 }
-.toggle-switch {
-    /* Styling for toggle switch */
-	background-color: #ccc;
-}
-/* bot legion */
-.bot { /* along with widget */
-	align-items: stretch;
-}
-.bot-container {
-	box-sizing: border-box;
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
-	margin: 0.2rem 0;
+.bot-header {
+    /* Styling for the header */
+	font-size: 1.2em;
 }
 .bot-icon {
 	background-color: rgb(142, 142, 142);
@@ -235,6 +229,10 @@ input[type="range"]::-moz-range-thumb {
 
 .slider-labels span {
 	text-align: center;
+}
+.toggle-switch {
+    /* Styling for toggle switch */
+	background-color: #ccc;
 }
 /* interests */
 .checkbox-group {

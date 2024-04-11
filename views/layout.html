@@ -9,12 +9,8 @@
 		integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
 		crossorigin="anonymous" referrerpolicy="no-referrer">
 	<link rel="stylesheet" href="/css/main.css">
-	<!-- head scripts -->
-	<script src="/js/global.js" defer></script>
-	<!-- do not include if not logged in -->
-<% if (!locked) { %>
-	<script type="module" src="/js/members.mjs"></script>
-<% } %>
+	<!-- load correct script for logged in status -->
+	<script type="module" src="/js/<%= locked ? 'guests' : 'members' %>.mjs"></script>
 	<title>MyLife Member Services</title>
 </head>
 <body>

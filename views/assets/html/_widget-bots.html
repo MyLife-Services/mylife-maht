@@ -1,5 +1,25 @@
 <div class="widget bot" id="bot-container">
-    <div class="header">Bot Legion</div>
+    <div class="bot-container" id="avatar">
+        <div class="bot-status" id="avatar-status">
+            <div class="bot-icon" id="avatar-icon"></div>
+            <div class="bot-type" id="avatar-type">My Avatar</div>
+            <div class="bot-name" id="avatar-name"><%= avatar.name %></div>
+            <div class="bot-options-dropdown" id="avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+        </div>
+        <div class="bot-options hidden">
+            <!-- Bot Name -->
+            <div class="input-group" id="avatar-bot_name">
+                <label for="bot_name">Avatar Name:</label>
+                <input class="bot-name" name="bot_name" maxlength="256">
+            </div>
+            <!-- Date of Birth -->
+            <div class="input-group">
+                <label for="dob">My Date of Birth:</label>
+                <input type="date" id="avatar-dob" name="dob">
+            </div>
+        </div>
+    </div>
+    <div class="header">Memoire Team</div>
     <div class="bot-container" id="personal-biographer">
         <div class="bot-status" id="personal-biographer-status" name="bot-status">
             <div class="bot-icon" id="personal-biographer-icon" name="bot-icon"></div>
@@ -12,11 +32,6 @@
             <div class="input-group" id="personal-biographer-bot_name">
                 <label for="bot_name">Biographer Name:</label>
                 <input class="bot-name" name="bot_name" maxlength="256">
-            </div>
-            <!-- Date of Birth -->
-            <div class="input-group">
-                <label for="dob">Date of Birth:</label>
-                <input type="date" id="personal-biographer-dob" name="dob">
             </div>
             <!-- Stories vs. Interview -->
             <div class="input-group narrative">
@@ -149,171 +164,15 @@
             <button class="button bot-create" id="personal-biographer-create" name="bot-create">Create</button>
         </div>
     </div>
-    <div class="bot-container" id="resume">
-        <div class="bot-status" id="resume-status">
-            <div class="bot-icon" id="resume-icon"></div>
-            <div class="bot-type" id="resume-type">Resume Bot</div>
-            <div class="bot-options-dropdown" id="resume-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+    <div class="bot-container" id="personal-library">
+        <div class="bot-status" id="personal-library-status" name="bot-status">
+            <div class="bot-icon" id="personal-library-icon" name="bot-icon"></div>
+            <div class="bot-type" id="personal-library-type" name="bot-type">Library Bot</div>
+            <div class="bot-name ticker" id="personal-library-name" name="bot-name"><span id="personal-library-name-ticker">system-one-personal-biographer</span></div>
+            <div class="bot-options-dropdown" id="personal-library-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden">
-            <!-- Upload -->
-            <div class="input-group">
-                <label>Upload:</label>
-            </div>
-            <!-- Special skills -->
-            <!-- Privacy Settings -->
-            <div class="input-group toggle-switch">
-                <label>Privacy:</label>
-                <input type="checkbox" id="privacy-toggle">
-                <label for="privacy-toggle">Public/Private</label>
-            </div>
-    
-            <button class="button bot-create">Create</button>
+        <div class="bot-options hidden" id="personal-library-options" name="bot-options">
+            <!-- Bot Name -->
         </div>
-    </div>    
-    <div class="bot-container" id="health">
-        <div class="bot-status" id="health-status">
-            <div class="bot-icon" id="health-icon"></div>
-            <div class="bot-type" id="health-type">Health Bot</div>
-            <div class="bot-options-dropdown" id="health-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
-        </div>
-        <div class="bot-options hidden">
-            <!-- Uploads -->
-            <div class="input-group">
-                <label>Upload Medical:</label>
-            </div>
-            <!-- Skills -->
-            <div class="input-group medical-skills skills">
-                <label>Health-bot should come equipped with:</label>
-                <div class="checkbox-group" id="health-skills">
-                    <!-- Repeat for each skill -->
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="interests" id="medical" value="Medical">
-                        <label for="medical">General Medical</label>
-                    </div>
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="nurse" id="nurse" value="Nurse">
-                        <label for="nurse">Nursing Care</label>
-                    </div>
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="rehabilitation" id="rehabilitation" value="Rehabilitation">
-                        <label for="rehabilitation">Rehabilitation</label>
-                    </div>
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="counsel" id="counsel" value="Counsel">
-                        <label for="counsel">Counsel</label>
-                    </div>
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="fitness" id="fitness" value="Fitness">
-                        <label for="fitness">Fitness</label>
-                    </div>
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="research" id="research" value="Research">
-                        <label for="research">Research</label>
-                    </div>
-                    <div class="checkbox-group-item">
-                        <input type="checkbox" name="medicine" id="medicine" value="Medicine">
-                        <label for="medicine">Medicine</label>
-                    </div>
-                </div>
-            </div>
-            <!-- Privacy Settings -->
-            <div class="input-group toggle-switch">
-                <label>Privacy:</label>
-                <input type="checkbox" id="privacy-toggle">
-                <label for="privacy-toggle">Public/Private</label>
-            </div>
-    
-            <button class="button bot-create">Create</button>
-        </div>
-    </div>
-    <div class="bot-container" id="art">
-        <div class="bot-status" id="art-status">
-            <div class="bot-icon" id="art-icon"></div>
-            <div class="bot-type" id="art-type">Creative Art Bot</div>
-            <div class="bot-options-dropdown" id="art-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
-        </div>
-        <div class="bot-options hidden">
-            <!-- Type of artwork -->
-            <div class="input-group">
-                <label>What type of artwork?</label>
-                <select name="starter-questions">
-                    <option value="1">Music</option>
-                    <option value="2">Novel</option>
-                    <option value="3">Opera</option>
-                </select>
-            </div>
-            <!-- Privacy Settings -->
-            <div class="input-group toggle-switch">
-                <label>Privacy:</label>
-                <input type="checkbox" id="privacy-toggle">
-                <label for="privacy-toggle">Public/Private</label>
-            </div>
-    
-            <button class="button bot-create">Create</button>
-        </div>
-    </div>
-    <div class="bot-container" id="coding">
-        <div class="bot-status" id="coding-status">
-            <div class="bot-icon" id="coding-icon"></div>
-            <div class="bot-type" id="coding-type">Coding Bot</div>
-            <div class="bot-options-dropdown" id="coding-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
-        </div>
-        <div class="bot-options hidden">
-            <!-- Type of artwork -->
-            <div class="input-group">
-                <label>Coding Languages/Tech Stack?</label>
-                <select name="starter-questions">
-                    <option value="1">Music</option>
-                    <option value="2">Novel</option>
-                    <option value="3">Opera</option>
-                </select>
-            </div>
-            <!-- Privacy Settings -->
-            <div class="input-group toggle-switch">
-                <label>Privacy:</label>
-                <input type="checkbox" id="privacy-toggle">
-                <label for="privacy-toggle">Public/Private</label>
-            </div>
-    
-            <button class="button bot-create">Create</button>
-        </div>
-    </div>
-    <div class="bot-container" id="education">
-        <div class="bot-status" id="education-status">
-            <div class="bot-icon" id="education-icon"></div>
-            <div class="bot-type" id="education-type">Education Bot</div>
-            <div class="bot-options-dropdown" id="coding-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
-        </div>
-        <div class="bot-options hidden">
-            <!-- Type of artwork -->
-            <div class="input-group">
-                <label>Subjects</label>
-                <select name="starter-questions">
-                    <option value="1">World History</option>
-                    <option value="2">Languages</option>
-                    <option value="3">Civilizations</option>
-                    <option value="4">Mathematics</option>
-                    <option value="5">Reading</option>
-                </select>
-            </div>
-            <!-- Privacy Settings -->
-            <div class="input-group toggle-switch">
-                <label>Privacy:</label>
-                <input type="checkbox" id="privacy-toggle">
-                <label for="privacy-toggle">Public/Private</label>
-            </div>
-    
-            <button class="button bot-create">Create</button>
-        </div>
-    </div>
-    <div class="bot-container" id="avatar">
-        <div class="bot-status" id="avatar-status">
-            <div class="bot-icon" id="avatar-icon"></div>
-            <div class="bot-type" id="avatar-type">My Avatar</div>
-            <div class="bot-name" id="avatar-name"><%= avatar.name %></div>
-            <div class="bot-options-dropdown" id="avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
-        </div>
-        <div class="bot-options hidden"></div>
     </div>
 </div>

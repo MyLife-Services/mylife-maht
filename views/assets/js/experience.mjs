@@ -1,9 +1,12 @@
 /* imports */
 import {
-    getMemberChatSystem,
+    addMessageToColumn,
+    clearSystemChat,
+    getSystemChat,
     getMemberModerator,
     hide,
     hideMemberChat,
+    inExperience,
     show,
     showMemberChat,
     stageTransition,
@@ -91,10 +94,7 @@ async function experiencePlay(memberInput){
     mWelcome = false
     if(!events?.length)
         throw new Error("No events found")
-    /* prepare mainstage */
-    const { currentScene, location, } = mExperience
-    if(!mMainstagePrepared || currentScene!==location.sceneId)
-        mSceneTransition()
+    /* prepare events */
     mExperience.events = experienceEvents
         .map(event=>{
             const { id, }  = event
@@ -103,9 +103,15 @@ async function experiencePlay(memberInput){
         })
     const newEvents = events.filter(incEvent=>!mExperience.events.some(event => event.id === incEvent.id))
     mExperience.events = [...mExperience.events, ...newEvents]
+    /* prepare mainstage */
+    if(!mMainstagePrepared)
+        mSceneTransition()
     /* prepare characters */
     const characters = [...new Set(events.map(event=>event.character?.characterId).filter(Boolean))]
     // mUpdateCharacters(characters)
+
+
+
     /* prepare animations */
     const animationSequence = []
     events
@@ -183,6 +189,30 @@ async function experienceStart(experience){
 }
 /* private functions */
 /**
+ * Adds or Moves a character lane to a specific chat/dialog div
+ * @param {HTMLDivElement} dialogDiv - The chat div to append the character lane to.
+ * @param {object} character - The character object.
+ * @param {boolean} clearDialog - Whether to clear any existing dialog.
+ */
+function mAddCharacterLane(dialogDiv, character, clearDialog=false){
+    const { id: characterId, } = character
+    const characterLane = document.getElementById(`char-lane-${characterId}`)
+        ?? mCreateCharacterLane(character)
+    if(!characterLane)
+        throw new Error(`Character lane not found and unable to be created! ${characterId}`)
+    hide(characterLane)
+    dialogDiv.appendChild(characterLane) /* appendChild will **move** the element */
+    if(clearDialog){
+        /* remove previous char-lane dialog elements */
+        const characterDialog = document.getElementById(`char-dialog-${characterId}`)
+        if(characterDialog){
+            while(characterDialog.firstChild){
+                characterDialog.removeChild(characterDialog.firstChild)
+            }
+        }
+    }
+}
+/**
  * Animate an element based on the animation event object.
  * @todo - remove requirement for `animationend` specifically, to allow for non animation-based events to have callbacks.
  * @private
@@ -247,6 +277,7 @@ async function mAnimateEvents(animationSequence){
                 return true
             } else { /* scene */
                 console.log('sceneEnd', animationEvent)
+                mMainstagePrepared = false // @todo - check for backdrop differences here
                 experiencePlay()
                 return true
             }
@@ -472,7 +503,7 @@ function mEventCharacter(){
         /* animate character */
         const characterLane = document.getElementById(`char-lane-${characterId}`)
         if(!characterLane)
-        throw new Error(`Character lane not found! ${characterId}`)
+            throw new Error(`Character lane not found! ${characterId}`)
         const animationDetails = {
             animationClass: animation ?? mDefaultAnimationClasses[mBackdrop] ?? 'fade-in',
             animationDelay: animationDelay ?? 0.2,
@@ -570,7 +601,7 @@ function mEventInput(){
     let moderatorInput = moderatorContainer
     /* moderator lane is puppeteer */
     if(mBackdrop==='full'){
-        moderatorContainer = moderatorDialog
+        moderatorContainer = moderator
         moderatorInput = inputLane
         moderatorDialog.prepend(mCreateModeratorInputPrompt())
     }
@@ -804,6 +835,7 @@ async function mManifest(id){
  * Scene transition based on backdrop.
  * @private
  * @requires mExperience - The Experience object.
+ * @requires mMainstagePrepared - Whether the mainstage is prepared.
  * @returns {void}
  */
 function mSceneTransition(){
@@ -814,54 +846,52 @@ function mSceneTransition(){
     if(!upcomingScene)
         throw new Error(`Scene not found! ${currentSceneId}`)
     const { backdrop, } = upcomingScene
-    if(currentSceneId!==upcomingSceneId || (backdrop ?? mBackdropDefault)!==mBackdrop){
-        mBackdrop = backdrop
-        mShowTransport()
-        switch(mBackdrop){
-            case 'chat':
+    if(mMainstagePrepared && backdrop===mBackdrop)
+        return
+    /* show mainstage */
+    mBackdrop = backdrop
+    mShowTransport()
+    switch(mBackdrop){
+        case 'chat':
             case 'interface':
-                /* character lanes */
-                cast
-                    .filter(character=>{
-                        const { type, } = character
-                        return !mIsMember(type)
-                    })
-                    .forEach(character=>{
-                        const characterLane = mCreateCharacterLane(character)
-                        if(!characterLane)
-                            throw new Error(`Character lane not found! ${character.id}`)
-                        getMemberChatSystem().appendChild(characterLane)
-                    })
-                showMemberChat()
-                break
-            case 'full':
-            default:
-                console.log('mSceneTransition::full')
-                /* add character lanes */
-                cast
-                    .filter(character=>{
-                        const { type, } = character
-                        return !(mIsAvatar(type) || mIsMember(type))
-                    })
-                    .forEach(character=>{
-                        const characterLane = mCreateCharacterLane(character)
-                        if(!characterLane)
-                            throw new Error(`Character lane not found! ${character.id}`)
-                        sceneStage.appendChild(characterLane)
-                    })
-                /* set initial moderator */
-                mUpdateModerator()
-                /* animate backstage removal */
-                hide(backstage)
-                mainstage.classList.add('appear') // requires animation to trigger others
-                show(mainstage, mainstageAnimation=>{
-                    mainstageAnimation.stopPropagation()
-                    /* final mainstage preparations */
+            console.log('mSceneTransition', )
+            /* character lanes */
+            cast
+                .filter(character=>{
+                    const { type, } = character
+                    return !mIsMember(type)
                 })
-                break
-            }
-        }
-        mMainstagePrepared = true
+                .forEach(character=>{
+                    /* create/move character lane */
+                    mAddCharacterLane(getSystemChat(), character, true)
+                })
+            showMemberChat()
+            break
+        case 'full':
+        default:
+            console.log('mSceneTransition::full')
+            /* add character lanes */
+            cast
+                .filter(character=>{
+                    const { type, } = character
+                    return !(mIsAvatar(type) || mIsMember(type))
+                })
+                .forEach(character=>{
+                    /* create/move character lane */
+                    mAddCharacterLane(sceneStage, character, true)
+                })
+            /* set initial moderator */
+            mUpdateModerator()
+            /* animate backstage removal */
+            hide(backstage)
+            mainstage.classList.add('appear') // requires animation to trigger others
+            show(mainstage, mainstageAnimation=>{
+                mainstageAnimation.stopPropagation()
+                /* final mainstage preparations */
+            })
+            break
+    }
+    mMainstagePrepared = true
 }
 /**
  * Special Showcase: Shows the transport element.
@@ -986,7 +1016,6 @@ function mUpdateStartButton(){
     startButton.textContent = 'click me'
     startButton.classList.add('pulse')
     hide(startSpinner, animation=>{
-        console.log('mUpdateStartButton::hide spinner show button', animation, startButton.classList)
         show(startButton)
     })
 }

@@ -5,7 +5,9 @@ import {
     setActiveBot,
     state,
 } from './members.mjs'
+import Globals from './globals.mjs'
 /* variables */
+const mGlobals = new Globals()
 let mState
 /* public functions */
 /**
@@ -172,7 +174,7 @@ function toggleBotContainerOptions(event){
             }
             */
            if(!this.getAttribute('data-bot_name')?.length){
-               this.setAttribute('data-bot_name', `${g_dash(this.getAttribute('data-mbr_handle'))}-${this.getAttribute('data-type')}`)
+               this.setAttribute('data-bot_name', `${mGlobals.variableIze(this.getAttribute('data-mbr_handle'))}-${this.getAttribute('data-type')}`)
            }
             if(!this.getAttribute('data-dob')?.length){
                 alert('Birthdate is required to calibrate your biographer.')
@@ -285,7 +287,7 @@ function updateBotContainers(){
     document.querySelectorAll('.bot-container').forEach(botContainer => {
         const bot = pageBots.find(bot => bot.type === botContainer.id)??{ status: 'none' }
         const _type = botContainer.id
-        const _mbrHandle = g_handle(activeBot.mbr_id)
+        const _mbrHandle = mGlobals.getHandle(activeBot.mbr_id)
         /* attributes */
         botContainer.setAttribute('data-active', activeBot.id === bot.id ? 'true' : 'false' )
         botContainer.setAttribute('data-bot_id', bot?.bot_id??'')
@@ -319,6 +321,7 @@ function updateBotContainers(){
                     botContainer.setAttribute('data-bot_name', botNameInput.value)
                     if(botNameTicker) botNameTicker.innerHTML = botNameInput.value
                 })
+                /*
                 botContainer.setAttribute('data-dob', bot?.dob?.split('T')[0]??'')
                 const botDob = botContainer.querySelector(`#${_type}-dob`)
                 botDob.value = botContainer.getAttribute('data-dob')
@@ -326,6 +329,7 @@ function updateBotContainers(){
                     botContainer.setAttribute('data-dob', botDob.value)
                     botDob.value = botContainer.getAttribute('data-dob')
                 })
+                */
                 const _interests = botContainer.querySelector(`#${_type}-interests`)
                 const _checkboxes = _interests.querySelectorAll('input[type="checkbox"]')
                 if(bot.interests?.length){

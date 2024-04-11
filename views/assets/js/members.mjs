@@ -9,8 +9,10 @@ import {
     fetchBots,
     updatePageBots,
 } from './bots.mjs'
+import Globals from './globals.mjs'
 /* variables */
 /* constants */
+const mGlobals = new Globals()
 const mExperiences = []
 /* variables */
 let activeBot, // replaced with pageBots[reference]
@@ -23,61 +25,53 @@ let activeBot, // replaced with pageBots[reference]
 /* page div variables */
 let activeCategory,
     awaitButton,
+    botBar,
     chatContainer,
+    chatInput,
+    chatInputField,
+    chatRefresh,
     mainContent,
-    memberChatContainer,
-    memberChatInput,
-    memberChatInputField,
-    memberChatSystem,
     memberModerator,
-    memberNavigation,
+    memberSelect,
     memberSubmit,
     sceneContinue,
     screen,
     sidebar,
+    siteNavigation,
     spinner,
     systemChat,
     transport
 /* page load listener */
-document.addEventListener('DOMContentLoaded', ()=>{
+document.addEventListener('DOMContentLoaded', async ()=>{
     /* post-DOM population constants */
     awaitButton = document.getElementById('await-button')
+    botBar = document.getElementById('bot-bar')
     chatContainer = document.getElementById('chat-container')
+    chatInput = document.getElementById('chat-member')
+    chatInputField = document.getElementById('member-chat-message')
+    chatRefresh = document.getElementById('chat-refresh')
     mainContent = document.getElementById('main-content')
-    memberChatContainer = document.getElementById('chat-container')
-    memberChatInput = document.getElementById('chat-member')
-    memberChatInputField = document.getElementById('member-chat-message')
-    memberChatSystem = document.getElementById('chat-system')
     memberModerator = document.getElementById('experience-member-moderator')
-    memberNavigation = document.getElementById('navigation-container')
+    memberSelect = document.getElementById('member-select')
     memberSubmit = document.getElementById('submit-button')
     sceneContinue = document.getElementById('experience-continue')
     sidebar = document.getElementById('page-sidebar')
+    siteNavigation = document.getElementById('navigation-container')
     spinner = document.getElementById('agent-spinner')
     transport = document.getElementById('experience-transport')
     screen = document.getElementById('experience-modal')
     systemChat = document.getElementById('chat-system')
     /* determine mode, default = member bot interface */
-    mInitialize()
-        .then(success=>{
-            if(!success)
-                throw new Error('CRITICAL::mInitialize::Error()', success)
-            stageTransition()
-        })
-        .catch(err=>{
-            console.log('CRITICAL::mInitialize::Error()', err)
-        })
-    fetchBots() // regardless, fetch member bot array
-        .then(async _bots => { // peck out the bots and id
-            const { bots, activeBotId: id } = _bots
-            pageBots = bots
-            activeBot = bot(id)
-            await setActiveBot()
-            updatePageBots(true)
-        })
-        .catch(err => {
-            console.log('CRITICAL::Error fetching bots:', err)
-        })
+    const initialized = await mInitialize()
+    if(!initialized)
+        throw new Error('CRITICAL::mInitialize::Error()', success)
+    stageTransition()
+    /* bots */
+    const { bots, activeBotId: id } = await fetchBots()
+    pageBots = bots
+    activeBot = bot(id)
+    await setActiveBot()
+    updatePageBots(!inExperience())
 })
 /* public functions */
 /**
@@ -111,12 +105,22 @@ function addMessageToColumn(message, options={
 		chatBubble.insertAdjacentHTML('beforeend', messageContent)
 }
 /**
+ * Clears the system chat by removing all chat bubbles instances.
+ * @todo - store chat locally for retrieval?
+ * @public
+ * @returns {void}
+ */
+function clearSystemChat(){
+    // Remove all chat bubbles under chat-system
+    systemChat.innerHTML = ''
+}
+/**
  * Escapes HTML text.
  * @public
  * @param {string} text - The text to escape.
  * @returns {string} - The escaped HTML text.
  */
-function escapeHtml(text) {
+function escapeHtml(text){
     const map = {
         '&': '&amp;',
         '<': '&lt;',
@@ -130,62 +134,48 @@ function escapeHtml(text) {
  * Gets the member chat system DOM element.
  * @returns {HTMLDivElement} - The member chat system element.
  */
-function getMemberChatSystem(){
-    return memberChatSystem
+function getSystemChat(){
+    return systemChat
 }
 function getMemberModerator(){
     return memberModerator
 }
 /**
- * Hides an element, pre-executing any included callback function.
- * @public
+ * Proxy for Globals.hide().
  * @param {HTMLElement} element - The element to hide.
  * @param {function} callbackFunction - The callback function to execute after the element is hidden.
+ * @returns {void}
  */
-function hide(element, callbackFunction){
-    if(!element) {
-        console.log('mHide::element not found', element, document.getElementById('chat-member'))
-        return
-    }
-    element.classList.remove('show')
-    if(element.getAnimations().length){
-        element.addEventListener('animationend', function() {
-            element.classList.add('hide')
-        }, { once: true }) // The listener is removed after it's invoked
-    }
-    // element.style.animation = 'none' /* stop/rewind all running animations */
-    if(callbackFunction)
-        callbackFunction()
-    element.classList.add('hide')
+function hide(){
+    return mGlobals.hide(...arguments)
 }
 function hideMemberChat(){
-    hide(memberNavigation)
-    hide(memberChatInput)
+    hide(siteNavigation)
+    hide(chatInput)
     hide(sidebar)
 }
 /**
- * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
+ * Determines whether an experience is in progress.
+ * @returns {boolean} - The return is a boolean indicating whether an experience is in progress.
+ */
+function inExperience(){
+    return mExperience?.id?.length ?? false
+}
+/**
+ * Proxy for Globals.show().
  * @public
  * @param {HTMLElement} element - The element to show.
  * @param {function} listenerFunction - The listener function, defaults to `mAnimationEnd`.
  * @returns {void}
  */
-function show(element, listenerFunction){
-    element.addEventListener(
-        'animationend',
-        animationEvent=>mAnimationEnd(animationEvent, listenerFunction),
-        { once: true },
-    )
-    if(!element.classList.contains('show')){
-        element.classList.remove('hide')
-        element.classList.add('show')
-    }
+function show(){
+    return mGlobals.show(...arguments)
 }
 function showMemberChat(){
     hide(screen)
     show(mainContent)
-    show(memberChatContainer)
-    show(memberChatSystem)
+    show(chatContainer)
+    show(systemChat)
 }
 /**
  * Enacts stage transition.
@@ -217,18 +207,6 @@ function waitForUserAction(){
 }
 /* private functions */
 /**
- * Callback function for ending an animation. Currently only stops propagation.
- * @private
- * @param {Animation} animation - The animation object.
- * @param {function} callbackFunction - The listener function, defaults to `mAnimationEnd`.
- * @returns {void}
- */
-function mAnimationEnd(animation, callbackFunction){
-    animation.stopPropagation()
-    if(callbackFunction)
-        callbackFunction(animation)
-}
-/**
  * Adds a message to the chat column on member's behalf.
  * @private
  * @async
@@ -239,13 +217,13 @@ async function mAddMemberDialog(event){
     event.stopPropagation()
 	event.preventDefault()
     // Dynamically get the current message element (input or textarea)
-    let memberMessage = memberChatInputField.value.trim()
+    let memberMessage = chatInputField.value.trim()
     if (!memberMessage.length)
         return
     // memberMessage = escapeHtml(memberMessage) // Escape the user message
 
-	hide(memberChatInput)
-    memberChatInput.classList.remove('fade-in')
+	hide(chatInput)
+    chatInput.classList.remove('fade-in')
     awaitButton.classList.add('slide-up')
     show(awaitButton)
 
@@ -262,10 +240,10 @@ async function mAddMemberDialog(event){
 
     hide(awaitButton)
     awaitButton.classList.remove('slide-up')
-    memberChatInput.classList.add('fade-in')
-    show(memberChatInput)
+    chatInput.classList.add('fade-in')
+    show(chatInput)
 
-    memberChatInputField.value = null // Clear the message field
+    chatInputField.value = null // Clear the message field
 }
 function bot(_id){
     return pageBots.find(bot => bot.id === _id)
@@ -326,9 +304,20 @@ function mInitialize(){
 }
 function mInitializePageListeners(){
     /* page listeners */
-    memberChatInputField.addEventListener('input', toggleInputTextarea)
+    chatInputField.addEventListener('input', toggleInputTextarea)
     // **note**: listener for `memberSubmit` added as required by event or chat
     memberSubmit.addEventListener('click', mAddMemberDialog, { once: true })
+    chatRefresh.addEventListener('click', clearSystemChat)
+    const currentPath = window.location.pathname // Get the current path
+    const navigationLinks = document.querySelectorAll('.navbar-nav .nav-link') // Select all nav links
+    navigationLinks.forEach(link=>{
+        if(link.getAttribute('href')===currentPath){
+            link.classList.add('active') // Add 'active' class to the current link
+            link.addEventListener('click', event=>{
+                event.preventDefault() // Prevent default action (navigation) on click
+            })
+        }
+    })
 }
 function isActive(_id) {
     return _id===activeBot.id
@@ -397,35 +386,46 @@ async function setActiveCategory(category, contributionId, question) {
         contributionId: contributionId,
         category: category,
         question: question
-    };
-    await fetch(url, {
+    }
+    let response = await fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
     })
-		.then(_response => {
-			if (!_response.ok) {
-				throw new Error(`HTTP error! Status: ${_response.status}`);
-			}
-			return _response.json();
-		})
-		.then(_response => {
-			activeCategory = {
-				contributionId: _response.contributionId,
-				category: _response.category,
-			}
-		})
-		.catch(err => {
-			console.log('Error setting active category:', err)
-		})
+    if (!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`);
+    response = await response.json()
+    activeCategory = {
+        contributionId: response.contributionId,
+        category: response.category,
+    }
 }
-function mStageTransitionMember(){
+/**
+ * Transitions the stage to member mode.
+ * @param {boolean} includeSidebar - The include-sidebar flag.
+ * @returns {void}
+ */
+function mStageTransitionMember(includeSidebar=true){
     hide(transport)
     hide(screen)
+    document.querySelectorAll('.mylife-widget')
+        .forEach(widget=>{
+            const loginRequired = (widget.dataset?.requireLogin ?? "false")==="true"
+            if(loginRequired)
+                show(widget)
+            else
+                hide(widget)
+        })
     show(mainContent)
+    show(siteNavigation)
     show(chatContainer)
+    show(systemChat)
+    if(includeSidebar){
+        show(sidebar)
+        show(botBar)
+    }
 }
 function state(){
     return {
@@ -478,10 +478,10 @@ async function submitChat(url, options) {
 }
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea(){
-    const inputStyle = window.getComputedStyle(memberChatInput)
+    const inputStyle = window.getComputedStyle(chatInput)
     const inputFont = inputStyle.font
-    const textWidth = getTextWidth(memberChatInputField.value, inputFont) // no trim required
-    const inputWidth = memberChatInput.offsetWidth
+    const textWidth = getTextWidth(chatInputField.value, inputFont) // no trim required
+    const inputWidth = chatInput.offsetWidth
 	/* pulse */
 	clearTimeout(typingTimer);
     spinner.style.display = 'none';
@@ -491,17 +491,17 @@ function toggleInputTextarea(){
         resetAnimation(spinner); // Restart animation
     }, 2000);
 
-    if (textWidth > inputWidth && memberChatInputField.tagName !== 'TEXTAREA') { // Expand to textarea
-        memberChatInputField = replaceElement(memberChatInputField, 'textarea');
-        focusAndSetCursor(memberChatInputField);
-    } else if (textWidth <= inputWidth && memberChatInputField.tagName === 'TEXTAREA' ) { // Revert to input
-		memberChatInputField = replaceElement(memberChatInputField, 'input');
-        focusAndSetCursor(memberChatInputField);
+    if (textWidth > inputWidth && chatInputField.tagName !== 'TEXTAREA') { // Expand to textarea
+        chatInputField = replaceElement(chatInputField, 'textarea')
+        focusAndSetCursor(chatInputField);
+    } else if (textWidth <= inputWidth && chatInputField.tagName === 'TEXTAREA' ) { // Revert to input
+		chatInputField = replaceElement(chatInputField, 'input');
+        focusAndSetCursor(chatInputField);
     }
 	toggleSubmitButtonState();
 }
 function toggleSubmitButtonState() {
-	memberSubmit.disabled = !memberChatInputField.value?.trim()?.length??true;
+	memberSubmit.disabled = !chatInputField.value?.trim()?.length??true;
 }
 /**
  * Typewrites a message to a chat bubble.
@@ -522,10 +522,12 @@ function mTypewriteMessage(chatBubble, message, delay=10, i=0){
 /* exports */
 export {
     addMessageToColumn,
-    getMemberChatSystem,
+    clearSystemChat,
     getMemberModerator,
+    getSystemChat,
     hide,
     hideMemberChat,
+    inExperience,
     setActiveBot,
     setActiveCategory,
     show,

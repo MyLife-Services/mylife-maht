@@ -5,7 +5,6 @@
 /* MyLife layout */
 body {
 	/* background-image: url('../jpg/MyLife_two_seeds.jpg'); */
-	align-items: center;
 	background-color: #000000;
 	background-size: 1200px;
 	background-repeat: no-repeat;
@@ -13,10 +12,9 @@ body {
 	display: flex;
 	flex-direction: column;
 	font-family: Arial, sans-serif;
-	justify-content: center;
-	margin: 0 1.5em 1.5em 1.5em;
+	height: 100vh;
+	margin: 0 1.5em;
 	max-width: 100%;
-	min-height: 65vh;
 }
 .flex-container {
     display: flex;
@@ -28,6 +26,7 @@ body {
 .page-container {
     display: flex;
     flex-direction: column; /* Change to row for horizontal layout */
+	height: 100%;
 	margin: 0 auto; /* Center the content */
 	width: 100%; /* Ensures the container grows to the full width */
 	max-width: 100%;
@@ -35,18 +34,19 @@ body {
 .page-column-collection {
 	display: flex;
 	flex-direction: row; /* Change to column for vertical layout */
-	width: 100%;
-	max-height: 100vh;
+	height: 100%;
 	max-width: 100%;
+	width: 100%;
 }
 /* MyLife Menu Navigation */
-.navbar {
+.navigation-container {
 	background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.25) 70%, rgba(0, 0, 100, 0.15) 100%);
 	background-color: whitesmoke; /* Blue background color */
 	border: 1px dotted rgba(0, 0, 139, 0.3);
 	border-radius: 22px; /* Rounded corners */
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
 	box-sizing: border-box; /* Ensures padding and width stays within the border */
+	display: none;
 	justify-content: flex-start; /* Aligns items horizontally */
 	/*margin-bottom: 0.5em; /* Bottom margin */
 	padding: 0px;
@@ -106,7 +106,7 @@ body {
 }
 .alert-content {
 	align-items: stretch; /* Vertically center align items */
-	/*   animation: alertFadeOut 2s forwards; /* */
+	/* animation: alertFadeOut 2s forwards; */
 	border-top-left-radius: inherit;
 	border-bottom-left-radius: inherit;
     color: rgba(0, 0, 0, 0.9);
@@ -158,11 +158,6 @@ body {
 	opacity: 1;
 	animation: alertFadeIn 0.5s forwards;
 }
-@keyframes alertFadeOut {
-    0% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { opacity: 0; }
-}
 /* MyLife main content */
 .main-content {
     background: white; /* Assuming a card-like look typically has a white background */
@@ -171,10 +166,11 @@ body {
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
 	box-sizing: border-box;
-	height: fit-content;
+	display: none;
+	height: 100%;
 	flex: 1 0 auto;
 	max-width: 100%;
-	min-width: 50%;
+	min-width: 66%;
     padding: 0px;
 }
 .main-content h1 {
@@ -306,18 +302,23 @@ body {
     background-size: cover; /* Ensures the image covers the whole area */
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
-	box-sizing: border-box;
-	color: #221a30;
-	display: flex;
-	flex-basis: 35%;
+	display: none;
+	flex-direction: column;
 	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
 	font-size: 0.8em;
-	max-width: 35%;
+	height: fit-content; /* 100% will stretch to bottom */
+	max-width: 33%;
+	min-width: 25%;
+    width: fit-content;
 }
 .sidebar-widget {
+	align-items: flex-start;
 	display: flex;
-    width: auto;
+	flex-direction: column;
+	margin: 0;
     max-width: 100%;
+	padding: 0;
+    width: 100%;
 }
 .teaser {
 	display: flex;
@@ -357,6 +358,7 @@ body {
     text-align: center; /* Center the text */
     border-radius: 12px 12px 0 0; /* Rounded top corners, flat bottom */
     margin: 0; /* No margin to ensure it meets the container's edges */
+	margin-top: 1em;
     width: 100%; /* Full width of the container */
 }
 /* MyLife error handling */
@@ -392,10 +394,9 @@ body {
 	text-align: center;
 }
 .mylife-widget {
+	align-items: flex-start;
 	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
+	width: 100%;
 }
 /* MyLife header */
 #header {
@@ -405,6 +406,12 @@ body {
 }
 .header-text {
     font-weight: bold;
+}
+/* keyframes */
+@keyframes alertFadeOut {
+    0% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; }
 }
 /* media queries */
 @media screen and (min-width: 1024px) {
