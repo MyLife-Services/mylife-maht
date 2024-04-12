@@ -9,6 +9,7 @@ import {
     inExperience,
     show,
     showMemberChat,
+    showSidebar,
     stageTransition,
     waitForUserAction,
 } from './members.mjs'
@@ -73,8 +74,10 @@ async function experienceEnd(){
     skip.removeEventListener('click', experienceSkip)
     startButton.removeEventListener('click', experiencePlay)
     /* end experience onscreen */
-    console.log('experienceEnd::endExperience', endExperience)
+    sceneStage.innerHTML = '' // clear full-screen character-lanes
+    clearSystemChat() // clear member chat lanes
     stageTransition(true) // request force-clear of member experience
+    console.log('experienceEnd::endExperience', endExperience)
 }
 /**
  * Play experience onscreen, mutates `mExperience` object.
@@ -106,12 +109,6 @@ async function experiencePlay(memberInput){
     /* prepare mainstage */
     if(!mMainstagePrepared)
         mSceneTransition()
-    /* prepare characters */
-    const characters = [...new Set(events.map(event=>event.character?.characterId).filter(Boolean))]
-    // mUpdateCharacters(characters)
-
-
-
     /* prepare animations */
     const animationSequence = []
     events
@@ -125,25 +122,22 @@ async function experiencePlay(memberInput){
                 ...mEventInput()
             )
         })
-    /* play experience */
-    console.log('experiencePlay::animationSequence', animationSequence)
+    /* prepare stage */
     switch(mBackdrop){
-        case 'interface':
-            // interface keeps all elements of the interface, and full control given to experience
-            // will I have to actually remove animation events? perhaps filter? restructure?
-            console.log('experiencePlay::interface', animationSequence, mExperience)
-            if(!await mAnimateEvents(animationSequence))
-                throw new Error("Animation sequence failed!")
+        case 'interface': // interface uses a sidebar
+            showSidebar()
             break
-        case 'chat':
-            // chat refers to control over system-chat window experience only
+        case 'chat': // chat uses a single member chat container
+            break
         case 'full':
         default:
-            show(stage) // brute force
-            if(!await mAnimateEvents(animationSequence))
-                throw new Error("Animation sequence failed!")
+            show(stage)
             break
     }
+    /* play experience */
+    console.log('experiencePlay::animationSequence', animationSequence)
+    if(!await mAnimateEvents(animationSequence))
+        throw new Error("Animation sequence failed!")
     mExperience.currentScene = mExperience.events?.[mExperience.events.length-1]?.sceneId
         ?? location.sceneId
 }
@@ -949,49 +943,6 @@ function mSubmitInput(input){
         eventContinue = true
     }
     return eventContinue
-}
-/**
- * Receives a list of characters and performs any updates upon the char-lane objects required, show, hide, effects, icon-change, name-change, etc.
- * @private
- * @todo - unclear how to handle when `interface` mBackdrop
- * @requires mExperience - populated, not undefined; create prior to this function.
- * @param {Object[]} characters - Array of character objects.
- * @returns {void}
- */
-function mUpdateCharacters(characters){
-    const { cast, } = mExperience
-    characters.forEach(characterId=>{
-        const character = cast.find(member=>member.id === characterId)
-        if(!character)
-            throw new Error(`Character not found in cast! ${characterId}`)
-        const { id, type='' } = character
-        switch(type.toLowerCase()){
-            case 'bot':
-                break
-            case 'avatar':
-            case 'member':
-            case 'member-ai':
-            case 'member-bot':
-            case 'personal-avatar':
-                /* update (if not visible, always-extant) moderator lane */
-                mUpdateModerator()
-                moderator.classList.add('slide-up')
-                show(moderator)
-                // update dialog ?
-                break
-            case 'actor':
-            case 'q':
-            case 'system':
-            default:
-                const characterLane = document.getElementById(`char-lane-${id}`)
-                if(!characterLane)
-                    throw new Error(`Character lane not found! ${id}`)
-                sceneStage.appendChild(characterLane)
-                if(!sceneStage.contains(characterLane)) // thanks for generating!
-                    sceneStage.appendChild(characterLane)
-                break
-        }
-    })
 }
 /**
  * Updates the moderator lane.

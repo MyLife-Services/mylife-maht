@@ -75,7 +75,7 @@ body {
     border-radius: 10px; /* Rounded edges */
 	display: flex; /* Aligns the flex item horizontally (default: row) */
 	flex-direction: row; /* Aligns the flex item horizontally (default: row) */
-	margin-top: 1.5em;
+	margin: 1em 0;
 }
 .navbar-nav:hover {
 	border:rgba(53, 31, 53, 0.25) 1px solid;
@@ -167,9 +167,8 @@ body {
     border-radius: 22px;
 	box-sizing: border-box;
 	display: none;
+	flex: 1 1 66%; /* Use flex to assign 66% of the space */
 	height: 100%;
-	flex: 1 0 auto;
-	max-width: 100%;
 	min-width: 66%;
     padding: 0px;
 }
@@ -303,13 +302,13 @@ body {
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
 	display: none;
+	flex: 0 0 33%; /* Use flex to assign 33% of the space */
 	flex-direction: column;
 	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
 	font-size: 0.8em;
 	height: fit-content; /* 100% will stretch to bottom */
 	max-width: 33%;
-	min-width: 25%;
-    width: fit-content;
+    padding: 0px;
 }
 .sidebar-widget {
 	align-items: flex-start;

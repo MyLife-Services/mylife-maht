@@ -111,7 +111,7 @@ function addMessageToColumn(message, options={
  * @returns {void}
  */
 function clearSystemChat(){
-    // Remove all chat bubbles under chat-system
+    // Remove all chat bubbles and experience chat-lanes under chat-system
     systemChat.innerHTML = ''
 }
 /**
@@ -171,11 +171,24 @@ function inExperience(){
 function show(){
     return mGlobals.show(...arguments)
 }
+/**
+ * Shows the member chat system.
+ * @public
+ * @returns {void}
+ */
 function showMemberChat(){
     hide(screen)
     show(mainContent)
     show(chatContainer)
     show(systemChat)
+}
+/**
+ * Shows the sidebar.
+ * @public
+ * @returns {void}
+ */
+function showSidebar(){
+    show(sidebar)
 }
 /**
  * Enacts stage transition.
@@ -188,8 +201,10 @@ function stageTransition(endExperience=false){
         mExperience = null
     if(mExperience?.id) // begin with empty canvas
         experienceStart(mExperience)
-    else
+    else {
         mStageTransitionMember()
+        updatePageBots(true)
+    }
 }
 /**
  * Waits for user action.
@@ -410,6 +425,7 @@ async function setActiveCategory(category, contributionId, question) {
 function mStageTransitionMember(includeSidebar=true){
     hide(transport)
     hide(screen)
+    hide(memberModerator)
     document.querySelectorAll('.mylife-widget')
         .forEach(widget=>{
             const loginRequired = (widget.dataset?.requireLogin ?? "false")==="true"
@@ -422,6 +438,7 @@ function mStageTransitionMember(includeSidebar=true){
     show(siteNavigation)
     show(chatContainer)
     show(systemChat)
+    show(chatInput)
     if(includeSidebar){
         show(sidebar)
         show(botBar)
@@ -532,6 +549,7 @@ export {
     setActiveCategory,
     show,
     showMemberChat,
+    showSidebar,
     stageTransition,
     state,
     submit,
