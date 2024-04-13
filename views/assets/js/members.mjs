@@ -94,15 +94,17 @@ function addMessageToColumn(message, options={
 		_typewrite,
 	} = options
 	const chatBubble = document.createElement('div')
-	chatBubble.setAttribute('id', `chat-bubble-${chatBubbleCount}`)
-	chatBubble.className = `chat-bubble ${bubbleClass}`
+    chatBubble.id = `chat-bubble-${chatBubbleCount}`
+	chatBubble.classList.add('chat-bubble', bubbleClass)
+    chatBubble.innerHTML = messageContent
 	systemChat.appendChild(chatBubble)
-	// messageContent = escapeHtml(messageContent)
-    console.log('messageContent', messageContent)
+    /*
+	messageContent = escapeHtml(messageContent)
 	if(_typewrite)
 		mTypewriteMessage(chatBubble, messageContent, _delay)
 	else
 		chatBubble.insertAdjacentHTML('beforeend', messageContent)
+    */
 }
 /**
  * Clears the system chat by removing all chat bubbles instances.
@@ -203,7 +205,8 @@ function stageTransition(endExperience=false){
         experienceStart(mExperience)
     else {
         mStageTransitionMember()
-        updatePageBots(true)
+        if(endExperience)
+            updatePageBots(true)
     }
 }
 /**
@@ -231,33 +234,28 @@ function waitForUserAction(){
 async function mAddMemberDialog(event){
     event.stopPropagation()
 	event.preventDefault()
-    // Dynamically get the current message element (input or textarea)
     let memberMessage = chatInputField.value.trim()
     if (!memberMessage.length)
         return
-    // memberMessage = escapeHtml(memberMessage) // Escape the user message
-
+    /* prepare request */
 	hide(chatInput)
     chatInput.classList.remove('fade-in')
     awaitButton.classList.add('slide-up')
     show(awaitButton)
-
     addMessageToColumn({ message: memberMessage }, {
         bubbleClass: 'user-bubble',
         _delay: 7,
     })
-
+    /* server request */
     const responses = await submit(memberMessage, false)
-    console.log('responses', responses)
+    /* process responses */
 	responses.forEach(response => {
 		addMessageToColumn({ message: response.message })
 	})
-
     hide(awaitButton)
     awaitButton.classList.remove('slide-up')
     chatInput.classList.add('fade-in')
     show(chatInput)
-
     chatInputField.value = null // Clear the message field
 }
 function bot(_id){
@@ -321,7 +319,7 @@ function mInitializePageListeners(){
     /* page listeners */
     chatInputField.addEventListener('input', toggleInputTextarea)
     // **note**: listener for `memberSubmit` added as required by event or chat
-    memberSubmit.addEventListener('click', mAddMemberDialog, { once: true })
+    memberSubmit.addEventListener('click', mAddMemberDialog)
     chatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navbar-nav .nav-link') // Select all nav links
@@ -423,6 +421,18 @@ async function setActiveCategory(category, contributionId, question) {
  * @returns {void}
  */
 function mStageTransitionMember(includeSidebar=true){
+    /* configure 
+    mRouteChatInputListener()
+    chatInput.removeEventListener('click', mAddMemberDialog)
+    chatInput.addEventListener('click', mAddMemberDialog)
+*/
+
+
+
+
+
+
+
     hide(transport)
     hide(screen)
     hide(memberModerator)
