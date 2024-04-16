@@ -236,22 +236,49 @@
 .experience-input {
     align-items: center;
     color: #000; /* Text color for input */
-    display: none; /* Hide by default */
+    display: flex; /* Hide by default */
     margin: 0.4em 0;
-    width: 100%;
+    min-width: 80%;
 }
 .experience-input-dialog {
+    align-items: flex-start;
     display: flex;
     flex-direction: column; /* Stack items vertically */
     height: 100%; /* Fill the height of its parent container */
     justify-content: flex-start; /* Align content to the start */
     overflow: hidden; /* Hide overflow content */
     padding-left: 1.2em;
-    width: 80%; /* Take up the rest of the space */
+    width: 85%; /* Take up the rest of the space */
+}
+.experience-input-lane {
+    display: flex;
+    flex-direction: row;
+    width: 85%;
+}
+.experience-input-text {
+    max-height: calc(1.2em * 3); /* Limit the height to 3 lines of text */
+    min-height: 1.2em;
+    overflow: auto; /* Add a scrollbar when the content exceeds the max height */
+    padding: 0.1em;
+    resize: none; /* height is calculated */
+    width: 85%; /* Adjust as needed */
+}
+.experience-input-waiting {
+    align-items: center;
+    background-color: darkgreen;
+    border: black .2em solid;
+    border-radius: .5em;
+    color: whitesmoke;
+    display: none;
+    flex-basis: 100%;
+    justify-content: center;
+    margin: .1em 2em;
+    min-width: 100%;
+    width: 100%;
 }
 .experience-moderator {
     align-items: flex-start; /* Align items to the start of the cross axis */
-    /* background-color: #e7c5ff; /* TEST: Solid black background */
+    background-color: cadetblue; /* TEST: Solid black background */
     display: none; /* Hide by default */
     flex-direction: column;
     flex-grow: 0; /* Do not allow the moderator to grow */
@@ -277,50 +304,42 @@
     width: 100%;
 }
 .experience-moderator-icon {
-    align-items: center; /* Align items to the center of the container */
+    align-items: flex-start; /* Align items to the center of the container */
     display: flex; /* show by default */
     flex-shrink: 0; /* Do not allow the icon to shrink */
-    height: auto;
-    justify-content: center; /* Center items horizontally */
+    height: 100%; /* Fill the height of the parent container */
+    justify-content: flex-end; /* Position image next to dialog */
     padding: 0.2em; /* Adjust as needed */
     width: 20%; /* Span 20% of the parent container */
 }
 .experience-moderator-icon img {
+    height: auto; /* Keep the aspect ratio of the image */
     max-height: 100%; /* Make the image's height not exceed the parent container's height */
     max-width: 100%; /* Make the image's width not exceed the parent container's width */
 }
 .experience-moderator-props {
     width: 0% !important; /* @todo - fix whatever causes character props to be added as class */
 }
-.input-submit {
+.experience-submit {
     background-color: cadetblue;
     border-color: aliceblue;
+    border-radius: .2em;
     border-width: thin;
     border-style: solid;
+    box-sizing: border-box;
     color: aliceblue;
     cursor: pointer; /* Change cursor to indicate it's clickable */
     display: flex;
     font-size: 1em;
     margin: 0.5em;
-    padding: 0.5em;
 }
-.input-submit:hover {
+.experience-submit:hover {
     background-color: orange;
     border-color: yellowgreen;
     color: bisque;
     font-weight: bold;
     text-shadow: 0.1em 0.1em rgba(0,0,0,.7);
     transform: scale(1.05);
-}
-.input-text {
-    box-sizing: border-box;
-    border-radius: .2em;
-    max-height: calc(1.2em * 3); /* Limit the height to 3 lines of text */
-    min-height: 1.2em;
-    overflow: auto; /* Add a scrollbar when the content exceeds the max height */
-    padding: 0.1em;
-    resize: none; /* height is calculated */
-    width: 85%; /* Adjust as needed */
 }
 /* character lane */
 .char-lane {
@@ -361,6 +380,7 @@
     margin-bottom: 10px; /* Space between dialog boxes */
     padding: 8px 12px;
     position: relative; /* For positioning the arrow */
+    transition: opacity 0.3s ease-in-out; /* Smooth fade in/out effect */
 }
 /* Speech bubble arrow */
 .char-dialog-box::after {
@@ -371,6 +391,9 @@
     border-width: 0 1em 1em;
     border-style: solid;
     border-color: transparent transparent #000 transparent;
+}
+.char-dialog-box:hover {
+    opacity: 1; /* focus dialog box on hover */
 }
 /* Type 1: Classic white bubble */
 .dialog-type-1 {

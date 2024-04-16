@@ -1,16 +1,17 @@
 /* imports */
 import {
     addMessageToColumn,
+    assignElements,
     clearSystemChat,
+    getInputValue,
     getSystemChat,
-    getMemberModerator,
     hide,
-    hideMemberChat,
     inExperience,
+    replaceElement,
+    sceneTransition as memberSceneTransition,
     show,
-    showMemberChat,
-    showSidebar,
     stageTransition,
+    toggleMemberInput,
     waitForUserAction,
 } from './members.mjs'
 /* constants */
@@ -21,15 +22,16 @@ const backstage = document.getElementById('experience-backstage'),
     closeButton = document.getElementById('experience-close'),
     description = document.getElementById('experience-description'),
     footer = document.getElementById('experience-footer'),
-    inputLane = document.getElementById(`experience-input`),
     mainContent = document.getElementById('main-content'),
     mainstage = document.getElementById('experience-mainstage'),
     manifest = document.getElementById('experience-manifest'),
     modal = document.getElementById('experience-modal'),
     moderator = document.getElementById('experience-moderator'),
-    moderatorIcon = document.getElementById('experience-moderator-icon'),
     moderatorDialog = document.getElementById('experience-moderator-dialog'),
+    moderatorIcon = document.getElementById('experience-moderator-icon'),
     moderatorProps = document.getElementById('experience-moderator-props'),
+    moderatorSubmit = document.getElementById('experience-submit'),
+    moderatorWaiting = document.getElementById('experience-input-waiting'),
     experienceNavigation = document.getElementById('experience-navigation'),
     sceneContinue = document.getElementById('experience-continue'),
     sceneContinueText = document.getElementById('experience-continue-text'),
@@ -51,11 +53,11 @@ const mDefaultAnimationClasses = {
 let mBackdropDefault = 'full',
     mEvent,
     mExperience,
-    mLoading = true,
     mMainstagePrepared = false,
     mModerator,
     mWelcome = true
 let mBackdrop=mBackdropDefault // enum: [chat, interface, full]; default: full
+let inputElement = document.getElementById(`experience-input`) /* unique as is swapped out */
 /* public functions */
 /**
  * End experience on server and onscreen.
@@ -91,10 +93,17 @@ async function experiencePlay(memberInput){
     if(!mExperience)
         throw new Error("Experience not found!")
     const { events: experienceEvents, } = mExperience
-    const events = mWelcome /* one-time welcome event */
-        ? experienceEvents ?? await mEvents()
-        : await mEvents(memberInput)
-    mWelcome = false
+    let events
+    if(!mWelcome){
+        mToggleInputLane(false)
+        try{
+            events = await mEvents(memberInput)
+        } catch(error){/* suppress here to clean backdrop, error will fire below */}
+        mToggleInputLane(true, true)
+    } else {
+        events = experienceEvents ?? await mEvents()
+        mWelcome = false
+    }
     if(!events?.length)
         throw new Error("No events found")
     /* prepare events */
@@ -123,9 +132,9 @@ async function experiencePlay(memberInput){
             )
         })
     /* prepare stage */
+    // @todo - remove and incorporate at other transitions
     switch(mBackdrop){
-        case 'interface': // interface uses a sidebar
-            showSidebar()
+        case 'interface':
             break
         case 'chat': // chat uses a single member chat container
             break
@@ -176,10 +185,24 @@ async function experienceStart(experience){
     if(!Array.isArray(manifest.cast)) // cast required, navigation not required
         throw new Error("Experience cast not found")
     mExperience = { ...mExperience, ...manifest }
-    mLoading = false
-    /* welcome complete */
-    /* display experience-start-button */
+    /* welcome complete, display experience-start-button */
     mUpdateStartButton()
+}
+/**
+ * On-click assignment that primes next experiencePlay() to pull from server.
+ * @public
+ * @returns {void}
+ */
+function submitInput(event){
+    const { inputVariableName, variable, } = mEvent.input
+    const value = mBackdrop==='full'
+        ? inputElement.value.trim()
+        : getInputValue()
+    if(value?.length){
+        const memberInput = { [inputVariableName ?? variable ?? 'input']: value }
+        experiencePlay(memberInput)
+            .catch(err=> console.log('submitInput::experiencePlay independent fire ERROR', err.stack, err, memberInput))
+    }
 }
 /* private functions */
 /**
@@ -216,9 +239,23 @@ function mAddCharacterLane(dialogDiv, character, clearDialog=false){
  */
 function mAnimateElement(element, animationEvent) {
     return new Promise((resolve, reject) => {
-        const { action, animation, dismissable, elementId, halt, type, } = animationEvent
+        const { action, animation, dismissable, elementId, halt, moderatorInputElement, moderatorInputType, type, } = animationEvent
         if(!element)
             return reject(new Error(`Element not found: ${animationEvent.elementId}`))
+        if(moderatorInputElement){
+            inputElement = replaceElement(
+                moderatorInputElement,
+                moderatorInputType,
+                false,
+                'input',
+                function(event){
+                    /* show submit button */
+                    event.target.value.trim()
+                        ? show(moderatorSubmit)
+                        : hide(moderatorSubmit)
+                },
+            )
+        }
         const { animationClass, animationDelay, animationDirection, animationDuration, animationIterationCount } = animation ?? { animationClass: 'animate' }
         element.classList.add(animationClass)
         element.style.animationFillMode = 'forwards'; // Ensure final state is kept
@@ -246,7 +283,7 @@ function mAnimateElement(element, animationEvent) {
             document.addEventListener('click', fastForwardAnimation, { once: true })
             document.addEventListener('keydown', event=>{
                 const { code } = event
-                if(['space', 'escape', 'esc', 'enter'].includes(code.toLowerCase()))
+                if(['space', 'escape', 'esc', 'enter'].includes(code))
                     fastForwardAnimation()
             }, { once: true })
         }
@@ -435,24 +472,26 @@ function mCreateCharacterLane(character){
     return characterDiv
 }
 /**
- * Create a moderator prompt to elicit member input.
+ * Creates and prepends a moderator dialog to help elicit member input.
  * @todo - incorporate a `.prop` function (answering machine?) that allows for auto-answering on member behalf.
  * @private
  * @requires mEvent - Event object.
- * @returns {HTMLDivElement} - The moderator input prompt div.
+ * @returns {void}
  */
-function mCreateModeratorInputPrompt(){
-    const { inputId: id, inputPlaceholder, inputShadow, inputType: type } = mEvent.input
-    const inputPromptDiv = document.createElement('div')
-    inputPromptDiv.id = `prompt-${id}`
-    inputPromptDiv.classList.add('char-dialog-box')
-    inputPromptDiv.classList.add('dialog-type-moderator')
-    inputPromptDiv.textContent = inputShadow ?? inputPlaceholder ?? `Type in your response below.`
+function mCreateModeratorInputDialog(){
+    const { inputId, inputPlaceholder, inputShadow, } = mEvent.input
+    /* create spinner */
     const spinnerDiv = document.createElement('div')
-    spinnerDiv.id = `spinner-${id}`
+    spinnerDiv.id = `spinner-${inputId}`
     spinnerDiv.classList.add('spinner')
+    /* create input */
+    const inputPromptDiv = document.createElement('div')
+    inputPromptDiv.id = `prompt-${inputId}`
+    inputPromptDiv.classList.add('char-dialog-box', 'dialog-type-moderator')
+    inputPromptDiv.textContent = inputShadow ?? inputPlaceholder ?? `Type in your response below.`
     inputPromptDiv.appendChild(spinnerDiv)
-    return inputPromptDiv
+    /* append */
+    moderatorDialog.prepend(inputPromptDiv)
 }
 /**
  * End experience on server.
@@ -583,59 +622,21 @@ function mEventDialog(){
  * @returns {Object[]} - Array of animation objects.
  */
 function mEventInput(){
-    const { id: eventId, input, } = mEvent
+    const { input, } = mEvent
     const animationSequence = []
     if(!input)
         return animationSequence
-    const { complete, failure, followup, inputId: id, inputPlaceholder, inputType: type, variables, } = input
+    const { complete, inputId, inputPlaceholder, inputType, variable, } = input
+    let element,
+        elementId = `chat-member`
     if(complete) // @stub - if complete, do not re-render? determine reaction; is it replay?
         return
-    let { variable, } = input
-    let moderatorContainer = getMemberModerator()
-    let moderatorInput = moderatorContainer
-    /* moderator lane is puppeteer */
     if(mBackdrop==='full'){
-        moderatorContainer = moderator
-        moderatorInput = inputLane
-        moderatorDialog.prepend(mCreateModeratorInputPrompt())
-    }
-    /* remove all sub-nodes on moderatorInput lane */
-    while(moderatorInput.firstChild)
-        moderatorInput.removeChild(moderatorInput.firstChild)
-    /* add input to moderatorInput lane */
-    switch(type){
-        case 'text':
-        default:
-            const inputField = document.createElement('textarea')
-            inputField.classList.add('input-text')
-            inputField.id = `input-${id}`
-            inputField.name = `input-${id}`
-            inputField.placeholder = inputPlaceholder ?? `What do _you_ think?`
-            inputField.rows = 3 // for textarea calculations
-            moderatorInput.appendChild(inputField)
-            // @todo - change submit button to prop?
-            const submitButton = document.createElement('button')
-            submitButton.id = `submit-${id}`
-            submitButton.name = `submit-${id}`
-            submitButton.textContent = 'Reply'
-            submitButton.type = 'button' // Change type to 'button'
-            submitButton.classList.add('input-submit')
-            submitButton.addEventListener('click', (event) => {
-                event.preventDefault() // Prevent the default form submission
-                hide(submitButton) // Hide the submit button (if not already hidden)
-                const eventContinue = mSubmitInput(inputField)
-                if(!eventContinue)
-                    show(submitButton) // Show the submit button again
-                else
-                    hide(moderator) // Hide the moderator element entirely
-            }, { once: true })
-            moderatorInput.appendChild(submitButton)
-            inputField.addEventListener('input', ()=>{ // Show the submit button when the user starts typing
-                inputField.value.trim()
-                    ? show(submitButton)
-                    : hide(submitButton)
-            })
-            break
+        hide(moderatorSubmit)
+        elementId = moderator.id
+        mCreateModeratorInputDialog()
+        element = inputElement
+        element.placeholder = inputPlaceholder ?? `What do _you_ think?`
     }
     // @stub - variables are not yet implemented, but could be used for internal fills, checks/balances, like cast
     animationSequence.push({ /* moderator */
@@ -649,8 +650,10 @@ function mEventInput(){
         },
         dismissable: true, /* click will fast-forward animation */
         effect: undefined,
-        elementId: moderatorContainer.id,
+        elementId,
         halt: false, /* requires next in animationSequence to await its completion */
+        moderatorInputElement: element,
+        moderatorInputType: inputType,
         type: 'moderator',
     })
     if(mBackdrop==='full') // full-screen specific animations
@@ -660,7 +663,7 @@ function mEventInput(){
                 animation: undefined,
                 dismissable: true, /* click will fast-forward animation */
                 effect: undefined,
-                elementId: `prompt-${eventId}`,
+                elementId: `prompt-${inputId}`,
                 halt: false, /* next in animationSequence must await its completion */
                 type: 'moderator',
             },{ /* moderatorIcon */
@@ -672,22 +675,13 @@ function mEventInput(){
                 halt: false, /* requires next in animationSequence to await its completion */
                 type: 'moderator',
             })
-    animationSequence.push({ /* input elements */
-        action: 'appear',
-        animation: undefined,
-        dismissable: false, /* click will fast-forward animation */
-        effect: undefined,
-        elementId: moderatorInput.id,
-        halt: false, /* requires next in animationSequence to await its completion */
-        type: 'input',
-    })
     return animationSequence
 }
 /**
- * Initialize experience events.
+ * Retrieves experience events.
  * @private
  * @async
- * @param {object} memberInput - Member Input in form of object.
+ * @param {object} memberInput - Member input in form of object.
  * @returns {void}
  */
 async function mEvents(memberInput){
@@ -847,8 +841,7 @@ function mSceneTransition(){
     mShowTransport()
     switch(mBackdrop){
         case 'chat':
-            case 'interface':
-            console.log('mSceneTransition', )
+        case 'interface':
             /* character lanes */
             cast
                 .filter(character=>{
@@ -859,7 +852,8 @@ function mSceneTransition(){
                     /* create/move character lane */
                     mAddCharacterLane(getSystemChat(), character, true)
                 })
-            showMemberChat()
+            mUpdateModerator(true) // clear moderator
+            memberSceneTransition()
             break
         case 'full':
         default:
@@ -897,9 +891,10 @@ function mShowTransport(){
     const { name, skippable=true, } = mExperience
     mInitListeners(skippable)
     breadcrumb.innerHTML = `Experience: ${name}`
+/*
     if(mBackdrop==='interface')
         hideMemberChat()
-    show(transport)
+*/    show(transport)
 }
 /**
  * Introduces the concept of an Experience to the member.
@@ -924,41 +919,60 @@ function mStageWelcome(){
     screen.classList.add('modal-screen')
 }
 /**
- * Submits experience member input to the server. **Note**: This function is not yet implemented.
- * @todo - deprecate `variable` in favor of `inputVariableName` on backend.
- * @todo - case for click-reponse only to forward (scene end) [although that should be in stage directions?]
+ * Toggles the input lane for the moderator.
  * @private
- * @requires mEvent - The current event object.
- * @param {HTMLInputElement} input - The member input element.
+ * @requires mBackdrop - The backdrop type.
+ * @param {boolean} display - Whether to hide or show the input lane, default `true`.
+ * @returns {void}
  */
-function mSubmitInput(input){
-    const { id: eventId, input: eventInput, } = mEvent
-    const { value, } = input
-    const { inputVariableName, variable } = eventInput
-    let eventContinue = false
-    if(value.length){
-        const memberInput = { [inputVariableName ?? variable]: value }
-        experiencePlay(memberInput)
-            .catch(err=> console.log('mSubmitInput::experiencePlay independent fire ERROR', err.stack, err, memberInput))
-        eventContinue = true
+function mToggleInputLane(display=true, hidden=false){
+    switch(mBackdrop){
+        case 'chat':
+        case 'interface':
+            toggleMemberInput(display, hidden)
+            break
+        case 'full':
+        default:
+            if(display){
+                hide(moderatorWaiting)
+                show(inputElement)
+                show(moderator)
+            } else {
+                hide(inputElement)
+                hide(moderatorSubmit)
+                show(moderatorWaiting)
+                show(moderator)
+            }
+            if(hidden){
+                inputElement.value = ''
+                hide(moderator)
+            }
+            break
     }
-    return eventContinue
 }
 /**
  * Updates the moderator lane.
+ * @private
  * @requires mModerator - populated, not undefined; create prior to this function.
+ * @param {boolean} clearModerator - Whether to clear the moderator.
  * @returns {void}
  */
-function mUpdateModerator(){
+function mUpdateModerator(clearModerator=false){
+    if(clearModerator){
+        moderatorSubmit.removeEventListener('click', submitInput)
+        moderatorDialog.innerHTML = ''
+        mModerator = null
+        return
+    }
     if(!mModerator)
         mModerator = mExperience.cast.find(character=>mIsAvatar(character.type))
-    moderatorIcon.appendChild( mAssignIcon(mModerator) )
-    /* initialize member input */
-    // @stub - unclear if required or base css is sufficient, as modified on mInput
+    moderatorIcon.appendChild(mAssignIcon(mModerator))
+    moderatorSubmit.addEventListener('click', submitInput)
 }
 /**
  * Displays the `Welcome` start button, completing instantly all backstage animations.
  * @modular
+ * @returns {void}
  */
 function mUpdateStartButton(){
     // stop all animations running
@@ -976,6 +990,7 @@ export {
     experiencePlay,
     experienceSkip,
     experienceStart,
+    submitInput,
 }
 /* end notes
 ===============================================================================

@@ -31,7 +31,14 @@
             <div id="experience-moderator-icon" class="experience-moderator-icon"></div><!--- contains dynamic character lanes -->
             <div id="experience-input-dialog" class="experience-input-dialog">
                 <div id="experience-moderator-dialog" class="experience-moderator-dialog"></div>
-                <div id="experience-input" class="experience-input"></div>
+                <div id="experience-moderator-input-lane" class="experience-input-lane">
+                    <div id="experience-input-waiting" class="experience-input-waiting">
+                        <span class="spinner-border spinner-border-sm await-button-spinner" role="status" aria-hidden="true"></span>
+                        <div id="experience-input-waiting-text" class="experience-input-waiting-text pulse">Getting dialog from server...</div>
+                    </div>
+                    <input id="experience-input" class="experience-input"></input>
+                    <button id="experience-submit" class="experience-submit">Reply</button>
+                </div>
             </div>
             <div id="experience-moderator-props" class="char-props experience-moderator-props"></div>
             <!--- member entry area, monitored by avatar, only appears when active input is required -->

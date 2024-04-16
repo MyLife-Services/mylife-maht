@@ -4,6 +4,7 @@ import {
     experiencePlay,
     experienceSkip,
     experienceStart,
+    submitInput,
 } from './experience.mjs'
 import {
     fetchBots,
@@ -31,7 +32,6 @@ let activeCategory,
     chatInputField,
     chatRefresh,
     mainContent,
-    memberModerator,
     memberSelect,
     memberSubmit,
     sceneContinue,
@@ -48,10 +48,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     botBar = document.getElementById('bot-bar')
     chatContainer = document.getElementById('chat-container')
     chatInput = document.getElementById('chat-member')
-    chatInputField = document.getElementById('member-chat-message')
+    chatInputField = document.getElementById('member-input')
     chatRefresh = document.getElementById('chat-refresh')
     mainContent = document.getElementById('main-content')
-    memberModerator = document.getElementById('experience-member-moderator')
     memberSelect = document.getElementById('member-select')
     memberSubmit = document.getElementById('submit-button')
     sceneContinue = document.getElementById('experience-continue')
@@ -107,6 +106,21 @@ function addMessageToColumn(message, options={
     */
 }
 /**
+ * Removes and attaches all payload elements to element.
+ * @public
+ * @param {HTMLDivElement} parent - The moderator element.
+ * @param {object[]} elements - The elements to append to moderator.
+ * @param {boolean} clear - The clear flag to remove previous children, default=`true`.
+ * @returns {HTMLDivElement} - The moderator modified element.
+ */
+function assignElements(parent=chatInput, elements, clear=true){
+    console.log('assignElements()', parent, elements, clear)
+    if(clear)
+        while(parent.firstChild)
+            parent.removeChild(parent.firstChild)
+    elements.forEach(element=>parent.appendChild(element))
+}
+/**
  * Clears the system chat by removing all chat bubbles instances.
  * @todo - store chat locally for retrieval?
  * @public
@@ -132,15 +146,15 @@ function escapeHtml(text){
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
+function getInputValue(){
+    return chatInputField.value.trim()
+}
 /**
  * Gets the member chat system DOM element.
  * @returns {HTMLDivElement} - The member chat system element.
  */
 function getSystemChat(){
     return systemChat
-}
-function getMemberModerator(){
-    return memberModerator
 }
 /**
  * Proxy for Globals.hide().
@@ -162,6 +176,111 @@ function hideMemberChat(){
  */
 function inExperience(){
     return mExperience?.id?.length ?? false
+}
+/**
+ * Replaces an element (input/textarea) with a specified type.
+ * @param {HTMLInputElement} element - The element to replace.
+ * @param {string} newType - The new element type.
+ * @param {boolean} retainValue - Whether or not to keep the value of the original element, default=true.
+ * @param {string} onEvent - The event to listen for.
+ * @param {function} listenerFunction - The listener function to execute.
+ * @returns {HTMLInputElement} - The new element.
+ */
+function replaceElement(element, newType, retainValue=true, onEvent, listenerFunction){
+    const newElementType = ['select', 'textarea'].includes(newType)
+        ? newType
+        : 'input'
+    try{
+        const newElement = document.createElement(newElementType)
+        newElement.id = element.id
+        newElement.name = element.name
+        newElement.required = element.required
+        newElement.classList = element.classList
+        /* type-specific alterations */
+        switch(newType){
+            case 'select':
+                break
+            case 'textarea':
+                newElement.placeholder = element.placeholder /* input, textarea */
+                if(retainValue)
+                    newElement.value = element.value
+                newElement.setAttribute('rows', '3')
+                break
+            case 'checkbox':
+            case 'radio':
+            case 'text':
+            default:
+                newElement.placeholder = element.placeholder /* input, textarea */
+                newElement.type = newType /* input variants [text, checkbox, radio, etc.] */
+                if(retainValue)
+                    newElement.value = element.value
+                break
+        }
+        if(onEvent){
+            newElement.addEventListener(onEvent, listenerFunction) // Reattach event listener
+        }
+        element.parentNode.replaceChild(newElement, element)
+        return newElement
+    } catch(error){
+        console.log('replaceElement::Error()', error)
+        return element
+    }
+}
+async function setActiveBot(_incEventOrBot) {
+    const activeBotId = _incEventOrBot?.target?.dataset?.botId
+        ?? _incEventOrBot?.target?.id?.split('_')[1]
+        ?? _incEventOrBot?.id
+        ?? activeBot?.id
+        ?? _incEventOrBot
+    if(isActive(activeBotId)) return
+    /* server request: set active bot */
+    const _id = await fetch(
+        '/members/bots/activate/' + activeBotId,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`)
+            }
+            return response.json()
+        })
+        .then(response => {
+            return response.activeBotId
+        })
+        .catch(error => {
+            console.log('Error:', error)
+            return null
+        })
+    if(isActive(_id)) return
+    /* update active bot */
+    activeBot = bot(_id)
+    updatePageBots(true)
+}
+async function setActiveCategory(category, contributionId, question) {
+    const url = '/members/category'; // Replace with your server's URL
+    const data = {
+        contributionId: contributionId,
+        category: category,
+        question: question
+    }
+    let response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    if (!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`);
+    response = await response.json()
+    activeCategory = {
+        contributionId: response.contributionId,
+        category: response.category,
+    }
 }
 /**
  * Proxy for Globals.show().
@@ -201,7 +320,7 @@ function showSidebar(){
 function stageTransition(endExperience=false){
     if(endExperience)
         mExperience = null
-    if(mExperience?.id) // begin with empty canvas
+    if(mExperience?.id)
         experienceStart(mExperience)
     else {
         mStageTransitionMember()
@@ -228,8 +347,8 @@ function waitForUserAction(){
  * Adds a message to the chat column on member's behalf.
  * @private
  * @async
- * @param {} event - 
- * @returns 
+ * @param {Event} event - The event object.
+ * @returns {Promise<void>}
  */
 async function mAddMemberDialog(event){
     event.stopPropagation()
@@ -238,10 +357,7 @@ async function mAddMemberDialog(event){
     if (!memberMessage.length)
         return
     /* prepare request */
-	hide(chatInput)
-    chatInput.classList.remove('fade-in')
-    awaitButton.classList.add('slide-up')
-    show(awaitButton)
+    toggleMemberInput(false) /* hide */
     addMessageToColumn({ message: memberMessage }, {
         bubbleClass: 'user-bubble',
         _delay: 7,
@@ -252,11 +368,7 @@ async function mAddMemberDialog(event){
 	responses.forEach(response => {
 		addMessageToColumn({ message: response.message })
 	})
-    hide(awaitButton)
-    awaitButton.classList.remove('slide-up')
-    chatInput.classList.add('fade-in')
-    show(chatInput)
-    chatInputField.value = null // Clear the message field
+    toggleMemberInput(true)/* show */
 }
 function bot(_id){
     return pageBots.find(bot => bot.id === _id)
@@ -315,11 +427,15 @@ function mInitialize(){
             console.log('Error fetching experiences:', err)
         })
 }
+/**
+ * Initialize page listeners.
+ * @private
+ * @returns {void}
+ */
 function mInitializePageListeners(){
     /* page listeners */
     chatInputField.addEventListener('input', toggleInputTextarea)
-    // **note**: listener for `memberSubmit` added as required by event or chat
-    memberSubmit.addEventListener('click', mAddMemberDialog)
+    memberSubmit.addEventListener('click', mAddMemberDialog) /* note default listener */
     chatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navbar-nav .nav-link') // Select all nav links
@@ -332,110 +448,57 @@ function mInitializePageListeners(){
         }
     })
 }
-function isActive(_id) {
-    return _id===activeBot.id
+function isActive(id) {
+    return id===activeBot.id
 }
-// Function to replace an element (input/textarea) with a specified type
-function replaceElement(element, newType) {
-    const newElement = document.createElement(newType);
-    newElement.id = element.id;
-    newElement.name = element.name;
-    newElement.required = element.required;
-    newElement.classList = element.classList;
-    newElement.value = element.value;
-    if (newType === 'textarea') {
-        newElement.setAttribute('rows', '3');
-    }
-    element.parentNode.replaceChild(newElement, element);
-    newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
-    return newElement;
-}
-function resetAnimation(element) {
+/**
+ * Resets the animation of an element.
+ * @param {HTMLElement} element - The element to reset animation.
+ * @returns {void}
+ */
+function mResetAnimation(element){
     element.style.animation = 'none';
     // Trigger a reflow to restart the animation
     element.offsetHeight;
     element.style.animation = '';
 }
-function scrollToBottom() {
-    systemChat.scrollTop = systemChat.scrollHeight;
-}
-async function setActiveBot(_incEventOrBot) {
-    const activeBotId = _incEventOrBot?.target?.dataset?.botId
-        ?? _incEventOrBot?.target?.id?.split('_')[1]
-        ?? _incEventOrBot?.id
-        ?? activeBot?.id
-        ?? _incEventOrBot
-    if(isActive(activeBotId)) return
-    /* server request: set active bot */
-    const _id = await fetch(
-        '/members/bots/activate/' + activeBotId,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(_response => {
-            if (!_response.ok) {
-                throw new Error(`HTTP error! Status: ${_response.status}`)
-            }
-            return _response.json()
-        })
-        .then(_response => {
-            return _response.activeBotId
-        })
-        .catch(error => {
-            console.log('Error:', error)
-            return null
-        })
-    if(isActive(_id)) return
-    /* update active bot */
-    activeBot = bot(_id)
-    updatePageBots(true)
-}
-async function setActiveCategory(category, contributionId, question) {
-    const url = '/members/category'; // Replace with your server's URL
-    const data = {
-        contributionId: contributionId,
-        category: category,
-        question: question
+/**
+ * Transitions and sets the stage to experience version of member screen indicated.
+ * @public
+ * @param {string} type - The type of scene transition, defaults to `interface`.
+ * @returns {void}
+ */
+function sceneTransition(type='interface'){
+    /* assign listeners */
+    memberSubmit.removeEventListener('click', mAddMemberDialog)
+    memberSubmit.addEventListener('click', submitInput)
+    /* clear "extraneous" */
+    hide(siteNavigation)
+    hide(botBar)
+    hide(chatInput)
+    /* type specifics */
+    switch(type){
+        case 'chat':
+            hide(sidebar)
+            break
+        case 'interface':
+        default:
+            show(sidebar)
+            break
     }
-    let response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    if (!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`);
-    response = await response.json()
-    activeCategory = {
-        contributionId: response.contributionId,
-        category: response.category,
-    }
+    /* show member chat */
+    showMemberChat()
 }
 /**
- * Transitions the stage to member mode.
+ * Transitions the stage to active member version.
  * @param {boolean} includeSidebar - The include-sidebar flag.
  * @returns {void}
  */
 function mStageTransitionMember(includeSidebar=true){
-    /* configure 
-    mRouteChatInputListener()
-    chatInput.removeEventListener('click', mAddMemberDialog)
-    chatInput.addEventListener('click', mAddMemberDialog)
-*/
-
-
-
-
-
-
-
+    memberSubmit.removeEventListener('click', submitInput)
+    memberSubmit.addEventListener('click', mAddMemberDialog)
     hide(transport)
     hide(screen)
-    hide(memberModerator)
     document.querySelectorAll('.mylife-widget')
         .forEach(widget=>{
             const loginRequired = (widget.dataset?.requireLogin ?? "false")==="true"
@@ -486,12 +549,6 @@ async function submit(message, bypass=false){
 	}
 	const chatResponse = await submitChat(url, options)
     return chatResponse
-/*
-    spinner.classList.remove('text-light');
-	spinner.classList.add('text-primary');
-	spinner.classList.remove('text-primary');
-	spinner.classList.add('text-light');
-*/
 }
 async function submitChat(url, options) {
 	try {
@@ -503,6 +560,29 @@ async function submitChat(url, options) {
 		return alert(`Error: ${err.message}`);
 	}
 }
+/**
+ * Toggles the member input between input and server `waiting`.
+ * @public
+ * @param {boolean} display - Whether to show/hide (T/F), default `true`.
+ * @returns {void}
+ */
+function toggleMemberInput(display=true, hidden=false){
+    if(display){
+        hide(awaitButton)
+        awaitButton.classList.remove('slide-up')
+        chatInput.classList.add('slide-up')
+        chatInputField.value = null
+        show(chatInput)
+    } else {
+        hide(chatInput)
+        chatInput.classList.remove('fade-in')
+        chatInput.classList.remove('slide-up')
+        awaitButton.classList.add('slide-up')
+        show(awaitButton)
+    }
+    if(hidden)
+        hide(chatInput)
+}
 // Function to toggle between textarea and input based on character count
 function toggleInputTextarea(){
     const inputStyle = window.getComputedStyle(chatInput)
@@ -512,23 +592,23 @@ function toggleInputTextarea(){
 	/* pulse */
 	clearTimeout(typingTimer);
     spinner.style.display = 'none';
-    resetAnimation(spinner); // Reset animation
+    mResetAnimation(spinner); // Reset animation
     typingTimer = setTimeout(() => {
         spinner.style.display = 'block';
-        resetAnimation(spinner); // Restart animation
-    }, 2000);
-
-    if (textWidth > inputWidth && chatInputField.tagName !== 'TEXTAREA') { // Expand to textarea
-        chatInputField = replaceElement(chatInputField, 'textarea')
+        mResetAnimation(spinner); // Restart animation
+    }, 2000)
+    const listenerFunction = toggleInputTextarea
+    if (textWidth>inputWidth && chatInputField.tagName!=='TEXTAREA') { // Expand to textarea
+        chatInputField = replaceElement(chatInputField, 'textarea', true, 'input', listenerFunction)
         focusAndSetCursor(chatInputField);
-    } else if (textWidth <= inputWidth && chatInputField.tagName === 'TEXTAREA' ) { // Revert to input
-		chatInputField = replaceElement(chatInputField, 'input');
-        focusAndSetCursor(chatInputField);
+    } else if (textWidth<=inputWidth && chatInputField.tagName==='TEXTAREA' ) { // Revert to input
+		chatInputField = replaceElement(chatInputField, 'input', true, 'input', listenerFunction)
+        focusAndSetCursor(chatInputField)
     }
-	toggleSubmitButtonState();
+	toggleSubmitButtonState()
 }
 function toggleSubmitButtonState() {
-	memberSubmit.disabled = !chatInputField.value?.trim()?.length??true;
+	memberSubmit.disabled = !(chatInputField.value?.trim()?.length ?? true)
 }
 /**
  * Typewrites a message to a chat bubble.
@@ -549,12 +629,15 @@ function mTypewriteMessage(chatBubble, message, delay=10, i=0){
 /* exports */
 export {
     addMessageToColumn,
+    assignElements,
     clearSystemChat,
-    getMemberModerator,
+    getInputValue,
     getSystemChat,
     hide,
     hideMemberChat,
     inExperience,
+    replaceElement,
+    sceneTransition,
     setActiveBot,
     setActiveCategory,
     show,
@@ -563,6 +646,7 @@ export {
     stageTransition,
     state,
     submit,
+    toggleMemberInput,
     toggleInputTextarea,
     waitForUserAction,
 }

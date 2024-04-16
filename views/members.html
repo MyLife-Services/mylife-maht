@@ -4,16 +4,15 @@
 	</div>
 	<% include assets/html/_bot-bar %><!-- includes own parent div -->
 	<div id="chat-system" class="chat-system"></div>
-	<div id="experience-member-moderator" class="experience-member-moderator"></div>
 	<div id="chat-member" class="chat-member">
 		<div class="label-spinner-container">
 			<div id="agent-spinner" class="label-spinner spinner-grow spinner-green-glow" role="status">
 				<span class="visually-hidden"></span>
 			</div>
-			<label class="label" for="member-chat-message" id="user-chat-label">chat</label>
+			<div id="member-chat-label" class="label">chat</div>
 		</div>
-		<input id="member-chat-message" name="member-chat-message" required />
-		<button class="button chat-submit" id="submit-button" type="submit" disabled>Submit</button>
+		<input id="member-input" class="member-input"></input>
+		<button id="submit-button" class="button chat-submit">Submit</button>
 	</div>
 	<button id="await-button" class="await-button" type="button" disabled>
 		<span class="spinner-border spinner-border-sm await-button-spinner" role="status" aria-hidden="true"></span>
