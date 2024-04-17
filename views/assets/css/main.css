@@ -4,7 +4,6 @@
 @import url('members.css');
 /* MyLife layout */
 body {
-	/* background-image: url('../jpg/MyLife_two_seeds.jpg'); */
 	background-color: #000000;
 	background-size: 1200px;
 	background-repeat: no-repeat;
@@ -12,30 +11,25 @@ body {
 	display: flex;
 	flex-direction: column;
 	font-family: Arial, sans-serif;
-	height: 100vh;
-	margin: 0 1.5em;
+	justify-items: flex-start;
+	margin: 0 2em;
 	max-width: 100%;
-}
-.flex-container {
-    display: flex;
-    flex-direction: column; /* Or row, depending on your layout */
-    flex-wrap: wrap;
-	height: 100vh; /* 100% of the viewport height */
-    gap: 12px;
 }
 .page-container {
     display: flex;
     flex-direction: column; /* Change to row for horizontal layout */
 	height: 100%;
-	margin: 0 auto; /* Center the content */
-	width: 100%; /* Ensures the container grows to the full width */
+	margin: 0;
+	max-height: 100vh; /* Ensures the container grows to the full height */
 	max-width: 100%;
+	width: 100%; /* Ensures the container grows to the full width */
 }
 .page-column-collection {
 	display: flex;
 	flex-direction: row; /* Change to column for vertical layout */
 	height: 100%;
 	max-width: 100%;
+	overflow: hidden; /* Critical for keeping the layout within the viewport */
 	width: 100%;
 }
 /* MyLife Menu Navigation */
@@ -56,13 +50,7 @@ body {
 	color: #4CAF50; /* White text color */
 	cursor: default; /* Set cursor to default */
 	font-weight: bold;
-	margin-right: 24px; /* Right margin on navbar brand */
-}
-.navbar-brand:hover {
-	color: #4CAF50; /* White text color */
-	margin-right: 24px; /* Right margin on navbar brand */
-	font-weight: bold;
-	cursor: default; /* Set cursor to default */
+	margin-right: 2em; /* Right margin on navbar brand */
 }
 .navbar-nav {
 	background: linear-gradient(
@@ -87,7 +75,7 @@ body {
 .nav-link.active {
     color: #007bff; /* Your existing styles for active link */
     font-weight: bold;
-    cursor: default; /* Set cursor to default */
+    cursor: pointer; /* Set cursor to default */
 }
 /* MyLife system alerts */
 .alert-container{
@@ -168,8 +156,11 @@ body {
 	box-sizing: border-box;
 	display: none;
 	flex: 1 1 66%; /* Use flex to assign 66% of the space */
-	height: 100%;
+	height: auto;
+	max-width: 100%;
+	min-height: 50vh;
 	min-width: 66%;
+	overflow: hidden;
     padding: 0px;
 }
 .main-content h1 {

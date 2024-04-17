@@ -16,12 +16,12 @@ import Globals from './globals.mjs'
 const mGlobals = new Globals()
 const mExperiences = []
 /* variables */
-let activeBot, // replaced with pageBots[reference]
+let activeBot,
     mAutoplay=false,
-    chatBubbleCount = 0,
+    mChatBubbleCount = 0,
     mExperience,
     mMemberId,
-    pageBots = [], // @todo convert to const
+    mPageBots = [],
     typingTimer
 /* page div variables */
 let activeCategory,
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     stageTransition()
     /* bots */
     const { bots, activeBotId: id } = await fetchBots()
-    pageBots = bots
+    mPageBots = bots
     activeBot = bot(id)
     await setActiveBot()
     updatePageBots(!inExperience())
@@ -82,28 +82,20 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 function addMessageToColumn(message, options={
 	bubbleClass: 'agent-bubble',
 	_delay: 10,
-    chatBubbleCount: 0,
 	_typewrite: true,
 }){
     let messageContent = message.message ?? message
 	const {
 		bubbleClass,
 		_delay,
-        chatBubbleCount,
 		_typewrite,
 	} = options
 	const chatBubble = document.createElement('div')
-    chatBubble.id = `chat-bubble-${chatBubbleCount}`
+    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.classList.add('chat-bubble', bubbleClass)
     chatBubble.innerHTML = messageContent
+    mChatBubbleCount++
 	systemChat.appendChild(chatBubble)
-    /*
-	messageContent = escapeHtml(messageContent)
-	if(_typewrite)
-		mTypewriteMessage(chatBubble, messageContent, _delay)
-	else
-		chatBubble.insertAdjacentHTML('beforeend', messageContent)
-    */
 }
 /**
  * Removes and attaches all payload elements to element.
@@ -371,7 +363,7 @@ async function mAddMemberDialog(event){
     toggleMemberInput(true)/* show */
 }
 function bot(_id){
-    return pageBots.find(bot => bot.id === _id)
+    return mPageBots.find(bot => bot.id === _id)
 }
 function mFetchExperiences(){
     return fetch('/members/experiences/')
@@ -520,7 +512,7 @@ function mStageTransitionMember(includeSidebar=true){
 function state(){
     return {
         activeBot,
-        pageBots,
+        pageBots: mPageBots,
     }
 }
 /**
