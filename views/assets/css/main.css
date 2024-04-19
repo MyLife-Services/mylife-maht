@@ -184,6 +184,23 @@ body {
 .main-content h2 {
 	font-size: 20px;
 }
+/* MyLife About, Privacy Policy */
+.about-container, .privacy-container {
+	display: flex;
+	flex-direction: column;
+	overflow: scroll;
+	margin: 1em;
+}
+.about-section, .privacy-section {
+	display: flex;
+	flex-direction: column;
+	padding: .5em;
+}
+.about-section, .privacy-section h3 {
+	border-bottom: thin solid navy;
+	color: navy;
+	display: flex;
+}
 /* MyLife Contribution Request */
 .category-button {
     background-color: #f0f0f0; /* Neutral color */

@@ -16,7 +16,8 @@ let mChatBubbleCount = 0,
     threadId = null,
     typingTimer
 /* page div variables */
-let awaitButton,
+let aboutContainer,
+    awaitButton,
     agentSpinner,
     chatContainer,
     chatInput,
@@ -30,9 +31,11 @@ let awaitButton,
     memberChallengeSubmit,
     memberSelect,
     navigation,
+    privacyContainer,
     sidebar
 document.addEventListener('DOMContentLoaded', async ()=>{
     /* assign page div variables */
+    aboutContainer = document.getElementById('about-container')
     awaitButton = document.getElementById('await-button')
     agentSpinner = document.getElementById('agent-spinner')
     chatContainer = document.getElementById('chat-container')
@@ -47,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     memberChallengeSubmit = document.getElementById('member-challenge-submit')
     memberSelect = document.getElementById('member-select')
     navigation = document.getElementById('navigation-container')
+    privacyContainer = document.getElementById('privacy-container')
     sidebar = document.getElementById('page-sidebar')
     /* display page */
     mShowPage()
@@ -235,11 +239,18 @@ function scrollToBottom() {
 }
 /**
  * Display the entire page.
+ * @todo - refactor for special pages
  * @private
  * @returns {void}
  */
 function mShowPage(){
-    const proceduralPage = memberChallenge ?? memberSelect ? true : false
+    // identify access or informational pages
+    const proceduralPage = memberChallenge
+        ?? memberSelect
+        ?? aboutContainer
+        ?? privacyContainer
+            ? true
+            : false
     /* assign listeners */
     mInitializeListeners(proceduralPage)
     /* display elements */
