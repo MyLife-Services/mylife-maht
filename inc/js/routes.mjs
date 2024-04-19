@@ -4,13 +4,13 @@ import {
     about,
     activateBot,
     alerts,
-    avatarListing,
     bots,
     category,
     challenge,
     chat,
     contributions,
     index,
+    interfaceMode,
     login,
     loginSelect,
     members,
@@ -20,9 +20,18 @@ import {
     _upload
 } from './functions.mjs'
 import {
+    experience,
+    experienceCast,
+    experienceEnd,
+    experienceManifest,
+    experienceNavigation,
+    experiences,
     keyValidation,
+    library,
+    login as apiLogin,
     register,
     story,
+    storyLibrary,
     tokenValidation,
 } from './api-functions.mjs'
 // variables
@@ -45,29 +54,41 @@ _Router.post('/signup', signup)
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
-//_apiRouter.get('/keyValidation', (ctx)=>{console.log('48', ctx.request)})
-//_apiRouter.get('/keyValidation/:mid', keyValidation)
-//_apiRouter.head('/keyValidation/:mid', keyValidation)
+_apiRouter.get('/experiences/:mid', experiences) // **note**: currently triggers autoplay experience
+_apiRouter.get('/login/:mid', apiLogin)
+_apiRouter.head('/keyValidation/:mid', keyValidation)
+_apiRouter.patch('/experiences/:mid/experience/:eid/cast', experienceCast)
+_apiRouter.patch('/experiences/:mid/experience/:eid/end', experienceEnd)
+_apiRouter.patch('/experiences/:mid/experience/:eid/manifest', experienceManifest) // proxy for both cast and navigation
+_apiRouter.patch('/experiences/:mid/experience/:eid/navigation', experienceNavigation)
+_apiRouter.patch('/experiences/:mid/experience/:eid', experience) // **note**: This line should be the last one alphabetically due to the wildcard.
+_apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
+_apiRouter.post('/library/:mid', library)
 _apiRouter.post('/register', register)
+_apiRouter.post('/story/library/:mid', storyLibrary) /* ordered first for path rendering */
 _apiRouter.post('/story/:mid', story)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.get('/', members)
-_memberRouter.get('/avatars', avatarListing)
-_memberRouter.get('/avatars/:aid', avatarListing)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
-_memberRouter.get('/contributions/', contributions)
+_memberRouter.get('/contributions', contributions)
 _memberRouter.get('/contributions/:cid', contributions)
+_memberRouter.get('/experiences', experiences)
+_memberRouter.get('/mode', interfaceMode)
 _memberRouter.get('/select', loginSelect)
 _memberRouter.get('/upload', upload)
-_memberRouter.post('/category', category)
+_memberRouter.patch('/experience/:eid', experience)
+_memberRouter.patch('/experience/:eid/end', experienceEnd)
+_memberRouter.patch('/experience/:eid/manifest', experienceManifest)
 _memberRouter.post('/', chat)
-_memberRouter.post('/upload', _upload)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/activate/:bid', activateBot)
+_memberRouter.post('/category', category)
 _memberRouter.post('contributions/:cid', contributions)
+_memberRouter.post('/mode', interfaceMode)
+_memberRouter.post('/upload', _upload)
 _memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
@@ -89,7 +110,7 @@ function connectRoutes(_Menu){
  */
 async function memberValidation(ctx, next) {
     // validation logic
-    if(ctx.state.locked) {
+    if(ctx.state.locked){
         ctx.redirect(
             ( ctx.params?.mid?.length??false)
             ?   `/login/${encodeURIComponent(ctx.params.mid)}`

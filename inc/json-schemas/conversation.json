@@ -5,6 +5,19 @@
 	"type": "object",
 	"name": "Conversation",
 	"properties": {
+		"action": {
+			"default": "chat",
+			"description": "type of conversation, chat, dialog, experience, system",
+			"enum": ["chat", "dialog", "experience", "system"],
+			"type": "string",
+			"$comment": "`action` added after `Experience` was coded as a way to partition logic so that some elements are saved independently"
+		},
+		"botId": {
+			"description": "internal system id for bot, used for tracking",
+			"format": "uuid",
+			"type": "string",
+			"$comment": "bot.id, used for tracking"
+		},
 		"id": {
 			"type": "string",
 			"format": "uuid"

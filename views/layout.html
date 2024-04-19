@@ -9,29 +9,42 @@
 		integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
 		crossorigin="anonymous" referrerpolicy="no-referrer">
 	<link rel="stylesheet" href="/css/main.css">
-	<!-- head scripts -->
-	<script src="/js/global.js" defer></script>
-	<!-- do not include if not logged in -->
-<% if (!locked) { %>
-	<script src="/js/members.js"></script>
-	<script src="/js/bots.js"></script>
-<% } %>
+	<!-- load correct script for logged in status -->
+	<script type="module" src="/js/<%= locked ? 'guests' : 'members' %>.mjs"></script>
 	<title>MyLife Member Services</title>
 </head>
 <body>
-	<div class="page-container">
+	<div id="page-container" class="page-container">
+		<div id="experience-transport" class="experience-transport">
+			<div id="experience-close" class="experience-transport-item" title="End and Close Experience">
+				<i class="fa fa-times" aria-hidden="true"></i>
+			</div>
+			<div id="experience-breadcrumb" class="experience-transport-item">
+				<!-- Breadcrumb items will be dynamically inserted here -->
+			</div>
+			<div id="experience-skip" class="experience-transport-item" title="Skip to Next Scene">
+				<i class="fa fa-forward" aria-hidden="true"></i>
+			</div>
+		</div>
+		<div id="experience-modal" class="experience-modal"><% include assets/html/_experience %></div><!--- modal experience screen -->
+		<div id="experience-continue" class="experience-continue">
+            <div id="experience-continue-text" class="experience-continue-text"></div>
+            <div id="experience-continue-click-text" class="experience-continue-click-text pulse">
+                ...click anywhere to continue...
+            </div>
+        </div><!-- growing button until bright, and then alpha occluding to cover entire screen except for dialog, if any... -->
 		<div id="navigation-container" class="navigation-container">
 			<% include assets/html/_navbar %>
 		</div>
-		<div id="alert-container">
+		<div id="alert-container" class="alert-container">
 			<% include assets/html/_alerts %>
 		</div>
-		<div class="page-column-collection">
-			<div class="main-content">
+		<div id="page-column-collection" class="page-column-collection">
+			<div id="main-content" class="main-content">
 				<%- body %><!-- koa-ejs body inclusion -->
 			</div>
 			<!-- Sidebar area -->
-			<div class="sidebar">
+			<div id="page-sidebar" class="sidebar">
 				<% include assets/html/_sidebar %>
 			</div>
 		</div>

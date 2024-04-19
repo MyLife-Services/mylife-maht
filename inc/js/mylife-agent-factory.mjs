@@ -1,20 +1,21 @@
 //	imports
-import OpenAI from 'openai'
 import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
 import util from 'util'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
+import Avatar from './mylife-avatar.mjs'
 import Dataservices from './mylife-data-service.js'
 import { Member, MyLife } from './core.mjs'
 import {
-	extendClass_avatar,
 	extendClass_consent,
 	extendClass_contribution,
     extendClass_conversation,
+	extendClass_experience,
     extendClass_file,
 	extendClass_message,
-} from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in configureSchemaPrototypes()
+} from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
+import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
@@ -24,11 +25,12 @@ import { _ } from 'ajv'
 const mBotInstructions = {}
 const mPartitionId = process.env.MYLIFE_SERVER_MBR_ID
 const mDataservices = await new Dataservices(mPartitionId).init()
+const mDefaultBotType = 'personal-avatar'
 const mExtensionFunctions = {
-    extendClass_avatar: extendClass_avatar,
 	extendClass_consent: extendClass_consent,
 	extendClass_contribution: extendClass_contribution,
 	extendClass_conversation: extendClass_conversation,
+	extendClass_experience: extendClass_experience,
 	extendClass_file: extendClass_file,
 	extendClass_message: extendClass_message,
 }
@@ -40,13 +42,11 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
-const mOpenAI = new OpenAI({
-	apiKey: process.env.OPENAI_API_KEY,
-	organizationId: process.env.OPENAI_ORG_KEY,
-	timeoutMs: process.env.OPENAI_API_CHAT_TIMEOUT,
-	basePath: process.env.OPENAI_BASE_URL,
-})
+const mLLMServices = new LLMServices()
+const mNewGuid = ()=>Guid.newGuid().toString()
 const mPath = './inc/json-schemas'
+const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
+const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
 const vmClassGenerator = vm.createContext({
 	exports: {},
 	console: console,
@@ -56,73 +56,100 @@ const vmClassGenerator = vm.createContext({
 //	customModule: customModule,
 //	eventEmitter: EventEmitter,
 })
-/* dependent constants */
-const _alerts = {
+/* dependent constants and functions */
+const mAlerts = {
 	system: await mDataservices.getAlerts(), // not sure if we need other types in global modular, but feasibly historical alerts could be stored here, etc.
 }
-const schemas = {
-	...await loadSchemas(),
+// @todo: capitalize hard-codings as per actual schema classes
+const mSchemas = {
+	...await mLoadSchemas(),
 	dataservices: Dataservices,
 	menu: Menu,
 	member: Member,
 	session: MylifeMemberSession
 }
-configureSchemaPrototypes()
+const mSystemActor = await mDataservices.bot(undefined, 'actor', undefined)
+/* modular construction functions */
+mConfigureSchemaPrototypes()
+mPopulateBotInstructions()
 /* logging/reporting */
 console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
 console.log(chalk.greenBright('schema-class-constructs'))
-console.log(schemas)
+console.log(mSchemas)
 /* modular classes */
-class AgentFactory extends EventEmitter{
+class BotFactory extends EventEmitter{
+	// micro-hydration version of factory for use _by_ the MyLife server
 	#dataservices
-	#exposedSchemas = getExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
+	#llmServices = mLLMServices
 	#mbr_id
-	constructor(_mbr_id){
+	constructor(_mbr_id, _directHydration=true){
 		super()
 		this.#mbr_id = _mbr_id
-		if(this.mbr_id===mPartitionId)
+		if(mIsMyLife(_mbr_id) && _directHydration)
+			throw new Error('MyLife server cannot be accessed as a BotFactory alone')
+		else if(mIsMyLife(this.mbr_id))
 			this.#dataservices = mDataservices
-		else
-			console.log(chalk.blueBright('AgentFactory class constructed:'),chalk.bgBlueBright(this.mbr_id))
+		else if(_directHydration)
+			console.log(chalk.blueBright('BotFactory class instance for hydration request'), chalk.bgRed(this.mbr_id))
 	}
 	/* public functions */
 	/**
-	 * Initialization routine required for all AgentFactory instances save MyLife server
+	 * Initialization routine required for all bot instances. Note: MyLife cannot be constructed as a botFactory, so should never be called as such.
 	 * @param {Guid} _mbr_id 
 	 * @returns {AgentFactory} this
 	 */
-	async init(_mbr_id){
-		if(!_mbr_id) // ergo, MyLife does not must not call init()
-			throw new Error('no mbr_id on Factory creation init')
+	async init(_mbr_id=this.mbr_id){
 		this.#mbr_id = _mbr_id
-		if(this.mbr_id!==mPartitionId){
-			this.#dataservices = await new Dataservices(this.mbr_id)
-				.init()
-		}
+		this.#dataservices = new Dataservices(this.mbr_id)
+		await this.#dataservices.init()
+		this.core.avatar_id = this.core.avatar_id
+			?? (await this.dataservices.getAvatar()).id
 		return this
 	}
 	/**
-	 * Get a bot.
+	 * Get a bot, either by id (when known) or bot-type (default=mDefaultBotType). If bot id is not found, then it cascades to the first entity of bot-type it finds, and if none found, and rules allow [in instances where there may be a violation of allowability], a new bot is created.
+	 * If caller is `MyLife` then bot is found or created and then activated via a micro-hydration.
+	 * @todo - determine if spotlight-bot is required for any animation, or a micro-hydrated bot is sufficient.
 	 * @public
 	 * @param {string} _bot_id - The bot id.
+	 * @param {string} type - The bot type.
 	 * @returns {object} - The bot.
 	 */
-	async bot(_bot_id){
-		return await this.dataservices.getItem(_bot_id)
+	async bot(_bot_id, type=mDefaultBotType, _mbr_id){
+		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
+			if(!_mbr_id)
+				throw new Error('mbr_id required for BotFactory hydration')
+			const _botFactory = new BotFactory(_mbr_id)
+			await _botFactory.init()
+			_botFactory.bot = await _botFactory.bot(_bot_id, type, _mbr_id)
+			if(!_botFactory?.bot){ // create bot on member behalf
+				console.log(chalk.magenta(`bot hydration-create::${type}`))
+				// do not need intelligence behind this object yet, for that, spotlight is a mini-avatar
+				_botFactory.bot = await _botFactory.setBot({ type: type })
+			}
+			// rather than just a bot in this event, return micro-hydrated bot (mini-avatar ultimately)
+			return _botFactory
+		}
+		return ( await this.dataservices.getItem(_bot_id) )
+			?? ( await this.dataservices.getItemByField(
+					'bot',
+					'type',
+					type,
+					undefined,
+					_mbr_id
+				) )
+			?? ( await this.bots(undefined,type)?.[0] )
 	}
 	/**
 	 * Returns bot instruction set.
-	 * @modular
 	 * @public
-	 * @param {AgentFactory} _factory 
 	 * @param {string} _type
 	 */
-	async botInstructions(_type){
+	botInstructions(_type){
 		if(!_type) throw new Error('bot type required')
 		if(!mBotInstructions[_type]){
-			const _instructionSet = await mDataservices.botInstructions(_type)
-			if(!_instructionSet?.length) throw new Error(`no bot instructions found for ${_type}`)
-			mBotInstructions[_type] = _instructionSet[0]
+			if(!_instructionSet) throw new Error(`no bot instructions found for ${_type}`)
+			mBotInstructions[_type] = _instructionSet
 		}
 		return mBotInstructions[_type]
 	}
@@ -130,17 +157,243 @@ class AgentFactory extends EventEmitter{
 	 * Gets a member's bots.
 	 * @public
 	 * @param {string} _object_id - The _object_id guid of avatar.
+	 * @param {string} type - The bot type.
 	 * @returns {array} - The member's hydrated bots.
 	 */
-	async bots(_object_id){
+	async bots(_object_id, type){
 		// @todo: develop bot class and implement instance
+		const _params = _object_id?.length
+			? [{ name: '@object_id', value:_object_id }]
+			: type?.length
+				? [{ name: '@bot_type', value: type }]
+				: undefined
 		const _bots = await this.dataservices.getItems(
 			'bot',
 			undefined,
-			_object_id?.length ? [{ name: '@object_id', value:_object_id }] : undefined,
+			_params,
 		)
 		return _bots
 	}
+	async createBot(bot={ type: mDefaultBotType }){
+		bot.id = this.newGuid
+		const _bot = await mCreateBot(this.#llmServices, this, bot, this.avatarId)
+		return _bot
+	}
+	/**
+	 * Gets array of member `experiences` from database. When placed here, it allows for a bot to be spawned who has access to this information, which would make sense for a mini-avatar whose aim is to report what experiences a member has endured.
+	 * @public
+	 * @returns {Promise<array>} - Array of shorthand experience objects.
+	 * @property {string<Guid>} id - The experience id.
+	 * 
+	 */
+	async experiences(includeLived=false){
+		// check consents for test-experiences [stub]
+		let testExperiences = []
+		// currently only system experiences exist
+		let experiences = await mDataservices.getItems(
+			'experience',
+			undefined,
+			[{ name: '@status', value: 'active' }],
+			'system',
+			) ?? []
+		if(!includeLived){
+			const livedExperiences = await this.experiencesLived() ?? []
+			experiences = experiences.filter(
+				// filter out those not found (by id in lived experiences)
+				_experience=>!livedExperiences.find(
+					_livedExperience=>_livedExperience.experienceId===_experience.id
+				)
+			)
+		}
+		return experiences
+	}
+	async experiencesLived(){
+		const livedExperiences = await this.dataservices.getItems(
+			'experience-lived',
+			['experienceId'], // default includes being, id, mbr_id, object_id
+		)
+	}
+	/**
+	 * Gets a specified `experience` from database.
+	 * @public
+	 * @param {guid} _experience_id - The experience id in Cosmos.
+	 * @returns {Promise<object>} - The experience.
+	 */
+	async getExperience(_experience_id){
+		if(!_experience_id) 
+			throw new Error('factory.experience: experience id required')
+		// @todo remove restriction (?) for all experiences to be stored under MyLife `mbr_id`
+		return await mDataservices.getItem(_experience_id, 'system')
+	}
+	/**
+	 * Gets, creates or updates Library in Cosmos.
+	 * @todo - institute bot for library mechanics.
+	 * @public
+	 * @param {Object} _library - The library object, including items to be added to/updated in member's library.
+	 * @returns {object} - The library.
+	 */
+	async library(_library){
+		const _updatedLibrary = await mLibrary(this, _library)
+		// test the type/form of Library
+		switch(_updatedLibrary.type){
+			case 'story':
+				if(_updatedLibrary.form==='biographer'){
+					// inflate and update library with stories
+					const _stories = ( await this.stories(_updatedLibrary.form) )
+						.filter(_story=>!this.globals.isValidGuid(_story?.library_id))
+						.map(_story=>{
+							_story.id = _story.id??this.newGuid
+							_story.author = _story.author??this.mbr_name
+							_story.title = _story.title??_story.id
+							return mInflateLibraryItem(_story, _updatedLibrary.id, this.mbr_id)
+						})
+					_updatedLibrary.items = [
+						..._updatedLibrary.items,
+						..._stories,
+					]
+					/* update stories (no await) */
+					_stories.forEach(_story=>this.dataservices.patch(
+						_story.id,
+						{ library_id: _updatedLibrary.id },
+					))
+					/* update library (no await) */
+					this.dataservices.patch(
+						_updatedLibrary.id,
+						{ items: _updatedLibrary.items },
+					)
+				}
+				break
+			default:
+				break
+		}
+		return _updatedLibrary
+	}
+	/**
+	 * Adds or updates a bot.
+	 * @public
+	 * @param {object} _bot - bot data.
+	 * @returns {object} - The Cosmos bot.
+	 */
+	async setBot(_bot={ type: mDefaultBotType }){
+		if(!_bot?.id?.length)
+			_bot = await this.createBot(_bot)
+		return await this.dataservices.setBot(_bot)
+	}
+	/**
+	 * Gets a collection of stories of a certain format.
+	 * @todo - currently disconnected from a library, but no decisive mechanic for incorporating library shell.
+	 * @param {*} _form 
+	 * @returns 
+	 */
+	async stories(_form){
+		return await this.dataservices.getItemsByFields(
+			'story',
+			[{ name: '@form', value: _form }],
+		)
+	}
+	/* getters/setters */
+	get avatarId(){
+		return this.core?.avatar_id
+	}
+	/**
+	 * Returns member's dataservice core. USE WITH CAUTION!
+	 * @todo - determine if this can be hidden from public access
+	 * @getter
+	 * @returns {object} - The Experience class definition.
+	 */
+	get core(){
+		return this.dataservices.core
+	}
+	get dataservices(){
+		return this.#dataservices
+	}
+	/**
+	 * Returns experience class definition.
+	 */
+	get experience(){
+		return this.schemas.Experience
+	}
+	/**
+	 * Returns the factory itself.
+	 * @todo - deprecate?
+	 */
+	get factory(){
+		return this
+	}
+	get globals(){
+		return this.dataservices.globals
+	}
+	/**
+	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
+	 * @returns {boolean}
+	*/
+	get isMyLife(){
+		return mIsMyLife(this.mbr_id)
+	}
+	/**
+	 * Returns the ExperieceLived class definition.
+	 * @returns {object} - The ExperienceLived class definition.
+	 */
+	get livedExperience(){
+		return this.schemas.ExperienceLived
+	}
+	get mbr_id(){
+		return this.#mbr_id
+	}
+	get mbr_id_id(){
+		return this.globals.sysId(this.mbr_id)
+	}
+	get mbr_name(){
+		return this.globals.sysName(this.mbr_id)
+	}
+	get memberName(){
+		return this.dataservices.core.names?.[0]??this.mbr_name
+	}
+	get newGuid(){
+		return mNewGuid()
+	}
+	/**
+	 * @todo - determine hydration method, timing and requirements for `actor`(s); they remain currently unhydrated, only need `bot_id`
+	 * @returns {object} - The system actor bot data.
+	 */
+	get systemActor(){
+		return mSystemActor
+	}
+}
+class AgentFactory extends BotFactory{
+	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
+	#llmServices = mLLMServices
+	constructor(mbr_id){
+		super(mbr_id, false)
+	}
+	/* public functions */
+	/**
+	 * Initialization routine required for all AgentFactory instances save MyLife server.
+	 * @param {string} mbr_id - Member id.
+	 * @returns {AgentFactory} this
+	 */
+	async init(mbr_id){
+		if(mIsMyLife(mbr_id))
+			throw new Error('MyLife server AgentFactory cannot be initialized, as it references modular dataservices on constructor().')
+		await super.init(mbr_id)
+		if(this.core.openaiapikey)
+			this.#llmServices = new LLMServices(this.core.openaiapikey, this.core.openaiorgkey)
+		return this
+	}
+	/**
+	 * Retrieves avatar properties from Member factory dataservices, or inherits the core data from Member class.
+	 * @returns {object} - Avatar properties.
+	 */
+	async avatarProperties(){
+		return ( await this.dataservices.getAvatar() )
+			?? mAvatarProperties(this.core)
+	}
+	/**
+	 * Accesses MyLife Dataservices to challenge access to a member's account.
+	 * @param {string} _mbr_id 
+	 * @param {string} _passphrase 
+	 * @returns {object} - Returns passphrase document if access is granted.
+	 */
 	async challengeAccess(_mbr_id, _passphrase){
 		return await mDataservices.challengeAccess(_mbr_id, _passphrase)
 	}
@@ -155,7 +408,7 @@ class AgentFactory extends EventEmitter{
 		return _core?.[0]??{}
 	}
 	async getAlert(_alert_id){
-		const _alert = _alerts.system.find(alert => alert.id === _alert_id)
+		const _alert = mAlerts.system.find(alert => alert.id === _alert_id)
 		return _alert ? _alert : await mDataservices.getAlert(_alert_id)
 	}
 	/**
@@ -165,35 +418,27 @@ class AgentFactory extends EventEmitter{
 	 */
 	async getAlerts(_type){
 		const _systemAlerts = await this.dataservices.getAlerts()
-		_alerts.system = _systemAlerts
+		mAlerts.system = _systemAlerts
 		return this.alerts
 	}
 	/**
 	 * Constructs and returns an Avatar instance.
-	 * @returns {Avatar} - The avatar.
+	 * @returns {Avatar} - The Avatar instance.
 	 */
 	async getAvatar(){
-		// get avatar from dataservices
-		let _avatarProperties = await this.dataservices.getAvatar()
-		_avatarProperties = {..._avatarProperties??this.core, proxyBeing: this.isMyLife ? 'MyLife' : 'human' }
-		const _avatar = await new (schemas.avatar)(_avatarProperties,this).init()
-		return _avatar
-	}
-	async getMyLife(){	//	get server instance
-		//	ensure that factory mbr_id = dataservices mbr_id
-		if(this.mbr_id!==mPartitionId)
-			throw new Error('unauthorized request')
-		return await new (schemas.server)(this).init()
+		const avatar = await ( new Avatar(this, this.#llmServices) )
+			.init()
+		return avatar
 	}
 	async getMyLifeMember(){
-		const _r =  await new (schemas.member)(this)
+		const _r =  await ( new (mSchemas.member)(this) )
 			.init()
 		return _r
 	}
 	async getMyLifeSession(){
 		// default is session based around default dataservices [Maht entertains guests]
 		// **note**: conseuquences from this is that I must be careful to not abuse the modular space for sessions, and regard those as _untouchable_
-		return await new (schemas.session)(
+		return await new (mSchemas.session)(
 			( new AgentFactory(mPartitionId) ) // no need to init currently as only pertains to non-server adjustments
 			// I assume this is where the duplication is coming but no idea why
 		).init()
@@ -201,19 +446,34 @@ class AgentFactory extends EventEmitter{
 	async getConsent(_consent){
 		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
 		//	@todo: not stored in cosmos (as of yet, might be different container), so id can be redundant
-		return new (schemas.consent)(_consent, this)
+		return new (mSchemas.consent)(_consent, this)
 	}
 	async getContributionQuestions(_being, _category){
 		return await mDataservices.getContributionQuestions(_being, _category)
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
-		return (_avatar instanceof schemas.avatar)
+		return (_avatar instanceof mSchemas.avatar)
 	}
 	isConsent(_consent){	//	when unavailable from general schemas
-		return (_consent instanceof schemas.consent)
+		return (_consent instanceof mSchemas.consent)
 	}
 	isSession(_session){	//	when unavailable from general schemas
-		return (_session instanceof schemas.session)
+		return (_session instanceof mSchemas.session)
+	}
+	/**
+	 * Adds or updates a library with items outlined in request `library.items` array. Note: currently the override for `botFactory` function .library which returns a library item from the database.
+	 * @todo: finalize mechanic for overrides
+	 * @param {Object} _library - The library object, including items to be added to member's library.
+	 * @returns {Object} - The complete library object from Cosmos.
+	 */
+	async library(_library){
+		/* hydrate library micro-bot */
+		const { bot_id, mbr_id } = _library
+		const _microBot = await this.libraryBot(bot_id, mbr_id)
+		return await _microBot.library(_library)
+	}
+	async libraryBot(_bot_id, _mbr_id){
+		return await this.bot(_bot_id, 'library', _mbr_id)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -222,14 +482,6 @@ class AgentFactory extends EventEmitter{
 	 */
 	async registerCandidate(_candidate){
 		return await this.dataservices.registerCandidate(_candidate)
-	}
-	/**
-	 * Adds or updates a bot.
-	 * @public
-	 * @param {object} _bot - bot data.
-	 */
-	async setBot(_bot){
-		return await this.dataservices.setBot(_bot)
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
@@ -251,59 +503,36 @@ class AgentFactory extends EventEmitter{
 	}
 	//	getters/setters
 	get alerts(){ // currently only returns system alerts
-		return _alerts.system
-	}
-	get contribution(){
-		return this.schemas.contribution
-	}
-	get conversation(){
-		return this.schemas.conversation
-	}
-	get core(){
-		return this.dataservices.core
-	}
-	get dataservices(){
-		return this.#dataservices
-	}
-	get factory(){	//	get self
-		return this
-	}
-	get file(){
-		return this.schemas.file
-	}
-	get globals(){
-		return this.dataservices.globals
+		return mAlerts.system
 	}
 	/**
-	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
-	 * @returns {boolean}
-	*/
-	get isMyLife(){
-		return this.mbr_id===mPartitionId
+	 * Returns the ExperienceCastMember class definition.
+	 * @returns {object} - ExperienceCastMember class definition.
+	 */
+	get castMember(){
+		return this.schemas.ExperienceCastMember
 	}
-	get mbr_id(){
-		return this.#mbr_id
+	get contribution(){
+		return this.schemas.Contribution
 	}
-	get mbr_id_id(){
-		return this.globals.sysId(this.mbr_id)
+	get conversation(){
+		return this.schemas.Conversation
 	}
-	get mbr_name(){
-		return this.globals.sysName(this.mbr_id)
+	/**
+	 * Returns the ExperienceEvent class definition.
+	 * @returns {object} - ExperienceEvent class definition.
+	 */
+	get experienceEvent(){
+		return this.schemas.ExperienceEvent
 	}
-	get memberName(){
-		return this.dataservices.core.names?.[0]??this.mbr_name
+	get file(){
+		return this.schemas.File
 	}
 	get message(){
-		return this.schemas.message
-	}
-	get MyLife(){	//	**caution**: returns <<PROMISE>>
-		return this.getMyLife()
-	}
-	get newGuid(){
-		return this.globals.newGuid
+		return this.schemas.Message
 	}
 	get organization(){
-		return this.schemas.organization
+		return this.schemas.Organization
 	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
@@ -314,15 +543,29 @@ class AgentFactory extends EventEmitter{
 	get schemas(){
 		return this.#exposedSchemas
 	}
-	get server(){
-		return this.schemas.server
-	}
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
 }
 // private modular functions
-function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema in case of $def
+/**
+ * Initializes openAI assistant and returns associated `assistant` object.
+ * @modular
+ * @param {LLMServices} llmServices - OpenAI object
+ * @param {object} bot - bot creation instructions.
+ * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
+ */
+async function mAI_openai(llmServices, bot){
+    const { bot_name, description, model, name, instructions} = bot
+    const assistant = {
+        description,
+        model,
+        name: bot.bot_name ?? bot.name, // take friendly name before Cosmos
+        instructions,
+    }
+    return await llmServices.createBot(assistant)
+}
+function assignClassPropertyValues(_propertyDefinition){
 	switch (true) {
 		case _propertyDefinition?.const!==undefined:	//	constants
 			return `'${_propertyDefinition.const}'`
@@ -359,36 +602,247 @@ function assignClassPropertyValues(_propertyDefinition,_schema){	//	need schema 
 			}
 	}
 }
+/**
+ * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
+ * @modular
+ * @param {object} _core - Datacore object
+ * @returns {object} - Avatar property data package
+ */
+function mAvatarProperties(_core){
+	const {
+		mbr_id,
+		names=['default-name-error'],
+		..._avatarProperties
+	} = _core
+	[
+		"assistant",
+		"being",
+		"bots",
+		"command_word",
+		"contributions",
+		"conversations",
+		"id",
+		"mbr_id",
+		"messages",
+		"metadata",
+		"name",
+		"names",
+		"object_id",
+		"proxyBeing",
+		"type"
+	].forEach(_prop=>{
+		delete _avatarProperties[_prop]
+	})
+	return {
+		..._avatarProperties,
+		being: 'avatar',
+		id: mNewGuid(),
+		mbr_id: mbr_id,
+		name: `avatar_${mbr_id}`,
+		names: names,
+		nickname: _avatarProperties.nickname??names[0],
+		proxyBeing: mIsMyLife(mbr_id) ? 'MyLife' : 'human',
+		type: 'openai_assistant',
+	}
+}
 function mBytes(_object){
 	return util.inspect(_object).length
 }
-function compileClass(_className, classCode) {
-	// Create a global vm context and run the class code in it
-	vm.runInContext(classCode, vmClassGenerator)
-	// Return the compiled class
-	return vmClassGenerator.exports[_className]
+function mCompileClass(_className, _classCode){
+	vm.runInContext(_classCode, vmClassGenerator) // Create a global vm context and run the class code in it
+	const _class = vmClassGenerator.exports[_className] // Return the compiled class
+	return _class // Return the compiled class
 }
-async function configureSchemaPrototypes(){	//	add required functionality as decorated extension class
-	for(const _className in schemas){
+async function mConfigureSchemaPrototypes(){ //	add required functionality as decorated extension class
+	for(const _className in mSchemas){
 		//	global injections; maintained _outside_ of eval class
 		Object.assign(
-			schemas[_className].prototype,
-			{ sanitizeValue: sanitizeValue },
+			mSchemas[_className].prototype,
+			{ mSanitizeSchemaValue: mSanitizeSchemaValue },
 		)
-		schemas[_className] = extendClass(schemas[_className])
+		mSchemas[_className] = mExtendClass(mSchemas[_className])
 	}
 }
-function extendClass(_class) {
+/**
+ * Creates bot and returns associated `bot` object.
+ * @modular
+ * @private
+ * @param {LLMServices} llm - OpenAI object
+ * @param {AgentFactory} factory - Agent Factory object
+ * @param {object} bot - Bot object
+ * @param {string} avatarId - Avatar id
+ * @returns {string} - Bot assistant id in openAI
+*/
+async function mCreateBotLLM(llm, bot){
+    const llmResponse = await mAI_openai(llm, bot)
+    return llmResponse.id
+}
+/**
+ * Creates bot and returns associated `bot` object.
+ * @modular
+ * @async
+ * @private
+ * @param {LLMServices} llm - LLMServices Object contains methods for interacting with OpenAI
+ * @param {BotFactory} factory - BotFactory object
+ * @param {object} bot - Bot object, must include `type` property.
+ * @returns {object} - Bot object
+*/
+async function mCreateBot(llm, factory, bot){
+	const { avatarId, } = factory
+	const _description = bot.description
+		?? `I am a ${bot.type} bot for ${factory.memberName}`
+	const _instructions = bot.instructions
+		?? mCreateBotInstructions(factory, bot)
+	const botName = bot.bot_name
+		?? bot.name
+		?? bot.type
+	const _cosmosName = bot.name
+		?? `bot_${bot.type}_${avatarId}`
+	if(!avatarId)
+		throw new Error('avatar id required to create bot')
+	const botData = {
+		being: 'bot',
+		bot_name: botName,
+		description: _description,
+		instructions: _instructions,
+		model: process.env.OPENAI_MODEL_CORE_BOT,
+		name: _cosmosName,
+		object_id: avatarId,
+		provider: 'openai',
+		purpose: _description,
+		type: bot.type,
+	}
+	botData.bot_id = await mCreateBotLLM(llm, botData) // create after as require model
+	return botData
+}
+/**
+ * Returns MyLife-version of bot instructions.
+ * @modular
+ * @private
+ * @param {BotFactory} factory - Factory object
+ * @param {object} _bot - Bot object
+ * @returns {string} - flattened string of instructions
+ */
+function mCreateBotInstructions(factory, _bot){
+	if(!_bot)
+		throw new Error('bot object required')
+	const _type = _bot.type ?? mDefaultBotType
+    let _botInstructionSet = factory.botInstructions(_type) // no need to wait, should be updated or refresh server
+    _botInstructionSet = _botInstructionSet?.instructions
+    if(!_botInstructionSet) throw new Error(`bot instructions not found for type: ${_type}`)
+    /* compile instructions */
+    let _botInstructions = ''
+    switch(_type){
+        case 'personal-avatar':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.general
+            break
+        case 'personal-biographer':
+            _botInstructions +=
+                  _botInstructionSet.preamble
+                + _botInstructionSet.purpose
+                + _botInstructionSet.prefix
+                + _botInstructionSet.general
+            break
+        default: // avatar
+            _botInstructions += _botInstructionSet.general
+            break
+    }
+    /* apply replacements */
+    _botInstructionSet.replacements = _botInstructionSet?.replacements??[]
+    _botInstructionSet.replacements.forEach(_replacement=>{
+        const _placeholderRegExp = factory.globals.getRegExp(_replacement.name, true)
+        const _replacementText = eval(`factory?.${_replacement.replacement}`)
+            ?? eval(`_bot?.${_replacement.replacement}`)
+            ?? _replacement?.default
+            ?? '`unknown-value`'
+        _botInstructions = _botInstructions.replace(_placeholderRegExp, () => _replacementText)
+    })
+    /* apply references */
+    _botInstructionSet.references = _botInstructionSet?.references??[]
+    _botInstructionSet.references.forEach(_reference=>{
+        const _referenceText = _reference.insert
+        const _replacementText = eval(`factory?.${_reference.value}`)
+            ?? eval(`_bot?.${_reference.value}`)
+            ?? _reference.default
+            ?? '`unknown-value`'
+        switch(_reference.method??'replace'){
+            case 'append-hard':
+                const _indexHard = _botInstructions.indexOf(_referenceText)
+                if (_indexHard !== -1) {
+                _botInstructions =
+                    _botInstructions.slice(0, _indexHard + _referenceText.length)
+                    + '\n'
+                    + _replacementText
+                    + _botInstructions.slice(_indexHard + _referenceText.length)
+                }
+                break
+            case 'append-soft':
+                const _indexSoft = _botInstructions.indexOf(_referenceText);
+                if (_indexSoft !== -1) {
+                _botInstructions =
+                      _botInstructions.slice(0, _indexSoft + _referenceText.length)
+                    + ' '
+                    + _replacementText
+                    + _botInstructions.slice(_indexSoft + _referenceText.length)
+                }
+                break
+            case 'replace':
+            default:
+                _botInstructions = _botInstructions.replace(_referenceText, _replacementText)
+                break
+        }
+    })
+    return _botInstructions
+}
+function mExposedSchemas(factoryBlockedSchemas){
+	const _systemBlockedSchemas = ['dataservices','session']
+	return Object.keys(mSchemas)
+		.filter(key => !_systemBlockedSchemas.includes(key) && !factoryBlockedSchemas.includes(key))
+		.reduce((obj, key) => {
+			obj[key] = mSchemas[key]
+			return obj
+		}, {})
+}
+/**
+ * Ingests schema and returns an array of class definitions based upon any number of recursive `$defs`
+ * @param {object} _schema - Schema for class and sub-`$defs`
+ * @returns {array} - Returns array of unsanitized class definitions
+ */
+function mExtractClassesFromSchema(_schema){
+	const _classes = []
+	function _extractClasses(__schema){
+		const { $defs={}, ...rootSchema } = __schema
+		_classes.push(rootSchema)
+		Object.keys($defs)
+			.forEach(_key=>{
+				_classes.push($defs[_key])
+				if ($defs[_key].$defs) {
+					_extractClasses($defs[_key])
+				}
+			})
+	}
+	_extractClasses(_schema)
+	return _classes
+}
+function mExtendClass(_class) {
 	const _className = _class.name.toLowerCase()
 	if (typeof mExtensionFunctions?.[`extendClass_${_className}`]==='function'){
 		console.log(`Extension function found for ${_className}`)
 		//	add extension decorations
-		const _references = { openai: mOpenAI }
-		_class = mExtensionFunctions[`extendClass_${_className}`](_class,_references)
+		const _references = { openai: mLLMServices }
+		_class = mExtensionFunctions[`extendClass_${_className}`](_class, _references)
 	}
 	return _class
 }
-function generateClassCode(_className,_properties,_schema){
+/**
+ * Ingests components of the JSON schema and generates text for class code.
+ * @param {string} _className - Sanitized class name
+ * @param {object} _properties - Sanitized properties of class
+ * @returns {string} - Returns class code in text format for rendering into node js object
+ */
+function mGenerateClassCode(_className, _properties){
 	//	delete known excluded _properties in source
 	for(const _prop in _properties){
 		if(_prop in mExcludeProperties){ delete _properties[_prop] }
@@ -402,7 +856,7 @@ class ${_className} {
 #name
 `
 	for (const _prop in _properties) {	//	assign default values as animated from schema
-		const _value = sanitizeValue(assignClassPropertyValues(_properties[_prop],_schema))
+		const _value = mSanitizeSchemaValue(assignClassPropertyValues(_properties[_prop]))
 		//	this is the value in error that needs sanitizing
 		classCode += `	#${(_value)?`${_prop} = ${_value}`:_prop}\n`
 	}
@@ -432,16 +886,16 @@ constructor(obj){
 		const _type = _properties[_prop].type
 		// generate getters/setters
 		classCode += `
-get ${_prop}() {
+get ${_prop}(){
 	return this.#${_prop}
 }
 set ${_prop}(_value) {	// setter with type validation
-	if (typeof _value !== '${_type}') {
+	if(typeof _value !== '${_type}' && '${_type}' !== 'undefined'){
 		if(!('${_type}'==='array' && Array.isArray(_value))){
 			throw new Error('Invalid type for property ${_prop}: expected ${_type}')
 		}
 	}
-	if( this?.#${_prop} ) this.#${_prop} = _value
+	if(this?.#${_prop}) this.#${_prop} = _value
 	else this.${_prop} = _value
 }`
 	}
@@ -460,49 +914,261 @@ inspect(_all=false){
 exports.${_className} = ${_className}`
 	return classCode
 }
-function generateClassFromSchema(_schema) {
-	//	get core class
-	const _className = _schema.name
-	const _properties = _schema.properties	//	wouldn't need sanitization, as refers to keys
-	const _classCode = generateClassCode(_className,_properties,_schema)
-	//	compile class and return
-	return compileClass(_className,_classCode)
+function mGenerateClassFromSchema(_schema) {
+	const { name, properties } = _schema
+	const _classCode = mGenerateClassCode(name, properties)
+	const _class = mCompileClass(name, _classCode)
+	return _class
 }
-function getExposedSchemas(_factoryBlockedSchemas){
-	const _systemBlockedSchemas = ['dataservices','session']
-	return Object.keys(schemas)
-		.filter(key => !_systemBlockedSchemas.includes(key) && !_factoryBlockedSchemas.includes(key))
-		.reduce((obj, key) => {
-			obj[key] = schemas[key]
-			return obj
-		}, {})
+/**
+ * Inflates library item with required values and structure. Object structure expected from API, librayItemItem in JSON.
+ * root\inc\json-schemas\bots\library-bot.json
+ * @param {object} _item - Library item (API) object. { author: string, enjoymentLevel: number, format: string, insights: string, personalImpact: string, title: string, whenRead: string }
+ * @param {string} _library_id - Library id
+ * @param {string} _mbr_id - Member id
+ * @returns {object} - Library-item object. { assistantType: string, author_match: array, being: string, date: string, format: string, id: string, item: object, library_id: string, object_id: string, title_match: string
+ */
+function mInflateLibraryItem(_item, _library_id, _mbr_id){
+	const _id = _item.id??mNewGuid()
+	return {
+		assistantType: _item.assistantType??'mylife-library',
+		author_match: (_item.author??'unknown-author')
+			.trim()
+			.toLowerCase()
+			.split(' '),
+		being: 'library-item',
+		date: _item.date??new Date().toISOString(),
+		format: _item.format??_item.form??_item.type??'book',
+		id: _id,
+		item: {..._item, id: _id },
+		library_id: _library_id,
+		object_id: _library_id,
+		title_match: (_item.title??'untitled')
+			.trim()
+			.toLowerCase(),
+	}
 }
-async function loadSchemas() {
+/**
+ * Hydrates library and returns library object.
+ * @modular
+ * @private
+ * @param {BotFactory} factory - BotFactory object
+ * @param {object} _library - Library object
+ * @returns {object} - Library object
+ */
+async function mLibrary(factory, _library){
+	// @todo: micro-avatar for representation of bot(s)
+	// @todo: Bot class with extension for things like handling libraries
+	// @todo: bot-extenders so that I can get this functionality into that object context
+	/* constants */
+	const { assistantType, form='collection', id, items: _libraryItems=[], mbr_id, type } = _library
+	const _avatar_id = factory.avatarId
+	// add/get correct library; default to core (object_id=avatar_id && type)
+	/* parse and cast _libraryItems */
+	let _libraryCosmos = await factory.dataservices.library(id, _avatar_id, type, form)
+	// @dodo: currently only book/story library items are supported
+	if(!_libraryCosmos){ // create when undefined
+		// @todo: microbot should have a method for these
+		const _library_id = factory.newGuid
+		_libraryCosmos = {
+			being: `library`,
+			form: form,
+			id: _library_id,
+			items: _libraryItems.map(_item=>mInflateLibraryItem(_item, _library_id, mbr_id)),
+			mbr_id: mbr_id,
+			name: ['library',type,form,_avatar_id].join('_'),
+			object_id: _avatar_id,
+			type: type,
+		}
+		factory.dataservices.pushItem(_libraryCosmos) // push to Cosmos
+	} else {
+		// @todo: manage multiple libraries
+		const { id: _library_id, items: _storedLibraryItems } = _libraryCosmos
+		_libraryItems.forEach(_item => {
+			_item = mInflateLibraryItem(_item,_library_id, mbr_id)
+			const matchIndex = _storedLibraryItems.findIndex(storedItem => { // Find the index of the item in the stored library items that matches the criteria
+				if(storedItem.id===_item.id || storedItem.title_match===_item.title_match)
+				return true
+			const storedAuthorWords = storedItem.author_match
+			const incomingAuthorWords = _item.author_match
+			const authorMatches = (() => {
+				if (storedAuthorWords.length === 1 || incomingAuthorWords.length === 1) { // If either author array has a length of 1, check for any matching word
+					return storedAuthorWords.some(word => incomingAuthorWords.includes(word))
+				} else { // If both have 2+ lengths, ensure at least 2 items match
+					const matches = storedAuthorWords.filter(word => incomingAuthorWords.includes(word))
+					return matches.length >= 2
+					}
+				})()
+				if (authorMatches && matchIndex !== -1) { // Mutate the author to the one with more details if needed
+					if (incomingAuthorWords.length > storedAuthorWords.length) {
+						_storedLibraryItems[matchIndex].author_match = incomingAuthorWords // Update to more detailed author
+					}
+				}
+				return authorMatches
+			})
+			if (matchIndex!== -1) { // If a match is found, update the entry
+				_storedLibraryItems[matchIndex] = {
+					..._storedLibraryItems[matchIndex],  // Keep existing properties
+					..._item,  // Overwrite and add new properties from _item
+					id: _storedLibraryItems[matchIndex].id
+						?? factory.newGuid, // if for some reason object hasn't id
+					object_id: _library_id,
+					type: _item.type
+						?? 'book',
+				}
+			} else {
+				_storedLibraryItems.push({ // If no match is found, add the item to the library
+					..._item,
+					id: _item.id??factory.newGuid, // Ensure each item has a unique ID
+					mbr_id: factory.mbr_id,
+					object_id: _library_id,
+					type: _item.type??'book',
+				})
+			}
+		})
+		// save library to Cosmos @todo: microbot should have a method for this
+		_libraryCosmos.items = _storedLibraryItems
+		factory.dataservices.patch(_library_id, {items: _libraryCosmos.items})
+	}
+	return _libraryCosmos
+}
+/**
+ * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
+ * @param {string} _mbr_id 
+ * @returns {boolean} true if factory is MyLife server
+ */
+function mIsMyLife(_mbr_id){
+	return _mbr_id===mPartitionId
+}
+async function mLoadSchemas(){
 	try{
 		let _filesArray = await (fs.readdir(mPath))
 		_filesArray = _filesArray.filter(_filename => _filename.split('.')[1] === 'json')
-		const schemasArray = await Promise.all(
+		const _schemasArray = (await Promise.all(
 			_filesArray.map(
 				async _filename => {
 					const _file = await fs.readFile(`${mPath}/${_filename}`, 'utf8')
 					const _fileContent = JSON.parse(_file)
-					const _classArray = [{ [_filename.split('.')[0]]: generateClassFromSchema(_fileContent) }]
-					if (_fileContent.$defs) {
-						for (const _schema in _fileContent.$defs) {
-							_classArray.push({ [_schema]: generateClassFromSchema(_fileContent.$defs[_schema]) })
-						}
-					}
+					let _classArray = mSanitizeSchema(_fileContent)
+					// generate classes from schema array
+					_classArray = _classArray.map(_class => {
+						const _classObject = mGenerateClassFromSchema(_class)
+						return _classObject
+					})
 					return _classArray
 				}
 			)
-		)
-		return schemasArray.reduce((acc, array) => Object.assign(acc, ...array), {})
+		))
+			.flat()
+		const _schemasObject =  _schemasArray.reduce((_schema, _class) => {
+			_schema[_class.name] = _class
+			return _schema
+		}, {})
+		return _schemasObject
 	} catch(err){
 		console.log(err)
-		if(schemasArray) console.log(schemasArray)
 	}
 }
-function sanitizeValue(_value) {
+async function mPopulateBotInstructions(){
+	const _botInstructionSets = await mDataservices.botInstructions()
+	_botInstructionSets.forEach(_instructionSet=>{
+		mBotInstructions[_instructionSet.type] = _instructionSet
+	})
+}
+/**
+ * Ingests a text (or JSON-parsed) schema and returns an array of sanitized schema.
+ * @param {object} _schema 
+ * @returns {Array} - Array of sanitized schemas
+ */
+function mSanitizeSchema(_schema){
+	if(!_schema) throw new Error('schema required')
+	if(typeof _schema === 'string') _schema = JSON.parse(_schema)
+	if(!(_schema?.name && _schema?.properties)) throw new Error('schema content required')
+	// convert class name and $defs keys to camelCase where space or dash is found; also affect $ref values in parent
+	const _classes = mSanitizeSchemaClasses(_schema) // will mutate properties && _sanitizedKeysObject
+	return _classes
+}
+/**
+ * Ingests a schema, mends improper variable names and fixes `$refs`, `$defs` and `required` and returns array of classes based on `$defs`.
+ * @param {object} _schema - Validated schema with properties to mutate.
+ * @returns {array} - Array of sanitized class definitions, one for each `$def`.
+ */
+function mSanitizeSchemaClasses(_schema){
+	const _sanitizedKeysObject = {} // reference collection for $ref keys
+	const _classes = mExtractClassesFromSchema(_schema) // container for list of sanitized class definitions to return
+	const mutatedKeys = {}
+	_classes.map(_class=>mSanitizeSchemaKeys(_class, mutatedKeys))
+	if(Object.keys(mutatedKeys).length){
+		_classes.forEach(_class=>{
+			const { name: _name, properties: _properties } = _class
+			mSanitizeSchemaReferences(_properties, mutatedKeys)
+			// recursively loop `properties` for key `$ref`
+			Object.keys(_properties)
+				.forEach(_key=>mSanitizeSchemaReferences(_key, mutatedKeys))
+
+		})
+	}
+	return _classes
+}
+/**
+ * Sanitizes a key to be used as a class property name.
+ * @param {string} _key - Key to sanitize
+ * @returns {string} - Sanitized key
+ */
+function mSanitizeSchemaKey(_key){
+    // Create a regular expression pattern to match any of the special characters
+    const pattern = new RegExp(`[${mReservedJSCharacters.map(char => `\\${char}`).join('')}]`, 'g')
+    // Split the key into segments by the special characters and then convert segments into camelCase
+    const segments = _key.split(pattern)
+    let sanitizedKey = segments.map((segment, index) => 
+        index === 0 ? segment : segment.charAt(0).toUpperCase() + segment.slice(1)
+    ).join('')
+	if(mReservedJSWords.includes(sanitizedKey)) sanitizedKey+='_key'
+    return sanitizedKey
+}
+/**
+ * Ingests a class definition and sanitizes its keys.
+ * @modular
+ * @param {object} _class - Class definition to sanitize.
+ * @param {object} _mutatedKeysObject - Object to hold mutated sanitized keys.
+ * @returns {void} - Internally mutates parameter references.
+ */
+function mSanitizeSchemaKeys(_class, _mutatedKeysObject){
+	const { name, properties, required} = _class
+	const _sanitizedClassName = mSanitizeSchemaKey(name)
+	if(_sanitizedClassName!==name){
+		_mutatedKeysObject[name.toLowerCase()] = _sanitizedClassName
+		_class.name = _sanitizedClassName
+	}
+	Object.keys(properties).forEach(_key=>{
+		const _sanitizedKey = mSanitizeSchemaKey(_key)
+		if(_sanitizedKey!==_key){
+			properties[_sanitizedKey] = properties[_key]
+			if(required.includes(_key)){ // _required_ is an array of strings
+				required[required.indexOf(_key)] = _sanitizedKey
+			}
+			delete properties[_key]
+		}
+	})
+}
+function mSanitizeSchemaReferences(_properties, _mutatedKeysObject){
+	Object.keys(_properties)
+		.forEach(_key=>{
+			if(_key==='$ref'){
+				// mutate $ref key
+				const _classReferenceName = _properties['$ref'].split('/').pop()
+				const _sanitizedKey = _mutatedKeysObject[_classReferenceName]
+					?? _mutatedKeysObject[_classReferenceName.toLowerCase()]
+				if(_sanitizedKey){
+					// set $ref to sanitized key, as that will be the actual Class Name inside MyLife. **note**: remove all '/$defs/' as there is no nesting inside `schemas`
+					_properties['$ref'] = _sanitizedKey
+				}
+			} else if(typeof _properties[_key] === 'object'){
+				mSanitizeSchemaReferences( _properties[_key], _mutatedKeysObject )
+			}
+	})
+}
+function mSanitizeSchemaValue(_value) {
     if (typeof _value !== 'string') return _value
 
     let startsWithQuote = _value.startsWith("'") || _value.startsWith('"') || _value.startsWith('`')

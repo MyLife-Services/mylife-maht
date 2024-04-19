@@ -43,7 +43,6 @@
 			"description": "The purpose underlying this object-type"
 		},
 		"request": {
-			"type": "object",
 			"$ref": "/$defs/contribution_request",
 			"description": "JSON object structure for contribution request, including questions that could be posed to Member"
 		},

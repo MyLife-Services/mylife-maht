@@ -2,8 +2,10 @@ import { EventEmitter } from 'events'
 import chalk from 'chalk'
 class MylifeMemberSession extends EventEmitter {
 	#alertsShown = [] // array of alert_id's shown to member in this session
+	#autoplayed = false // flag for autoplayed experience, one per session
 	#consents = []	//	consents are stored in the session
 	#contributions = []	//	intended to hold all relevant contribution questions for session
+	#experiences = []	//	holds id for experiences conducted in this session
 	#factory
 	#locked = true	//	locked by default
 	#mbr_id = false
@@ -19,16 +21,17 @@ class MylifeMemberSession extends EventEmitter {
 			chalk.bgYellowBright(this.factory.mbr_id),
 		)
 	}
-	async init(_mbr_id=this.mbr_id){
+	async init(mbr_id=this.mbr_id){
 		if(this.locked){
-			if(this.#Member?.mbr_id??_mbr_id !== _mbr_id)
+			if(this.#Member?.mbr_id??mbr_id !== mbr_id)
 				console.log(chalk.bgRed('cannot initialize, member locked'))
 		}
-		if(this.mbr_id && this.mbr_id !== _mbr_id) { // unlocked, initialize member session
-			this.#mbr_id = _mbr_id
+		if(this.mbr_id && this.mbr_id !== mbr_id) { // unlocked, initialize member session
+			this.#mbr_id = mbr_id
 			mAssignFactoryListeners(this.#factory)
-			await this.#factory.init(this.mbr_id)	//	needs only init([newid]) to reset
+			await this.#factory.init(this.mbr_id, )	//	needs only `init()` with different `mbr_id` to reset
 			this.#Member = await this.factory.getMyLifeMember()
+			this.#autoplayed = false // resets autoplayed flag, although should be impossible as only other "variant" requires guest status, as one day experiences can be run for guests also [for pay]
 			this.emit('onInit-member-initialize', this.#Member.memberName)
 			console.log(
 				chalk.bgBlue('created-member:'),
@@ -41,16 +44,16 @@ class MylifeMemberSession extends EventEmitter {
 		return this.factory.getAlert(_alert_id)
 	}
 	async alerts(_type){
-		let _currentAlerts = this.factory.alerts
+		let currentAlerts = this.factory.alerts
 		// remove alerts already shown to member in this session
-		_currentAlerts = _currentAlerts
+		currentAlerts = currentAlerts
 			.filter(_alert=>{
 				return !this.#alertsShown.includes(_alert.id)
 			})
-		_currentAlerts.forEach(_alert=>{
+		currentAlerts.forEach(_alert=>{
 			this.#alertsShown.push(_alert.id)
 		})
-		return _currentAlerts
+		return currentAlerts
 	}
 	async challengeAccess(_passphrase){
 		if(this.locked){
@@ -62,6 +65,30 @@ class MylifeMemberSession extends EventEmitter {
 			await this.init(this.challenge_id)
 		}
 		return !this.locked
+	}
+	/**
+	 * Gets experiences for the member session. Identifies if autoplay is required, and if so, begins avatar experience via this.#Member. Ergo, Session can request avatar directly from Member, which was generated on `.init()`.
+	 * @todo - get and compare list of lived-experiences
+	 * @param {boolean} includeLived - Include lived experiences in the list.
+	 * @returns {Promise<object>} - Experiences shorthand: { autoplay: guid??false, events: [], experiences: [] }
+	 * @property {Guid} autoplay - Autoplay experience id.
+	 * @property {Object[]} events - Array of events.
+	 * @property {Object[]} experiences - Array of experiences.
+	 */
+	async experiences(includeLived=false){
+		if(this.locked) return {}
+		const { avatar } = this.#Member
+		const experiences = await avatar.experiences(includeLived)
+		let autoplay = experiences.find(experience=>experience.autoplay)?.id
+			?? false
+		/* trigger auto-play from session */
+		if(!this.#autoplayed && this.globals.isValidGuid(autoplay)){
+            const _start = await avatar.experienceStart(autoplay)
+			this.#autoplayed = true
+        }
+		else
+			autoplay = false
+		return { autoplay, experiences, mbr_id: this.mbr_id }
 	}
 	//	consent functionality
 	async requestConsent(ctx){
@@ -135,14 +162,10 @@ class MylifeMemberSession extends EventEmitter {
 	get mbr_id(){
 		return this.#mbr_id
 	}
-	set mbr_id(_mbr_id){
-		this.#mbr_id = _mbr_id
-		return this.mbr_id
-	}
 	get mbr_id_id(){
 		return this.globals.sysId( this.mbr_id )
 	}
-	get member(){
+	get member(){ // @todo - deprecate and funnel through any requests
 		return this.#Member
 	}
 	get subtitle(){

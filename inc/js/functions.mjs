@@ -10,7 +10,6 @@ async function about(ctx){
  * Activate a bot for the member
  * @modular
  * @public
- * @async
  * @api no associated view
  * @param {object} ctx Koa Context object
  * @returns {object} Koa Context object
@@ -26,11 +25,6 @@ async function alerts(ctx){
 	} else { // all system alerts
 		ctx.body = await ctx.state.MemberSession.alerts(ctx.request.body)
 	}
-}
-async function avatarListing(ctx){
-	ctx.state.title = `Avatars for ${ ctx.state.member.memberName }`
-	ctx.state.avatars = []
-	await ctx.render('avatars')	//	avatars
 }
 async function bots(ctx){
 	const _bot = ctx.request.body
@@ -61,6 +55,16 @@ function category(ctx){ // sets category for avatar
 	ctx.state.avatar.setActiveCategory(ctx.state.category)
 	ctx.body = ctx.state.avatar.category
 }
+/**
+ * Challenge the member session with a passphrase.
+ * @modular
+ * @public
+ * @async
+ * @api - No associated view
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} Koa Context object
+ * @property {object} ctx.body - The result of the challenge.
+ */
 async function challenge(ctx){
 	if(!ctx.params.mid?.length) ctx.throw(400, `requires member id`)
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
@@ -75,7 +79,7 @@ async function chat(ctx){
 	ctx.body = _response // return message_member_chat
 }
 /**
- * Manage delivery and receipt of contributions(s)
+ * Manage delivery and receipt of contributions(s).
  * @async
  * @public
  * @api no associated view
@@ -83,23 +87,43 @@ async function chat(ctx){
  */
 async function contributions(ctx){
 	ctx.body = await (
-		(ctx.method ==='GET')
+		(ctx.method==='GET')
 		?	mGetContributions(ctx)
 		:	mSetContributions(ctx)
 	)
 }
+/**
+ * Index page for the application.
+ * @async
+ * @public
+ * @requires ctx.state.avatar - The avatar object for the member or Q.
+ * @param {object} ctx - Koa Context object
+ */
 async function index(ctx){
-	ctx.state.title = `${ctx.state.member.agentDescription}`
 	await ctx.render('index')
 }
+/**
+ * Set or get the avatar interface mode for the member.
+ * @modular
+ * @public
+ * @api - No associated view
+ * @param {object} ctx - Koa Context object
+ * @returns {object} - Koa Context object
+ * @property {string} ctx.body - The interface mode for the member.
+ */
+function interfaceMode(ctx){
+	if(ctx.method==='POST' && ctx.request.body.mode){
+		ctx.state.avatar.mode = ctx.request.body.mode
+	}
+	ctx.body = ctx.state.avatar.mode
+	return
+}
 async function login(ctx){
-	// @todo: remove from params and include in post
-	console.log('members-login', ctx.params)
-	if(!ctx.params?.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
+	if(!ctx.params.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
 	ctx.state.mid = decodeURIComponent(ctx.params.mid)
+	ctx.session.MemberSession.challenge_id = ctx.state.mid
 	ctx.state.title = ''
 	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.sysName(ctx.params.mid) }]:`
-	ctx.session.MemberSession.challenge_id = ctx.params.mid
 	await ctx.render('members-challenge')
 }
 async function loginSelect(ctx){
@@ -231,13 +255,13 @@ export {
 	about,
 	activateBot,
 	alerts,
-	avatarListing,
 	bots,
 	category,
 	challenge,
 	chat,
 	contributions,
 	index,
+	interfaceMode,
 	login,
 	loginSelect,
 	members,

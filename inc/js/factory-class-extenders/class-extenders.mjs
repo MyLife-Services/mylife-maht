@@ -1,312 +1,37 @@
 import { EventEmitter } from 'events'
-import { EvolutionAssistant } from '../agents/system/evolution-assistant.mjs'
-import {
-    mAI_openai,
-    mAssignEvolverListeners,
-    mBot,
-    mChat,
-    mFindBot,
-    mGetAssistant,
-    mGetChatCategory,
- } from './class-avatar-functions.mjs'
 import {
     mGetQuestions,
     mUpdateContribution,
 } from './class-contribution-functions.mjs'
 import {
-    mInvokeThread,
-    mMessages,
     mSaveConversation,
 } from './class-conversation-functions.mjs'
+import{
+    mAppear,
+    mDialog,
+    mGetEvent,
+    mInput,
+    mGetScene,
+    mGetSceneNext,
+} from './class-experience-functions.mjs'
 import {
-    mGetMessage,
 	mAssignContent,
 } from './class-message-functions.mjs'
 import { _ } from 'ajv'
 import { parse } from 'path'
+import { Guid } from 'js-guid'
 //  function definitions to extend remarkable classes
-function extendClass_avatar(_originClass,_references) {
-    class Avatar extends _originClass {
-        #activeBotId // id of active bot in this.#bots; empty or undefined, then this
-        #activeChatCategory = mGetChatCategory()
-        #bots = []
-        #conversations = []
-        #emitter = new EventEmitter()
-        #evolver
-        #factory
-        #openai = _references?.openai
-        #proxyBeing = 'human'
-        constructor(_obj,_factory) {
-            super(_obj) //  should include contributions from db or from class schema
-            if(_obj.proxyBeing)
-                this.#proxyBeing = _obj.proxyBeing
-            this.#factory = _factory
-            this.#bots = _obj?.bots ?? [] // array of ids
-        }
-        async init(){
-            /* create evolver (exclude MyLife) */
-            // @todo: admin interface for modifying MyLife avatar and their bots
-            this.#bots = await this.factory.bots(this.id)
-            let _activeBot = this.avatarBot
-            if(!this.factory.isMyLife){
-                if(!_activeBot.id){ // create: but do not want to call setBot() to activate
-                    _activeBot = await mBot(this)
-                    this.#bots.unshift(_activeBot)
-                }
-                this.activeBotId = _activeBot.id
-                this.#evolver = new EvolutionAssistant(this)
-                mAssignEvolverListeners(this.#evolver, this)
-                /* init evolver */
-                await this.#evolver.init()
-            } else { // Q-specific
-                this.activeBotId = this.avatarBot.id
-                this.avatarBot.bot_id = (process.env.OPENAI_MAHT_GPT_OVERRIDE) ? process.env.OPENAI_MAHT_GPT_OVERRIDE : this.avatarBot.bot_id
-                let _conversation = await this.getConversation()
-                this.avatarBot.thread_id = _conversation.threadId
-            }
-            this.emit('avatar-init-end',this)
-            return this
-        }
-        /* public functions */
-        /**
-         * Get a bot.
-         * @public
-         * @param {string} _bot_id - The bot id.
-         * @returns {object} - The bot.
-         */
-        async bot(_bot_id){
-            return await this.factory.bot(_bot_id)
-        }
-        /**
-         * Processes and executes incoming chat request.
-         * @public
-         * @param {object} ctx - The context object.
-         * @returns {object} - The response(s) to the chat request.
-        */
-        async chatRequest(ctx){
-            if(!ctx?.state?.chatMessage)
-                throw new Error('No message provided in context')
-            const _chat = await mChat(
-                this,
-                ctx.state.chatMessage
-            )
-            const _activeAlerts = ctx.state.MemberSession.alerts()
-            if(_activeAlerts?.length){
-                _chat.alerts = ctx.state.MemberSession.alerts()
-            }
-            return _chat
-        }
-        /**
-         * Proxy for emitter.
-         * @public
-         * @param {string} _eventName - The event to emit.
-         * @param {any} - The event(s) to emit.
-         * @returns {void}
-         */
-        emit(_eventName, ...args){
-            this.#emitter.emit(_eventName, ...args)
-        }
-        async getAssistant(_dataservice){	//	openai `assistant` object
-            // @todo: move to modular function and refine instructions as other bots
-            if(!this.assistant?.id.length) {
-                this.assistant = await mAI_openai(this.#openai, {
-                    name: this.names?.[0]??this.name,
-                    model: process.env.OPENAI_MODEL_CORE_AVATAR,
-                    description: this.description,
-                    instructions: this.purpose,
-                })
-                //	save id to cosmos
-                _dataservice.patch(this.id, {
-                    assistant: {
-                        id: this.assistant.id
-                    ,	object: 'assistant'
-                    }
-                })
-            } else if(!this.assistant.name?.length){
-                this.assistant = await mGetAssistant(this.#openai, this.assistant.id)
-            }
-            return this.assistant
-        }
-        async getConversation(_thread_id){ // per bot
-            let _conversation = this.#conversations.find(_=>_.thread?.id===_thread_id)
-            if(!_thread_id || !_conversation){
-                _conversation = new (this.factory.conversation)({ mbr_id: this.mbr_id}, this.factory)
-                await _conversation.init(_thread_id)
-                this.#conversations.push(_conversation)
-            }
-            return _conversation
-        }
-        on(_eventName, listener){
-            this.#emitter.on(_eventName, listener)
-        }
-        /**
-         * Processes and executes incoming category set request.
-         * @public
-         * @param {string} _category - The category to set { category, contributionId, question }.
-         */
-        setActiveCategory(_category){
-            const _proposedCategory = mGetChatCategory(_category)
-            /* evolve contribution */
-            if(_proposedCategory?.category){ // no category, no contribution
-                this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
-            }
-        }
-        /**
-         * Add or update bot, and identifies as activated, unless otherwise specified.
-         * @param {object} _bot - Bot-data to set.
-         */
-        async setBot(_bot, _activate=true){
-            _bot = await mBot(this, _bot) // returns bot object
-            /* add bot to avatar */
-            const _index = this.#bots.findIndex(bot => bot.id === _bot.id)
-            if(_index !== -1) // update
-                this.#bots[_index] = _bot
-            else // add
-                this.#bots.push(_bot)
-            /* activation */
-            if(_activate)
-                this.activeBotId = _bot.id
-            return _bot
-        }
-        async thread_id(){
-            // @todo: once avatar extends bot, keep this inside
-            if(!this.#conversations.length){
-                await this.getConversation()
-            }
-            return this.#conversations[0].threadId
-        }
-        /* getters/setters */
-        /**
-         * Get the active bot. If no active bot, return this as default chat engine.
-         * @public
-         * @returns {object} - The active bot.
-         */
-        get activeBot(){
-            return this.#bots.find(_bot=>_bot.id===this.activeBotId)
-        }
-        get aiId(){
-            return this.conversation[0]
-        }
-        /**
-         * Get the active bot id.
-         * @public
-         * @returns {string} - The active bot id.
-         */
-        get activeBotId(){
-            return this.#activeBotId
-        }
-        /**
-         * Set the active bot id. If not match found in bot list, then defaults back to this.id
-         * @public
-         * @param {string} _bot_id - The active bot id.
-         * @returns {void}
-         */
-        set activeBotId(_bot_id){ // default PA
-            if(!_bot_id?.length) _bot_id = this.avatarBot.id
-            this.#activeBotId = mFindBot(this, _bot_id)?.id??this.avatarBot.id
-        }
-        /**
-         * Returns provider for avatar intelligence.
-         * @public
-         * @returns {object} - The avatar intelligence provider, currently only openAI API GPT.
-         */
-        get ai(){
-            return this.#openai
-        }
-        get avatar(){
-            return this.inspect(true)
-        }
-        get avatarBot(){
-            return this.#bots.find(_bot=>_bot.type==='personal-avatar')
-        }
-        /**
-         * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
-         * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
-         * @returns {string} The object being the avatar is emulating.
-        */
-        get being(){    //  
-            return this.#proxyBeing
-        }
-        get bots(){
-            return this.#bots
-        }
-        get category(){
-            return this.#activeChatCategory
-        }
-        set category(_category){
-            this.#activeChatCategory = _category
-        }
-        get contributions(){
-            return this.#evolver?.contributions
-        }
-        /**
-         * Set incoming contribution.
-         * @param {object} _contribution
-        */
-       set contribution(_contribution){
-           this.#evolver.contribution = _contribution
-        }
-        /**
-         * Get uninstantiated class definition for conversation. If getting a specific conversation, use .conversation(id).
-         * @returns {class} - class definition for conversation
-         */
-        get conversation(){
-            return this.factory.conversation
-        }
-        /**
-         * Get conversations. If getting a specific conversation, use .conversation(id).
-         * @returns {array} - The conversations.
-         */
-        get conversations(){
-            return this.#conversations
-        }
-        // todo: deprecate to available convenience public emit() function
-        get emitter(){  //  allows parent to squeeze out an emitter
-            return this.#emitter
-        }
-        // @todo: return factory privacy
-        get factory(){
-            return this.#factory
-        }
-        get globals(){
-            return this.factory.globals
-        }
-        get mbr_id(){
-            return this.factory.mbr_id
-        }
-        get mbr_id_id(){
-            return this.mbr_sysId
-        }
-        get mbr_name(){
-            return this.mbr_sysName
-        }
-        get mbr_sysId(){
-            return this.globals.sysId(this.mbr_id)
-        }
-        get mbr_sysName(){
-            return this.globals.sysName(this.mbr_id)
-        }
-        get memberFirstName(){
-            return this.memberName.split(' ')[0]
-        }
-        get memberName(){
-            return this.factory.memberName
-        }
-        /**
-         * Get uninstantiated class definition for message.
-         * @returns {class} - class definition for message
-         */
-        get message(){
-            return this.factory.message
-        }
-    }
-    console.log('Avatar class extended')
-    return Avatar
-}
-function extendClass_consent(_originClass,_references) {
-    class Consent extends _originClass {
-        constructor(_obj) {
-            super(_obj)
+/**
+ * Extends the `Consent` class.
+ * @todo - global conversion of parent_id -> object_id
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Consent} - The extended class definition.
+ */
+function extendClass_consent(originClass, referencesObject) {
+    class Consent extends originClass {
+        constructor(obj) {
+            super(obj)
         }
         //  public functions
         async allow(_request){
@@ -317,11 +42,17 @@ function extendClass_consent(_originClass,_references) {
 
     return Consent
 }
-function extendClass_contribution(_originClass,_references) {
-    class Contribution extends _originClass {
+/**
+ * Extends the `Contribution` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Contribution} - The `Contribution` extended class definition.
+ */
+function extendClass_contribution(originClass, referencesObject) {
+    class Contribution extends originClass {
         #emitter = new EventEmitter()
         #factory
-        #openai = _references?.openai
+        #llm = referencesObject?.openai
         constructor(_obj) {
             super(_obj)
         }
@@ -334,7 +65,7 @@ function extendClass_contribution(_originClass,_references) {
          */
         async init(_factory){
             this.#factory = _factory
-            this.request.questions = await mGetQuestions(this, this.#openai) // generate question(s) from cosmos or openAI
+            this.request.questions = await mGetQuestions(this, this.#llm) // generate question(s) from cosmos or openAI
             this.id = this.factory.newGuid
             this.status = 'prepared'
             this.emit('on-contribution-new',this)
@@ -382,7 +113,7 @@ function extendClass_contribution(_originClass,_references) {
             return this.inspect(true)
         }
         get openai(){
-            return this.#openai
+            return this.#llm
         }
         get questions(){
             return this?.questions??[]
@@ -392,39 +123,74 @@ function extendClass_contribution(_originClass,_references) {
 
     return Contribution
 }
-function extendClass_conversation(_originClass,_references) {
-    class Conversation extends _originClass {
+/**
+ * Extends the `Conversation` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Conversation} - The `Conversation` extended class definition.
+ */
+function extendClass_conversation(originClass, referencesObject) {
+    class Conversation extends originClass {
+        #botId
         #factory
         #messages = []
-        #openai = _references?.openai
         #saved = false
         #thread
-        constructor(_obj, _factory) {
-            super(_obj)
-            this.#factory = _factory
+        /**
+         * 
+         * @param {Object} obj - The object to construct the conversation from.
+         * @param {AgentFactory} factory - The factory instance.
+         * @param {Object} thread - The thread instance.
+         * @param {Guid} botId - The initial active bot id (can mutate)
+         */
+        constructor(obj, factory, thread, botId) {
+            super(obj)
+            this.#factory = factory
+            this.#thread = thread
+            this.#botId = botId
+            this.name = `conversation_${this.#factory.mbr_id}_${thread.thread_id}`
+            this.type = this.type??'chat'
         }
-        async init(_thread_id){
-            this.#thread = await mInvokeThread(this.#openai, _thread_id)
-            this.name = `conversation_${this.#factory.mbr_id}_${this.thread_id}`
-        }
-        //  public functions
-        async addMessage(_chatMessage){
-            const _message = (_chatMessage.id?.length)
-                ?   _chatMessage
-                :   await ( new (this.#factory.message)(_chatMessage) ).init(this.thread)
-            this.#messages.unshift(_message)
-        }
-        findMessage(_message_id){
-            //  given this conversation, retrieve message by id
-            return this.messages.find(_msg=>_msg.id===_message_id)
-        }
-        async getMessage(_msg_id){	//	returns openai `message` object
+        /* public functions */
+        /**
+         * Adds a `Message` instances to the conversation.
+         * @public
+         * @param {Object|Message} message - Message instance or object data to add.
+         * @returns {Object[]} - The updated messages array.
+         */
+        addMessage(message){
+            if(this.messages.find(_message=>_message.id===message.id))
+                return this.messages
+            if(!(message instanceof this.#factory.message)){
+                if(typeof message!=='object')
+                    message = { content: message }
+                message = new (this.#factory.message)(message)
+            }
+            this.#messages = [message, ...this.messages]
             return this.messages
-                .filter(_msg=>{ return _msg.id==_msg_id })
         }
-        async getMessages_openai(){ // refresh from opanAI
-            return ( await mMessages(this.#openai, this.thread_id) )
-                .data
+        /**
+         * Adds an array of `Message` instances to the conversation.
+         * @public
+         * @param {Object[]} messages - Array of messages to add.
+         * @returns {Object[]} - The updated messages array.
+         */
+        addMessages(messages){
+            messages
+                .sort((mA, mB) => mA.created_at - mB.created_at)
+                .forEach(message => this.addMessage(message))
+            return this.messages
+        }
+        /**
+         * Get the message by id, or defaults to last message added.
+         * @public
+         * @param {Guid} messageId - The message id.
+         * @returns {object} - The openai `message` object.
+         */
+        async getMessage(messageId){
+            return messageId && this.messages?.[0]?.id!==messageId
+                ? this.messages.find(message=>message.id===messageId)
+                : this.message
         }
         async save(){
             // also if this not saved yet, save to cosmos
@@ -432,21 +198,46 @@ function extendClass_conversation(_originClass,_references) {
                 await mSaveConversation(this.#factory, this)
             }
             //  save messages to cosmos
-            await this.#factory.dataservices.patchArrayItems( // no need to await
+            // @todo: no need to await
+            await this.#factory.dataservices.patch(
                 this.id,
-                'messages',
-                this.messages.map(_msg=>_msg.micro),
+                { messages: this.messages.map(_msg=>_msg.micro), }
             )
             // flag as saved
             this.#saved = true
             return this
         }
         //  public getters/setters
+        get bot_id(){
+            return this.#botId
+        }
+        get botId(){
+            return this.bot_id
+        }
+        set botId(_botId){
+            this.#botId = _botId
+        }
         get isSaved(){
             return this.#saved
         }
+        /**
+         * Get the most recently added message.
+         * @getter
+         * @returns {Message} - The most recent message.
+         */
+        get message(){
+            return this.messages[0]
+        }
         get messages(){
             return this.#messages
+        }
+        /**
+         * Gets most recent dialog contribution to conversation.
+         * @getter
+         * @returns {object} - Most recent facet of dialog from conversation.
+         */
+        get mostRecentDialog(){
+            return this.message.content
         }
         get thread(){
             return this.#thread
@@ -457,16 +248,134 @@ function extendClass_conversation(_originClass,_references) {
         get threadId(){
             return this.thread.id
         }
-        //  private functions
-        async #add(){
-            //  add to cosmos
-            return this
-        }
     }
     return Conversation
 }
-function extendClass_file(_originClass,_references) {
-    class File extends _originClass {
+/**
+ * Extends the `Experience` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Experience} - The `Experience` extended class definition.
+ */
+function extendClass_experience(originClass, referencesObject){
+    class Experience extends originClass {
+        #cast = []
+        constructor(obj) {
+            super(obj)
+        }
+        /* public functions */
+        /**
+         * Initialize the experience.
+         * @todo - implement building classes either on-demand or on-init to create scene and event classes
+         * @returns {Experience} - The initialized experience.
+         */
+        init(){
+            /* self-validation */
+            if(!this.scenes || !this.scenes.length)
+                throw new Error('No scenes provided for experience')
+            /* sort scenes/events by order in place */
+            this.scenes.sort((_a, _b)=>(_a?.order??0)-(_b.order??0))
+            this.scenes.forEach(_scene=>{
+                if(!_scene.events || !_scene.events.length)
+                    throw new Error('No events provided for scene')
+                _scene.events.sort((_a, _b)=>(_a?.order??0)-(_b.order??0))
+            })
+            return this
+        }
+        /**
+         * From specified event, returns `synthetic` Dialog data package, see `mDialog` in `class-experience-functions.mjs`.
+         * @param {Guid} eventId - The event id.
+         * @param {number} iteration - The iteration number, array-variant.
+         * @returns {object} - `synthetic` Dialog data package.
+         */
+        dialogData(eventId, iteration=0){
+            return mDialog(this.event(eventId), iteration)
+        }
+        /**
+         * Gets a specified event from the experience. Throws error if not found.
+         * @param {Array} scenes - The array of scenes to search.
+         * @param {Guid} eventId - The event id.
+         * @returns {object} - The event object data.
+         * @throws {Error} - If event not found.
+         */
+        event(eventId){
+            return mGetEvent(this.scenes, eventId)
+        }
+        /**
+         * From specified event, returns `synthetic` Input data package, see `mInput` in `class-experience-functions.mjs`.
+         * @param {Guid} eventId - The event id.
+         * @param {number} iteration - The iteration number, array-variant.
+         * @returns {object} - `synthetic` Input data package.
+         */
+        input(eventId, iteration=0){
+            return mInput(this.event(eventId), iteration)
+        }
+        /**
+         * Gets a specified scene from the experience. Throws error if not found.
+         * @param {Guid} sceneId 
+         * @returns {object} - The scene object data.
+         */
+        scene(sceneId){
+            return mGetScene(this.scenes, sceneId)
+        }
+        sceneNext(sceneId){
+            return mGetSceneNext(this.scenes, sceneId)
+        }
+        /* getters/setters */
+        /**
+         * Get the cast of the experience.
+         * @getter
+         * @returns {ExperienceCastMember[]} - The array of cast members.
+         */
+        get castMembers(){
+            return this.cast.map(castMember=>{
+                const { bot_id, icon, id, name, role, type, url, } = castMember
+                return { bot_id, icon, id, name, role, type, url, }
+            })
+        }
+        /**
+         * Get the experience in frontend format. Currently intentionally omitting manifest, grab separately, they are not "required". Scenes and events are only required in `eventSequences`.
+         * @getter
+         * @returns {object} - The `synthetic` experience object.
+         */
+        get experience(){
+            const { autoplay, description, goal, id, location, purpose, skippable, title, version } = this
+            return {
+                autoplay,
+                description,
+                goal,
+                id,
+                location,
+                purpose,
+                skippable,
+                title,
+                version: version ?? 0,
+            }
+        }
+        /**
+         * Get the manifest of the experience.
+         * @getter
+         * @returns {object} - The manifest of the experience.
+         * @property {array} cast - The cast array of the experience.
+         * @property {object} navigation - The navigation object of the experience.
+         */
+        get manifest(){
+            return {
+                cast: this.castMembers,
+                navigation: this.navigation,
+            }
+        }
+    }
+    return Experience
+}
+/**
+ * Extends the `File` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {File} - The `File` extended class definition.
+ */
+function extendClass_file(originClass, referencesObject) {
+    class File extends originClass {
         #contents   //  utilized _only_ for text files
         constructor(_obj) {
             super(_obj)
@@ -483,92 +392,57 @@ function extendClass_file(_originClass,_references) {
     }
     return File
 }
-function extendClass_message(_originClass,_references) {
+/**
+ * Extends the `Message` class.
+ * @param {*} originClass - The class to extend.
+ * @param {Object} referencesObject - The references to extend the class with, factory, llm, etc.
+ * @returns {Message} - The `Message` extended class definition.
+ */
+function extendClass_message(originClass, referencesObject) {
     /**
      * Message class.
      * @class
-     * @extends _originClass - variable that defines the _actual_ class to extend, here message.
-     * @param {object} _obj - The object to construct the message from..
+     * @extends originClass - variable that defines the _actual_ class to extend, here message.
+     * @param {object} obj - The object to construct the message from..
      */
-    class Message extends _originClass {
-        #maxContextWindow = Math.min((process.env.OPENAI_MAX_CONTEXT_WINDOW || 2000), 5000)    //  default @2k chars, hard cap @5k
-        #message
-        #openai = _references?.openai
-        constructor(_obj) {
+    class Message extends originClass {
+        #content
+        constructor(obj) {
+            const { content, ..._obj } = obj
             super(_obj)
-            /* category population */
-            if(!_obj.content) mAssignContent(this, _obj)
-        }
-        /* public functions */
-        async init(_thread){ // only required if user message
-            if((!this.content & !this.files)||!_thread)
-                throw new Error('Insufficient data provided for message init()')
-            /* todo: limit requirements for context window, generate file and attach to file_ids array
-            if(this.content.length > this.#maxContextWindow) {
-                //  TODO: generate file and attach to file_ids array
-                throw new Error('unimplemented')
-                const _file = await this.#constructFile(this.content)
-                this.files.push(_file)
-                this.content = `user posted content length greater than context window: find request in related file, file_id: ${_file.id}`      //   default content points to file
-            }*/
-            this.#message = await mGetMessage(
-                this.#openai,
-                _thread,
-                this.content,
-                this.message?.id,
-            )
-            return this
+            try{
+                this.#content = mAssignContent(content??obj)
+            } catch(e){
+                console.log('Message::constructor::ERROR', e)
+                this.#content = ''
+            }
         }
         /* getters/setters */
+        get content(){
+            return this.#content
+        }
+        set content(_content){
+            try{
+                this.#content = mAssignContent(_content)
+            } catch(e){
+                console.log('Message::content::ERROR', e)
+            }
+        }
         get message(){
-            return this.#message
+            return this
         }
         get micro(){
             return { content: this.content, role: this.role??'user' }
-        }
-        get text(){
-            switch (this.type) {
-                case 'chat':
-                    switch (this.system) {
-                        case 'openai_assistant':
-                            return this.message.content[0].text.value
-                        default:
-                            break
-                    }
-                default:
-                    return 'no content derived'
-            }
-        }
-        /* private functions */
-        /**
-         * When incoming text is too large for a single message, generate dynamic text file and attach/submit.
-         * @private
-         * @param {string} _file - The file to construct.
-         * @returns 
-         */
-        async #constructFile(_file){
-            //  construct file object
-            const __file = new (this.factory.file)({
-                name: `file_message_${this.id}`,
-                type: 'text',
-                contents: _file,
-            })
-            //  save to embedder
-            return {
-                name: __file.name,
-                type: __file.type,
-                contents: await __file.arrayBuffer(),
-            }
         }
     }
     return Message
 }
 /* exports */
 export {
-	extendClass_avatar,
 	extendClass_consent,
     extendClass_contribution,
     extendClass_conversation,
+    extendClass_experience,
     extendClass_file,
 	extendClass_message,
 }
