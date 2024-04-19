@@ -4,6 +4,18 @@ class Globals {
     constructor(){}
     /* public functions */
     /**
+     * Returns the avatar object if poplated by on-page EJS script.
+     * @todo - refactor to api call
+     * @returns {object} - The avatar object.
+     */
+    getAvatar(){
+        const avatar = window?.mylifeAvatar
+            ?? window?.mylifeAvatarData
+            ?? window?.avatar
+        console.log('getAvatar::avatar', avatar)
+        return avatar
+    }
+    /**
      * Returns the handle of a given MyLife member composite string.
      * @param {string} str - String to get handle of.
      * @returns {string} - The handle of the string.

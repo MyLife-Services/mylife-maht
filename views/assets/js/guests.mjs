@@ -1,9 +1,11 @@
 /* imports */
 import Globals from './globals.mjs'
-/* constants */
+/* precursor constants */
 const mGlobals = new Globals()
+/* constants */
+const mAvatarName = mGlobals.getAvatar().name
 const mGreeting = [
-	`Hi, I'm @@avatarName, so nice to meet you!`,
+	`Hi, I'm ${ mAvatarName }, so nice to meet you!`,
 	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
 ]
 const hide = mGlobals.hide
@@ -15,7 +17,6 @@ let mChatBubbleCount = 0,
 /* page div variables */
 let awaitButton,
     agentSpinner,
-    
     chatContainer,
     chatInput,
     chatLabel,
@@ -175,7 +176,7 @@ function mAddUserMessage(event){
         delay: 7,
     })
     chatInput.value = null // Clear the message field
-    chatInput.placeholder = 'Type a message to Q...'
+    chatInput.placeholder = `Type a message to ${ mAvatarName }...`
 }
 /**
  * Initializes event listeners.

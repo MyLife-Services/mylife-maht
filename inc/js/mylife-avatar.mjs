@@ -36,6 +36,7 @@ class Avatar extends EventEmitter {
     #livingExperience
     #llmServices
     #mode = 'standard' // interface-mode from modular `mAvailableModes`
+    #nickname // avatar nickname, need proxy here as getter is complex
     #proxyBeing = 'human'
     /**
      * @constructor
@@ -65,6 +66,7 @@ class Avatar extends EventEmitter {
                     return
                 this[key] = value
             })
+        this.nickname = this.nickname ?? this.names?.[0] ?? `${this.memberFirstName ?? 'member'}'s avatar`
         /* create evolver (exclude MyLife) */
         // @todo: admin interface for modifying MyLife avatar and their bots
         this.#bots = await this.#factory.bots(this.id)
@@ -623,6 +625,23 @@ class Avatar extends EventEmitter {
         this.#mode = mValidateMode(requestedMode, this.mode)
     }
     /**
+     * Get the name of the avatar. Note: this.name is normally the Cosmos nomenclature, so we do not write to it, and use it's value as a last resort.
+     * @getter
+     * @returns {string} - The avatar name.
+     */
+    get name(){
+        return this.nickname
+    }
+    /**
+     * Proxy to set the nickname of the avatar.
+     * @setter
+     * @param {string} name - The new avatar nickname.
+     * @returns {void}
+     */
+    set name(name){
+        /* set nothing */
+    }
+    /**
      * Get experience scene navigation array.
      * @getter
      * @returns {Object[]} - The scene navigation array for the experience.
@@ -636,6 +655,24 @@ class Avatar extends EventEmitter {
      */
     get navigation(){
         return this.experience.navigation
+    }
+    /**
+     * Get the nickname of the avatar.
+     * @getter
+     * @returns {string} - The avatar nickname.
+     */
+    get nickname(){
+        return this.#nickname
+    }
+    /**
+     * Set the nickname of the avatar; only set if different from name.
+     * @setter
+     * @param {string} nickname - The new avatar nickname.
+     * @returns {void}
+     */
+    set nickname(nickname){
+        if(nickname!==this.name)
+            this.#nickname = nickname
     }
 }
 /* modular functions */

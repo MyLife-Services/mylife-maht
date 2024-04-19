@@ -17,3 +17,11 @@
 		</button>
 	</div>
 </div>
+<script>
+	/* write variable data to window object */
+	window.mylifeAvatar = {
+		name: '<%= avatar.name %>',
+		names: '<%= avatar.names %>'.split(',').map(name => name.trim()),
+		nickname: '<%= avatar.nickname %>',
+	}
+</script>
