@@ -9,6 +9,7 @@ const mGreeting = [
 	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
 ]
 const hide = mGlobals.hide
+const mPlaceholder = `Type a message to ${ mAvatarName }...`
 const show = mGlobals.show
 /* variables */
 let mChatBubbleCount = 0,
@@ -170,13 +171,11 @@ function mAddUserMessage(event){
     let userMessage = chatInput.value.trim()
     if (!userMessage.length) return
     userMessage = escapeHtml(userMessage) // Escape the user message
-    submit(event, userMessage)
+    mSubmitInput(event, userMessage)
     mAddMessage({ message: userMessage }, {
         bubbleClass: 'user-bubble',
         delay: 7,
     })
-    chatInput.value = null // Clear the message field
-    chatInput.placeholder = `Type a message to ${ mAvatarName }...`
 }
 /**
  * Initializes event listeners.
@@ -257,6 +256,8 @@ function mShowPage(){
     show(mainContent)
     if(proceduralPage)
         return
+    chatInput.value = null
+    chatInput.placeholder = mPlaceholder
     show(chatSystem)
     show(chatContainer)
     show(chatUser)
@@ -278,6 +279,7 @@ function mShowPage(){
             clearTimeout(timerId)
             mAddMessage({ message: mGreeting[1] })
             _cleanupListeners()
+            // display chat lane with placeholder
         }
         // Cleanup function to remove event listeners
         function _cleanupListeners() {
@@ -288,15 +290,13 @@ function mShowPage(){
     }
     }, 1000)
 }
-async function submit(event, _message){
+/**
+ * 
+ * @param {Event} event 
+ * @param {string} _message 
+ */
+async function mSubmitInput(event, _message){
 	event.preventDefault()
-	chatSubmit.style.display = 'none';
-	chatLabel.style.opacity = '0';
-	setTimeout(() => chatLabel.style.visibility = 'hidden', 1000); // Hide after transition
-	clearTimeout(typingTimer);
-	awaitButton.style.display = 'flex';
-	agentSpinner.classList.remove('spinner-green-glow');
-	agentSpinner.classList.add('spinner-blue');
 	const url = window.location.origin
 	const options = {
 		method: 'POST',
@@ -304,8 +304,10 @@ async function submit(event, _message){
 			'Content-Type': 'application/json',
 		},
 		body: JSON.stringify({ message: _message, role: 'user', thread_id: threadId }),
-	};
-	const _gptChat = await submitChat(url, options);
+	}
+    hide(chatUser)
+    show(awaitButton)
+	const _gptChat = await submitChat(url, options)
 	// now returns array of messages
 	_gptChat.forEach(gptMessage=>{
 		threadId = gptMessage.thread_id
@@ -314,12 +316,10 @@ async function submit(event, _message){
 			delay: 10,
 		});
 	});
-	awaitButton.style.display = 'none';
-	chatSubmit.style.display = 'flex';
-	chatLabel.style.visibility = 'visible'; // Make the element visible
-	setTimeout(() => chatLabel.style.opacity = '1', 700); // Fade in after a short delay
-	agentSpinner.classList.remove('spinner-blue');
-	agentSpinner.classList.add('spinner-green-glow');
+    hide(awaitButton)
+    chatInput.value = null
+    chatInput.placeholder = mPlaceholder
+    show(chatUser)
 }
 async function submitChat(url, options) {
 	try {
@@ -360,7 +360,6 @@ function toggleInputTextarea(event) {
         agentSpinner.style.display = 'block';
         resetAnimation(agentSpinner); // Restart animation
     }, 2000);
-
     if(textWidth > inputWidth && chatInput.tagName !== 'TEXTAREA'){ // Expand to textarea
         chatInput = replaceElement(chatInput, 'textarea');
         focusAndSetCursor(chatInput);
