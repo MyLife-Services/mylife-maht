@@ -19,7 +19,6 @@ import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
-import { _ } from 'ajv'
 /* modular constants */
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 const mBotInstructions = {}

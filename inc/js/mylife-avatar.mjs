@@ -1,7 +1,6 @@
 import { Marked } from 'marked'
 import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
-import { _ } from 'ajv'
 import LLMServices from './mylife-llm-services.mjs'
 /* modular constants */
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env

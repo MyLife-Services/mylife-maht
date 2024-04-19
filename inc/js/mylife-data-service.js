@@ -4,10 +4,8 @@
  * @version 1.0.0
  */
 //	imports
-import { _ } from "ajv"
 import Datamanager from "./mylife-datamanager.mjs"
 import PgvectorManager from "./mylife-pgvector-datamanager.mjs"
-import { Guid } from "js-guid"
 /**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.

@@ -2,7 +2,6 @@
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
 import chalk from 'chalk'
-import { _ } from 'ajv'
 import Config from './mylife-datasource-config.mjs'
 import Globals from './globals.mjs'
 /* modular constants */
