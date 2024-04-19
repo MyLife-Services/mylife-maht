@@ -20,7 +20,6 @@ import {
 import { _ } from 'ajv'
 import { parse } from 'path'
 import { Guid } from 'js-guid'
-//  function definitions to extend remarkable classes
 /**
  * Extends the `Consent` class.
  * @todo - global conversion of parent_id -> object_id
@@ -39,7 +38,6 @@ function extendClass_consent(originClass, referencesObject) {
             return true
         }
     }
-
     return Consent
 }
 /**
