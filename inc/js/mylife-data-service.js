@@ -97,7 +97,7 @@ class Dataservices {
 		return this.partitionId.split('|')[1]
 	}
 	get isMyLife(){
-		return this.mbr_id===process.env?.MYLIFE_SERVER_MBR_ID??false
+		return this.mbr_id===process.env.MYLIFE_SERVER_MBR_ID ?? false
 	}
 	get mbr_id(){
 		return this.partitionId

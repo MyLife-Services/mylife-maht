@@ -1,0 +1,143 @@
+/* MyLife Member Challenge */
+.member-challenge-container {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 2em 1em;
+    gap: 1em; /* Adds space between each child div */
+    width: 100%;
+}
+.member-challenge-error {
+    color: red;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 1em 0;
+    width: 100%;
+}
+.member-challenge-input {
+    display: flex;
+    flex-direction: row;
+    gap: 1em; /* Adds space between input and button */
+    width: 100%;
+}
+.member-challenge-label {
+    display: flex;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-right: 1em;
+}
+.member-challenge-input-text {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    flex: 1;
+    font-size: 1.1em;
+    padding: 0.5em;
+    width: 100%;
+}
+.member-challenge-submit {
+    background-color: #007BFF; /* Bootstrap primary blue */
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    display: none;
+    padding: 0.5em 1em;
+    transition: background-color 0.3s ease; /* Smooth transition for hover */
+}
+.member-challenge-submit:hover {
+    background-color: #003a77; /* Darker blue on hover */
+}
+/* MyLife Contribution Request */
+.category-button {
+    background-color: #f0f0f0; /* Neutral color */
+    margin: 5px;
+    padding: 10px;
+    border: none;
+    cursor: pointer;
+}
+.category-button.active {
+    background-color: #4CAF50; /* Active state color */
+    color: white;
+}
+/* missions */
+.widget-mission{
+    background-color: #f0f0f0; /* Neutral color */
+    cursor: pointer;
+    display: flex;
+    margin: 5px;
+    padding: 10px;
+    border: none;
+}
+/* Avatars */
+/* Avatar detail listing */
+.avatar-detail {
+	color: #444;
+	font-family: 'Courier New', Courier, monospace;
+}
+.avatar-detail-label {
+	font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+	font-weight: bold;
+	color: #5c4a7f;
+}
+.avatar-detail-name {
+	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+	font-size: 1.5rem;
+}
+.avatar-listing {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: space-around;
+	padding: 12px;
+}
+.avatars-listing {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: space-around;
+}
+/* interests */
+.checkbox-group {
+    display: flex; /* Use Flexbox */
+    flex-wrap: wrap; /* Allow items to wrap into new lines */
+    justify-content: flex-start; /* Align items to the left */
+    max-height: 100px; /* Adjust as needed */
+    overflow-y: auto; /* Make it scrollable */
+    font-size: 0.9em; /* Shrink text */
+}
+.checkbox-group-item {
+	align-items: center;
+	display: flex;
+    flex: 0 0 48%; /* Each item takes up roughly half the container width */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Add ellipsis for overflow */
+    white-space: nowrap; /* Keep text on one line */
+}
+.checkbox-group label {
+	padding-left: 0.5em;
+	margin: 0;
+}
+/* media queries */
+@media screen and (min-width: 1024px) {
+    body {
+        margin-right: 3em; /* Increased margin for larger screens */
+        max-width: 1024px; /* Set a max-width to center the content */
+        margin-left: auto; /* Center the body horizontally */
+        margin-right: auto;
+    }
+}
+@media screen and (max-width: 768px) { /* Adjust the max-width as needed */
+    .page-column-collection {
+        flex-direction: column;
+    }
+	.main-content {
+		max-width: 100%;
+	}
+	.sidebar {
+		flex-basis: 100%;
+		max-width: 100%;
+	}
+}

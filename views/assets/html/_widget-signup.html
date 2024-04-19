@@ -115,7 +115,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
                 throw new Error('Network response was not ok');
             }
             const isSignedUp = await response.text(); // Get the response as text
-            console.log('Signup status:', signUpTeaser, signUpSuccess)
             if (isSignedUp === 'true') { // If already signed up, show signup success message
                 handleSignupSuccess();
             } else { // If not signed up, show teaser

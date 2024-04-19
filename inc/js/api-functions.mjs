@@ -65,8 +65,13 @@ async function experience(ctx){
         }
     }
     const { experience } = avatar
-    experience.events = events
-    ctx.body = experience
+    const { autoplay, location, title, } = experience
+    ctx.body = {
+        autoplay,
+        events,
+        location,
+        title,
+    }
     ctx.state.MemberSession.experienceLock = false
     if(events.find(event=>{ return event.action==='end' && event.type==='experience' })){
         if(!avatar.experienceEnd(eid)) // attempt to end experience
@@ -77,14 +82,23 @@ async function experience(ctx){
 /**
  * Request to end an active Living-Experience for member.
  * @param {Koa} ctx - Koa Context object.
- * @returns 
+ * @returns {Object} - Represents `ctx.body` object with following `experience` properties.
+ * @property {boolean} success - Success status, true/false.
  */
 function experienceEnd(ctx){
     mAPIKeyValidation(ctx)
     const { assistantType, avatar, mbr_id } = ctx.state
     const { eid } = ctx.params
-    ctx.state.MemberSession.experienceLock = false
-    ctx.body = avatar.experienceEnd(eid)
+    let endSuccess = false
+    try {
+        endSuccess = avatar.experienceEnd(eid)
+    } catch(err) {
+        console.log(chalk.redBright('experienceEnd() error'), err)
+        // can determine if error is critical or not, currently implies there is no running experience
+        endSuccess = true
+    }
+    ctx.body = endSuccess
+    ctx.state.MemberSession.experienceLock = !ctx.body
     return
 }
 /**
@@ -310,16 +324,17 @@ async function tokenValidation(ctx, next) {
  * @returns {void}
  */
 function mAPIKeyValidation(ctx){ // transforms ctx.state
+    if(!ctx.state.locked) return
     if(ctx.params.mid === ':mid') ctx.params.mid = undefined
     // ctx session alternatives to hitting DB every time? can try...
     const mbr_id = ctx.params.mid??ctx.request.body.memberKey
+    if(!mbr_id?.length)
+        ctx.throw(400, 'Missing member key.')
     const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID??'[]')
     const localHostedMembers = [
         'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
     ].filter(member=>serverHostedMembers.includes(member)) // none currently
     serverHostedMembers.push(...localHostedMembers)
-    if(!mbr_id?.length)
-        ctx.throw(400, 'Missing member key.')
     /* inline function definitions */
     function _keyValidation(ctx, mbr_id){ // returns Promise<boolean>
         return new Promise(async (resolve, reject) => {

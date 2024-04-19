@@ -20,24 +20,3 @@
 >
     <% include _widget-bots %>
 </div>
-
-<script>
-    // Function to fetch contributions from the server
-    async function checkLoginStatusForDisplay() {
-        try {
-            const response = await fetch('/status');
-            const _unlocked = await response.json();    //  returns boolean
-            const _widgets = document.querySelectorAll('.mylife-widget')
-                .forEach(_widget => {
-                    const _requireLogin = _widget.dataset?.requireLogin === "true";
-                    _widget.style.display = (_unlocked || !_requireLogin)
-                        ?   'block'
-                        :   'none'
-                });
-        } catch (error) {
-            console.error('Error checking login status:', error);
-        }
-    }
-    // Fetch contributions when the widget loads
-    document.addEventListener('DOMContentLoaded', checkLoginStatusForDisplay());
-</script>

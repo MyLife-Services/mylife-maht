@@ -4,7 +4,10 @@ import mime from 'mime-types'
 import FormData from 'form-data'
 import axios from 'axios'
 //	modular constants
-const aAdmins = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)
+const { MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN, MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT, MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN, MYLIFE_SERVER_MBR_ID: mylifeMbrId, } = process.env
+const bearerToken = MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN
+const fileSizeLimit = parseInt(MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT) || 1048576
+const fileSizeLimitAdmin = parseInt(MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760
 //	modular variables
 let AgentFactory
 let Globals
@@ -55,7 +58,7 @@ class oAIAssetAssistant {
 			url: 'testing-0001',	//	may or may not use url
 			author: 'MAHT',	//	convert to session member (or agent)
 		}
-		const _token = process.env.MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN
+		const _token = bearerToken
 		const _data = new FormData()
 		_data.append('file', fs.createReadStream(this.file.filepath), { contentType: this.file.mimetype })
 		_data.append('metadata', JSON.stringify(_metadata))
@@ -113,9 +116,9 @@ class oAIAssetAssistant {
 		]
 		// reject size
 		let _mbr_id = this.#ctx.state.member.mbr_id
-		let _maxFileSize = (aAdmins.includes(_mbr_id) || _mbr_id === process.env.MYLIFE_SERVER_MBR_ID)
-			?	process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN
-			:	process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT
+		let _maxFileSize = _mbr_id === mylifeMbrId
+			?	fileSizeLimitAdmin
+			:	fileSizeLimit
 		if (this.#file.size > _maxFileSize) throw new Error(`File size too large: ${this.#file.size}. Maximum file size is 1MB.`)
 		//	reject mime-type
 		if (!allowedMimeTypes.includes(this.#file.mimetype)) throw new Error(`Unsupported media type: ${this.#file.mimetype}. File type not allowed.`)

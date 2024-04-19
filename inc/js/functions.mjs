@@ -92,8 +92,14 @@ async function contributions(ctx){
 		:	mSetContributions(ctx)
 	)
 }
+/**
+ * Index page for the application.
+ * @async
+ * @public
+ * @requires ctx.state.avatar - The avatar object for the member or Q.
+ * @param {object} ctx - Koa Context object
+ */
 async function index(ctx){
-	ctx.state.title = `${ctx.state.member.agentDescription}`
 	await ctx.render('index')
 }
 /**

@@ -102,7 +102,7 @@ class BotFactory extends EventEmitter{
 		this.#mbr_id = _mbr_id
 		this.#dataservices = new Dataservices(this.mbr_id)
 		await this.#dataservices.init()
-		this.core.avatar_id = this.core?.avatar_id
+		this.core.avatar_id = this.core.avatar_id
 			?? (await this.dataservices.getAvatar()).id
 		return this
 	}
@@ -117,7 +117,6 @@ class BotFactory extends EventEmitter{
 	 */
 	async bot(_bot_id, type=mDefaultBotType, _mbr_id){
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
-			console.log(chalk.yellowBright('locating member bot...'), type, _mbr_id, _bot_id)
 			if(!_mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
 			const _botFactory = new BotFactory(_mbr_id)
@@ -175,9 +174,10 @@ class BotFactory extends EventEmitter{
 		)
 		return _bots
 	}
-	async createBot(_bot={ type: mDefaultBotType }){
-		_bot.id = this.newGuid
-		return mCreateBot(this, _bot)
+	async createBot(bot={ type: mDefaultBotType }){
+		bot.id = this.newGuid
+		const _bot = await mCreateBot(this.#llmServices, this, bot, this.avatarId)
+		return _bot
 	}
 	/**
 	 * Gets array of member `experiences` from database. When placed here, it allows for a bot to be spawned who has access to this information, which would make sense for a mini-avatar whose aim is to report what experiences a member has endured.
@@ -376,7 +376,8 @@ class AgentFactory extends BotFactory{
 		if(mIsMyLife(mbr_id))
 			throw new Error('MyLife server AgentFactory cannot be initialized, as it references modular dataservices on constructor().')
 		await super.init(mbr_id)
-		this.#llmServices = new LLMServices(this.core.openaiapikey, this.core.openaiorgkey)
+		if(this.core.openaiapikey)
+			this.#llmServices = new LLMServices(this.core.openaiapikey, this.core.openaiorgkey)
 		return this
 	}
 	/**
@@ -425,9 +426,9 @@ class AgentFactory extends BotFactory{
 	 * @returns {Avatar} - The Avatar instance.
 	 */
 	async getAvatar(){
-		const _avatar = await ( new Avatar(this, this.#llmServices) )
+		const avatar = await ( new Avatar(this, this.#llmServices) )
 			.init()
-		return _avatar
+		return avatar
 	}
 	async getMyLifeMember(){
 		const _r =  await ( new (mSchemas.member)(this) )
@@ -547,6 +548,23 @@ class AgentFactory extends BotFactory{
 	}
 }
 // private modular functions
+/**
+ * Initializes openAI assistant and returns associated `assistant` object.
+ * @modular
+ * @param {LLMServices} llmServices - OpenAI object
+ * @param {object} bot - bot creation instructions.
+ * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
+ */
+async function mAI_openai(llmServices, bot){
+    const { bot_name, description, model, name, instructions} = bot
+    const assistant = {
+        description,
+        model,
+        name: bot.bot_name ?? bot.name, // take friendly name before Cosmos
+        instructions,
+    }
+    return await llmServices.createBot(assistant)
+}
 function assignClassPropertyValues(_propertyDefinition){
 	switch (true) {
 		case _propertyDefinition?.const!==undefined:	//	constants
@@ -649,40 +667,67 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
  * Creates bot and returns associated `bot` object.
  * @modular
  * @private
- * @param {BotFactory} _factory - BotFactory object
- * @param {object} _bot - Bot object, must include `type` property.
+ * @param {LLMServices} llm - OpenAI object
+ * @param {AgentFactory} factory - Agent Factory object
+ * @param {object} bot - Bot object
+ * @param {string} avatarId - Avatar id
+ * @returns {string} - Bot assistant id in openAI
+*/
+async function mCreateBotLLM(llm, bot){
+    const llmResponse = await mAI_openai(llm, bot)
+    return llmResponse.id
+}
+/**
+ * Creates bot and returns associated `bot` object.
+ * @modular
+ * @async
+ * @private
+ * @param {LLMServices} llm - LLMServices Object contains methods for interacting with OpenAI
+ * @param {BotFactory} factory - BotFactory object
+ * @param {object} bot - Bot object, must include `type` property.
  * @returns {object} - Bot object
 */
-function mCreateBot(_factory, _bot){
-	const _description = _bot.description??`I am a ${_bot.type} bot for ${_factory.memberName}`
-	const _instructions = _bot.instructions??mCreateBotInstructions(_factory, _bot.type)
-	const _botName = _bot.bot_name??_bot.name??_bot.type
-	const _cosmosName = _bot.name??`bot_${_bot.type}_${_factory.avatarId}`
-	if(!_factory?.avatarId) throw new Error('avatar id required to create bot')
-	const _botData = {
+async function mCreateBot(llm, factory, bot){
+	const { avatarId, } = factory
+	const _description = bot.description
+		?? `I am a ${bot.type} bot for ${factory.memberName}`
+	const _instructions = bot.instructions
+		?? mCreateBotInstructions(factory, bot)
+	const botName = bot.bot_name
+		?? bot.name
+		?? bot.type
+	const _cosmosName = bot.name
+		?? `bot_${bot.type}_${avatarId}`
+	if(!avatarId)
+		throw new Error('avatar id required to create bot')
+	const botData = {
 		being: 'bot',
-		bot_name: _botName,
+		bot_name: botName,
 		description: _description,
 		instructions: _instructions,
 		model: process.env.OPENAI_MODEL_CORE_BOT,
 		name: _cosmosName,
-		object_id: _factory.avatarId,
+		object_id: avatarId,
 		provider: 'openai',
 		purpose: _description,
-		type: _bot.type,
+		type: bot.type,
 	}
-	return _botData
+	botData.bot_id = await mCreateBotLLM(llm, botData) // create after as require model
+	return botData
 }
 /**
  * Returns MyLife-version of bot instructions.
  * @modular
  * @private
- * @param {BotFactory} _factory - Factory object
+ * @param {BotFactory} factory - Factory object
  * @param {object} _bot - Bot object
  * @returns {string} - flattened string of instructions
  */
-function mCreateBotInstructions(_factory, _type=mDefaultBotType){
-    let _botInstructionSet = _factory.botInstructions(_type) // no need to wait, should be updated or refresh server
+function mCreateBotInstructions(factory, _bot){
+	if(!_bot)
+		throw new Error('bot object required')
+	const _type = _bot.type ?? mDefaultBotType
+    let _botInstructionSet = factory.botInstructions(_type) // no need to wait, should be updated or refresh server
     _botInstructionSet = _botInstructionSet?.instructions
     if(!_botInstructionSet) throw new Error(`bot instructions not found for type: ${_type}`)
     /* compile instructions */
@@ -707,8 +752,8 @@ function mCreateBotInstructions(_factory, _type=mDefaultBotType){
     /* apply replacements */
     _botInstructionSet.replacements = _botInstructionSet?.replacements??[]
     _botInstructionSet.replacements.forEach(_replacement=>{
-        const _placeholderRegExp = _factory.globals.getRegExp(_replacement.name, true)
-        const _replacementText = eval(`_factory?.${_replacement.replacement}`)
+        const _placeholderRegExp = factory.globals.getRegExp(_replacement.name, true)
+        const _replacementText = eval(`factory?.${_replacement.replacement}`)
             ?? eval(`_bot?.${_replacement.replacement}`)
             ?? _replacement?.default
             ?? '`unknown-value`'
@@ -718,13 +763,12 @@ function mCreateBotInstructions(_factory, _type=mDefaultBotType){
     _botInstructionSet.references = _botInstructionSet?.references??[]
     _botInstructionSet.references.forEach(_reference=>{
         const _referenceText = _reference.insert
-        const _replacementText = eval(`_factory?.${_reference.value}`)
+        const _replacementText = eval(`factory?.${_reference.value}`)
             ?? eval(`_bot?.${_reference.value}`)
             ?? _reference.default
             ?? '`unknown-value`'
         switch(_reference.method??'replace'){
             case 'append-hard':
-                console.log('append-hard::_botInstructions', _referenceText, _replacementText)
                 const _indexHard = _botInstructions.indexOf(_referenceText)
                 if (_indexHard !== -1) {
                 _botInstructions =
@@ -752,10 +796,10 @@ function mCreateBotInstructions(_factory, _type=mDefaultBotType){
     })
     return _botInstructions
 }
-function mExposedSchemas(_factoryBlockedSchemas){
+function mExposedSchemas(factoryBlockedSchemas){
 	const _systemBlockedSchemas = ['dataservices','session']
 	return Object.keys(mSchemas)
-		.filter(key => !_systemBlockedSchemas.includes(key) && !_factoryBlockedSchemas.includes(key))
+		.filter(key => !_systemBlockedSchemas.includes(key) && !factoryBlockedSchemas.includes(key))
 		.reduce((obj, key) => {
 			obj[key] = mSchemas[key]
 			return obj
@@ -908,24 +952,24 @@ function mInflateLibraryItem(_item, _library_id, _mbr_id){
  * Hydrates library and returns library object.
  * @modular
  * @private
- * @param {BotFactory} _factory - BotFactory object
+ * @param {BotFactory} factory - BotFactory object
  * @param {object} _library - Library object
  * @returns {object} - Library object
  */
-async function mLibrary(_factory, _library){
+async function mLibrary(factory, _library){
 	// @todo: micro-avatar for representation of bot(s)
 	// @todo: Bot class with extension for things like handling libraries
 	// @todo: bot-extenders so that I can get this functionality into that object context
 	/* constants */
 	const { assistantType, form='collection', id, items: _libraryItems=[], mbr_id, type } = _library
-	const _avatar_id = _factory.avatarId
+	const _avatar_id = factory.avatarId
 	// add/get correct library; default to core (object_id=avatar_id && type)
 	/* parse and cast _libraryItems */
-	let _libraryCosmos = await _factory.dataservices.library(id, _avatar_id, type, form)
+	let _libraryCosmos = await factory.dataservices.library(id, _avatar_id, type, form)
 	// @dodo: currently only book/story library items are supported
 	if(!_libraryCosmos){ // create when undefined
 		// @todo: microbot should have a method for these
-		const _library_id = _factory.newGuid
+		const _library_id = factory.newGuid
 		_libraryCosmos = {
 			being: `library`,
 			form: form,
@@ -936,7 +980,7 @@ async function mLibrary(_factory, _library){
 			object_id: _avatar_id,
 			type: type,
 		}
-		_factory.dataservices.pushItem(_libraryCosmos) // push to Cosmos
+		factory.dataservices.pushItem(_libraryCosmos) // push to Cosmos
 	} else {
 		// @todo: manage multiple libraries
 		const { id: _library_id, items: _storedLibraryItems } = _libraryCosmos
@@ -966,15 +1010,17 @@ async function mLibrary(_factory, _library){
 				_storedLibraryItems[matchIndex] = {
 					..._storedLibraryItems[matchIndex],  // Keep existing properties
 					..._item,  // Overwrite and add new properties from _item
-					id: _storedLibraryItems[matchIndex].id??_factory.newGuid, // if for some reason object hasn't id
+					id: _storedLibraryItems[matchIndex].id
+						?? factory.newGuid, // if for some reason object hasn't id
 					object_id: _library_id,
-					type: _item.type??'book',
+					type: _item.type
+						?? 'book',
 				}
 			} else {
 				_storedLibraryItems.push({ // If no match is found, add the item to the library
 					..._item,
-					id: _item.id??_factory.newGuid, // Ensure each item has a unique ID
-					mbr_id: _factory.mbr_id,
+					id: _item.id??factory.newGuid, // Ensure each item has a unique ID
+					mbr_id: factory.mbr_id,
 					object_id: _library_id,
 					type: _item.type??'book',
 				})
@@ -982,7 +1028,7 @@ async function mLibrary(_factory, _library){
 		})
 		// save library to Cosmos @todo: microbot should have a method for this
 		_libraryCosmos.items = _storedLibraryItems
-		_factory.dataservices.patch(_library_id, {items: _libraryCosmos.items})
+		factory.dataservices.patch(_library_id, {items: _libraryCosmos.items})
 	}
 	return _libraryCosmos
 }

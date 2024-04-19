@@ -1,52 +1,48 @@
 @import url('bot-bar.css');
+@import url('chat.css');
 @import url('experience.css');
+@import url('members.css');
 /* MyLife layout */
 body {
-	/* background-image: url('../jpg/MyLife_two_seeds.jpg'); */
-	align-items: center;
-	background-color: #f5f5f5;
+	background-color: #000000;
 	background-size: 1200px;
 	background-repeat: no-repeat;
 	background-position: top;
 	display: flex;
 	flex-direction: column;
 	font-family: Arial, sans-serif;
-	justify-content: center;
-	margin: 0 1.5em 1.5em 1.5em;
+	justify-items: flex-start;
+	margin: 0 2em;
 	max-width: 100%;
-	min-height: 65vh;
-}
-.flex-container {
-    display: flex;
-    flex-direction: column; /* Or row, depending on your layout */
-    flex-wrap: wrap;
-	height: 100vh; /* 100% of the viewport height */
-    gap: 12px;
 }
 .page-container {
     display: flex;
     flex-direction: column; /* Change to row for horizontal layout */
-	margin: 0 auto; /* Center the content */
-	width: 100%; /* Ensures the container grows to the full width */
+	height: 100%;
+	margin: 0;
+	max-height: 100vh; /* Ensures the container grows to the full height */
 	max-width: 100%;
+	width: 100%; /* Ensures the container grows to the full width */
 }
 .page-column-collection {
 	display: flex;
 	flex-direction: row; /* Change to column for vertical layout */
-	width: 100%;
-	max-height: 100vh;
+	height: 100%;
 	max-width: 100%;
+	overflow: hidden; /* Critical for keeping the layout within the viewport */
+	width: 100%;
 }
 /* MyLife Menu Navigation */
-.navbar {
+.navigation-container {
 	background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.25) 70%, rgba(0, 0, 100, 0.15) 100%);
 	background-color: whitesmoke; /* Blue background color */
 	border: 1px dotted rgba(0, 0, 139, 0.3);
 	border-radius: 22px; /* Rounded corners */
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
 	box-sizing: border-box; /* Ensures padding and width stays within the border */
+	display: none;
 	justify-content: flex-start; /* Aligns items horizontally */
-	margin-bottom: 0.5em; /* Bottom margin */
+	/*margin-bottom: 0.5em; /* Bottom margin */
 	padding: 0px;
 	width: 100%; /* Full width */
 }
@@ -54,13 +50,7 @@ body {
 	color: #4CAF50; /* White text color */
 	cursor: default; /* Set cursor to default */
 	font-weight: bold;
-	margin-right: 24px; /* Right margin on navbar brand */
-}
-.navbar-brand:hover {
-	color: #4CAF50; /* White text color */
-	margin-right: 24px; /* Right margin on navbar brand */
-	font-weight: bold;
-	cursor: default; /* Set cursor to default */
+	margin-right: 2em; /* Right margin on navbar brand */
 }
 .navbar-nav {
 	background: linear-gradient(
@@ -73,7 +63,7 @@ body {
     border-radius: 10px; /* Rounded edges */
 	display: flex; /* Aligns the flex item horizontally (default: row) */
 	flex-direction: row; /* Aligns the flex item horizontally (default: row) */
-	margin-top: 1.5em;
+	margin: 1em 0;
 }
 .navbar-nav:hover {
 	border:rgba(53, 31, 53, 0.25) 1px solid;
@@ -85,13 +75,13 @@ body {
 .nav-link.active {
     color: #007bff; /* Your existing styles for active link */
     font-weight: bold;
-    cursor: default; /* Set cursor to default */
+    cursor: pointer; /* Set cursor to default */
 }
 /* MyLife system alerts */
 .alert-container{
 	display: flex;
 	flex-direction: column;
-	margin-bottom: .5em;
+	margin: 0.1em 0;
 }
 .alert-box {
     width: 85%; /* Full width */
@@ -104,7 +94,7 @@ body {
 }
 .alert-content {
 	align-items: stretch; /* Vertically center align items */
-	/*   animation: alertFadeOut 2s forwards; /* */
+	/* animation: alertFadeOut 2s forwards; */
 	border-top-left-radius: inherit;
 	border-bottom-left-radius: inherit;
     color: rgba(0, 0, 0, 0.9);
@@ -156,11 +146,6 @@ body {
 	opacity: 1;
 	animation: alertFadeIn 0.5s forwards;
 }
-@keyframes alertFadeOut {
-    0% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { opacity: 0; }
-}
 /* MyLife main content */
 .main-content {
     background: white; /* Assuming a card-like look typically has a white background */
@@ -169,12 +154,14 @@ body {
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
 	box-sizing: border-box;
-	height: fit-content;
-	flex: 1 0 auto;
+	display: none;
+	flex: 1 1 66%; /* Use flex to assign 66% of the space */
+	height: auto;
 	max-width: 100%;
-	min-width: 50%;
+	min-height: 50vh;
+	min-width: 66%;
+	overflow: hidden;
     padding: 0px;
-	width: 65%;
 }
 .main-content h1 {
 	padding: 3%;
@@ -197,210 +184,22 @@ body {
 .main-content h2 {
 	font-size: 20px;
 }
-/* MyLife chat container */
-.agent-bubble {
-    background-color: rgba(0, 86, 179, .85); /* A darker shade of blue for the agent */
-    color: #ffffff; /* White text for better readability */
-    margin-left: 0;
-}
-.agent-bubble a {
-	font-size: 1em;
-    color: #dcb6ff; /* White text for better readability */
-}
-.button.chat-submit {
-	flex: 0 0 auto;
-	color: rgba(65, 84, 104, 0.85);
-	background-color: rgba(183, 203, 225, 0.85);
-	margin: 0px;
-	white-space: nowrap; /* Prevents text wrapping in the button */
-}
-.button.chat-submit:hover {
-	background-color: rgba(195, 203, 52, 0.85);
-	color: #061320;
-}
-.button.chat-submit:focus {
-    outline: none; /* Remove the default focus outline */
-    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.6); /* Yellow glow */
-}
-.button.chat-submit:disabled {
-	background-color: rgba(63, 75, 83, 0.2);
-	border-color: rgba(146, 157, 163, .7);
-	color: rgba(146, 157, 163, .9);
-}
-.chat-bubble {
-    border-radius: 18px; /* Rounded corners for a modern look */
-    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
-    margin-bottom: 0.5rem;
-    max-width: 80%;
-    min-width: 30%;
-    padding: 10px 15px; /* Padding for content inside bubble */
-	font-size: .9em;
-    width: fit-content; /* Fit the content's width */
-    word-wrap: break-word; /* Ensure long words don't overflow */
-}
-.chat-container {
-	align-items: center;
-	background-image: 
-        linear-gradient(
-			to bottom,
-			rgba(255, 255, 255, 0.85) 0%,
-			rgba(255, 255, 255, 0.85) 50%,
-			rgba(66, 66, 66, 0.85) 100%
-		), /* White overlay with 50% opacity */
-        url('../jpg/cosmos.jpg'); /* Your original background image */
-    background-size: cover; /* Ensures the image covers the whole area */
-    background-position: center; /* Centers the image */
-    border-radius: 0 0 22px 22px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-	box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-	height: fit-content;
-	justify-content: space-between;
-    max-height: 80vh;
-	min-height: 50vh;
-	overflow: visible;
-    padding: 0 1em;
-	position: relative;
-}
-.chat-input {
-	align-items: center;
-	align-self: stretch;
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	justify-content: right;
-	margin-top: 1rem;
-	min-width: max-content;
-	overflow: visible;
-}
-.chat-input input {
-	background-color: #ffffff; /* White background color */
-	border-radius: 12px; /* Rounded corners */
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
-	flex: 1;
-	margin: 6px 12px; /* Margin for space outside the container */
-	padding: 8px; /* Padding for space inside the container */
-}
-.chat-input textarea {
-    background-color: #ffffff; /* White background color */
-    border: 1px solid #ccc; /* Border color */
-    border-radius: 12px; /* Rounded corners */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
-    flex: 1;
-	flex-shrink: 0;
-    font-size: 1rem; /* Adjust font size */
-    line-height: 1.5; /* Adjust line height for better readability */
-	min-height: 100%;
-	/* max-height: 200px; /* Adjust this value as needed */
-    margin: 6px 12px; /* Margin for space outside the container */
-    overflow-y: auto; /* Adds a scrollbar when content exceeds max-height */
-    padding: 8px; /* Padding for space inside the container */
-    resize: vertical; /* Allows vertical resizing, none to disable */
-}
-/* Styling the scrollbar track */
-.chat-input textarea::-webkit-scrollbar-track {
-    background-color: rgba(0, 0, 0, 0.1); /* Track background color */
-    border-radius: 1%; /* Rounded corners for the track */
-}
-/* Styling the scrollbar handle */
-.chat-input textarea::-webkit-scrollbar-thumb {
-    background-color: #e3a274; /* Handle color */
-    border-radius: 10px; /* Rounded corners for the handle */
-}
-/* Styling the scrollbar handle on hover */
-.chat-input textarea::-webkit-scrollbar-thumb:hover {
-    background-color: #15a211; /* Darker color on hover */
-}
-/* Styling the scrollbar width */
-.chat-input textarea::-webkit-scrollbar {
-	background-color: rgba(255, 255, 255, 0.8); /* Track background color */
-    width: 12px; /* Width of the scrollbar */
-}
-.chat-output {
-	align-self: stretch;
+/* MyLife About, Privacy Policy */
+.about-container, .privacy-container {
 	display: flex;
 	flex-direction: column;
-	flex-grow: 1;
-	flex-wrap: nowrap;
-	justify-content: flex-start;
-	margin-top: 0.6em;
-	max-height: fit-content;
-	overflow-x: hidden;
-    overflow-y: scroll;
+	overflow: scroll;
+	margin: 1em;
 }
-/* Styles the scrollbar itself */
-.chat-output::-webkit-scrollbar {
-    width: 6px; /* Adjust the width of the scrollbar */
+.about-section, .privacy-section {
+	display: flex;
+	flex-direction: column;
+	padding: .5em;
 }
-/* Styles the track of the scrollbar */
-.chat-output::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1); /* Color of the track */
-    border-radius: 10px; /* Optional: adds rounded corners to the track */
-}
-/* Styles the handle (thumb) of the scrollbar */
-.chat-output::-webkit-scrollbar-thumb {
-    background: rgba(232, 226, 183, .5); /* Color of the thumb */
-    border-radius: 10px; /* Optional: adds rounded corners to the thumb */
-}
-/* Changes the color of the thumb when hovered over or clicked */
-.chat-output::-webkit-scrollbar-thumb:hover {
-    background: rgba(214, 198, 75, 0.5); /* Darker shade on hover */
-}
-.label {
-	color: rgba(240, 240, 240, .9);
-	flex: 0 0 auto;
-	font-size: 24px;
-	font-style: normal;
-	font-stretch: condensed;
-	font-weight: bold;
-	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-	transition: visibility 0s, opacity 0.7s linear;
-}
-.label-spinner {
-    position: absolute;
-	background-color: whitesmoke;
-    opacity: 0; /* Max opacity of 50% */
-}
-.label-spinner-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center; /* Center contents horizontally */
-    min-height: 50px; /* Ensure enough height for spinner and label */
-}
-.member-bubble, .user-bubble {
-    background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
-    color: #333333; /* Dark grey for contrast and easy reading */
-	font-size: .75em;
-    margin-left: auto;
-	margin-right: 12px;
-}
-.member-bubble a, .user-bubble a {
-	color: #333333; /* Dark grey for contrast and easy reading */
-}
-#message {
-	margin-right: 0.5rem;
-}
-.spinner-green-glow {
-	background-image: radial-gradient(circle, #4b94a1, #d2f35e);
-	filter: blur(.2em); /* Adjust the pixel value for the level of blur */
-}
-.spinner-blue {
-	animation-delay: 0s;
-	background-image: radial-gradient(circle, #4b7982, #74a2ff);
-	filter: blur(.15em); /* Adjust the pixel value for the level of blur */
-}
-.spinner-grow {
-    animation: spinner-grow 2.6s infinite ease-in-out;
-	animation-delay: 2s;
-    border-radius: 50%;
-    display: inline-block;
-    height: 1.5rem;
-    width: 1.5rem;
-}
-#response {
-	margin-top: 1rem;
+.about-section, .privacy-section h3 {
+	border-bottom: thin solid navy;
+	color: navy;
+	display: flex;
 }
 /* MyLife Contribution Request */
 .category-button {
@@ -510,18 +309,23 @@ body {
     background-size: cover; /* Ensures the image covers the whole area */
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
-	box-sizing: border-box;
-	color: #221a30;
-	display: flex;
-	flex-basis: 35%;
+	display: none;
+	flex: 0 0 33%; /* Use flex to assign 33% of the space */
+	flex-direction: column;
 	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
 	font-size: 0.8em;
-	max-width: 35%;
+	height: fit-content; /* 100% will stretch to bottom */
+	max-width: 33%;
+    padding: 0px;
 }
 .sidebar-widget {
+	align-items: flex-start;
 	display: flex;
-    width: auto;
+	flex-direction: column;
+	margin: 0;
     max-width: 100%;
+	padding: 0;
+    width: 100%;
 }
 .teaser {
 	display: flex;
@@ -561,200 +365,8 @@ body {
     text-align: center; /* Center the text */
     border-radius: 12px 12px 0 0; /* Rounded top corners, flat bottom */
     margin: 0; /* No margin to ensure it meets the container's edges */
+	margin-top: 1em;
     width: 100%; /* Full width of the container */
-}
-/* Avatars */
-/* Avatar detail listing */
-.avatar-detail {
-	color: #444;
-	font-family: 'Courier New', Courier, monospace;
-}
-.avatar-detail-label {
-	font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-	font-weight: bold;
-	color: #5c4a7f;
-}
-.avatar-detail-name {
-	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
-	font-size: 1.5rem;
-}
-.avatar-listing {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	justify-content: space-around;
-	padding: 12px;
-}
-.avatars-listing {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	justify-content: space-around;
-}
-/* bot legion */
-.bot { /* along with widget */
-	align-items: stretch;
-}
-.bot-container {
-	box-sizing: border-box;
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
-	margin: 0.2rem 0;
-}
-.bot-icon {
-	background-color: rgb(142, 142, 142);
-	background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
-	border: rgba(0, 0, 0, 0.7) 0.12em solid;
-	border-radius: 50%;
-	box-shadow: 0.6px 2px 3px rgba(0, 0, 0, 0.6);
-	flex: 0 0 auto;
-	height: 1.5em;
-	margin: .4em;
-	position: relative;
-	width: 1.5em;
-}
-.bot-icon.active {
-	animation: _statusBlinkActive 10s infinite;
-	background-image: radial-gradient(circle at 0.1em 0.1em, #ecffea 0%, #1e4e2d 40%, rgb(55, 255, 41) 80%, #3b3b3b 100%);
-	box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6);
-}
-.bot-icon.inactive {
-	animation-name: _statusBlinkShadowInactive, _statusBlinkInactive;
-    animation-duration: 8s, 3s;
-    animation-timing-function: linear, linear;
-    animation-iteration-count: infinite, infinite;
-}
-.bot-icon:hover {
-	background-color: #ff0;
-}
-.bot-name {
-	color: inherit;
-}
-.bot-options {
-	border: rgba(0, 0, 0, 0.7) 0.12em solid;
-	border-radius: 0 0 0.22em 0.22em;
-	border-top: none;
-	box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
-	display: none; /* Initially not displayed */
-    margin: 0em 1em 1em 1em;
-	padding: 0.5em;
-}
-.bot-options.open {
-    display: flex; /* Make it flex when open */
-    flex-direction: row;
-    flex-wrap: wrap;
-    animation: _slideBotOptions 0.5s forwards;
-}
-.bot-options-dropdown {
-    align-items: center;
-    background-color: rgba(255, 255, 255, .7); /* Circle color */
-	border: rgba(0, 0, 0, 0.7) 0.12em solid;
-    border-radius: 50%; /* Make it round */
-    display: flex;
-	flex: 0 0 auto;
-    height: 1.5em; /* Size of the circle */
-    justify-content: center;
-	margin-left: 0.8em;
-    width: 1.5em; /* Size of the circle */
-}
-.bot-options-dropdown::before {
-    content: '';
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 10px solid rgba(29, 29, 70, .6); /* Triangle color */
-    transform: rotate(90deg); /* Initial rotation */
-    transition: transform 0.3s ease; /* Smooth rotation transition */
-}
-.bot-options-dropdown.open::before {
-    transform: rotate(0deg); /* Rotation when open */
-}
-.bot-status {
-	align-items: center;
-	background-color: #007BFF;
-	border: rgba(0, 0, 0, 0.1) 0.12em solid;
-	border-radius: .2em;
-	box-shadow: inset 0.3em 0.2em .6em lightblue, 0.1em 0.2em 0.3em black;
-	box-sizing: border-box;
-	cursor: pointer;
-	display: flex;
-	flex-direction: row;
-	justify-content: stretch;
-	margin: 0.2em 0.2em 0em 0.2em;
-	padding: 0.2em;
-}
-.bot-type {
-	font-size: 0.8em;
-	font-weight: bold;
-	color: aliceblue;
-	margin-right: 1em;
-	flex: 0 0 auto;
-}
-.ticker {
-	background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
-    border: 0.5px solid rgba(255, 255, 255, 0.5); /* Thin white border with 50% opacity */
-    box-shadow: inset -4px -14px 13px 2px rgba(0, 0, 0, 0.5); /* Inset shadow for top and left */
-    border-radius: 0.3em;
-    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
-    white-space: nowrap; /* Prevent text from wrapping to the next line */
-    overflow: hidden; /* Hide the overflowing part of the text */
-    display: block; /* Make it a block element */
-    min-width: 5em; /* Allow the text to shrink */
-    color: rgb(28, 255, 28);
-}
-.ticker span {
-    display: inline-block; /* Inline block for the animation */
-    padding-left: 110%; /* Space before scrolling starts */
-    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
-}
-.ticker span.no-animation {
-    animation: none;
-	padding: 0;
-}
-.mylife-widget.bots {
-	align-items: flex-start;
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
-	max-width: 100%;
-}
-@keyframes _scrollText {
-    0% {
-        transform: translateX(0%);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
-}
-@keyframes _slideBotOptions { /* @todo: make slide down from under status */
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-@keyframes _statusBlinkInactive {
-	0% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
-	}
-	80% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
-	}
-	100% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
-	}
-}
-@keyframes _statusBlinkShadowInactive {
-	0% {
-		box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6);
-	}
-	70% {
-		box-shadow: 1px 2.2px 6px rgba(255, 0, 0, 0.4);
-	}
-	100% {
-		box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.75);
-	}
 }
 /* MyLife error handling */
 .error {
@@ -789,32 +401,9 @@ body {
 	text-align: center;
 }
 .mylife-widget {
+	align-items: flex-start;
 	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-}
-/* bot widget */
-.bot-container {
-    /* Basic styling for the bot container */
-    cursor: auto;
-}
-.bot-header {
-    /* Styling for the header */
-	font-size: 1.2em;
-}
-.bot-content {
-    /* Hidden by default */
-    display: none;
-    overflow: hidden;
-}
-.bot-content.visible {
-    /* Show content when active */
-    display: block;
-}
-.toggle-switch {
-    /* Styling for toggle switch */
-	background-color: #ccc;
+	width: 100%;
 }
 /* MyLife header */
 #header {
@@ -825,77 +414,11 @@ body {
 .header-text {
     font-weight: bold;
 }
-/* bot slider */
-.input-group {
-    width: 100%;
-    text-align: center;
-    margin-bottom: 10px;
-}
-.input-group label {
-    display: block;
-    margin-bottom: 10px;
-}
-input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none;
-    height: 0.4em; /* Height of the track */
-    margin: 0.75em 0;
-    width: 100%;
-    background: black; /* Black track */
-}
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    background: #9faee7; /* Fader color */
-    cursor: pointer;
-    height: 2em; /* Height of the fader */
-    width: 1em; /* Width of the fader */
-    border-radius: 0.2em; /* Slightly rounded edges */
-    border: 1px solid #666; /* Border for fader */
-}
-input[type="range"]::-moz-range-thumb {
-    background: #9faee7;
-    cursor: pointer;
-    height: 2em;
-    width: 1em;
-    border-radius: 0.2em;
-    border: 1px solid #666;
-}
-.privacy-slider {
-	width: 100%;
-}
-.slider {
-	width: 100%;
-}
-.slider-labels {
-    display: flex;
-    justify-content: space-between;
-	width: 100%;
-}
-
-.slider-labels span {
-	text-align: center;
-}
-/* interests */
-.checkbox-group {
-    display: flex; /* Use Flexbox */
-    flex-wrap: wrap; /* Allow items to wrap into new lines */
-    justify-content: flex-start; /* Align items to the left */
-    max-height: 100px; /* Adjust as needed */
-    overflow-y: auto; /* Make it scrollable */
-    font-size: 0.9em; /* Shrink text */
-}
-.checkbox-group-item {
-	align-items: center;
-	display: flex;
-    flex: 0 0 48%; /* Each item takes up roughly half the container width */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Add ellipsis for overflow */
-    white-space: nowrap; /* Keep text on one line */
-}
-.checkbox-group label {
-	padding-left: 0.5em;
-	margin: 0;
+/* keyframes */
+@keyframes alertFadeOut {
+    0% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; }
 }
 /* media queries */
 @media screen and (min-width: 1024px) {

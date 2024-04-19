@@ -3,12 +3,18 @@
 import chalk from 'chalk'
 import axios from 'axios'
 import { _ } from 'ajv'
-//	define class
+/* variables */
+const { MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN: bearerToken, MYLIFE_EMBEDDING_SERVER_PORT: pgPort, MYLIFE_EMBEDDING_SERVER_URL: pgUrl, } = process.env
+/**
+ * Data service connector for mylife-embedding-services.
+ * @class
+ * @classdesc Embedding server connector to PostGres vector database server.
+ */
 class PgvectorManager {
-	#mylifeEmbeddingServerUrl = process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT+'/'
+	#mylifeEmbeddingServerUrl = `${pgUrl}:${pgPort}/`
 	#header = {
 		headers: {
-			Authorization: `Bearer ${process.env.MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN}`,
+			Authorization: `Bearer ${bearerToken}`,
 			'Content-Type': 'application/json',
 		}
 	}

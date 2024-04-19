@@ -1,6 +1,8 @@
 import OpenAI from 'openai'
 /* modular constants */
-const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_TIMEOUT: mTimeoutMs } = process.env
+const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
+const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
+const mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890
 /* class definition */
 class LLMServices {
     #llmProviders = []
@@ -19,6 +21,14 @@ class LLMServices {
             }))
     }
     /* public methods */
+    /**
+     * Creates openAI GPT API assistant.
+     * @param {object} assistant - Assistant object
+     * @returns {Promise<object>} - openai assistant object
+     */
+    async createBot(assistant){
+        return await this.openai.beta.assistants.create(assistant)
+    }
     /**
      * Given member input, get a response from the specified LLM service.
      * @param {string} threadId - Thread id.
@@ -132,12 +142,12 @@ async function mRunFinish(llmServices, run){
                 clearInterval(checkInterval)
                 reject(error)
             }
-        }, process.env.OPENAI_API_CHAT_RESPONSE_PING_INTERVAL??890)
+        }, mPingIntervalMs)
         // Set a timeout to resolve the promise after 55 seconds
         setTimeout(() => {
             clearInterval(checkInterval)
             resolve('Run completed (timeout)')
-        }, process.env.OPENAI_API_CHAT_TIMEOUT??55000)
+        }, mTimeoutMs)
     })
 }
 /**

@@ -1,0 +1,53 @@
+<div id="experience-manifest" class="experience-manifest">
+    <div id="experience-cast" class="experience-cast-container">
+        <!-- Icons and text for cast members will be dynamically inserted here -->
+    </div>
+    <div id="experience-navigation" class="experience-navigation-container">
+        <!-- Navigation boxes indicating progression through scenes -->
+    </div>
+</div>
+<div id="experience-stage" class="experience-stage">
+    <div id="experience-backstage" class="experience-backstage">
+        <div id="experience-explanation" class="experience-explanation">
+            <h2>Welcome to MyLife</h2>
+            <p>MyLife is a free, AI-based, humanist centric platform devoted to preserving your digital self, with the ultimate goal of your descendants being able to interact with you long after you're gone.</p>
+            <p>The MyLife vision is to democratize and bring dignity to your digital data, so that your legacy is secure, enduring and yours alone</p>
+            <!--<p>A MyLife experience is a unique construct where <em>you</em> are in the copilot's seat and the AI drives the performance. The Experience Performance could come from the MyLife system, a friend, or you can even write them to give to others!</p>
+            <p>Once the system has prepared your experience, you may click below to start your MyLife journey.</p>-->
+            <div id="experience-start" class="experience-start">
+                <div id="experience-start-button" class="experience-start-button"></div>
+                <div id="experience-start-spinner">
+                    <div class="spinner"></div>
+                    <span class="loading-text">loading <span id="spinner-text" class="">experience</span>...</span>
+                </div>
+            </div>
+        </div>
+        <div id="experience-title" class="experience-title"></div>
+        <div id="experience-description" class="experience-description"></div>
+    </div>
+    <div id="experience-mainstage" class="experience-mainstage">
+        <div id="experience-scenestage" class="experience-scenestage"></div>
+        <div id="experience-moderator" class="experience-moderator">
+            <div id="experience-moderator-icon" class="experience-moderator-icon"></div><!--- contains dynamic character lanes -->
+            <div id="experience-input-dialog" class="experience-input-dialog">
+                <div id="experience-moderator-dialog" class="experience-moderator-dialog"></div>
+                <div id="experience-moderator-input-lane" class="experience-input-lane">
+                    <div id="experience-input-waiting" class="experience-input-waiting">
+                        <span class="spinner-border spinner-border-sm await-button-spinner" role="status" aria-hidden="true"></span>
+                        <div id="experience-input-waiting-text" class="experience-input-waiting-text pulse">Getting dialog from server...</div>
+                    </div>
+                    <input id="experience-input" class="experience-input"></input>
+                    <button id="experience-submit" class="experience-submit">Reply</button>
+                </div>
+            </div>
+            <div id="experience-moderator-props" class="char-props experience-moderator-props"></div>
+            <!--- member entry area, monitored by avatar, only appears when active input is required -->
+        </div>
+    </div>
+</div>
+<div id="experience-footer" class="experience-footer">
+    <div id="experience-developers" class="experience-developers">
+        <p>talk to the developers: </p>
+        <!-- if interested, could expand to show lower region chat (i.e., would occur NOT on PATCH channel)-->
+    </div>
+</div><!--- developers, notes, date experienced? include history? -->
