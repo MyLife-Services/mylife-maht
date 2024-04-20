@@ -1,6 +1,5 @@
 /* imports */
 import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
-import { _ } from 'ajv'
 /* module export functions */
 async function about(ctx){
 	ctx.state.title = `About MyLife`

@@ -1,8 +1,6 @@
 //	data service connector for mylife-embedding-services
 //	imports
-import chalk from 'chalk'
 import axios from 'axios'
-import { _ } from 'ajv'
 /* variables */
 const { MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN: bearerToken, MYLIFE_EMBEDDING_SERVER_PORT: pgPort, MYLIFE_EMBEDDING_SERVER_URL: pgUrl, } = process.env
 /**
