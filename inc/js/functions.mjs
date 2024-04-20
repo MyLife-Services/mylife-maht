@@ -125,6 +125,10 @@ async function login(ctx){
 	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.sysName(ctx.params.mid) }]:`
 	await ctx.render('members-challenge')
 }
+async function logout(ctx){
+	ctx.session = null
+	ctx.redirect('/')
+}
 async function loginSelect(ctx){
 	ctx.state.title = ''
 	//	listing comes from state.hostedMembers
@@ -262,6 +266,7 @@ export {
 	index,
 	interfaceMode,
 	login,
+	logout,
 	loginSelect,
 	members,
 	privacyPolicy,

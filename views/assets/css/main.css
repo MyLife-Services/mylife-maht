@@ -83,10 +83,10 @@ body {
 }
 
 
-.nav-link {
+.navigation-link {
 	margin: 0em .8em;
 }
-.nav-link.active {
+.navigation-link.active {
     color: #007bff; /* Your existing styles for active link */
     font-weight: bold;
     cursor: pointer; /* Set cursor to default */
