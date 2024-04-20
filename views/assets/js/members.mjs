@@ -15,6 +15,9 @@ import Globals from './globals.mjs'
 /* constants */
 const mGlobals = new Globals()
 const mExperiences = []
+const mainContent = mGlobals.mainContent,
+    navigation = mGlobals.navigation,
+    sidebar = mGlobals.sidebar
 /* variables */
 let activeBot,
     mAutoplay=false,
@@ -31,13 +34,10 @@ let activeCategory,
     chatInput,
     chatInputField,
     chatRefresh,
-    mainContent,
     memberSelect,
     memberSubmit,
     sceneContinue,
     screen,
-    sidebar,
-    siteNavigation,
     spinner,
     systemChat,
     transport
@@ -50,12 +50,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     chatInput = document.getElementById('chat-member')
     chatInputField = document.getElementById('member-input')
     chatRefresh = document.getElementById('chat-refresh')
-    mainContent = document.getElementById('main-content')
     memberSelect = document.getElementById('member-select')
     memberSubmit = document.getElementById('submit-button')
     sceneContinue = document.getElementById('experience-continue')
-    sidebar = document.getElementById('page-sidebar')
-    siteNavigation = document.getElementById('navigation-container')
     spinner = document.getElementById('agent-spinner')
     transport = document.getElementById('experience-transport')
     screen = document.getElementById('experience-modal')
@@ -158,7 +155,7 @@ function hide(){
     return mGlobals.hide(...arguments)
 }
 function hideMemberChat(){
-    hide(siteNavigation)
+    hide(navigation)
     hide(chatInput)
     hide(sidebar)
 }
@@ -430,7 +427,7 @@ function mInitializePageListeners(){
     memberSubmit.addEventListener('click', mAddMemberDialog) /* note default listener */
     chatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
-    const navigationLinks = document.querySelectorAll('.navigation-nav .nav-link') // Select all nav links
+    const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
     navigationLinks.forEach(link=>{
         if(link.getAttribute('href')===currentPath){
             link.classList.add('active') // Add 'active' class to the current link
@@ -465,7 +462,7 @@ function sceneTransition(type='interface'){
     memberSubmit.removeEventListener('click', mAddMemberDialog)
     memberSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
-    hide(siteNavigation)
+    hide(navigation)
     hide(botBar)
     hide(chatInput)
     /* type specifics */
@@ -500,7 +497,7 @@ function mStageTransitionMember(includeSidebar=true){
                 hide(widget)
         })
     show(mainContent)
-    show(siteNavigation)
+    show(navigation)
     show(chatContainer)
     show(systemChat)
     show(chatInput)
