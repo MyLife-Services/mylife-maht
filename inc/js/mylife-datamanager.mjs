@@ -2,7 +2,6 @@
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
 import chalk from 'chalk'
-import { _ } from 'ajv'
 import Config from './mylife-datasource-config.mjs'
 import Globals from './globals.mjs'
 /* modular constants */
@@ -97,7 +96,7 @@ class Datamanager {
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(_item)) _item = [_item]
 		const { resource: _update } = await this.#containers[_container_id]
-			.item(_id,this.#partitionId)
+			.item(_id, this.#partitionId)
 			.patch(_item)	//	see below for filter-patch example
 		return _update
 	}

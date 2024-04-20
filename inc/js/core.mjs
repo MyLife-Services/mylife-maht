@@ -1,46 +1,27 @@
 //	imports
 import EventEmitter from 'events'
 import chalk from 'chalk'
-//	import { _ } from 'ajv'
 //	server-specific imports
 import initRouter from './routes.mjs'
-import { _ } from 'ajv'
 //	define export Classes for Members and MyLife
 class Member extends EventEmitter {
 	#avatar
-	#categories = [
-		'Abilities',
-		'Artifacts',
-		'Beliefs',
-		'Biography',
-		'Challenges',
-		'Future',
-		'Goals',
-		'Health',
-		'Identity',
-		'Interests',
-		'Outlook',
-		'Personality',
-		'Preferences',
-		'Relationships',
-		'Sexuality',
-		'Updates'
-	]	//	base human categories [may separate into biological?ideological] of personal definitions for inc q's (per agent) for infusion
-	#factory	//	reference to session factory in all cases except for server/root MyLife/Q
+	#factory
 	constructor(_Factory){
 		super()
-		this.#factory = _Factory
+		this.#factory = _Factory // member will need factory after avatar is created for datacore evolutionary agent, et likely al.
 		/* assign factory/avatar listeners */
 		this.attachListeners()
 	}
 	/**
-	 * Initializes Member class instantiation and returns `this`
+	 * Initializes `this.#avatar` and returns `this`. The Avatar will thence be primary point of interaction with Session and Server. Only upon dissolution of Avatar [sessionEnd] is triggered an internal `this` evolution evaluation based on upon the conduct of Avatar.
 	 * @async
 	 * @public
 	 * @returns {Promise} Promise resolves to this Member class instantiation
 	 */
 	async init(){
-		this.#avatar = await this.factory.getAvatar() // returns fully functional and initializaed avatar
+		this.#avatar = await this.factory.getAvatar()
+		// @todo: add consent and evolution agents for self-evolution from avatar data
 		return this
 	}
 	/**
@@ -276,8 +257,8 @@ class Organization extends Member {	//	form=organization
 	}
 }
 class MyLife extends Organization {	//	form=server
-	constructor(_Factory){	//	no session presumed to exist
-		super(_Factory)
+	constructor(factory){	//	no session presumed to exist
+		super(factory)
 	}
 	async datacore(_mbr_id){
 		if(!_mbr_id || _mbr_id===this.mbr_id) throw new Error('datacore cannot be accessed')
@@ -294,6 +275,22 @@ class MyLife extends Organization {	//	form=server
 	}
 	async getMyLifeSession(){
 		return await this.factory.getMyLifeSession()
+	}
+	/**
+	 * Submits a request for a library item from MyLife via API.
+	 * @public
+	 * @param {string} _mbr_id - Requesting Member id.
+	 * @param {string} _assistantType - String name of assistant type.
+	 * @param {string} _library - Library entry with or without `items`.
+	 * @returns {object} - The library document from Cosmos.
+	 */
+	async library(_mbr_id, _assistantType, _library){
+		_library.assistantType = _assistantType
+		_library.id = _library.id && this.globals.isValidGuid(_library.id) ? _library.id : this.globals.newGuid
+		_library.mbr_id = _mbr_id
+		_library.type = _library.type??_assistantType??'personal'
+		const _libraryCosmos = await this.factory.library(_library)
+		return this.globals.stripCosmosFields(_libraryCosmos)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -319,7 +316,7 @@ class MyLife extends Organization {	//	form=server
 			form: _assistantType,
 			id,
 			mbr_id: _mbr_id,
-			name: `${_assistantType}-story_${_mbr_id}_${id}`,
+			name: `story_${_assistantType}_${_mbr_id}`,
 			summary: storySummary,
 		}
 		const _storyCosmos = await this.factory.story(_story)

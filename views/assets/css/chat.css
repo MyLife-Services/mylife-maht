@@ -1,0 +1,212 @@
+/* MyLife chat container */
+.agent-bubble {
+    background-color: rgba(0, 86, 179, .85); /* A darker shade of blue for the agent */
+    color: #ffffff; /* White text for better readability */
+    margin-left: 0;
+}
+.agent-bubble a {
+	font-size: 1em;
+    color: #dcb6ff; /* White text for better readability */
+}
+.await-button {
+	background-color: #007BFF;
+	border: aliceblue solid thin;
+	border-radius: 0.3em;
+	box-shadow: inset 7px 3px 6px 0px rgba(0, 0, 0, 0.3);
+	color: #fff;
+	cursor: not-allowed;
+	display: none;
+	font-size: 1em;
+	padding: 0.5em 1em;
+	margin: 0.5em;
+}
+.await-button-spinner {
+	margin-right: 0.5em;
+}
+.chat-bubble {
+    border-radius: 18px; /* Rounded corners for a modern look */
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
+    margin-bottom: 0.5rem;
+    max-width: 80%;
+    min-width: 30%;
+    padding: 10px 15px; /* Padding for content inside bubble */
+	font-size: .9em;
+    width: fit-content; /* Fit the content's width */
+    word-wrap: break-word; /* Ensure long words don't overflow */
+}
+.chat-container {
+	align-items: center;
+	background-image: 
+        linear-gradient(
+			to bottom,
+			rgba(255, 255, 255, 0.85) 0%,
+			rgba(255, 255, 255, 0.85) 50%,
+			rgba(66, 66, 66, 0.85) 100%
+		), /* White overlay with 50% opacity */
+        url('../jpg/cosmos.jpg'); /* Your original background image */
+    background-size: cover; /* Ensures the image covers the whole area */
+    background-position: center; /* Centers the image */
+    border-radius: 22px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+	height: auto;
+	justify-content: space-between;
+	overflow: hidden;
+    padding: 0 0.5em;
+	position: relative;
+	width: 100%;
+}
+.chat-member,
+.chat-user {
+	align-items: center;
+	align-self: stretch;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: right;
+	margin: 0.5em 0;
+	min-width: max-content;
+	overflow: visible;
+}
+.chat-member input,
+.chat-user input {
+	background-color: #ffffff; /* White background color */
+	border-radius: 12px; /* Rounded corners */
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
+	flex: 1;
+}
+.chat-member textarea,
+.chat-user textarea {
+    background-color: #ffffff; /* White background color */
+    border: 1px solid #ccc; /* Border color */
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    flex: 1;
+	flex-shrink: 0;
+    font-size: 1rem; /* Adjust font size */
+    line-height: 1.5; /* Adjust line height for better readability */
+	min-height: 100%;
+	/* max-height: 200px; /* Adjust this value as needed */
+    margin: 6px 12px; /* Margin for space outside the container */
+    overflow-y: auto; /* Adds a scrollbar when content exceeds max-height */
+    padding: 8px; /* Padding for space inside the container */
+    resize: vertical; /* Allows vertical resizing, none to disable */
+}
+.chat-refresh {
+	position: absolute; /* Position relative to parent */
+	top: 0; /* Adjust as needed */
+	right: 0.3em; /* Adjust as needed */
+	background-color: transparent; /* Transparent background */
+	border: none; /* No border */
+	color: #888; /* Icon color, change as needed */
+	font-size: 24px; /* Icon size, adjust as needed */
+	cursor: pointer; /* Pointer cursor on hover */
+	z-index: 2; /* Ensure it's above other content */
+}
+.chat-submit {
+	flex: 0 0 auto;
+	color: rgba(65, 84, 104, 0.85);
+	background-color: rgba(183, 203, 225, 0.85);
+	margin: 0px;
+	white-space: nowrap; /* Prevents text wrapping in the button */
+}
+.chat-submit:hover {
+	background-color: rgba(195, 203, 52, 0.85);
+	color: #061320;
+}
+.chat-submit:focus {
+    outline: none; /* Remove the default focus outline */
+    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.6); /* Yellow glow */
+}
+.chat-submit:disabled {
+	background-color: rgba(63, 75, 83, 0.2);
+	border-color: rgba(146, 157, 163, .7);
+	color: rgba(146, 157, 163, .9);
+}
+.chat-system {
+	flex: 1 1 100%;
+	flex-direction: column;
+	height: 100%;
+	justify-content: flex-start;
+	margin-top: 0.8em;
+	overflow-x: hidden;
+    overflow-y: scroll;
+	width: 100%;
+}
+/* Styles the scrollbar itself */
+.chat-system::-webkit-scrollbar {
+    width: 6px; /* Adjust the width of the scrollbar */
+}
+/* Styles the track of the scrollbar */
+.chat-system::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1); /* Color of the track */
+    border-radius: 10px; /* Optional: adds rounded corners to the track */
+}
+/* Styles the handle (thumb) of the scrollbar */
+.chat-system::-webkit-scrollbar-thumb {
+    background: rgba(232, 226, 183, .5); /* Color of the thumb */
+    border-radius: 10px; /* Optional: adds rounded corners to the thumb */
+}
+/* Changes the color of the thumb when hovered over or clicked */
+.chat-system::-webkit-scrollbar-thumb:hover {
+    background: rgba(214, 198, 75, 0.5); /* Darker shade on hover */
+}
+.label {
+	color: rgba(240, 240, 240, .9);
+	flex: 0 0 auto;
+	font-size: 24px;
+	font-style: normal;
+	font-stretch: condensed;
+	font-weight: bold;
+	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+.label-spinner {
+    position: absolute;
+	background-color: whitesmoke;
+    opacity: 0; /* Max opacity of 50% */
+}
+.label-spinner-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center contents horizontally */
+    min-height: 50px; /* Ensure enough height for spinner and label */
+}
+.member-bubble, .user-bubble {
+    background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
+    color: #333333; /* Dark grey for contrast and easy reading */
+	font-size: .75em;
+    margin-left: auto;
+	margin-right: 12px;
+}
+.member-bubble a, .user-bubble a {
+	color: #333333; /* Dark grey for contrast and easy reading */
+}
+.spinner-green-glow {
+	background-image: radial-gradient(circle, #4b94a1, #d2f35e);
+	filter: blur(.2em); /* Adjust the pixel value for the level of blur */
+}
+.spinner-blue {
+	animation-delay: 0s;
+	background-image: radial-gradient(circle, #4b7982, #74a2ff);
+	filter: blur(.15em); /* Adjust the pixel value for the level of blur */
+}
+.spinner-grow {
+    animation: spinner-grow 2.6s infinite ease-in-out;
+	animation-delay: 2s;
+    border-radius: 50%;
+    display: inline-block;
+    height: 1.5rem;
+    width: 1.5rem;
+}
+#response {
+	margin-top: 1rem;
+}
+/* keyframes */
+@keyframes spinner-grow {
+	0% { transform: scale(0.5); }
+	50% { transform: scale(1); }
+	100% { transform: scale(0.5); }
+  }

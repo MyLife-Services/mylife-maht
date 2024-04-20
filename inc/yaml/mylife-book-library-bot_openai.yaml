@@ -1,0 +1,144 @@
+openapi: 3.0.0
+info:
+  title: MyLife GPT Webhook Receiver API
+  description: This API is for receiving webhooks from [MyLife Library Bot instance]().
+  version: 1.0.0
+servers:
+  - url: https://8d55-73-149-210-124.ngrok-free.app/api/v1
+    description: Endpoint for receiving stories from the MyLife Library Bot instance.
+security:
+  - bearerAuth: []
+paths:
+  /keyValidation/{mid}:
+    post:
+      x-openai-isConsequential: false
+      operationId: MyLifeKeyValidation
+      summary: MyLife Library Bot will access this endpoint to validate a `memberKey` in MyLife Cosmos.
+      description: Endpoint for handling incoming registration webhook data from the MyLife GPT service.
+      parameters:
+        - name: mid
+          in: path
+          required: true
+          description: The `memberKey` data to be sent by MyLife Library Bot. Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition.
+          schema:
+            maxLength: 256
+            minLength: 40
+            type: string
+      responses:
+        "200":
+          description: A successful response indicating the member key is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Valid member.
+                  data:
+                    type: object
+                    properties:
+                      interests:
+                        type: string
+                      birthDate:
+                        type: string
+                        format: date-time
+                      birthPlace:
+                        type: string
+                      preferredName:
+                        type: string
+        "400":
+          description: Invalid member. Field `memberKey` is not valid, check again with member.
+  /library/{mid}:
+    post:
+      x-openai-isConsequential: false
+      operationId: MyLifeLibraryAddition
+      summary: MyLife Library Bot will access this endpoint to generate a `Library` document in MyLife Cosmos.
+      description: Endpoint for handling incoming webhook data from the MyLife GPT service.
+      parameters:
+        - name: mid
+          in: path
+          required: true
+          description: The `memberKey` data to be sent by MyLife Library Bot. Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition.
+          schema:
+            maxLength: 256
+            minLength: 40
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: The `Library` data sent by MyLife Library Bot.
+              type: object
+              required:
+                - library
+              properties:
+                library:
+                  description: Array of JSON library item objects.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - author
+                      - format
+                      - title
+                    properties:
+                      author:
+                        type: string
+                        description: The author of the ibrary item.
+                      enjoymentLevel:
+                        type: number
+                        description: The enjoyment level of the ibrary item, presume a sliding scale 0-100 based upon general impression. Details can be saved in personalImpact or insights.
+                      format:
+                        type: string
+                        default: book
+                        enum: [book, record, song, video, movie, tv, series, other]
+                        description: The format of the ibrary item.
+                      insights:
+                        type: string
+                        description: Any insights provided by the member as regards the ibrary item.
+                      personalImpact:
+                        type: string
+                        description: Any personal or emotional impact provided by the member as regards the ibrary item.
+                      title:
+                        type: string
+                        description: The title of the ibrary item.
+                        maxLength: 256
+                        minLength: 1
+                      whenRead:
+                        type: string
+                        description: A natural language description of when the ibrary item was read, whether it be a date, year, event, phase of life or educational study.
+                        maxlength: 256
+      responses:
+        "200":
+          description: Library submitted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                    example: true
+                  message:
+                    type: string
+                    example: Library submitted successfully.
+        "400":
+          description: No library summary provided. Use `library` field.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: false
+                    example: false
+                  message:
+                    type: string
+                    example: No library summary provided. Use `library` field.

@@ -155,12 +155,6 @@
 			"format": "uuid",
 			"description": "Id of `object` that this avatar represents, can be a core human member avatar or any sub-object in system, as referenced by uuid alone"
 		},
-		"parent_id": {
-			"type": "string",
-			"format": "uuid",
-			"description": "one-time object id for avatar",
-			"$comment": "**deprecating**"
-		},
 		"purpose": {
 			"type": "string",
 			"default": "The purpose of this avatar is to understand, represent and evolve the underlying data object or concept as referenced by `object_id` inherent type",

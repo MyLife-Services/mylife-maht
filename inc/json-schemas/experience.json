@@ -1,0 +1,541 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$id": "https://maht.azurewebsites.net/inc/json-schemas/experience.json",
+	"required": ["being", "categories", "description", "id", "mbr_id", "scenes", "skippable"],
+	"type": "object",
+	"name": "Experience",
+	"properties": {
+		"being": {
+			"const": "experience",
+			"type": "string"
+		},
+		"cast": {
+			"items": {
+				"$ref": "/$defs/experience-cast-member"
+			},
+			"type": "array"
+		},
+		"categories": {
+			"default": [],
+			"items": {
+				"description": "categories relevant to the designed experience",
+				"enum": ["tutorial", "story", "game", "quiz", "survey", "introduction", "narration"],
+				"type": "string"
+			},
+			"type": "array"
+		},
+		"dates": {
+			"default": { "created": "2024-02-25T18:00:00Z" },
+			"description": "dates for the experience",
+			"properties": {
+				"created": {
+					"description": "date the experience was created",
+					"format": "date-time",
+					"type": "string",
+					"$comment": "defaults to current date-time"
+				},
+				"run-start": {
+					"description": "date the experience begins running",
+					"format": "date-time",
+					"type": "string"
+				},
+				"run-end": {
+					"description": "date the experience ends running",
+					"format": "date-time",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"description": {
+			"description": "description of the experience",
+			"maxLength": 1024,
+			"type": "string"
+		},
+		"developers": {
+			"description": "`mbr_id`'s for developers of the experience",
+			"items": {
+				"description": "`mbr_id` of developer",
+				"minLength": 40,
+				"type": "string",
+				"$comment": "partition-key for member: sysName|core_id"
+			},
+			"type": "array"
+		},
+		"files": {
+			"items": {
+				"description": "files for the experience",
+				"type": "string",
+				"$comment": "@todo: determine file/code management for .css, .js, .html, etc. for experience."
+			},
+			"type": "array"
+		},
+		"id": {
+			"format": "uuid",
+			"type": "string"
+		},
+		"mbr_id": {
+			"minLength": 40,
+			"type": "string",
+			"$comment": "partition-key for primary member author: sysName|core_id"
+		},
+		"name": {
+			"description": "name for experience",
+			"maxLength": 128,
+			"type": "string",
+			"$comment": "name of the experience is only displayed in "
+		},
+		"public": {
+			"default": false,
+			"description": "if the experience is public, then it can be accessed by guest/Maht",
+			"type": "boolean"
+		},
+		"purpose": {
+			"description": "purpose of the experience",
+			"maxLength": 2048,
+			"type": "string"
+		},
+		"scenes": {
+			"items": {
+				"description": "Scenes are the major stepwise timeline of events in the experience; they could be considered acts or phases also. Of course can expand. Unclear if scenes can be events in scenes. If so, nesting limit?",
+				"$ref": "/$defs/experience-scene"
+			},
+			"minItems": 1,
+			"maxItems": 6,
+			"type": "array",
+			"$comment": "artificial cap of 6 scenes for alpha, keeps trudge down."
+		},
+		"scriptAdvisorBotId": {
+			"const": "asst_NonLpXQ5maLpIciwxwGqsMwV",
+			"description": "botId for system script advisor for the experience",
+			"type": "string",
+			"$comment": "deprecate in favor of single actor in MyLife instance"
+		},
+		"skippable": {
+			"default": true,
+			"description": "if the experience is skippable, only system experiences could be non-skippable. If skippable, then the experience can be skipped by the experiencer.",
+			"type": "boolean"
+		},
+		"show-playbill": {
+			"default": false,
+			"description": "show the cast by default in the experience",
+			"type": "boolean"
+		},
+		"status": {
+			"default": "draft",
+			"description": "status of the experience",
+			"enum": ["draft", "active", "archived"],
+			"type": "string"
+		},
+		"version": {
+			"default": 1,
+			"description": "version of the experience",
+			"type": "integer"
+		}
+	},
+	"additionalProperties": true,
+	"$defs": {
+		"experience-cast-member": {
+			"name": "Experience-Cast-Member",
+			"required": ["id", "name", "type"],
+			"type": "object",
+			"properties": {
+				"bot_id": {
+					"description": "database id of the bot to fulfill role; required for `creator` actors",
+					"format": "uuid",
+					"type": "string",
+					"$comment": "only _creator_ bots have bot_id, Q, etc left blank; note that in our semantic code most bots are known by _type_ of bot they are, enscribing the functions they perform"
+				},
+				"icon": {
+					"description": "icon for cast member",
+					"type": "string",
+					"format": "uri"
+				},
+				"id": {
+					"description": "id of the cast member",
+					"format": "uuid",
+					"type": "string"
+				},
+				"mbr_id": {
+					"description": "id of the member; required for `creator` actors",
+					"format": "uuid",
+					"type": "string",
+					"$comment": "Q, etc. left blank"
+				},
+				"name": {
+					"description": "attributed name of the cast member.",
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128,
+					"$comment": "In short, the name of the \"actor\". As a role, they can be playing themselves, 'Q' as the first example."
+				},
+				"role": {
+					"description": "named role of the cast member in the experience.",
+					"maxLength": 256,
+					"type": "string",
+					"$comment": "if not specified, then the role is the name of the cast member."
+				},
+				"type": {
+					"default": "MyLife",
+					"description": "Type of cast member. Defaults to MyLife. if `member` or `member-bot` then implies member engagement.",
+					"enum": ["bot", "member", "member-bot", "MyLife", "Q", "system"],
+					"type": "string",
+					"$comment": "Defaults to system explanation or engagement with experiencer."
+				},
+				"url": {
+					"description": "url for cast member, local or external.",
+					"type": "string",
+					"format": "uri"
+				}
+			},
+			"additionalProperties": true
+		},
+		"experience-event": {
+			"name": "Experience-Event",
+			"required": ["action", "id", "order"],
+			"type": "object",
+			"properties": {
+				"action": {
+					"description": "action of the event",
+					"enum": ["chat", "narration", "input"],
+					"maxLength": 256,
+					"type": "string"
+				},
+				"character": {
+					"description": "id of the cast member referenced in this action",
+					"type": "object",
+					"$comment": "current limitation: only one actor per event, no duets!"
+				},
+				"description": {
+					"description": "description of the event, optional",
+					"maxLength": 1024,
+					"type": "string"
+				},
+				"hooks": {
+					"default": [],
+					"items": {
+						"$ref": "/$defs/experience-hook"
+					},
+					"type": "array"
+				},
+				"id": {
+					"description": "id of the event",
+					"format": "uuid",
+					"type": "string"
+				},
+				"input": {
+					"description": "input for the event",
+					"type": "object",
+					"$comment": "Data structure outlining any input required for the event"
+				},
+				"name": {
+					"description": "name of the event, optional",
+					"maxLength": 128,
+					"type": "string"
+				},
+				"navigation": {
+					"additionalProperties": true,
+					"description": "navigation of the event, skippable, show on manifest, etc.",
+					"properties": {
+						"navigable": {
+							"default": false,
+							"description": "if the event is navigable, then the experiencer can navigate to the event.",
+							"type": "boolean",
+							"$comment": "manifest is built from the population of these properties."
+						},
+						"skippable": {
+							"default": true,
+							"description": "so that navigation item can be displayed differently.",
+							"type": "boolean"
+						}
+					},
+					"type": "object"
+				},
+				"order": {
+					"default": 1,
+					"description": "order of the event in the scene, if same integer then order is linear.",
+					"type": "integer"
+				},
+				"stage": {
+					"description": "stage action for the event",
+					"type": "object",
+					"$comment": "Data structure outlining any changes or contingencies regarding the stage"
+				},
+				"variables": {
+					"description": "array of variable used in this event.",
+					"type": "array",
+					"$comment": "includes _all_ dialog, input or stage variables in use for event data."
+				}
+			},
+			"additionalProperties": true
+		},
+		"experience-hook": {
+			"name": "Experience-Hook",
+			"required": ["id", "name", "type"],
+			"type": "object",
+			"properties": {
+				"action": {
+					"description": "action when the hook is triggered, default is chat.",
+					"enum": ["chat", "narration", "input"],
+					"maxLength": 256,
+					"type": "string"
+				},
+				"hook": {
+					"description": "hook",
+					"enum": ["before", "after"],
+					"type": "string"
+				},
+				"id": {
+					"description": "id of the hook",
+					"format": "uuid",
+					"type": "string"
+				},
+				"name": {
+					"description": "name of the hook",
+					"maxLength": 128,
+					"type": "string"
+				},
+				"order": {
+					"default": 1,
+					"description": "order of the hook, if same hook identified multiple times.",
+					"type": "integer"
+				}
+			},
+			"additionalProperties": false
+		},
+		"experience-lived": {
+			"description": "Special case object: Represents the actual 'lived' experience, stored on member-basis, tracks progress inside of a specific experience, ergo is not required [nor do we currently] to save the entire experience in the member's record, but the 'conversation' for now of the experience. **note**: conversation will contain the thread information; one thread per member experience-lived.",
+			"name": "Experience-Lived",
+			"required": ["being", "conversation", "id", "name", "version"],
+			"type": "object",
+			"properties": {
+				"being": {
+					"const": "experience-lived",
+					"description": "type of object, always `experience-lived`.",
+					"type": "string"
+				},
+				"events":{
+					"description": "Events of the member' experience",
+					"items": {
+						"description": "Event of the member' experience",
+						"$ref": "/$defs/experience-event"
+					},
+					"minItems": 1,
+					"type": "array"
+				},
+				"id": {
+					"description": "id of the lived experience",
+					"format": "uuid",
+					"type": "string"
+				},
+				"name": {
+					"description": "name of the lived experience",
+					"maxLength": 128,
+					"type": "string",
+					"$comment": "format: experience-lived_${id}_${mbr_id} referencing experiencer's `mbr_id`."
+				},
+				"version": {
+					"description": "version of the lived experience as provided by developers; ergo, context not lost so long as versions are saved and solid (unmutated).",
+					"type": "integer"
+				}
+			},
+			"additionalProperties": true,
+			"$comment": "**note**: removed .dialog and .scriptDialog as their ref types were not working with the this.# mechanic"
+		},
+		"experience-manifest": {
+			"description": "Special case object: Produced by `Avatar` in experience mode [can be requested at any time, but provided in initial experience push] used for front-end display and tracking in `XP-bar`. Essentially exists as an independent short-form of a given experience. No cast is built nor provided, that would be a separate request.",
+			"name": "Experience-Manifest",
+			"required": ["id", "name"],
+			"type": "object",
+			"properties": {
+				"description": {
+					"description": "Description of the experience.",
+					"maxLength": 1024,
+					"type": "string"
+				},
+				"id": {
+					"description": "id of the manifest",
+					"format": "uuid",
+					"type": "string"
+				},
+				"scenes": {
+					"description": "Scenes are the major stepwise timeline of events in the experience; they could be considered acts or phases also. Of course can expand.",
+					"type": "array",
+					"items": {
+						"description": "Scene of the experience, in shortest form, i.e., required fields only.",
+						"$ref": "/$defs/experience-manifest-scene"
+					}
+				}
+			},
+			"additionalProperties": true
+		},
+		"experience-manifest-event": {
+			"description": "Event of the experience for `XP-bar` display , in shortest form, i.e., required fields only.",
+			"name": "Experience-Manifest-Event",
+			"required": ["description", "id", "name"],
+			"type": "object",
+			"properties": {
+				"description": {
+					"description": "description of the event for member experiencing, presume `:hover` action or '?'.",
+					"maxLength": 2048,
+					"minLength": 1,
+					"type": "string",
+					"$comment": ""
+				},
+				"id": {
+					"description": "id of the event",
+					"format": "uuid",
+					"type": "string"
+				},
+				"name": {
+					"description": "name of the event",
+					"maxLength": 128,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"additionalProperties": true
+		},
+		"experience-manifest-scene": {
+			"description": "Scene of the experience for `XP-bar` display , in shortest form, i.e., required fields only.",
+			"name": "Experience-Manifest-Scene",
+			"required": ["description", "id", "order", "required", "skippable", "title"],
+			"type": "object",
+			"properties": {
+				"description": {
+					"description": "description of the scene for member experiencing, presume `:hover` action or '?'.",
+					"maxLength": 2048,
+					"minLength": 1,
+					"type": "string",
+					"$comment": ""
+				},
+				"events": {
+					"description": "Smallest form of events in the scene, for `XP-bar` display.",
+					"items": {
+						"description": "Event of the experience for `XP-bar` display , in shortest form, i.e., required fields only.",
+						"$ref": "/$defs/experience-manifest-event"
+					},
+					"minItems": 1,
+					"type": "array",
+					"$comment": "short-form of events for manifest."
+				},
+				"id": {
+					"description": "id of the scene",
+					"format": "uuid",
+					"type": "string",
+					"$comment": "fronte-end notes: to be used as dom ID characteristics to be referenced in any css."
+				},
+				"order": {
+					"default": 1,
+					"description": "order of the scene in the experience, if same integer then order is linear.",
+					"type": "integer",
+					"$comment": "display notes: can imagine in tree form being displayed as 1.1 and 1.2 as sub-nodes that share the same core scene number. Ergo scenes that might be consider super-branches might not each be required."
+				},
+				"required": {
+					"default": false,
+					"description": "if the scene is required, then the experiencer must experience the scene.",
+					"type": "boolean"
+				},
+				"skippable": {
+					"default": true,
+					"description": "if the scene is skippable, then the experiencer can skip the scene.",
+					"type": "boolean"
+				},
+				"title": {
+					"description": "title of the scene, optional",
+					"maxLength": 256,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"additionalProperties": true
+		},
+		"experience-scene": {
+			"name": "Experience-Scene",
+			"required": ["backdrop", "events", "hooks", "id", "name", "title"],
+			"type": "object",
+			"properties": {
+				"backdrop": {
+					"default": "chat",
+					"description": "MyLife interface backdrop for the scene.",
+					"enum": ["full", "nav", "chat", "sidebar"],
+					"type": "string",
+					"$comment": "event-level backdrop override, if any. Default is chat."
+				},
+				"description": {
+					"description": "description of the scene for member experiencing.",
+					"maxLength": 2048,
+					"minLength": 1,
+					"type": "string"
+				},
+				"effect": {
+					"description": "effect of the event",
+					"enum": ["fade", "spotlight"],
+					"type": "string"
+				},
+				"events": {
+					"type": "array",
+					"items": {
+						"$ref": "/$defs/experience-event"
+					}
+				},
+				"hooks":{
+					"default": [],
+					"items": {
+						"$ref": "/$defs/experience-hook"
+					},
+					"type": "array"
+				},
+				"id": {
+					"description": "id of the scene",
+					"format": "uuid",
+					"type": "string"
+				},
+				"name": {
+					"description": "name of the scene",
+					"maxLength": 128,
+					"type": "string"
+				},
+				"navigation": {
+					"additionalProperties": true,
+					"description": "navigation of the event, skippable, show on manifest, etc.",
+					"properties": {
+						"navigable": {
+							"default": false,
+							"description": "if the event is navigable, then the experiencer can navigate to the event.",
+							"type": "boolean",
+							"$comment": "manifest is built from the population of these properties."
+						},
+						"skippable": {
+							"default": true,
+							"description": "so that navigation item can be displayed differently.",
+							"type": "boolean"
+						}
+					},
+					"type": "object"
+				},
+				"order": {
+					"default": 1,
+					"description": "order of the scene in the experience, if same integer then order is linear.",
+					"type": "integer"
+				},
+				"title": {
+					"default": "Untitled",
+					"description": "title of the scene, optional",
+					"maxLength": 256,
+					"minLength": 1,
+					"type": "string"
+				},
+				"tools": {
+					"default": [],
+					"items": {
+						"description": "placeholder for any tools available in the scene",
+						"type": "string"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": true
+		}
+	}
+}
