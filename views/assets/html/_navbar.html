@@ -1,8 +1,13 @@
-<div class="navbar-brand">
+<div id="navigation-brand" class="navigation-brand">
     <img src="../png/logotype-knockout.png" class="d-inline-block align-middle" width="120" alt="MyLife logo">
 </div>
-<div class="navbar-nav">
+<div id="navigation-nav" class="navigation-nav">
     <% menu.forEach(_menuItem => { %>
         <a class="nav-link" href="<%= _menuItem.route %>"><%= _menuItem.display %></a>
     <% }) %>
+</div>
+<div id="navigation-padding" class="navigation-padding"></div>
+<div id="navigation-search" class="navigation-search"></div>
+<div id="navigation-login-logout" class="navigation-login-logout">
+    <button id="navigation-login-logout-button" class=" button navigation-login-logout-button">login</button>
 </div>
