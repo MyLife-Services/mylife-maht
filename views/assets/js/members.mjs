@@ -430,7 +430,7 @@ function mInitializePageListeners(){
     memberSubmit.addEventListener('click', mAddMemberDialog) /* note default listener */
     chatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
-    const navigationLinks = document.querySelectorAll('.navbar-nav .nav-link') // Select all nav links
+    const navigationLinks = document.querySelectorAll('.navigation-nav .nav-link') // Select all nav links
     navigationLinks.forEach(link=>{
         if(link.getAttribute('href')===currentPath){
             link.classList.add('active') // Add 'active' class to the current link

@@ -42,33 +42,47 @@ body {
 	box-sizing: border-box; /* Ensures padding and width stays within the border */
 	display: none;
 	justify-content: flex-start; /* Aligns items horizontally */
-	/*margin-bottom: 0.5em; /* Bottom margin */
 	padding: 0px;
 	width: 100%; /* Full width */
 }
-.navbar-brand {
-	color: #4CAF50; /* White text color */
-	cursor: default; /* Set cursor to default */
-	font-weight: bold;
-	margin-right: 2em; /* Right margin on navbar brand */
+.navigation-brand, .navigation-login-logout, .navigation-nav, .navigation-padding, .navigation-search {
+	align-items: center;
+	display: flex;
+	flex: none; /* Prevents items from growing */
 }
-.navbar-nav {
+.navigation-brand {
+	cursor: default; /* Set cursor to default */
+	margin-right: 2em; /* Right margin on navigation brand */
+}
+.navigation-login-logout {
+	align-self: flex-end;
+	display: flex;
+	justify-content: flex-end
+}
+.navigation-login-logout-button {
+	display: flex;
+}
+.navigation-nav {
 	background: linear-gradient(
 		to bottom,
 		rgba(255, 255, 255, 0.25) 60%,
 		rgba(0, 0, 100, 0.15) 100%
 	); /* Gradient from top (lighter) to bottom (slightly darker) with alpha */
-    background-color: #f8f9fa; /* A light base color for the navbar */
+    background-color: #f8f9fa; /* A light base color for the navigation */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
     border-radius: 10px; /* Rounded edges */
-	display: flex; /* Aligns the flex item horizontally (default: row) */
 	flex-direction: row; /* Aligns the flex item horizontally (default: row) */
 	margin: 1em 0;
 }
-.navbar-nav:hover {
+.navigation-nav:hover {
 	border:rgba(53, 31, 53, 0.25) 1px solid;
 	cursor: default;
 }
+.navigation-padding {
+	flex: 1; /* Prevents the brand from growing */
+}
+
+
 .nav-link {
 	margin: 0em .8em;
 }
