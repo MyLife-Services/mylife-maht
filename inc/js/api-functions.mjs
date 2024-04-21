@@ -208,6 +208,17 @@ async function login(ctx){
     ctx.body = { challengeId: ctx.session.MemberSession.challenge_id }
     return
 }
+/**
+ * Logout function for member.
+ * @param {Koa} ctx - Koa Context object
+ * @returns 
+ */
+async function logout(ctx){
+    ctx.session = null
+    ctx.status = 200
+    ctx.body = { success: true }
+    return
+}
 async function register(ctx){
 	const _registrationData = ctx.request.body
 	const {
@@ -383,6 +394,7 @@ export {
     keyValidation,
     library,
     login,
+    logout,
     register,
     story,
     storyLibrary,

@@ -12,6 +12,7 @@ import {
     index,
     interfaceMode,
     login,
+    logout,
     loginSelect,
     members,
     privacyPolicy,
@@ -29,6 +30,7 @@ import {
     keyValidation,
     library,
     login as apiLogin,
+    logout as apiLogout,
     register,
     story,
     storyLibrary,
@@ -43,6 +45,7 @@ _Router.get('/', index)
 _Router.get('/about', about)
 _Router.get('/alerts', alerts)
 _Router.get('/login/:mid', login)
+_Router.get('/logout', logout)
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
@@ -56,6 +59,7 @@ _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.get('/experiences/:mid', experiences) // **note**: currently triggers autoplay experience
 _apiRouter.get('/login/:mid', apiLogin)
+_apiRouter.get('/logout', apiLogout)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.patch('/experiences/:mid/experience/:eid/cast', experienceCast)
 _apiRouter.patch('/experiences/:mid/experience/:eid/end', experienceEnd)
@@ -77,7 +81,6 @@ _memberRouter.get('/contributions', contributions)
 _memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/mode', interfaceMode)
-_memberRouter.get('/select', loginSelect)
 _memberRouter.get('/upload', upload)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)

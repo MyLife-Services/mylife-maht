@@ -1,7 +1,34 @@
 /* imports */
+let mLoginButton,
+    mLoginContainer,
+    mChallengeInput,
+    mChallengeError,
+    mChallengeSubmit,
+    mLoginSelect,
+    mMainContent,
+    mNavigation,
+    mSidebar
 /* class definitions */
 class Globals {
-    constructor(){}
+    constructor(){
+        mLoginButton = document.getElementById('navigation-login-logout-button')
+        mLoginContainer = document.getElementById('navigation-login-logout')
+        mMainContent = document.getElementById('main-content')
+        mChallengeInput = document.getElementById('member-challenge-input-text')
+        mChallengeError = document.getElementById('member-challenge-error')
+        mChallengeSubmit = document.getElementById('member-challenge-submit')
+        mLoginSelect = document.getElementById('member-select')
+        mNavigation = document.getElementById('navigation-container')
+        mSidebar = document.getElementById('sidebar')
+        /* assign event listeners */
+        mLoginButton.addEventListener('click', this.loginLogout, { once: true })
+        if(mChallengeInput){
+            mChallengeInput.addEventListener('input', mToggleChallengeSubmit)
+            mChallengeSubmit.addEventListener('click', mSubmitChallenge)
+        }
+        if(mLoginSelect)
+            mLoginSelect.addEventListener('change', mSelectLoginId, { once: true })
+    }
     /* public functions */
     /**
      * Returns the avatar object if poplated by on-page EJS script.
@@ -12,7 +39,6 @@ class Globals {
         const avatar = window?.mylifeAvatar
             ?? window?.mylifeAvatarData
             ?? window?.avatar
-        console.log('getAvatar::avatar', avatar)
         return avatar
     }
     /**
@@ -45,20 +71,7 @@ class Globals {
      * @returns {void}
      */
     hide(element, callbackFunction){
-        if(!element){
-            console.log('mHide::element not found', element, document.getElementById('chat-member'))
-            return
-        }
-        element.classList.remove('show')
-        if(element.getAnimations().length){
-            element.addEventListener('animationend', function() {
-                element.classList.add('hide')
-            }, { once: true }) // The listener is removed after it's invoked
-        }
-        // element.style.animation = 'none' /* stop/rewind all running animations */
-        if(callbackFunction)
-            callbackFunction()
-        element.classList.add('hide')
+        mHide(element, callbackFunction)
     }
     /**
      * Determines whether the argument is a valid guid.
@@ -72,6 +85,15 @@ class Globals {
             return false
         }
     }
+    loginLogout(event){
+        const { target: loginButton, } = event
+        if(loginButton!==mLoginButton)
+            throw new Error('loginLogout::loginButton not found')
+        if(loginButton.getAttribute('data-locked') === 'true')
+            mLogin()
+        else
+            mLogout()
+    }
     /**
      * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
      * @public
@@ -80,15 +102,7 @@ class Globals {
      * @returns {void}
      */
     show(element, listenerFunction){
-        element.addEventListener(
-            'animationend',
-            animationEvent=>mAnimationEnd(animationEvent, listenerFunction),
-            { once: true },
-        )
-        if(!element.classList.contains('show')){
-            element.classList.remove('hide')
-            element.classList.add('show')
-        }
+        mShow(element, listenerFunction)
     }
     /**
      * Variable-izes (for js) a given string.
@@ -99,6 +113,22 @@ class Globals {
         if(typeof undashedString !== 'string')
             return ''
         return undashedString.replace(/ /g, '-').toLowerCase()
+    }
+    /* getters/setters */
+    get mainContent(){
+        return mMainContent
+    }
+    get navigation(){
+        return mNavigation
+    }
+    get navigationLogin(){
+        return mLoginContainer
+    }
+    get navigationLoginButton(){
+        return mLoginButton
+    }
+    get sidebar(){
+        return mSidebar
     }
 }
 /* private functions */
@@ -113,6 +143,135 @@ function mAnimationEnd(animation, callbackFunction){
     animation.stopPropagation()
     if(callbackFunction)
         callbackFunction(animation)
+}
+/**
+ * Hides an element, pre-executing any included callback function.
+ * @private
+ * @param {HTMLElement} element - The element to hide.
+ * @param {function} callbackFunction - The callback function to execute after the element is hidden.
+ * @returns {void}
+ */
+function mHide(element, callbackFunction){
+    if(!element)
+        return
+    element.classList.remove('show')
+    if(element.getAnimations().length){
+        element.addEventListener('animationend', function() {
+            element.classList.add('hide')
+        }, { once: true }) // The listener is removed after it's invoked
+    }
+    // element.style.animation = 'none' /* stop/rewind all running animations */
+    if(callbackFunction)
+        callbackFunction()
+    element.classList.add('hide')
+}
+function mLogin(){
+    console.log('login')
+    window.location.href = '/select'
+}
+async function mLogout(){
+    const response = await fetch('/logout', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    if(response.ok)
+        window.location.href = '/'
+    else
+        console.error('mLogout::response not ok', response)
+}
+/**
+ * Redirects to the login page with a selected member id.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mSelectLoginId(event){
+    event.preventDefault()
+    console.log('mSelectLoginId', mLoginSelect)
+    const { value, } = mLoginSelect
+    if(!value?.length)
+        return
+    window.location = `/login/${value}`
+}
+/**
+ * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
+ * @public
+ * @param {HTMLElement} element - The element to show.
+ * @param {function} listenerFunction - The listener function, defaults to `mAnimationEnd`.
+ * @returns {void}
+ */
+function mShow(element, listenerFunction){
+    element.addEventListener(
+        'animationend',
+        animationEvent=>mAnimationEnd(animationEvent, listenerFunction),
+        { once: true },
+    )
+    if(!element.classList.contains('show')){
+        element.classList.remove('hide')
+        element.classList.add('show')
+    }
+}
+/**
+ * Submits a challenge response to the server.
+ * @public
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mSubmitChallenge(event){
+	event.preventDefault()
+    event.stopPropagation()
+    const { id, value: passphrase, } = mChallengeInput
+    if(!passphrase.trim().length)
+        return
+    mHide(mChallengeSubmit)
+	const _mbr_id = window.location.pathname.split('/')[window.location.pathname.split('/').length-1]
+	const url = window.location.origin+`/challenge/${_mbr_id}`
+	const options = {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({ passphrase, }),
+	}
+	const validatePassphrase = await mSubmitPassphrase(url, options)
+	if(validatePassphrase)
+        location.href = '/members'
+    else {
+        mChallengeError.innerHTML = 'Invalid passphrase: please try again and remember that passphrases are case sensitive.';
+        mChallengeInput.value = null
+        mChallengeInput.placeholder = 'Try your passphrase again...'
+        mChallengeInput.focus()
+    }
+}
+/**
+ * 
+ * @param {string} url - The url to submit the passphrase to.
+ * @param {object} options - The options for the fetch request.
+ * @returns {object} - The response from the server.
+ */
+async function mSubmitPassphrase(url, options) {
+	try {
+		const response = await fetch(url, options)
+		const jsonResponse = await response.json()
+		return jsonResponse
+	} catch (err) {
+		console.log('fatal error', err)
+		return false
+	}
+}
+function mToggleChallengeSubmit(event){
+    const { value, } = event.target
+    console.log('mToggleChallengeSubmit', value, mChallengeSubmit)
+    if(value.trim().length){
+        mChallengeSubmit.disabled = false
+        mChallengeSubmit.style.cursor = 'pointer'
+        mShow(mChallengeSubmit)
+    } else {
+        mChallengeSubmit.disabled = true
+        mChallengeSubmit.style.cursor = 'not-allowed'
+    }
 }
 /* export */
 export default Globals

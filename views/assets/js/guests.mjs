@@ -26,14 +26,10 @@ let aboutContainer,
     chatSystem,
     chatUser,
     mainContent,
-    memberChallenge,
-    memberChallengeError,
-    memberChallengeSubmit,
-    memberSelect,
     navigation,
     privacyContainer,
     sidebar
-document.addEventListener('DOMContentLoaded', async ()=>{
+document.addEventListener('DOMContentLoaded', ()=>{
     /* assign page div variables */
     aboutContainer = document.getElementById('about-container')
     awaitButton = document.getElementById('await-button')
@@ -44,14 +40,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     chatSubmit = document.getElementById('chat-user-submit')
     chatSystem = document.getElementById('chat-system')
     chatUser = document.getElementById('chat-user')
-    mainContent = document.getElementById('main-content')
-    memberChallenge = document.getElementById('member-challenge-input-text')
-    memberChallengeError = document.getElementById('member-challenge-error')
-    memberChallengeSubmit = document.getElementById('member-challenge-submit')
-    memberSelect = document.getElementById('member-select')
-    navigation = document.getElementById('navigation-container')
+    mainContent = mGlobals.mainContent
+    navigation = mGlobals.navigation
     privacyContainer = document.getElementById('privacy-container')
-    sidebar = document.getElementById('page-sidebar')
+    sidebar = mGlobals.sidebar
     /* display page */
     mShowPage()
 })
@@ -71,51 +63,6 @@ function escapeHtml(text) {
     }
     const escapedText = text.replace(/[&<>"']/g, m=>(map[m]) )
     return escapedText
-}
-/**
- * Redirects to the login page with a selected member id.
- * @param {Event} event - The event object.
- * @returns {void}
- */
-function selectLoginId(event){
-    event.preventDefault()
-    const memberId = memberSelect.value
-    if(!memberId?.length)
-        return
-    window.location = `/login/${memberId}`
-}
-/**
- * Submits a challenge response to the server.
- * @public
- * @async
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function submitChallenge(event){
-	event.preventDefault()
-    event.stopPropagation()
-    const { id, value: passphrase, } = memberChallenge
-    if(!passphrase.trim().length)
-        return
-    hide(memberChallengeSubmit)
-	const _mbr_id = window.location.pathname.split('/')[window.location.pathname.split('/').length-1]
-	const url = window.location.origin+`/challenge/${_mbr_id}`
-	const options = {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({ passphrase, }),
-	}
-	const validatePassphrase = await mSubmitPassphrase(url, options)
-	if(validatePassphrase)
-        location.href = '/members'
-    else {
-        memberChallengeError.innerHTML = 'Invalid passphrase: please try again and remember that passphrases are case sensitive.';
-        memberChallenge.value = null
-        memberChallenge.placeholder = 'Try your passphrase again...'
-        memberChallenge.focus()
-    }
 }
 /* private functions */
 /**
@@ -184,21 +131,13 @@ function mAddUserMessage(event){
 /**
  * Initializes event listeners.
  * @private
- * @param {boolean} specializedPage - A flag to determine if the page is specialized.
  * @returns {void}
  */
-function mInitializeListeners(specializedPage=false){
-    if(specializedPage){
-        if(memberSelect)
-            memberSelect.addEventListener('change', selectLoginId)
-        if(memberChallenge){
-            memberChallenge.addEventListener('input', mToggleButton)
-            memberChallengeSubmit.addEventListener('click', submitChallenge)
-        }
-    } else {
+function mInitializeListeners(){
+    if(chatInput)
         chatInput.addEventListener('input', toggleInputTextarea)
+    if(chatSubmit)
         chatSubmit.addEventListener('click', mAddUserMessage)
-    }
 }
 // Function to focus on the textarea and move cursor to the end
 function focusAndSetCursor(textarea) {
@@ -235,7 +174,7 @@ function resetAnimation(element) {
     element.style.animation = '';
 }
 function scrollToBottom() {
-    chatSystem.scrollTop = chatSystem.scrollHeight;
+    chatSystem.scrollTop = chatSystem.scrollHeight
 }
 /**
  * Display the entire page.
@@ -244,15 +183,8 @@ function scrollToBottom() {
  * @returns {void}
  */
 function mShowPage(){
-    // identify access or informational pages
-    const proceduralPage = memberChallenge
-        ?? memberSelect
-        ?? aboutContainer
-        ?? privacyContainer
-            ? true
-            : false
     /* assign listeners */
-    mInitializeListeners(proceduralPage)
+    mInitializeListeners()
     /* display elements */
     show(navigation)
     document.querySelectorAll('.mylife-widget')
@@ -265,7 +197,7 @@ function mShowPage(){
         })
     show(sidebar)
     show(mainContent)
-    if(proceduralPage)
+    if(!chatInput)
         return
     chatInput.value = null
     chatInput.placeholder = mPlaceholder
@@ -342,22 +274,6 @@ async function submitChat(url, options) {
 		return alert(`Error: ${err.message}`)
 	}
 }
-/**
- * 
- * @param {string} url - The url to submit the passphrase to.
- * @param {object} options - The options for the fetch request.
- * @returns {object} - The response from the server.
- */
-async function mSubmitPassphrase(url, options) {
-	try {
-		const response = await fetch(url, options)
-		const jsonResponse = await response.json()
-		return jsonResponse
-	} catch (err) {
-		console.log('fatal error', err)
-		return false
-	}
-}
 function toggleInputTextarea(event) {
     const inputStyle = window.getComputedStyle(chatUser);
     const inputFont = inputStyle.font;
@@ -387,22 +303,18 @@ function toggleInputTextarea(event) {
  * @returns {void}
  */
 function mToggleButton(event){
-    const { id, value,} = event.target
+    const { value,} = event.target
     const input = value.trim().length ? true : false
-    const buttonElement = id === 'member-challenge-input-text'
-        ? memberChallengeSubmit
-        : chatSubmit
     if(input){
-        buttonElement.disabled = false
-        buttonElement.style.cursor = 'pointer'
-        show(buttonElement)
+        chatSubmit.disabled = false
+        chatSubmit.style.cursor = 'pointer'
+        show(chatSubmit)
     } else {
-        buttonElement.disabled = true
-        buttonElement.style.cursor = 'not-allowed'
+        chatSubmit.disabled = true
+        chatSubmit.style.cursor = 'not-allowed'
     }
 }
 /* exports */
 export {
     escapeHtml,
-    selectLoginId,
 }
