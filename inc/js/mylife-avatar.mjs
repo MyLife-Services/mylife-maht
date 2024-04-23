@@ -250,6 +250,18 @@ class Avatar extends EventEmitter {
             .find(_=>_.thread?.id===thread_id)
     }
     /**
+     * Allows member to reset passphrase.
+     * @param {string} passphrase 
+     * @returns {boolean} - true if passphrase reset successful.
+     */
+    async resetPassphrase(passphrase){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot reset passphrase.')
+        if(!passphrase?.length)
+            throw new Error('Passphrase required for reset.')
+        return await this.#factory.resetPassphrase(passphrase)
+    }
+    /**
      * Processes and executes incoming category set request.
      * @todo - deprecate if possible.
      * @public

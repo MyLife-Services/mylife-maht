@@ -15,6 +15,7 @@ import {
     logout,
     loginSelect,
     members,
+    passphraseReset,
     privacyPolicy,
     signup,
     upload,
@@ -91,6 +92,7 @@ _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('contributions/:cid', contributions)
 _memberRouter.post('/mode', interfaceMode)
+_memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/upload', _upload)
 _memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths

@@ -486,6 +486,24 @@ class Dataservices {
 		_candidate.name = `${_candidate.email.split('@')[0]}-${_candidate.email.split('@')[1]}_${_candidate.id}`
 		return await this.datamanager.registerCandidate(_candidate)
 	}
+    /**
+     * Allows member to reset passphrase.
+     * @param {string} passphrase 
+     * @returns {boolean} - true if passphrase reset successful.
+     */
+    async resetPassphrase(passphrase){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot reset passphrase.')
+        if(!passphrase?.length)
+            throw new Error('Passphrase required for reset.')
+        try{
+			const response = await this.datamanager.patchItem(this.core.id, [{ op: 'add', path: '/passphrase', value: passphrase }])
+			return response?.passphrase===passphrase
+		} catch(err){
+			console.log('mylife-data-service::resetPassphrase() error', err)
+			return false
+		}
+    }
 	async setBot(_bot){
 		const _originalBot = await this.bot(_bot.id)
 		if(_originalBot){ // update

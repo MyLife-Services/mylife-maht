@@ -267,6 +267,18 @@ class BotFactory extends EventEmitter{
 		}
 		return _updatedLibrary
 	}
+    /**
+     * Allows member to reset passphrase.
+     * @param {string} passphrase 
+     * @returns {boolean} - true if passphrase reset successful.
+     */
+    async resetPassphrase(passphrase){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot reset passphrase.')
+        if(!passphrase?.length)
+            throw new Error('Passphrase required for reset.')
+        return await this.dataservices.resetPassphrase(passphrase)
+    }
 	/**
 	 * Adds or updates a bot.
 	 * @public

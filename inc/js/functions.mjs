@@ -148,6 +148,14 @@ async function members(ctx){ // members home
 	ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
 	await ctx.render('members')
 }
+async function passphraseReset(ctx){
+	if(ctx.state.avatar.isMyLife)
+		ctx.throw(400, `cannot reset system passphrase`)
+	const { passphrase } = ctx.request.body
+	if(!passphrase?.length)
+		ctx.throw(400, `passphrase required for reset`)
+	ctx.body = await ctx.state.avatar.resetPassphrase(passphrase)
+}
 async function privacyPolicy(ctx){
 	ctx.state.title = `MyLife Privacy Policy`
 	ctx.state.subtitle = `Effective Date: 2024-01-01`
@@ -269,6 +277,7 @@ export {
 	logout,
 	loginSelect,
 	members,
+	passphraseReset,
 	privacyPolicy,
 	signup,
 	upload,
