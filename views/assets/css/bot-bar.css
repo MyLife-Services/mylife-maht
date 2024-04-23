@@ -43,7 +43,7 @@
 .bot-container {
 	box-sizing: border-box;
     cursor: pointer;
-	display: flex;
+	display: none;
 	flex-direction: column;
 	justify-content: space-between;
 	margin: 0.2rem 0;
@@ -69,6 +69,7 @@
 	border: rgba(0, 0, 0, 0.7) 0.12em solid;
 	border-radius: 50%;
 	box-shadow: 0.6px 2px 3px rgba(0, 0, 0, 0.6);
+    display: flex;
 	flex: 0 0 auto;
 	height: 1.5em;
 	margin: .4em;
@@ -130,6 +131,9 @@
 .bot-options-dropdown.open::before {
     transform: rotate(0deg); /* Rotation when open */
 }
+.bot-passphrase {
+    width: 100%;
+}
 .bot-status {
 	align-items: center;
 	background-color: #007BFF;
@@ -145,28 +149,36 @@
 	padding: 0.2em;
 }
 .bot-type {
+	color: aliceblue;
+    display: flex;
+	flex: 0 0 auto;
 	font-size: 0.8em;
 	font-weight: bold;
-	color: aliceblue;
 	margin-right: 1em;
-	flex: 0 0 auto;
+    max-height: 100%;
+    max-width: 8em;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    width: min-content;
 }
 .ticker {
 	background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
     border: 0.5px solid rgba(255, 255, 255, 0.5); /* Thin white border with 50% opacity */
     box-shadow: inset -4px -14px 13px 2px rgba(0, 0, 0, 0.5); /* Inset shadow for top and left */
     border-radius: 0.3em;
-    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
-    white-space: nowrap; /* Prevent text from wrapping to the next line */
-    overflow: hidden; /* Hide the overflowing part of the text */
-    display: block; /* Make it a block element */
-    min-width: 5em; /* Allow the text to shrink */
     color: rgb(28, 255, 28);
+    display: flex;
+    flex: 1 1 auto;
+    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
+    max-width: 100%;
+    min-width: 5em; /* Allow the text to shrink */
+    overflow: hidden; /* Hide the overflowing part of the text */
+    white-space: nowrap; /* Prevent text from wrapping to the next line */
 }
 .ticker span {
+    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
     display: inline-block; /* Inline block for the animation */
     padding-left: 110%; /* Space before scrolling starts */
-    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
 }
 .ticker span.no-animation {
     animation: none;
@@ -178,6 +190,15 @@
 	flex-direction: column;
 	justify-content: flex-start;
 	max-width: 100%;
+}
+/* avatar passphrases */
+.passphrase-container {
+    display: none;
+    flex-direction: row;
+    justify-content: space-between;
+}
+.passphrase-reset {
+    width: 100%;
 }
 /* bot slider */
 .input-group {

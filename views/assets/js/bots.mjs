@@ -2,7 +2,9 @@
 /* imports */
 import {
     addMessageToColumn,
+    hide,
     setActiveBot,
+    show,
     state,
 } from './members.mjs'
 import Globals from './globals.mjs'
@@ -113,19 +115,27 @@ function botIcon(type){
     return image
 }
 /**
+ * Cancel passphrase reset.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mCancelPassphrase(event){
+    mTogglePassphrase(false)
+}
+/**
  * Get bot status based on thread and assistant population.
  * @public
  * @param {object} bot
  * @param {object} botIcon - icon <div> element
  * @returns {string} status
  */
-function getBotStatus(bot, botIcon){
+function getStatus(bot, botIcon){
     switch (true) {
-        case (bot?.thread_id?.length>0 || false): // activated
+        case (bot.thread_id?.length>0 || false): // activated
             botIcon.classList.add('active')
             botIcon.classList.remove('inactive')
             return 'active'
-        case ( bot?.bot_id?.length>0 || false): // unactivated
+        case ( bot.bot_id?.length>0 ): // unactivated
             botIcon.classList.add('inactive')
             botIcon.classList.remove('active')
             return 'inactive'
@@ -133,6 +143,32 @@ function getBotStatus(bot, botIcon){
             botIcon.classList.remove('active', 'inactive')
             return 'none'
     }
+}
+function mInputPassphrase(event){
+    const passphraseInput = event.target
+    const passphraseSubmit = document.getElementById(`personal-avatar-passphrase-submit`)
+    if(passphraseInput.value.length)
+        show(passphraseSubmit)
+    else
+        hide(passphraseSubmit)
+}
+/**
+ * Reset passphrase for MyLife via avatar.
+ * @param {Event} event 
+ * @returns {void}
+ */
+function mResetPassphrase(event){
+    const element = event.target
+    const passphraseCancel = document.getElementById(`personal-avatar-passphrase-cancel`)
+    const passphraseInput = document.getElementById(`personal-avatar-passphrase`)
+    const passphraseSubmit = document.getElementById(`personal-avatar-passphrase-submit`)
+    /* add listeners */
+    passphraseCancel.addEventListener('click', mCancelPassphrase, { once: true })
+    passphraseInput.addEventListener('input', mInputPassphrase, { once: true })
+    passphraseSubmit.addEventListener('click', mSubmitPassphrase, { once: true })
+    /* prepare reset */
+    mTogglePassphrase(true)
+
 }
 /**
  * Set Bot data on server.
@@ -160,26 +196,41 @@ async function setBot(bot){
     }
     return
 }
+/**
+ * Submit updated passphrase for MyLife via avatar.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mSubmitPassphrase(event){
+    const passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`)
+    const passphraseInput = document.getElementById(`personal-avatar-passphrase`)
+    const passphraseResetButton = document.getElementById(`passphrase-reset-button`)
+    const passphraseSubmit = document.getElementById(`personal-avatar-passphrase-submit`)
+    if(!passphraseInput.value.length)
+        return
+    /* submit to server */
+    
+    /* add listener */
+    passphraseResetButton.addEventListener('click', mResetPassphrase, { once: true })
+    hide(passphraseInputContainer)
+    show(passphraseResetButton)
+}
 function toggleBotContainerOptions(event){
     event.stopPropagation()
-    // First, close any currently open containers and rotate their dropdowns back
-    const itemIdSnippet = event.target.id.split('-').pop()
+    const element = event.target
+    const itemIdSnippet = element.id.split('-').pop()
     switch(itemIdSnippet){
         case 'create':
             // validate required fields
-            /*
-            if(!this.getAttribute('data-mbr_id')?.length){
-                alert('Please login to create a bot.')
-                return
-            }
-            */
            if(!this.getAttribute('data-bot_name')?.length){
-               this.setAttribute('data-bot_name', `${mGlobals.variableIze(this.getAttribute('data-mbr_handle'))}-${this.getAttribute('data-type')}`)
+               this.setAttribute('data-bot_name', `${ mGlobals.variableIze(this.getAttribute('data-mbr_handle')) }-${ this.getAttribute('data-type') }`)
            }
+           /* deprecate
             if(!this.getAttribute('data-dob')?.length){
                 alert('Birthdate is required to calibrate your biographer.')
                 return
             }
+            */
             // mutate bot object
             const bot = {
                 bot_id: this.getAttribute('data-bot_id'),
@@ -194,8 +245,10 @@ function toggleBotContainerOptions(event){
                 type: this.getAttribute('data-type'),
             }
             switch(bot.type){
-                case 'personal-biographer':
+                case 'personal-avatar':
                     bot.dob = this.getAttribute('data-dob')
+                    break
+                case 'personal-biographer':
                     bot.interests = this.getAttribute('data-interests')
                     const _n = parseInt(this.getAttribute('data-narrative'), 10)
                     bot.narrative = isNaN(_n) ? 50 : Math.min(100, Math.max(1, _n))
@@ -234,7 +287,7 @@ function toggleBotContainerOptions(event){
                         otherDropdown.classList.remove('open')
                     }
                 }
-            });
+            })
             // Then, toggle the visibility of the clicked container's content
             var content = this.querySelector('.bot-options')
             if (content) {
@@ -246,8 +299,32 @@ function toggleBotContainerOptions(event){
                 dropdown.classList.toggle('open')
             }
             return
+        case 'update':
+
+            break
+        case 'upload':
         default:
             break
+    }
+}
+function mTogglePassphrase(bShowInput=true){
+    const passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`)
+    const passphraseInput = document.getElementById(`personal-avatar-passphrase`)
+    const passphraseResetButton = document.getElementById(`passphrase-reset-button`)
+    const passphraseSubmitButton = document.getElementById(`personal-avatar-passphrase-submit`)
+    /* set properties */
+    passphraseInput.value = ''
+    passphraseInput.placeholder = 'Enter new passphrase...'
+    hide(passphraseSubmitButton)
+    if(bShowInput){
+        passphraseInput.focus()
+        hide(passphraseResetButton)
+        show(passphraseInputContainer)
+    } else {
+        passphraseInput.blur()
+        passphraseResetButton.addEventListener('click', mResetPassphrase, { once: true })
+        hide(passphraseInputContainer)
+        show(passphraseResetButton)
     }
 }
 /**
@@ -279,98 +356,167 @@ function updateBotBar(){
     })
 }
 /**
- * Updates bot-widget containers with bot data.
+ * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
+ * @todo - creation mechanism for new bots or to `reinitialize` or `reset` current bots, like avatar.
+ * @todo - architect  better mechanic for populating and managing bot-specific options
  * @returns {void}
  */
 function updateBotContainers(){
     const { activeBot, pageBots, } = mState
-    document.querySelectorAll('.bot-container').forEach(botContainer => {
-        const bot = pageBots.find(bot => bot.type === botContainer.id)??{ status: 'none' }
-        const _type = botContainer.id
+    /* iterate over bot containers */
+    document.querySelectorAll('.bot-container').forEach(botContainer=>{
+        const bot = pageBots.find(bot => bot.type === botContainer.id)
+        if(!bot)
+            return /* no problem if not found, available on different team */
+        const type = botContainer.id
         const _mbrHandle = mGlobals.getHandle(activeBot.mbr_id)
         /* attributes */
-        botContainer.setAttribute('data-active', activeBot.id === bot.id ? 'true' : 'false' )
-        botContainer.setAttribute('data-bot_id', bot?.bot_id??'')
-        botContainer.setAttribute('data-bot_name', bot?.bot_name??`${_mbrHandle}-${_type}`)
-        botContainer.setAttribute('data-id', bot?.id??'')
-        botContainer.setAttribute('data-mbr_id', activeBot.mbr_id)
-        botContainer.setAttribute('data-mbr_handle', _mbrHandle)
-        botContainer.setAttribute('data-provider', bot?.provider??'')
-        botContainer.setAttribute('data-purpose', bot?.purpose??'')
-        botContainer.setAttribute('data-thread_id', bot?.thread_id??'')
-        botContainer.setAttribute('data-type', _type)
+        const attributes = [
+            { name: 'active', value: activeBot.id === bot.id ? 'true' : 'false' },
+            { name: 'bot_id', value: bot.bot_id },
+            { name: 'bot_name', value: bot.bot_name ?? `${ _mbrHandle }-${ type }` },
+            { name: 'id', value: bot.id },
+            { name: 'mbr_id', value: activeBot.mbr_id },
+            { name: 'mbr_handle', value: _mbrHandle },
+            { name: 'provider', value: bot.provider ?? '' },
+            { name: 'purpose', value: bot.purpose ?? `To assist ${ _mbrHandle } with tasks as their ${ type }` },
+            { name: 'thread_id', value: bot.thread_id ?? '' },
+            { name: 'type', value: type },
+        ]
         /* constants */
-        const botStatus = botContainer.querySelector(`#${_type}-status`)
-        const botOptions = botContainer.querySelector(`#${_type}-options`)
-        const botIcon = botStatus.querySelector(`#${_type}-icon`)
-        const botOptionsDropdown = botStatus.querySelector(`#${_type}-options-dropdown`)
+        const botStatus = document.getElementById(`${ type }-status`)
+        const botOptions = document.getElementById(`${ type }-options`)
+        const botIcon = document.getElementById(`${ type }-icon`)
+        const botOptionsDropdown = document.getElementById(`${ type }-options-dropdown`)
         /* container listeners */
         botContainer.addEventListener('click', toggleBotContainerOptions)
-        /* logic */
-        bot.status = bot?.status??getBotStatus(bot, botIcon) // fill in activation status
-        // @todo: architect mechanic for bot-specific options
-        switch(_type){
+        /* universal logic */
+        bot.status = bot.status
+            ?? getStatus(bot, botIcon)
+        attributes.forEach(attribute =>{
+            const { name, value, } = attribute
+            botContainer.setAttribute(`data-${ name }`, value)
+            const element = document.getElementById(`${ type }-${ name }`)
+            if(element){
+                const botInput = element.querySelector('input')
+                if(botInput)
+                    botInput.value = botContainer.getAttribute(`data-${ name }`)
+            }
+        })
+        /* ticker logic */
+        mUpdateTicker(type)
+        /* interests */
+        mUpdateInterests(type, bot.interests, botContainer)
+        /* narrative slider */
+        mUpdateNarrativeSlider(type, bot.narrative, botContainer)
+        /* privacy slider */
+        mUpdatePrivacySlider(type, bot.privacy, botContainer)
+        /* type-specific logic */
+        switch(type){
+            case 'personal-avatar':
+                /* attach avatar listeners */
+                const passphraseResetButton = document.getElementById(`passphrase-reset-button`)
+                passphraseResetButton.addEventListener('click', mResetPassphrase, { once: true })
+                /* date of birth (dob) */
+                botContainer.setAttribute('data-dob', bot.dob?.split('T')[0] ?? '')
+                const memberDobInput = document.getElementById(`${ type }-input-dob`)
+                memberDobInput.value = botContainer.getAttribute('data-dob')
+                memberDobInput.addEventListener('input', event=>{
+                    botContainer.setAttribute('data-dob', memberDobInput.value)
+                    memberDobInput.value = botContainer.getAttribute('data-dob')
+                })
+                break
             case 'personal-biographer':
-                const botName = botOptions.querySelector(`#${_type}-bot_name`)
-                const botNameInput = botName.querySelector('input')
-                botNameInput.value = botContainer.getAttribute('data-bot_name')
-                const botNameTicker = document.querySelector(`#${_type}-name-ticker`)
-                botNameInput.value = botContainer.getAttribute('data-bot_name')
-                if(botNameTicker) botNameTicker.innerHTML = botNameInput.value
-                botNameInput.addEventListener('input', function() {
-                    botContainer.setAttribute('data-bot_name', botNameInput.value)
-                    if(botNameTicker) botNameTicker.innerHTML = botNameInput.value
-                })
-                /*
-                botContainer.setAttribute('data-dob', bot?.dob?.split('T')[0]??'')
-                const botDob = botContainer.querySelector(`#${_type}-dob`)
-                botDob.value = botContainer.getAttribute('data-dob')
-                botDob.addEventListener('input', function() {
-                    botContainer.setAttribute('data-dob', botDob.value)
-                    botDob.value = botContainer.getAttribute('data-dob')
-                })
-                */
-                const _interests = botContainer.querySelector(`#${_type}-interests`)
-                const _checkboxes = _interests.querySelectorAll('input[type="checkbox"]')
-                if(bot.interests?.length){
-                    botContainer.setAttribute('data-interests', bot.interests)
-                    const _interestsArray = bot.interests.split('; ')
-                    _checkboxes.forEach(_checkbox => {
-                        if(_interestsArray.includes(_checkbox.value)){
-                            _checkbox.checked = true
-                        }
-                    })
-                }
-                /* add listeners to checkboxes */
-                _checkboxes.forEach(_checkbox => {
-                    _checkbox.addEventListener('change', function() {
-                        /* concatenate checked values */
-                        const checkedValues = Array.from(_checkboxes)
-                            .filter(cb => cb.checked) // Filter only checked checkboxes
-                            .map(cb => cb.value) // Map to their values
-                            .join('; ')
-                        botContainer.setAttribute('data-interests', checkedValues)
-                    })
-                })
-                /* narrative slider */
-                const narrativeSlider = botContainer.querySelector(`#${_type}-narrative`)
-                botContainer.setAttribute('data-narrative', bot?.narrative??narrativeSlider.value)
-                narrativeSlider.value = botContainer.getAttribute('data-narrative')
-                narrativeSlider.addEventListener('input', function() {
-                    botContainer.setAttribute('data-narrative', narrativeSlider.value);
-                })
-                /* privacy slider */
-                const privacySlider = botContainer.querySelector(`#${_type}-privacy`)
-                botContainer.setAttribute('data-privacy', bot?.privacy??privacySlider.value)
-                privacySlider.value = botContainer.getAttribute('data-privacy')
-                privacySlider.addEventListener('input', function() {
-                    botContainer.setAttribute('data-privacy', privacySlider.value);
-                })
                 break
             default:
                 break
         }
+        show(botContainer)
     })
+}
+/**
+ * Update the bot interests checkbox structure with specifics.
+ * @param {string} type - The bot type.
+ * @param {string} interests - The member's interests.
+ * @param {HTMLElement} botContainer - The bot container.
+ * @returns {void}
+ */
+function mUpdateInterests(type, memberInterests, botContainer){
+    const interests = document.getElementById(`${ type }-interests`)
+    if(!interests)
+        return
+    const checkboxes = interests.querySelectorAll('input[type="checkbox"]')
+    if(memberInterests?.length){
+        botContainer.setAttribute('data-interests', memberInterests)
+        const interestsArray = memberInterests.split('; ')
+        checkboxes.forEach(checkbox=>{
+            if(interestsArray.includes(checkbox.value)){
+                checkbox.checked = true
+            }
+        })
+    }
+    /* add listeners to checkboxes */
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            /* concatenate checked values */
+            const checkedValues = Array.from(checkboxes)
+                .filter(cb => cb.checked) // Filter only checked checkboxes
+                .map(cb => cb.value) // Map to their values
+                .join('; ')
+            botContainer.setAttribute('data-interests', checkedValues)
+        })
+    })
+}
+/**
+ * Update the bot narrative slider with specifics.
+ * @param {string} type - The bot type.
+ * @param {number} narrative - The narrative value.
+ * @param {HTMLElement} botContainer - The bot container.
+ * @returns {void}
+ */
+function mUpdateNarrativeSlider(type, narrative, botContainer){
+    const narrativeSlider = document.getElementById(`${ type }-narrative`)
+    if(narrativeSlider){
+        botContainer.setAttribute('data-narrative', narrative ?? narrativeSlider.value)
+        narrativeSlider.value = botContainer.getAttribute('data-narrative')
+        narrativeSlider.addEventListener('input', event=>{
+            botContainer.setAttribute('data-narrative', narrativeSlider.value)
+        })
+    }
+}
+/**
+ * Update the bot privacy slider with specifics.
+ * @param {string} type - The bot type.
+ * @param {number} privacy - The privacy value.
+ * @param {HTMLElement} botContainer - The bot container.
+ * @returns {void}
+ */
+function mUpdatePrivacySlider(type, privacy, botContainer){
+    const privacySlider = document.getElementById(`${ type }-privacy`)
+    if(privacySlider){
+        botContainer.setAttribute('data-privacy', privacy ?? privacySlider.value)
+        privacySlider.value = botContainer.getAttribute('data-privacy')
+        privacySlider.addEventListener('input', event=>{
+            botContainer.setAttribute('data-privacy', privacySlider.value)
+        })
+    }
+}
+/**
+ * Update the bot ticker with name from 
+ * @param {string} type - The bot type.
+ * @returns {void}
+ */
+function mUpdateTicker(type){
+    const botTicker = document.getElementById(`${ type }-name-ticker`)
+    const botNameInput = document.getElementById(`${ type }-input-bot_name`)
+    if(botTicker)
+        botTicker.innerHTML = botNameInput.value
+    if(botNameInput)
+        botNameInput.addEventListener('input', event=>{
+            botContainer.setAttribute('data-bot_name', botNameInput.value)
+            if(botTicker)
+                botTicker.innerHTML = botNameInput.value
+        })
 }
 /* exports */
 export {

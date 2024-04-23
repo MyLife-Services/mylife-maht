@@ -1,37 +1,49 @@
 <div class="widget bot" id="bot-container">
-    <div class="bot-container" id="avatar">
-        <div class="bot-status" id="avatar-status">
-            <div class="bot-icon" id="avatar-icon"></div>
-            <div class="bot-type" id="avatar-type">My Avatar</div>
-            <div class="bot-name" id="avatar-name"><%= avatar.name %></div>
-            <div class="bot-options-dropdown" id="avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+    <div class="bot-container" id="personal-avatar">
+        <div class="bot-status" id="personal-avatar-status">
+            <div class="bot-icon" id="personal-avatar-icon"></div>
+            <div class="bot-type" id="personal-avatar-type">Intelligent Assistant</div>
+            <div class="bot-name ticker" id="personal-avatar-name" name="bot-name">
+                <span id="personal-avatar-name-ticker"><%= avatar.name %></span>
+            </div>
+            <div class="bot-options-dropdown" id="personal-avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden">
+        <div class="bot-options hidden" id="personal-avatar-options">
             <!-- Bot Name -->
-            <div class="input-group" id="avatar-bot_name">
-                <label for="bot_name">Avatar Name:</label>
-                <input class="bot-name" name="bot_name" maxlength="256">
+            <div class="input-group" id="personal-avatar-bot_name">
+                <label for="personal-avatar-bot_name">Avatar Name:</label>
+                <input class="bot-input bot-name" id="personal-avatar-input-bot_name" maxlength="256" />
             </div>
             <!-- Date of Birth -->
-            <div class="input-group">
-                <label for="dob">My Date of Birth:</label>
-                <input type="date" id="avatar-dob" name="dob">
+            <div class="input-group" id="personal-avatar-dob">
+                <label for="personal-avatar-input dob">My Date of Birth:</label>
+                <input class="bot-date-input bot-dob" id="personal-avatar-input-dob" type="date" />
             </div>
+            <button class="button passphrase-reset" id="passphrase-reset-button">Reset passphrase</button>
+            <div id="personal-avatar-passphrase-container" class="passphrase-container">
+                <span class="fas fa-trash passphrase-cancel" id="personal-avatar-passphrase-cancel"></span>
+                <input class="bot-input passphrase" id="personal-avatar-passphrase" maxlength="256" />
+                <span class="fa-solid fa-right-to-bracket passphrase-enter" id="personal-avatar-passphrase-submit"></span>
+            </div>
+            <button class="button bot-update" id="personal-avatar-update">Update</button>
+            <button class="button bot-upload" id="personal-avatar-upload">Upload</button>
         </div>
     </div>
     <div class="header">Memoire Team</div>
     <div class="bot-container" id="personal-biographer">
         <div class="bot-status" id="personal-biographer-status" name="bot-status">
-            <div class="bot-icon" id="personal-biographer-icon" name="bot-icon"></div>
-            <div class="bot-type" id="personal-biographer-type" name="bot-type">Biographer Bot</div>
-            <div class="bot-name ticker" id="personal-biographer-name" name="bot-name"><span id="personal-biographer-name-ticker">system-one-personal-biographer</span></div>
+            <div class="bot-icon" id="personal-biographer-icon"></div>
+            <div class="bot-type" id="personal-biographer-type">Biographer</div>
+            <div class="bot-name ticker" id="personal-biographer-name">
+                <span id="personal-biographer-name-ticker"></span>
+            </div>
             <div class="bot-options-dropdown" id="personal-biographer-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden" id="personal-biographer-options" name="bot-options">
+        <div class="bot-options hidden" id="personal-biographer-options">
             <!-- Bot Name -->
             <div class="input-group" id="personal-biographer-bot_name">
-                <label for="bot_name">Biographer Name:</label>
-                <input class="bot-name" name="bot_name" maxlength="256">
+                <label for="personal-biographer-input-bot_name">Biographer Name:</label>
+                <input class="bot-input bot-name" id="personal-biographer-input-bot_name" maxlength="256" />
             </div>
             <!-- Stories vs. Interview -->
             <div class="input-group narrative">
@@ -160,19 +172,99 @@
                 </div>
                 <input type="range" class="privacy-slider" id="personal-biographer-privacy" name="privacy-slider" min="0" max="100" value="0">
             </div>
-    
-            <button class="button bot-create" id="personal-biographer-create" name="bot-create">Create</button>
+            <!-- bot buttons -->
+            <button class="button bot-update" id="personal-biographer-update" name="bot-update">Update</button>
+            <button class="button bot-upload" id="personal-biographer-upload" name="bot-upload">Upload</button>
         </div>
     </div>
-    <div class="bot-container" id="personal-library">
-        <div class="bot-status" id="personal-library-status" name="bot-status">
-            <div class="bot-icon" id="personal-library-icon" name="bot-icon"></div>
-            <div class="bot-type" id="personal-library-type" name="bot-type">Library Bot</div>
-            <div class="bot-name ticker" id="personal-library-name" name="bot-name"><span id="personal-library-name-ticker">system-one-personal-biographer</span></div>
-            <div class="bot-options-dropdown" id="personal-library-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+    <div class="bot-container" id="journaler">
+        <div class="bot-status" id="journaler-status" name="bot-status">
+            <div class="bot-icon" id="journaler-icon" name="bot-icon"></div>
+            <div class="bot-type" id="journaler-type" name="bot-type">Journal Assistant</div>
+            <div class="bot-name ticker" id="journaler-name" name="bot-name"><span id="journaler-name-ticker">J.J.</span></div>
+            <div class="bot-options-dropdown" id="journaler-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden" id="personal-library-options" name="bot-options">
+        <div class="bot-options hidden" id="journaler-options" name="bot-options">
             <!-- Bot Name -->
+            <div class="input-group" id="journaler-bot_name">
+                <label for="journaler-input-bot_name">Journal Assistant's Name:</label>
+                <input class="bot-name" id="journaler-input-bot_name" maxlength="256" />
+            </div>
+            <!-- Interests/Hobbies -->
+            <div class="input-group interests" id="journaler-interests">
+                <label>I enjoy journaling about:</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="art" id="journaler-art" value="art">
+                        <label for="journaler-art">Art</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-ideas" value="ideas">
+                        <label for="journaler-ideas">Ideas</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-dreams" value="dreams">
+                        <label for="journaler-dreams">Dreams</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-relationships" value="relationships">
+                        <label for="journaler-relationships">Relationships</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-awareness" value="awareness">
+                        <label for="journaler-awareness">Self-awareness</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-understanding" value="understanding">
+                        <label for="journaler-understanding">Understanding</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-peace" value="peace">
+                        <label for="journaler-peace">Inner Peace</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-spirituality" value="spirituality">
+                        <label for="journaler-spirituality">Spirituality</label>
+                    </div>
+                </div>
+            </div>
+            <button class="button bot-update" id="journaler-update" name="bot-update">Update</button>
+            <button class="button bot-upload" id="journaler-upload" name="bot-upload">Upload</button>
+        </div>
+    </div>
+    <div class="bot-container" id="library">
+        <div class="bot-status" id="library-status" name="bot-status">
+            <div class="bot-icon" id="library-icon" name="bot-icon"></div>
+            <div class="bot-type" id="library-type" name="bot-type">Librarian/Collections</div>
+            <div class="bot-name ticker" id="library-name" name="bot-name"><span id="library-name-ticker">Librarian</span></div>
+            <div class="bot-options-dropdown" id="library-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+        </div>
+        <div class="bot-options hidden" id="library-options" name="bot-options">
+            <!-- Bot Name -->
+            <div class="input-group" id="library-bot_name">
+                <label for="library-input-bot_name">Librarian Name:</label>
+                <input class="bot-name" id="library-input-bot_name" maxlength="256" />
+            </div>
+            <!-- essentially spawns a natural language search based on metatagging and keywords -->
+            <div class="input-group search">
+                <label for="search">Search:</label>
+                <input type="text" id="library-search" name="search">
+            </div>
+            <div id="library-collections" class="bot-collections">
+                <div id="library-collection-stories" class="bot-collection">
+                    /* note: can select to feed to bio-bot etc, assume default goes back to creator-bot */<br />
+                    Story Collection
+                </div>
+                <div id="library-collection-journals" class="bot-collection">
+                    Journal Collection
+                </div>
+                <div id="library-collection-files" class="bot-collection">
+                    File Collection
+                </div>
+            </div>
+            <!-- bot buttons -->
+            <button class="button bot-update" id="library-update" name="bot-update">Update</button>
+            <button class="button bot-upload" id="library-upload" name="bot-upload">Upload</button>
         </div>
     </div>
 </div>
