@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     if(!bots?.length)
         throw new Error(`No bots found.`)
     mPageBots = bots
-    setActiveBot(id) /* no need for await; doesn't trigger server */
+    mActiveBot = mBot(id)
     updatePageBots()
 })
 /* public functions */
@@ -43,18 +43,23 @@ async function fetchBots(){
 /**
  * Set active bot on server and update page bots.
  * @requires mActiveBot
- * @param {Guid} botId 
- * @returns {}
+ * @param {Event} event - The event object.
+ * @returns {void}
  */
-async function setActiveBot(botId){
-    const bot = mPageBots.find(bot=>bot.id===botId)
+async function setActiveBot(event){
+    const botId = event.target?.dataset?.botId
+        ?? event.target.id.split('-').slice(0, -1).join('-')
+    const bot = mBot(botId)
     mActiveBot = mActiveBot
-        ?? mPageBots?.[0]
-    if(!bot || mBotActive(botId))
+        ?? bot
+    if(!bot)
+        throw new Error(`Bot not found.`)
+    if(bot===mActiveBot)
         return
+    const { id, } = bot
     /* server request: set active bot */
-    const id = await fetch(
-        '/members/bots/activate/' + botId,
+    const _id = await fetch(
+        '/members/bots/activate/' + id,
         {
             method: 'POST',
             headers: {
@@ -74,10 +79,8 @@ async function setActiveBot(botId){
             console.log('Error:', error)
             return
         })
-    if(mBotActive(id)) /* rejected and reverted by server */
-        return
     /* update active bot */
-    mActiveBot = bot(id)
+    mActiveBot = bot
     updatePageBots(true)
 }
 /**
@@ -88,8 +91,8 @@ async function setActiveBot(botId){
  * @returns {void}
  */
 async function updatePageBots(bIncludeGreeting=false){
-    mUpdateBotBar()
     mUpdateBotContainers()
+    mUpdateBotBar()
     if(bIncludeGreeting)
         mGreeting()
 }
@@ -102,6 +105,7 @@ async function updatePageBots(bIncludeGreeting=false){
  */
 function mBot(type){
     return mPageBots.find(bot=>bot.type===type)
+        ?? mPageBots.find(bot=>bot.id===type)
 }
 /**
  * Check if bot is active (by id).
@@ -122,20 +126,32 @@ function mBotIcon(type){
         case 'art':
             image+='art-thumb.png'
             break
+        case 'avatar':
+        case 'personal-avatar':
+            image+='personal-avatar-thumb-02.png'
+            break
+        case 'diary':
+        case 'diarist':
+        case 'journal':
+        case 'journaler':
+            image+='journal-thumb.png'
+            break
         case 'education':
             image+='education-thumb.png'
             break
         case 'health':
             image+='health-thumb.png'
             break
+        case 'library':
+            image+='library-thumb.png'
+            break
         case 'personal-biographer':
             return 'png/biographer-thumb.png'
         case 'resume':
             image+='resume-thumb.png'
             break
-        case 'avatar':
-        case 'personal-avatar':
-            image+='personal-avatar-thumb-02.png'
+        case 'ubi':
+            image+='ubi-thumb.png'
             break
         default:
             image+='work-thumb.png'
@@ -144,25 +160,32 @@ function mBotIcon(type){
     return image
 }
 /**
- * Get bot status based on thread and assistant population.
- * @public
- * @param {object} bot
- * @param {object} botIcon - icon <div> element
- * @returns {string} status
+ * Sets bot status based on active bot, thread, and assistant population.
+ * @private
+ * @requires mActiveBot
+ * @param {object} bot - The bot object.
+ * @returns {string} - Determined status.
  */
-function getStatus(bot, botIcon){
-    switch (true) {
-        case (bot.thread_id?.length>0 || false): // activated
+function mSetBotIconStatus(bot){
+    const { bot_id, id, thread_id, type, } = bot
+    const botIcon = document.getElementById(`${ type }-icon`)
+    switch(true){
+        case ( mActiveBot && mActiveBot.id===id): // activated
+            botIcon.classList.remove('online', 'offline', 'error')
             botIcon.classList.add('active')
-            botIcon.classList.remove('inactive')
             return 'active'
-        case ( bot.bot_id?.length>0 ): // unactivated
-            botIcon.classList.add('inactive')
-            botIcon.classList.remove('active')
+        case ( thread_id?.length>0 || false ): // online
+            botIcon.classList.remove('active', 'offline', 'error')
+            botIcon.classList.add('online')
+            return 'online'
+        case ( bot_id?.length>0 ): // offline
+            botIcon.classList.remove('active', 'online', 'error')
+            botIcon.classList.add('offline')
             return 'inactive'
-        default:
-            botIcon.classList.remove('active', 'inactive')
-            return 'none'
+        default: // error
+            botIcon.classList.remove('active', 'online', 'offline')
+            botIcon.classList.add('error')
+            return 'error'
     }
 }
 /**
@@ -244,6 +267,40 @@ async function setBot(bot){
         console.log('Error posting bot data:', error)
         return error
     }
+}
+/**
+ * Sets bot attributes on bot container.
+ * @requires mGlobals
+ * @param {object} bot - The bot object.
+ * @param {HTMLDivElement} botContainer - The bot container.
+ * @returns {void}
+ */
+function mSetAttributes(bot, botContainer){
+    const { bot_id: botId, bot_name: botName, id, mbr_id, provider, purpose, thread_id: threadId, type, } = bot
+    const memberHandle = mGlobals.getHandle(mActiveBot.mbr_id)
+    /* attributes */
+    const attributes = [
+        { name: 'active', value: mBotActive(id) },
+        { name: 'bot_id', value: botId },
+        { name: 'bot_name', value: botName ?? `${ memberHandle }-${ type }` },
+        { name: 'id', value: id },
+        { name: 'mbr_id', value: mbr_id },
+        { name: 'mbr_handle', value: memberHandle },
+        { name: 'provider', value: provider ?? 'openai' },
+        { name: 'purpose', value: purpose ?? `To assist ${ memberHandle } with tasks as their ${ type }` },
+        { name: 'thread_id', value: threadId ?? '' },
+        { name: 'type', value: type },
+    ]
+    attributes.forEach(attribute=>{
+        const { name, value, } = attribute
+        botContainer.setAttribute(`data-${ name }`, value)
+        const element = document.getElementById(`${ type }-${ name }`)
+        if(element){
+            const botInput = element.querySelector('input')
+            if(botInput)
+                botInput.value = botContainer.getAttribute(`data-${ name }`)
+        }
+    })
 }
 /**
  * Submit updated passphrase for MyLife via avatar.
@@ -440,48 +497,19 @@ function mUpdateBotContainers(){
         const bot = mBot(type)
         if(!bot)
             return /* no problem if not found, available on different team */
-        const { bot_id: botId, bot_name: botName, id, mbr_id, provider, purpose, thread_id: threadId, type: botType, } = bot
-        const memberHandle = mGlobals.getHandle(mActiveBot.mbr_id)
-        /* attributes */
-        const attributes = [
-            { name: 'active', value: mBotActive(id) },
-            { name: 'bot_id', value: botId },
-            { name: 'bot_name', value: botName ?? `${ memberHandle }-${ type }` },
-            { name: 'id', value: id },
-            { name: 'mbr_id', value: mbr_id },
-            { name: 'mbr_handle', value: memberHandle },
-            { name: 'provider', value: provider ?? 'openai' },
-            { name: 'purpose', value: purpose ?? `To assist ${ memberHandle } with tasks as their ${ type }` },
-            { name: 'thread_id', value: threadId ?? '' },
-            { name: 'type', value: botType },
-        ]
         /* constants */
         const botStatus = document.getElementById(`${ type }-status`)
         const botOptions = document.getElementById(`${ type }-options`)
-        const botIcon = document.getElementById(`${ type }-icon`)
         const botOptionsDropdown = document.getElementById(`${ type }-options-dropdown`)
         /* container listeners */
         botContainer.addEventListener('click', toggleBotContainerOptions)
+        botStatus.addEventListener('click', setActiveBot)
         /* universal logic */
-        bot.status = bot.status
-            ?? getStatus(bot, botIcon)
-        attributes.forEach(attribute=>{
-            const { name, value, } = attribute
-            botContainer.setAttribute(`data-${ name }`, value)
-            const element = document.getElementById(`${ type }-${ name }`)
-            if(element){
-                const botInput = element.querySelector('input')
-                if(botInput)
-                    botInput.value = botContainer.getAttribute(`data-${ name }`)
-            }
-        })
-        /* ticker logic */
+        mSetBotIconStatus(bot)
+        mSetAttributes(bot, botContainer)
         mUpdateTicker(type, botContainer)
-        /* interests */
         mUpdateInterests(type, bot.interests, botContainer)
-        /* narrative slider */
         mUpdateNarrativeSlider(type, bot.narrative, botContainer)
-        /* privacy slider */
         mUpdatePrivacySlider(type, bot.privacy, botContainer)
         /* type-specific logic */
         switch(type){
@@ -600,6 +628,7 @@ function mUpdateTickerValue(ticker, value){
     ticker.innerText = value
 }
 /* exports */
+// @todo - export combine of fetchBots and updatePageBots
 export {
     fetchBots,
     setActiveBot,

@@ -10,14 +10,6 @@
     max-height: 0.5em; /* Start with a small height */
     transition: max-height 0.5s ease-in-out; /* Animation for the windowshade effect */
     /* descendent styles */
-    .bot-thumb-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        margin-right: 1em; /* Space between containers in em */
-        position: relative;
-    }
     .bot-thumb {
         width: 40px;
         height: 40px;
@@ -31,9 +23,17 @@
         z-index: 2;
         margin: 0 1em; /* Increase margin on hover in em */
     }
+    .bot-thumb-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin-right: 1em; /* Space between containers in em */
+        position: relative;
+    }
 }
 #bot-bar:hover {
-    max-height: 100px; /* Adjust to desired expanded height */
+    max-height: 3em; /* Adjust to desired expanded height */
     overflow: visible; /* Make overflow visible on hover */
 }
 /* bot widget */
@@ -64,9 +64,8 @@
 	font-size: 1.2em;
 }
 .bot-icon {
-	background-color: rgb(142, 142, 142);
-	background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
-	border: rgba(0, 0, 0, 0.7) 0.12em solid;
+    background-image: radial-gradient(circle at 0.1em 0.1em, #eaedff 0%, #1e3b4e 40%, rgb(60 162 213) 80%, #404553 100%);
+	border: rgba(0, 0, 0, 0.7) 0.12em solid !important;
 	border-radius: 50%;
 	box-shadow: 0.6px 2px 3px rgba(0, 0, 0, 0.6);
     display: flex;
@@ -77,18 +76,19 @@
 	width: 1.5em;
 }
 .bot-icon.active {
-	animation: _statusBlinkActive 10s infinite;
+	animation: _statusBlink 6s ease-in-out infinite;
+	background-image: radial-gradient(circle at 0.1em 0.1em, #dfe731 0%, #8b9d3f 40%, rgb(237 255 74) 80%, #000000 100%);
+}
+.bot-icon.error {
+    animation-name: _statusBlink 1.5s ease-in-out infinite;
+    background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
+}
+.bot-icon.offline {
+    animation: none;
+}
+.bot-icon.online {
+	animation: none;
 	background-image: radial-gradient(circle at 0.1em 0.1em, #ecffea 0%, #1e4e2d 40%, rgb(55, 255, 41) 80%, #3b3b3b 100%);
-	box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6);
-}
-.bot-icon.inactive {
-	animation-name: _statusBlinkShadowInactive, _statusBlinkInactive;
-    animation-duration: 8s, 3s;
-    animation-timing-function: linear, linear;
-    animation-iteration-count: infinite, infinite;
-}
-.bot-icon:hover {
-	background-color: #ff0;
 }
 .bot-name {
 	color: inherit;
@@ -148,7 +148,7 @@
 	margin: 0.2em 0.2em 0em 0.2em;
 	padding: 0.2em;
 }
-.bot-type {
+.bot-title {
 	color: aliceblue;
     display: flex;
 	flex: 0 0 auto;
@@ -291,19 +291,8 @@ input[type="range"]::-moz-range-thumb {
     from { opacity: 0; }
     to { opacity: 1; }
 }
-@keyframes _statusBlinkInactive {
-	0% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
-	}
-	80% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
-	}
-	100% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
-	}
-}
-@keyframes _statusBlinkShadowInactive {
-	0% { box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6); }
-	70% { box-shadow: 1px 2.2px 6px rgba(255, 0, 0, 0.4); }
-	100% { box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.75); }
+@keyframes _statusBlink {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
 }
