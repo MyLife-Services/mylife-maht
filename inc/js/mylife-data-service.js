@@ -437,42 +437,48 @@ class Dataservices {
 	/**
 	 * Patches an item by its ID with the provided data.
 	 * @async
-	 * @param {string} _id - The unique identifier for the item to be patched.
-	 * @param {Object} _data - The data to patch the item with.
-	 * @param {string} [_path='/'] - The path for patching, defaults to root.
+	 * @param {string} id - The unique identifier for the item to be patched.
+	 * @param {Object} data - The data to patch the item with; object of key/value pairs to be transformed into patch operations.
+	 * @param {string} [path='/'] - The path for patching, defaults to root.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patch(_id, _data, _path = '/') {
-		// @todo: limit to 10 patch operations
-		// _data is an object of key/value pairs to be transformed into patch operations
-		const patchOperations = Object.keys(_data)
-			// Filtering out keys that should not be included in the patch
-			.filter(_key => !['id', 'being', 'mbr_id'].includes(_key))
-			.map(_key => {
-				return { op: 'add', path: _path + _key, value: _data[_key] }
+	async patch(id, data, path = '/') {
+		const patchOperations = Object.keys(data)
+			.filter(key => !['id', 'being', 'mbr_id'].includes(key)) // keys which must not be included in patch
+			.map(key => {
+				return { op: 'add', path: path + key, value: data[key] }
 			})
-		// Performing the patch operation
-		return await this.patchItem(_id, patchOperations)
+		// Split operations into batches of 10 per Cosmos DB limitations
+		const patchBatches = []
+		while(patchOperations.length){
+			patchBatches.push(patchOperations.splice(0, 10))
+		}
+		// Perform the patch operation(s) for each batch
+		let endResult
+		for(const batch of patchBatches){
+			endResult = await this.patchItem(id, batch)
+		}
+		return endResult
 	}
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
 	 * @async
 	 * @param {string} _id - The unique identifier for the item to be patched.
-	 * @param {Array<Object>} _data - The data for patching, including the path and operation.
+	 * @param {Array<Object>} data - The data for patching, including the path and operation.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(_id, _data){ // path Embedded in _data
-		return await this.datamanager.patchItem(_id ,_data)
+	async patchItem(_id, data){ // path Embedded in data
+		return await this.datamanager.patchItem(_id , data)
 	}
     /**
      * Pushes a new item to the data manager
      * @async
 	 * @public
-     * @param {Object} _data - The data to be pushed
+     * @param {Object} data - The data to be pushed
      * @returns {Promise<Object>} The result of the push operation
      */
-	async pushItem(_data){
-		return await this.datamanager.pushItem(_data)
+	async pushItem(data){
+		return await this.datamanager.pushItem(data)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
@@ -504,22 +510,27 @@ class Dataservices {
 			return false
 		}
     }
-	async setBot(_bot){
-		const _originalBot = await this.bot(_bot.id)
-		if(_originalBot){ // update
-			const _changed = Object.keys(_bot)
-				.filter(key => !key.startsWith('_') && _bot[key] !== _originalBot[key])
+	/**
+	 * Sets a bot in the database. Performs logic to reduce the bot to the minimum required data, as Mongo/Cosmos has a limitation of 10 patch items in one batch array.
+	 * @param {object} bot - The bot object to set.
+	 * @returns {object} - The bot object.
+	 */
+	async setBot(bot){
+		const originalBot = await this.bot(bot.id)
+		if(originalBot){ // update
+			const dataUpdates = Object.keys(bot)
+				.filter(key => !key.startsWith('_') && bot[key] !== originalBot[key])
 				.reduce((obj, key) => {
-					obj[key] = _bot[key]
+					obj[key] = bot[key]
 					return obj
 				}, {})
-			if (Object.keys(_changed).length > 0) {
-				this.patch(_bot.id, _changed)
+			if(Object.keys(dataUpdates).length > 0){
+				bot = this.patch(bot.id, dataUpdates)
 			}
 		} else { // add
-			this.pushItem(_bot)
+			bot = this.pushItem(bot)
 		}
-		return _bot
+		return bot
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.

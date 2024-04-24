@@ -227,7 +227,7 @@ async function setBot(bot){
     try {
         const url = window.location.origin + '/members/bots/' + bot.id
         const method = bot.id?.length ? 'PUT' : 'POST'
-        const response = await fetch(url, {
+        let response = await fetch(url, {
             method: method,
             headers: {
                 'Content-Type': 'application/json'
@@ -237,12 +237,13 @@ async function setBot(bot){
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`)
         }
-        const responseData = await response.json()
-        console.log('Success:', responseData)
+        response = await response.json()
+        console.log('Success:', response)
+        return response
     } catch (error) {
         console.log('Error posting bot data:', error)
+        return error
     }
-    return
 }
 /**
  * Submit updated passphrase for MyLife via avatar.
@@ -284,16 +285,9 @@ function toggleBotContainerOptions(event){
     switch(itemIdSnippet){
         case 'create':
             // validate required fields
-           if(!this.getAttribute('data-bot_name')?.length){
-               this.setAttribute('data-bot_name', `${ mGlobals.variableIze(this.getAttribute('data-mbr_handle')) }-${ this.getAttribute('data-type') }`)
-           }
-           /* deprecate
-            if(!this.getAttribute('data-dob')?.length){
-                alert('Birthdate is required to calibrate your biographer.')
-                return
+            if(!this.getAttribute('data-bot_name')?.length){
+                this.setAttribute('data-bot_name', `${ mGlobals.variableIze(this.getAttribute('data-mbr_handle')) }-${ this.getAttribute('data-type') }`)
             }
-            */
-            // mutate bot object
             const bot = {
                 bot_id: this.getAttribute('data-bot_id'),
                 bot_name: this.getAttribute('data-bot_name'),
@@ -320,9 +314,9 @@ function toggleBotContainerOptions(event){
                 default:
                     break
             }
-            setBot(bot) // post to endpoint, update server
+            // setBot(bot) // post to endpoint, update server
             /* check for success and activate */
-            setActiveBot(bot)
+            // setActiveBot(bot)
             return
         case 'name':
         case 'ticker':
@@ -362,7 +356,21 @@ function toggleBotContainerOptions(event){
             }
             return
         case 'update':
-
+            const updateBot = {
+                bot_name: this.getAttribute('data-bot_name'),
+                id: this.getAttribute('data-id'),
+                type: this.getAttribute('data-type'),
+            }
+            if(this.getAttribute('data-dob')?.length)
+                updateBot.dob = this.getAttribute('data-dob')
+            if(this.getAttribute('data-interests')?.length)
+                updateBot.interests = this.getAttribute('data-interests')
+            if(this.getAttribute('data-narrative')?.length)
+                updateBot.narrative = this.getAttribute('data-narrative')
+            if(this.getAttribute('data-privacy')?.length)
+                updateBot.privacy = this.getAttribute('data-privacy')
+            if(!setBot(updateBot))
+                throw new Error(`Error updating bot.`)
             break
         case 'upload':
         default:
@@ -468,7 +476,7 @@ function mUpdateBotContainers(){
             }
         })
         /* ticker logic */
-        mUpdateTicker(type)
+        mUpdateTicker(type, botContainer)
         /* interests */
         mUpdateInterests(type, bot.interests, botContainer)
         /* narrative slider */
@@ -565,21 +573,31 @@ function mUpdatePrivacySlider(type, privacy, botContainer){
     }
 }
 /**
- * Update the bot ticker with name from 
+ * Update the bot ticker with value from name input, and assert to `data-bot_name`.S
  * @param {string} type - The bot type.
+ * @param {HTMLElement} botContainer - The bot container.
  * @returns {void}
  */
-function mUpdateTicker(type){
+function mUpdateTicker(type, botContainer){
     const botTicker = document.getElementById(`${ type }-name-ticker`)
     const botNameInput = document.getElementById(`${ type }-input-bot_name`)
     if(botTicker)
-        botTicker.innerHTML = botNameInput.value
+        mUpdateTickerValue(botTicker, botNameInput.value)
     if(botNameInput)
         botNameInput.addEventListener('input', event=>{
-            botContainer.setAttribute('data-bot_name', botNameInput.value)
-            if(botTicker)
-                botTicker.innerHTML = botNameInput.value
+            const { value, } = event.target
+            mUpdateTickerValue(botTicker, value)
+            botContainer.setAttribute('data-bot_name', value)
         })
+}
+/**
+ * Simple proxy to update tickers innerHTML.
+ * @param {HTMLDivElement} ticker - The ticker element.
+ * @param {string} value - The value to update.
+ * @returns {void}
+ */
+function mUpdateTickerValue(ticker, value){
+    ticker.innerText = value
 }
 /* exports */
 export {

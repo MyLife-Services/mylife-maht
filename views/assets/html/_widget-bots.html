@@ -27,6 +27,7 @@
             </div>
             <button class="button bot-update" id="personal-avatar-update">Update</button>
             <button class="button bot-upload" id="personal-avatar-upload">Upload</button>
+            <button class="button bot-posterity" id="personal-avatar-posterity">View My Avatar</button>
         </div>
     </div>
     <div class="header">Memoire Team</div>
@@ -173,8 +174,9 @@
                 <input type="range" class="privacy-slider" id="personal-biographer-privacy" name="privacy-slider" min="0" max="100" value="0">
             </div>
             <!-- bot buttons -->
-            <button class="button bot-update" id="personal-biographer-update" name="bot-update">Update</button>
-            <button class="button bot-upload" id="personal-biographer-upload" name="bot-upload">Upload</button>
+            <button class="button bot-update" id="personal-biographer-update">Update</button>
+            <button class="button bot-upload" id="personal-biographer-upload">Upload</button>
+            <button class="button bot-write" id="personal-biographer-write-biography">Write My Biography</button>
         </div>
     </div>
     <div class="bot-container" id="journaler">
@@ -230,6 +232,7 @@
             </div>
             <button class="button bot-update" id="journaler-update" name="bot-update">Update</button>
             <button class="button bot-upload" id="journaler-upload" name="bot-upload">Upload</button>
+            <button class="button bot-write" id="journaler-write">Write About My Inner Life</button>
         </div>
     </div>
     <div class="bot-container" id="library">
@@ -246,9 +249,10 @@
                 <input class="bot-name" id="library-input-bot_name" maxlength="256" />
             </div>
             <!-- essentially spawns a natural language search based on metatagging and keywords -->
-            <div class="input-group search">
+            <div id="library-search" class="input-group search">
                 <label for="search">Search:</label>
-                <input type="text" id="library-search" name="search">
+                <input type="text" id="library-search-input" maxlength="128" placeholder="Results appear in chat" title="Results from search will be presented in main chat window by librarian bot" />
+                <span class="fa-solid fa-search" id="library-search-submit"></span>
             </div>
             <div id="library-collections" class="bot-collections">
                 <div id="library-collection-stories" class="bot-collection">

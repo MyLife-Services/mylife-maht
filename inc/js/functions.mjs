@@ -26,14 +26,15 @@ async function alerts(ctx){
 	}
 }
 async function bots(ctx){
-	const _bot = ctx.request.body
+	const bot = ctx.request.body
 	switch(ctx.method){
-		case 'POST':
-			ctx.body = await ctx.state.avatar.setBot(_bot)
+		case 'POST': // create new bot
+			ctx.body = await ctx.state.avatar.setBot(bot)
 			break
-		case 'PUT':
-			if(ctx.params.bid!==_bot.id) throw new Error('invalid bot data')
-			ctx.body = await ctx.state.avatar.setBot(_bot)
+		case 'PUT': // update bot
+			if(ctx.params.bid!==bot.id)
+				throw new Error('invalid bot data')
+			ctx.body = await ctx.state.avatar.setBot(bot)
 			break
 		case 'GET':
 		default:
