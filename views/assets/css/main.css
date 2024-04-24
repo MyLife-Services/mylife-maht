@@ -45,7 +45,12 @@ body {
 	padding: 0px;
 	width: 100%; /* Full width */
 }
-.navigation-brand, .navigation-login-logout, .navigation-nav, .navigation-padding, .navigation-search {
+.navigation-brand, 
+.navigation-help,
+.navigation-login-logout,
+.navigation-nav,
+.navigation-padding,
+.navigation-search {
 	align-items: center;
 	display: flex;
 	flex: none; /* Prevents items from growing */
@@ -53,6 +58,18 @@ body {
 .navigation-brand {
 	cursor: default; /* Set cursor to default */
 	margin-right: 2em; /* Right margin on navigation brand */
+}
+.navigation-help {
+	align-items: center;
+	color: #007bff;
+	display: flex;
+	font-size: 2em;
+	height: auto;
+	justify-content: center;
+}
+.navigation-help:hover {
+	color: purple; /* Your existing styles for active link */
+	cursor: pointer; /* Set cursor to pointer on hover */
 }
 .navigation-login-logout {
 	align-self: flex-end;
