@@ -21,8 +21,8 @@ import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
 /* modular constants */
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
+const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
 const mBotInstructions = {}
-const mPartitionId = process.env.MYLIFE_SERVER_MBR_ID
 const mDataservices = await new Dataservices(mPartitionId).init()
 const mDefaultBotType = 'personal-avatar'
 const mExtensionFunctions = {
@@ -173,10 +173,28 @@ class BotFactory extends EventEmitter{
 		)
 		return _bots
 	}
+    /**
+     * Get member collection items.
+     * @param {string} type - The type of collection to retrieve, `false`-y = all.
+     * @returns {array} - The collection items with no wrapper.
+     */
+	async collections(type){
+		return await this.dataservices.collections(type)
+	}
 	async createBot(bot={ type: mDefaultBotType }){
 		bot.id = this.newGuid
 		const _bot = await mCreateBot(this.#llmServices, this, bot, this.avatarId)
 		return _bot
+	}
+    /**
+     * Delete an item from member container.
+     * @param {Guid} id - The id of the item to delete.
+     * @returns {boolean} - true if item deleted successfully.
+     */
+	async deleteItem(id){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot delete items.')
+		return await this.dataservices.deleteItem(id)
 	}
 	/**
 	 * Gets array of member `experiences` from database. When placed here, it allows for a bot to be spawned who has access to this information, which would make sense for a mini-avatar whose aim is to report what experiences a member has endured.

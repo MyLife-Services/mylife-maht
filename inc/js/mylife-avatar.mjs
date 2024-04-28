@@ -4,9 +4,9 @@ import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 /* modular constants */
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
-const allowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
+const mAllowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
-const botIdOverride = OPENAI_MAHT_GPT_OVERRIDE
+const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
 /**
  * @class
  * @extends EventEmitter
@@ -85,7 +85,7 @@ class Avatar extends EventEmitter {
         } else { // Q-specific, leave as `else` as is near always false
             // @todo - something doesn't smell right in how session would handle conversations - investigate logic; fine if new Avatar instance is spawned for each session, which might be true
             this.activeBotId = activeBot.id
-            activeBot.bot_id = botIdOverride ?? activeBot.bot_id
+            activeBot.bot_id = mBotIdOverride ?? activeBot.bot_id
             this.#llmServices.botId = activeBot.bot_id
             const conversation = await this.createConversation()
             activeBot.thread_id = conversation.threadId
@@ -123,7 +123,7 @@ class Avatar extends EventEmitter {
         conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, prompt)
         conversation.addMessages(messages)
-        if(allowSave)
+        if(mAllowSave)
             conversation.save()
         else
             console.log('chatRequest::BYPASS-SAVE', conversation.message)
@@ -154,11 +154,32 @@ class Avatar extends EventEmitter {
             })
         return chat
     }
+    /**
+     * Get member collection items.
+     * @param {string} type - The type of collection to retrieve, `false`-y = all.
+     * @returns {array} - The collection items with no wrapper.
+     */
+    async collections(type){
+        const collections = await this.factory.collections(type)
+        return collections
+    }
     async createConversation(type='chat'){
         const thread = await this.#llmServices.thread()
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
+    }
+    /**
+     * Delete an item from member container.
+     * @async
+     * @public
+     * @param {Guid} id - The id of the item to delete.
+     * @returns {boolean} - true if item deleted successfully.
+     */
+    async deleteItem(id){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot delete items.')
+        return await this.factory.deleteItem(id)
     }
     /**
      * Ends an experience.

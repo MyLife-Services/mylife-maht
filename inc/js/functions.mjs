@@ -78,6 +78,9 @@ async function chat(ctx){
 	const _response = await ctx.state.avatar.chatRequest(ctx)
 	ctx.body = _response // return message_member_chat
 }
+async function collections(ctx){
+	ctx.body = await ctx.state.avatar.collections(ctx.params.type)
+}
 /**
  * Manage delivery and receipt of contributions(s).
  * @async
@@ -91,6 +94,20 @@ async function contributions(ctx){
 		?	mGetContributions(ctx)
 		:	mSetContributions(ctx)
 	)
+}
+/**
+ * Delete an item from collection via the member's avatar.
+ * @async
+ * @public
+ * @requires ctx.state.avatar - The avatar object for the member.
+ * @param {object} ctx - Koa Context object
+ * @returns {boolean} - Under `ctx.body`, status of deletion.
+ */
+async function deleteItem(ctx){
+	const { iid, } = ctx.params
+	if(!iid?.length)
+		ctx.throw(400, `missing item id`)
+	ctx.body = await ctx.state.avatar.deleteItem(iid)
 }
 /**
  * Index page for the application.
@@ -271,7 +288,9 @@ export {
 	category,
 	challenge,
 	chat,
+	collections,
 	contributions,
+	deleteItem,
 	index,
 	interfaceMode,
 	login,

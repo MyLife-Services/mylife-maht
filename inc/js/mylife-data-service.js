@@ -12,6 +12,11 @@ import PgvectorManager from "./mylife-pgvector-datamanager.mjs"
  * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
  */
 class Dataservices {
+	/**
+	 * Identifies currently available selection sub-types (i.e., `being`=@var) for the data service.
+	 * @private
+	 */
+	#collectionTypes = ['chat', 'conversation', 'entry', 'experience', 'file', 'library', 'story']
     /**
      * Represents the core functionality of the data service. This property
      * objectifies core data to make it more manageable and structured,
@@ -165,8 +170,90 @@ class Dataservices {
 		//	ask global data service (stored proc) for passphrase
 		return await this.datamanager.challengeAccess(_mbr_id, _passphrase)
 	}
+	/**
+	 * Proxy to retrieve stored conversations.
+	 * @returns {array} - The collection of conversations.
+	 */
+	async collectionConversations(){
+		return await this.getItems('chat')
+	}
+	/**
+	 * Proxy to retrieve journal entry items.
+	 * @returns {array} - The journal entry items.
+	 */
+	async collectionEntries(){
+		return await this.getItems('entry')
+	}
+	/**
+	 * Proxy to retrieve lived experiences.
+	 * @returns {array} - The lived experiences.
+	 */
+	async collectionExperiences(){
+		return await this.getItems('experience')
+	}
+	/**
+	 * Proxy to retrieve files.
+	 * @returns {array} - The member's files.
+	 */
+	async collectionFiles(){
+		return await this.getItems('file')
+	}
+	/**
+	 * Proxy to retrieve library items.
+	 * @param {string} form - The form of the library items (such as: personal, album,).
+	 * @returns {array} - The library items.
+	 */
+	async collectionLibraries(form){
+		return await this.getItems('library')
+	}
+	/**
+	 * Proxy to retrieve biographical story items.
+	 * @returns {array} - The biographical story items.
+	 */
+	async collectionStories(){
+		return await this.getItems('story')
+	}
+    /**
+     * Get member collection items.
+	 * @public
+	 * @async
+     * @param {string} type - The type of collection to retrieve, `false`-y = all.
+     * @returns {array} - The collection items with no wrapper.
+     */
+	async collections(type){
+		if(type?.length && this.#collectionTypes.includes(type))
+			return await this.getItems(type)
+		else
+			return Promise.all([
+				this.collectionConversations(),
+				this.collectionEntries(),
+				this.collectionExperiences(),
+				this.collectionFiles(),
+				this.collectionStories(),
+			])
+				.then(([conversations, entries, experiences, stories])=>[
+					...conversations,
+					...entries,
+					...experiences,
+					...stories,
+				])
+				.catch(err=>{
+					console.log('mylife-data-service::collections() error', err)
+					return []
+				})
+	}
 	async datacore(_mbr_id){
 		return await this.getItem(_mbr_id)
+	}
+    /**
+     * Delete an item from member container.
+     * @async
+     * @public
+     * @param {Guid} id - The id of the item to delete.
+     * @returns {boolean} - true if item deleted successfully.
+     */
+	async deleteItem(id){
+		return await this.datamanager.deleteItem(id)
 	}
 	async findRegistrationIdByEmail(_email){
 		/* pull record for email, returning id or new guid */

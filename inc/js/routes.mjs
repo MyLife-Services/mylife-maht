@@ -8,7 +8,9 @@ import {
     category,
     challenge,
     chat,
+    collections,
     contributions,
+    deleteItem,
     index,
     interfaceMode,
     login,
@@ -75,9 +77,12 @@ _apiRouter.post('/story/library/:mid', storyLibrary) /* ordered first for path r
 _apiRouter.post('/story/:mid', story)
 /* member routes */
 _memberRouter.use(memberValidation)
+_memberRouter.delete('/items/:iid', deleteItem)
 _memberRouter.get('/', members)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
+_memberRouter.get('/collections', collections)
+_memberRouter.get('/collections/:type', collections)
 _memberRouter.get('/contributions', contributions)
 _memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/experiences', experiences)
