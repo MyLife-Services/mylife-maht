@@ -10,6 +10,8 @@ import Globals from './globals.mjs'
 /* constants */
 const botBar = document.getElementById('bot-bar'),
     mGlobals = new Globals(),
+    mLibraries = ['file', 'story'], // ['chat', 'entry', 'experience', 'file', 'story']
+    libraryCollections = document.getElementById('library-collections'),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
     passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`),
@@ -31,10 +33,24 @@ document.addEventListener('DOMContentLoaded', async event=>{
 /**
  * Fetch bots from server, used primarily for initialization of page, though could be requested on-demand.
  * @public
- * @returns {Promise<Array>} bots
+ * @returns {Promise<Object[Array]>} - The bot object array, no wrapper.
  */
 async function fetchBots(){
     const url = window.location.origin + '/members/bots'
+    const response = await fetch(url)
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    return await response.json()
+}
+/**
+ * Fetch collection(s) requested on-demand.
+ * @param {string} type - The type of collections to fetch.
+ * @returns {Promise<Object[Array]>} - The collection(s)' items, no wrapper.
+ */
+async function fetchCollections(type){
+    const url = window.location.origin
+        + `/members/collections`
+        + ( !type ? '' : `/${ type }` )
     const response = await fetch(url)
     if(!response.ok)
         throw new Error(`HTTP error! Status: ${response.status}`)
@@ -146,7 +162,9 @@ function mBotIcon(type){
             image+='library-thumb.png'
             break
         case 'personal-biographer':
-            return 'png/biographer-thumb.png'
+        case 'biographer':
+            image+='biographer-thumb.png'
+            break
         case 'resume':
             image+='resume-thumb.png'
             break
@@ -160,33 +178,101 @@ function mBotIcon(type){
     return image
 }
 /**
- * Sets bot status based on active bot, thread, and assistant population.
- * @private
- * @requires mActiveBot
- * @param {object} bot - The bot object.
- * @returns {string} - Determined status.
+ * Create a functional collection item HTML div for the specified collection type.
+ * @param {object} collectionItem - The collection item object, requires type.
+ * @returns {HTMLDivElement} - The collection item.
  */
-function mSetBotIconStatus(bot){
-    const { bot_id, id, thread_id, type, } = bot
-    const botIcon = document.getElementById(`${ type }-icon`)
-    switch(true){
-        case ( mActiveBot && mActiveBot.id===id): // activated
-            botIcon.classList.remove('online', 'offline', 'error')
-            botIcon.classList.add('active')
-            return 'active'
-        case ( thread_id?.length>0 || false ): // online
-            botIcon.classList.remove('active', 'offline', 'error')
-            botIcon.classList.add('online')
-            return 'online'
-        case ( bot_id?.length>0 ): // offline
-            botIcon.classList.remove('active', 'online', 'error')
-            botIcon.classList.add('offline')
-            return 'inactive'
-        default: // error
-            botIcon.classList.remove('active', 'online', 'offline')
-            botIcon.classList.add('error')
-            return 'error'
-    }
+function mCreateCollectionItem(collectionItem){
+    const { assistantType, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
+    const item = document.createElement('div')
+    item.id = `collection-item_${ id }`
+    item.name = `collection-item-${ type }`
+    item.classList.add('collection-item', `${ type }-collection-item`)
+    /* icon */
+    const itemIcon = document.createElement('img')
+    itemIcon.id = `collection-item-icon_${ id }`
+    itemIcon.name = `collection-item-icon-${ type }`
+    itemIcon.classList.add('collection-item-icon', `${ type }-collection-item-icon`)
+    itemIcon.src = mBotIcon(assistantType)
+    item.appendChild(itemIcon)
+    /* name */
+    const itemName = document.createElement('span')
+    itemName.id = `collection-item-name_${ id }`
+    itemName.name = `collection-item-name-${ type }`
+    itemName.classList.add('collection-item-name', `${ type }-collection-item-name`)
+    itemName.innerText = title ?? name
+    item.appendChild(itemName)
+    /* buttons */
+    const itemDelete = mCreateCollectionItemDelete(type, id)
+    item.appendChild(itemDelete)
+    /* popup */
+    const itemPopup = mCreateCollectionPopup(collectionItem)
+    item.appendChild(itemPopup)
+    /* listeners */
+    item.addEventListener('click', mViewItemPopup)
+    return item
+}
+/**
+ * Create a collection item delete button.
+ * @param {string} type - The collection type.
+ * @param {Guid} id - The collection id.
+ * @returns {HTMLSpanElement} - The collection item delete button.
+ */
+function mCreateCollectionItemDelete(type, id){
+    const itemDelete = document.createElement('span')
+    itemDelete.id = `collection-item-delete_${ id }`
+    itemDelete.name = `collection-item-delete-${ type }`
+    itemDelete.classList.add('fa-solid', 'fa-trash', 'collection-item-delete', `${ type }-collection-item-delete`)
+    itemDelete.addEventListener('click', mDeleteCollectionItem, { once: true })
+    return itemDelete
+}
+/**
+ * Create a popup for viewing collection item.
+ * @param {object} collectionItem - The collection item object.
+ * @returns {HTMLDivElement} - The collection popup.
+ */
+function mCreateCollectionPopup(collectionItem){
+    const { id, summary, type, } = collectionItem
+    const collectionPopup = document.createElement('div')
+    collectionPopup.id = `collection-popup_${ id }`
+    collectionPopup.name = `collection-popup-${ type }`
+    collectionPopup.classList.add('collection-popup')
+    /* create popup content */
+    const popupContent = document.createElement('div')
+    popupContent.classList.add('collection-popup-content')
+    popupContent.innerText = summary
+    /* create popup close button */
+    const popupClose = document.createElement('button')
+    popupClose.classList.add('fa-solid', 'fa-close', 'collection-popup-close')
+    popupClose.setAttribute('aria-label', 'Close')
+    popupClose.addEventListener('click', mTogglePopup)
+    /* append elements */
+    collectionPopup.appendChild(popupContent)
+    collectionPopup.appendChild(popupClose)
+    return collectionPopup
+}
+/**
+ * Delete collection item.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mDeleteCollectionItem(event){
+    event.stopPropagation()
+    const id = event.target.id.split('_').pop()
+    const item = document.getElementById(`collection-item_${ id }`)
+    console.log('Delete collection item:', id, event.target, item)
+    if(!item)
+        throw new Error(`Collection item not found for deletion request.`)
+    /* talk to server */
+    const url = window.location.origin + '/members/items/' + id
+    const method = 'DELETE'
+    let response = await fetch(url, { method: method })
+    response = await response.json()
+    if(response){ // delete item from collection
+        hide(item)
+        item.remove()
+    } else
+        item.addEventListener('click', mDeleteCollectionItem, { once: true })
 }
 /**
  * Paints bot-greeting to column
@@ -240,6 +326,46 @@ function mInputPassphrase(){
         show(passphraseSubmitButton)
     else
         hide(passphraseSubmitButton)
+}
+/**
+ * Open bot container for passed element, closes all the rest.
+ * @param {HTMLDivElement} element - The bot container.
+ * @returns {void}
+ */
+function mOpenStatusDropdown(element){
+    document.querySelectorAll('.bot-container')
+        .forEach(otherContainer=>{
+            if(otherContainer!==element){
+                const otherContent = otherContainer.querySelector('.bot-options')
+                if(otherContent)
+                    otherContent.classList.remove('open')
+                var otherDropdown = otherContainer.querySelector('.bot-options-dropdown')
+                if(otherDropdown)
+                    otherDropdown.classList.remove('open')
+            }
+        })
+        var content = element.querySelector('.bot-options')
+        console.log('mOpenStatusDropdown', content, element)
+        if(content)
+            content.classList.toggle('open')
+        var dropdown = element.querySelector('.bot-options-dropdown')
+        if(dropdown)
+            dropdown.classList.toggle('open')
+}
+async function mRefreshCollection(event){
+    const { id, } = event.target
+    const type = id.split('-').pop()
+    if(!mLibraries.includes(type))
+        throw new Error(`Library collection not implemented.`)
+    const collection = await fetchCollections(type)
+    if(!collection.length) /* no items in collection */
+        return
+    const collectionList = document.getElementById(`collection-list-${ type }`)
+    if(!collectionList)
+        throw new Error(`Library collection list not found! Attempting element by id: "collection-list-${ type }".`)
+    mUpdateCollection(type, collection, collectionList)
+    event.target.addEventListener('click', mRefreshCollection, { once: true })
+    return collection
 }
 /**
  * Set Bot data on server.
@@ -303,6 +429,35 @@ function mSetAttributes(bot, botContainer){
     })
 }
 /**
+ * Sets bot status based on active bot, thread, and assistant population.
+ * @private
+ * @requires mActiveBot
+ * @param {object} bot - The bot object.
+ * @returns {string} - Determined status.
+ */
+function mSetBotIconStatus(bot){
+    const { bot_id, id, thread_id, type, } = bot
+    const botIcon = document.getElementById(`${ type }-icon`)
+    switch(true){
+        case ( mActiveBot && mActiveBot.id===id): // activated
+            botIcon.classList.remove('online', 'offline', 'error')
+            botIcon.classList.add('active')
+            return 'active'
+        case ( thread_id?.length>0 || false ): // online
+            botIcon.classList.remove('active', 'offline', 'error')
+            botIcon.classList.add('online')
+            return 'online'
+        case ( bot_id?.length>0 ): // offline
+            botIcon.classList.remove('active', 'online', 'error')
+            botIcon.classList.add('offline')
+            return 'inactive'
+        default: // error
+            botIcon.classList.remove('active', 'online', 'offline')
+            botIcon.classList.add('error')
+            return 'error'
+    }
+}
+/**
  * Submit updated passphrase for MyLife via avatar.
  * @private
  * @async
@@ -335,46 +490,16 @@ async function mSubmitPassphrase(event){
         mTogglePassphrase(true)
     }
 }
-function toggleBotContainerOptions(event){
+/**
+ * Toggles bot containers and checks for various actions on master click of `this` bot-container. Sub-elements appear as targets and are rendered appropriately.
+ * @param {Event} event - The event object, represents entire bot box as `this`.
+ * @returns {void}
+ */
+function mToggleBotContainers(event){
     event.stopPropagation()
     const element = event.target
     const itemIdSnippet = element.id.split('-').pop()
     switch(itemIdSnippet){
-        case 'create':
-            // validate required fields
-            if(!this.getAttribute('data-bot_name')?.length){
-                this.setAttribute('data-bot_name', `${ mGlobals.variableIze(this.getAttribute('data-mbr_handle')) }-${ this.getAttribute('data-type') }`)
-            }
-            const bot = {
-                bot_id: this.getAttribute('data-bot_id'),
-                bot_name: this.getAttribute('data-bot_name'),
-                dob: this.getAttribute('data-dob'),
-                id: this.getAttribute('data-id'),
-                mbr_id: this.getAttribute('data-mbr_id'),
-                object_id: this.getAttribute('data-object_id'),
-                provider: this.getAttribute('data-provider'),
-                purpose: this.getAttribute('data-purpose'),
-                thread_id: this.getAttribute('data-thread_id'),
-                type: this.getAttribute('data-type'),
-            }
-            switch(bot.type){
-                case 'personal-avatar':
-                    bot.dob = this.getAttribute('data-dob')
-                    break
-                case 'personal-biographer':
-                    bot.interests = this.getAttribute('data-interests')
-                    const _n = parseInt(this.getAttribute('data-narrative'), 10)
-                    bot.narrative = isNaN(_n) ? 50 : Math.min(100, Math.max(1, _n))
-                    const _pv = parseInt(this.getAttribute('data-privacy'), 10)
-                    bot.privacy = isNaN(_pv) ? 50 : Math.min(100, Math.max(0, _pv))
-                    break
-                default:
-                    break
-            }
-            // setBot(bot) // post to endpoint, update server
-            /* check for success and activate */
-            // setActiveBot(bot)
-            return
         case 'name':
         case 'ticker':
             // start/stop ticker
@@ -384,33 +509,14 @@ function toggleBotContainerOptions(event){
                 : event.target
             _span.classList.toggle('no-animation')
             return
+        case 'icon':
+        case 'title':
+            setActiveBot(event)
+            // for moment, yes, intentional cascade
         case 'status':
         case 'type':
         case 'dropdown':
-            document.querySelectorAll('.bot-container').forEach(otherContainer => {
-                if (otherContainer !== this) {
-                    // Close the bot options
-                    var otherContent = otherContainer.querySelector('.bot-options')
-                    if (otherContent) {
-                        otherContent.classList.remove('open')
-                    }
-                    // Rotate back the dropdowns
-                    var otherDropdown = otherContainer.querySelector('.bot-options-dropdown')
-                    if (otherDropdown) {
-                        otherDropdown.classList.remove('open')
-                    }
-                }
-            })
-            // Then, toggle the visibility of the clicked container's content
-            var content = this.querySelector('.bot-options')
-            if (content) {
-                content.classList.toggle('open')
-            }
-            // Also toggle the dropdown rotation
-            var dropdown = this.querySelector('.bot-options-dropdown')
-            if (dropdown) {
-                dropdown.classList.toggle('open')
-            }
+            mOpenStatusDropdown(this)
             return
         case 'update':
             const updateBot = {
@@ -434,6 +540,11 @@ function toggleBotContainerOptions(event){
             break
     }
 }
+/**
+ * Toggles passphrase input visibility.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
 function mTogglePassphrase(event){
     /* set properties */
     passphraseInput.value = ''
@@ -454,6 +565,44 @@ function mTogglePassphrase(event){
         hide(passphraseInputContainer)
         show(passphraseResetButton)
     }
+}
+/**
+ * Toggles popup visibility.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mTogglePopup(event){
+    const { activeId, } = event.detail
+    let { popup, } = event.detail
+    popup = popup ?? event.target
+    const popupId = popup.id.split('_').pop()
+    if(!popup)
+        throw new Error(`Popup not found.`)
+    if(popupId!==activeId){ /* close */
+        console.log('mTogglePopup::CLOSE', activeId, popupId)
+        popup.classList.remove('collection-popup-visible')
+        // does this reset the location?
+} else { /* open */
+    popup.classList.add('collection-popup-visible')
+    const item = popup.parentElement
+    /* calculate desired position */
+    const popupHalfHeight = popup.offsetHeight / 2
+    const itemHalfHeight = item.offsetHeight / 2
+    const desiredMiddlePosition = item.offsetTop + itemHalfHeight
+    let topPosition = desiredMiddlePosition - popupHalfHeight
+    /* screen failsafes */
+    if(topPosition < 0){
+        topPosition = 0
+    } else if (topPosition + popup.offsetHeight > window.innerHeight){
+        topPosition = window.innerHeight - popup.offsetHeight
+    }
+    // Position the popup 20px to the left of the item's left edge
+    const leftPosition = item.offsetLeft - popup.offsetWidth - 20
+    /* position */
+    popup.style.top = `${ topPosition }px`
+    popup.style.left = `${ leftPosition }px`
+    console.log('mTogglePopup::OPEN', popup.offsetLeft, popup.offsetWidth, item.offsetWidth, item.offsetLeft)
+}
 }
 /**
  * Activates bot bar icon and container. Creates div and icon in bot bar.
@@ -498,12 +647,10 @@ function mUpdateBotContainers(){
         if(!bot)
             return /* no problem if not found, available on different team */
         /* constants */
-        const botStatus = document.getElementById(`${ type }-status`)
         const botOptions = document.getElementById(`${ type }-options`)
         const botOptionsDropdown = document.getElementById(`${ type }-options-dropdown`)
         /* container listeners */
-        botContainer.addEventListener('click', toggleBotContainerOptions)
-        botStatus.addEventListener('click', setActiveBot)
+        botContainer.addEventListener('click', mToggleBotContainers)
         /* universal logic */
         mSetBotIconStatus(bot)
         mSetAttributes(bot, botContainer)
@@ -513,6 +660,22 @@ function mUpdateBotContainers(){
         mUpdatePrivacySlider(type, bot.privacy, botContainer)
         /* type-specific logic */
         switch(type){
+            case 'library':
+                /* attach library collection listeners */
+                if(!libraryCollections || !libraryCollections.children.length)
+                    return
+                for(let collection of libraryCollections.children){
+                    let { id, } = collection
+                    id = id.split('-').pop()
+                    if(!mLibraries.includes(id)){
+                        console.log('Library collection not found.', id)
+                        continue
+                    }
+                    const collectionButton = document.getElementById(`collection-refresh-${ id }`)
+                    if(collectionButton)
+                        collectionButton.addEventListener('click', mRefreshCollection, { once: true })
+                }
+                break
             case 'personal-avatar':
                 /* attach avatar listeners */
                 mTogglePassphrase(false)
@@ -532,6 +695,23 @@ function mUpdateBotContainers(){
         }
         show(botContainer)
     })
+}
+/**
+ * Update the identified collection with provided specifics.
+ * @param {string} type - The bot type.
+ * @param {Array} collection - The collection items.
+ * @param {HTMLDivElement} collectionList - The collection container.\
+ * @returns {void}
+ */
+function mUpdateCollection(type, collection, collectionList){
+    collectionList.innerHTML = ''
+    collection
+        .map(item=>({ ...item, type: item.type ?? item.being ?? type, }))
+        .filter(item=>item.type===type)
+        .sort((a, b)=>a.name.localeCompare(b.name))
+        .forEach(item=>{
+            collectionList.appendChild(mCreateCollectionItem(item))
+        })
 }
 /**
  * Update the bot interests checkbox structure with specifics.
@@ -627,10 +807,26 @@ function mUpdateTicker(type, botContainer){
 function mUpdateTickerValue(ticker, value){
     ticker.innerText = value
 }
+/**
+ * View/toggles collection item popup.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mViewItemPopup(event){
+    event.stopPropagation()
+    const activeId = event.target.id.split('_').pop()
+    /* get all instances of class */
+    document.querySelectorAll('.collection-popup')
+        .forEach(popup=>{
+            const newEvent = new CustomEvent('custom', { detail: { activeId, popup } })
+            mTogglePopup(newEvent)
+        })
+}
 /* exports */
 // @todo - export combine of fetchBots and updatePageBots
 export {
     fetchBots,
+    fetchCollections,
     setActiveBot,
     updatePageBots,
 }

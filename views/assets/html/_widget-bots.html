@@ -3,7 +3,7 @@
         <div class="bot-status" id="personal-avatar-status">
             <div class="bot-icon" id="personal-avatar-icon"></div>
             <div class="bot-title" id="personal-avatar-title">Intelligent Assistant</div>
-            <div class="bot-name ticker" id="personal-avatar-name" name="bot-name">
+            <div class="bot-name ticker" id="personal-avatar-name">
                 <span id="personal-avatar-name-ticker"><%= avatar.name %></span>
             </div>
             <div class="bot-options-dropdown" id="personal-avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
@@ -33,7 +33,7 @@
     </div>
     <div class="header">Memoire Team</div>
     <div class="bot-container" id="personal-biographer">
-        <div class="bot-status" id="personal-biographer-status" name="bot-status">
+        <div class="bot-status" id="personal-biographer-status">
             <div class="bot-icon" id="personal-biographer-icon"></div>
             <div class="bot-title" id="personal-biographer-title">Biographer</div>
             <div class="bot-name ticker" id="personal-biographer-name">
@@ -47,7 +47,7 @@
                 <label for="personal-biographer-input-bot_name">Biographer Name:</label>
                 <input class="bot-input bot-name" id="personal-biographer-input-bot_name" maxlength="256" />
             </div>
-            <!-- Stories vs. Interview -->
+            <!-- story vs. Interview -->
             <div class="input-group narrative">
                 <div class="slider-labels">
                     <span class="left-label">more<br />story-telling</span>
@@ -184,7 +184,9 @@
         <div class="bot-status" id="journaler-status">
             <div class="bot-icon" id="journaler-icon"></div>
             <div class="bot-title" id="journaler-title">Journal Assistant</div>
-            <div class="bot-name ticker" id="journaler-name"><span id="journaler-name-ticker">J.J.</span></div>
+            <div class="bot-name ticker" id="journaler-name">
+                <span id="journaler-name-ticker">J.J.</span>
+            </div>
             <div class="bot-options-dropdown" id="journaler-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
         <div class="bot-options hidden" id="journaler-options" name="bot-options">
@@ -255,16 +257,38 @@
                 <input type="text" id="library-search-input" maxlength="128" placeholder="Results appear in chat" title="Results from search will be presented in main chat window by librarian bot" />
                 <span class="fa-solid fa-search" id="library-search-submit"></span>
             </div>
-            <div id="library-collections" class="bot-collections">
-                <div id="library-collection-stories" class="bot-collection">
-                    /* note: can select to feed to bio-bot etc, assume default goes back to creator-bot */<br />
-                    Story Collection
+            <div id="library-collections" class="collections"><!-- from here _could_ be dynamic, not just listing -->
+                <div id="collection-story" class="collection library-collection story-collection">
+                    <div id="collection-bar-story" class="collection-bar">
+                        <div id="collection-icon-story" class="collection-icon collection-icon story-icon"></div>
+                        <div id="collection-title-story" class="collection-title collection-title story-title">Story Collection</div>
+                        <span class="fa-solid fa-refresh collection-refresh story-refresh" id="collection-refresh-story"></span>
+                    </div>
+                    <div id="collection-list-story" class="collection-list story-list">
+                        <!-- story will be listed here -->
+                    </div>
                 </div>
-                <div id="library-collection-journals" class="bot-collection">
-                    Journal Collection
+                <!--<div id="collection-entry" class="collection library-collection entry-collection"></div>-->
+                <div id="collection-experience" class="collection library-collection experience-collection">
+                    <div id="collection-bar-experience" class="collection-bar">
+                        <div id="collection-icon-experience" class="collection-icon collection-icon"></div>
+                        <div id="collection-title-experience" class="collection-title collection-title">Experience Collection</div>
+                        <span class="fa-solid fa-refresh collection-refresh experience-refresh" id="collection-refresh-experience"></span>
+                    </div>
+                    <div id="collection-list-experience" class="collection-list experience-list">
+                        <!-- experiences will be listed here -->
+                    </div>
                 </div>
-                <div id="library-collection-files" class="bot-collection">
-                    File Collection
+                <!--<div id="collection-conversation" class="collection library-collection conversation-collection"></div>-->
+                <div id="collection-file" class="collection library-collection file-collection">
+                    <div id="collection-bar-file" class="collection-bar">
+                        <div id="collection-icon-file" class="collection-icon collection-icon"></div>
+                        <div id="collection-title-file" class="collection-title collection-title">File Collection</div>
+                        <span class="fa-solid fa-refresh collection-refresh" id="collection-refresh-file"></span>
+                    </div>
+                    <div id="collection-list-file" class="collection-list">
+                        <!-- files will be listed here -->
+                    </div>
                 </div>
             </div>
             <!-- bot buttons -->

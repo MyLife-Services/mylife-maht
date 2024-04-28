@@ -191,6 +191,143 @@
 	justify-content: flex-start;
 	max-width: 100%;
 }
+/* bot-collections */
+.collection {
+    background-color: royalblue;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-bar {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    justify-content: flex-start;
+    max-width: 100%;
+    min-height: 2.5em;
+    width: 100%;
+}
+.collection-icon {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 2em;
+    width: auto;
+}
+.collection-item {
+    align-items: center;
+    background-color: aliceblue;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.5em;
+    justify-content: flex-start;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-item-icon {
+    display: flex;
+    flex: 0 0 auto;
+    height: auto;
+    max-height: 3em;
+    width: auto;
+}
+.collection-item-name {
+    color: navy;
+    display: flex;
+    flex: 1 1 auto;
+    font-size: 1.1em;
+    font-style: italic;
+    overflow: hidden;
+    text-wrap: nowrap;
+}
+.collection-item-delete {
+    color: navy;
+    display: flex;
+    flex: 0 0 auto;
+    font-size: 1.3em;
+    margin: 0 0.5em;
+}
+.collection-item-delete:hover {
+    color: red;
+}
+.collection-list {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin: 0.2em 0;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-popup {
+    background-color: white;
+    border: 1px solid black;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex: 1 0 auto;
+    gap: 0.5em;
+    height: auto;
+    left: auto;
+    overflow: auto;
+    padding: 1em;
+    position: absolute;
+    right: 100%;
+    top: 0;
+    visibility: hidden;
+    width: 40em;
+}
+.collection-popup-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: none;
+    background: none;
+    color: navy;
+    cursor: pointer;
+    font-size: 1.3em;
+}
+.collection-popup-content {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    text-align: left;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-popup-visible {
+    top: auto;
+    visibility: visible; /* location properties handled by js */
+}
+.collection-refresh {
+    color: aliceblue;
+    display: flex;
+    flex: 0 0 auto;
+    font-size: 1.3em;
+    margin: 0 0.5em;
+}
+.collection-title {
+    color: aliceblue;
+    display: flex;
+    flex: 1 1 auto;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+.collections {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    justify-content: flex-start;
+    max-width: 100%;
+    width: 100%;
+}
 /* avatar passphrases */
 .passphrase-input {
     flex: 1 1 auto;
