@@ -7,8 +7,28 @@
     <% }) %>
 </div>
 <div id="navigation-padding" class="navigation-padding"></div>
-<div id="navigation-search" class="navigation-search"></div>
-<div id="navigation-help" class="navigation-help"><span class="fas fa-question-circle"></span></div>
+<div id="navigation-help" class="navigation-help">
+    <span id="navigation-help-icon" class="fas fa-question-circle" title="Help" name="navigation-help" />
+    <div id="navigation-help-chat-popup" class="chat-popup help-popup">
+        <div class="chat-header">
+            <span class="close">&times;</span>
+            <span class="refresh">&#x21bb;</span>
+        </div>
+        <div class="chat-body">
+            <div class="chat-avatar">
+                <img src="png/Q.png" alt="Q-Avatar">
+                <span>Q, Avatar for MyLife</span>
+            </div>
+            <div class="chat-messages">
+                <!-- Messages will be dynamically loaded here -->
+            </div>
+            <div class="chat-footer">
+                <input type="text" placeholder="Type your message...">
+                <button type="button">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div id="navigation-login-logout" class="navigation-login-logout">
     <button id="navigation-login-logout-button" class="button navigation-login-logout-button" data-locked="<%= locked %>">
         <%= locked ? 'Login' : 'Logout' %>

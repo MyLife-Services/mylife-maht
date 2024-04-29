@@ -49,8 +49,7 @@ body {
 .navigation-help,
 .navigation-login-logout,
 .navigation-nav,
-.navigation-padding,
-.navigation-search {
+.navigation-padding {
 	align-items: center;
 	display: flex;
 	flex: none; /* Prevents items from growing */
@@ -71,6 +70,57 @@ body {
 	color: purple; /* Your existing styles for active link */
 	cursor: pointer; /* Set cursor to pointer on hover */
 }
+
+.chat-popup {
+    display: none; /* Hide chat initially */
+    position: absolute;
+    bottom: 30px; /* Adjust based on icon size */
+    left: 0;
+    width: 300px; /* Set your desired width */
+    border: 1px solid #ccc;
+    z-index: 1000;
+    background-color: white;
+}
+.chat-header {
+    padding: 10px;
+    background-color: #f1f1f1;
+    color: black;
+    border-bottom: 1px solid #ddd;
+}
+.chat-header .close, .chat-header .refresh {
+    float: right;
+    cursor: pointer;
+}
+.chat-body {
+    padding: 10px;
+}
+.chat-avatar img {
+    width: 50px;
+    height: 50px;
+    float: left;
+}
+.chat-avatar span {
+    margin-left: 60px;
+    line-height: 50px;
+}
+.chat-footer {
+    margin-top: 10px;
+}
+.chat-footer input {
+    width: 70%;
+    padding: 10px;
+    margin-right: 10px;
+}
+.chat-footer button {
+    width: 20%;
+    padding: 10px;
+}
+.chat-messages {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+
 .navigation-login-logout {
 	align-self: flex-end;
 	display: flex;
