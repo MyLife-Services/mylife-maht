@@ -1,39 +1,53 @@
 <div class="widget bot" id="bot-container">
-    <div class="bot-container" id="avatar">
-        <div class="bot-status" id="avatar-status">
-            <div class="bot-icon" id="avatar-icon"></div>
-            <div class="bot-type" id="avatar-type">My Avatar</div>
-            <div class="bot-name" id="avatar-name"><%= avatar.name %></div>
-            <div class="bot-options-dropdown" id="avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+    <div class="bot-container" id="personal-avatar">
+        <div class="bot-status" id="personal-avatar-status">
+            <div class="bot-icon" id="personal-avatar-icon"></div>
+            <div class="bot-title" id="personal-avatar-title">Intelligent Assistant</div>
+            <div class="bot-name ticker" id="personal-avatar-name">
+                <span id="personal-avatar-name-ticker"><%= avatar.name %></span>
+            </div>
+            <div class="bot-options-dropdown" id="personal-avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden">
+        <div class="bot-options hidden" id="personal-avatar-options">
             <!-- Bot Name -->
-            <div class="input-group" id="avatar-bot_name">
-                <label for="bot_name">Avatar Name:</label>
-                <input class="bot-name" name="bot_name" maxlength="256">
+            <div class="input-group" id="personal-avatar-bot_name">
+                <label for="personal-avatar-bot_name">Avatar Name:</label>
+                <input class="bot-input bot-name" id="personal-avatar-input-bot_name" maxlength="256" />
             </div>
             <!-- Date of Birth -->
-            <div class="input-group">
-                <label for="dob">My Date of Birth:</label>
-                <input type="date" id="avatar-dob" name="dob">
+            <div class="input-group" id="personal-avatar-dob">
+                <label for="personal-avatar-input dob">My Date of Birth:</label>
+                <input class="bot-date-input bot-dob" id="personal-avatar-input-dob" type="date" />
             </div>
+            <button class="button passphrase-reset" id="passphrase-reset-button">Reset passphrase</button>
+            <div id="personal-avatar-passphrase-container" class="passphrase-container">
+                <span class="fas fa-trash passphrase-cancel" id="personal-avatar-passphrase-cancel"></span>
+                <input class="bot-input passphrase-input" id="personal-avatar-passphrase" maxlength="256" />
+                <span class="fa-solid fa-right-to-bracket passphrase-enter" id="personal-avatar-passphrase-submit"></span>
+            </div>
+            <button class="button bot-update" id="personal-avatar-update">Update</button>
+            <button class="button bot-upload" id="personal-avatar-upload">Upload</button>
+            <button class="button bot-posterity" id="personal-avatar-posterity">View My Avatar</button>
+            <button class="button bot-import" id="personal-avatar-import">Import or Connect Assistants</button>
         </div>
     </div>
     <div class="header">Memoire Team</div>
     <div class="bot-container" id="personal-biographer">
-        <div class="bot-status" id="personal-biographer-status" name="bot-status">
-            <div class="bot-icon" id="personal-biographer-icon" name="bot-icon"></div>
-            <div class="bot-type" id="personal-biographer-type" name="bot-type">Biographer Bot</div>
-            <div class="bot-name ticker" id="personal-biographer-name" name="bot-name"><span id="personal-biographer-name-ticker">system-one-personal-biographer</span></div>
+        <div class="bot-status" id="personal-biographer-status">
+            <div class="bot-icon" id="personal-biographer-icon"></div>
+            <div class="bot-title" id="personal-biographer-title">Biographer</div>
+            <div class="bot-name ticker" id="personal-biographer-name">
+                <span id="personal-biographer-name-ticker"></span>
+            </div>
             <div class="bot-options-dropdown" id="personal-biographer-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden" id="personal-biographer-options" name="bot-options">
+        <div class="bot-options hidden" id="personal-biographer-options">
             <!-- Bot Name -->
             <div class="input-group" id="personal-biographer-bot_name">
-                <label for="bot_name">Biographer Name:</label>
-                <input class="bot-name" name="bot_name" maxlength="256">
+                <label for="personal-biographer-input-bot_name">Biographer Name:</label>
+                <input class="bot-input bot-name" id="personal-biographer-input-bot_name" maxlength="256" />
             </div>
-            <!-- Stories vs. Interview -->
+            <!-- story vs. Interview -->
             <div class="input-group narrative">
                 <div class="slider-labels">
                     <span class="left-label">more<br />story-telling</span>
@@ -160,19 +174,126 @@
                 </div>
                 <input type="range" class="privacy-slider" id="personal-biographer-privacy" name="privacy-slider" min="0" max="100" value="0">
             </div>
-    
-            <button class="button bot-create" id="personal-biographer-create" name="bot-create">Create</button>
+            <!-- bot buttons -->
+            <button class="button bot-update" id="personal-biographer-update">Update</button>
+            <button class="button bot-upload" id="personal-biographer-upload">Upload</button>
+            <button class="button bot-write" id="personal-biographer-write-biography">Write My Biography</button>
         </div>
     </div>
-    <div class="bot-container" id="personal-library">
-        <div class="bot-status" id="personal-library-status" name="bot-status">
-            <div class="bot-icon" id="personal-library-icon" name="bot-icon"></div>
-            <div class="bot-type" id="personal-library-type" name="bot-type">Library Bot</div>
-            <div class="bot-name ticker" id="personal-library-name" name="bot-name"><span id="personal-library-name-ticker">system-one-personal-biographer</span></div>
-            <div class="bot-options-dropdown" id="personal-library-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+    <div class="bot-container" id="journaler">
+        <div class="bot-status" id="journaler-status">
+            <div class="bot-icon" id="journaler-icon"></div>
+            <div class="bot-title" id="journaler-title">Journal Assistant</div>
+            <div class="bot-name ticker" id="journaler-name">
+                <span id="journaler-name-ticker">J.J.</span>
+            </div>
+            <div class="bot-options-dropdown" id="journaler-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden" id="personal-library-options" name="bot-options">
+        <div class="bot-options hidden" id="journaler-options" name="bot-options">
             <!-- Bot Name -->
+            <div class="input-group" id="journaler-bot_name">
+                <label for="journaler-input-bot_name">Journal Assistant's Name:</label>
+                <input class="bot-name" id="journaler-input-bot_name" maxlength="256" />
+            </div>
+            <!-- Interests/Hobbies -->
+            <div class="input-group interests" id="journaler-interests">
+                <label>I enjoy journaling about:</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="art" id="journaler-art" value="art">
+                        <label for="journaler-art">Art</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-ideas" value="ideas">
+                        <label for="journaler-ideas">Ideas</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-dreams" value="dreams">
+                        <label for="journaler-dreams">Dreams</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-relationships" value="relationships">
+                        <label for="journaler-relationships">Relationships</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-awareness" value="awareness">
+                        <label for="journaler-awareness">Self-awareness</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-understanding" value="understanding">
+                        <label for="journaler-understanding">Understanding</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-peace" value="peace">
+                        <label for="journaler-peace">Inner Peace</label>
+                    </div>
+                    <div class="checkbox-group-item">
+                        <input type="checkbox" name="interests" id="journaler-spirituality" value="spirituality">
+                        <label for="journaler-spirituality">Spirituality</label>
+                    </div>
+                </div>
+            </div>
+            <button class="button bot-update" id="journaler-update" name="bot-update">Update</button>
+            <button class="button bot-upload" id="journaler-upload" name="bot-upload">Upload</button>
+            <button class="button bot-write" id="journaler-write">Write About My Inner Life</button>
+        </div>
+    </div>
+    <div class="bot-container" id="library">
+        <div class="bot-status" id="library-status" name="bot-status">
+            <div class="bot-icon" id="library-icon" name="bot-icon"></div>
+            <div class="bot-title" id="library-title" name="bot-title">Librarian/Collections</div>
+            <div class="bot-name ticker" id="library-name" name="bot-name"><span id="library-name-ticker">Librarian</span></div>
+            <div class="bot-options-dropdown" id="library-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+        </div>
+        <div class="bot-options hidden" id="library-options" name="bot-options">
+            <!-- Bot Name -->
+            <div class="input-group" id="library-bot_name">
+                <label for="library-input-bot_name">Librarian Name:</label>
+                <input class="bot-name" id="library-input-bot_name" maxlength="256" />
+            </div>
+            <!-- essentially spawns a natural language search based on metatagging and keywords -->
+            <div id="library-search" class="input-group search">
+                <label for="search">Search:</label>
+                <input type="text" id="library-search-input" maxlength="128" placeholder="Results appear in chat" title="Results from search will be presented in main chat window by librarian bot" />
+                <span class="fa-solid fa-search" id="library-search-submit"></span>
+            </div>
+            <div id="library-collections" class="collections"><!-- from here _could_ be dynamic, not just listing -->
+                <div id="collection-story" class="collection library-collection story-collection">
+                    <div id="collection-bar-story" class="collection-bar">
+                        <div id="collection-icon-story" class="collection-icon collection-icon story-icon"></div>
+                        <div id="collection-title-story" class="collection-title collection-title story-title">Story Collection</div>
+                        <span class="fa-solid fa-refresh collection-refresh story-refresh" id="collection-refresh-story"></span>
+                    </div>
+                    <div id="collection-list-story" class="collection-list story-list">
+                        <!-- story will be listed here -->
+                    </div>
+                </div>
+                <!--<div id="collection-entry" class="collection library-collection entry-collection"></div>-->
+                <div id="collection-experience" class="collection library-collection experience-collection">
+                    <div id="collection-bar-experience" class="collection-bar">
+                        <div id="collection-icon-experience" class="collection-icon collection-icon"></div>
+                        <div id="collection-title-experience" class="collection-title collection-title">Experience Collection</div>
+                        <span class="fa-solid fa-refresh collection-refresh experience-refresh" id="collection-refresh-experience"></span>
+                    </div>
+                    <div id="collection-list-experience" class="collection-list experience-list">
+                        <!-- experiences will be listed here -->
+                    </div>
+                </div>
+                <!--<div id="collection-conversation" class="collection library-collection conversation-collection"></div>-->
+                <div id="collection-file" class="collection library-collection file-collection">
+                    <div id="collection-bar-file" class="collection-bar">
+                        <div id="collection-icon-file" class="collection-icon collection-icon"></div>
+                        <div id="collection-title-file" class="collection-title collection-title">File Collection</div>
+                        <span class="fa-solid fa-refresh collection-refresh" id="collection-refresh-file"></span>
+                    </div>
+                    <div id="collection-list-file" class="collection-list">
+                        <!-- files will be listed here -->
+                    </div>
+                </div>
+            </div>
+            <!-- bot buttons -->
+            <button class="button bot-update" id="library-update" name="bot-update">Update</button>
+            <button class="button bot-upload" id="library-upload" name="bot-upload">Upload</button>
         </div>
     </div>
 </div>

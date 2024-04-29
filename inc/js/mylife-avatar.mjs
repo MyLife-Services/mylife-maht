@@ -4,9 +4,9 @@ import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 /* modular constants */
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
-const allowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
+const mAllowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
-const botIdOverride = OPENAI_MAHT_GPT_OVERRIDE
+const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
 /**
  * @class
  * @extends EventEmitter
@@ -72,7 +72,7 @@ class Avatar extends EventEmitter {
         let activeBot = this.avatarBot
         if(!this.isMyLife){
             if(!activeBot?.id){ // create: but do not want to call setBot() to activate
-                activeBot = await mBot(this.#llmServices, this.#factory, this, { type: 'personal-avatar' })
+                activeBot = await mBot(this.#factory, this, { type: 'personal-avatar' })
                 this.#bots.unshift(activeBot)
             }
             this.activeBotId = activeBot.id
@@ -85,7 +85,7 @@ class Avatar extends EventEmitter {
         } else { // Q-specific, leave as `else` as is near always false
             // @todo - something doesn't smell right in how session would handle conversations - investigate logic; fine if new Avatar instance is spawned for each session, which might be true
             this.activeBotId = activeBot.id
-            activeBot.bot_id = botIdOverride ?? activeBot.bot_id
+            activeBot.bot_id = mBotIdOverride ?? activeBot.bot_id
             this.#llmServices.botId = activeBot.bot_id
             const conversation = await this.createConversation()
             activeBot.thread_id = conversation.threadId
@@ -123,7 +123,7 @@ class Avatar extends EventEmitter {
         conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, prompt)
         conversation.addMessages(messages)
-        if(allowSave)
+        if(mAllowSave)
             conversation.save()
         else
             console.log('chatRequest::BYPASS-SAVE', conversation.message)
@@ -154,11 +154,32 @@ class Avatar extends EventEmitter {
             })
         return chat
     }
+    /**
+     * Get member collection items.
+     * @param {string} type - The type of collection to retrieve, `false`-y = all.
+     * @returns {array} - The collection items with no wrapper.
+     */
+    async collections(type){
+        const collections = await this.factory.collections(type)
+        return collections
+    }
     async createConversation(type='chat'){
         const thread = await this.#llmServices.thread()
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
+    }
+    /**
+     * Delete an item from member container.
+     * @async
+     * @public
+     * @param {Guid} id - The id of the item to delete.
+     * @returns {boolean} - true if item deleted successfully.
+     */
+    async deleteItem(id){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot delete items.')
+        return await this.factory.deleteItem(id)
     }
     /**
      * Ends an experience.
@@ -250,6 +271,18 @@ class Avatar extends EventEmitter {
             .find(_=>_.thread?.id===thread_id)
     }
     /**
+     * Allows member to reset passphrase.
+     * @param {string} passphrase 
+     * @returns {boolean} - true if passphrase reset successful.
+     */
+    async resetPassphrase(passphrase){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot reset passphrase.')
+        if(!passphrase?.length)
+            throw new Error('Passphrase required for reset.')
+        return await this.#factory.resetPassphrase(passphrase)
+    }
+    /**
      * Processes and executes incoming category set request.
      * @todo - deprecate if possible.
      * @public
@@ -264,13 +297,18 @@ class Avatar extends EventEmitter {
     }
     /**
      * Add or update bot, and identifies as activated, unless otherwise specified.
+     * @todo - strip protected bot data/create class?.
      * @param {object} bot - Bot-data to set.
+     * @param {boolean} activate - Whether to activate bot, default=`true`.
+     * @returns {object} - The updated bot.
      */
     async setBot(bot, activate=true){
-        bot = await mBot(this.#llmServices, this.#factory, this, bot)
-        /* add bot to avatar */
+        bot = await mBot(this.#factory, this, bot)
+        /* add/update bot */
         if(!this.#bots.some(_bot => _bot.id === bot.id))
             this.#bots.push(bot)
+        else
+            this.#bots = this.#bots.map(_bot=>_bot.id===bot.id ? bot : _bot)
         /* activation */
         if(activate)
             this.activeBotId = bot.id
@@ -741,37 +779,42 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
  * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
  * @todo Fix occasions where there will be no object_id property to use, as it was created through a hydration method based on API usage, so will be attached to mbr_id, but NOT avatar.id
  * @modular
- * @param {LLMServices} llm - OpenAI object
  * @param {AgentFactory} factory - Agent Factory object
  * @param {Avatar} avatar - Avatar object that will govern bot
  * @param {object} bot - Bot object
  * @returns {object} - Bot object
  */
-async function mBot(llm, factory, avatar, bot){
+async function mBot(factory, avatar, bot){
     /* validation */
-    const { bots, id: avatarId, } = avatar
-    const { mbr_id, } = factory
-    const { bot_id, id: botId, mbr_id: botMbr_id, thread_id, type, } = bot
-    /* set required bot super-properties */
-    bot.mbr_id = bot.botMbr_id ?? factory.mbr_id
-    bot.type = bot.type ?? mDefaultBotType
-    bot.object_id = bot.object_id ?? avatarId
-    bot.id =  botId ?? factory.newGuid // **note**: _this_ is a Cosmos id, not an openAI id
+    const { bots, id: avatarId, isMyLife, mbr_id, } = avatar
+    if(isMyLife)
+        throw new Error('MyLife system avatar may not create or alter its associated bots.')
+    const { newGuid, } = factory
+    const { id: botId=newGuid, object_id: objectId, type: botType, } = bot
+    /* set/reset required bot super-properties */
+    bot.mbr_id = mbr_id
+    bot.object_id = objectId ?? avatarId /* all your bots belong to me */
+    bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
+    if(botType?.length) /* `bot.type` mutable? */
+        bot.type = botType
     let _bot = bots.find(oBot=>oBot.id===bot.id)
         ?? await factory.createBot(bot)
     /* update bot */
     _bot = {..._bot, ...bot}
-    /* create or update bot properties */
-    if(!_bot.thread_id?.length){
-        const conversation = await avatar.createConversation()
-        _bot.thread_id = conversation.thread_id
+    /* create or update bot special properties */
+    const { thread_id, type, } = _bot
+    if(!thread_id?.length){
+        const excludeTypes = ['library',]
+        if(!excludeTypes.includes(type)){
+            const conversation = await avatar.createConversation()
+            _bot.thread_id = conversation.thread_id
+        }
     }
-    // update Cosmos (no need async)
-    factory.setBot(_bot)
+    factory.setBot(_bot) // update Cosmos (no need async)
     return _bot
 }
 /**
- * Makes call to LLM and to return response(s) to prompt.\
+ * Makes call to LLM and to return response(s) to prompt.
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
  * @todo - address disconnect between conversations held in memory in avatar and those in openAI threads; use `addLLMMessages` to post internally
  * @modular

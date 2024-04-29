@@ -907,7 +907,6 @@ function mStageWelcome(){
     title.textContent = experienceTitle ?? experienceName ?? `Untitled Production`
     if(experienceDescription?.length)
         description.textContent = experienceDescription
-    show(footer)
     mShowTransport()
     startButton.addEventListener('click', experiencePlay)
     screen.addEventListener('animationend', animation=>{

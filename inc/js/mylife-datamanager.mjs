@@ -71,22 +71,34 @@ class Datamanager {
 			.execute(_mbr_id, _passphrase, true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
 		return _result
 	}
-	async deleteItem(_id) {}
+	/**
+	 * Deletes a specific item from container.
+	 * @param {guid} id - The item id to delete. 
+	 * @param {string} containerId - The container to use, defaults to `this.containerDefault`.
+	 * @param {object} options - The request options, defaults to `this.requestOptions`.
+	 * @returns {object} The document JSON item retrieved.
+	 */
+	async deleteItem(id, containerId=this.containerDefault, options=this.requestOptions){
+		const { resource } = await this.#containers[containerId]
+			.item(id, this.#partitionId)
+			.delete()
+		return !resource
+	}
 	/**
 	 * Retreives specific item from container.
-	 * @param {guid} _id 
-	 * @param {object} _options 
-	 * @param {string} _container_id Container to use.
-	 * @returns 
+	 * @param {guid} id - The item id to retrieve. 
+	 * @param {string} containerId - The container to use, defaults to `this.containerDefault`.
+	 * @param {object} options - The request options, defaults to `this.requestOptions`.
+	 * @returns {object} The document JSON item retrieved.
 	 */
-	async getItem(_id, _container_id=this.containerDefault, _options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
-		const { resource: _item } = await this.#containers[_container_id]
-			.item(_id,this.#partitionId)
-			.read(_options)
-		return _item
+	async getItem(id, containerId=this.containerDefault, options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
+		const { resource: retrievedItem } = await this.#containers[containerId]
+			.item(id, this.#partitionId)
+			.read(options)
+		return retrievedItem
 	}
-	async getItems(_querySpec, _container_id=this.containerDefault, _options=this.requestOptions ){
-		const { resources } = await this.#containers[_container_id]
+	async getItems(_querySpec, containerId=this.containerDefault, _options=this.requestOptions ){
+		const { resources } = await this.#containers[containerId]
 			.items
 			.query(_querySpec, _options)
 			.fetchAll()

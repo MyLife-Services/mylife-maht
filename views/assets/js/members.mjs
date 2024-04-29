@@ -7,7 +7,7 @@ import {
     submitInput,
 } from './experience.mjs'
 import {
-    fetchBots,
+    setActiveBot as _setActiveBot,
     updatePageBots,
 } from './bots.mjs'
 import Globals from './globals.mjs'
@@ -24,7 +24,6 @@ let activeBot,
     mChatBubbleCount = 0,
     mExperience,
     mMemberId,
-    mPageBots = [],
     typingTimer
 /* page div variables */
 let activeCategory,
@@ -34,7 +33,6 @@ let activeCategory,
     chatInput,
     chatInputField,
     chatRefresh,
-    memberSelect,
     memberSubmit,
     sceneContinue,
     screen,
@@ -42,7 +40,7 @@ let activeCategory,
     systemChat,
     transport
 /* page load listener */
-document.addEventListener('DOMContentLoaded', async ()=>{
+document.addEventListener('DOMContentLoaded', async event=>{
     /* post-DOM population constants */
     awaitButton = document.getElementById('await-button')
     botBar = document.getElementById('bot-bar')
@@ -50,7 +48,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     chatInput = document.getElementById('chat-member')
     chatInputField = document.getElementById('member-input')
     chatRefresh = document.getElementById('chat-refresh')
-    memberSelect = document.getElementById('member-select')
     memberSubmit = document.getElementById('submit-button')
     sceneContinue = document.getElementById('experience-continue')
     spinner = document.getElementById('agent-spinner')
@@ -62,12 +59,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if(!initialized)
         throw new Error('CRITICAL::mInitialize::Error()', success)
     stageTransition()
-    /* bots */
-    const { bots, activeBotId: id } = await fetchBots()
-    mPageBots = bots
-    activeBot = bot(id)
-    await setActiveBot()
-    updatePageBots(!inExperience())
+    /* **note**: bots run independently upon conclusion */
 })
 /* public functions */
 /**
@@ -215,39 +207,14 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
         return element
     }
 }
-async function setActiveBot(_incEventOrBot) {
-    const activeBotId = _incEventOrBot?.target?.dataset?.botId
-        ?? _incEventOrBot?.target?.id?.split('_')[1]
-        ?? _incEventOrBot?.id
-        ?? activeBot?.id
-        ?? _incEventOrBot
-    if(isActive(activeBotId)) return
-    /* server request: set active bot */
-    const _id = await fetch(
-        '/members/bots/activate/' + activeBotId,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`)
-            }
-            return response.json()
-        })
-        .then(response => {
-            return response.activeBotId
-        })
-        .catch(error => {
-            console.log('Error:', error)
-            return null
-        })
-    if(isActive(_id)) return
-    /* update active bot */
-    activeBot = bot(_id)
-    updatePageBots(true)
+/**
+ * Proxy to set the active bot (via `bots.mjs`).
+ * @public
+ * @async
+ * @returns {Promise<void>} - The return is its own success.
+ */
+async function setActiveBot(){
+    return await _setActiveBot(...arguments)
 }
 async function setActiveCategory(category, contributionId, question) {
     const url = '/members/category'; // Replace with your server's URL
@@ -506,12 +473,6 @@ function mStageTransitionMember(includeSidebar=true){
         show(botBar)
     }
 }
-function state(){
-    return {
-        activeBot,
-        pageBots: mPageBots,
-    }
-}
 /**
  * Submits a message to MyLife Member Services chat.
  * @param {string} message - The message to submit.
@@ -633,7 +594,6 @@ export {
     showMemberChat,
     showSidebar,
     stageTransition,
-    state,
     submit,
     toggleMemberInput,
     toggleInputTextarea,

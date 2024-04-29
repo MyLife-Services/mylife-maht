@@ -10,14 +10,6 @@
     max-height: 0.5em; /* Start with a small height */
     transition: max-height 0.5s ease-in-out; /* Animation for the windowshade effect */
     /* descendent styles */
-    .bot-thumb-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        margin-right: 1em; /* Space between containers in em */
-        position: relative;
-    }
     .bot-thumb {
         width: 40px;
         height: 40px;
@@ -31,9 +23,17 @@
         z-index: 2;
         margin: 0 1em; /* Increase margin on hover in em */
     }
+    .bot-thumb-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin-right: 1em; /* Space between containers in em */
+        position: relative;
+    }
 }
 #bot-bar:hover {
-    max-height: 100px; /* Adjust to desired expanded height */
+    max-height: 3em; /* Adjust to desired expanded height */
     overflow: visible; /* Make overflow visible on hover */
 }
 /* bot widget */
@@ -43,7 +43,7 @@
 .bot-container {
 	box-sizing: border-box;
     cursor: pointer;
-	display: flex;
+	display: none;
 	flex-direction: column;
 	justify-content: space-between;
 	margin: 0.2rem 0;
@@ -64,11 +64,11 @@
 	font-size: 1.2em;
 }
 .bot-icon {
-	background-color: rgb(142, 142, 142);
-	background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
-	border: rgba(0, 0, 0, 0.7) 0.12em solid;
+    background-image: radial-gradient(circle at 0.1em 0.1em, #eaedff 0%, #1e3b4e 40%, rgb(60 162 213) 80%, #404553 100%);
+	border: rgba(0, 0, 0, 0.7) 0.12em solid !important;
 	border-radius: 50%;
 	box-shadow: 0.6px 2px 3px rgba(0, 0, 0, 0.6);
+    display: flex;
 	flex: 0 0 auto;
 	height: 1.5em;
 	margin: .4em;
@@ -76,18 +76,19 @@
 	width: 1.5em;
 }
 .bot-icon.active {
-	animation: _statusBlinkActive 10s infinite;
+	animation: _statusBlink 6s ease-in-out infinite;
+	background-image: radial-gradient(circle at 0.1em 0.1em, #dfe731 0%, #8b9d3f 40%, rgb(237 255 74) 80%, #000000 100%);
+}
+.bot-icon.error {
+    animation-name: _statusBlink 1.5s ease-in-out infinite;
+    background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
+}
+.bot-icon.offline {
+    animation: none;
+}
+.bot-icon.online {
+	animation: none;
 	background-image: radial-gradient(circle at 0.1em 0.1em, #ecffea 0%, #1e4e2d 40%, rgb(55, 255, 41) 80%, #3b3b3b 100%);
-	box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6);
-}
-.bot-icon.inactive {
-	animation-name: _statusBlinkShadowInactive, _statusBlinkInactive;
-    animation-duration: 8s, 3s;
-    animation-timing-function: linear, linear;
-    animation-iteration-count: infinite, infinite;
-}
-.bot-icon:hover {
-	background-color: #ff0;
 }
 .bot-name {
 	color: inherit;
@@ -130,6 +131,9 @@
 .bot-options-dropdown.open::before {
     transform: rotate(0deg); /* Rotation when open */
 }
+.bot-passphrase {
+    width: 100%;
+}
 .bot-status {
 	align-items: center;
 	background-color: #007BFF;
@@ -144,29 +148,37 @@
 	margin: 0.2em 0.2em 0em 0.2em;
 	padding: 0.2em;
 }
-.bot-type {
+.bot-title {
+	color: aliceblue;
+    display: flex;
+	flex: 0 0 auto;
 	font-size: 0.8em;
 	font-weight: bold;
-	color: aliceblue;
 	margin-right: 1em;
-	flex: 0 0 auto;
+    max-height: 100%;
+    max-width: 8em;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    width: min-content;
 }
 .ticker {
 	background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
     border: 0.5px solid rgba(255, 255, 255, 0.5); /* Thin white border with 50% opacity */
     box-shadow: inset -4px -14px 13px 2px rgba(0, 0, 0, 0.5); /* Inset shadow for top and left */
     border-radius: 0.3em;
-    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
-    white-space: nowrap; /* Prevent text from wrapping to the next line */
-    overflow: hidden; /* Hide the overflowing part of the text */
-    display: block; /* Make it a block element */
-    min-width: 5em; /* Allow the text to shrink */
     color: rgb(28, 255, 28);
+    display: flex;
+    flex: 1 1 auto;
+    font-family: 'Courier New', monospace; /* Monospace font for teletype look */
+    max-width: 100%;
+    min-width: 5em; /* Allow the text to shrink */
+    overflow: hidden; /* Hide the overflowing part of the text */
+    white-space: nowrap; /* Prevent text from wrapping to the next line */
 }
 .ticker span {
+    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
     display: inline-block; /* Inline block for the animation */
     padding-left: 110%; /* Space before scrolling starts */
-    animation: _scrollText 12s linear infinite; /* Continuous scrolling effect */
 }
 .ticker span.no-animation {
     animation: none;
@@ -178,6 +190,158 @@
 	flex-direction: column;
 	justify-content: flex-start;
 	max-width: 100%;
+}
+/* bot-collections */
+.collection {
+    background-color: royalblue;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-bar {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    justify-content: flex-start;
+    max-width: 100%;
+    min-height: 2.5em;
+    width: 100%;
+}
+.collection-icon {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 2em;
+    width: auto;
+}
+.collection-item {
+    align-items: center;
+    background-color: aliceblue;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.5em;
+    justify-content: flex-start;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-item-icon {
+    display: flex;
+    flex: 0 0 auto;
+    height: auto;
+    max-height: 3em;
+    width: auto;
+}
+.collection-item-name {
+    color: navy;
+    display: flex;
+    flex: 1 1 auto;
+    font-size: 1.1em;
+    font-style: italic;
+    overflow: hidden;
+    text-wrap: nowrap;
+}
+.collection-item-delete {
+    color: navy;
+    display: flex;
+    flex: 0 0 auto;
+    font-size: 1.3em;
+    margin: 0 0.5em;
+}
+.collection-item-delete:hover {
+    color: red;
+}
+.collection-list {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin: 0.2em 0;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-popup {
+    background-color: white;
+    border: 1px solid black;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex: 1 0 auto;
+    gap: 0.5em;
+    height: auto;
+    left: auto;
+    overflow: auto;
+    padding: 1em;
+    position: absolute;
+    right: 100%;
+    top: 0;
+    visibility: hidden;
+    width: 40em;
+}
+.collection-popup-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: none;
+    background: none;
+    color: navy;
+    cursor: pointer;
+    font-size: 1.3em;
+}
+.collection-popup-content {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    text-align: left;
+    max-width: 100%;
+    width: 100%;
+}
+.collection-popup-visible {
+    top: auto;
+    visibility: visible; /* location properties handled by js */
+}
+.collection-refresh {
+    color: aliceblue;
+    display: flex;
+    flex: 0 0 auto;
+    font-size: 1.3em;
+    margin: 0 0.5em;
+}
+.collection-title {
+    color: aliceblue;
+    display: flex;
+    flex: 1 1 auto;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+.collections {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    justify-content: flex-start;
+    max-width: 100%;
+    width: 100%;
+}
+/* avatar passphrases */
+.passphrase-input {
+    flex: 1 1 auto;
+}
+.passphrase-container {
+    align-items: center;
+    display: none;
+    flex-direction: row;
+    gap: 0.5em;
+    justify-content: space-between;
+    width: 100%;
+}
+.passphrase-reset {
+    width: 100%;
 }
 /* bot slider */
 .input-group {
@@ -264,19 +428,8 @@ input[type="range"]::-moz-range-thumb {
     from { opacity: 0; }
     to { opacity: 1; }
 }
-@keyframes _statusBlinkInactive {
-	0% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
-	}
-	80% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #ffc6c6 0%, #582727 40%, rgb(236, 81, 81) 80%, #4b1c1c 100%);
-	}
-	100% {
-		background-image: radial-gradient(circle at 0.1em 0.1em, #fff 0%, #545454 40%, rgb(139, 139, 139) 80%, #3b3b3b 100%);
-	}
-}
-@keyframes _statusBlinkShadowInactive {
-	0% { box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.6); }
-	70% { box-shadow: 1px 2.2px 6px rgba(255, 0, 0, 0.4); }
-	100% { box-shadow: 0.6px 2px 3px rgba(0, 71, 0, 0.75); }
+@keyframes _statusBlink {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
 }
