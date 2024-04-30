@@ -3,7 +3,7 @@ import Globals from './globals.mjs'
 /* precursor constants */
 const mGlobals = new Globals()
 /* constants */
-const mAvatarName = mGlobals.getAvatar().name
+const mAvatarName = mGlobals.getAvatar()?.name
 const mGreeting = [
 	`Hi, I'm ${ mAvatarName }, so nice to meet you!`,
 	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`

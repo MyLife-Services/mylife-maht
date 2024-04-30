@@ -26,14 +26,15 @@ async function alerts(ctx){
 	}
 }
 async function bots(ctx){
-	const _bot = ctx.request.body
+	const bot = ctx.request.body
 	switch(ctx.method){
-		case 'POST':
-			ctx.body = await ctx.state.avatar.setBot(_bot)
+		case 'POST': // create new bot
+			ctx.body = await ctx.state.avatar.setBot(bot)
 			break
-		case 'PUT':
-			if(ctx.params.bid!==_bot.id) throw new Error('invalid bot data')
-			ctx.body = await ctx.state.avatar.setBot(_bot)
+		case 'PUT': // update bot
+			if(ctx.params.bid!==bot.id)
+				throw new Error('invalid bot data')
+			ctx.body = await ctx.state.avatar.setBot(bot)
 			break
 		case 'GET':
 		default:
@@ -77,6 +78,9 @@ async function chat(ctx){
 	const _response = await ctx.state.avatar.chatRequest(ctx)
 	ctx.body = _response // return message_member_chat
 }
+async function collections(ctx){
+	ctx.body = await ctx.state.avatar.collections(ctx.params.type)
+}
 /**
  * Manage delivery and receipt of contributions(s).
  * @async
@@ -90,6 +94,20 @@ async function contributions(ctx){
 		?	mGetContributions(ctx)
 		:	mSetContributions(ctx)
 	)
+}
+/**
+ * Delete an item from collection via the member's avatar.
+ * @async
+ * @public
+ * @requires ctx.state.avatar - The avatar object for the member.
+ * @param {object} ctx - Koa Context object
+ * @returns {boolean} - Under `ctx.body`, status of deletion.
+ */
+async function deleteItem(ctx){
+	const { iid, } = ctx.params
+	if(!iid?.length)
+		ctx.throw(400, `missing item id`)
+	ctx.body = await ctx.state.avatar.deleteItem(iid)
 }
 /**
  * Index page for the application.
@@ -147,6 +165,14 @@ async function loginSelect(ctx){
 async function members(ctx){ // members home
 	ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
 	await ctx.render('members')
+}
+async function passphraseReset(ctx){
+	if(ctx.state.avatar.isMyLife)
+		ctx.throw(400, `cannot reset system passphrase`)
+	const { passphrase } = ctx.request.body
+	if(!passphrase?.length)
+		ctx.throw(400, `passphrase required for reset`)
+	ctx.body = await ctx.state.avatar.resetPassphrase(passphrase)
 }
 async function privacyPolicy(ctx){
 	ctx.state.title = `MyLife Privacy Policy`
@@ -262,13 +288,16 @@ export {
 	category,
 	challenge,
 	chat,
+	collections,
 	contributions,
+	deleteItem,
 	index,
 	interfaceMode,
 	login,
 	logout,
 	loginSelect,
 	members,
+	passphraseReset,
 	privacyPolicy,
 	signup,
 	upload,

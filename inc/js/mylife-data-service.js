@@ -12,6 +12,11 @@ import PgvectorManager from "./mylife-pgvector-datamanager.mjs"
  * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
  */
 class Dataservices {
+	/**
+	 * Identifies currently available selection sub-types (i.e., `being`=@var) for the data service.
+	 * @private
+	 */
+	#collectionTypes = ['chat', 'conversation', 'entry', 'experience', 'file', 'library', 'story']
     /**
      * Represents the core functionality of the data service. This property
      * objectifies core data to make it more manageable and structured,
@@ -165,8 +170,90 @@ class Dataservices {
 		//	ask global data service (stored proc) for passphrase
 		return await this.datamanager.challengeAccess(_mbr_id, _passphrase)
 	}
+	/**
+	 * Proxy to retrieve stored conversations.
+	 * @returns {array} - The collection of conversations.
+	 */
+	async collectionConversations(){
+		return await this.getItems('chat')
+	}
+	/**
+	 * Proxy to retrieve journal entry items.
+	 * @returns {array} - The journal entry items.
+	 */
+	async collectionEntries(){
+		return await this.getItems('entry')
+	}
+	/**
+	 * Proxy to retrieve lived experiences.
+	 * @returns {array} - The lived experiences.
+	 */
+	async collectionExperiences(){
+		return await this.getItems('experience')
+	}
+	/**
+	 * Proxy to retrieve files.
+	 * @returns {array} - The member's files.
+	 */
+	async collectionFiles(){
+		return await this.getItems('file')
+	}
+	/**
+	 * Proxy to retrieve library items.
+	 * @param {string} form - The form of the library items (such as: personal, album,).
+	 * @returns {array} - The library items.
+	 */
+	async collectionLibraries(form){
+		return await this.getItems('library')
+	}
+	/**
+	 * Proxy to retrieve biographical story items.
+	 * @returns {array} - The biographical story items.
+	 */
+	async collectionStories(){
+		return await this.getItems('story')
+	}
+    /**
+     * Get member collection items.
+	 * @public
+	 * @async
+     * @param {string} type - The type of collection to retrieve, `false`-y = all.
+     * @returns {array} - The collection items with no wrapper.
+     */
+	async collections(type){
+		if(type?.length && this.#collectionTypes.includes(type))
+			return await this.getItems(type)
+		else
+			return Promise.all([
+				this.collectionConversations(),
+				this.collectionEntries(),
+				this.collectionExperiences(),
+				this.collectionFiles(),
+				this.collectionStories(),
+			])
+				.then(([conversations, entries, experiences, stories])=>[
+					...conversations,
+					...entries,
+					...experiences,
+					...stories,
+				])
+				.catch(err=>{
+					console.log('mylife-data-service::collections() error', err)
+					return []
+				})
+	}
 	async datacore(_mbr_id){
 		return await this.getItem(_mbr_id)
+	}
+    /**
+     * Delete an item from member container.
+     * @async
+     * @public
+     * @param {Guid} id - The id of the item to delete.
+     * @returns {boolean} - true if item deleted successfully.
+     */
+	async deleteItem(id){
+		return await this.datamanager.deleteItem(id)
 	}
 	async findRegistrationIdByEmail(_email){
 		/* pull record for email, returning id or new guid */
@@ -437,42 +524,48 @@ class Dataservices {
 	/**
 	 * Patches an item by its ID with the provided data.
 	 * @async
-	 * @param {string} _id - The unique identifier for the item to be patched.
-	 * @param {Object} _data - The data to patch the item with.
-	 * @param {string} [_path='/'] - The path for patching, defaults to root.
+	 * @param {string} id - The unique identifier for the item to be patched.
+	 * @param {Object} data - The data to patch the item with; object of key/value pairs to be transformed into patch operations.
+	 * @param {string} [path='/'] - The path for patching, defaults to root.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patch(_id, _data, _path = '/') {
-		// @todo: limit to 10 patch operations
-		// _data is an object of key/value pairs to be transformed into patch operations
-		const patchOperations = Object.keys(_data)
-			// Filtering out keys that should not be included in the patch
-			.filter(_key => !['id', 'being', 'mbr_id'].includes(_key))
-			.map(_key => {
-				return { op: 'add', path: _path + _key, value: _data[_key] }
+	async patch(id, data, path = '/') {
+		const patchOperations = Object.keys(data)
+			.filter(key => !['id', 'being', 'mbr_id'].includes(key)) // keys which must not be included in patch
+			.map(key => {
+				return { op: 'add', path: path + key, value: data[key] }
 			})
-		// Performing the patch operation
-		return await this.patchItem(_id, patchOperations)
+		// Split operations into batches of 10 per Cosmos DB limitations
+		const patchBatches = []
+		while(patchOperations.length){
+			patchBatches.push(patchOperations.splice(0, 10))
+		}
+		// Perform the patch operation(s) for each batch
+		let endResult
+		for(const batch of patchBatches){
+			endResult = await this.patchItem(id, batch)
+		}
+		return endResult
 	}
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
 	 * @async
 	 * @param {string} _id - The unique identifier for the item to be patched.
-	 * @param {Array<Object>} _data - The data for patching, including the path and operation.
+	 * @param {Array<Object>} data - The data for patching, including the path and operation.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(_id, _data){ // path Embedded in _data
-		return await this.datamanager.patchItem(_id ,_data)
+	async patchItem(_id, data){ // path Embedded in data
+		return await this.datamanager.patchItem(_id , data)
 	}
     /**
      * Pushes a new item to the data manager
      * @async
 	 * @public
-     * @param {Object} _data - The data to be pushed
+     * @param {Object} data - The data to be pushed
      * @returns {Promise<Object>} The result of the push operation
      */
-	async pushItem(_data){
-		return await this.datamanager.pushItem(_data)
+	async pushItem(data){
+		return await this.datamanager.pushItem(data)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
@@ -486,22 +579,45 @@ class Dataservices {
 		_candidate.name = `${_candidate.email.split('@')[0]}-${_candidate.email.split('@')[1]}_${_candidate.id}`
 		return await this.datamanager.registerCandidate(_candidate)
 	}
-	async setBot(_bot){
-		const _originalBot = await this.bot(_bot.id)
-		if(_originalBot){ // update
-			const _changed = Object.keys(_bot)
-				.filter(key => !key.startsWith('_') && _bot[key] !== _originalBot[key])
+    /**
+     * Allows member to reset passphrase.
+     * @param {string} passphrase 
+     * @returns {boolean} - true if passphrase reset successful.
+     */
+    async resetPassphrase(passphrase){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot reset passphrase.')
+        if(!passphrase?.length)
+            throw new Error('Passphrase required for reset.')
+        try{
+			const response = await this.datamanager.patchItem(this.core.id, [{ op: 'add', path: '/passphrase', value: passphrase }])
+			return response?.passphrase===passphrase
+		} catch(err){
+			console.log('mylife-data-service::resetPassphrase() error', err)
+			return false
+		}
+    }
+	/**
+	 * Sets a bot in the database. Performs logic to reduce the bot to the minimum required data, as Mongo/Cosmos has a limitation of 10 patch items in one batch array.
+	 * @param {object} bot - The bot object to set.
+	 * @returns {object} - The bot object.
+	 */
+	async setBot(bot){
+		const originalBot = await this.bot(bot.id)
+		if(originalBot){ // update
+			const dataUpdates = Object.keys(bot)
+				.filter(key => !key.startsWith('_') && bot[key] !== originalBot[key])
 				.reduce((obj, key) => {
-					obj[key] = _bot[key]
+					obj[key] = bot[key]
 					return obj
 				}, {})
-			if (Object.keys(_changed).length > 0) {
-				this.patch(_bot.id, _changed)
+			if(Object.keys(dataUpdates).length > 0){
+				bot = this.patch(bot.id, dataUpdates)
 			}
 		} else { // add
-			this.pushItem(_bot)
+			bot = this.pushItem(bot)
 		}
-		return _bot
+		return bot
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.

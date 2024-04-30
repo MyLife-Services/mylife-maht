@@ -45,7 +45,12 @@ body {
 	padding: 0px;
 	width: 100%; /* Full width */
 }
-.navigation-brand, .navigation-login-logout, .navigation-nav, .navigation-padding, .navigation-search {
+.navigation-brand,
+.navigation-help,
+.navigation-login-logout,
+.navigation-nav,
+.navigation-padding,
+.navigation-search {
 	align-items: center;
 	display: flex;
 	flex: none; /* Prevents items from growing */
@@ -54,13 +59,22 @@ body {
 	cursor: default; /* Set cursor to default */
 	margin-right: 2em; /* Right margin on navigation brand */
 }
+.navigation-help {
+	align-items: center;
+	color: #007bff;
+	display: flex;
+	font-size: 2em;
+	height: auto;
+	justify-content: center;
+}
+.navigation-help:hover {
+	color: purple; /* Your existing styles for active link */
+	cursor: pointer; /* Set cursor to pointer on hover */
+}
 .navigation-login-logout {
 	align-self: flex-end;
 	display: flex;
 	justify-content: flex-end
-}
-.navigation-login-logout-button {
-	display: flex;
 }
 .navigation-nav {
 	background: linear-gradient(
@@ -81,10 +95,9 @@ body {
 .navigation-padding {
 	flex: 1; /* Prevents the brand from growing */
 }
-
-
 .navigation-link {
 	margin: 0em .8em;
+	text-decoration: none;
 }
 .navigation-link.active {
     color: #007bff; /* Your existing styles for active link */
@@ -234,17 +247,24 @@ body {
 .button {
 	background-color: #007BFF; /* Default background color */
 	color: #fff; /* Text color */
+	display: flex;
 	margin: 12px;
 	margin-bottom: 18px;
 	border: 2px solid #061320; /* Blue border */
 	border-radius: 12px; /* Rounded corners */
 	box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
 	font-weight: bold; /* Bold text */
+	justify-content: center; /* Centers the button horizontally */
 	padding: 6px 12px; /* Adjust as needed */
 	cursor: pointer; /* Cursor changes to pointer on hover */
 	text-align: center; /* Center text */
 }
-.button:disabled {
+.button:hover {
+	background-color: #fff29a;
+	color: navy;
+	display: flex;
+}
+.button:disabled { /* alphabetically wrong, but disabled trumps hover */
     background-color: #CCCCCC; /* Lighter/Different background color for disabled state */
     color: #666666; /* Lighter/Different text color for disabled state */
     border: 2px solid #CCCCCC; /* Border color for disabled state */
