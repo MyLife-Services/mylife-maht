@@ -250,40 +250,40 @@ class BotFactory extends EventEmitter{
 	 * @returns {object} - The library.
 	 */
 	async library(_library){
-		const _updatedLibrary = await mLibrary(this, _library)
+		const updatedLibrary = await mLibrary(this, _library)
 		// test the type/form of Library
-		switch(_updatedLibrary.type){
+		switch(updatedLibrary.type){
 			case 'story':
-				if(_updatedLibrary.form==='biographer'){
+				if(updatedLibrary.form==='biographer'){
 					// inflate and update library with stories
-					const _stories = ( await this.stories(_updatedLibrary.form) )
-						.filter(_story=>!this.globals.isValidGuid(_story?.library_id))
-						.map(_story=>{
-							_story.id = _story.id??this.newGuid
-							_story.author = _story.author??this.mbr_name
-							_story.title = _story.title??_story.id
-							return mInflateLibraryItem(_story, _updatedLibrary.id, this.mbr_id)
+					const stories = ( await this.stories(updatedLibrary.form) )
+						.filter(story=>!this.globals.isValidGuid(story?.library_id))
+						.map(story=>{
+							story.id = story.id ?? this.newGuid
+							story.author = story.author ?? this.mbr_name
+							story.title = story.title ?? story.id
+							return mInflateLibraryItem(story, updatedLibrary.id, this.mbr_id)
 						})
-					_updatedLibrary.items = [
-						..._updatedLibrary.items,
-						..._stories,
+					updatedLibrary.items = [
+						...updatedLibrary.items,
+						...stories,
 					]
 					/* update stories (no await) */
-					_stories.forEach(_story=>this.dataservices.patch(
-						_story.id,
-						{ library_id: _updatedLibrary.id },
+					stories.forEach(story=>this.dataservices.patch(
+						story.id,
+						{ library_id: updatedLibrary.id },
 					))
 					/* update library (no await) */
 					this.dataservices.patch(
-						_updatedLibrary.id,
-						{ items: _updatedLibrary.items },
+						updatedLibrary.id,
+						{ items: updatedLibrary.items },
 					)
 				}
 				break
 			default:
 				break
 		}
-		return _updatedLibrary
+		return updatedLibrary
 	}
     /**
      * Allows member to reset passphrase.
@@ -514,11 +514,29 @@ class AgentFactory extends BotFactory{
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
-	 * @param {object} _story - Story object { assistantType, being, form, id, mbr_id, name, summary }.
+	 * @param {object} story - Story object.
 	 * @returns {object} - The story document from Cosmos.
 	 */
-	async story(_story){
-		return await this.dataservices.story(_story)
+	async story(story){
+		if(!story.summary?.length)
+			throw new Error('story summary required')
+		const id = this.newGuid
+		const title = story.title ?? 'New Memory Entry'
+		const finalStory = {
+			...story,
+			...{
+			assistantType: story.assistantType ?? 'biographer-bot',
+			being: story.being ?? 'story',
+			form: story.form ?? 'biographer',
+			id,
+			keywords: story.keywords ?? ['memory', 'biographer', 'entry'],
+			mbr_id: this.mbr_id,
+			name: story.name ?? title ?? `story_${ this.mbr_id }_${ id }`,
+			phaseOfLife: story.phaseOfLife ?? 'unknown',
+			summary: story.summary,
+			title,
+		}}
+		return await this.dataservices.story(finalStory)
 	}
 	/**
 	 * Tests partition key for member

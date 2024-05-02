@@ -121,12 +121,12 @@ class Avatar extends EventEmitter {
         if(!conversation)
             conversation = await this.createConversation('chat')
         conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        const messages = await mCallLLM(this.#llmServices, conversation, prompt)
+        const messages = await mCallLLM(this.#llmServices, conversation, prompt, this.factory)
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message)
+            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
@@ -821,15 +821,16 @@ async function mBot(factory, avatar, bot){
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
+ * @param {AgentFactory} factory - Agent Factory object required for function execution
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
  */
-async function mCallLLM(llmServices, conversation, prompt){
+async function mCallLLM(llmServices, conversation, prompt, factory){
     const { thread_id: threadId } = conversation
     if(!threadId)
         throw new Error('No `thread_id` found for conversation')
     if(!conversation.botId)
         throw new Error('No `botId` found for conversation')
-    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt)
+    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt, factory)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })
