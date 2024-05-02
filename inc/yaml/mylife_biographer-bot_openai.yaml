@@ -1,8 +1,11 @@
 openapi: 3.0.0
 info:
   title: MyLife GPT Webhook Receiver API
-  description: This API is for receiving webhooks from [MyLife's public Biographer Bot instance](https://chat.openai.com/g/g-QGzfgKj6I-mylife-biographer-bot).
-  version: 1.0.0
+  description: |
+    This API is for receiving webhooks from [MyLife's public Biographer Bot instance](https://chat.openai.com/g/g-QGzfgKj6I-mylife-biographer-bot).
+    ## Updates
+    - added: keywords, phaseOfLife, relationships to bot package
+  version: 1.0.1
 servers:
   - url: https://humanremembranceproject.org/api/v1
     description: Endpoint for receiving stories from the MyLife Biographer Bot instance.
@@ -80,14 +83,53 @@ paths:
         content:
           application/json:
             schema:
-              description: The `story` data sent by MyLife Biographer BOt.
+              description: The `story` data sent by MyLife Biographer Bot.
               type: object
               required:
-                - storySummary
+                - keywords
+                - phaseOfLife
+                - summary
+                - title
               properties:
-                storySummary:
+                keywords:
+                  description: MyLife Biographer Bot interprets (or asks) keywords for this `story`. Should not include relations or names, but would tag content dynamically. Each should be a single word or short phrase.
+                  items:
+                    description: A single word or short phrase to tag `story` content.
+                    maxLength: 64
+                    type: string
+                  maxItems: 12
+                  minItems: 3
+                  type: array
+                phaseOfLife:
+                  description: MyLife Biographer Bot interprets (or asks) phase of life for this `story`. Can be `unkown`.
+                  enum:
+                    - birth
+                    - childhood
+                    - adolescence
+                    - teenage
+                    - young-adult
+                    - adulthood
+                    - middle-age
+                    - senior
+                    - end-of-life
+                    - past-life
+                    - unknown
+                    - other
+                  type: string
+                relationships:
+                  description: MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`.
+                  items:
+                    description: A name of relational individual/pet to the `story` content.
+                    type: string
+                  maxItems: 24
+                  type: array
+                summary:
                   description: MyLife Biographer Bot summary of identified `story`.
                   maxLength: 20480
+                  type: string
+                title:
+                  description: MyLife Biographer Bot determines title for this `story`.
+                  maxLength: 256
                   type: string
 responses:
   "200":
@@ -105,7 +147,7 @@ responses:
               type: string
               example: Story submitted successfully.
   "400":
-    description: No story summary provided. Use `storySummary` field.
+    description: No story summary provided. Use `summary` field.
     content:
       application/json:
         schema:
@@ -117,4 +159,4 @@ responses:
               example: false
             message:
               type: string
-              example: No story summary provided. Use `storySummary` field.
+              example: No story summary provided. Use `summary` field.

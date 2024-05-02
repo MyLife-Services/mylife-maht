@@ -1,0 +1,64 @@
+{
+    "description": "Generate a STORY summary with keywords and other critical data elements.",
+    "name": "storySummary",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "keywords": {
+                "description": "Keywords most relevant to STORY.",
+                "items": {
+                    "description": "Keyword (single word or short phrase) to be used in STORY summary.",
+                    "maxLength": 64,
+                    "type": "string"
+                },
+                "maxItems": 12,
+                "minItems": 3,
+                "type": "array"
+            },
+            "phaseOfLife": {
+                "description": "Phase of life indicated in STORY.",
+                "enum": [
+                    "birth",
+                    "childhood",
+                    "adolescence",
+                    "teenage",
+                    "young-adult",
+                    "adulthood",
+                    "middle-age",
+                    "senior",
+                    "end-of-life",
+                    "past-life",
+                    "unknown",
+                    "other"
+                ],
+                "maxLength": 64,
+                "type": "string"
+            },
+            "relationships": {
+                "description": "MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`.",
+                "type": "array",
+                "items": {
+                    "description": "A name of relational individual/pet to the `story` content.",
+                    "type": "string"
+                },
+                "maxItems": 24
+            },
+            "summary": {
+                "description": "Generate a STORY summary from input.",
+                "maxLength": 20480,
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title of the STORY.",
+                "maxLength": 256,
+                "type": "string"
+            }
+        },
+        "required": [
+            "keywords",
+            "phaseOfLife",
+            "summary",
+            "title"
+        ]
+    }
+}
