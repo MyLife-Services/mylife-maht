@@ -10,7 +10,7 @@ import Globals from './globals.mjs'
 /* constants */
 const botBar = document.getElementById('bot-bar'),
     mGlobals = new Globals(),
-    mLibraries = ['file', 'story'], // ['chat', 'entry', 'experience', 'file', 'story']
+    mLibraries = ['experience', 'file', 'story'], // ['chat', 'entry', 'experience', 'file', 'story']
     libraryCollections = document.getElementById('library-collections'),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
