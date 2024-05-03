@@ -72,11 +72,11 @@ async function challenge(ctx){
 async function chat(ctx){
 	ctx.state.chatMessage = ctx.request.body
 	ctx.state.thread = ctx.state.MemberSession.thread
-	const _message = ctx.request?.body?.message??false /* body has all the nodes sent by fe */
-	if(!_message) ctx.throw(400, `invalid message: missing \`message\``) // currently only accepts single contributions via post with :cid
-	if(!_message?.length) ctx.throw(400, `empty message content`)
-	const _response = await ctx.state.avatar.chatRequest(ctx)
-	ctx.body = _response // return message_member_chat
+	const message = ctx.request.body?.message ?? false /* body has all the nodes sent by fe */
+	if(!message?.length)
+			ctx.throw(400, 'missing `message` content')
+	const response = await ctx.state.avatar.chatRequest(ctx)
+	ctx.body = response
 }
 async function collections(ctx){
 	ctx.body = await ctx.state.avatar.collections(ctx.params.type)

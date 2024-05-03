@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     /* determine mode, default = member bot interface */
     const initialized = await mInitialize()
     if(!initialized)
-        throw new Error('CRITICAL::mInitialize::Error()', success)
+        throw new Error('CRITICAL::mInitialize::Error()')
     stageTransition()
     /* **note**: bots run independently upon conclusion */
 })
