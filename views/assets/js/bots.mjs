@@ -541,6 +541,15 @@ function mToggleBotContainers(event){
     }
 }
 /**
+ * Toggles collection item visibility.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mToggleCollectionItems(event){
+    /* derive item or parent? from event */
+    const item = event.target.id.includes('collection-item')
+}
+/**
  * Toggles passphrase input visibility.
  * @param {Event} event - The event object.
  * @returns {void}
@@ -672,6 +681,9 @@ function mUpdateBotContainers(){
                         continue
                     }
                     const collectionButton = document.getElementById(`collection-refresh-${ id }`)
+                    /* add listeners */
+                    collection.addEventListener('click', mToggleCollectionItems)
+                    /* collection.click() to run on load */
                     if(collectionButton)
                         collectionButton.addEventListener('click', mRefreshCollection, { once: true })
                 }
