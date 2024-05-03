@@ -621,12 +621,12 @@ class Dataservices {
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
-	 * @param {object} _story - Story object { assistantType, being, form, id, mbr_id, name, summary }.
+	 * @param {object} story - Story object.
 	 * @returns {object} - The story document from Cosmos.
 	 */
-	async story(_story){
-		if(!this.isMyLife) return
-		return await this.datamanager.pushItem(_story)
+	async story(story){
+		const storyItem = await this.datamanager.pushItem(story)
+		return storyItem
 	}
 	/**
 	 * Tests partition key for member

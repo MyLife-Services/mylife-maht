@@ -67,23 +67,28 @@ class Avatar extends EventEmitter {
             })
         this.nickname = this.nickname ?? this.names?.[0] ?? `${this.memberFirstName ?? 'member'}'s avatar`
         /* create evolver (exclude MyLife) */
-        // @todo: admin interface for modifying MyLife avatar and their bots
         this.#bots = await this.#factory.bots(this.id)
         let activeBot = this.avatarBot
         if(!this.isMyLife){
-            if(!activeBot?.id){ // create: but do not want to call setBot() to activate
-                activeBot = await mBot(this.#factory, this, { type: 'personal-avatar' })
-                this.#bots.unshift(activeBot)
-            }
+            /* bot checks */
+            const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
+            await Promise.all(requiredBotTypes.map(async botType =>{
+                if(!this.#bots.some(bot => bot.type === botType)){
+                    const _bot = await mBot(this.#factory, this, { type: botType })
+                    this.#bots.push(_bot)
+                }
+            }))
+            activeBot = this.avatarBot // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
+            /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
+            /* evolver */
             this.#evolver = new EvolutionAssistant(this)
             mAssignEvolverListeners(this.#factory, this.#evolver, this)
             /* init evolver */
             await this.#evolver.init()
         } else { // Q-specific, leave as `else` as is near always false
-            // @todo - something doesn't smell right in how session would handle conversations - investigate logic; fine if new Avatar instance is spawned for each session, which might be true
             this.activeBotId = activeBot.id
             activeBot.bot_id = mBotIdOverride ?? activeBot.bot_id
             this.#llmServices.botId = activeBot.bot_id
@@ -121,12 +126,12 @@ class Avatar extends EventEmitter {
         if(!conversation)
             conversation = await this.createConversation('chat')
         conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        const messages = await mCallLLM(this.#llmServices, conversation, prompt)
+        const messages = await mCallLLM(this.#llmServices, conversation, prompt, this.factory)
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message)
+            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
@@ -821,15 +826,16 @@ async function mBot(factory, avatar, bot){
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
+ * @param {AgentFactory} factory - Agent Factory object required for function execution
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
  */
-async function mCallLLM(llmServices, conversation, prompt){
+async function mCallLLM(llmServices, conversation, prompt, factory){
     const { thread_id: threadId } = conversation
     if(!threadId)
         throw new Error('No `thread_id` found for conversation')
     if(!conversation.botId)
         throw new Error('No `botId` found for conversation')
-    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt)
+    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt, factory)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })

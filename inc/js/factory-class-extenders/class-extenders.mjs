@@ -405,7 +405,7 @@ function extendClass_message(originClass, referencesObject) {
             const { content, ..._obj } = obj
             super(_obj)
             try{
-                this.#content = mAssignContent(content??obj)
+                this.#content = mAssignContent(content ?? obj)
             } catch(e){
                 console.log('Message::constructor::ERROR', e)
                 this.#content = ''

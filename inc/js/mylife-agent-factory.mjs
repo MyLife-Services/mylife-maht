@@ -1,4 +1,4 @@
-//	imports
+/* imports */
 import { promises as fs } from 'fs'
 import EventEmitter from 'events'
 import vm from 'vm'
@@ -142,36 +142,40 @@ class BotFactory extends EventEmitter{
 	/**
 	 * Returns bot instruction set.
 	 * @public
-	 * @param {string} _type
+	 * @param {string} type - The bot type.
+	 * @returns {object} - The bot instructions.
 	 */
-	botInstructions(_type){
-		if(!_type) throw new Error('bot type required')
-		if(!mBotInstructions[_type]){
-			if(!_instructionSet) throw new Error(`no bot instructions found for ${_type}`)
-			mBotInstructions[_type] = _instructionSet
+	botInstructions(botType){
+		if(!botType)
+			throw new Error('bot type required')
+		console.log(chalk.magenta(`botInstructions::${botType}`), mBotInstructions)
+		if(!mBotInstructions[botType]){
+			if(!botInstructions)
+				throw new Error(`no bot instructions found for ${ botType }`)
+			mBotInstructions[botType] = botInstructions
 		}
-		return mBotInstructions[_type]
+		return mBotInstructions[botType]
 	}
 	/**
 	 * Gets a member's bots.
+	 * @todo - develop bot class and implement hydrated instance
 	 * @public
-	 * @param {string} _object_id - The _object_id guid of avatar.
-	 * @param {string} type - The bot type.
+	 * @param {string} object_id - The object_id guid of avatar.
+	 * @param {string} botType - The bot type.
 	 * @returns {array} - The member's hydrated bots.
 	 */
-	async bots(_object_id, type){
-		// @todo: develop bot class and implement instance
-		const _params = _object_id?.length
-			? [{ name: '@object_id', value:_object_id }]
-			: type?.length
-				? [{ name: '@bot_type', value: type }]
+	async bots(object_id, botType){
+		const _params = object_id?.length
+			? [{ name: '@object_id', value:object_id }]
+			: botType?.length
+				? [{ name: '@bot_type', value: botType }]
 				: undefined
-		const _bots = await this.dataservices.getItems(
+		const bots = await this.dataservices.getItems(
 			'bot',
 			undefined,
 			_params,
 		)
-		return _bots
+		return bots
 	}
     /**
      * Get member collection items.
@@ -250,40 +254,40 @@ class BotFactory extends EventEmitter{
 	 * @returns {object} - The library.
 	 */
 	async library(_library){
-		const _updatedLibrary = await mLibrary(this, _library)
+		const updatedLibrary = await mLibrary(this, _library)
 		// test the type/form of Library
-		switch(_updatedLibrary.type){
+		switch(updatedLibrary.type){
 			case 'story':
-				if(_updatedLibrary.form==='biographer'){
+				if(updatedLibrary.form==='biographer'){
 					// inflate and update library with stories
-					const _stories = ( await this.stories(_updatedLibrary.form) )
-						.filter(_story=>!this.globals.isValidGuid(_story?.library_id))
-						.map(_story=>{
-							_story.id = _story.id??this.newGuid
-							_story.author = _story.author??this.mbr_name
-							_story.title = _story.title??_story.id
-							return mInflateLibraryItem(_story, _updatedLibrary.id, this.mbr_id)
+					const stories = ( await this.stories(updatedLibrary.form) )
+						.filter(story=>!this.globals.isValidGuid(story?.library_id))
+						.map(story=>{
+							story.id = story.id ?? this.newGuid
+							story.author = story.author ?? this.mbr_name
+							story.title = story.title ?? story.id
+							return mInflateLibraryItem(story, updatedLibrary.id, this.mbr_id)
 						})
-					_updatedLibrary.items = [
-						..._updatedLibrary.items,
-						..._stories,
+					updatedLibrary.items = [
+						...updatedLibrary.items,
+						...stories,
 					]
 					/* update stories (no await) */
-					_stories.forEach(_story=>this.dataservices.patch(
-						_story.id,
-						{ library_id: _updatedLibrary.id },
+					stories.forEach(story=>this.dataservices.patch(
+						story.id,
+						{ library_id: updatedLibrary.id },
 					))
 					/* update library (no await) */
 					this.dataservices.patch(
-						_updatedLibrary.id,
-						{ items: _updatedLibrary.items },
+						updatedLibrary.id,
+						{ items: updatedLibrary.items },
 					)
 				}
 				break
 			default:
 				break
 		}
-		return _updatedLibrary
+		return updatedLibrary
 	}
     /**
      * Allows member to reset passphrase.
@@ -514,11 +518,29 @@ class AgentFactory extends BotFactory{
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
-	 * @param {object} _story - Story object { assistantType, being, form, id, mbr_id, name, summary }.
+	 * @param {object} story - Story object.
 	 * @returns {object} - The story document from Cosmos.
 	 */
-	async story(_story){
-		return await this.dataservices.story(_story)
+	async story(story){
+		if(!story.summary?.length)
+			throw new Error('story summary required')
+		const id = this.newGuid
+		const title = story.title ?? 'New Memory Entry'
+		const finalStory = {
+			...story,
+			...{
+			assistantType: story.assistantType ?? 'biographer-bot',
+			being: story.being ?? 'story',
+			form: story.form ?? 'biographer',
+			id,
+			keywords: story.keywords ?? ['memory', 'biographer', 'entry'],
+			mbr_id: this.mbr_id,
+			name: story.name ?? title ?? `story_${ this.mbr_id }_${ id }`,
+			phaseOfLife: story.phaseOfLife ?? 'unknown',
+			summary: story.summary,
+			title,
+		}}
+		return await this.dataservices.story(finalStory)
 	}
 	/**
 	 * Tests partition key for member
@@ -585,12 +607,13 @@ class AgentFactory extends BotFactory{
  * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
  */
 async function mAI_openai(llmServices, bot){
-    const { bot_name, description, model, name, instructions} = bot
+    const { bot_name, description, model, name, instructions, tools=[], } = bot
     const assistant = {
         description,
         model,
-        name: bot.bot_name ?? bot.name, // take friendly name before Cosmos
+        name: bot_name ?? name, // take friendly name before Cosmos
         instructions,
+		tools,
     }
     return await llmServices.createBot(assistant)
 }
@@ -717,29 +740,32 @@ async function mCreateBotLLM(llm, bot){
  * @returns {object} - Bot object
 */
 async function mCreateBot(llm, factory, bot){
+	const { bot_name, description: botDescription, instructions: botInstructions, name: botDbName, type, } = bot
 	const { avatarId, } = factory
-	const _description = bot.description
-		?? `I am a ${bot.type} bot for ${factory.memberName}`
-	const _instructions = bot.instructions
+	const botName = bot_name
+		?? botDbName
+		?? type
+	const description = botDescription
+		?? `I am a ${ type } bot for ${ factory.memberName }`
+	const instructions = botInstructions
 		?? mCreateBotInstructions(factory, bot)
-	const botName = bot.bot_name
-		?? bot.name
-		?? bot.type
-	const _cosmosName = bot.name
-		?? `bot_${bot.type}_${avatarId}`
+	const name = botDbName
+		?? `bot_${ type }_${ avatarId }`
+	const tools = mGetAIFunctions(type, factory.globals)
 	if(!avatarId)
 		throw new Error('avatar id required to create bot')
 	const botData = {
 		being: 'bot',
 		bot_name: botName,
-		description: _description,
-		instructions: _instructions,
+		description,
+		instructions,
 		model: process.env.OPENAI_MODEL_CORE_BOT,
-		name: _cosmosName,
+		name,
 		object_id: avatarId,
 		provider: 'openai',
-		purpose: _description,
-		type: bot.type,
+		purpose: description,
+		tools,
+		type,
 	}
 	botData.bot_id = await mCreateBotLLM(llm, botData) // create after as require model
 	return botData
@@ -758,7 +784,8 @@ function mCreateBotInstructions(factory, _bot){
 	const _type = _bot.type ?? mDefaultBotType
     let _botInstructionSet = factory.botInstructions(_type) // no need to wait, should be updated or refresh server
     _botInstructionSet = _botInstructionSet?.instructions
-    if(!_botInstructionSet) throw new Error(`bot instructions not found for type: ${_type}`)
+    if(!_botInstructionSet)
+		throw new Error(`bot instructions not found for type: ${_type}`)
     /* compile instructions */
     let _botInstructions = ''
     switch(_type){
@@ -948,6 +975,30 @@ function mGenerateClassFromSchema(_schema) {
 	const _classCode = mGenerateClassCode(name, properties)
 	const _class = mCompileClass(name, _classCode)
 	return _class
+}
+/**
+ * Retrieves any functions that need to be attached to ai.
+ * @param {string} type - Type of bot.
+ * @param {object} globals - Global functions for bot.
+ * @returns {array} - Array of AI functions for bot type.
+ */
+function mGetAIFunctions(type, globals){
+	const functions = []
+	switch(type){
+		case 'personal-biographer':
+			const biographerTools = ['storySummary']
+			biographerTools.forEach(toolName=>{
+				const jsToolDescription = {
+					type: 'function',
+					function: globals.getGPTJavascriptFunction(toolName),
+				}
+				functions.push(jsToolDescription)
+			})
+			break
+		default:
+			break
+	}
+	return functions
 }
 /**
  * Inflates library item with required values and structure. Object structure expected from API, librayItemItem in JSON.
