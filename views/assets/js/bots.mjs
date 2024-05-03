@@ -5,6 +5,7 @@ import {
     hide,
     inExperience,
     show,
+    toggleVisibility,
 } from './members.mjs'
 import Globals from './globals.mjs'
 /* constants */
@@ -546,8 +547,14 @@ function mToggleBotContainers(event){
  * @returns {void}
  */
 function mToggleCollectionItems(event){
-    /* derive item or parent? from event */
-    const item = event.target.id.includes('collection-item')
+    event.stopPropagation()
+    const { currentTarget: element, target, } = event /* currentTarget=collection-bar, target=interior divs */
+    if(target.id.includes('collection-refresh')) /* exempt refresh */
+        return
+    const collectionId = element.id.split('-').pop()
+    const collectionList = document.getElementById(`collection-list-${ collectionId }`)
+    if(collectionList)
+        toggleVisibility(collectionList)
 }
 /**
  * Toggles passphrase input visibility.
@@ -680,9 +687,11 @@ function mUpdateBotContainers(){
                         console.log('Library collection not found.', id)
                         continue
                     }
+                    const collectionBar = document.getElementById(`collection-bar-${ id }`)
                     const collectionButton = document.getElementById(`collection-refresh-${ id }`)
                     /* add listeners */
-                    collection.addEventListener('click', mToggleCollectionItems)
+                    if(collectionBar)
+                        collectionBar.addEventListener('click', mToggleCollectionItems)
                     /* collection.click() to run on load */
                     if(collectionButton)
                         collectionButton.addEventListener('click', mRefreshCollection, { once: true })

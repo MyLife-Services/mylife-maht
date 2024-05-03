@@ -144,7 +144,7 @@ function getSystemChat(){
  * @returns {void}
  */
 function hide(){
-    return mGlobals.hide(...arguments)
+    mGlobals.hide(...arguments)
 }
 function hideMemberChat(){
     hide(navigation)
@@ -246,7 +246,7 @@ async function setActiveCategory(category, contributionId, question) {
  * @returns {void}
  */
 function show(){
-    return mGlobals.show(...arguments)
+    mGlobals.show(...arguments)
 }
 /**
  * Shows the member chat system.
@@ -283,6 +283,13 @@ function stageTransition(endExperience=false){
         if(endExperience)
             updatePageBots(true)
     }
+}
+/**
+ * 
+ * @returns {void}
+ */
+function toggleVisibility(){
+    mGlobals.toggleVisibility(...arguments)
 }
 /**
  * Waits for user action.
@@ -597,5 +604,6 @@ export {
     submit,
     toggleMemberInput,
     toggleInputTextarea,
+    toggleVisibility,
     waitForUserAction,
 }

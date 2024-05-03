@@ -105,6 +105,15 @@ class Globals {
         mShow(element, listenerFunction)
     }
     /**
+     * Toggles the visibility of an element.
+     * @param {HTMLElement} element - The element to toggle.
+     * @returns {void}
+     */
+    toggleVisibility(element){
+        const { classList, } = element
+        mIsVisible(classList) ? mHide(element) : mShow(element)
+    }
+    /**
      * Variable-izes (for js) a given string.
      * @param {string} undashedString - String to variable-ize.
      * @returns {string} - The variable-ized string.
@@ -164,6 +173,16 @@ function mHide(element, callbackFunction){
     if(callbackFunction)
         callbackFunction()
     element.classList.add('hide')
+}
+/**
+ * Determines whether an element is visible. Does not allow for any callbackFunctions
+ * @private
+ * @param {Object[]} classList - list of classes to check: `element.classList`.
+ * @returns {boolean} - Whether the element is visible.
+ */
+function mIsVisible(classList){
+    console.log('mIsVisible', classList)
+    return classList.contains('show')
 }
 function mLogin(){
     console.log('login')
