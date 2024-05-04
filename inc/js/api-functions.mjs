@@ -43,7 +43,7 @@ async function experience(ctx){
         ctx.throw(500, 'Experience is locked. Wait for previous event to complete. If bugged, end experience and begin again.')
     }
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id, } = ctx.state
+    const { avatar, } = ctx.state
     const { eid, } = ctx.params
     let events = []
     ctx.state.MemberSession.experienceLock = true
@@ -376,9 +376,9 @@ function mAPIKeyValidation(ctx){ // transforms ctx.state
         })
 }
 function mTokenType(ctx){
-    const _token = ctx.state.token
-    const _assistantType = mBotSecrets?.[_token]??'personal-avatar'
-    return _assistantType
+    const { token, } = ctx.state
+    const assistantType = mBotSecrets?.[token] ?? 'personal-avatar'
+    return assistantType
 }
 function mTokenValidation(_token){
     return mBotSecrets?.[_token]?.length??false
