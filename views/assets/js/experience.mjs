@@ -176,8 +176,9 @@ async function experienceStart(experience){
     mExperience = experience
     /* present stage */
     mStageWelcome()
-    const { description, events: _events=[], id, name, purpose, title, skippable=false } = mExperience
-    mExperience.events = (_events.length) ? _events : await mEvents()
+    const { description, events, id, name, purpose, title, skippable=false } = mExperience
+    if(!events?.length)
+        mExperience.events = await mEvents()
     /* experience manifest */
     const manifest = await mManifest(id)
     if(!manifest)
@@ -694,7 +695,9 @@ async function mEvents(memberInput){
     })
     if(!response.ok)
         throw new Error(`HTTP error! Status: ${response.status}`)
-    const { autoplay, events, id, location, name, purpose, skippable, } = await response.json()
+    let { autoplay, events, id, location, name, purpose, skippable, } = await response.json()
+    if(!events?.length)
+        events = await mEvents()
     mExperience.location = location
     return events
 }
