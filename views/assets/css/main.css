@@ -71,6 +71,17 @@ body {
 	color: purple; /* Your existing styles for active link */
 	cursor: pointer; /* Set cursor to pointer on hover */
 }
+#navigation-help-container {
+    display: none;
+    position: absolute;
+    top: 2.2em; /* Position it right below the parent */
+    right: 0;
+    width: 50%;
+    background: #f9f9f9; /* Adjust as needed */
+    padding: 10px; /* Adjust as needed */
+    box-sizing: border-box;
+    z-index: 100; /* Make sure it's above other elements */
+}
 .navigation-login-logout {
 	align-self: flex-end;
 	display: flex;

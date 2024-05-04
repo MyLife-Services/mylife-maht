@@ -7,6 +7,7 @@ let mLoginButton,
     mLoginSelect,
     mMainContent,
     mNavigation,
+    mNavigationHelp,
     mSidebar
 /* class definitions */
 class Globals {
@@ -19,8 +20,10 @@ class Globals {
         mChallengeSubmit = document.getElementById('member-challenge-submit')
         mLoginSelect = document.getElementById('member-select')
         mNavigation = document.getElementById('navigation-container')
+        mNavigationHelp = document.getElementById('navigation-help')
         mSidebar = document.getElementById('sidebar')
         /* assign event listeners */
+        mNavigationHelp.addEventListener('click', mToggleHelp)
         mLoginButton.addEventListener('click', this.loginLogout, { once: true })
         if(mChallengeInput){
             mChallengeInput.addEventListener('input', mToggleChallengeSubmit)
@@ -291,6 +294,14 @@ function mToggleChallengeSubmit(event){
         mChallengeSubmit.disabled = true
         mChallengeSubmit.style.cursor = 'not-allowed'
     }
+}
+function mToggleHelp(event){
+    console.log('mToggleHelp', event.target)
+    const help = document.getElementById('navigation-help-container')
+    if(!help)
+        return
+    const { classList, } = help
+    mIsVisible(classList) ? mHide(help) : mShow(help)
 }
 /* export */
 export default Globals
