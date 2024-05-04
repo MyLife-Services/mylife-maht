@@ -105,6 +105,14 @@ function assignElements(parent=chatInput, elements, clear=true){
     elements.forEach(element=>parent.appendChild(element))
 }
 /**
+ * Get experiences available to the member.
+ * @returns {object[]} - The available experiences.
+ */
+function availableExperiences(){
+    // repull from server? prefer separate function
+    return mExperiences
+}
+/**
  * Clears the system chat by removing all chat bubbles instances.
  * @todo - store chat locally for retrieval?
  * @public
@@ -601,6 +609,7 @@ function mTypewriteMessage(chatBubble, message, delay=10, i=0){
 export {
     addMessageToColumn,
     assignElements,
+    availableExperiences,
     clearSystemChat,
     getInputValue,
     getSystemChat,

@@ -2,6 +2,7 @@
 /* imports */
 import {
     addMessageToColumn,
+    availableExperiences,
     hide,
     inExperience,
     show,
