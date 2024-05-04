@@ -59,6 +59,9 @@ document.addEventListener('DOMContentLoaded', async event=>{
     if(!initialized)
         throw new Error('CRITICAL::mInitialize::Error()')
     stageTransition()
+    /* temporary shortcut to experience */
+    const helpShortcut = document.getElementById('navigation-help-input-container')
+    helpShortcut.addEventListener('click', mExperienceStart)
     /* **note**: bots run independently upon conclusion */
 })
 /* public functions */
@@ -285,7 +288,7 @@ function stageTransition(endExperience=false){
     }
 }
 /**
- * 
+ * Toggle visibility functionality.
  * @returns {void}
  */
 function toggleVisibility(){
@@ -336,6 +339,18 @@ async function mAddMemberDialog(event){
 function bot(_id){
     return mPageBots.find(bot => bot.id === _id)
 }
+/**
+ * Proxy to start first experience.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mExperienceStart(event){
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    console.log('mExperienceStart()', mExperiences)
+    mExperience = mExperiences[0]
+    stageTransition()
+}
 function mFetchExperiences(){
     return fetch('/members/experiences/')
         .then(response=>{
@@ -381,7 +396,6 @@ function mInitialize(){
             return autoplay
         })
         .then(autoplay=>{
-            console.log('autoplay', autoplay)
             if(autoplay)
                 mExperience = mExperiences.find(experience => experience.id===autoplay)
             return true

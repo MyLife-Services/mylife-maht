@@ -916,6 +916,7 @@ function mStageWelcome(){
         })
     }, { once: true })
     screen.classList.add('modal-screen')
+    show(screen)
 }
 /**
  * Toggles the input lane for the moderator.
