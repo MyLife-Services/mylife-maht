@@ -163,11 +163,31 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get member collection items.
+     * @todo - trim return objects based on type
      * @param {string} type - The type of collection to retrieve, `false`-y = all.
      * @returns {array} - The collection items with no wrapper.
      */
     async collections(type){
-        const collections = await this.factory.collections(type)
+        const { factory, } = this
+        const collections = ( await factory.collections(type) )
+            .map(collection=>{
+                switch(type){
+                    case 'experience':
+                    case 'lived-experience':
+                        const { completed=true, description, experience_date=Date.now(), experience_id, id, title, variables, } = collection
+                        return {
+                            completed,
+                            description,
+                            experience_date,
+                            experience_id,
+                            id,
+                            title,
+                            variables,
+                        }
+                    default:
+                        return collection
+                }
+            })
         return collections
     }
     async createConversation(type='chat'){

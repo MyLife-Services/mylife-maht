@@ -16,7 +16,7 @@ class Dataservices {
 	 * Identifies currently available selection sub-types (i.e., `being`=@var) for the data service.
 	 * @private
 	 */
-	#collectionTypes = ['chat', 'conversation', 'entry', 'experience', 'file', 'library', 'story']
+	#collectionTypes = ['chat', 'conversation', 'entry', 'lived-experience', 'file', 'library', 'story']
     /**
      * Represents the core functionality of the data service. This property
      * objectifies core data to make it more manageable and structured,
@@ -188,8 +188,8 @@ class Dataservices {
 	 * Proxy to retrieve lived experiences.
 	 * @returns {array} - The lived experiences.
 	 */
-	async collectionExperiences(){
-		return await this.getItems('experience')
+	async collectionLivedExperiences(){
+		return await this.getItems('lived-experience')
 	}
 	/**
 	 * Proxy to retrieve files.
@@ -215,26 +215,30 @@ class Dataservices {
 	}
     /**
      * Get member collection items.
+	 * @todo - eliminate corrections
 	 * @public
 	 * @async
      * @param {string} type - The type of collection to retrieve, `false`-y = all.
      * @returns {array} - The collection items with no wrapper.
      */
 	async collections(type){
+		if(type==='experience') // corrections
+			type = 'lived-experience'
 		if(type?.length && this.#collectionTypes.includes(type))
 			return await this.getItems(type)
 		else
 			return Promise.all([
 				this.collectionConversations(),
 				this.collectionEntries(),
-				this.collectionExperiences(),
+				this.collectionLivedExperiences(),
 				this.collectionFiles(),
 				this.collectionStories(),
 			])
-				.then(([conversations, entries, experiences, stories])=>[
+				.then(([conversations, entries, experiences, files, stories])=>[
 					...conversations,
 					...entries,
 					...experiences,
+					...files,
 					...stories,
 				])
 				.catch(err=>{
