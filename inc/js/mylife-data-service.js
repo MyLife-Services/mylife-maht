@@ -597,6 +597,10 @@ class Dataservices {
 			return false
 		}
     }
+	async saveExperience(experience){
+		const savedExperience = await this.pushItem(experience)
+		return savedExperience
+	}
 	/**
 	 * Sets a bot in the database. Performs logic to reduce the bot to the minimum required data, as Mongo/Cosmos has a limitation of 10 patch items in one batch array.
 	 * @param {object} bot - The bot object to set.

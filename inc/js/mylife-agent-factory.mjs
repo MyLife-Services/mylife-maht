@@ -511,10 +511,50 @@ class AgentFactory extends BotFactory{
 	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
+	 * @param {object} candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
 	 */
-	async registerCandidate(_candidate){
-		return await this.dataservices.registerCandidate(_candidate)
+	async registerCandidate(candidate){
+		return await this.dataservices.registerCandidate(candidate)
+	}
+	/**
+	 * Saves a completed lived experience to MyLife.
+	 * @param {Object} experience - The Lived Experience Object to save.
+	 * @returns 
+	 */
+	async saveExperience(experience){
+		/* validate structure */
+		if(!experience?.id?.length)
+			throw new Error('experience id invalid')
+		if(!experience?.location?.completed)
+			throw new Error('experience not completed')
+		/* clean experience */
+		const { cast: _cast, events, id, title, variables, } = experience
+		const cast = _cast.map(({ id, role }) => ({ id, role }))
+		const _experience = {
+			being: 'lived-experience',
+			events: events
+				.filter(event=>event?.dialog?.dialog?.length || event.character?.characterId?.length)
+				.map(event=>{
+					const { character: _character, dialog, id, input, } = event
+					const character = cast.find(_cast=>_cast.id===_character?.characterId)
+					if(_character?.role?.length)
+						character.role = _character.role
+					return {
+						character: character?.role,
+						dialog: dialog?.dialog,
+						id,
+						// input, // currently am not storing memberInput event correctly 
+					}
+				}),
+			experience_id: experience.id,
+			id: this.newGuid,
+			mbr_id: this.mbr_id,
+			name: (`lived-experience_${ title }_${ id }`).substring(0, 256),
+			title,
+			variables,
+		}
+		const savedExperience = await this.dataservices.saveExperience(_experience)
+		return savedExperience
 	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.

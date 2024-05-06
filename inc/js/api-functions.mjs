@@ -36,48 +36,10 @@ function experienceCast(ctx){
  * @property {object} scene - Scene data, regardless if "current" or new.
  */
 async function experience(ctx){
-    /* reject if experience is locked */
-    /* lock could extend to gating requests as well */
-    if(ctx.state.MemberSession.experienceLock){
-        // @stub - if experience is locked, perhaps request to run an internal check to see if exp is bugged or timed out
-        ctx.throw(500, 'Experience is locked. Wait for previous event to complete. If bugged, end experience and begin again.')
-    }
     mAPIKeyValidation(ctx)
-    const { avatar, } = ctx.state
+    const { MemberSession, } = ctx.state
     const { eid, } = ctx.params
-    let events = []
-    ctx.state.MemberSession.experienceLock = true
-    try{ // requires try, as locks would otherwise not release on unidentified errors
-        if(!avatar.isInExperience){
-            await avatar.experienceStart(eid)
-        }
-        else {
-            const eventSequence = await avatar.experiencePlay(eid, ctx.request.body)
-            events = eventSequence
-            console.log(chalk.yellowBright('experience() events'), events?.length)
-        } 
-    } catch (error){
-        console.log(chalk.redBright('experience() error'), error, avatar.experience)
-        const { experience } = avatar
-        if(experience){ // embed error in experience
-            experience.errors = experience.errors ?? []
-            experience.errors.push(error)
-        }
-    }
-    const { experience } = avatar
-    const { autoplay, location, title, } = experience
-    ctx.body = {
-        autoplay,
-        events,
-        location,
-        title,
-    }
-    ctx.state.MemberSession.experienceLock = false
-    if(events.find(event=>{ return event.action==='end' && event.type==='experience' })){
-        if(!avatar.experienceEnd(eid)) // attempt to end experience
-            throw new Error('Experience failed to end.')
-    }
-    return
+    ctx.body = await MemberSession.experience(eid, ctx.request.body)
 }
 /**
  * Request to end an active Living-Experience for member.
@@ -87,19 +49,9 @@ async function experience(ctx){
  */
 function experienceEnd(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
-    const { eid } = ctx.params
-    let endSuccess = false
-    try {
-        endSuccess = avatar.experienceEnd(eid)
-    } catch(err) {
-        console.log(chalk.redBright('experienceEnd() error'), err)
-        // can determine if error is critical or not, currently implies there is no running experience
-        endSuccess = true
-    }
-    ctx.body = endSuccess
-    ctx.state.MemberSession.experienceLock = !ctx.body
-    return
+    const { MemberSession, } = ctx.state
+    const { eid, } = ctx.params
+    ctx.body = MemberSession.experienceEnd(eid)
 }
 /**
  * Delivers the manifest of an experience. Manifests are the data structures that define the experience, including scenes, events, and other data. Experience must be "started" in order to request.

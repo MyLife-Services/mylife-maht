@@ -188,25 +188,33 @@ class Avatar extends EventEmitter {
     }
     /**
      * Ends an experience.
-     * @todo - save living experience to cosmos, no need to await
+     * @todo - allow guest experiences
+     * @todo - create case for member ending with enough interaction to _consider_ complete
+     * @todo - determine whether modes are appropriate; while not interested in multiple session experiences, no reason couldn't chat with bot
      * @todo - relived experiences? If only saving by experience id then maybe create array?
-     * @param {Guid} experienceId 
-     * @returns {boolean}
+     * @public
+     * @param {Guid} experienceId - The experience id.
+     * @returns {void} - Throws error if experience cannot be ended.
      */
     experienceEnd(experienceId){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot conduct nor end experiences.')
-        if(this.mode!=='experience')
-            throw new Error('Avatar is not currently in an experience.')
-        if(this.experience.id!==experienceId)
-            throw new Error('Avatar is not currently in the requested experience.')
-        if(!this.experience.skippable) // @todo - even if skippable, won't this function still process?
-            throw new Error('Avatar cannot end this experience at this time, not yet implmented.')
+        const { experience, factory, mode, } = this
+        if(this.isMyLife) // @stub - allow guest experiences
+            throw new Error('FAILURE::experienceEnd()::MyLife avatar cannot conduct nor end experiences at this time.')
+        if(mode!=='experience')
+            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in an experience.')
+        if(this.experience?.id!==experienceId)
+            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in the requested experience.')
         this.mode = 'standard'
-        // @stub - save living experience to cosmos
-        this.#livedExperiences.push(this.experience.id)
+        const { id, location, } = experience
+        this.#livedExperiences.push(id) // considered concluded for session regardless of origin
+        if(location?.completed){ // ended "naturally," by event completion, internal initiation
+            /* validate and cure `experience` */
+            /* save experience to cosmos (no await) */
+            factory.saveExperience(experience)
+        } else { // incomplete, force-ended by member, external initiation
+            // @stub - create case for member ending with enough interaction to _consider_ complete, or for that matter, to consider _started_ in some cases
+        }
         this.experience = undefined
-        return true
     }
     /**
      * Processes and executes incoming experience request.
@@ -1245,6 +1253,7 @@ async function mExperiencePlay(factory, llm, experience, memberInput){
                 title: title ?? name,
                 type: 'experience',
             }) // provide marker for front-end [end of event sequence]
+            experience.location.completed = true
         }
     }
     experience.events.push(...eventSequence)
@@ -1311,6 +1320,7 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
     if(id!==experienceId)
         throw new Error('Experience failure, unexpected id mismatch.')
     experience.cast = await mCast(factory, experience.cast) // hydrates cast data
+    console.log('mExperienceStart::experience', experience.cast[0].inspect(true))
     experience.events = []
     experience.location = {
         experienceId: experience.id,
