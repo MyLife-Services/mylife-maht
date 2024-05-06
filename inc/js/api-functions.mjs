@@ -63,7 +63,7 @@ function experienceEnd(ctx){
  */
 function experienceManifest(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
+    const { avatar, } = ctx.state
     ctx.body = avatar.manifest
     return
 }
@@ -72,7 +72,7 @@ function experienceManifest(ctx){
  */
 function experienceNavigation(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
+    const { avatar, } = ctx.state
     ctx.body = avatar.navigation
     return
 }
@@ -85,11 +85,15 @@ function experienceNavigation(ctx){
  */
 async function experiences(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, MemberSession } = ctx.state
+    const { MemberSession, } = ctx.state
     // limit one mandatory experience (others could be highlighted in alerts) per session
     const experiencesObject = await MemberSession.experiences()
     ctx.body = experiencesObject
-    return
+}
+async function experiencesLived(ctx){
+    mAPIKeyValidation(ctx)
+    const { MemberSession, } = ctx.state
+    ctx.body = MemberSession.experiencesLived
 }
 async function keyValidation(ctx){ // from openAI
     mAPIKeyValidation(ctx)
@@ -118,7 +122,6 @@ async function keyValidation(ctx){ // from openAI
         data: _memberCoreData,
     }
     console.log(chalk.yellowBright(`keyValidation():${_memberCoreData.mbr_id}`), _memberCoreData.fullName)
-    return
 }
 /**
  * All functionality related to a library. Note: Had to be consolidated, as openai GPT would only POST.
@@ -143,7 +146,6 @@ async function library(ctx){
         message: `library function(s) completed successfully.`,
         success: true,
     }
-    return
 }
 /**
  * Login function for member. Requires mid in params.
@@ -158,7 +160,6 @@ async function login(ctx){
         ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
 	ctx.session.MemberSession.challenge_id = decodeURIComponent(ctx.params.mid)
     ctx.body = { challengeId: ctx.session.MemberSession.challenge_id }
-    return
 }
 /**
  * Logout function for member.
@@ -169,7 +170,6 @@ async function logout(ctx){
     ctx.session = null
     ctx.status = 200
     ctx.body = { success: true }
-    return
 }
 async function register(ctx){
 	const _registrationData = ctx.request.body
@@ -204,7 +204,6 @@ async function register(ctx){
         message: 'Registration completed successfully.',
 		data: _return,
     }
-	return
 }
 /**
  * Functionality around story contributions.
@@ -225,7 +224,6 @@ async function story(ctx){
         success: true,
         message: 'Story submitted successfully.',
     }
-    return
 }
 /**
  * Management of Member Story Libraries. Note: Key validation is performed in library(). Story library may have additional functionality inside of core/MyLife
@@ -343,6 +341,7 @@ export {
     experienceManifest,
     experienceNavigation,
     experiences,
+    experiencesLived,
     keyValidation,
     library,
     login,

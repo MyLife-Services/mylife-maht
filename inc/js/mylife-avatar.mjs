@@ -83,6 +83,8 @@ class Avatar extends EventEmitter {
             this.#llmServices.botId = activeBot.bot_id
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
+            /* lived-experiences */
+            this.#livedExperiences = await this.#factory.experiencesLived(false)
             /* evolver */
             this.#evolver = new EvolutionAssistant(this)
             mAssignEvolverListeners(this.#factory, this.#evolver, this)
@@ -205,9 +207,19 @@ class Avatar extends EventEmitter {
         if(this.experience?.id!==experienceId)
             throw new Error('FAILURE::experienceEnd()::Avatar is not currently in the requested experience.')
         this.mode = 'standard'
-        const { id, location, } = experience
-        this.#livedExperiences.push(id) // considered concluded for session regardless of origin
-        if(location?.completed){ // ended "naturally," by event completion, internal initiation
+        const { id, location, title, variables, } = experience
+        const { mbr_id, newGuid, } = factory
+        const completed = location?.completed
+        this.#livedExperiences.push({ // experience considered concluded for session regardless of origin, sniffed below
+            completed,
+			experience_date: Date.now(),
+			experience_id: id,
+			id: newGuid,
+			mbr_id,
+			title,
+			variables,
+        })
+        if(completed){ // ended "naturally," by event completion, internal initiation
             /* validate and cure `experience` */
             /* save experience to cosmos (no await) */
             factory.saveExperience(experience)
@@ -250,10 +262,6 @@ class Avatar extends EventEmitter {
     async experiences(includeLived=false){
         const experiences = mExperiences(await this.#factory.experiences(includeLived))
         return experiences
-    }
-    async experiencesLived(){
-        // get experiences-lived [stub]
-        const livedExperiences = await this.#factory.experiencesLived()
     }
     /**
      * Starts an avatar experience.
@@ -543,6 +551,14 @@ class Avatar extends EventEmitter {
      */
     get experienceLocation(){
         return this.experience.location
+    }
+    /**
+     * Returns List of Member's Lived Experiences.
+     * @getter
+     * @returns {Object[]} - List of Member's Lived Experiences.
+     */
+    get experiencesLived(){
+        return this.#livedExperiences
     }
     /**
      * Get the Avatar's Factory.

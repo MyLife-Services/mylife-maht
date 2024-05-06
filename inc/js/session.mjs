@@ -151,7 +151,7 @@ class MylifeMemberSession extends EventEmitter {
 			?? false
 		/* trigger auto-play from session */
 		if(!this.#autoplayed && this.globals.isValidGuid(autoplay)){
-            const _start = await avatar.experienceStart(autoplay)
+            await avatar.experienceStart(autoplay)
 			this.#autoplayed = true
         }
 		else
@@ -215,6 +215,12 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	get core(){
 		return this.factory.core
+	}
+	get experiencesLived(){
+		if(this.sessionLocked)
+			throw new Error('Session locked; `experience`(s) list(s) does not exist for guests.')
+		const { avatar } = this.#Member
+		return avatar.experiencesLived
 	}
 	get factory(){
 		return this.#factory

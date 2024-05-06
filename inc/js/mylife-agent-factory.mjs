@@ -219,20 +219,30 @@ class BotFactory extends EventEmitter{
 			) ?? []
 		if(!includeLived){
 			const livedExperiences = await this.experiencesLived() ?? []
-			experiences = experiences.filter(
-				// filter out those not found (by id in lived experiences)
-				_experience=>!livedExperiences.find(
-					_livedExperience=>_livedExperience.experienceId===_experience.id
+			experiences = experiences.filter( // filter out `lived-experience.id`)
+				experience=>!livedExperiences.find(
+					livedExperience=>livedExperience.experience_id===experience.id
 				)
 			)
 		}
 		return experiences
 	}
+	/**
+	 * Returns array of member `lived-experiences` from database.
+	 * @returns {Promise<array>} - Array of lived experience objects.
+	 */
 	async experiencesLived(){
+		const experienceFields = [
+			'experience_date',
+			'experience_id',
+			'title',
+			'variables', 
+		]
 		const livedExperiences = await this.dataservices.getItems(
-			'experience-lived',
-			['experienceId'], // default includes being, id, mbr_id, object_id
+			'lived-experience',
+			experienceFields, // default includes being, id, mbr_id, object_id
 		)
+		return livedExperiences
 	}
 	/**
 	 * Gets a specified `experience` from database.
@@ -546,6 +556,7 @@ class AgentFactory extends BotFactory{
 						// input, // currently am not storing memberInput event correctly 
 					}
 				}),
+			experience_date: Date.now(),
 			experience_id: experience.id,
 			id: this.newGuid,
 			mbr_id: this.mbr_id,
