@@ -242,7 +242,7 @@ function mCreateCollectionPopup(collectionItem){
     /* create popup content */
     const popupContent = document.createElement('div')
     popupContent.classList.add('collection-popup-content')
-    popupContent.innerText = summary
+    popupContent.innerText = summary ?? JSON.stringify(collectionItem)
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'collection-popup-close')
