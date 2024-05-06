@@ -257,7 +257,7 @@
     color: red;
 }
 .collection-list {
-    display: flex;
+    display: none;
     flex-direction: column;
     flex-wrap: wrap;
     justify-content: flex-start;

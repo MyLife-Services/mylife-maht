@@ -2,15 +2,17 @@
 /* imports */
 import {
     addMessageToColumn,
+    availableExperiences,
     hide,
     inExperience,
     show,
+    toggleVisibility,
 } from './members.mjs'
 import Globals from './globals.mjs'
 /* constants */
 const botBar = document.getElementById('bot-bar'),
     mGlobals = new Globals(),
-    mLibraries = ['file', 'story'], // ['chat', 'entry', 'experience', 'file', 'story']
+    mLibraries = ['experience', 'file', 'story'], // ['chat', 'entry', 'experience', 'file', 'story']
     libraryCollections = document.getElementById('library-collections'),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
@@ -240,7 +242,7 @@ function mCreateCollectionPopup(collectionItem){
     /* create popup content */
     const popupContent = document.createElement('div')
     popupContent.classList.add('collection-popup-content')
-    popupContent.innerText = summary
+    popupContent.innerText = summary ?? JSON.stringify(collectionItem)
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'collection-popup-close')
@@ -541,6 +543,21 @@ function mToggleBotContainers(event){
     }
 }
 /**
+ * Toggles collection item visibility.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mToggleCollectionItems(event){
+    event.stopPropagation()
+    const { currentTarget: element, target, } = event /* currentTarget=collection-bar, target=interior divs */
+    if(target.id.includes('collection-refresh')) /* exempt refresh */
+        return
+    const collectionId = element.id.split('-').pop()
+    const collectionList = document.getElementById(`collection-list-${ collectionId }`)
+    if(collectionList)
+        toggleVisibility(collectionList)
+}
+/**
  * Toggles passphrase input visibility.
  * @param {Event} event - The event object.
  * @returns {void}
@@ -671,7 +688,12 @@ function mUpdateBotContainers(){
                         console.log('Library collection not found.', id)
                         continue
                     }
+                    const collectionBar = document.getElementById(`collection-bar-${ id }`)
                     const collectionButton = document.getElementById(`collection-refresh-${ id }`)
+                    /* add listeners */
+                    if(collectionBar)
+                        collectionBar.addEventListener('click', mToggleCollectionItems)
+                    /* collection.click() to run on load */
                     if(collectionButton)
                         collectionButton.addEventListener('click', mRefreshCollection, { once: true })
                 }

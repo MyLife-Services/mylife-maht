@@ -59,6 +59,9 @@ document.addEventListener('DOMContentLoaded', async event=>{
     if(!initialized)
         throw new Error('CRITICAL::mInitialize::Error()')
     stageTransition()
+    /* temporary shortcut to experience */
+    const helpShortcut = document.getElementById('navigation-help-input-container')
+    helpShortcut.addEventListener('click', mExperienceStart)
     /* **note**: bots run independently upon conclusion */
 })
 /* public functions */
@@ -100,6 +103,14 @@ function assignElements(parent=chatInput, elements, clear=true){
         while(parent.firstChild)
             parent.removeChild(parent.firstChild)
     elements.forEach(element=>parent.appendChild(element))
+}
+/**
+ * Get experiences available to the member.
+ * @returns {object[]} - The available experiences.
+ */
+function availableExperiences(){
+    // repull from server? prefer separate function
+    return mExperiences
 }
 /**
  * Clears the system chat by removing all chat bubbles instances.
@@ -144,7 +155,7 @@ function getSystemChat(){
  * @returns {void}
  */
 function hide(){
-    return mGlobals.hide(...arguments)
+    mGlobals.hide(...arguments)
 }
 function hideMemberChat(){
     hide(navigation)
@@ -246,7 +257,7 @@ async function setActiveCategory(category, contributionId, question) {
  * @returns {void}
  */
 function show(){
-    return mGlobals.show(...arguments)
+    mGlobals.show(...arguments)
 }
 /**
  * Shows the member chat system.
@@ -283,6 +294,13 @@ function stageTransition(endExperience=false){
         if(endExperience)
             updatePageBots(true)
     }
+}
+/**
+ * Toggle visibility functionality.
+ * @returns {void}
+ */
+function toggleVisibility(){
+    mGlobals.toggleVisibility(...arguments)
 }
 /**
  * Waits for user action.
@@ -329,6 +347,18 @@ async function mAddMemberDialog(event){
 function bot(_id){
     return mPageBots.find(bot => bot.id === _id)
 }
+/**
+ * Proxy to start first experience.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mExperienceStart(event){
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    console.log('mExperienceStart()', mExperiences)
+    mExperience = mExperiences[0]
+    stageTransition()
+}
 function mFetchExperiences(){
     return fetch('/members/experiences/')
         .then(response=>{
@@ -374,7 +404,6 @@ function mInitialize(){
             return autoplay
         })
         .then(autoplay=>{
-            console.log('autoplay', autoplay)
             if(autoplay)
                 mExperience = mExperiences.find(experience => experience.id===autoplay)
             return true
@@ -580,6 +609,7 @@ function mTypewriteMessage(chatBubble, message, delay=10, i=0){
 export {
     addMessageToColumn,
     assignElements,
+    availableExperiences,
     clearSystemChat,
     getInputValue,
     getSystemChat,
@@ -597,5 +627,6 @@ export {
     submit,
     toggleMemberInput,
     toggleInputTextarea,
+    toggleVisibility,
     waitForUserAction,
 }

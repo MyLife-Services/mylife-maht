@@ -7,6 +7,7 @@ let mLoginButton,
     mLoginSelect,
     mMainContent,
     mNavigation,
+    mNavigationHelp,
     mSidebar
 /* class definitions */
 class Globals {
@@ -19,8 +20,10 @@ class Globals {
         mChallengeSubmit = document.getElementById('member-challenge-submit')
         mLoginSelect = document.getElementById('member-select')
         mNavigation = document.getElementById('navigation-container')
+        mNavigationHelp = document.getElementById('navigation-help')
         mSidebar = document.getElementById('sidebar')
         /* assign event listeners */
+        mNavigationHelp.addEventListener('click', mToggleHelp)
         mLoginButton.addEventListener('click', this.loginLogout, { once: true })
         if(mChallengeInput){
             mChallengeInput.addEventListener('input', mToggleChallengeSubmit)
@@ -105,6 +108,15 @@ class Globals {
         mShow(element, listenerFunction)
     }
     /**
+     * Toggles the visibility of an element.
+     * @param {HTMLElement} element - The element to toggle.
+     * @returns {void}
+     */
+    toggleVisibility(element){
+        const { classList, } = element
+        mIsVisible(classList) ? mHide(element) : mShow(element)
+    }
+    /**
      * Variable-izes (for js) a given string.
      * @param {string} undashedString - String to variable-ize.
      * @returns {string} - The variable-ized string.
@@ -164,6 +176,16 @@ function mHide(element, callbackFunction){
     if(callbackFunction)
         callbackFunction()
     element.classList.add('hide')
+}
+/**
+ * Determines whether an element is visible. Does not allow for any callbackFunctions
+ * @private
+ * @param {Object[]} classList - list of classes to check: `element.classList`.
+ * @returns {boolean} - Whether the element is visible.
+ */
+function mIsVisible(classList){
+    console.log('mIsVisible', classList)
+    return classList.contains('show')
 }
 function mLogin(){
     console.log('login')
@@ -272,6 +294,14 @@ function mToggleChallengeSubmit(event){
         mChallengeSubmit.disabled = true
         mChallengeSubmit.style.cursor = 'not-allowed'
     }
+}
+function mToggleHelp(event){
+    console.log('mToggleHelp', event.target)
+    const help = document.getElementById('navigation-help-container')
+    if(!help)
+        return
+    const { classList, } = help
+    mIsVisible(classList) ? mHide(help) : mShow(help)
 }
 /* export */
 export default Globals

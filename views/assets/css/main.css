@@ -62,6 +62,7 @@ body {
 .navigation-help {
 	align-items: center;
 	color: #007bff;
+	cursor: pointer;
 	display: flex;
 	font-size: 2em;
 	height: auto;
@@ -69,7 +70,20 @@ body {
 }
 .navigation-help:hover {
 	color: purple; /* Your existing styles for active link */
-	cursor: pointer; /* Set cursor to pointer on hover */
+}
+.help-container {
+    background: #f9f9f9;
+	color: navy;
+	cursor: default;
+    display: none;
+	flex-direction: column;
+	font-size: 1em;
+    padding: 10px;
+    position: absolute;
+    top: 2.2em; /* Position it right below the parent */
+    right: 0;
+    width: 50%;
+    z-index: 100; /* Make sure it's above other elements */
 }
 .navigation-login-logout {
 	align-self: flex-end;
