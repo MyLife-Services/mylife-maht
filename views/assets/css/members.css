@@ -120,24 +120,3 @@
 	padding-left: 0.5em;
 	margin: 0;
 }
-/* media queries */
-@media screen and (min-width: 1024px) {
-    body {
-        margin-right: 3em; /* Increased margin for larger screens */
-        max-width: 1024px; /* Set a max-width to center the content */
-        margin-left: auto; /* Center the body horizontally */
-        margin-right: auto;
-    }
-}
-@media screen and (max-width: 768px) { /* Adjust the max-width as needed */
-    .page-column-collection {
-        flex-direction: column;
-    }
-	.main-content {
-		max-width: 100%;
-	}
-	.sidebar {
-		flex-basis: 100%;
-		max-width: 100%;
-	}
-}

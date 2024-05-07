@@ -5,19 +5,20 @@ class MylifeMemberSession extends EventEmitter {
 	#autoplayed = false // flag for autoplayed experience, one per session
 	#consents = []	//	consents are stored in the session
 	#contributions = []	//	intended to hold all relevant contribution questions for session
+	#experienceLocked = false
 	#experiences = []	//	holds id for experiences conducted in this session
 	#factory
-	#locked = true	//	locked by default
 	#mbr_id = false
 	#Member
 	name
-	constructor(_factory){
+	#sessionLocked = true	//	locked by default
+	constructor(factory){
 		super()
-		this.#factory = _factory
+		this.#factory = factory
 		this.#mbr_id = this.isMyLife ? this.factory.mbr_id : false
 		mAssignFactoryListeners(this.#factory)
 		console.log(
-			chalk.bgGray('MylifeMemberSession:constructor(_factory):generic-mbr_id::end'),
+			chalk.bgGray('MylifeMemberSession:constructor(factory):generic-mbr_id::end'),
 			chalk.bgYellowBright(this.factory.mbr_id),
 		)
 	}
@@ -31,7 +32,7 @@ class MylifeMemberSession extends EventEmitter {
 			mAssignFactoryListeners(this.#factory)
 			await this.#factory.init(this.mbr_id, )	//	needs only `init()` with different `mbr_id` to reset
 			this.#Member = await this.factory.getMyLifeMember()
-			this.#autoplayed = false // resets autoplayed flag, although should be impossible as only other "variant" requires guest status, as one day experiences can be run for guests also [for pay]
+			this.#autoplayed = false // resets autoplayed flag, although should be impossible as only other "variant" requires guest status, as one-day experiences can be run for guests also [for pay]
 			this.emit('onInit-member-initialize', this.#Member.memberName)
 			console.log(
 				chalk.bgBlue('created-member:'),
@@ -60,11 +61,77 @@ class MylifeMemberSession extends EventEmitter {
 			if(!this.challenge_id) return false	//	this.challenge_id imposed by :mid from route
 			if(!await this.factory.challengeAccess(this.challenge_id, _passphrase)) return false	//	invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
 			//	init member
-			this.#locked = false
+			this.#sessionLocked = false
 			this.emit('member-unlocked', this.challenge_id)
 			await this.init(this.challenge_id)
 		}
 		return !this.locked
+	}
+	/**
+	 * Conducts an experience for the member session. If the experience is not already in progress, it will be started. If the experience is in progress, it will be played. If the experience ends, it will be ended. The experience will be returned to the member session, and the session will be unlocked for further experiences, and be the prime tally-keeper (understandably) of what member has undergone.
+	 * @todo - send events in initial start package, currently frontend has to ask twice on NON-autoplay entities, which will be vast majority
+	 * @param {Guid} experienceId - Experience id to conduct.
+	 * @param {any} memberInput - Input from member, presumed to be object, but should be courteous, especially regarding `eperience` conduct.
+	 * @returns {Promise<object>} - Experience frontend shorthand: { autoplay: guid ?? false, events: [], location: {string}, title: {string} }
+	 */
+	async experience(experienceId, memberInput){
+		const { avatar } = this
+		let events = []
+		/* check locks and set lock status */
+		this.#experienceLocked = true
+		try{ // requires try, as locks would otherwise not release on unidentified errors
+			if(!avatar.isInExperience){
+				// @stub - check that events are being sent
+				await avatar.experienceStart(experienceId)
+			} else {
+				const eventSequence = await avatar.experiencePlay(experienceId, memberInput)
+				events = eventSequence
+			} 
+		} catch (error){
+			console.log(chalk.redBright('experience() error'), error, avatar.experience)
+			const { experience } = avatar
+			if(experience){ // embed error in experience
+				experience.errors = experience.errors ?? []
+				experience.errors.push(error)
+			}
+		}
+		const { experience } = avatar
+		const { autoplay, location, title, } = experience
+		const frontendExperience = {
+			autoplay,
+			events,
+			location,
+			title,
+		}
+		this.#experienceLocked = false
+		if(events.find(event=>{ return event.action==='end' && event.type==='experience' })){
+			if(!this.experienceEnd(experienceId))
+				console.log(chalk.redBright('experienceEnd() failed'))
+		}
+		return frontendExperience
+	}
+	/**
+	 * Ends the experience for the member session. If the experience is in progress, it will be ended. Compares experienceId as handshake confirmation.
+	 * @param {Guid} experienceId - Experience id to end.
+	 * @returns {Promise<boolean>} - Experience end status.
+	 */
+	async experienceEnd(experienceId){
+		const { avatar } = this
+		let success = false
+		this.#experienceLocked = true
+		try{
+			await avatar.experienceEnd(experienceId)
+			success = true
+		} catch (error){ /* avatar throws errors when antagonized */
+			const { experience } = avatar
+			console.log(chalk.redBright('experienceEnd() error'), error, avatar.experience)
+			if(experience){ // embed error in experience
+				experience.errors = experience.errors ?? []
+				experience.errors.push(error)
+			}
+		}
+		this.#experienceLocked = false
+		return success
 	}
 	/**
 	 * Gets experiences for the member session. Identifies if autoplay is required, and if so, begins avatar experience via this.#Member. Ergo, Session can request avatar directly from Member, which was generated on `.init()`.
@@ -76,14 +143,15 @@ class MylifeMemberSession extends EventEmitter {
 	 * @property {Object[]} experiences - Array of experiences.
 	 */
 	async experiences(includeLived=false){
-		if(this.locked) return {}
+		if(this.sessionLocked)
+			throw new Error('Session locked; `experience`(s) list(s) does not exist for guests.')
 		const { avatar } = this.#Member
 		const experiences = await avatar.experiences(includeLived)
 		let autoplay = experiences.find(experience=>experience.autoplay)?.id
 			?? false
 		/* trigger auto-play from session */
 		if(!this.#autoplayed && this.globals.isValidGuid(autoplay)){
-            const _start = await avatar.experienceStart(autoplay)
+            await avatar.experienceStart(autoplay)
 			this.#autoplayed = true
         }
 		else
@@ -129,6 +197,10 @@ class MylifeMemberSession extends EventEmitter {
 		await (this.ctx.session.MemberSession.consents = _consent)	//	will add consent to session list
 		return _consent
 	}
+	/* getters and setters */
+	get avatar(){
+		return this.#Member.avatar
+	}
 	get consent(){
 		return this.factory.consent	//	**caution**: returns <<PROMISE>>
 	}
@@ -144,6 +216,12 @@ class MylifeMemberSession extends EventEmitter {
 	get core(){
 		return this.factory.core
 	}
+	get experiencesLived(){
+		if(this.sessionLocked)
+			throw new Error('Session locked; `experience`(s) list(s) does not exist for guests.')
+		const { avatar } = this.#Member
+		return avatar.experiencesLived
+	}
 	get factory(){
 		return this.#factory
 	}
@@ -157,7 +235,7 @@ class MylifeMemberSession extends EventEmitter {
 		return this.factory.isMyLife
 	}
 	get locked(){
-		return this.#locked
+		return this.sessionLocked
 	}
 	get mbr_id(){
 		return this.#mbr_id
@@ -167,6 +245,9 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	get member(){ // @todo - deprecate and funnel through any requests
 		return this.#Member
+	}
+	get sessionLocked(){
+		return this.#sessionLocked
 	}
 	get subtitle(){
 		return this.#Member?.agentName

@@ -4,6 +4,17 @@ const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_ORG_KEY: 
 const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 const mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890
 /* class definition */
+/**
+ * LLM Services class.
+ * @todo - rather than passing factory in run, pass avatar
+ * @todo - convert run to streaming as defined in @documentation
+ * @class
+ * @classdesc LLM Services class.
+ * @documentation [OpenAI API Reference: Assistant Function Calling](https://platform.openai.com/docs/assistants/tools/function-calling/quickstart)
+ * @param {string} apiKey - openai api key
+ * @param {string} organizationKey - openai organization key
+ * @returns {LLMServices} - LLM Services object
+ */
 class LLMServices {
     #llmProviders = []
     /**
@@ -34,11 +45,12 @@ class LLMServices {
      * @param {string} threadId - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} prompt - Member input.
+     * @param {AgentFactory} factory - Avatar Factory object to process request.
      * @returns {Promise<Object[]>} - Array of openai `message` objects.
      */
-    async getLLMResponse(threadId, botId, prompt){
+    async getLLMResponse(threadId, botId, prompt, factory){
         await mAssignRequestToThread(this.openai, threadId, prompt)
-        const run = await mRunTrigger(this.openai, botId, threadId)
+        const run = await mRunTrigger(this.openai, botId, threadId, factory)
         const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run
         const llmMessageObject = await mMessages(this.provider, threadId)
         const { data: llmMessages} = llmMessageObject
@@ -127,16 +139,18 @@ async function mMessages(openai, threadId){
  * @async
  * @param {OpenAI} openai - openai object
  * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
+ * @param {AgentFactory} factory - Avatar Factory object to process request
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mRunFinish(llmServices, run){
+async function mRunFinish(llmServices, run, factory){
     return new Promise((resolve, reject) => {
         const checkInterval = setInterval(async () => {
             try {
-                const _run = await mRunStatus(llmServices, run)
-                if( _run?.status ?? _run ?? false){
+                const functionRun = await mRunStatus(llmServices, run, factory)
+                console.log('mRunFinish::functionRun()', functionRun?.status)
+                if(functionRun?.status ?? functionRun ?? false){
                     clearInterval(checkInterval)
-                    resolve(_run)
+                    resolve(functionRun)
                 }
             } catch (error) {
                 clearInterval(checkInterval)
@@ -149,6 +163,77 @@ async function mRunFinish(llmServices, run){
             resolve('Run completed (timeout)')
         }, mTimeoutMs)
     })
+}
+/**
+ * Executes openAI run functions. See https://platform.openai.com/docs/assistants/tools/function-calling/quickstart.
+ * @todo - storysummary output action requires integration with factory/avatar data intersecting with story submission
+ * @modular
+ * @private
+ * @async
+ * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
+ * @param {AgentFactory} factory - Avatar Factory object to process request
+ * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
+ * @throws {Error} - If tool function not recognized
+ */
+async function mRunFunctions(openai, run, factory){
+    if(
+            run.required_action?.type=='submit_tool_outputs'
+        &&  run.required_action?.submit_tool_outputs?.tool_calls
+        &&  run.required_action.submit_tool_outputs.tool_calls.length
+    ){
+        const toolCallsOutput = await Promise.all(
+            run.required_action.submit_tool_outputs.tool_calls
+                .map(async tool=>{
+                    const { id, function: toolFunction, type, } = tool
+                    let { arguments: toolArguments, name, } = toolFunction
+                    switch(name.toLowerCase()){
+                        case 'story': // storySummary.json
+                        case 'storysummary':
+                        case 'story-summary':
+                        case 'story_summary':
+                        case 'story summary':
+                            if(typeof toolArguments == 'string')
+                                toolArguments = JSON.parse(toolArguments)
+                            const story = await factory.story(toolArguments)
+                            if(story){
+                                const { keywords, phaseOfLife='unknown', } = story
+                                let { interests, updates, } = factory.core
+                                // @stub - action integrates with story and interests/phase
+                                let action
+                                switch(true){
+                                    case interests:
+                                        console.log('mRunFunctions()::story-summary::interests', interests)
+                                        if(typeof interests == 'array')
+                                            interests = interests.join(',')
+                                        action = `ask about a different interest from: ${ interests }`
+                                        break
+                                    case phaseOfLife!=='unknown':
+                                        console.log('mRunFunctions()::story-summary::phaseOfLife', phaseOfLife)
+                                        action = `ask about another encounter during this phase of life: ${story.phaseOfLife}`
+                                        break
+                                    default:
+                                        action = 'ask about another event in member\'s life'
+                                        break
+                                }
+                                const confirmation = {
+                                    tool_call_id: id,
+                                    output: JSON.stringify({ success: true, action, }),
+                                }
+                                return confirmation
+                            } // error cascades
+                        default:
+                            throw new Error(`Tool function ${name} not recognized`)
+                    }
+                }))
+        /* submit tool outputs */
+        const finalOutput = await openai.beta.threads.runs.submitToolOutputsAndPoll( // note: must submit all tool outputs at once
+            run.thread_id,
+            run.id,
+            { tool_outputs: toolCallsOutput },
+        )
+        console.log('mRunFunctions::submitToolOutputs()::run=complete', finalOutput?.status)
+        return finalOutput /* undefined indicates to ping again */
+    }
 }
 /**
  * Returns all openai `run` objects for `thread`.
@@ -168,16 +253,19 @@ async function mRuns(openai, threadId){
  * @async
  * @param {OpenAI} openai - openai object
  * @param {object} run - Run id
+ * @param {AgentFactory} factory - Avatar Factory object to process request
  * @returns {boolean} - true if run completed, voids otherwise
  */
-async function mRunStatus(openai, run){
+async function mRunStatus(openai, run, factory){
     run = await openai.beta.threads.runs
         .retrieve(
             run.thread_id,
             run.id,
         )
     switch(run.status){
-        //	https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
+        case 'requires_action':
+            const completedRun = await mRunFunctions(openai, run, factory)
+            return completedRun /* if undefined, will ping again */
         case 'completed':
             return run // run
         case 'failed':
@@ -185,7 +273,6 @@ async function mRunStatus(openai, run){
         case 'expired':
             return false
         case 'queued':
-        case 'requires_action':
         case 'in_progress':
         case 'cancelling':
         default:
@@ -245,17 +332,18 @@ async function mRunStart(llmServices, assistantId, threadId){
  * @param {OpenAI} openai - OpenAI object
  * @param {string} botId - Bot id
  * @param {string} threadId - Thread id
+ * @param {AgentFactory} factory - Avatar Factory object to process request
  * @returns {void} - All content generated by run is available in `avatar`.
  */
-async function mRunTrigger(openai, botId, threadId){
+async function mRunTrigger(openai, botId, threadId, factory){
     const run = await mRunStart(openai, botId, threadId)
     if(!run)
         throw new Error('Run failed to start')
     // ping status; returns `completed` run
-    const _run = await mRunFinish(openai, run)
+    const finishRun = await mRunFinish(openai, run, factory)
         .then(response=>response)
         .catch(err=>err)
-    return _run
+    return finishRun
 }
 /**
  * Create or retrieve an OpenAI thread.

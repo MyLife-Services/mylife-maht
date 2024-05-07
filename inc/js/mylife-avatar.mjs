@@ -67,23 +67,30 @@ class Avatar extends EventEmitter {
             })
         this.nickname = this.nickname ?? this.names?.[0] ?? `${this.memberFirstName ?? 'member'}'s avatar`
         /* create evolver (exclude MyLife) */
-        // @todo: admin interface for modifying MyLife avatar and their bots
         this.#bots = await this.#factory.bots(this.id)
         let activeBot = this.avatarBot
         if(!this.isMyLife){
-            if(!activeBot?.id){ // create: but do not want to call setBot() to activate
-                activeBot = await mBot(this.#factory, this, { type: 'personal-avatar' })
-                this.#bots.unshift(activeBot)
-            }
+            /* bot checks */
+            const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
+            await Promise.all(requiredBotTypes.map(async botType =>{
+                if(!this.#bots.some(bot => bot.type === botType)){
+                    const _bot = await mBot(this.#factory, this, { type: botType })
+                    this.#bots.push(_bot)
+                }
+            }))
+            activeBot = this.avatarBot // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
+            /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
+            /* lived-experiences */
+            this.#livedExperiences = await this.#factory.experiencesLived(false)
+            /* evolver */
             this.#evolver = new EvolutionAssistant(this)
             mAssignEvolverListeners(this.#factory, this.#evolver, this)
             /* init evolver */
             await this.#evolver.init()
         } else { // Q-specific, leave as `else` as is near always false
-            // @todo - something doesn't smell right in how session would handle conversations - investigate logic; fine if new Avatar instance is spawned for each session, which might be true
             this.activeBotId = activeBot.id
             activeBot.bot_id = mBotIdOverride ?? activeBot.bot_id
             this.#llmServices.botId = activeBot.bot_id
@@ -121,12 +128,12 @@ class Avatar extends EventEmitter {
         if(!conversation)
             conversation = await this.createConversation('chat')
         conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        const messages = await mCallLLM(this.#llmServices, conversation, prompt)
+        const messages = await mCallLLM(this.#llmServices, conversation, prompt, this.factory)
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message)
+            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
@@ -156,11 +163,31 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get member collection items.
+     * @todo - trim return objects based on type
      * @param {string} type - The type of collection to retrieve, `false`-y = all.
      * @returns {array} - The collection items with no wrapper.
      */
     async collections(type){
-        const collections = await this.factory.collections(type)
+        const { factory, } = this
+        const collections = ( await factory.collections(type) )
+            .map(collection=>{
+                switch(type){
+                    case 'experience':
+                    case 'lived-experience':
+                        const { completed=true, description, experience_date=Date.now(), experience_id, id, title, variables, } = collection
+                        return {
+                            completed,
+                            description,
+                            experience_date,
+                            experience_id,
+                            id,
+                            title,
+                            variables,
+                        }
+                    default:
+                        return collection
+                }
+            })
         return collections
     }
     async createConversation(type='chat'){
@@ -183,25 +210,43 @@ class Avatar extends EventEmitter {
     }
     /**
      * Ends an experience.
-     * @todo - save living experience to cosmos, no need to await
+     * @todo - allow guest experiences
+     * @todo - create case for member ending with enough interaction to _consider_ complete
+     * @todo - determine whether modes are appropriate; while not interested in multiple session experiences, no reason couldn't chat with bot
      * @todo - relived experiences? If only saving by experience id then maybe create array?
-     * @param {Guid} experienceId 
-     * @returns {boolean}
+     * @public
+     * @param {Guid} experienceId - The experience id.
+     * @returns {void} - Throws error if experience cannot be ended.
      */
     experienceEnd(experienceId){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot conduct nor end experiences.')
-        if(this.mode!=='experience')
-            throw new Error('Avatar is not currently in an experience.')
-        if(this.experience.id!==experienceId)
-            throw new Error('Avatar is not currently in the requested experience.')
-        if(!this.experience.skippable) // @todo - even if skippable, won't this function still process?
-            throw new Error('Avatar cannot end this experience at this time, not yet implmented.')
+        const { experience, factory, mode, } = this
+        if(this.isMyLife) // @stub - allow guest experiences
+            throw new Error('FAILURE::experienceEnd()::MyLife avatar cannot conduct nor end experiences at this time.')
+        if(mode!=='experience')
+            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in an experience.')
+        if(this.experience?.id!==experienceId)
+            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in the requested experience.')
         this.mode = 'standard'
-        // @stub - save living experience to cosmos
-        this.#livedExperiences.push(this.experience.id)
+        const { id, location, title, variables, } = experience
+        const { mbr_id, newGuid, } = factory
+        const completed = location?.completed
+        this.#livedExperiences.push({ // experience considered concluded for session regardless of origin, sniffed below
+            completed,
+			experience_date: Date.now(),
+			experience_id: id,
+			id: newGuid,
+			mbr_id,
+			title,
+			variables,
+        })
+        if(completed){ // ended "naturally," by event completion, internal initiation
+            /* validate and cure `experience` */
+            /* save experience to cosmos (no await) */
+            factory.saveExperience(experience)
+        } else { // incomplete, force-ended by member, external initiation
+            // @stub - create case for member ending with enough interaction to _consider_ complete, or for that matter, to consider _started_ in some cases
+        }
         this.experience = undefined
-        return true
     }
     /**
      * Processes and executes incoming experience request.
@@ -237,10 +282,6 @@ class Avatar extends EventEmitter {
     async experiences(includeLived=false){
         const experiences = mExperiences(await this.#factory.experiences(includeLived))
         return experiences
-    }
-    async experiencesLived(){
-        // get experiences-lived [stub]
-        const livedExperiences = await this.#factory.experiencesLived()
     }
     /**
      * Starts an avatar experience.
@@ -532,6 +573,14 @@ class Avatar extends EventEmitter {
         return this.experience.location
     }
     /**
+     * Returns List of Member's Lived Experiences.
+     * @getter
+     * @returns {Object[]} - List of Member's Lived Experiences.
+     */
+    get experiencesLived(){
+        return this.#livedExperiences
+    }
+    /**
      * Get the Avatar's Factory.
      * @todo - deprecate if possible, return to private
      * @getter
@@ -821,15 +870,16 @@ async function mBot(factory, avatar, bot){
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
+ * @param {AgentFactory} factory - Agent Factory object required for function execution
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
  */
-async function mCallLLM(llmServices, conversation, prompt){
+async function mCallLLM(llmServices, conversation, prompt, factory){
     const { thread_id: threadId } = conversation
     if(!threadId)
         throw new Error('No `thread_id` found for conversation')
     if(!conversation.botId)
         throw new Error('No `botId` found for conversation')
-    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt)
+    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt, factory)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })
@@ -1239,6 +1289,7 @@ async function mExperiencePlay(factory, llm, experience, memberInput){
                 title: title ?? name,
                 type: 'experience',
             }) // provide marker for front-end [end of event sequence]
+            experience.location.completed = true
         }
     }
     experience.events.push(...eventSequence)
@@ -1305,6 +1356,7 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
     if(id!==experienceId)
         throw new Error('Experience failure, unexpected id mismatch.')
     experience.cast = await mCast(factory, experience.cast) // hydrates cast data
+    console.log('mExperienceStart::experience', experience.cast[0].inspect(true))
     experience.events = []
     experience.location = {
         experienceId: experience.id,

@@ -20,8 +20,8 @@ async function experienceBuilder(ctx){
  * @property {array} cast - Experience cast array.
  * @property {object} navigation - Navigation object (optional - for interactive display purposes only).
  */
-function experienceCast(ctx){
-    mAPIKeyValidation(ctx)
+async function experienceCast(ctx){
+    await mAPIKeyValidation(ctx)
     const { assistantType, avatar, mbr_id } = ctx.state
     const { eid } = ctx.params
     ctx.body = avatar.cast
@@ -36,48 +36,10 @@ function experienceCast(ctx){
  * @property {object} scene - Scene data, regardless if "current" or new.
  */
 async function experience(ctx){
-    /* reject if experience is locked */
-    /* lock could extend to gating requests as well */
-    if(ctx.state.MemberSession.experienceLock){
-        // @stub - if experience is locked, perhaps request to run an internal check to see if exp is bugged or timed out
-        ctx.throw(500, 'Experience is locked. Wait for previous event to complete. If bugged, end experience and begin again.')
-    }
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id, } = ctx.state
+    const { MemberSession, } = ctx.state
     const { eid, } = ctx.params
-    let events = []
-    ctx.state.MemberSession.experienceLock = true
-    try{ // requires try, as locks would otherwise not release on unidentified errors
-        if(!avatar.isInExperience){
-            await avatar.experienceStart(eid)
-        }
-        else {
-            const eventSequence = await avatar.experiencePlay(eid, ctx.request.body)
-            events = eventSequence
-            console.log(chalk.yellowBright('experience() events'), events?.length)
-        } 
-    } catch (error){
-        console.log(chalk.redBright('experience() error'), error, avatar.experience)
-        const { experience } = avatar
-        if(experience){ // embed error in experience
-            experience.errors = experience.errors ?? []
-            experience.errors.push(error)
-        }
-    }
-    const { experience } = avatar
-    const { autoplay, location, title, } = experience
-    ctx.body = {
-        autoplay,
-        events,
-        location,
-        title,
-    }
-    ctx.state.MemberSession.experienceLock = false
-    if(events.find(event=>{ return event.action==='end' && event.type==='experience' })){
-        if(!avatar.experienceEnd(eid)) // attempt to end experience
-            throw new Error('Experience failed to end.')
-    }
-    return
+    ctx.body = await MemberSession.experience(eid, ctx.request.body)
 }
 /**
  * Request to end an active Living-Experience for member.
@@ -87,19 +49,9 @@ async function experience(ctx){
  */
 function experienceEnd(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
-    const { eid } = ctx.params
-    let endSuccess = false
-    try {
-        endSuccess = avatar.experienceEnd(eid)
-    } catch(err) {
-        console.log(chalk.redBright('experienceEnd() error'), err)
-        // can determine if error is critical or not, currently implies there is no running experience
-        endSuccess = true
-    }
-    ctx.body = endSuccess
-    ctx.state.MemberSession.experienceLock = !ctx.body
-    return
+    const { MemberSession, } = ctx.state
+    const { eid, } = ctx.params
+    ctx.body = MemberSession.experienceEnd(eid)
 }
 /**
  * Delivers the manifest of an experience. Manifests are the data structures that define the experience, including scenes, events, and other data. Experience must be "started" in order to request.
@@ -111,7 +63,7 @@ function experienceEnd(ctx){
  */
 function experienceManifest(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
+    const { avatar, } = ctx.state
     ctx.body = avatar.manifest
     return
 }
@@ -120,7 +72,7 @@ function experienceManifest(ctx){
  */
 function experienceNavigation(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
+    const { avatar, } = ctx.state
     ctx.body = avatar.navigation
     return
 }
@@ -133,40 +85,45 @@ function experienceNavigation(ctx){
  */
 async function experiences(ctx){
     mAPIKeyValidation(ctx)
-    const { assistantType, MemberSession } = ctx.state
+    const { MemberSession, } = ctx.state
     // limit one mandatory experience (others could be highlighted in alerts) per session
     const experiencesObject = await MemberSession.experiences()
     ctx.body = experiencesObject
-    return
+}
+async function experiencesLived(ctx){
+    mAPIKeyValidation(ctx)
+    const { MemberSession, } = ctx.state
+    ctx.body = MemberSession.experiencesLived
 }
 async function keyValidation(ctx){ // from openAI
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     ctx.status = 200 // OK
     if(ctx.method === 'HEAD') return
-    // @todo: determine how to instantiate avatar via Maht Factory--session? In any case, perhaps relegate to session
-    const _memberCore = await ctx.MyLife.datacore(ctx.state.mbr_id)
-    const { updates, interests, birth, birthDate, fullName, names, nickname } = _memberCore
-    const _birth = (Array.isArray(birth) && birth.length)
-        ? birth[0]
-        : birth??{}
-    _birth.date = birthDate??_birth.date??''
-    _birth.place = _birth.place??''
-    const _memberCoreData = {
-        mbr_id: ctx.state.mbr_id,
-        updates: updates??'',
-        interests: interests??'',
-        birthDate: _birth.date,
-        birthPlace: _birth.place,
-        fullName: fullName??names?.[0]??'',
-        preferredName: nickname??names?.[0].split(' ')[0]??'',
+    const { mbr_id } = ctx.state
+    const memberCore = await ctx.MyLife.datacore(mbr_id)
+    const { updates, interests, birth: memberBirth, birthDate: memberBirthDate, fullName, names, nickname } = memberCore
+    const birth = (Array.isArray(memberBirth) && memberBirth.length)
+        ? memberBirth[0]
+        : memberBirth ?? {}
+    birth.date = memberBirthDate ?? birth.date
+    birth.place = birth.place
+    const memberCoreData = {
+        mbr_id,
+        updates,
+        interests,
+        birthDate: birth.date,
+        birthPlace: birth.place,
+        fullName: fullName ?? names?.[0] ?? 'unknown member',
+        preferredName: nickname
+            ?? names?.[0].split(' ')[0]
+            ?? '',
     }
+    console.log(chalk.yellowBright(`keyValidation():${memberCoreData.mbr_id}`), memberCoreData.fullName)
     ctx.body = {
         success: true,
         message: 'Valid member.',
-        data: _memberCoreData,
+        data: memberCoreData,
     }
-    console.log(chalk.yellowBright(`keyValidation():${_memberCoreData.mbr_id}`), _memberCoreData.fullName)
-    return
 }
 /**
  * All functionality related to a library. Note: Had to be consolidated, as openai GPT would only POST.
@@ -176,7 +133,7 @@ async function keyValidation(ctx){ // from openAI
  * @returns {Koa} Koa Context object
  */
 async function library(ctx){
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     const {
         assistantType,
         mbr_id,
@@ -191,7 +148,6 @@ async function library(ctx){
         message: `library function(s) completed successfully.`,
         success: true,
     }
-    return
 }
 /**
  * Login function for member. Requires mid in params.
@@ -206,7 +162,6 @@ async function login(ctx){
         ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
 	ctx.session.MemberSession.challenge_id = decodeURIComponent(ctx.params.mid)
     ctx.body = { challengeId: ctx.session.MemberSession.challenge_id }
-    return
 }
 /**
  * Logout function for member.
@@ -217,7 +172,6 @@ async function logout(ctx){
     ctx.session = null
     ctx.status = 200
     ctx.body = { success: true }
-    return
 }
 async function register(ctx){
 	const _registrationData = ctx.request.body
@@ -252,7 +206,6 @@ async function register(ctx){
         message: 'Registration completed successfully.',
 		data: _return,
     }
-	return
 }
 /**
  * Functionality around story contributions.
@@ -260,7 +213,7 @@ async function register(ctx){
  * @returns {Koa} Koa Context object
  */
 async function story(ctx){
-    mAPIKeyValidation(ctx) // sets ctx.state.mbr_id and more
+    await mAPIKeyValidation(ctx) // sets ctx.state.mbr_id and more
     const { assistantType, mbr_id } = ctx.state
     const { storySummary } = ctx.request?.body??{}
     if(!storySummary?.length)
@@ -273,7 +226,6 @@ async function story(ctx){
         success: true,
         message: 'Story submitted successfully.',
     }
-    return
 }
 /**
  * Management of Member Story Libraries. Note: Key validation is performed in library(). Story library may have additional functionality inside of core/MyLife
@@ -331,54 +283,45 @@ async function tokenValidation(ctx, next) {
  * Validates key and sets `ctx.state` and `ctx.session` properties. `ctx.state`: [ assistantType, isValidated, mbr_id, ]. `ctx.session`: [ isAPIValidated, APIMemberKey, ].
  * @modular
  * @private
+ * @async
  * @param {Koa} ctx - Koa Context object.
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function mAPIKeyValidation(ctx){ // transforms ctx.state
-    if(!ctx.state.locked) return
-    if(ctx.params.mid === ':mid') ctx.params.mid = undefined
-    // ctx session alternatives to hitting DB every time? can try...
-    const mbr_id = ctx.params.mid??ctx.request.body.memberKey
-    if(!mbr_id?.length)
-        ctx.throw(400, 'Missing member key.')
-    const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID??'[]')
-    const localHostedMembers = [
-        'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
-    ].filter(member=>serverHostedMembers.includes(member)) // none currently
-    serverHostedMembers.push(...localHostedMembers)
-    /* inline function definitions */
-    function _keyValidation(ctx, mbr_id){ // returns Promise<boolean>
-        return new Promise(async (resolve, reject) => {
-            if( // session validation
-                    (ctx.session?.isAPIValidated ?? false)
-                && mbr_id === (ctx.session?.APIMemberKey ?? false)
-            ){
-                resolve(true)
-            }
-            if(serverHostedMembers.includes(mbr_id)){ // initial full validation
-                resolve( await ctx.MyLife.testPartitionKey(mbr_id) )
-            }
-            resolve(false)
-        })
+async function mAPIKeyValidation(ctx){ // transforms ctx.state
+    if(ctx.params.mid === ':mid')
+        ctx.params.mid = undefined
+    const memberId = ctx.params?.mid
+        ??  ctx.request.body?.memberKey
+        ??  ctx.session?.APIMemberKey
+    if(!memberId?.length)
+        if(ctx.state.locked)
+            ctx.throw(400, 'Missing member key.')
+        else // unlocked, providing passphrase
+            return
+    let isValidated
+    if(!ctx.state.locked || ctx.session?.isAPIValidated){
+        isValidated = true
+    } else {
+        const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID ?? '[]')
+        const localHostedMembers = [
+            'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
+        ].filter(member=>serverHostedMembers.includes(member)) // none currently
+        serverHostedMembers.push(...localHostedMembers)
+        if(serverHostedMembers.includes(memberId))
+            isValidated = await ctx.MyLife.testPartitionKey(memberId)
     }
-    _keyValidation(ctx, mbr_id)
-        .then(isValidated=>{
-            if(!isValidated)
-                ctx.throw(400, 'Member Key unknown', error)
-            ctx.state.isValidated = isValidated
-            ctx.state.mbr_id = mbr_id
-            ctx.state.assistantType = mTokenType(ctx)
-            ctx.session.isAPIValidated = ctx.state.isValidated
-            ctx.session.APIMemberKey = ctx.state.mbr_id
-        })
-        .catch(error=>{
-            ctx.throw(500, 'API Key Validation Error', error)
-        })
+    if(isValidated){
+        ctx.state.isValidated = true
+        ctx.state.mbr_id = memberId
+        ctx.state.assistantType = mTokenType(ctx)
+        ctx.session.isAPIValidated = ctx.state.isValidated
+        ctx.session.APIMemberKey = ctx.state.mbr_id
+    }
 }
 function mTokenType(ctx){
-    const _token = ctx.state.token
-    const _assistantType = mBotSecrets?.[_token]??'personal-avatar'
-    return _assistantType
+    const { token, } = ctx.state
+    const assistantType = mBotSecrets?.[token] ?? 'personal-avatar'
+    return assistantType
 }
 function mTokenValidation(_token){
     return mBotSecrets?.[_token]?.length??false
@@ -391,6 +334,7 @@ export {
     experienceManifest,
     experienceNavigation,
     experiences,
+    experiencesLived,
     keyValidation,
     library,
     login,
