@@ -20,8 +20,8 @@ async function experienceBuilder(ctx){
  * @property {array} cast - Experience cast array.
  * @property {object} navigation - Navigation object (optional - for interactive display purposes only).
  */
-function experienceCast(ctx){
-    mAPIKeyValidation(ctx)
+async function experienceCast(ctx){
+    await mAPIKeyValidation(ctx)
     const { assistantType, avatar, mbr_id } = ctx.state
     const { eid } = ctx.params
     ctx.body = avatar.cast
@@ -96,32 +96,34 @@ async function experiencesLived(ctx){
     ctx.body = MemberSession.experiencesLived
 }
 async function keyValidation(ctx){ // from openAI
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     ctx.status = 200 // OK
     if(ctx.method === 'HEAD') return
-    // @todo: determine how to instantiate avatar via Maht Factory--session? In any case, perhaps relegate to session
-    const _memberCore = await ctx.MyLife.datacore(ctx.state.mbr_id)
-    const { updates, interests, birth, birthDate, fullName, names, nickname } = _memberCore
-    const _birth = (Array.isArray(birth) && birth.length)
-        ? birth[0]
-        : birth??{}
-    _birth.date = birthDate??_birth.date??''
-    _birth.place = _birth.place??''
-    const _memberCoreData = {
-        mbr_id: ctx.state.mbr_id,
-        updates: updates??'',
-        interests: interests??'',
-        birthDate: _birth.date,
-        birthPlace: _birth.place,
-        fullName: fullName??names?.[0]??'',
-        preferredName: nickname??names?.[0].split(' ')[0]??'',
+    const { mbr_id } = ctx.state
+    const memberCore = await ctx.MyLife.datacore(mbr_id)
+    const { updates, interests, birth: memberBirth, birthDate: memberBirthDate, fullName, names, nickname } = memberCore
+    const birth = (Array.isArray(memberBirth) && memberBirth.length)
+        ? memberBirth[0]
+        : memberBirth ?? {}
+    birth.date = memberBirthDate ?? birth.date
+    birth.place = birth.place
+    const memberCoreData = {
+        mbr_id,
+        updates,
+        interests,
+        birthDate: birth.date,
+        birthPlace: birth.place,
+        fullName: fullName ?? names?.[0] ?? 'unknown member',
+        preferredName: nickname
+            ?? names?.[0].split(' ')[0]
+            ?? '',
     }
+    console.log(chalk.yellowBright(`keyValidation():${memberCoreData.mbr_id}`), memberCoreData.fullName)
     ctx.body = {
         success: true,
         message: 'Valid member.',
-        data: _memberCoreData,
+        data: memberCoreData,
     }
-    console.log(chalk.yellowBright(`keyValidation():${_memberCoreData.mbr_id}`), _memberCoreData.fullName)
 }
 /**
  * All functionality related to a library. Note: Had to be consolidated, as openai GPT would only POST.
@@ -131,7 +133,7 @@ async function keyValidation(ctx){ // from openAI
  * @returns {Koa} Koa Context object
  */
 async function library(ctx){
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     const {
         assistantType,
         mbr_id,
@@ -211,7 +213,7 @@ async function register(ctx){
  * @returns {Koa} Koa Context object
  */
 async function story(ctx){
-    mAPIKeyValidation(ctx) // sets ctx.state.mbr_id and more
+    await mAPIKeyValidation(ctx) // sets ctx.state.mbr_id and more
     const { assistantType, mbr_id } = ctx.state
     const { storySummary } = ctx.request?.body??{}
     if(!storySummary?.length)
@@ -281,49 +283,40 @@ async function tokenValidation(ctx, next) {
  * Validates key and sets `ctx.state` and `ctx.session` properties. `ctx.state`: [ assistantType, isValidated, mbr_id, ]. `ctx.session`: [ isAPIValidated, APIMemberKey, ].
  * @modular
  * @private
+ * @async
  * @param {Koa} ctx - Koa Context object.
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function mAPIKeyValidation(ctx){ // transforms ctx.state
-    if(!ctx.state.locked) return
-    if(ctx.params.mid === ':mid') ctx.params.mid = undefined
-    // ctx session alternatives to hitting DB every time? can try...
-    const mbr_id = ctx.params.mid??ctx.request.body.memberKey
-    if(!mbr_id?.length)
-        ctx.throw(400, 'Missing member key.')
-    const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID??'[]')
-    const localHostedMembers = [
-        'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
-    ].filter(member=>serverHostedMembers.includes(member)) // none currently
-    serverHostedMembers.push(...localHostedMembers)
-    /* inline function definitions */
-    function _keyValidation(ctx, mbr_id){ // returns Promise<boolean>
-        return new Promise(async (resolve, reject) => {
-            if( // session validation
-                    (ctx.session?.isAPIValidated ?? false)
-                && mbr_id === (ctx.session?.APIMemberKey ?? false)
-            ){
-                resolve(true)
-            }
-            if(serverHostedMembers.includes(mbr_id)){ // initial full validation
-                resolve( await ctx.MyLife.testPartitionKey(mbr_id) )
-            }
-            resolve(false)
-        })
+async function mAPIKeyValidation(ctx){ // transforms ctx.state
+    if(ctx.params.mid === ':mid')
+        ctx.params.mid = undefined
+    const memberId = ctx.params?.mid
+        ??  ctx.request.body?.memberKey
+        ??  ctx.session?.APIMemberKey
+    if(!memberId?.length)
+        if(ctx.state.locked)
+            ctx.throw(400, 'Missing member key.')
+        else // unlocked, providing passphrase
+            return
+    let isValidated
+    if(!ctx.state.locked || ctx.session?.isAPIValidated){
+        isValidated = true
+    } else {
+        const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID ?? '[]')
+        const localHostedMembers = [
+            'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
+        ].filter(member=>serverHostedMembers.includes(member)) // none currently
+        serverHostedMembers.push(...localHostedMembers)
+        if(serverHostedMembers.includes(memberId))
+            isValidated = await ctx.MyLife.testPartitionKey(memberId)
     }
-    _keyValidation(ctx, mbr_id)
-        .then(isValidated=>{
-            if(!isValidated)
-                ctx.throw(400, 'Member Key unknown', error)
-            ctx.state.isValidated = isValidated
-            ctx.state.mbr_id = mbr_id
-            ctx.state.assistantType = mTokenType(ctx)
-            ctx.session.isAPIValidated = ctx.state.isValidated
-            ctx.session.APIMemberKey = ctx.state.mbr_id
-        })
-        .catch(error=>{
-            ctx.throw(500, 'API Key Validation Error', error)
-        })
+    if(isValidated){
+        ctx.state.isValidated = true
+        ctx.state.mbr_id = memberId
+        ctx.state.assistantType = mTokenType(ctx)
+        ctx.session.isAPIValidated = ctx.state.isValidated
+        ctx.session.APIMemberKey = ctx.state.mbr_id
+    }
 }
 function mTokenType(ctx){
     const { token, } = ctx.state
