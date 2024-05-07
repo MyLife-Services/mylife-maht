@@ -30,6 +30,7 @@ import {
     experienceManifest,
     experienceNavigation,
     experiences,
+    experiencesLived,
     keyValidation,
     library,
     login as apiLogin,
@@ -61,6 +62,7 @@ _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.get('/experiences/:mid', experiences) // **note**: currently triggers autoplay experience
+_apiRouter.get('/experiencesLived/:mid', experiencesLived)
 _apiRouter.get('/login/:mid', apiLogin)
 _apiRouter.get('/logout', apiLogout)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
@@ -86,6 +88,7 @@ _memberRouter.get('/collections/:type', collections)
 _memberRouter.get('/contributions', contributions)
 _memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/experiences', experiences)
+_memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/mode', interfaceMode)
 _memberRouter.get('/upload', upload)
 _memberRouter.patch('/experience/:eid', experience)

@@ -47,23 +47,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     /* display page */
     mShowPage()
 })
-/* public functions */
-/**
- * Escapes HTML characters in a string.
- * @param {string} text - The text to escape.
- * @returns {string} - The escaped text.
- */
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    }
-    const escapedText = text.replace(/[&<>"']/g, m=>(map[m]) )
-    return escapedText
-}
 /* private functions */
 /**
  * Adds a message to the chat column.
@@ -89,7 +72,7 @@ function mAddMessage(message, options={
 	chatBubble.className = `chat-bubble ${bubbleClass}`
 	mChatBubbleCount++
 	chatSystem.appendChild(chatBubble)
-	messageContent = escapeHtml(messageContent)
+	messageContent = mGlobals.escapeHtml(messageContent)
 	if(typewrite){
 		let i = 0
 		let tempMessage = ''
@@ -121,7 +104,7 @@ function mAddUserMessage(event){
     // Dynamically get the current message element (input or textarea)
     let userMessage = chatInput.value.trim()
     if (!userMessage.length) return
-    userMessage = escapeHtml(userMessage) // Escape the user message
+    userMessage = mGlobals.escapeHtml(userMessage) // Escape the user message
     mSubmitInput(event, userMessage)
     mAddMessage({ message: userMessage }, {
         bubbleClass: 'user-bubble',
@@ -135,43 +118,9 @@ function mAddUserMessage(event){
  */
 function mInitializeListeners(){
     if(chatInput)
-        chatInput.addEventListener('input', toggleInputTextarea)
+        chatInput.addEventListener('input', mToggleInputTextarea)
     if(chatSubmit)
         chatSubmit.addEventListener('click', mAddUserMessage)
-}
-// Function to focus on the textarea and move cursor to the end
-function focusAndSetCursor(textarea) {
-    textarea.focus();
-    // Move the cursor to the end of the text
-    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
-}
-function getTextWidth(text, font) {
-    // Create a temporary canvas element to measure text width
-    let canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
-    let context = canvas.getContext("2d");
-    context.font = font;
-    return context.measureText(text).width;
-}
-// Function to replace an element (input/textarea) with a specified type
-function replaceElement(element, newType){
-    const newElement = document.createElement(newType);
-    newElement.id = element.id;
-    newElement.name = element.name;
-    newElement.required = element.required;
-    newElement.classList = element.classList;
-    newElement.value = element.value;
-    if (newType === 'textarea') {
-        newElement.setAttribute('rows', '3');
-    }
-    newElement.addEventListener('input', toggleInputTextarea); // Reattach the event listener
-    chatUser.replaceChild(newElement, element);
-    return newElement;
-}
-function resetAnimation(element) {
-    element.style.animation = 'none';
-    // Trigger a reflow to restart the animation
-    element.offsetHeight;
-    element.style.animation = '';
 }
 function scrollToBottom() {
     chatSystem.scrollTop = chatSystem.scrollHeight
@@ -274,47 +223,18 @@ async function submitChat(url, options) {
 		return alert(`Error: ${err.message}`)
 	}
 }
-function toggleInputTextarea(event) {
-    const inputStyle = window.getComputedStyle(chatUser);
-    const inputFont = inputStyle.font;
-    const textWidth = getTextWidth(chatInput.value, inputFont); // no trim required
-    const inputWidth = chatUser.offsetWidth;
-	/* pulse */
-	clearTimeout(typingTimer);
-    agentSpinner.style.display = 'none';
-    resetAnimation(agentSpinner); // Reset animation
-    typingTimer = setTimeout(() => {
-        agentSpinner.style.display = 'block';
-        resetAnimation(agentSpinner); // Restart animation
-    }, 2000);
-    if(textWidth > inputWidth && chatInput.tagName !== 'TEXTAREA'){ // Expand to textarea
-        chatInput = replaceElement(chatInput, 'textarea');
-        focusAndSetCursor(chatInput);
-    } else if(textWidth <= inputWidth && chatInput.tagName === 'TEXTAREA' ){ // Revert to input
-		chatInput = replaceElement(chatInput, 'input');
-        focusAndSetCursor(chatInput);
-    }
-	mToggleButton(event)
+function mToggleInputTextarea() {
+    chatInput.style.height = 'auto' // Reset height to shrink if text is removed
+    chatInput.style.height = chatInput.scrollHeight + 'px' // Set height based on content
+	mToggleSubmitButton()
 }
 /**
  * Toggles the disabled state of a button based on the input element value.
  * @private
- * @param {Event} event - The input element to check.
  * @returns {void}
  */
-function mToggleButton(event){
-    const { value,} = event.target
-    const input = value.trim().length ? true : false
-    if(input){
-        chatSubmit.disabled = false
-        chatSubmit.style.cursor = 'pointer'
-        show(chatSubmit)
-    } else {
-        chatSubmit.disabled = true
-        chatSubmit.style.cursor = 'not-allowed'
-    }
-}
-/* exports */
-export {
-    escapeHtml,
+function mToggleSubmitButton(){
+    const hasInput = chatInput.value.trim().length ?? false
+    chatSubmit.disabled = !hasInput
+    chatSubmit.style.cursor = hasInput ? 'pointer' : 'not-allowed'
 }

@@ -4,9 +4,15 @@ let mLoginButton,
     mChallengeInput,
     mChallengeError,
     mChallengeSubmit,
+    mHelpContainer,
+    mHelpHeader,
+    mHelpInput,
+    mHelpSystemChat,
+    mHelpType,
     mLoginSelect,
     mMainContent,
     mNavigation,
+    mNavigationHelp,
     mSidebar
 /* class definitions */
 class Globals {
@@ -18,9 +24,16 @@ class Globals {
         mChallengeError = document.getElementById('member-challenge-error')
         mChallengeSubmit = document.getElementById('member-challenge-submit')
         mLoginSelect = document.getElementById('member-select')
+        mHelpContainer = document.getElementById('help-container')
+        mHelpHeader = document.getElementById('help-header') /* container for help header */
+        mHelpInput = document.getElementById('help-input') /* container for help user input */
+        mHelpSystemChat = document.getElementById('help-chat') /* container for help system chat */
+        mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
         mNavigation = document.getElementById('navigation-container')
+        mNavigationHelp = document.getElementById('navigation-help')
         mSidebar = document.getElementById('sidebar')
         /* assign event listeners */
+        mNavigationHelp.addEventListener('click', mToggleHelp)
         mLoginButton.addEventListener('click', this.loginLogout, { once: true })
         if(mChallengeInput){
             mChallengeInput.addEventListener('input', mToggleChallengeSubmit)
@@ -30,6 +43,22 @@ class Globals {
             mLoginSelect.addEventListener('change', mSelectLoginId, { once: true })
     }
     /* public functions */
+	/**
+	 * Escapes HTML characters in a string.
+	 * @param {string} text - The text to escape.
+	 * @returns {string} - The escaped text.
+	 */
+	escapeHtml(text){
+		const map = {
+			'&': '&amp;',
+			'<': '&lt;',
+			'>': '&gt;',
+			'"': '&quot;',
+			"'": '&#039;'
+		}
+		const escapedText = text.replace(/[&<>"']/g, m=>(map[m]) )
+		return escapedText
+	}
     /**
      * Returns the avatar object if poplated by on-page EJS script.
      * @todo - refactor to api call
@@ -105,6 +134,15 @@ class Globals {
         mShow(element, listenerFunction)
     }
     /**
+     * Toggles the visibility of an element.
+     * @param {HTMLElement} element - The element to toggle.
+     * @returns {void}
+     */
+    toggleVisibility(element){
+        const { classList, } = element
+        mIsVisible(classList) ? mHide(element) : mShow(element)
+    }
+    /**
      * Variable-izes (for js) a given string.
      * @param {string} undashedString - String to variable-ize.
      * @returns {string} - The variable-ized string.
@@ -164,6 +202,15 @@ function mHide(element, callbackFunction){
     if(callbackFunction)
         callbackFunction()
     element.classList.add('hide')
+}
+/**
+ * Determines whether an element is visible. Does not allow for any callbackFunctions
+ * @private
+ * @param {Object[]} classList - list of classes to check: `element.classList`.
+ * @returns {boolean} - Whether the element is visible.
+ */
+function mIsVisible(classList){
+    return classList.contains('show')
 }
 function mLogin(){
     console.log('login')
@@ -261,9 +308,14 @@ async function mSubmitPassphrase(url, options) {
 		return false
 	}
 }
+/**
+ * Toggles the visibility of the challenge submit button based on `input` event.
+ * @requires mChallengeSubmit
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
 function mToggleChallengeSubmit(event){
     const { value, } = event.target
-    console.log('mToggleChallengeSubmit', value, mChallengeSubmit)
     if(value.trim().length){
         mChallengeSubmit.disabled = false
         mChallengeSubmit.style.cursor = 'pointer'
@@ -272,6 +324,16 @@ function mToggleChallengeSubmit(event){
         mChallengeSubmit.disabled = true
         mChallengeSubmit.style.cursor = 'not-allowed'
     }
+}
+/**
+ * Toggles the visibility of the help container based on `click` event.
+ * @requires mHelpContainer
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mToggleHelp(event){
+    const { classList, } = mHelpContainer
+    mIsVisible(classList) ? mHide(mHelpContainer) : mShow(mHelpContainer)
 }
 /* export */
 export default Globals

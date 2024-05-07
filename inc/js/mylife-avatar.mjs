@@ -83,6 +83,8 @@ class Avatar extends EventEmitter {
             this.#llmServices.botId = activeBot.bot_id
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
+            /* lived-experiences */
+            this.#livedExperiences = await this.#factory.experiencesLived(false)
             /* evolver */
             this.#evolver = new EvolutionAssistant(this)
             mAssignEvolverListeners(this.#factory, this.#evolver, this)
@@ -161,11 +163,31 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get member collection items.
+     * @todo - trim return objects based on type
      * @param {string} type - The type of collection to retrieve, `false`-y = all.
      * @returns {array} - The collection items with no wrapper.
      */
     async collections(type){
-        const collections = await this.factory.collections(type)
+        const { factory, } = this
+        const collections = ( await factory.collections(type) )
+            .map(collection=>{
+                switch(type){
+                    case 'experience':
+                    case 'lived-experience':
+                        const { completed=true, description, experience_date=Date.now(), experience_id, id, title, variables, } = collection
+                        return {
+                            completed,
+                            description,
+                            experience_date,
+                            experience_id,
+                            id,
+                            title,
+                            variables,
+                        }
+                    default:
+                        return collection
+                }
+            })
         return collections
     }
     async createConversation(type='chat'){
@@ -188,25 +210,43 @@ class Avatar extends EventEmitter {
     }
     /**
      * Ends an experience.
-     * @todo - save living experience to cosmos, no need to await
+     * @todo - allow guest experiences
+     * @todo - create case for member ending with enough interaction to _consider_ complete
+     * @todo - determine whether modes are appropriate; while not interested in multiple session experiences, no reason couldn't chat with bot
      * @todo - relived experiences? If only saving by experience id then maybe create array?
-     * @param {Guid} experienceId 
-     * @returns {boolean}
+     * @public
+     * @param {Guid} experienceId - The experience id.
+     * @returns {void} - Throws error if experience cannot be ended.
      */
     experienceEnd(experienceId){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot conduct nor end experiences.')
-        if(this.mode!=='experience')
-            throw new Error('Avatar is not currently in an experience.')
-        if(this.experience.id!==experienceId)
-            throw new Error('Avatar is not currently in the requested experience.')
-        if(!this.experience.skippable) // @todo - even if skippable, won't this function still process?
-            throw new Error('Avatar cannot end this experience at this time, not yet implmented.')
+        const { experience, factory, mode, } = this
+        if(this.isMyLife) // @stub - allow guest experiences
+            throw new Error('FAILURE::experienceEnd()::MyLife avatar cannot conduct nor end experiences at this time.')
+        if(mode!=='experience')
+            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in an experience.')
+        if(this.experience?.id!==experienceId)
+            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in the requested experience.')
         this.mode = 'standard'
-        // @stub - save living experience to cosmos
-        this.#livedExperiences.push(this.experience.id)
+        const { id, location, title, variables, } = experience
+        const { mbr_id, newGuid, } = factory
+        const completed = location?.completed
+        this.#livedExperiences.push({ // experience considered concluded for session regardless of origin, sniffed below
+            completed,
+			experience_date: Date.now(),
+			experience_id: id,
+			id: newGuid,
+			mbr_id,
+			title,
+			variables,
+        })
+        if(completed){ // ended "naturally," by event completion, internal initiation
+            /* validate and cure `experience` */
+            /* save experience to cosmos (no await) */
+            factory.saveExperience(experience)
+        } else { // incomplete, force-ended by member, external initiation
+            // @stub - create case for member ending with enough interaction to _consider_ complete, or for that matter, to consider _started_ in some cases
+        }
         this.experience = undefined
-        return true
     }
     /**
      * Processes and executes incoming experience request.
@@ -242,10 +282,6 @@ class Avatar extends EventEmitter {
     async experiences(includeLived=false){
         const experiences = mExperiences(await this.#factory.experiences(includeLived))
         return experiences
-    }
-    async experiencesLived(){
-        // get experiences-lived [stub]
-        const livedExperiences = await this.#factory.experiencesLived()
     }
     /**
      * Starts an avatar experience.
@@ -535,6 +571,14 @@ class Avatar extends EventEmitter {
      */
     get experienceLocation(){
         return this.experience.location
+    }
+    /**
+     * Returns List of Member's Lived Experiences.
+     * @getter
+     * @returns {Object[]} - List of Member's Lived Experiences.
+     */
+    get experiencesLived(){
+        return this.#livedExperiences
     }
     /**
      * Get the Avatar's Factory.
@@ -1245,6 +1289,7 @@ async function mExperiencePlay(factory, llm, experience, memberInput){
                 title: title ?? name,
                 type: 'experience',
             }) // provide marker for front-end [end of event sequence]
+            experience.location.completed = true
         }
     }
     experience.events.push(...eventSequence)
@@ -1311,6 +1356,7 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
     if(id!==experienceId)
         throw new Error('Experience failure, unexpected id mismatch.')
     experience.cast = await mCast(factory, experience.cast) // hydrates cast data
+    console.log('mExperienceStart::experience', experience.cast[0].inspect(true))
     experience.events = []
     experience.location = {
         experienceId: experience.id,

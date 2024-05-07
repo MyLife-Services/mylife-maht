@@ -7,25 +7,36 @@
     <% }) %>
 </div>
 <div id="navigation-padding" class="navigation-padding"></div>
+<div id="navigation-search" class="navigation-search"></div>
 <div id="navigation-help" class="navigation-help">
-    <span id="navigation-help-icon" class="fas fa-question-circle" title="Help" name="navigation-help" />
-    <div id="navigation-help-chat-popup" class="chat-popup help-popup">
-        <div class="chat-header">
-            <span class="close">&times;</span>
-            <span class="refresh">&#x21bb;</span>
+    <span id="navigation-help-icon" class="fas fa-question-circle"></span>
+    <!-- @todo: pull container from new file: chat-container.html -->
+    <div id="help-container" class="help-container popup-container">
+        <div id="help-header" class="help-header popup-header">
+            <span id="help-close" class="fas fa-close help-close popup-close"></span>
+            <div id="help-icon" class="help-icon popup-icon">
+                <img src="png/Q.png" alt="I am Q, Avatar for MyLife">
+            </div>
+            <div id="help-title" class="help-title popup-title">MyLife Assistance</div>
         </div>
-        <div class="chat-body">
-            <div class="chat-avatar">
-                <img src="png/Q.png" alt="Q-Avatar">
-                <span>Q, Avatar for MyLife</span>
-            </div>
-            <div class="chat-messages">
-                <!-- Messages will be dynamically loaded here -->
-            </div>
-            <div class="chat-footer">
-                <input type="text" placeholder="Type your message...">
-                <button type="button">Send</button>
-            </div>
+        <div id="help-type" class="help-type">
+            <!--<div id="help-type-organization" class="help-type-item help-type-organization">Organization</div>-->
+            <div id="help-type-membership" class="help-type-item help-type-membership">Membership</div>
+            <!--<div id="help-type-platform" class="help-type-item help-type-platform">Platform</div>-->
+            <div id="help-type-interface" class="help-type-item help-type-interface">Interface</div>
+            <div id="help-type-experiences" class="help-type-item help-type-experiences">Experiences</div>
+            <div id="help-type-tutorial" class="help-type-item help-type-tutorial">Tutorial</div>
+        </div>
+        <div id="help-chat" class="help-chat popup-content">
+            <span id="help-chat-refresh" class="fas fa-refresh popup-refresh help-refresh"></span>
+        </div>
+        <div id="help-input" class="help-input popup-input">
+            <div id="help-input-prompt" class="help-input-prompt popup-input-prompt">Chat</div>
+            <input id="help-input-text" class="help-input-text popup-input-text" type="text" placeholder="Help me, Q-bi Wan, Help me!" />
+            <button id="help-input-submit" class="button help-input-submit popup-input-submit">Send for Help</button>
+        </div>
+        <div id="help-await" class="help-await await">
+            Connecting with Q...
         </div>
     </div>
 </div>

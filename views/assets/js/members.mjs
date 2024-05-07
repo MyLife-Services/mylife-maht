@@ -73,7 +73,7 @@ function addMessageToColumn(message, options={
 	_delay: 10,
 	_typewrite: true,
 }){
-    let messageContent = message.message ?? message
+    const messageContent = message.message ?? message
 	const {
 		bubbleClass,
 		_delay,
@@ -82,7 +82,7 @@ function addMessageToColumn(message, options={
 	const chatBubble = document.createElement('div')
     chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.classList.add('chat-bubble', bubbleClass)
-    chatBubble.innerHTML = messageContent
+    chatBubble.innerHTML = escapeHtml(messageContent)
     mChatBubbleCount++
 	systemChat.appendChild(chatBubble)
 }
@@ -102,6 +102,14 @@ function assignElements(parent=chatInput, elements, clear=true){
     elements.forEach(element=>parent.appendChild(element))
 }
 /**
+ * Get experiences available to the member.
+ * @returns {object[]} - The available experiences.
+ */
+function availableExperiences(){
+    // repull from server? prefer separate function
+    return mExperiences
+}
+/**
  * Clears the system chat by removing all chat bubbles instances.
  * @todo - store chat locally for retrieval?
  * @public
@@ -111,21 +119,8 @@ function clearSystemChat(){
     // Remove all chat bubbles and experience chat-lanes under chat-system
     systemChat.innerHTML = ''
 }
-/**
- * Escapes HTML text.
- * @public
- * @param {string} text - The text to escape.
- * @returns {string} - The escaped HTML text.
- */
-function escapeHtml(text){
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+function escapeHtml(text) {
+    return mGlobals.escapeHtml(text)
 }
 function getInputValue(){
     return chatInputField.value.trim()
@@ -144,7 +139,7 @@ function getSystemChat(){
  * @returns {void}
  */
 function hide(){
-    return mGlobals.hide(...arguments)
+    mGlobals.hide(...arguments)
 }
 function hideMemberChat(){
     hide(navigation)
@@ -246,7 +241,7 @@ async function setActiveCategory(category, contributionId, question) {
  * @returns {void}
  */
 function show(){
-    return mGlobals.show(...arguments)
+    mGlobals.show(...arguments)
 }
 /**
  * Shows the member chat system.
@@ -283,6 +278,13 @@ function stageTransition(endExperience=false){
         if(endExperience)
             updatePageBots(true)
     }
+}
+/**
+ * Toggle visibility functionality.
+ * @returns {void}
+ */
+function toggleVisibility(){
+    mGlobals.toggleVisibility(...arguments)
 }
 /**
  * Waits for user action.
@@ -329,6 +331,16 @@ async function mAddMemberDialog(event){
 function bot(_id){
     return mPageBots.find(bot => bot.id === _id)
 }
+/**
+ * Proxy to start first experience.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mExperienceStart(event){
+    mExperience = mExperiences[0]
+    if(mExperience)
+        stageTransition()
+}
 function mFetchExperiences(){
     return fetch('/members/experiences/')
         .then(response=>{
@@ -338,21 +350,8 @@ function mFetchExperiences(){
         })
         .catch(error=>console.log('mFetchExperiences::Error()', error))
 }
-// Function to focus on the textarea and move cursor to the end
-function focusAndSetCursor(textarea) {
-    textarea.focus();
-    // Move the cursor to the end of the text
-    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
-}
 function getActiveCategory(){
 	return activeCategory
-}
-function getTextWidth(text, font) {
-    // Create a temporary canvas element to measure text width
-    let canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
-    let context = canvas.getContext("2d");
-    context.font = font;
-    return context.measureText(text).width;
 }
 /**
  * Initialize modular variables based on server fetch.
@@ -374,7 +373,6 @@ function mInitialize(){
             return autoplay
         })
         .then(autoplay=>{
-            console.log('autoplay', autoplay)
             if(autoplay)
                 mExperience = mExperiences.find(experience => experience.id===autoplay)
             return true
@@ -533,28 +531,14 @@ function toggleMemberInput(display=true, hidden=false){
     if(hidden)
         hide(chatInput)
 }
-// Function to toggle between textarea and input based on character count
-function toggleInputTextarea(){
-    const inputStyle = window.getComputedStyle(chatInput)
-    const inputFont = inputStyle.font
-    const textWidth = getTextWidth(chatInputField.value, inputFont) // no trim required
-    const inputWidth = chatInput.offsetWidth
-	/* pulse */
-	clearTimeout(typingTimer);
-    spinner.style.display = 'none';
-    mResetAnimation(spinner); // Reset animation
-    typingTimer = setTimeout(() => {
-        spinner.style.display = 'block';
-        mResetAnimation(spinner); // Restart animation
-    }, 2000)
-    const listenerFunction = toggleInputTextarea
-    if (textWidth>inputWidth && chatInputField.tagName!=='TEXTAREA') { // Expand to textarea
-        chatInputField = replaceElement(chatInputField, 'textarea', true, 'input', listenerFunction)
-        focusAndSetCursor(chatInputField);
-    } else if (textWidth<=inputWidth && chatInputField.tagName==='TEXTAREA' ) { // Revert to input
-		chatInputField = replaceElement(chatInputField, 'input', true, 'input', listenerFunction)
-        focusAndSetCursor(chatInputField)
-    }
+/**
+ * Toggles the input textarea.
+ * @param {Event} event - The event object.
+ * @returns {void} - The return is void.
+ */
+function toggleInputTextarea(event){
+    chatInputField.style.height = 'auto' // Reset height to shrink if text is removed
+    chatInputField.style.height = chatInputField.scrollHeight + 'px' // Set height based on content
 	toggleSubmitButtonState()
 }
 function toggleSubmitButtonState() {
@@ -580,7 +564,9 @@ function mTypewriteMessage(chatBubble, message, delay=10, i=0){
 export {
     addMessageToColumn,
     assignElements,
+    availableExperiences,
     clearSystemChat,
+    escapeHtml,
     getInputValue,
     getSystemChat,
     hide,
@@ -597,5 +583,6 @@ export {
     submit,
     toggleMemberInput,
     toggleInputTextarea,
+    toggleVisibility,
     waitForUserAction,
 }

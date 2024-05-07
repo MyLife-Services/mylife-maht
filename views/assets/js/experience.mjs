@@ -3,6 +3,7 @@ import {
     addMessageToColumn,
     assignElements,
     clearSystemChat,
+    escapeHtml,
     getInputValue,
     getSystemChat,
     hide,
@@ -176,8 +177,9 @@ async function experienceStart(experience){
     mExperience = experience
     /* present stage */
     mStageWelcome()
-    const { description, events: _events=[], id, name, purpose, title, skippable=false } = mExperience
-    mExperience.events = (_events.length) ? _events : await mEvents()
+    const { description, events, id, name, purpose, title, skippable=false } = mExperience
+    if(!events?.length)
+        mExperience.events = await mEvents()
     /* experience manifest */
     const manifest = await mManifest(id)
     if(!manifest)
@@ -397,7 +399,7 @@ function mCreateCharacterDialog(){
     dialogDiv.name = `dialog-${mEvent.id}`
     // set random type (max 3)
     const dialogType = Math.floor(Math.random() * 3) + 1
-    dialogDiv.textContent = mEvent.dialog.dialog
+    dialogDiv.innerHTML = `<p>${ mEvent.dialog.dialog }</p>`
     dialogDiv.classList.add('char-dialog-box')
     dialogDiv.classList.add(`dialog-type-${dialogType}`)
     return dialogDiv
@@ -694,7 +696,9 @@ async function mEvents(memberInput){
     })
     if(!response.ok)
         throw new Error(`HTTP error! Status: ${response.status}`)
-    const { autoplay, events, id, location, name, purpose, skippable, } = await response.json()
+    let { autoplay, events, id, location, name, purpose, skippable, } = await response.json()
+    if(!events?.length)
+        events = await mEvents()
     mExperience.location = location
     return events
 }
@@ -916,6 +920,7 @@ function mStageWelcome(){
         })
     }, { once: true })
     screen.classList.add('modal-screen')
+    show(screen)
 }
 /**
  * Toggles the input lane for the moderator.
