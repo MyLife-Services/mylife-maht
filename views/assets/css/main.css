@@ -196,7 +196,7 @@ body {
     border-radius: 22px;
 	box-sizing: border-box;
 	display: none;
-	flex: 1 1 66%; /* Use flex to assign 66% of the space */
+	flex: 1 0 auto;
 	height: auto;
 	max-width: 100%;
 	min-height: 50vh;
