@@ -76,7 +76,7 @@ function addMessageToColumn(message, options={
 	_delay: 10,
 	_typewrite: true,
 }){
-    let messageContent = message.message ?? message
+    const messageContent = message.message ?? message
 	const {
 		bubbleClass,
 		_delay,
@@ -85,7 +85,7 @@ function addMessageToColumn(message, options={
 	const chatBubble = document.createElement('div')
     chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.classList.add('chat-bubble', bubbleClass)
-    chatBubble.innerHTML = messageContent
+    chatBubble.innerHTML = escapeHtml(messageContent)
     mChatBubbleCount++
 	systemChat.appendChild(chatBubble)
 }
@@ -122,21 +122,8 @@ function clearSystemChat(){
     // Remove all chat bubbles and experience chat-lanes under chat-system
     systemChat.innerHTML = ''
 }
-/**
- * Escapes HTML text.
- * @public
- * @param {string} text - The text to escape.
- * @returns {string} - The escaped HTML text.
- */
-function escapeHtml(text){
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+function escapeHtml(text) {
+    return mGlobals.escapeHtml(text)
 }
 function getInputValue(){
     return chatInputField.value.trim()
@@ -597,6 +584,7 @@ export {
     assignElements,
     availableExperiences,
     clearSystemChat,
+    escapeHtml,
     getInputValue,
     getSystemChat,
     hide,

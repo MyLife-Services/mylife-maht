@@ -55,6 +55,7 @@
 	height: auto;
 	overflow: hidden;
     padding: 0 0.5em;
+	position: relative;
 	width: 100%;
 }
 .chat-member,

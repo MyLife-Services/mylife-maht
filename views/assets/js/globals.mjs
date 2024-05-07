@@ -33,6 +33,22 @@ class Globals {
             mLoginSelect.addEventListener('change', mSelectLoginId, { once: true })
     }
     /* public functions */
+	/**
+	 * Escapes HTML characters in a string.
+	 * @param {string} text - The text to escape.
+	 * @returns {string} - The escaped text.
+	 */
+	escapeHtml(text){
+		const map = {
+			'&': '&amp;',
+			'<': '&lt;',
+			'>': '&gt;',
+			'"': '&quot;',
+			"'": '&#039;'
+		}
+		const escapedText = text.replace(/[&<>"']/g, m=>(map[m]) )
+		return escapedText
+	}
     /**
      * Returns the avatar object if poplated by on-page EJS script.
      * @todo - refactor to api call

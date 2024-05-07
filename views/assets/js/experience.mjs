@@ -3,6 +3,7 @@ import {
     addMessageToColumn,
     assignElements,
     clearSystemChat,
+    escapeHtml,
     getInputValue,
     getSystemChat,
     hide,
@@ -398,7 +399,7 @@ function mCreateCharacterDialog(){
     dialogDiv.name = `dialog-${mEvent.id}`
     // set random type (max 3)
     const dialogType = Math.floor(Math.random() * 3) + 1
-    dialogDiv.textContent = mEvent.dialog.dialog
+    dialogDiv.innerHTML = `<p>${ mEvent.dialog.dialog }</p>`
     dialogDiv.classList.add('char-dialog-box')
     dialogDiv.classList.add(`dialog-type-${dialogType}`)
     return dialogDiv
