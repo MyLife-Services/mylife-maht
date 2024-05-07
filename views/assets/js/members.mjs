@@ -340,8 +340,6 @@ function bot(_id){
  * @returns {void}
  */
 function mExperienceStart(event){
-    event.preventDefault()
-    event.stopImmediatePropagation()
     mExperience = mExperiences[0]
     if(mExperience)
         stageTransition()

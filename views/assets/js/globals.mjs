@@ -200,7 +200,6 @@ function mHide(element, callbackFunction){
  * @returns {boolean} - Whether the element is visible.
  */
 function mIsVisible(classList){
-    console.log('mIsVisible', classList)
     return classList.contains('show')
 }
 function mLogin(){
