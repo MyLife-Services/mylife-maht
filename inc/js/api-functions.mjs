@@ -36,48 +36,10 @@ async function experienceCast(ctx){
  * @property {object} scene - Scene data, regardless if "current" or new.
  */
 async function experience(ctx){
-    /* reject if experience is locked */
-    /* lock could extend to gating requests as well */
-    if(ctx.state.MemberSession.experienceLock){
-        // @stub - if experience is locked, perhaps request to run an internal check to see if exp is bugged or timed out
-        ctx.throw(500, 'Experience is locked. Wait for previous event to complete. If bugged, end experience and begin again.')
-    }
-    await mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id, } = ctx.state
+    mAPIKeyValidation(ctx)
+    const { MemberSession, } = ctx.state
     const { eid, } = ctx.params
-    let events = []
-    ctx.state.MemberSession.experienceLock = true
-    try{ // requires try, as locks would otherwise not release on unidentified errors
-        if(!avatar.isInExperience){
-            await avatar.experienceStart(eid)
-        }
-        else {
-            const eventSequence = await avatar.experiencePlay(eid, ctx.request.body)
-            events = eventSequence
-            console.log(chalk.yellowBright('experience() events'), events?.length)
-        } 
-    } catch (error){
-        console.log(chalk.redBright('experience() error'), error, avatar.experience)
-        const { experience } = avatar
-        if(experience){ // embed error in experience
-            experience.errors = experience.errors ?? []
-            experience.errors.push(error)
-        }
-    }
-    const { experience } = avatar
-    const { autoplay, location, title, } = experience
-    ctx.body = {
-        autoplay,
-        events,
-        location,
-        title,
-    }
-    ctx.state.MemberSession.experienceLock = false
-    if(events.find(event=>{ return event.action==='end' && event.type==='experience' })){
-        if(!avatar.experienceEnd(eid)) // attempt to end experience
-            throw new Error('Experience failed to end.')
-    }
-    return
+    ctx.body = await MemberSession.experience(eid, ctx.request.body)
 }
 /**
  * Request to end an active Living-Experience for member.
@@ -85,21 +47,11 @@ async function experience(ctx){
  * @returns {Object} - Represents `ctx.body` object with following `experience` properties.
  * @property {boolean} success - Success status, true/false.
  */
-async function experienceEnd(ctx){
-    await mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
-    const { eid } = ctx.params
-    let endSuccess = false
-    try {
-        endSuccess = avatar.experienceEnd(eid)
-    } catch(err) {
-        console.log(chalk.redBright('experienceEnd() error'), err)
-        // can determine if error is critical or not, currently implies there is no running experience
-        endSuccess = true
-    }
-    ctx.body = endSuccess
-    ctx.state.MemberSession.experienceLock = !ctx.body
-    return
+function experienceEnd(ctx){
+    mAPIKeyValidation(ctx)
+    const { MemberSession, } = ctx.state
+    const { eid, } = ctx.params
+    ctx.body = MemberSession.experienceEnd(eid)
 }
 /**
  * Delivers the manifest of an experience. Manifests are the data structures that define the experience, including scenes, events, and other data. Experience must be "started" in order to request.
@@ -109,18 +61,18 @@ async function experienceEnd(ctx){
  * @property {Array} cast - Experience cast array.
  * @property {Object} navigation - Navigation object (optional - for interactive display purposes only).
  */
-async function experienceManifest(ctx){
-    await mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
+function experienceManifest(ctx){
+    mAPIKeyValidation(ctx)
+    const { avatar, } = ctx.state
     ctx.body = avatar.manifest
     return
 }
 /**
  * Navigation array of scenes for experience.
  */
-async function experienceNavigation(ctx){
-    await mAPIKeyValidation(ctx)
-    const { assistantType, avatar, mbr_id } = ctx.state
+function experienceNavigation(ctx){
+    mAPIKeyValidation(ctx)
+    const { avatar, } = ctx.state
     ctx.body = avatar.navigation
     return
 }
@@ -132,12 +84,16 @@ async function experienceNavigation(ctx){
  * @property {array} experiences - Array of Experience shorthand objects.
  */
 async function experiences(ctx){
-    await mAPIKeyValidation(ctx)
-    const { assistantType, MemberSession } = ctx.state
+    mAPIKeyValidation(ctx)
+    const { MemberSession, } = ctx.state
     // limit one mandatory experience (others could be highlighted in alerts) per session
     const experiencesObject = await MemberSession.experiences()
     ctx.body = experiencesObject
-    return
+}
+async function experiencesLived(ctx){
+    mAPIKeyValidation(ctx)
+    const { MemberSession, } = ctx.state
+    ctx.body = MemberSession.experiencesLived
 }
 async function keyValidation(ctx){ // from openAI
     await mAPIKeyValidation(ctx)
@@ -192,7 +148,6 @@ async function library(ctx){
         message: `library function(s) completed successfully.`,
         success: true,
     }
-    return
 }
 /**
  * Login function for member. Requires mid in params.
@@ -207,7 +162,6 @@ async function login(ctx){
         ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
 	ctx.session.MemberSession.challenge_id = decodeURIComponent(ctx.params.mid)
     ctx.body = { challengeId: ctx.session.MemberSession.challenge_id }
-    return
 }
 /**
  * Logout function for member.
@@ -218,7 +172,6 @@ async function logout(ctx){
     ctx.session = null
     ctx.status = 200
     ctx.body = { success: true }
-    return
 }
 async function register(ctx){
 	const _registrationData = ctx.request.body
@@ -253,7 +206,6 @@ async function register(ctx){
         message: 'Registration completed successfully.',
 		data: _return,
     }
-	return
 }
 /**
  * Functionality around story contributions.
@@ -274,7 +226,6 @@ async function story(ctx){
         success: true,
         message: 'Story submitted successfully.',
     }
-    return
 }
 /**
  * Management of Member Story Libraries. Note: Key validation is performed in library(). Story library may have additional functionality inside of core/MyLife
@@ -368,9 +319,9 @@ async function mAPIKeyValidation(ctx){ // transforms ctx.state
     }
 }
 function mTokenType(ctx){
-    const _token = ctx.state.token
-    const _assistantType = mBotSecrets?.[_token]??'personal-avatar'
-    return _assistantType
+    const { token, } = ctx.state
+    const assistantType = mBotSecrets?.[token] ?? 'personal-avatar'
+    return assistantType
 }
 function mTokenValidation(_token){
     return mBotSecrets?.[_token]?.length??false
@@ -383,6 +334,7 @@ export {
     experienceManifest,
     experienceNavigation,
     experiences,
+    experiencesLived,
     keyValidation,
     library,
     login,
