@@ -196,11 +196,9 @@ body {
     border-radius: 22px;
 	box-sizing: border-box;
 	display: none;
-	flex: 1 1 66%; /* Use flex to assign 66% of the space */
+	flex: 0 65%;
 	height: auto;
-	max-width: 100%;
-	min-height: 50vh;
-	min-width: 66%;
+	min-height: 70vh;
 	overflow: hidden;
     padding: 0px;
 }
@@ -358,12 +356,12 @@ body {
 	border: rgb(0, 25, 51, .3) 2px dotted;
     border-radius: 22px;
 	display: none;
-	flex: 0 0 33%; /* Use flex to assign 33% of the space */
+	flex: 0 auto;
 	flex-direction: column;
 	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
 	font-size: 0.8em;
 	height: fit-content; /* 100% will stretch to bottom */
-	max-width: 33%;
+	max-width: 35%;
     padding: 0px;
 }
 .sidebar-widget {

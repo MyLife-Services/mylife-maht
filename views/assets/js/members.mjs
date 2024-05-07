@@ -76,7 +76,7 @@ function addMessageToColumn(message, options={
 	_delay: 10,
 	_typewrite: true,
 }){
-    let messageContent = message.message ?? message
+    const messageContent = message.message ?? message
 	const {
 		bubbleClass,
 		_delay,
@@ -85,7 +85,7 @@ function addMessageToColumn(message, options={
 	const chatBubble = document.createElement('div')
     chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.classList.add('chat-bubble', bubbleClass)
-    chatBubble.innerHTML = messageContent
+    chatBubble.innerHTML = escapeHtml(messageContent)
     mChatBubbleCount++
 	systemChat.appendChild(chatBubble)
 }
@@ -122,21 +122,8 @@ function clearSystemChat(){
     // Remove all chat bubbles and experience chat-lanes under chat-system
     systemChat.innerHTML = ''
 }
-/**
- * Escapes HTML text.
- * @public
- * @param {string} text - The text to escape.
- * @returns {string} - The escaped HTML text.
- */
-function escapeHtml(text){
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+function escapeHtml(text) {
+    return mGlobals.escapeHtml(text)
 }
 function getInputValue(){
     return chatInputField.value.trim()
@@ -353,11 +340,9 @@ function bot(_id){
  * @returns {void}
  */
 function mExperienceStart(event){
-    event.preventDefault()
-    event.stopImmediatePropagation()
-    console.log('mExperienceStart()', mExperiences)
     mExperience = mExperiences[0]
-    stageTransition()
+    if(mExperience)
+        stageTransition()
 }
 function mFetchExperiences(){
     return fetch('/members/experiences/')
@@ -562,28 +547,14 @@ function toggleMemberInput(display=true, hidden=false){
     if(hidden)
         hide(chatInput)
 }
-// Function to toggle between textarea and input based on character count
-function toggleInputTextarea(){
-    const inputStyle = window.getComputedStyle(chatInput)
-    const inputFont = inputStyle.font
-    const textWidth = getTextWidth(chatInputField.value, inputFont) // no trim required
-    const inputWidth = chatInput.offsetWidth
-	/* pulse */
-	clearTimeout(typingTimer);
-    spinner.style.display = 'none';
-    mResetAnimation(spinner); // Reset animation
-    typingTimer = setTimeout(() => {
-        spinner.style.display = 'block';
-        mResetAnimation(spinner); // Restart animation
-    }, 2000)
-    const listenerFunction = toggleInputTextarea
-    if (textWidth>inputWidth && chatInputField.tagName!=='TEXTAREA') { // Expand to textarea
-        chatInputField = replaceElement(chatInputField, 'textarea', true, 'input', listenerFunction)
-        focusAndSetCursor(chatInputField);
-    } else if (textWidth<=inputWidth && chatInputField.tagName==='TEXTAREA' ) { // Revert to input
-		chatInputField = replaceElement(chatInputField, 'input', true, 'input', listenerFunction)
-        focusAndSetCursor(chatInputField)
-    }
+/**
+ * Toggles the input textarea.
+ * @param {Event} event - The event object.
+ * @returns {void} - The return is void.
+ */
+function toggleInputTextarea(event){
+    chatInputField.style.height = 'auto' // Reset height to shrink if text is removed
+    chatInputField.style.height = chatInputField.scrollHeight + 'px' // Set height based on content
 	toggleSubmitButtonState()
 }
 function toggleSubmitButtonState() {
@@ -611,6 +582,7 @@ export {
     assignElements,
     availableExperiences,
     clearSystemChat,
+    escapeHtml,
     getInputValue,
     getSystemChat,
     hide,

@@ -347,27 +347,29 @@ function mOpenStatusDropdown(element){
             }
         })
         var content = element.querySelector('.bot-options')
-        console.log('mOpenStatusDropdown', content, element)
         if(content)
             content.classList.toggle('open')
         var dropdown = element.querySelector('.bot-options-dropdown')
         if(dropdown)
             dropdown.classList.toggle('open')
 }
+/**
+ * Refresh collection on click.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
 async function mRefreshCollection(event){
     const { id, } = event.target
     const type = id.split('-').pop()
     if(!mLibraries.includes(type))
         throw new Error(`Library collection not implemented.`)
     const collection = await fetchCollections(type)
+    const collectionList = document.getElementById(`collection-list-${ type }`)
+    show(collectionList) /* no toggle, just show */
     if(!collection.length) /* no items in collection */
         return
-    const collectionList = document.getElementById(`collection-list-${ type }`)
-    if(!collectionList)
-        throw new Error(`Library collection list not found! Attempting element by id: "collection-list-${ type }".`)
     mUpdateCollection(type, collection, collectionList)
     event.target.addEventListener('click', mRefreshCollection, { once: true })
-    return collection
 }
 /**
  * Set Bot data on server.

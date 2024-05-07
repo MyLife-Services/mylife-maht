@@ -47,23 +47,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     /* display page */
     mShowPage()
 })
-/* public functions */
-/**
- * Escapes HTML characters in a string.
- * @param {string} text - The text to escape.
- * @returns {string} - The escaped text.
- */
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    }
-    const escapedText = text.replace(/[&<>"']/g, m=>(map[m]) )
-    return escapedText
-}
 /* private functions */
 /**
  * Adds a message to the chat column.
@@ -89,7 +72,7 @@ function mAddMessage(message, options={
 	chatBubble.className = `chat-bubble ${bubbleClass}`
 	mChatBubbleCount++
 	chatSystem.appendChild(chatBubble)
-	messageContent = escapeHtml(messageContent)
+	messageContent = mGlobals.escapeHtml(messageContent)
 	if(typewrite){
 		let i = 0
 		let tempMessage = ''
@@ -121,7 +104,7 @@ function mAddUserMessage(event){
     // Dynamically get the current message element (input or textarea)
     let userMessage = chatInput.value.trim()
     if (!userMessage.length) return
-    userMessage = escapeHtml(userMessage) // Escape the user message
+    userMessage = mGlobals.escapeHtml(userMessage) // Escape the user message
     mSubmitInput(event, userMessage)
     mAddMessage({ message: userMessage }, {
         bubbleClass: 'user-bubble',
@@ -313,8 +296,4 @@ function mToggleButton(event){
         chatSubmit.disabled = true
         chatSubmit.style.cursor = 'not-allowed'
     }
-}
-/* exports */
-export {
-    escapeHtml,
 }
