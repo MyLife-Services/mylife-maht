@@ -353,21 +353,8 @@ function mFetchExperiences(){
         })
         .catch(error=>console.log('mFetchExperiences::Error()', error))
 }
-// Function to focus on the textarea and move cursor to the end
-function focusAndSetCursor(textarea) {
-    textarea.focus();
-    // Move the cursor to the end of the text
-    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
-}
 function getActiveCategory(){
 	return activeCategory
-}
-function getTextWidth(text, font) {
-    // Create a temporary canvas element to measure text width
-    let canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
-    let context = canvas.getContext("2d");
-    context.font = font;
-    return context.measureText(text).width;
 }
 /**
  * Initialize modular variables based on server fetch.
