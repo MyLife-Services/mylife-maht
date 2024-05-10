@@ -975,7 +975,7 @@ function mUpdateModerator(clearModerator=false){
 }
 /**
  * Displays the `Welcome` start button, completing instantly all backstage animations.
- * @modular
+ * @module
  * @returns {void}
  */
 function mUpdateStartButton(){

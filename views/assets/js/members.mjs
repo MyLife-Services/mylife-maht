@@ -354,7 +354,7 @@ function getActiveCategory(){
 	return activeCategory
 }
 /**
- * Initialize modular variables based on server fetch.
+ * Initialize module variables based on server fetch.
  * @private
  * @requires mExperience
  * @requires mExperiences

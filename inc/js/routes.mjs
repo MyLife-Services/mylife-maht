@@ -11,6 +11,7 @@ import {
     collections,
     contributions,
     deleteItem,
+    help,
     index,
     interfaceMode,
     login,
@@ -56,6 +57,7 @@ _Router.get('/privacy-policy', privacyPolicy)
 _Router.get('/signup', status_signup)
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
+_Router.post('/help', help)
 _Router.post('/signup', signup)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)

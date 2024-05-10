@@ -2,7 +2,7 @@ import { Marked } from 'marked'
 import EventEmitter from 'events'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import LLMServices from './mylife-llm-services.mjs'
-/* modular constants */
+/* module constants */
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
 const mAllowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
@@ -12,7 +12,7 @@ const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
  * @extends EventEmitter
  * @description An avatar is a digital self proxy of Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The Avatar is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
  * @todo - deprecate `factory` getter
- * @todo - more efficient management of modular constants, should be classes?
+ * @todo - more efficient management of module constants, should be classes?
  */
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
@@ -34,7 +34,7 @@ class Avatar extends EventEmitter {
     #livedExperiences = [] // array of ids for lived experiences
     #livingExperience
     #llmServices
-    #mode = 'standard' // interface-mode from modular `mAvailableModes`
+    #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as getter is complex
     #proxyBeing = 'human'
     /**
@@ -310,6 +310,35 @@ class Avatar extends EventEmitter {
     getConversation(thread_id){
         return this.#conversations
             .find(_=>_.thread?.id===thread_id)
+    }
+    /**
+     * Request help about MyLife.
+     * @param {string} helpRequest - The help request text.
+     * @param {string} type - The type of help request.
+     * @param {string} mbrId - The member id requesting help.
+     * @returns {object} - The help response message.
+     */
+    async help(helpRequest, type, mbrId){
+        if(!helpRequest?.length)
+            throw new Error('Help request required.')
+        switch(type){
+            case 'account':
+            case 'membership':
+                if(mbrId!==this.mbr_id)
+                    throw new Error(`Members can only request information about their own accounts.`)
+                // special case for MyLife?
+                break
+            case 'interface':
+                break
+            case 'general':
+            case 'help':
+            default:
+                break
+        }
+        return {
+            message: `I'm sorry, I cannot help with that at this time.`,
+            type,
+        }
     }
     /**
      * Allows member to reset passphrase.
@@ -761,10 +790,10 @@ class Avatar extends EventEmitter {
             this.#nickname = nickname
     }
 }
-/* modular functions */
+/* module functions */
 /**
  * Assigns evolver listeners.
- * @modular
+ * @module
  * @param {AgentFactory} factory - Agent Factory object
  * @param {EvolutionAssistant} evolver - Evolver object
  * @param {Avatar} avatar - Avatar object
@@ -808,7 +837,7 @@ function mAssignEvolverListeners(factory, evolver, avatar){
 /**
  * Assigns (directly mutates) private experience variables from avatar.
  * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
- * @modular
+ * @module
  * @param {object} experienceVariables - Experience variables object from Avatar class definition.
  * @param {Avatar} avatar - Avatar instance.
  * @returns {void} - mutates experienceVariables
@@ -827,7 +856,7 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
 /**
  * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
  * @todo Fix occasions where there will be no object_id property to use, as it was created through a hydration method based on API usage, so will be attached to mbr_id, but NOT avatar.id
- * @modular
+ * @module
  * @param {AgentFactory} factory - Agent Factory object
  * @param {Avatar} avatar - Avatar object that will govern bot
  * @param {object} bot - Bot object
@@ -866,7 +895,7 @@ async function mBot(factory, avatar, bot){
  * Makes call to LLM and to return response(s) to prompt.
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
  * @todo - address disconnect between conversations held in memory in avatar and those in openAI threads; use `addLLMMessages` to post internally
- * @modular
+ * @module
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
@@ -887,7 +916,7 @@ async function mCallLLM(llmServices, conversation, prompt, factory){
 }
 /**
  * Cancels openAI run.
- * @modular
+ * @module
  * @param {LLMServices} llmServices - OpenAI object
  * @param {string} threadId - Thread id
  * @param {string} runId - Run id
@@ -905,7 +934,7 @@ async function mCancelRun(llmServices, threadId, runId,){
  * @todo - any trouble retrieving a known actor should be understudied by... Q? or personal-avatar? yes, personal avatar for now
  * @todo - implement `creator` version of actor
  * @todo - include variables for names of roles/actors
- * @modular
+ * @module
  * @param {AgentFactory} factory - Agent Factory object
  * @param {array} cast - Array of cast objects
  * @returns {Promise<array>} - Array of ExperienceCastMember instances
@@ -964,7 +993,7 @@ async function mEventCharacter(llm, experience, character){
  * @todo - add LLM usage data to conversation
  * @todo - when `variable` undefined in `experience.variables`, check to see if event can be found that will provide it
  * @todo - seems unnecessary to have experience extension handling basic data construction at this stage... refactor, tho?
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently
  * @param {Experience} experience - Experience class instance.
@@ -1026,7 +1055,7 @@ async function mEventDialog(llm, experience, event, iteration=0){
  * Returns a processed memberInput event.
  * @todo - once conversations are not spurred until needed, add a third conversation to the experience, which would be the scriptAdvisor (not actor) to determine success conditions for scene, etc.
  * @todo - handle complex success conditions
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently.
  * @param {Experience} experience - Experience class instance.
@@ -1149,7 +1178,7 @@ async function mEventInput(llm, experience, event, iteration=0, memberInput){
  * @todo - mutations should be handled by `ExperienceEvent` extenders.
  * @todo - script dialog change, input assessment, success evals to completions or cheaper? babbage-002 ($0.40/m) is only cheaper than 3.5 ($3.00/m); can test efficacy for dialog completion, otherwise, 3.5 exceptional
  * @todo - iterations need to be re-included, although for now, one dialog for experience is fine
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently
  * @param {Experience} experience - Experience class instance.
@@ -1202,7 +1231,7 @@ async function mEventProcess(llm, experience, event, memberInput){
  * Returns a processed stage event.
  * @todo - add LLM usage data to conversation.
  * @todo - when `action==='stage'`, deprecate effects and actor
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently.
  * @param {Experience} experience - Experience class instance.
@@ -1223,7 +1252,7 @@ function mEventStage(llm, experience, stage){
  * @todo - allow auto-skip to scene/event?
  * @todo - Branching and requirements for scene entry and completion
  * @todo - ExperienceScene and ExperienceEvent should be classes?
- * @modular
+ * @module
  * @public
  * @param {AgentFactory} factory - AgentFactory object
  * @param {object} llm - ai interface object
@@ -1376,7 +1405,7 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
 }
 /**
  * Gets bot by id.
- * @modular
+ * @module
  * @param {object} avatar - Avatar instance.
  * @param {string} _botId - Bot id
  * @returns {object} - Bot object
@@ -1388,7 +1417,7 @@ function mFindBot(avatar, _botId){
 }
 /**
  * Returns simple micro-category after logic mutation.
- * @modular
+ * @module
  * @param {string} _category text of category
  * @returns {string} formatted category
  */
@@ -1401,7 +1430,7 @@ function mFormatCategory(_category){
 }
 /**
  * Returns MyLife-version of chat category object
- * @modular
+ * @module
  * @param {object} _category - local front-end category { category, contributionId, question/message/content }
  * @returns {object} - local category { category, contributionId, content }
  */
@@ -1455,7 +1484,7 @@ function mNavigation(scenes){
 /**
  * returns simple micro-message with category after logic mutation. 
  * Currently tuned for openAI gpt-assistant responses.
- * @modular
+ * @module
  * @private
  * @param {string} _msg text of message, currently from gpt-assistants
  * @returns {object} { category, content }
@@ -1484,7 +1513,7 @@ function mPrepareMessage(_msg){
  * Replaces variables in prompt with Experience values.
  * @todo - variables should be back populated to experience, confirm
  * @todo - events could be identified where these were input if empty
- * @modular
+ * @module
  * @private
  * @param {string} prompt - Dialog prompt, replace variables.
  * @param {string[]} variableList - List of variables to replace.
@@ -1501,7 +1530,7 @@ function mReplaceVariables(prompt, variableList, variableValues){
 }
 /**
  * Returns a sanitized event.
- * @modular
+ * @module
  * @param {ExperienceEvent} event - Event object.
  * @returns {object} - Synthetic Event object.
  */
