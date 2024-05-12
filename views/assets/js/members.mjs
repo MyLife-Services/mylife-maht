@@ -116,8 +116,7 @@ function availableExperiences(){
  * @returns {void}
  */
 function clearSystemChat(){
-    // Remove all chat bubbles and experience chat-lanes under chat-system
-    systemChat.innerHTML = ''
+    mGlobals.clearElement(systemChat)
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)

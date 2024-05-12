@@ -24,6 +24,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mHelpInput,
     mHelpInputText,
     mHelpInputSubmit,
+    mHelpRefresh,
     mHelpSystemChat,
     mHelpType,
     mLoaded = false,
@@ -55,6 +56,7 @@ class Globals {
             mHelpInput = document.getElementById('help-input') /* container for help user input */
             mHelpInputText = document.getElementById('help-input-text')
             mHelpInputSubmit = document.getElementById('help-input-submit')
+            mHelpRefresh = document.getElementById('help-chat-refresh')
             mHelpSystemChat = document.getElementById('help-chat') /* container for help system chat */
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
             mNavigation = document.getElementById('navigation-container')
@@ -73,6 +75,7 @@ class Globals {
             mHelpClose.addEventListener('click', mToggleHelp)
             mHelpInputSubmit.addEventListener('click', mSubmitHelp)
             mHelpInputText.addEventListener('input', mToggleHelpSubmit)
+            mHelpRefresh.addEventListener('click', mChatRefresh)
             mHelpType.addEventListener('click', mSetHelpType)
             mNavigationHelpIcon.addEventListener('click', mToggleHelp)
             Array.from(mHelpType.children)?.[0]?.click() // default to first type
@@ -87,6 +90,14 @@ class Globals {
             mLoginSelect.addEventListener('change', mSelectLoginId, { once: true })
     }
     /* public functions */
+    /**
+     * Clears an element of its contents, brute force currently via innerHTML.
+     * @param {HTMLElement} element - The element to clear.
+     * @returns {void}
+     */
+    clearElement(element){
+        mClearElement(element)
+    }
 	/**
 	 * Escapes HTML characters in a string.
 	 * @param {string} text - The text to escape.
@@ -246,6 +257,26 @@ function mAnimationEnd(animation, callbackFunction){
     animation.stopPropagation()
     if(callbackFunction)
         callbackFunction(animation)
+}
+/**
+ * Refreshes Help Chat.
+ * @todo - remove hack
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mChatRefresh(event){
+    const reattachRefresh = mHelpRefresh // @stub - hack
+    mClearElement(mHelpSystemChat)
+    mHelpSystemChat.appendChild(reattachRefresh)
+}
+/**
+ * Clears an element of its contents, brute force currently via innerHTML.
+ * @private
+ * @param {HTMLElement} element - The element to clear.
+ * @returns {void}
+ */
+function mClearElement(element){
+    element.innerHTML = ''
 }
 /**
  * Hides an element, pre-executing any included callback function.
