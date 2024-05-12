@@ -1,3 +1,4 @@
+@import url('animations.css');
 @import url('bot-bar.css');
 @import url('chat.css');
 @import url('experience.css');
@@ -315,6 +316,23 @@ body {
 	padding: 0em 1.05em 1.05em 1.05em;
 }
 /* MyLife Generic Popup */
+.popup-await {
+	align-items: center;
+	animation: slideInFromBottom 1s	ease-out;
+	border: solid aliceblue;
+	background-color: navy;
+	display: none;
+	justify-content: center;
+	margin: 0.5rem 1rem;
+	padding: 0.5rem 1rem;
+	width: auto;
+}
+.popup-await-text {
+	animation: blink 1.5s infinite;
+	color: aliceblue;
+	font-size: 1rem;
+	font-weight: normal;
+}
 .popup-close {
 	position: absolute;
     top: .5em;
@@ -410,6 +428,14 @@ body {
     font-weight: bold;
 }
 /* MyLife Help System */
+.help-await {
+	border: medium solid lightpink;
+	border-radius: 0.6rem;
+}
+.help-await-text {
+	font-size: 1.2rem;
+	font-weight: bold;
+}
 .help-close {
 	padding: 0.1em;
 }
@@ -517,13 +543,6 @@ body {
 }
 .help-input-text:focus {
 	color: purple;
-}
-.help-await {
-    display: none;
-    text-align: center;
-    padding: 10px;
-    background-color: #ffffe0;
-    font-style: italic;
 }
 /* MyLife sidebar */
 .input {

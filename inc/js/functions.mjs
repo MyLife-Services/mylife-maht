@@ -115,11 +115,12 @@ async function deleteItem(ctx){
  * @returns {object} - Help response message object.
  */
 async function help(ctx){
-	const { helpRequest, mbr_id, type=`general`, } = ctx.request?.body
-	const { avatar } = ctx.state
+	const { helpRequest, type=`general`, } = ctx.request?.body
 	if(!helpRequest?.length)
 		ctx.throw(400, `missing help request text`)
-	ctx.body = await avatar.help(helpRequest, type, mbr_id)
+	const { avatar } = ctx.state
+	const _avatar = type==='membership' ? avatar : ctx.MyLife.avatar
+	ctx.body = await _avatar.help(helpRequest, type)
 }
 /**
  * Index page for the application.

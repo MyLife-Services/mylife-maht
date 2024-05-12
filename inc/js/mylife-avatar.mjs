@@ -50,6 +50,8 @@ class Avatar extends EventEmitter {
     }
     /* public functions */
     /**
+     * Initialize the Avatar class.
+     * @todo - create class-extender specific to the "singleton" MyLife avatar
      * @async
      * @public
      * @returns {Promise} Promise resolves to this Avatar class instantiation
@@ -90,7 +92,7 @@ class Avatar extends EventEmitter {
             mAssignEvolverListeners(this.#factory, this.#evolver, this)
             /* init evolver */
             await this.#evolver.init()
-        } else { // Q-specific, leave as `else` as is near always false
+        } else { // @stub - Q-specific, leave as `else` as is near always false
             this.activeBotId = activeBot.id
             activeBot.bot_id = mBotIdOverride ?? activeBot.bot_id
             this.#llmServices.botId = activeBot.bot_id
@@ -143,22 +145,7 @@ class Avatar extends EventEmitter {
                     && message.type==='chat'
                     && message.role!=='user'
             })
-            .map(message=>{
-                message = mPrepareMessage(message.content) // returns object { category, content }
-                const { category, content } = message
-                return {
-                    activeBotId: bot.id,
-                    activeBotAIId: bot.bot_id,
-                    agent: 'server',
-                    category: category,
-                    contributions: [],
-                    message: content,
-                    purpose: 'chat response',
-                    response_time: Date.now()-processStartTime,
-                    thread_id: conversation.thread_id,
-                    type: 'chat',
-                }
-            })
+            .map(message=>mPruneMessage(bot, message.content, 'chat', processStartTime))
         return chat
     }
     /**
@@ -312,33 +299,40 @@ class Avatar extends EventEmitter {
             .find(_=>_.thread?.id===thread_id)
     }
     /**
-     * Request help about MyLife.
+     * Returns all conversations of a specific-type stored in memory.
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @returns {Conversation[]} - The array of conversation objects.
+     */
+    getConversations(type='chat'){
+        return this.#conversations
+            .filter(_=>_?.type===type)
+    }
+    /**
+     * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
      * @param {string} helpRequest - The help request text.
      * @param {string} type - The type of help request.
-     * @param {string} mbrId - The member id requesting help.
-     * @returns {object} - The help response message.
+     * @returns {Promise<Object>} - openai `message` objects.
      */
-    async help(helpRequest, type, mbrId){
+    async help(helpRequest, type){
+        const processStartTime = Date.now()
         if(!helpRequest?.length)
             throw new Error('Help request required.')
-        switch(type){
-            case 'account':
-            case 'membership':
-                if(mbrId!==this.mbr_id)
-                    throw new Error(`Members can only request information about their own accounts.`)
-                // special case for MyLife?
-                break
-            case 'interface':
-                break
-            case 'general':
-            case 'help':
-            default:
-                break
-        }
-        return {
-            message: `I'm sorry, I cannot help with that at this time.`,
-            type,
-        }
+        // @stub - force-type into enum?
+        helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
+        const { thread_id, } = this.activeBot
+        const { bot_id, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
+            ?? this.helpBots?.[0]
+            ?? this.activeBot
+        // @stub rewrite mCallLLM, but ability to override conversation? No, I think in general I would prefer this to occur at factory  as it is here
+        const conversation = this.getConversation(thread_id)
+        const helpResponseArray = await this.factory.help(thread_id, bot_id, helpRequest)
+        conversation.addMessages(helpResponseArray)
+        if(mAllowSave)
+            conversation.save()
+        else
+            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+        const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
+        return response
     }
     /**
      * Allows member to reset passphrase.
@@ -464,7 +458,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The personal avatar bot.
      */
     get avatarBot(){
-        return this.#bots.find(_bot=>_bot.type==='personal-avatar')
+        return this.bots.find(_bot=>_bot.type==='personal-avatar')
     }
     /**
      * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
@@ -626,6 +620,19 @@ class Avatar extends EventEmitter {
     get globals(){
         return this.#factory.globals
     }
+    /**
+     * Get the help bots, primarily MyLife avatar, though presume there are a number of custom self-help bots that would be capable of referencing preferences, internal searches, etc.
+     * @getter
+     * @returns {array} - The help bots.
+     */
+    get helpBots(){
+        return this.bots.filter(bot=>bot.type==='help')
+    }
+    /**
+     * Test whether avatar is in an `experience`.
+     * @getter
+     * @returns {boolean} - Avatar is in `experience` (true) or not (false).
+     */
     get isInExperience(){
         return this.mode==='experience'
     }
@@ -1451,6 +1458,28 @@ function mGetChatCategory(_category) {
     return _proposedCategory
 }
 /**
+ * Include help preamble to _LLM_ request, not outbound to member/guest.
+ * @todo - expand to include other types of help requests, perhaps more validation.
+ * @param {string} type - The type of help request.
+ * @param {boolean} isMyLife - Whether the request is from MyLife.
+ * @returns {string} - The help preamble to be included.
+ */
+function mHelpIncludePreamble(type, isMyLife){
+    switch(type){
+        case 'account':
+        case 'membership':
+            if(isMyLife)
+                throw new Error(`Members can only request information about their own accounts.`)
+            return 'Following help request is for MyLife member account information or management:\n'
+        case 'interface':
+            return 'Following question is expected to be about MyLife Member Platform Interface:\n'
+        case 'general':
+        case 'help':
+        default:
+            return 'Following help request is about MyLife in general:\n'
+    }
+}
+/**
  * Get experience scene navigation array.
  * @getter
  * @returns {Object[]} - The scene navigation array for the experience.
@@ -1484,30 +1513,67 @@ function mNavigation(scenes){
 /**
  * returns simple micro-message with category after logic mutation. 
  * Currently tuned for openAI gpt-assistant responses.
+ * @todo - revamp as any of these LLMs can return JSON or run functions for modes.
  * @module
  * @private
- * @param {string} _msg text of message, currently from gpt-assistants
- * @returns {object} { category, content }
+ * @param {object} bot - The bot object, usually active.
+ * @param {string} message - The text of LLM message.
+ * @param {string} type - The type of message, defaults to chat.
+ * @param {number} processStartTime - The time the process started, defaults to function call.
+ * @returns {object} - The bot-included message object.
  */
-function mPrepareMessage(_msg){
+function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
     /* parse message */
-    // Regular expression to match the pattern "Category Mode: {category}. " or "Category Mode: {category}\n"; The 'i' flag makes the match case-insensitive
-    const _categoryRegex = /^Category Mode: (.*?)\.?$/gim
-    const _match = _categoryRegex.exec(_msg)
-    const _messageCategory = mFormatCategory(_match?.[1]??'')
-    if(_msg.content) _msg = _msg.content
-    // Remove from _msg
-    _msg = _msg.replace(_categoryRegex, '')
-    const _content = _msg.split('\n')
-        .filter(_line => _line.trim() !== '') // Remove empty lines
-        .map(_msg=>{
-            return new Marked().parse(_msg)
-        })
-        .join('\n')
-    return {
-        category: _messageCategory,
-        content: _content,
+    const { bot_id: activeBotAIId, id: activeBotId, } = bot
+    let agent='server',
+        category,
+        contributions=[],
+        purpose=type,
+        response_time=Date.now()-processStartTime
+    const { content: contentArray, thread_id, } = message
+    const contentString = contentArray.reduce((acc, item) => {
+        if (item?.type==='text' && item?.text?.value) {
+            acc += item.text.value + '\n'
+        }
+        return acc
+    }, '')
+        .replace(/\n{2,}/g, '\n')
+    message = new Marked().parse(contentString)
+    const messageResponse = {
+        activeBotId,
+        activeBotAIId,
+        agent,
+        category,
+        contributions,
+        message,
+        purpose,
+        response_time,
+        thread_id,
+        type,
     }
+    return messageResponse
+}
+/**
+ * Flattens an array of messages into a single frontend-consumable message.
+ * @param {object} bot - The bot object, usually active.
+ * @param {Object[]} messages - The array of messages to prune.
+ * @param {string} type - The type of message, defaults to chat.
+ * @param {number} processStartTime - The time the process started, defaults to function call.
+ * @returns {object} - Concatenated message object.
+ */
+function mPruneMessages(bot, messageArray, type='chat', processStartTime=Date.now()){
+    if(!messageArray.length)
+        throw new Error('No messages to prune')
+    const prunedMessages = messageArray
+        .map(message=>mPruneMessage(bot, message, type, processStartTime))
+    const messageContent = prunedMessages
+        .map(message=>message.message)
+        .join('\n')
+    const message = {
+        ...prunedMessages[0],
+        message: messageContent,
+    }
+    return message
 }
 /**
  * Replaces variables in prompt with Experience values.

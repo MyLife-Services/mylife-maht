@@ -1,11 +1,12 @@
 /* module constants */
+const mDefaultHelpPlaceholderText = 'Help me, Q-bi Wan, Help me!'
 const mHelpInitiatorContent = {
     experiences: `I'll do my best to assist with an "experiences" request. Please type in your question or issue below and click "Send" to get started.`,
     interface: `I'll do my best to assist with an "interface" request. Please type in your question or issue below and click "Send" to get started.`,
     membership: `I'll do my best to assist with a "membership" request. Please type in your question or issue below and click "Send" to get started.`,
     tutorial: `I'll do my best to assist with a "tutorial" request. Please type in your question or issue below and click "Send" to get started.`,
 }
-const mDefaultHelpPlaceholderText = 'Help me, Q-bi Wan, Help me!'
+const mNewGuid = () => crypto.randomUUID()
 /* module variables */
 let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mLoginButton,
@@ -34,6 +35,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mSidebar
 /* class definitions */
 class Globals {
+    #uuid = mNewGuid()
     constructor(){
         if(!mLoaded){
             mLoginButton = document.getElementById('navigation-login-logout-button')
@@ -63,7 +65,7 @@ class Globals {
         }
     }
     init(){
-        console.log('Globals::init()')
+        console.log('Globals::init()', this.#uuid)
         /* global visibility settings */
         this.hide(mHelpContainer)
         /* assign event listeners */
@@ -207,11 +209,32 @@ class Globals {
     get navigationLoginButton(){
         return mLoginButton
     }
+    get newGuid(){ 
+        return mNewGuid()
+    }
     get sidebar(){
         return mSidebar
     }
 }
 /* private functions */
+/**
+ * Adds a dialog bubble to the chat container.
+ * @private
+ * @param {HTMLElement} chatContainer - The chat container to add the bubble to.
+ * @param {string} text - The text to add to the bubble.
+ * @param {string} type - The type of bubble to add, enum: [user, member, agent].
+ * @param {string} subType - The subtype of bubble to add; possibly `help`.
+ * @returns {void}
+ */
+function mAddDialogBubble(chatContainer, text, type='agent', subType){
+    const bubble = document.createElement('div')
+    bubble.id = `chat-dialog-${ type }-${ mNewGuid() }`
+    bubble.classList.add('chat-bubble', `${ type }-bubble`)
+    bubble.innerHTML = text
+    if(subType)
+        bubble.classList.add(`${ subType }-bubble`)
+    chatContainer.appendChild(bubble)
+}
 /**
  * Callback function for ending an animation. Currently only stops propagation.
  * @private
@@ -351,7 +374,7 @@ function mCreatePopupDialog(popupChat, content, type){
         case 'general':
         default:
             dialog = document.createElement('div')
-            dialog.id = `popup-dialog-${ type }-${ this.newGuid }`
+            dialog.id = `popup-dialog-${ type }-${ mNewGuid() }`
             dialog.classList.add(`popup-dialog`, `${ type }-dialog`)
             dialog.innerHTML = content
             popupChat.appendChild(dialog)
@@ -452,6 +475,8 @@ async function mSubmitHelp(event){
     /* display await */
     mHide(mHelpInput)
     mShow(mHelpAwait)
+    /* user-bubble */
+    mAddDialogBubble(mHelpSystemChat, value, 'user', `help`)
     /* server-request */
     let response
     try{
@@ -460,15 +485,20 @@ async function mSubmitHelp(event){
         console.log('mSubmitHelp()::error', error)
         mHelpErrorText.innerHTML = `There was an error submitting your help request.<br />${error.message}`
         mHelpErrorClose.addEventListener('click', ()=>mHide(mHelpError), { once: true })
+        response = {
+            message: `I'm sorry, I had trouble processing your request. The error message I received was: "${ error.message }." Please try again.`,
+        }
         mShow(mHelpError)
     }
     /* display input */
-    mHelpInput.value = null
-    mHelpInput.placeholder = mDefaultHelpPlaceholderText
+    response = response?.message ?? response ?? `I'm sorry, I had trouble processing your request. Please try again.`
+    mAddDialogBubble(mHelpSystemChat, response, 'agent', `help`)
+    mHelpInputText.value = null
+    mHelpInputText.placeholder = mDefaultHelpPlaceholderText
+    mToggleHelpSubmit()
     mHide(mHelpAwait)
     mShow(mHelpInput)
-    // toggle help button off?
-    mHelpInput.focus()
+    mHelpInputText.focus()
 }
 /**
  * 

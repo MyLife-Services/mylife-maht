@@ -257,6 +257,17 @@ class BotFactory extends EventEmitter{
 		return await mDataservices.getItem(_experience_id, 'system')
 	}
 	/**
+	 * Proxy for modular mHelp() function.
+	 * @public
+     * @param {string} thread_id - The thread id.
+     * @param {string} bot_id - The bot id.
+     * @param {string} helpRequest - The help request string.
+	 * @returns {Promise<Object>} - openai `message` objects.
+	 */
+	async help(thread_id, bot_id, helpRequest){
+		return await mHelp(thread_id, bot_id, helpRequest, this)
+	}
+	/**
 	 * Gets, creates or updates Library in Cosmos.
 	 * @todo - institute bot for library mechanics.
 	 * @public
@@ -1050,6 +1061,19 @@ function mGetAIFunctions(type, globals){
 			break
 	}
 	return functions
+}
+/**
+ * Take help request about MyLife and consults appropriate engine for response.
+ * @requires mLLMServices - equivalent of default MyLife dataservices/factory
+ * @param {string} thread_id - The thread id.
+ * @param {string} bot_id - The bot id.
+ * @param {string} helpRequest - The help request string.
+ * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation.
+ * @returns {Promise<Object>} - openai `message` objects.
+ */
+async function mHelp(thread_id, bot_id, helpRequest, factory){
+	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory)
+	return response
 }
 /**
  * Inflates library item with required values and structure. Object structure expected from API, librayItemItem in JSON.

@@ -42,6 +42,7 @@ class LLMServices {
     }
     /**
      * Given member input, get a response from the specified LLM service.
+     * @todo - confirm that reason for **factory** is to run functions as responses from LLM; ergo in any case, find better way to stash/cache factory so it does not need to be passed through every such function
      * @param {string} threadId - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} prompt - Member input.
@@ -56,6 +57,18 @@ class LLMServices {
         const { data: llmMessages} = llmMessageObject
         return llmMessages
             .filter(message=>message.role=='assistant' && message.run_id==run_id)
+    }
+    /**
+     * Given member request for help, get response from specified bot assistant.
+     * @param {string} threadId - Thread id.
+     * @param {string} botId - GPT-Assistant/Bot id.
+     * @param {string} helpRequest - Member input.
+     * @param {AgentFactory} factory - Avatar Factory object to process request.
+     * @returns {Promise<Object>} - openai `message` objects.
+     */
+    async help(threadId, botId, helpRequest, factory){
+        const helpResponse = await this.getLLMResponse(threadId, botId, helpRequest, factory)
+        return helpResponse
     }
     /**
      * Create a new OpenAI thread.
@@ -187,6 +200,15 @@ async function mRunFunctions(openai, run, factory){
                     const { id, function: toolFunction, type, } = tool
                     let { arguments: toolArguments, name, } = toolFunction
                     switch(name.toLowerCase()){
+                        case 'hijackattempt':
+                        case 'hijack_attempt':
+                        case 'hijack attempt':
+                            console.log('mRunFunctions()::hijack_attempt', toolArguments)
+                            const confirmation = {
+                                tool_call_id: id,
+                                output: JSON.stringify({ success: true, }),
+                            }
+                            return confirmation
                         case 'story': // storySummary.json
                         case 'storysummary':
                         case 'story-summary':
