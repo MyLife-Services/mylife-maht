@@ -153,7 +153,8 @@ function extendClass_conversation(originClass, referencesObject) {
          * @returns {Object[]} - The updated messages array.
          */
         addMessage(message){
-            if(this.messages.find(_message=>_message.id===message.id))
+            const { id, } = message
+            if(this.messages.find(message=>message.id===id))
                 return this.messages
             if(!(message instanceof this.#factory.message)){
                 if(typeof message!=='object')
@@ -401,7 +402,7 @@ function extendClass_message(originClass, referencesObject) {
      */
     class Message extends originClass {
         #content
-        constructor(obj) {
+        constructor(obj){
             const { content, ..._obj } = obj
             super(_obj)
             try{

@@ -1,5 +1,6 @@
 import { Marked } from 'marked'
 import EventEmitter from 'events'
+import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 /* module constants */
@@ -145,7 +146,7 @@ class Avatar extends EventEmitter {
                     && message.type==='chat'
                     && message.role!=='user'
             })
-            .map(message=>mPruneMessage(bot, message.content, 'chat', processStartTime))
+            .map(message=>mPruneMessage(bot, message, 'chat', processStartTime))
         return chat
     }
     /**
@@ -383,6 +384,19 @@ class Avatar extends EventEmitter {
             await this.createConversation()
         }
         return this.#conversations[0].threadId
+    }
+    /**
+     * Upload files to MyLife and/or LLM.
+     * @todo - implement MyLife file upload.
+     * @param {File[]} files - The array of files to upload.
+     * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
+     * @returns 
+     */
+    async upload(files, includeMyLife=false){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot upload files.')
+        const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices, includeMyLife)
+        await assetAgent.init()
     }
     // upon dissolution, forced/squeezed by session presumably (dehydrate), present itself to factory.evolution agent (or emit?) for inspection and incorporation if appropriate into datacore
     /* getters/setters */
@@ -827,7 +841,7 @@ function mAssignEvolverListeners(factory, evolver, avatar){
             // send to gpt for summary
             const _responses = _contribution.responses.join('\n')
             const _summary = factory.openai.completions.create({
-                model: 'gpt-3.5-turbo',
+                model: 'gpt-4o',
                 prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
                 temperature: 1,
                 max_tokens: 700,
@@ -1530,15 +1544,17 @@ function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
         contributions=[],
         purpose=type,
         response_time=Date.now()-processStartTime
-    const { content: contentArray, thread_id, } = message
-    const contentString = contentArray.reduce((acc, item) => {
-        if (item?.type==='text' && item?.text?.value) {
-            acc += item.text.value + '\n'
-        }
-        return acc
-    }, '')
-        .replace(/\n{2,}/g, '\n')
-    message = new Marked().parse(contentString)
+    const { content: messageContent, thread_id, } = message
+    const content = Array.isArray(messageContent)
+        ? messageContent.reduce((acc, item) => {
+            if (item?.type==='text' && item?.text?.value) {
+                acc += item.text.value + '\n'
+            }
+            return acc
+        }, '')
+            .replace(/\n{2,}/g, '\n')
+        : messageContent
+    message = new Marked().parse(content)
     const messageResponse = {
         activeBotId,
         activeBotAIId,

@@ -25,7 +25,7 @@ async function mGetQuestions(_contribution, _openai){
         return ['What is the meaning of life?']
 /* @todo: refactor for gpt's
     const _response = await _evoAgent.openai.completions.create({
-        model: 'gpt-3.5-turbo-instruct',
+        model: 'gpt-4o',
         prompt: 'give a list of 3 questions (markdown bullets) used to ' + (
             (!this.request.content)
             ?   `get more information about a ${this.request.impersonation} regarding its ${this.request.category}`
