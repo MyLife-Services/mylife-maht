@@ -4,7 +4,7 @@ const mHelpInitiatorContent = {
     experiences: `I'll do my best to assist with an "experiences" request. Please type in your question or issue below and click "Send" to get started.`,
     interface: `I'll do my best to assist with an "interface" request. Please type in your question or issue below and click "Send" to get started.`,
     membership: `I'll do my best to assist with a "membership" request. Please type in your question or issue below and click "Send" to get started.`,
-    tutorial: `I'll do my best to assist with a "tutorial" request. Please type in your question or issue below and click "Send" to get started.`,
+    tutorial: `The tutorial is a great place to start! Click this button to launch or re-run the tutorial:`,
 }
 const mNewGuid = () => crypto.randomUUID()
 /* module variables */
@@ -247,6 +247,18 @@ function mAddDialogBubble(chatContainer, text, type='agent', subType){
     chatContainer.appendChild(bubble)
 }
 /**
+ * Adds a popup dialog to the chat container.
+ * @private
+ * @param {HTMLElement} popupChat - The chat element to attach dialog to.
+ * @param {string} content - The content to populate the dialog with.
+ * @param {string} type - The type of dialog to create.
+ * @returns {void}
+ */
+function mAddPopupDialog(popupChat, content, type){
+    const dialog = mCreatePopupDialog(popupChat, content, type)
+    mShow(dialog)
+}
+/**
  * Callback function for ending an animation. Currently only stops propagation.
  * @private
  * @param {Animation} animation - The animation object.
@@ -279,6 +291,104 @@ function mClearElement(element){
     element.innerHTML = ''
 }
 /**
+ * Creates the shell for a help initiator dialog lane and dialog box. Help initiator dialogs are the first step in the help process, where the dialog area is co-opted for local population.
+ * @param {HTMLDivElement} popupChat - The chat element to attach dialog to.
+ * @param {string} type - The type of help initiator dialog to create.
+ * @returns {HTMLDivElement} - The dialog element.
+ */
+function mCreateHelpInitiatorDialog(popupChat, type){
+    console.log('mCreateHelpInitiatorDialog', mActiveHelpType.id.split('-').pop())
+    const dialog = document.createElement('div')
+    dialog.classList.add('popup-dialog', 'help-initiator-dialog', `help-initiator-dialog-${ type }`)
+    dialog.id = `help-initiator`
+    const dialogBox = document.createElement('div')
+    dialogBox.classList.add('popup-dialog-box', 'help-initiator-dialog-box', `help-initiator-dialog-box-${ type }`)
+    dialogBox.id = `help-initiator-dialog-box`
+    dialog.appendChild(dialogBox)
+    popupChat.appendChild(dialog)
+    return dialog
+}
+/**
+ * Creates a popup dialog based on type and attaches to popup chat element.
+ * @requires mActiveHelpType
+ * @param {HTMLDivElement} popupChat - The chat element to attach dialog to.
+ * @param {string} content - The content to populate the dialog with.
+ * @param {string} type - The type of dialog to create.
+ * @returns 
+ */
+function mCreatePopupDialog(popupChat, content, type){
+    let dialog
+    switch(type){
+        case 'help-initiator':
+            if(!mActiveHelpType)
+                throw new Error('mCreatePopupDialog::mActiveHelpType not set')
+            // run animation on transition, since stays in same bubble
+            const { id, } = mActiveHelpType
+            const activeType = id.split('-').pop()
+            dialog = document.getElementById(type)
+                ?? mCreateHelpInitiatorDialog(popupChat, activeType)
+            const dialogBox = dialog.querySelector('#help-initiator-dialog-box')
+            dialogBox.innerHTML = mGetHelpInitiatorContent(activeType)
+            /* @stub - animations
+            if(dialogBox.style.animation){
+                dialogBox.style.animation = 'helpInitiatorFade 2s ease-in-out reverse forwards'
+                dialogBox.addEventListener('animationend', function(){
+                    dialogBox.innerHTML = mGetHelpInitiatorContent(activeType)
+                    dialogBox.style.animation = 'helpInitiatorFade 2s ease-in-out forwards'
+                }, { once: true })
+            } else {
+                dialogBox.style.animation = 'helpInitiatorFade 2s ease-in-out forwards'
+                dialogBox.innerHTML = mGetHelpInitiatorContent(activeType)
+            } */
+            switch(activeType){
+                case 'membership':
+                    break
+                case 'tutorial':
+                    const tutorialLauncher = mCreateTutorialLauncher()
+                    dialogBox.appendChild(tutorialLauncher)
+                    break
+                case 'experiences':
+                case 'interface':
+                default:
+                    break
+            }
+            break
+        case 'user':
+            break
+        case 'agent':
+        case 'general':
+        default:
+            dialog = document.createElement('div')
+            dialog.id = `popup-dialog-${ type }-${ mNewGuid() }`
+            dialog.classList.add(`popup-dialog`, `${ type }-dialog`)
+            dialog.innerHTML = content
+            popupChat.appendChild(dialog)
+            break
+    }
+    return dialog
+}
+/**
+ * Creates a tutorial launcher button.
+ * @returns {HTMLDivElement} - The tutorial launcher button.
+ */
+function mCreateTutorialLauncher(){
+    const tutorialLauncher = document.createElement('div')
+    tutorialLauncher.classList.add('tutorial-launcher', 'help-button', 'help-button-tutorial')
+    tutorialLauncher.innerHTML = 'Launch Tutorial'
+    tutorialLauncher.addEventListener('click', mLaunchTutorial, { once: true })
+    return tutorialLauncher
+}
+/**
+ * Returns help content appropriate to indicated `type`.
+ * @requires mHelpInitiatorContent
+ * @param {string} type - The type of help content to return.
+ * @returns {string} - The help content.
+ */
+function mGetHelpInitiatorContent(type){
+    return mHelpInitiatorContent?.[type]
+        ?? `I'll do my best to assist with a "${ type }" request. Please type in your question or issue below and click "Send" to get started.`
+}
+/**
  * Hides an element, pre-executing any included callback function.
  * @private
  * @param {HTMLElement} element - The element to hide.
@@ -308,10 +418,33 @@ function mHide(element, callbackFunction){
 function mIsVisible(classList){
     return classList.contains('show')
 }
+/**
+ * Launches the tutorial.
+ * @todo - remove hard-coded experience id
+ * @private
+ * @returns {void}
+ */
+function mLaunchTutorial(){
+    let event = new CustomEvent('launchExperience', { detail: '88043968-d7ef-4a57-a923-335bc9f92792', })
+    window.dispatchEvent(event)
+    mHelpClose.click()
+//    mHide(mHelpContainer)
+}
+/**
+ * Redirects to the login page.
+ * @private
+ * @returns {void}
+ */
 function mLogin(){
     console.log('login')
     window.location.href = '/select'
 }
+/**
+ * Logs out the current user and redirects to homepage.
+ * @private
+ * @async
+ * @returns {void}
+ */
 async function mLogout(){
     const response = await fetch('/logout', {
         method: 'GET',
@@ -359,81 +492,7 @@ function mSetHelpType(event){
             }
         })
     /* populate dumb-initiator dialog in chat */
-    // pull dialog from...?
     mAddPopupDialog(mHelpSystemChat, 'content, son', 'help-initiator')
-}
-function mAddPopupDialog(popupChat, content, type){
-    const dialog = mCreatePopupDialog(popupChat, content, type)
-    mShow(dialog)
-}
-/**
- * Creates a popup dialog based on type and attaches to popup chat element.
- * @requires mActiveHelpType
- * @param {HTMLDivElement} popupChat - The chat element to attach dialog to.
- * @param {string} content - The content to populate the dialog with.
- * @param {string} type - The type of dialog to create.
- * @returns 
- */
-function mCreatePopupDialog(popupChat, content, type){
-    let dialog
-    switch(type){
-        case 'help-initiator':
-            if(!mActiveHelpType)
-                throw new Error('mCreatePopupDialog::mActiveHelpType not set')
-            // run animation on transition, since stays in same bubble
-            const { id, } = mActiveHelpType
-            const activeType = id.split('-').pop()
-            dialog = document.getElementById(type)
-                ?? mCreateHelpInitiatorDialog(popupChat, activeType)
-            const dialogBox = dialog.querySelector('#help-initiator-dialog-box')
-            if(dialogBox.style.animation){
-                dialogBox.style.animation = 'helpInitiatorFade 2s ease-in-out reverse forwards'
-                dialogBox.addEventListener('animationend', function(){
-                    dialogBox.innerHTML = mHelpInitiatorContent?.[activeType]
-                        ?? `I'll do my best to assist with this outlandish "${activeType}" request. Please type in your question or issue below and click "Send" to get started.`
-                    dialogBox.style.animation = 'helpInitiatorFade 2s ease-in-out forwards'
-                }, { once: true })
-            } else {
-                dialogBox.style.animation = 'helpInitiatorFade 2s ease-in-out forwards'
-                dialogBox.innerHTML = mHelpInitiatorContent?.[activeType]
-                ?? `I'll do my best to assist with this outlandish "${activeType}" request. Please type in your question or issue below and click "Send" to get started.`
-            }
-            break
-        case 'user':
-            break
-        case 'agent':
-        case 'general':
-        default:
-            dialog = document.createElement('div')
-            dialog.id = `popup-dialog-${ type }-${ mNewGuid() }`
-            dialog.classList.add(`popup-dialog`, `${ type }-dialog`)
-            dialog.innerHTML = content
-            popupChat.appendChild(dialog)
-            break
-    }    
-    return dialog
-}
-/**
- * Creates the shell for a help initiator dialog lane and dialog box. Help initiator dialogs are the first step in the help process, where the dialog area is co-opted for local population.
- * @param {HTMLDivElement} popupChat - The chat element to attach dialog to.
- * @param {string} type - The type of help initiator dialog to create.
- * @returns {HTMLDivElement} - The dialog element.
- */
-function mCreateHelpInitiatorDialog(popupChat, type){
-    console.log('mCreateHelpInitiatorDialog', mActiveHelpType.id.split('-').pop())
-    const dialog = document.createElement('div')
-    dialog.classList.add('popup-dialog', 'help-initiator-dialog', `help-initiator-dialog-${ type }`)
-    dialog.id = `help-initiator`
-    const dialogBox = document.createElement('div')
-    dialogBox.classList.add('popup-dialog-box', 'help-initiator-dialog-box', `help-initiator-dialog-box-${ type }`)
-    dialogBox.id = `help-initiator-dialog-box`
-    dialog.appendChild(dialogBox)
-    popupChat.appendChild(dialog)
-    return dialog
-}
-function mGetHelpInitiatorContent(type){
-    return mHelpInitiatorContent?.[type]
-        ?? `I'll do my best to assist with a "${type}" request. Please type in your question or issue below and click "Send" to get started.`
 }
 /**
  * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.

@@ -260,6 +260,23 @@ class MyLife extends Organization {	//	form=server
 	constructor(factory){	//	no session presumed to exist
 		super(factory)
 	}
+	/**
+	 * Retrieves all public experiences (i.e., owned by MyLife).
+	 * @returns {Object[]} - An array of the currently available public experiences.
+	 */
+	async availableExperiences(){
+		const experiences = ( await this.factory.availableExperiences() )
+			.map(experience=>{ // map to display versions [from `mylife-avatar.mjs`]
+				const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
+				return {
+					description,
+					id,
+					name,
+					purpose,
+				}
+			})
+		return experiences
+	}
 	async datacore(_mbr_id){
 		if(!_mbr_id || _mbr_id===this.mbr_id) throw new Error('datacore cannot be accessed')
 		return await this.factory.datacore(_mbr_id)

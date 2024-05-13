@@ -2,6 +2,7 @@
 import {
     experienceEnd,
     experiencePlay,
+    experiences,
     experienceSkip,
     experienceStart,
     submitInput,
@@ -60,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
         throw new Error('CRITICAL::mInitialize::Error()')
     stageTransition()
     /* **note**: bots run independently upon conclusion */
+    console.log('members.mjs::DOMContentLoaded()::end::mbr_id', mMemberId)
 })
 /* public functions */
 /**
@@ -386,6 +388,18 @@ function mInitialize(){
  * @returns {void}
  */
 function mInitializePageListeners(){
+    /* document listeners */
+    window.addEventListener('launchExperience', async event=>{
+        if(event.detail?.length){
+            mExperience = mExperiences.find(experience=>experience.id===event.detail)
+                ?? mExperiences[0]
+                ?? await mFetchExperiences()?.[0]
+            if(!mExperience)
+                throw new Error('mInitializePageListeners::launchExperience::Error()::no experience found in `mExperiences`')
+            stageTransition()
+        }
+        console.log('launchExperience', event.detail)
+    })
     /* page listeners */
     chatInputField.addEventListener('input', toggleInputTextarea)
     memberSubmit.addEventListener('click', mAddMemberDialog) /* note default listener */

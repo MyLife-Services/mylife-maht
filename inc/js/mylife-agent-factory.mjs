@@ -435,6 +435,13 @@ class AgentFactory extends BotFactory{
 		return this
 	}
 	/**
+	 * Retrieves all public experiences (i.e., owned by MyLife).
+	 * @returns {Object[]} - An array of the currently available public experiences.
+	 */
+	async availableExperiences(){
+		return await mDataservices.availableExperiences()
+	}
+	/**
 	 * Retrieves avatar properties from Member factory dataservices, or inherits the core data from Member class.
 	 * @returns {object} - Avatar properties.
 	 */

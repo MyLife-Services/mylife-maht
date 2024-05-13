@@ -432,6 +432,19 @@ body {
 	border: medium solid lightpink;
 	border-radius: 0.6rem;
 }
+.help-button {
+	align-content: center;
+	background-color: #741237;
+	border: medium solid aliceblue;
+	border-radius: 0.25rem;
+	color: aliceblue;
+	cursor: pointer;
+	display: flex;
+	font-size: 0.9rem;
+    font-weight: bold;
+	margin: 0.5rem;
+	padding: 0.5rem;
+}
 .help-await-text {
 	font-size: 1.2rem;
 	font-weight: bold;

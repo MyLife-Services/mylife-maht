@@ -25,6 +25,7 @@ import {
     _upload
 } from './functions.mjs'
 import {
+    availableExperiences,
     experience,
     experienceCast,
     experienceEnd,
@@ -51,6 +52,7 @@ _Router.get('/about', about)
 _Router.get('/alerts', alerts)
 _Router.get('/login/:mid', login)
 _Router.get('/logout', logout)
+_Router.get('/experiences', availableExperiences)
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
