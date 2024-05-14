@@ -11,16 +11,6 @@ async function availableExperiences(ctx){
     ctx.body = await ctx.MyLife.availableExperiences()
     console.log(chalk.yellowBright('availableExperiences()', ctx.body))
 }
-/* public module functions */
-/**
- * Returns all publicly-available experiences.
- * @param {Koa} ctx - Koa Context object.
- * @returns {Object[]} - Array of Experience Objects.
- */
-async function availableExperiences(ctx){
-    ctx.body = await ctx.MyLife.availableExperiences()
-    console.log(chalk.yellowBright('availableExperiences()', ctx.body))
-}
 // @todo implement builder functionality, allowing for interface creation of experiences by members
 // @todo implement access to exposed member experiences using `mbr_key` as parameter to `factory.getItem()`
 async function experienceBuilder(ctx){

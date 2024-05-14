@@ -22,16 +22,13 @@ class oAIAssetAssistant {
 		this.#files = this.#extractFiles(files)
 	}
 	/**
-	 * https://platform.openai.com/docs/api-reference/vector-stores
-	 * @param {*} vectorStore 
-	 * @param {*} includeMyLife 
-	 * @returns 
+	 * Initializes the asset assistant by uploading the files to the vectorstore and optionally embedding and enacting the files.
+	 * @param {string} vectorstoreId - The vectorstore id to upload the files into, if already exists (avatar would know).
+	 * @param {boolean} includeMyLife - Whether to embed and enact the files.
+	 * @returns {Promise<oAIAssetAssistant>} - The initialized asset assistant instance.
 	 */
-	async init(vectorStore, includeMyLife=false){
-		// https://platform.openai.com/docs/assistants/tools/file-search/quickstart
-		// ok. medium-version - files must still be upload to openAI via the old mechanic, nothing has changed there, it just then needs to become a file in the vector store through an embedding and association process.
-		const _vectorStore = vectorStore
-			?? this.#llm.vectorStore()
+	async init(vectorstoreId, includeMyLife=false){
+		await this.#llm.upload(vectorstoreId, this.#files, this.mbr_id)
 		if(includeMyLife){
 			await this.#embedFile()
 			await this.#enactFile()

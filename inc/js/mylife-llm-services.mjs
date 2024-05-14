@@ -78,6 +78,20 @@ class LLMServices {
     async thread(threadId){
         return await mThread(this.openai, threadId)
     }
+    /**
+     * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
+     * @documentation [OpenAI API Reference: Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores)
+     * @documentation [file_search Quickstart](https://platform.openai.com/docs/assistants/tools/file-search/quickstart)
+     * @param {string} vectorstoreId - Vector store ID from OpenAI.
+     * @param {File[]} files - Array of files to upload.
+     * @param {string} memberId - Member ID, will be `name` of vector-store.
+     * @returns {Promise<string>} - The vector store ID.
+     */
+    async upload(vectorstoreId, files, memberId){
+        // memberId = `name` of vector-store
+        console.log('LLMServices::upload()::begin', vectorstoreId, files, memberId)
+        return 'fart-noise'
+    }
     /* getters/setters */
     get openai(){
         return this.provider
