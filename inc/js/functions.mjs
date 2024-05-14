@@ -7,7 +7,7 @@ async function about(ctx){
 }
 /**
  * Activate a bot for the member
- * @modular
+ * @module
  * @public
  * @api no associated view
  * @param {object} ctx Koa Context object
@@ -57,7 +57,7 @@ function category(ctx){ // sets category for avatar
 }
 /**
  * Challenge the member session with a passphrase.
- * @modular
+ * @module
  * @public
  * @async
  * @api - No associated view
@@ -110,6 +110,19 @@ async function deleteItem(ctx){
 	ctx.body = await ctx.state.avatar.deleteItem(iid)
 }
 /**
+ * Request help about MyLife.
+ * @param {Koa} ctx - Koa Context object, body={ request: string|required, mbr_id, type: string, }.
+ * @returns {object} - Help response message object.
+ */
+async function help(ctx){
+	const { helpRequest, type=`general`, } = ctx.request?.body
+	if(!helpRequest?.length)
+		ctx.throw(400, `missing help request text`)
+	const { avatar } = ctx.state
+	const _avatar = type==='membership' ? avatar : ctx.MyLife.avatar
+	ctx.body = await _avatar.help(helpRequest, type)
+}
+/**
  * Index page for the application.
  * @async
  * @public
@@ -121,7 +134,7 @@ async function index(ctx){
 }
 /**
  * Set or get the avatar interface mode for the member.
- * @modular
+ * @module
  * @public
  * @api - No associated view
  * @param {object} ctx - Koa Context object
@@ -264,7 +277,7 @@ function mGetContributions(ctx){
 /**
  * Manage receipt and setting of contributions(s).
  * @async
- * @modular
+ * @module
  * @param {object} ctx Koa Context object 
  */
 function mSetContributions(ctx){
@@ -291,6 +304,7 @@ export {
 	collections,
 	contributions,
 	deleteItem,
+	help,
 	index,
 	interfaceMode,
 	login,

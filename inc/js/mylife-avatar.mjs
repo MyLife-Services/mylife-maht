@@ -1,8 +1,9 @@
 import { Marked } from 'marked'
 import EventEmitter from 'events'
+import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import LLMServices from './mylife-llm-services.mjs'
-/* modular constants */
+/* module constants */
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
 const mAllowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
@@ -12,7 +13,7 @@ const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
  * @extends EventEmitter
  * @description An avatar is a digital self proxy of Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The Avatar is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
  * @todo - deprecate `factory` getter
- * @todo - more efficient management of modular constants, should be classes?
+ * @todo - more efficient management of module constants, should be classes?
  */
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
@@ -34,7 +35,7 @@ class Avatar extends EventEmitter {
     #livedExperiences = [] // array of ids for lived experiences
     #livingExperience
     #llmServices
-    #mode = 'standard' // interface-mode from modular `mAvailableModes`
+    #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as getter is complex
     #proxyBeing = 'human'
     /**
@@ -50,6 +51,8 @@ class Avatar extends EventEmitter {
     }
     /* public functions */
     /**
+     * Initialize the Avatar class.
+     * @todo - create class-extender specific to the "singleton" MyLife avatar
      * @async
      * @public
      * @returns {Promise} Promise resolves to this Avatar class instantiation
@@ -90,7 +93,7 @@ class Avatar extends EventEmitter {
             mAssignEvolverListeners(this.#factory, this.#evolver, this)
             /* init evolver */
             await this.#evolver.init()
-        } else { // Q-specific, leave as `else` as is near always false
+        } else { // @stub - Q-specific, leave as `else` as is near always false
             this.activeBotId = activeBot.id
             activeBot.bot_id = mBotIdOverride ?? activeBot.bot_id
             this.#llmServices.botId = activeBot.bot_id
@@ -143,22 +146,7 @@ class Avatar extends EventEmitter {
                     && message.type==='chat'
                     && message.role!=='user'
             })
-            .map(message=>{
-                message = mPrepareMessage(message.content) // returns object { category, content }
-                const { category, content } = message
-                return {
-                    activeBotId: bot.id,
-                    activeBotAIId: bot.bot_id,
-                    agent: 'server',
-                    category: category,
-                    contributions: [],
-                    message: content,
-                    purpose: 'chat response',
-                    response_time: Date.now()-processStartTime,
-                    thread_id: conversation.thread_id,
-                    type: 'chat',
-                }
-            })
+            .map(message=>mPruneMessage(bot, message, 'chat', processStartTime))
         return chat
     }
     /**
@@ -312,6 +300,42 @@ class Avatar extends EventEmitter {
             .find(_=>_.thread?.id===thread_id)
     }
     /**
+     * Returns all conversations of a specific-type stored in memory.
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @returns {Conversation[]} - The array of conversation objects.
+     */
+    getConversations(type='chat'){
+        return this.#conversations
+            .filter(_=>_?.type===type)
+    }
+    /**
+     * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
+     * @param {string} helpRequest - The help request text.
+     * @param {string} type - The type of help request.
+     * @returns {Promise<Object>} - openai `message` objects.
+     */
+    async help(helpRequest, type){
+        const processStartTime = Date.now()
+        if(!helpRequest?.length)
+            throw new Error('Help request required.')
+        // @stub - force-type into enum?
+        helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
+        const { thread_id, } = this.activeBot
+        const { bot_id, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
+            ?? this.helpBots?.[0]
+            ?? this.activeBot
+        // @stub rewrite mCallLLM, but ability to override conversation? No, I think in general I would prefer this to occur at factory  as it is here
+        const conversation = this.getConversation(thread_id)
+        const helpResponseArray = await this.factory.help(thread_id, bot_id, helpRequest)
+        conversation.addMessages(helpResponseArray)
+        if(mAllowSave)
+            conversation.save()
+        else
+            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+        const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
+        return response
+    }
+    /**
      * Allows member to reset passphrase.
      * @param {string} passphrase 
      * @returns {boolean} - true if passphrase reset successful.
@@ -360,6 +384,19 @@ class Avatar extends EventEmitter {
             await this.createConversation()
         }
         return this.#conversations[0].threadId
+    }
+    /**
+     * Upload files to MyLife and/or LLM.
+     * @todo - implement MyLife file upload.
+     * @param {File[]} files - The array of files to upload.
+     * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
+     * @returns 
+     */
+    async upload(files, includeMyLife=false){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot upload files.')
+        const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices, includeMyLife)
+        await assetAgent.init()
     }
     // upon dissolution, forced/squeezed by session presumably (dehydrate), present itself to factory.evolution agent (or emit?) for inspection and incorporation if appropriate into datacore
     /* getters/setters */
@@ -435,7 +472,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The personal avatar bot.
      */
     get avatarBot(){
-        return this.#bots.find(_bot=>_bot.type==='personal-avatar')
+        return this.bots.find(_bot=>_bot.type==='personal-avatar')
     }
     /**
      * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
@@ -597,6 +634,19 @@ class Avatar extends EventEmitter {
     get globals(){
         return this.#factory.globals
     }
+    /**
+     * Get the help bots, primarily MyLife avatar, though presume there are a number of custom self-help bots that would be capable of referencing preferences, internal searches, etc.
+     * @getter
+     * @returns {array} - The help bots.
+     */
+    get helpBots(){
+        return this.bots.filter(bot=>bot.type==='help')
+    }
+    /**
+     * Test whether avatar is in an `experience`.
+     * @getter
+     * @returns {boolean} - Avatar is in `experience` (true) or not (false).
+     */
     get isInExperience(){
         return this.mode==='experience'
     }
@@ -761,10 +811,10 @@ class Avatar extends EventEmitter {
             this.#nickname = nickname
     }
 }
-/* modular functions */
+/* module functions */
 /**
  * Assigns evolver listeners.
- * @modular
+ * @module
  * @param {AgentFactory} factory - Agent Factory object
  * @param {EvolutionAssistant} evolver - Evolver object
  * @param {Avatar} avatar - Avatar object
@@ -791,7 +841,7 @@ function mAssignEvolverListeners(factory, evolver, avatar){
             // send to gpt for summary
             const _responses = _contribution.responses.join('\n')
             const _summary = factory.openai.completions.create({
-                model: 'gpt-3.5-turbo',
+                model: 'gpt-4o',
                 prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
                 temperature: 1,
                 max_tokens: 700,
@@ -808,7 +858,7 @@ function mAssignEvolverListeners(factory, evolver, avatar){
 /**
  * Assigns (directly mutates) private experience variables from avatar.
  * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
- * @modular
+ * @module
  * @param {object} experienceVariables - Experience variables object from Avatar class definition.
  * @param {Avatar} avatar - Avatar instance.
  * @returns {void} - mutates experienceVariables
@@ -827,7 +877,7 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
 /**
  * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
  * @todo Fix occasions where there will be no object_id property to use, as it was created through a hydration method based on API usage, so will be attached to mbr_id, but NOT avatar.id
- * @modular
+ * @module
  * @param {AgentFactory} factory - Agent Factory object
  * @param {Avatar} avatar - Avatar object that will govern bot
  * @param {object} bot - Bot object
@@ -866,7 +916,7 @@ async function mBot(factory, avatar, bot){
  * Makes call to LLM and to return response(s) to prompt.
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
  * @todo - address disconnect between conversations held in memory in avatar and those in openAI threads; use `addLLMMessages` to post internally
- * @modular
+ * @module
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
@@ -887,7 +937,7 @@ async function mCallLLM(llmServices, conversation, prompt, factory){
 }
 /**
  * Cancels openAI run.
- * @modular
+ * @module
  * @param {LLMServices} llmServices - OpenAI object
  * @param {string} threadId - Thread id
  * @param {string} runId - Run id
@@ -905,7 +955,7 @@ async function mCancelRun(llmServices, threadId, runId,){
  * @todo - any trouble retrieving a known actor should be understudied by... Q? or personal-avatar? yes, personal avatar for now
  * @todo - implement `creator` version of actor
  * @todo - include variables for names of roles/actors
- * @modular
+ * @module
  * @param {AgentFactory} factory - Agent Factory object
  * @param {array} cast - Array of cast objects
  * @returns {Promise<array>} - Array of ExperienceCastMember instances
@@ -964,7 +1014,7 @@ async function mEventCharacter(llm, experience, character){
  * @todo - add LLM usage data to conversation
  * @todo - when `variable` undefined in `experience.variables`, check to see if event can be found that will provide it
  * @todo - seems unnecessary to have experience extension handling basic data construction at this stage... refactor, tho?
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently
  * @param {Experience} experience - Experience class instance.
@@ -1026,7 +1076,7 @@ async function mEventDialog(llm, experience, event, iteration=0){
  * Returns a processed memberInput event.
  * @todo - once conversations are not spurred until needed, add a third conversation to the experience, which would be the scriptAdvisor (not actor) to determine success conditions for scene, etc.
  * @todo - handle complex success conditions
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently.
  * @param {Experience} experience - Experience class instance.
@@ -1149,7 +1199,7 @@ async function mEventInput(llm, experience, event, iteration=0, memberInput){
  * @todo - mutations should be handled by `ExperienceEvent` extenders.
  * @todo - script dialog change, input assessment, success evals to completions or cheaper? babbage-002 ($0.40/m) is only cheaper than 3.5 ($3.00/m); can test efficacy for dialog completion, otherwise, 3.5 exceptional
  * @todo - iterations need to be re-included, although for now, one dialog for experience is fine
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently
  * @param {Experience} experience - Experience class instance.
@@ -1202,7 +1252,7 @@ async function mEventProcess(llm, experience, event, memberInput){
  * Returns a processed stage event.
  * @todo - add LLM usage data to conversation.
  * @todo - when `action==='stage'`, deprecate effects and actor
- * @modular
+ * @module
  * @public
  * @param {LLMServices} llm - OpenAI object currently.
  * @param {Experience} experience - Experience class instance.
@@ -1223,7 +1273,7 @@ function mEventStage(llm, experience, stage){
  * @todo - allow auto-skip to scene/event?
  * @todo - Branching and requirements for scene entry and completion
  * @todo - ExperienceScene and ExperienceEvent should be classes?
- * @modular
+ * @module
  * @public
  * @param {AgentFactory} factory - AgentFactory object
  * @param {object} llm - ai interface object
@@ -1376,7 +1426,7 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
 }
 /**
  * Gets bot by id.
- * @modular
+ * @module
  * @param {object} avatar - Avatar instance.
  * @param {string} _botId - Bot id
  * @returns {object} - Bot object
@@ -1388,7 +1438,7 @@ function mFindBot(avatar, _botId){
 }
 /**
  * Returns simple micro-category after logic mutation.
- * @modular
+ * @module
  * @param {string} _category text of category
  * @returns {string} formatted category
  */
@@ -1401,7 +1451,7 @@ function mFormatCategory(_category){
 }
 /**
  * Returns MyLife-version of chat category object
- * @modular
+ * @module
  * @param {object} _category - local front-end category { category, contributionId, question/message/content }
  * @returns {object} - local category { category, contributionId, content }
  */
@@ -1420,6 +1470,28 @@ function mGetChatCategory(_category) {
             _category?.content // test for undefined
     }
     return _proposedCategory
+}
+/**
+ * Include help preamble to _LLM_ request, not outbound to member/guest.
+ * @todo - expand to include other types of help requests, perhaps more validation.
+ * @param {string} type - The type of help request.
+ * @param {boolean} isMyLife - Whether the request is from MyLife.
+ * @returns {string} - The help preamble to be included.
+ */
+function mHelpIncludePreamble(type, isMyLife){
+    switch(type){
+        case 'account':
+        case 'membership':
+            if(isMyLife)
+                throw new Error(`Members can only request information about their own accounts.`)
+            return 'Following help request is for MyLife member account information or management:\n'
+        case 'interface':
+            return 'Following question is expected to be about MyLife Member Platform Interface:\n'
+        case 'general':
+        case 'help':
+        default:
+            return 'Following help request is about MyLife in general:\n'
+    }
 }
 /**
  * Get experience scene navigation array.
@@ -1455,36 +1527,75 @@ function mNavigation(scenes){
 /**
  * returns simple micro-message with category after logic mutation. 
  * Currently tuned for openAI gpt-assistant responses.
- * @modular
+ * @todo - revamp as any of these LLMs can return JSON or run functions for modes.
+ * @module
  * @private
- * @param {string} _msg text of message, currently from gpt-assistants
- * @returns {object} { category, content }
+ * @param {object} bot - The bot object, usually active.
+ * @param {string} message - The text of LLM message.
+ * @param {string} type - The type of message, defaults to chat.
+ * @param {number} processStartTime - The time the process started, defaults to function call.
+ * @returns {object} - The bot-included message object.
  */
-function mPrepareMessage(_msg){
+function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
     /* parse message */
-    // Regular expression to match the pattern "Category Mode: {category}. " or "Category Mode: {category}\n"; The 'i' flag makes the match case-insensitive
-    const _categoryRegex = /^Category Mode: (.*?)\.?$/gim
-    const _match = _categoryRegex.exec(_msg)
-    const _messageCategory = mFormatCategory(_match?.[1]??'')
-    if(_msg.content) _msg = _msg.content
-    // Remove from _msg
-    _msg = _msg.replace(_categoryRegex, '')
-    const _content = _msg.split('\n')
-        .filter(_line => _line.trim() !== '') // Remove empty lines
-        .map(_msg=>{
-            return new Marked().parse(_msg)
-        })
-        .join('\n')
-    return {
-        category: _messageCategory,
-        content: _content,
+    const { bot_id: activeBotAIId, id: activeBotId, } = bot
+    let agent='server',
+        category,
+        contributions=[],
+        purpose=type,
+        response_time=Date.now()-processStartTime
+    const { content: messageContent, thread_id, } = message
+    const content = Array.isArray(messageContent)
+        ? messageContent.reduce((acc, item) => {
+            if (item?.type==='text' && item?.text?.value) {
+                acc += item.text.value + '\n'
+            }
+            return acc
+        }, '')
+            .replace(/\n{2,}/g, '\n')
+        : messageContent
+    message = new Marked().parse(content)
+    const messageResponse = {
+        activeBotId,
+        activeBotAIId,
+        agent,
+        category,
+        contributions,
+        message,
+        purpose,
+        response_time,
+        thread_id,
+        type,
     }
+    return messageResponse
+}
+/**
+ * Flattens an array of messages into a single frontend-consumable message.
+ * @param {object} bot - The bot object, usually active.
+ * @param {Object[]} messages - The array of messages to prune.
+ * @param {string} type - The type of message, defaults to chat.
+ * @param {number} processStartTime - The time the process started, defaults to function call.
+ * @returns {object} - Concatenated message object.
+ */
+function mPruneMessages(bot, messageArray, type='chat', processStartTime=Date.now()){
+    if(!messageArray.length)
+        throw new Error('No messages to prune')
+    const prunedMessages = messageArray
+        .map(message=>mPruneMessage(bot, message, type, processStartTime))
+    const messageContent = prunedMessages
+        .map(message=>message.message)
+        .join('\n')
+    const message = {
+        ...prunedMessages[0],
+        message: messageContent,
+    }
+    return message
 }
 /**
  * Replaces variables in prompt with Experience values.
  * @todo - variables should be back populated to experience, confirm
  * @todo - events could be identified where these were input if empty
- * @modular
+ * @module
  * @private
  * @param {string} prompt - Dialog prompt, replace variables.
  * @param {string[]} variableList - List of variables to replace.
@@ -1501,7 +1612,7 @@ function mReplaceVariables(prompt, variableList, variableValues){
 }
 /**
  * Returns a sanitized event.
- * @modular
+ * @module
  * @param {ExperienceEvent} event - Event object.
  * @returns {object} - Synthetic Event object.
  */

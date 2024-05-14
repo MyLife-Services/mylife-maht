@@ -3,15 +3,15 @@ import fs from 'fs'
 import mime from 'mime-types'
 import FormData from 'form-data'
 import axios from 'axios'
-//	modular constants
+//	module constants
 const { MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN, MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT, MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN, MYLIFE_SERVER_MBR_ID: mylifeMbrId, } = process.env
 const bearerToken = MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN
 const fileSizeLimit = parseInt(MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT) || 1048576
 const fileSizeLimitAdmin = parseInt(MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760
-//	modular variables
+//	module variables
 let AgentFactory
 let Globals
-//	modular class definition
+//	module class definition
 class oAIAssetAssistant {
 	//	pseudo-constructor
 	#ctx // @todo: only useful if assistant only exists for duration of request
@@ -21,7 +21,7 @@ class oAIAssetAssistant {
 		//	primary direct assignment
 		this.#ctx = _ctx
 		this.#mbr_id = this.#ctx.state.member.mbr_id
-		//	modular direct assignment
+		//	module direct assignment
 		if(!AgentFactory) AgentFactory = this.#ctx.AgentFactory
 		if(!Globals) Globals = this.#ctx.Globals
 		//	secondary direct assignment

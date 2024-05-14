@@ -4,7 +4,7 @@ import { CosmosClient } from '@azure/cosmos'
 import chalk from 'chalk'
 import Config from './mylife-datasource-config.mjs'
 import Globals from './globals.mjs'
-/* modular constants */
+/* module constants */
 const mGlobals = new Globals()
 //	define class
 class Datamanager {

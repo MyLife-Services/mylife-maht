@@ -1,7 +1,7 @@
 /* variables */
 const { MYLIFE_ALLOW_INTELLIGENT_QUESTIONS } = process.env
 const allowLLMQuestions = JSON.parse(MYLIFE_ALLOW_INTELLIGENT_QUESTIONS ?? 'false')
-/* contribution modular functions */
+/* contribution module functions */
 /**
  * Gets questions from Cosmos, but could request from openAI.
  * @param {Contribution} _contribution Contribution object
@@ -25,7 +25,7 @@ async function mGetQuestions(_contribution, _openai){
         return ['What is the meaning of life?']
 /* @todo: refactor for gpt's
     const _response = await _evoAgent.openai.completions.create({
-        model: 'gpt-3.5-turbo-instruct',
+        model: 'gpt-4o',
         prompt: 'give a list of 3 questions (markdown bullets) used to ' + (
             (!this.request.content)
             ?   `get more information about a ${this.request.impersonation} regarding its ${this.request.category}`
@@ -48,7 +48,7 @@ async function mGetQuestions(_contribution, _openai){
 }
 /**
  * Updates contribution object with incoming contribution data.
- * @modular
+ * @module
  * @param {Contribution} _contribution - Contribution object
  * @param {object} _obj - Contribution data { category, contributionId, content??question??message }
  * @returns {void}
@@ -63,10 +63,10 @@ function mUpdateContribution(_contribution, _obj){
     }
     mEvaluateStatus(_contribution) // evaluates readiness for next stage of Contribution
 }
-/* contribution "private" modular functions [unexported] */
+/* contribution "private" module functions [unexported] */
 /**
  * Evaluates Contribution and may update `status` property.
- * @modular
+ * @module
  * @param {Contribution} _contribution - Contribution object
  * @returns {void}
  */

@@ -1,7 +1,16 @@
 import chalk from "chalk"
 /* variables */
 const mBotSecrets = JSON.parse(process.env.OPENAI_JWT_SECRETS)
-/* public modular functions */
+/* public module functions */
+/**
+ * Returns all publicly-available experiences.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {Object[]} - Array of Experience Objects.
+ */
+async function availableExperiences(ctx){
+    ctx.body = await ctx.MyLife.availableExperiences()
+    console.log(chalk.yellowBright('availableExperiences()', ctx.body))
+}
 // @todo implement builder functionality, allowing for interface creation of experiences by members
 // @todo implement access to exposed member experiences using `mbr_key` as parameter to `factory.getItem()`
 async function experienceBuilder(ctx){
@@ -127,7 +136,7 @@ async function keyValidation(ctx){ // from openAI
 }
 /**
  * All functionality related to a library. Note: Had to be consolidated, as openai GPT would only POST.
- * @modular
+ * @module
  * @public
  * @param {Koa} ctx - Koa Context object
  * @returns {Koa} Koa Context object
@@ -151,7 +160,7 @@ async function library(ctx){
 }
 /**
  * Login function for member. Requires mid in params.
- * @modular
+ * @module
  * @public
  * @param {Koa} ctx - Koa Context object
  * @returns {Koa} Koa Context object
@@ -244,7 +253,7 @@ async function storyLibrary(ctx){
 }
 /**
  * Validates api token
- * @modular
+ * @module
  * @public
  * @param {object} ctx Koa context object
  * @param {function} next Koa next function
@@ -278,10 +287,10 @@ async function tokenValidation(ctx, next) {
         return
     }
 }
-/* "private" modular functions */
+/* "private" module functions */
 /**
  * Validates key and sets `ctx.state` and `ctx.session` properties. `ctx.state`: [ assistantType, isValidated, mbr_id, ]. `ctx.session`: [ isAPIValidated, APIMemberKey, ].
- * @modular
+ * @module
  * @private
  * @async
  * @param {Koa} ctx - Koa Context object.
@@ -328,6 +337,7 @@ function mTokenValidation(_token){
 }
 /* exports */
 export {
+    availableExperiences,
     experience,
     experienceCast,
     experienceEnd,

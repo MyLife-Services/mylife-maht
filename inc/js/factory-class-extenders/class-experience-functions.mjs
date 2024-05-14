@@ -1,4 +1,4 @@
-/* experience modular constants */
+/* experience module constants */
 const mAvailableEventActionMap = {
     appear: {
         effects: ['fade', 'spotlight'],
@@ -9,14 +9,14 @@ const mAvailableEventActionMap = {
     },
     input: {},
 }
-/* experience modular functions */
+/* experience module functions */
 function mAppear(event){
     const { id, type, data: eventData } = event
     return
 }
 /**
  * From an event, returns a `synthetic` Dialog data package, see JSDoc properties.
- * @modular
+ * @module
  * @public
  * @param {Experience} _experience - Experience class instance.
  * @param {number} iteration - Iteration number, defaults to first (array zero format).
@@ -90,7 +90,7 @@ function mGetEvent(scenes, eventId){
 }
 /**
  * From an event, returns a `synthetic` Dialog data package, above and an .
- * @modular
+ * @module
  * @public
  * @param {ExperienceEvent} event - Experience class instance.
  * @param {number} iteration - Iteration number, defaults to first (array zero format).

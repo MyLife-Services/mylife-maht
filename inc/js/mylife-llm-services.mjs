@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-/* modular constants */
+/* module constants */
 const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
 const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 const mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890
@@ -42,6 +42,7 @@ class LLMServices {
     }
     /**
      * Given member input, get a response from the specified LLM service.
+     * @todo - confirm that reason for **factory** is to run functions as responses from LLM; ergo in any case, find better way to stash/cache factory so it does not need to be passed through every such function
      * @param {string} threadId - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} prompt - Member input.
@@ -56,6 +57,18 @@ class LLMServices {
         const { data: llmMessages} = llmMessageObject
         return llmMessages
             .filter(message=>message.role=='assistant' && message.run_id==run_id)
+    }
+    /**
+     * Given member request for help, get response from specified bot assistant.
+     * @param {string} threadId - Thread id.
+     * @param {string} botId - GPT-Assistant/Bot id.
+     * @param {string} helpRequest - Member input.
+     * @param {AgentFactory} factory - Avatar Factory object to process request.
+     * @returns {Promise<Object>} - openai `message` objects.
+     */
+    async help(threadId, botId, helpRequest, factory){
+        const helpResponse = await this.getLLMResponse(threadId, botId, helpRequest, factory)
+        return helpResponse
     }
     /**
      * Create a new OpenAI thread.
@@ -76,10 +89,10 @@ class LLMServices {
         return this.#llmProviders
     }
 }
-/* modular functions */
+/* module functions */
 /**
  * Takes Member input request and assigns it to OpenAI thread for processing.
- * @modular
+ * @module
  * @async
  * @param {OpenAI} openai - openai object
  * @param {string} threadId - thread id
@@ -95,7 +108,7 @@ async function mAssignRequestToThread(openai, threadId, request){
 }
 /**
  * Gets message from OpenAI thread.
- * @modular
+ * @module
  * @async
  * @param {OpenAI} openai - openai object
  * @param {string} threadId - thread id
@@ -111,7 +124,7 @@ async function mMessage(openai, threadId, messageId){
 }
 /**
  * Format input for OpenAI.
- * @modular
+ * @module
  * @param {string} message - message text 
  * @returns {object} - synthetic openai `message` object
  */
@@ -124,7 +137,7 @@ function mMessage_openAI(message){
 }
 /**
  * Gets messages from OpenAI thread.
- * @modular
+ * @module
  * @async
  * @param {OpenAI} openai - openai object
  * @param {string} threadId - thread id
@@ -135,7 +148,7 @@ async function mMessages(openai, threadId){
 }
 /**
  * Maintains vigil for status of openAI `run = 'completed'`.
- * @modular
+ * @module
  * @async
  * @param {OpenAI} openai - openai object
  * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
@@ -167,7 +180,7 @@ async function mRunFinish(llmServices, run, factory){
 /**
  * Executes openAI run functions. See https://platform.openai.com/docs/assistants/tools/function-calling/quickstart.
  * @todo - storysummary output action requires integration with factory/avatar data intersecting with story submission
- * @modular
+ * @module
  * @private
  * @async
  * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
@@ -187,6 +200,15 @@ async function mRunFunctions(openai, run, factory){
                     const { id, function: toolFunction, type, } = tool
                     let { arguments: toolArguments, name, } = toolFunction
                     switch(name.toLowerCase()){
+                        case 'hijackattempt':
+                        case 'hijack_attempt':
+                        case 'hijack attempt':
+                            console.log('mRunFunctions()::hijack_attempt', toolArguments)
+                            const confirmation = {
+                                tool_call_id: id,
+                                output: JSON.stringify({ success: true, }),
+                            }
+                            return confirmation
                         case 'story': // storySummary.json
                         case 'storysummary':
                         case 'story-summary':
@@ -237,7 +259,7 @@ async function mRunFunctions(openai, run, factory){
 }
 /**
  * Returns all openai `run` objects for `thread`.
- * @modular
+ * @module
  * @async
  * @param {OpenAI} openai - openai object
  * @param {string} threadId - Thread id
@@ -249,7 +271,7 @@ async function mRuns(openai, threadId){
 }
 /**
  * Checks status of openAI run.
- * @modular
+ * @module
  * @async
  * @param {OpenAI} openai - openai object
  * @param {object} run - Run id
@@ -282,7 +304,7 @@ async function mRunStatus(openai, run, factory){
 }
 /**
  * Returns requested openai `run` object.
- * @modular
+ * @module
  * @async
  * @param {Avatar} _avatar - Avatar object
  * @param {string} run_id - Run id
@@ -298,7 +320,7 @@ async function mRunStep(_avatar, run_id, _step_id){
 }
 /**
  * Returns all openai `run-step` objects for `run`.
- * @modular
+ * @module
  * @async
  * @param {Avatar} _avatar - Avatar object
  * @param {string} run_id - Run id
@@ -314,7 +336,7 @@ async function mRunSteps(_avatar, run_id){
 }
 /**
  * Executes openAI run and returns associated `run` object.
- * @modular
+ * @module
  * @param {OpenAI} openai - OpenAI object
  * @param {string} assistantId - Assistant id
  * @param {string} threadId - Thread id
@@ -328,7 +350,7 @@ async function mRunStart(llmServices, assistantId, threadId){
 }
 /**
  * Triggers openAI run and updates associated `run` object.
- * @modular
+ * @module
  * @param {OpenAI} openai - OpenAI object
  * @param {string} botId - Bot id
  * @param {string} threadId - Thread id
@@ -347,7 +369,7 @@ async function mRunTrigger(openai, botId, threadId, factory){
 }
 /**
  * Create or retrieve an OpenAI thread.
- * @modular
+ * @module
  * @param {OpenAI} openai - openai object
  * @param {string} threadId - thread id
  * @returns {Promise<Object>} - openai thread object

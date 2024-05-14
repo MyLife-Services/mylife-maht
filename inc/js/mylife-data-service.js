@@ -110,6 +110,19 @@ class Dataservices {
 	}
 	//	public functions
 	/**
+	 * Retrieves all public experiences (i.e., owned by MyLife).
+	 * @public
+	 * @async
+	 * @returns {Object[]} - An array of the currently available public experiences.
+	 */
+	async availableExperiences(){
+		return await this.getItemsByFields(
+			'experience',
+			[{ name: '@public', value: true }],
+			'system',
+		)
+	}
+	/**
 	 * Get a bot specified by id or type.
 	 * @public
 	 * @param {string} _bot_id - The bot id.

@@ -143,6 +143,9 @@ button.chat-submit:disabled {
 .chat-system::-webkit-scrollbar-thumb:hover {
     background: rgba(214, 198, 75, 0.5); /* Darker shade on hover */
 }
+.help-bubble {
+	animation: slideInFromBottom 0.5s ease-out;
+}
 .label {
 	color: rgba(240, 240, 240, .9);
 	flex: 0 0 auto;

@@ -11,6 +11,7 @@ import {
     collections,
     contributions,
     deleteItem,
+    help,
     index,
     interfaceMode,
     login,
@@ -24,6 +25,7 @@ import {
     _upload
 } from './functions.mjs'
 import {
+    availableExperiences,
     experience,
     experienceCast,
     experienceEnd,
@@ -50,12 +52,14 @@ _Router.get('/about', about)
 _Router.get('/alerts', alerts)
 _Router.get('/login/:mid', login)
 _Router.get('/logout', logout)
+_Router.get('/experiences', availableExperiences)
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
 _Router.get('/signup', status_signup)
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
+_Router.post('/help', help)
 _Router.post('/signup', signup)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)
