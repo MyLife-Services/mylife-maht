@@ -88,9 +88,21 @@ class LLMServices {
      * @returns {Promise<string>} - The vector store ID.
      */
     async upload(vectorstoreId, files, memberId){
-        // memberId = `name` of vector-store
+        if(!files?.length)
+            throw new Error('No files to upload')
+        const fileStreams = files.map(path=>fs.createReadStream(path))
+        if(!vectorstoreId){ /* create vector-store */
+            vectorstoreId = await openai.beta.vectorStores.create({
+                name: memberId,
+            })
+                .id
+            console.log('LLMServices::upload()::create', vectorstoreId, memberId)
+        }
+        console.log('LLMServices::upload()::begin', vectorstoreId, fileStreams, memberId)
+        const response = await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, fileStreams)
+        // memberId = `name` of vector-store; store in core data the name of the vector-store
         console.log('LLMServices::upload()::begin', vectorstoreId, files, memberId)
-        return 'fart-noise'
+        return 'response'
     }
     /* getters/setters */
     get openai(){

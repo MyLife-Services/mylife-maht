@@ -28,7 +28,9 @@ class oAIAssetAssistant {
 	 * @returns {Promise<oAIAssetAssistant>} - The initialized asset assistant instance.
 	 */
 	async init(vectorstoreId, includeMyLife=false){
-		await this.#llm.upload(vectorstoreId, this.#files, this.mbr_id)
+		const dataRecord = await this.#llm.upload(vectorstoreId, this.#files, this.mbr_id)
+		// if new vectorstore, returns then save to datacore
+		console.log('dataRecord', dataRecord)
 		if(includeMyLife){
 			await this.#embedFile()
 			await this.#enactFile()
