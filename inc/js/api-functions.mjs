@@ -287,6 +287,22 @@ async function tokenValidation(ctx, next) {
         return
     }
 }
+async function upload(ctx){
+    const { files: filesWrapper, } = ctx.request
+    let { files, } = filesWrapper
+    if(!files)
+        ctx.throw(400, 'No file uploaded.')
+    if(!Array.isArray(files))
+        files = [files]
+    await mAPIKeyValidation(ctx)
+    const { avatar, } = ctx.state
+    const upload = await avatar.upload(files)
+    ctx.body = {
+        success: true,
+        message: 'File uploaded successfully.',
+        data: upload,
+    }
+}
 /* "private" module functions */
 /**
  * Validates key and sets `ctx.state` and `ctx.session` properties. `ctx.state`: [ assistantType, isValidated, mbr_id, ]. `ctx.session`: [ isAPIValidated, APIMemberKey, ].
@@ -353,4 +369,5 @@ export {
     story,
     storyLibrary,
     tokenValidation,
+    upload,
 }

@@ -390,13 +390,13 @@ class Avatar extends EventEmitter {
      * @todo - implement MyLife file upload.
      * @param {File[]} files - The array of files to upload.
      * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
-     * @returns 
+     * @returns {boolean} - true if upload successful.
      */
     async upload(files, includeMyLife=false){
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot upload files.')
-        const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices, includeMyLife)
-        await assetAgent.init()
+        const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices)
+        await assetAgent.init(includeMyLife)
     }
     // upon dissolution, forced/squeezed by session presumably (dehydrate), present itself to factory.evolution agent (or emit?) for inspection and incorporation if appropriate into datacore
     /* getters/setters */
