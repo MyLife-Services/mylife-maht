@@ -1,7 +1,7 @@
 //	imports
 import { _ } from 'ajv'
 import { EventEmitter } from 'events'
-/* modular constants */
+/* module constants */
 const _phases = [
     'create',
     'init',
@@ -123,10 +123,10 @@ export class EvolutionAssistant extends EventEmitter {
         }
     }
 }
-/* modular functions */
+/* module functions */
 /**
  * Advance the phase of the Evolution Assistant. Logic is encapsulated to ensure that the phase is advanced only when appropriate, ergo, not every request _to_ advancePhase() will actually _do_ so. Isolates and privatizes logic to propose _advance_ to next phase.
- * @modular
+ * @module
  * @emits {evo-agent-phase-change} - Emitted when the phase advances.
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
  * @returns {string} The determined phase.
@@ -148,7 +148,7 @@ async function mAdvancePhase(_evoAgent){  //  **note**: treat parameter `_evoAge
                 const contributionsPromises = mAssessData(_evoAgent)
                     .map(_category => mGetContribution(_evoAgent, _category, _formalPhase)) // Returns array of promises
                 _proposal.contributions = await Promise.all(contributionsPromises)            }
-            // alterations sent as proposal to be adopted (or not, albeit no current mechanism to reject) by instantiated evo-agent [only viable caller by modular design]
+            // alterations sent as proposal to be adopted (or not, albeit no current mechanism to reject) by instantiated evo-agent [only viable caller by module design]
             _proposal.phase = (mEvolutionPhaseComplete(_evoAgent,_formalPhase))
                 ? 'init'
                 : 'develop'
@@ -168,7 +168,7 @@ async function mAdvancePhase(_evoAgent){  //  **note**: treat parameter `_evoAge
 }
 /**
  * Reviews properties of avatar and returns an array of three categories most in need of member Contributions.
- * @modular
+ * @module
  * @param {EvolutionAssistant} _evoAgent - The avatar evoAgent whose data requires assessment.
  * @param {number} _numCategories - The number of categories to return. Defaults to 5. minimum 1, maximum 9.
  * @returns {Array} The top number categories requiring Contributions.
@@ -228,7 +228,7 @@ function mAssignContributionListeners(_evoAgent, _contribution) {
 }
 /**
  * Determines whether the given phase is complete.
- * @modular
+ * @module
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
  * @param {string} _phase - The phase to check for completion.
 */
@@ -243,7 +243,7 @@ function mEvolutionPhaseComplete(_evoAgent,_phase) {
 }
 /**
  * Formats a category string to a format consistent with Cosmos key structure: all lowercase, underscores for spaces, limit of 64-characters.
- * @modular
+ * @module
  * @param {string} _category - The category to format.
  * @returns {string} The formatted category.
 */
@@ -256,7 +256,7 @@ function mFormatCategory(_category) {
 }
 /**
  * Digest a request to generate a new Contribution.
- * @modular
+ * @module
  * @emits {on-contribution-new} - Emitted when a new Contribution is generated.
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
  * @param {string} _category - The category to process.
@@ -287,7 +287,7 @@ async function mGetContribution(_evoAgent, _category, _phase) {
 }
 /**
  * Log an object to the console and emit it to the parent.
- * @modular
+ * @module
  * @emits {_emit_text} - Emitted when an object is logged.
  * @param {string} _emit_text - The text to emit.
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
@@ -298,7 +298,7 @@ function mLog(_emit_text,_evoAgent,_object) {
 }
 /**
  * Process a Contribution. First update the Contribution object, determining if the Contribution stage is updated. Then evaluate Evolution phase for completeness and advancement.
- * @modular
+ * @module
  * @param {EvolutionAssistant} _evoAgent - `this` Evolution Assistant.
  * @param {Array} _contributions - The contributions array.
  * @param {object} _current - Contribution object { category, contributionId, message }

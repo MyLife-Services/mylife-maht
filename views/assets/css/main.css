@@ -1,3 +1,4 @@
+@import url('animations.css');
 @import url('bot-bar.css');
 @import url('chat.css');
 @import url('experience.css');
@@ -49,8 +50,7 @@ body {
 .navigation-help,
 .navigation-login-logout,
 .navigation-nav,
-.navigation-padding,
-.navigation-search {
+.navigation-padding {
 	align-items: center;
 	display: flex;
 	flex: none; /* Prevents items from growing */
@@ -70,20 +70,6 @@ body {
 }
 .navigation-help:hover {
 	color: purple; /* Your existing styles for active link */
-}
-.help-container {
-    background: #f9f9f9;
-	color: navy;
-	cursor: default;
-    display: none;
-	flex-direction: column;
-	font-size: 1em;
-    padding: 10px;
-    position: absolute;
-    top: 2.2em; /* Position it right below the parent */
-    right: 0;
-    width: 50%;
-    z-index: 100; /* Make sure it's above other elements */
 }
 .navigation-login-logout {
 	align-self: flex-end;
@@ -329,6 +315,248 @@ body {
 	align-items: center;
 	padding: 0em 1.05em 1.05em 1.05em;
 }
+/* MyLife Generic Popup */
+.popup-await {
+	align-items: center;
+	animation: slideInFromBottom 1s	ease-out;
+	border: solid aliceblue;
+	background-color: navy;
+	display: none;
+	justify-content: center;
+	margin: 0.5rem 1rem;
+	padding: 0.5rem 1rem;
+	width: auto;
+}
+.popup-await-text {
+	animation: blink 1.5s infinite;
+	color: aliceblue;
+	font-size: 1rem;
+	font-weight: normal;
+}
+.popup-close {
+	position: absolute;
+    top: .5em;
+    right: .5em;
+    cursor: pointer;
+    font-size: 1.5rem;
+}
+.popup-container {
+    background-color: aliceblue;
+    bottom: 2em;
+    border: thin solid #ccc;
+	border-radius: 0.4em;
+	color: navy;
+    display: flex;
+    left: 0;
+	margin: 0;
+	padding: 0;
+    position: absolute;
+    width: 45%; /* default width */
+    z-index: 100;
+}
+.popup-content {
+	color: navy;
+	display: flex;
+	flex: 1 1 auto; /* grows to inhabit */
+	font-size: 1rem;
+	height: auto;
+	max-height: 100%;
+	overflow-x: hidden;
+    overflow-y: auto;
+    padding: 1em;
+	position: relative;
+}
+.popup-dialog {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+.popup-dialog-box {
+    background-color: rgba(229, 59, 0, 1);
+    border: solid navy;
+    border-radius: 0.4em;
+    color: aliceblue;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin: 0 1rem;
+    overflow: visible;
+    padding: .5rem;
+    width: 85%;
+}
+.popup-header {
+    align-items: center;
+    border-bottom: thin solid #eee;
+    display: flex;
+	font-size: 1.25rem;
+	justify-content: flex-start;
+	padding: 0.75rem;
+}
+.popup-input {
+	align-items: center;
+	border-top: thin solid black;
+	display: flex;
+	flex-direction: row;
+	font-size: 1rem;
+	margin: 0;
+	padding: 0;
+    width: 100%;
+}
+.popup-input-prompt {
+	padding: 0 0.5em;
+}
+.popup-input-submit {
+	padding: 0 0.5em;
+}
+.popup-input-text {
+    flex: 1 1 auto;
+    width: 100%;
+    padding: 0.25rem;
+    font-size: 1rem;
+}
+.popup-refresh {
+	cursor: pointer;
+	position: absolute;
+	right: 1em;
+	top: 1em;
+}
+.popup-title {
+	margin-left: 1em;
+    font-weight: bold;
+}
+/* MyLife Help System */
+.help-await {
+	border: medium solid lightpink;
+	border-radius: 0.6rem;
+}
+.help-button {
+	align-content: center;
+	background-color: #741237;
+	border: medium solid aliceblue;
+	border-radius: 0.25rem;
+	color: aliceblue;
+	cursor: pointer;
+	display: flex;
+	font-size: 0.9rem;
+    font-weight: bold;
+	margin: 0.5rem;
+	padding: 0.5rem;
+}
+.help-await-text {
+	font-size: 1.2rem;
+	font-weight: bold;
+}
+.help-close {
+	padding: 0.1em;
+}
+.help-close:hover {
+	background-color: white;
+	cursor: pointer;
+    border: thin solid red;
+    border-radius: .25em;
+}
+.help-container {
+	border: solid indianred;
+	box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+	cursor: default;
+    display: flex;
+	flex-direction: column;
+	font-size: 1em;
+	left: auto;
+    position: absolute;
+    right: 1em;
+    top: 2.2em; /* Position it right below the parent */
+    width: 63%;
+    z-index: 100; /* Make sure it's above other elements */
+}
+.help-header {
+	font-size: 1.5rem;
+}
+.help-icon img {
+    height: 2em;
+    width: 2em;
+}
+.help-title {
+	padding-right: 1em;
+}
+.help-type {
+    background-color: #f9f9f9;
+    display: flex;
+	font-size: 1rem;
+    justify-content: space-evenly;
+    padding: 10px;
+}
+.help-type-item {
+	border-radius: 0.4em;
+    cursor: pointer;
+    padding: 5px 10px;
+}
+.help-type-item:hover {
+    background-color: #65a3a9;
+	color: white;
+	opacity: 1;
+}
+.help-type-item.active {
+	background-color: orangered;
+	color: white;
+	cursor: not-allowed;
+}
+.help-type-item {
+	background-color: aliceblue;
+	color: darkgray;
+	cursor: pointer;
+}
+.help-chat {
+	border: #4CAF50 1px solid;
+	display: flex;
+}
+.help-error {
+	align-items: center;
+	background-color: darkred;
+	color: lightcoral;
+	display: none;
+	font-size: 0.9rem;
+	padding: 0.5rem 0;
+	width: 100%;
+}
+.help-error-close {
+	align-self: flex-start;
+	background-color: transparent;
+	color: white;
+	cursor: pointer;
+	font-size: 1.5rem;
+	margin: 0 0.5rem;
+	width: auto;
+}
+.help-error-icon {
+	background-color: transparent;
+	font-size: 1.5rem;
+	margin: 0 0.7rem;
+	width: auto;
+}
+.help-error-text {
+	color: white;
+	width: 100%;
+}
+.help-input {
+    border: none;
+}
+.help-input-submit {
+	text-wrap: nowrap;
+	width: auto;
+}
+.help-input-text {
+	border: thin solid #ccc;
+	border-radius: 0.25rem;
+	color: black;
+	margin: 0.5rem;
+}
+.help-input-text:focus {
+	color: purple;
+}
 /* MyLife sidebar */
 .input {
 	margin-top: 6px;
@@ -466,6 +694,10 @@ body {
     90% { opacity: 1; }
     100% { opacity: 0; }
 }
+@keyframes helpInitiatorFade {
+	0% { opacity: 0; }
+	100% { opacity: 1; }
+} /* reverse for fade out */
 /* media queries */
 @media screen and (min-width: 1024px) {
     body {

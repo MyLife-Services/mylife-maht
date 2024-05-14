@@ -19,7 +19,7 @@ import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
-/* modular constants */
+/* module constants */
 // global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
 const mBotInstructions = {}
@@ -57,7 +57,7 @@ const vmClassGenerator = vm.createContext({
 })
 /* dependent constants and functions */
 const mAlerts = {
-	system: await mDataservices.getAlerts(), // not sure if we need other types in global modular, but feasibly historical alerts could be stored here, etc.
+	system: await mDataservices.getAlerts(), // not sure if we need other types in global module, but feasibly historical alerts could be stored here, etc.
 }
 // @todo: capitalize hard-codings as per actual schema classes
 const mSchemas = {
@@ -68,14 +68,14 @@ const mSchemas = {
 	session: MylifeMemberSession
 }
 const mSystemActor = await mDataservices.bot(undefined, 'actor', undefined)
-/* modular construction functions */
+/* module construction functions */
 mConfigureSchemaPrototypes()
 mPopulateBotInstructions()
 /* logging/reporting */
 console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
 console.log(chalk.greenBright('schema-class-constructs'))
 console.log(mSchemas)
-/* modular classes */
+/* module classes */
 class BotFactory extends EventEmitter{
 	// micro-hydration version of factory for use _by_ the MyLife server
 	#dataservices
@@ -257,6 +257,17 @@ class BotFactory extends EventEmitter{
 		return await mDataservices.getItem(_experience_id, 'system')
 	}
 	/**
+	 * Proxy for modular mHelp() function.
+	 * @public
+     * @param {string} thread_id - The thread id.
+     * @param {string} bot_id - The bot id.
+     * @param {string} helpRequest - The help request string.
+	 * @returns {Promise<Object>} - openai `message` objects.
+	 */
+	async help(thread_id, bot_id, helpRequest){
+		return await mHelp(thread_id, bot_id, helpRequest, this)
+	}
+	/**
 	 * Gets, creates or updates Library in Cosmos.
 	 * @todo - institute bot for library mechanics.
 	 * @public
@@ -417,11 +428,18 @@ class AgentFactory extends BotFactory{
 	 */
 	async init(mbr_id){
 		if(mIsMyLife(mbr_id))
-			throw new Error('MyLife server AgentFactory cannot be initialized, as it references modular dataservices on constructor().')
+			throw new Error('MyLife server AgentFactory cannot be initialized, as it references module dataservices on constructor().')
 		await super.init(mbr_id)
 		if(this.core.openaiapikey)
 			this.#llmServices = new LLMServices(this.core.openaiapikey, this.core.openaiorgkey)
 		return this
+	}
+	/**
+	 * Retrieves all public experiences (i.e., owned by MyLife).
+	 * @returns {Object[]} - An array of the currently available public experiences.
+	 */
+	async availableExperiences(){
+		return await mDataservices.availableExperiences()
 	}
 	/**
 	 * Retrieves avatar properties from Member factory dataservices, or inherits the core data from Member class.
@@ -480,7 +498,7 @@ class AgentFactory extends BotFactory{
 	}
 	async getMyLifeSession(){
 		// default is session based around default dataservices [Maht entertains guests]
-		// **note**: conseuquences from this is that I must be careful to not abuse the modular space for sessions, and regard those as _untouchable_
+		// **note**: conseuquences from this is that I must be careful to not abuse the module space for sessions, and regard those as _untouchable_
 		return await new (mSchemas.session)(
 			( new AgentFactory(mPartitionId) ) // no need to init currently as only pertains to non-server adjustments
 			// I assume this is where the duplication is coming but no idea why
@@ -649,10 +667,10 @@ class AgentFactory extends BotFactory{
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
 }
-// private modular functions
+// private module functions
 /**
  * Initializes openAI assistant and returns associated `assistant` object.
- * @modular
+ * @module
  * @param {LLMServices} llmServices - OpenAI object
  * @param {object} bot - bot creation instructions.
  * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
@@ -707,7 +725,7 @@ function assignClassPropertyValues(_propertyDefinition){
 }
 /**
  * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
- * @modular
+ * @module
  * @param {object} _core - Datacore object
  * @returns {object} - Avatar property data package
  */
@@ -768,7 +786,7 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
 }
 /**
  * Creates bot and returns associated `bot` object.
- * @modular
+ * @module
  * @private
  * @param {LLMServices} llm - OpenAI object
  * @param {AgentFactory} factory - Agent Factory object
@@ -782,7 +800,7 @@ async function mCreateBotLLM(llm, bot){
 }
 /**
  * Creates bot and returns associated `bot` object.
- * @modular
+ * @module
  * @async
  * @private
  * @param {LLMServices} llm - LLMServices Object contains methods for interacting with OpenAI
@@ -823,7 +841,7 @@ async function mCreateBot(llm, factory, bot){
 }
 /**
  * Returns MyLife-version of bot instructions.
- * @modular
+ * @module
  * @private
  * @param {BotFactory} factory - Factory object
  * @param {object} _bot - Bot object
@@ -1052,6 +1070,19 @@ function mGetAIFunctions(type, globals){
 	return functions
 }
 /**
+ * Take help request about MyLife and consults appropriate engine for response.
+ * @requires mLLMServices - equivalent of default MyLife dataservices/factory
+ * @param {string} thread_id - The thread id.
+ * @param {string} bot_id - The bot id.
+ * @param {string} helpRequest - The help request string.
+ * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation.
+ * @returns {Promise<Object>} - openai `message` objects.
+ */
+async function mHelp(thread_id, bot_id, helpRequest, factory){
+	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory)
+	return response
+}
+/**
  * Inflates library item with required values and structure. Object structure expected from API, librayItemItem in JSON.
  * root\inc\json-schemas\bots\library-bot.json
  * @param {object} _item - Library item (API) object. { author: string, enjoymentLevel: number, format: string, insights: string, personalImpact: string, title: string, whenRead: string }
@@ -1081,7 +1112,7 @@ function mInflateLibraryItem(_item, _library_id, _mbr_id){
 }
 /**
  * Hydrates library and returns library object.
- * @modular
+ * @module
  * @private
  * @param {BotFactory} factory - BotFactory object
  * @param {object} _library - Library object
@@ -1259,7 +1290,7 @@ function mSanitizeSchemaKey(_key){
 }
 /**
  * Ingests a class definition and sanitizes its keys.
- * @modular
+ * @module
  * @param {object} _class - Class definition to sanitize.
  * @param {object} _mutatedKeysObject - Object to hold mutated sanitized keys.
  * @returns {void} - Internally mutates parameter references.

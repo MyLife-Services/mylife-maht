@@ -1,7 +1,7 @@
-/* public modular functions */
+/* public module functions */
 /**
  * Assigns content (from _message.message) to message object.
- * @modular
+ * @module
  * @public
  * @param {any} obj - Element to assign to `content` property
  * @returns {string} - message text content
@@ -47,10 +47,10 @@ function mAssignContent(obj){
             return `${obj}`
     }
 }
-/* private modular functions */
+/* private module functions */
 /**
  * When incoming text is too large for a single message, generate dynamic text file and attach/submit.
- * @modular
+ * @module
  * @private
  * @param {string} _file - The file to construct.
  * @returns 
@@ -71,7 +71,7 @@ async function mConstructFile(_file){
 }
 /**
  * Checks if content is a non-empty string.
- * @modular
+ * @module
  * @private - not exposed via export
  * @param {string} content - message content 
  * @returns {boolean} - true if content is a non-empty string

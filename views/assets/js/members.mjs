@@ -2,6 +2,7 @@
 import {
     experienceEnd,
     experiencePlay,
+    experiences,
     experienceSkip,
     experienceStart,
     submitInput,
@@ -59,10 +60,8 @@ document.addEventListener('DOMContentLoaded', async event=>{
     if(!initialized)
         throw new Error('CRITICAL::mInitialize::Error()')
     stageTransition()
-    /* temporary shortcut to experience */
-    const helpShortcut = document.getElementById('navigation-help-input-container')
-    helpShortcut.addEventListener('click', mExperienceStart)
     /* **note**: bots run independently upon conclusion */
+    console.log('members.mjs::DOMContentLoaded()::end::mbr_id', mMemberId)
 })
 /* public functions */
 /**
@@ -119,8 +118,7 @@ function availableExperiences(){
  * @returns {void}
  */
 function clearSystemChat(){
-    // Remove all chat bubbles and experience chat-lanes under chat-system
-    systemChat.innerHTML = ''
+    mGlobals.clearElement(systemChat)
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
@@ -357,7 +355,7 @@ function getActiveCategory(){
 	return activeCategory
 }
 /**
- * Initialize modular variables based on server fetch.
+ * Initialize module variables based on server fetch.
  * @private
  * @requires mExperience
  * @requires mExperiences
@@ -390,6 +388,18 @@ function mInitialize(){
  * @returns {void}
  */
 function mInitializePageListeners(){
+    /* document listeners */
+    window.addEventListener('launchExperience', async event=>{
+        if(event.detail?.length){
+            mExperience = mExperiences.find(experience=>experience.id===event.detail)
+                ?? mExperiences[0]
+                ?? await mFetchExperiences()?.[0]
+            if(!mExperience)
+                throw new Error('mInitializePageListeners::launchExperience::Error()::no experience found in `mExperiences`')
+            stageTransition()
+        }
+        console.log('launchExperience', event.detail)
+    })
     /* page listeners */
     chatInputField.addEventListener('input', toggleInputTextarea)
     memberSubmit.addEventListener('click', mAddMemberDialog) /* note default listener */

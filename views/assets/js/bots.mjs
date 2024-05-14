@@ -185,6 +185,7 @@ function mBotIcon(type){
  * @returns {HTMLDivElement} - The collection item.
  */
 function mCreateCollectionItem(collectionItem){
+    /* collection item container */
     const { assistantType, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
     const item = document.createElement('div')
     item.id = `collection-item_${ id }`
@@ -236,16 +237,16 @@ function mCreateCollectionItemDelete(type, id){
 function mCreateCollectionPopup(collectionItem){
     const { id, summary, type, } = collectionItem
     const collectionPopup = document.createElement('div')
-    collectionPopup.id = `collection-popup_${ id }`
-    collectionPopup.name = `collection-popup-${ type }`
-    collectionPopup.classList.add('collection-popup')
+    collectionPopup.id = `popup-container_${ id }`
+    collectionPopup.name = `collection-popup_${ type }`
+    collectionPopup.classList.add('collection-popup', 'popup-container')
     /* create popup content */
     const popupContent = document.createElement('div')
-    popupContent.classList.add('collection-popup-content')
+    popupContent.classList.add('popup-content', 'collection-popup-content')
     popupContent.innerText = summary ?? JSON.stringify(collectionItem)
     /* create popup close button */
     const popupClose = document.createElement('button')
-    popupClose.classList.add('fa-solid', 'fa-close', 'collection-popup-close')
+    popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
     popupClose.setAttribute('aria-label', 'Close')
     popupClose.addEventListener('click', mTogglePopup)
     /* append elements */
@@ -601,27 +602,27 @@ function mTogglePopup(event){
         console.log('mTogglePopup::CLOSE', activeId, popupId)
         popup.classList.remove('collection-popup-visible')
         // does this reset the location?
-} else { /* open */
-    popup.classList.add('collection-popup-visible')
-    const item = popup.parentElement
-    /* calculate desired position */
-    const popupHalfHeight = popup.offsetHeight / 2
-    const itemHalfHeight = item.offsetHeight / 2
-    const desiredMiddlePosition = item.offsetTop + itemHalfHeight
-    let topPosition = desiredMiddlePosition - popupHalfHeight
-    /* screen failsafes */
-    if(topPosition < 0){
-        topPosition = 0
-    } else if (topPosition + popup.offsetHeight > window.innerHeight){
-        topPosition = window.innerHeight - popup.offsetHeight
+    } else { /* open */
+        popup.classList.add('collection-popup-visible')
+        const item = popup.parentElement
+        /* calculate desired position */
+        const popupHalfHeight = popup.offsetHeight / 2
+        const itemHalfHeight = item.offsetHeight / 2
+        const desiredMiddlePosition = item.offsetTop + itemHalfHeight
+        let topPosition = desiredMiddlePosition - popupHalfHeight
+        /* screen failsafes */
+        if(topPosition < 0){
+            topPosition = 0
+        } else if (topPosition + popup.offsetHeight > window.innerHeight){
+            topPosition = window.innerHeight - popup.offsetHeight
+        }
+        // Position the popup 20px to the left of the item's left edge
+        const leftPosition = item.offsetLeft - popup.offsetWidth - 20
+        /* position */
+        popup.style.top = `${ topPosition }px`
+        popup.style.left = `${ leftPosition }px`
+        console.log('mTogglePopup::OPEN', popup.offsetLeft, popup.offsetWidth, item.offsetWidth, item.offsetLeft)
     }
-    // Position the popup 20px to the left of the item's left edge
-    const leftPosition = item.offsetLeft - popup.offsetWidth - 20
-    /* position */
-    popup.style.top = `${ topPosition }px`
-    popup.style.left = `${ leftPosition }px`
-    console.log('mTogglePopup::OPEN', popup.offsetLeft, popup.offsetWidth, item.offsetWidth, item.offsetLeft)
-}
 }
 /**
  * Activates bot bar icon and container. Creates div and icon in bot bar.
@@ -724,7 +725,7 @@ function mUpdateBotContainers(){
  * Update the identified collection with provided specifics.
  * @param {string} type - The bot type.
  * @param {Array} collection - The collection items.
- * @param {HTMLDivElement} collectionList - The collection container.\
+ * @param {HTMLDivElement} collectionList - The collection container.
  * @returns {void}
  */
 function mUpdateCollection(type, collection, collectionList){

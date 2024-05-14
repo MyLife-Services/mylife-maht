@@ -50,6 +50,7 @@ const mDefaultAnimationClasses = {
     interface: 'flip',
     full: 'slide-in',
 }
+const mExperiences = [] /* initial container for all experience requests, personal to system scope */
 /* variables */
 let mBackdropDefault = 'full',
     mEvent,
@@ -59,6 +60,11 @@ let mBackdropDefault = 'full',
     mWelcome = true
 let mBackdrop=mBackdropDefault // enum: [chat, interface, full]; default: full
 let inputElement = document.getElementById(`experience-input`) /* unique as is swapped out */
+/* event listeners */
+document.addEventListener('DOMContentLoaded', async event=>{
+    mExperiences.push(...await mGetExperiences()) // stock all experiences internally
+    console.log('experience.mjs::DOMContentLoaded()::end::mExperiences', mExperiences)
+})
 /* public functions */
 /**
  * End experience on server and onscreen.
@@ -150,6 +156,18 @@ async function experiencePlay(memberInput){
         throw new Error("Animation sequence failed!")
     mExperience.currentScene = mExperience.events?.[mExperience.events.length-1]?.sceneId
         ?? location.sceneId
+}
+/**
+ * Retrieve full or scoped list of experiences from server.
+ * @todo - more robust logic underpinning selection of experiences, currently only system-controlled exist.
+ * @requires mExperiences
+ * @param {string} scope - The scope of the experiences to retrieve.
+ * @returns {Promise<Experience[]>} - The return is an array of Experience objects.
+ */
+async function experiences(scope){
+    if(!mExperiences.length)
+        mExperiences.push(...await mGetExperiences(scope))
+    return mExperiences
 }
 /**
  * Skips a skippable scene in Experience, and triggers the next scene, which would be returned to member. Stages `mBackdrop` in the instance of a complete backdrop scene change.
@@ -739,6 +757,49 @@ function mEventStage(){
     return animationSequence
 }
 /**
+ * Get experiences from server according to scope or universal.
+ * @todo - move fetch from `members.mjs` to here.
+ * @param {string} scope - The scope of the experiences to retrieve; undefined=all.
+ * @returns {Promise<Experience[]>} - The return is an array of Experience objects.
+ */
+async function mGetExperiences(scope){
+    const experiences = []
+    // @stub - member experience fetch goes here
+    /* member experiences 
+    if((scope ?? 'member')==='member'){
+        const memberExperiences = await mGetExperiencesFromServer(`/members/experiences`)
+        experiences.push(...memberExperiences.filter(
+            experience=>!experiences.some(_experience=>_experience.id===experience.id)
+        ))
+    }*/
+    /* system experiences */
+    if((scope ?? 'system')==='system'){
+        const systemExperiences = await mGetExperiencesFromServer(`/experiences`)
+        experiences.push(...systemExperiences.filter(
+            experience=>!experiences.some(_experience=>_experience.id===experience.id)
+        ))
+    }
+}
+/**
+ * Get experiences from server.
+ * @private
+ * @async
+ * @param {string} url - The url to fetch experiences from.
+ * @returns {Promise<Experience[]>} - The return is an array of Experience objects.
+ */
+async function mGetExperiencesFromServer(url){
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    const experiences = await response.json()
+    return experiences
+}
+/**
  * Get scene data from navigation.
  * @private
  * @requires mExperience - The Experience object.
@@ -975,7 +1036,7 @@ function mUpdateModerator(clearModerator=false){
 }
 /**
  * Displays the `Welcome` start button, completing instantly all backstage animations.
- * @modular
+ * @module
  * @returns {void}
  */
 function mUpdateStartButton(){
@@ -992,6 +1053,7 @@ function mUpdateStartButton(){
 export {
     experienceEnd,
     experiencePlay,
+    experiences,
     experienceSkip,
     experienceStart,
     submitInput,
