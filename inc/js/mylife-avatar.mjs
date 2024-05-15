@@ -18,6 +18,7 @@ const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
     #activeChatCategory = mGetChatCategory()
+    #assetAgent
     #bots = []
     #conversations = []
     #evolver
@@ -395,11 +396,49 @@ class Avatar extends EventEmitter {
     async upload(files, includeMyLife=false){
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot upload files.')
+        const { vectorstoreId, } = this.#factory
         const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices)
         await assetAgent.init(this.#factory.vectorstoreId, includeMyLife)
-        const { response, vectorstoreId, } = assetAgent
-        console.log('upload::response', response, vectorstoreId)
+        const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = assetAgent
+        // update this avatar to use new vectorstore tool
+        if(!vectorstoreId && newVectorstoreId)
+            await this.updateTools()
         return response
+    }
+    /**
+     * Update tools for bot-assistant based on type.
+     * @todo - manage issue that several bots require attachment upon creation.
+     * @todo - move to llm code.
+     * @todo - allow for multiple types simultaneously.
+     * @param {string} bot_id - The bot id to update tools for.
+     * @param {string} type - The type of tool to update.
+     * @param {any} data - The data required by the switch type.
+     * @returns {void}
+     */
+    async updateTools(botId=this.avatarBot.bot_id, type='file_search', data){
+        let tools
+        switch(type){
+            case 'function': // @stub - function tools
+                tools = {
+                    tools: [{ type: 'function' }],
+                    function: {},
+                }
+                break
+            case 'file_search':
+            default:
+                if(!this.#factory.vectorstoreId)
+                    return
+                tools = {
+                    tools: [{ type: 'file_search' }],
+                    tool_resources: {
+                        file_search: {
+                            vector_store_ids: [this.#factory.vectorstoreId],
+                        }
+                    },
+                }
+        }
+        if(tools)
+            await this.#llmServices.updateTools(botId, tools) /* no await */
     }
     /* getters/setters */
     /**

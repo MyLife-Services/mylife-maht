@@ -17,6 +17,7 @@ class oAIAssetAssistant {
 	#llm
 	#response
 	#vectorstoreId
+	#vectorstoreFileList=[]
 	constructor(files, factory, globals, llm){
 		this.#factory = factory
 		this.#globals = globals
@@ -34,16 +35,32 @@ class oAIAssetAssistant {
 		const fileStreams = this.files.map(file=>fs.createReadStream(file.filepath))
 		// @stub - do not upload if file name already exists?
 		const dataRecord = await this.#llm.upload(vectorstoreId, fileStreams, this.mbr_id)
-		const { response, vectorstoreId: newVectorstoreId, } = dataRecord
+		this.files.forEach(file=>fs.unlinkSync(file.filepath)) /* delete .tmp files */
+		const { response, vectorstoreId: newVectorstoreId, success } = dataRecord
 		this.#response = response
 		this.#vectorstoreId = newVectorstoreId
 		if(!vectorstoreId && newVectorstoreId)
 			this.#factory.vectorstoreId = newVectorstoreId // saves to datacore
+		if(success && this.#vectorstoreId?.length)
+			await this.updateVectorstoreFileList()
 		if(includeMyLife){
 			await this.#embedFile()
 			await this.#enactFile()
 		}
 		return this
+	}
+	async updateVectorstoreFileList(){
+		if(this.#vectorstoreId?.length){
+			const updateList = (await this.#llm.files(this.#vectorstoreId)).data
+				.filter(file=>!this.#vectorstoreFileList.find(vsFile=>vsFile.id===file.id))
+			if(updateList?.length){
+				this.#vectorstoreFileList.push(
+					...(await Promise.all(
+						updateList.map(async file =>await this.#llm.file(file.id))
+					))
+				)
+			}
+		}
 	}
 	//	getters
 	get files(){
@@ -54,6 +71,9 @@ class oAIAssetAssistant {
 	}
 	get response(){
 		return this.#response
+	}
+	get vectorstoreFileList(){
+		return this.#vectorstoreFileList
 	}
 	get vectorstoreId(){
 		return this.#vectorstoreId

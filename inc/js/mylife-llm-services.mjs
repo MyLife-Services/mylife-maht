@@ -41,6 +41,22 @@ class LLMServices {
         return await this.openai.beta.assistants.create(assistant)
     }
     /**
+     * Returns openAI file object.
+     * @param {string} fileId - OpenAI file ID.
+     * @returns - OpenAI `file` object.
+     */
+    async file(fileId){
+        return await this.openai.files.retrieve(fileId)
+    }
+    /**
+     * Returns file list from indicated vector store.
+     * @param {string} vectorstoreId - OpenAI vector store ID.
+     * @returns {Promise<Object[]>} - Array of openai `file` objects.
+     */
+    async files(vectorstoreId){
+        return await this.openai.beta.vectorStores.files.list(vectorstoreId)
+    }
+    /**
      * Given member input, get a response from the specified LLM service.
      * @todo - confirm that reason for **factory** is to run functions as responses from LLM; ergo in any case, find better way to stash/cache factory so it does not need to be passed through every such function
      * @param {string} threadId - Thread id.
@@ -79,6 +95,14 @@ class LLMServices {
         return await mThread(this.openai, threadId)
     }
     /**
+     * Updates assistand with specified tools. Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
+     * @param {string} assistantId - OpenAI assistant ID.
+     * @param {object} tools - Tools object.
+     */
+    async updateTools(assistantId, tools){
+        return await this.openai.beta.assistants.update(assistantId, tools)
+    }
+    /**
      * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
      * @documentation [OpenAI API Reference: Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores)
      * @documentation [file_search Quickstart](https://platform.openai.com/docs/assistants/tools/file-search/quickstart)
@@ -96,17 +120,19 @@ class LLMServices {
             })
             vectorstoreId = vectorstore.id
         }
-        console.log('LLMServices::upload()::end', vectorstoreId, files)
-        let response
+        let response,
+            success = false
         try{
             response = await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorstoreId, { files, })
-            console.log('LLMServices::upload()::end', vectorstoreId, memberId, response)
+            success = true
         } catch(error) {
             console.log('LLMServices::upload()::error', error.message)
+            response = error.message
         }
         return {
             vectorstoreId,
             response,
+            success,
         }
     }
     /* getters/setters */
