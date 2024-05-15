@@ -400,10 +400,13 @@ class Avatar extends EventEmitter {
         const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices)
         await assetAgent.init(this.#factory.vectorstoreId, includeMyLife)
         const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = assetAgent
-        // update this avatar to use new vectorstore tool
         if(!vectorstoreId && newVectorstoreId)
-            await this.updateTools()
-        return response
+            this.updateTools()
+        return {
+            uploads: files,
+            files: vectorstoreFileList,
+            success: true,
+        }
     }
     /**
      * Update tools for bot-assistant based on type.
@@ -438,7 +441,7 @@ class Avatar extends EventEmitter {
                 }
         }
         if(tools)
-            await this.#llmServices.updateTools(botId, tools) /* no await */
+            this.#llmServices.updateTools(botId, tools) /* no await */
     }
     /* getters/setters */
     /**

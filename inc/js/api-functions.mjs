@@ -298,11 +298,9 @@ async function upload(ctx){
     await mAPIKeyValidation(ctx)
     const { avatar, } = ctx.state
     const upload = await avatar.upload(files)
-    ctx.body = {
-        success: true,
-        message: `File(s) [type=${ type }] uploaded successfully.`,
-        data: upload,
-    }
+    upload.type = type
+    upload.message = `File(s) [type=${ type }] attempted upload, see "success".`,
+    ctx.body = upload
 }
 /* "private" module functions */
 /**
