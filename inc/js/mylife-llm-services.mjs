@@ -83,26 +83,31 @@ class LLMServices {
      * @documentation [OpenAI API Reference: Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores)
      * @documentation [file_search Quickstart](https://platform.openai.com/docs/assistants/tools/file-search/quickstart)
      * @param {string} vectorstoreId - Vector store ID from OpenAI.
-     * @param {File[]} files - Array of files to upload.
+     * @param {object} files - as seems to be requested by api: { files, fileIds, }.
      * @param {string} memberId - Member ID, will be `name` of vector-store.
      * @returns {Promise<string>} - The vector store ID.
      */
     async upload(vectorstoreId, files, memberId){
         if(!files?.length)
             throw new Error('No files to upload')
-        const fileStreams = files.map(path=>fs.createReadStream(path))
         if(!vectorstoreId){ /* create vector-store */
-            vectorstoreId = await openai.beta.vectorStores.create({
+            const vectorstore = await this.openai.beta.vectorStores.create({
                 name: memberId,
             })
-                .id
-            console.log('LLMServices::upload()::create', vectorstoreId, memberId)
+            vectorstoreId = vectorstore.id
         }
-        console.log('LLMServices::upload()::begin', vectorstoreId, fileStreams, memberId)
-        const response = await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, fileStreams)
-        // memberId = `name` of vector-store; store in core data the name of the vector-store
-        console.log('LLMServices::upload()::begin', vectorstoreId, files, memberId)
-        return 'response'
+        console.log('LLMServices::upload()::end', vectorstoreId, files)
+        let response
+        try{
+            response = await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorstoreId, { files, })
+            console.log('LLMServices::upload()::end', vectorstoreId, memberId, response)
+        } catch(error) {
+            console.log('LLMServices::upload()::error', error.message)
+        }
+        return {
+            vectorstoreId,
+            response,
+        }
     }
     /* getters/setters */
     get openai(){

@@ -396,9 +396,11 @@ class Avatar extends EventEmitter {
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot upload files.')
         const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices)
-        await assetAgent.init(includeMyLife)
+        await assetAgent.init(this.#factory.vectorstoreId, includeMyLife)
+        const { response, vectorstoreId, } = assetAgent
+        console.log('upload::response', response, vectorstoreId)
+        return response
     }
-    // upon dissolution, forced/squeezed by session presumably (dehydrate), present itself to factory.evolution agent (or emit?) for inspection and incorporation if appropriate into datacore
     /* getters/setters */
     /**
      * Get the active bot. If no active bot, return this as default chat engine.

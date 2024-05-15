@@ -15,6 +15,8 @@ class oAIAssetAssistant {
 	#files = []
 	#globals
 	#llm
+	#response
+	#vectorstoreId
 	constructor(files, factory, globals, llm){
 		this.#factory = factory
 		this.#globals = globals
@@ -23,14 +25,20 @@ class oAIAssetAssistant {
 	}
 	/**
 	 * Initializes the asset assistant by uploading the files to the vectorstore and optionally embedding and enacting the files.
+	 * @todo - Implement file name check before redundant upload; could ask user or overwrite (more complicated).
 	 * @param {string} vectorstoreId - The vectorstore id to upload the files into, if already exists (avatar would know).
 	 * @param {boolean} includeMyLife - Whether to embed and enact the files.
 	 * @returns {Promise<oAIAssetAssistant>} - The initialized asset assistant instance.
 	 */
 	async init(vectorstoreId, includeMyLife=false){
-		const dataRecord = await this.#llm.upload(vectorstoreId, this.#files, this.mbr_id)
-		// if new vectorstore, returns then save to datacore
-		console.log('dataRecord', dataRecord)
+		const fileStreams = this.files.map(file=>fs.createReadStream(file.filepath))
+		// @stub - do not upload if file name already exists?
+		const dataRecord = await this.#llm.upload(vectorstoreId, fileStreams, this.mbr_id)
+		const { response, vectorstoreId: newVectorstoreId, } = dataRecord
+		this.#response = response
+		this.#vectorstoreId = newVectorstoreId
+		if(!vectorstoreId && newVectorstoreId)
+			this.#factory.vectorstoreId = newVectorstoreId // saves to datacore
 		if(includeMyLife){
 			await this.#embedFile()
 			await this.#enactFile()
@@ -43,6 +51,12 @@ class oAIAssetAssistant {
 	}
 	get mbr_id(){
 		return this.#factory.mbr_id
+	}
+	get response(){
+		return this.#response
+	}
+	get vectorstoreId(){
+		return this.#vectorstoreId
 	}
 	//	setters
 	//	private functions

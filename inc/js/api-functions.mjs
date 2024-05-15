@@ -288,10 +288,11 @@ async function tokenValidation(ctx, next) {
     }
 }
 async function upload(ctx){
-    const { files: filesWrapper, } = ctx.request
-    let { files, } = filesWrapper
+    const { body, files: filesWrapper, } = ctx.request
+    const { type } = body
+    let files = filesWrapper['files[]'] // protocol for multiple files in `ctx.request`
     if(!files)
-        ctx.throw(400, 'No file uploaded.')
+        ctx.throw(400, 'No files uploaded.')
     if(!Array.isArray(files))
         files = [files]
     await mAPIKeyValidation(ctx)
@@ -299,7 +300,7 @@ async function upload(ctx){
     const upload = await avatar.upload(files)
     ctx.body = {
         success: true,
-        message: 'File uploaded successfully.',
+        message: `File(s) [type=${ type }] uploaded successfully.`,
         data: upload,
     }
 }
