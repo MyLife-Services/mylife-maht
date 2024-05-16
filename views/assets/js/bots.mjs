@@ -9,11 +9,14 @@ import {
     toggleVisibility,
 } from './members.mjs'
 import Globals from './globals.mjs'
-/* constants */
-const botBar = document.getElementById('bot-bar'),
+/* constants; DOM exists? */
+const mAvailableMimeTypes = [],
+    mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
+    botBar = document.getElementById('bot-bar'),
     mGlobals = new Globals(),
     mLibraries = ['experience', 'file', 'story'], // ['chat', 'entry', 'experience', 'file', 'story']
-    libraryCollections = document.getElementById('library-collections'),
+    mLibraryCollections = document.getElementById('library-collections'),
+    mLibraryUpload = document.getElementById('library-upload'),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
     passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`),
@@ -186,7 +189,7 @@ function mBotIcon(type){
  */
 function mCreateCollectionItem(collectionItem){
     /* collection item container */
-    const { assistantType, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
+    const { assistantType, filename, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
     const item = document.createElement('div')
     item.id = `collection-item_${ id }`
     item.name = `collection-item-${ type }`
@@ -203,16 +206,32 @@ function mCreateCollectionItem(collectionItem){
     itemName.id = `collection-item-name_${ id }`
     itemName.name = `collection-item-name-${ type }`
     itemName.classList.add('collection-item-name', `${ type }-collection-item-name`)
-    itemName.innerText = title ?? name
+    itemName.innerText = title
+        ?? name
+        ?? filename
+        ?? `unknown ${ type } item`
     item.appendChild(itemName)
     /* buttons */
-    const itemDelete = mCreateCollectionItemDelete(type, id)
-    item.appendChild(itemDelete)
+    switch(type){
+        case 'file':
+            /* file-summary button */
+            break
+        default:
+            const itemDelete = mCreateCollectionItemDelete(type, id)
+            item.appendChild(itemDelete)
+            break
+    }
     /* popup */
-    const itemPopup = mCreateCollectionPopup(collectionItem)
-    item.appendChild(itemPopup)
-    /* listeners */
-    item.addEventListener('click', mViewItemPopup)
+    switch(type){
+        case 'file':
+            /* file-summary button */
+            break
+        default:
+            const itemPopup = mCreateCollectionPopup(collectionItem)
+            item.appendChild(itemPopup)
+            item.addEventListener('click', mViewItemPopup)
+            break
+    }
     return item
 }
 /**
@@ -682,9 +701,9 @@ function mUpdateBotContainers(){
         switch(type){
             case 'library':
                 /* attach library collection listeners */
-                if(!libraryCollections || !libraryCollections.children.length)
+                if(!mLibraryCollections || !mLibraryCollections.children.length)
                     return
-                for(let collection of libraryCollections.children){
+                for(let collection of mLibraryCollections.children){
                     let { id, } = collection
                     id = id.split('-').pop()
                     if(!mLibraries.includes(id)){
@@ -700,6 +719,8 @@ function mUpdateBotContainers(){
                     if(collectionButton)
                         collectionButton.addEventListener('click', mRefreshCollection, { once: true })
                 }
+                if(mLibraryUpload)
+                    mLibraryUpload.addEventListener('click', mUploadFiles)
                 break
             case 'personal-avatar':
                 /* attach avatar listeners */
@@ -729,9 +750,18 @@ function mUpdateBotContainers(){
  * @returns {void}
  */
 function mUpdateCollection(type, collection, collectionList){
+    console.log('mUpdateCollection()', type)
     collectionList.innerHTML = ''
     collection
-        .map(item=>({ ...item, type: item.type ?? item.being ?? type, }))
+        .map(item=>({
+            ...item,
+            name: item.name
+                ?? item.filename
+                ?? type,
+            type: item.type
+                ?? item.being
+                ?? type,
+        }))
         .filter(item=>item.type===type)
         .sort((a, b)=>a.name.localeCompare(b.name))
         .forEach(item=>{
@@ -831,6 +861,67 @@ function mUpdateTicker(type, botContainer){
  */
 function mUpdateTickerValue(ticker, value){
     ticker.innerText = value
+}
+/**
+ * Upload Files to server from any .
+ * @async
+ * @requires mAvailableMimeTypes
+ * @requires mAvailableUploaderTypes
+ * @requires mGlobals
+ * @requires mLibraryUpload
+ * @param {Event} event - The event object.
+ */
+async function mUploadFiles(event){
+    const { id, parentNode: uploadParent, } = this
+    const type = mGlobals.HTMLIdToType(id)
+    if(!mAvailableUploaderTypes.includes(type))
+        throw new Error(`Uploader type not found, upload function unavailable for this bot.`)
+    let fileInput
+    try{
+        console.log('mUploadFiles()::uploader', document.activeElement)
+        mLibraryUpload.disabled = true
+        fileInput = document.createElement('input')
+        fileInput.id = `file-input-${ type }`
+        fileInput.multiple = true
+        fileInput.name = fileInput.id
+        fileInput.type = 'file'
+        uploadParent.appendChild(fileInput)
+        hide(fileInput)
+        fileInput.click()
+        window.addEventListener('focus', async event=>{
+            await mUploadFilesInput(fileInput, uploadParent, mLibraryUpload)
+        }, { once: true })
+    } catch(error) {
+        mUploadFilesInputRemove(fileInput, uploadParent, mLibraryUpload)
+        console.log('mUploadFiles()::ERROR uploading files:', error)
+    }
+}
+async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
+    console.log('mUploadFilesInput()::clicked', fileInput, uploadButton)
+    const fileTest = document.getElementById(`file-input-library`)
+    // try adding listener to fileInput onChange now
+    fileInput.addEventListener('change', async event=>{
+        const { files, } = fileInput
+        if(files?.length){
+            /* send to server */
+            const formData = new FormData()
+            for(let file of files){
+                formData.append('files[]', file)
+            }
+            formData.append('type', mGlobals.HTMLIdToType(uploadParent.id))
+            const response = await fetch('/members/upload', {
+                method: 'POST',
+                body: formData
+            })
+            const result = await response.json()
+        }
+    }, { once: true })
+    mUploadFilesInputRemove(fileInput, uploadParent, uploadButton)
+}
+function mUploadFilesInputRemove(fileInput, uploadParent, uploadButton){
+    if(fileInput && uploadParent.contains(fileInput))
+        uploadParent.removeChild(fileInput)
+    uploadButton.disabled = false
 }
 /**
  * View/toggles collection item popup.

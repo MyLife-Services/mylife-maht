@@ -666,6 +666,16 @@ class AgentFactory extends BotFactory{
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
+	get vectorstoreId(){
+		return this.core.vectorstoreId
+	}
+	set vectorstoreId(vectorstoreId){
+		/* validate vectorstoreId */
+		if(!vectorstoreId?.length)
+			throw new Error('vectorstoreId required')
+		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
+		this.core.vectorstoreId = vectorstoreId /* update local */
+	}
 }
 // private module functions
 /**

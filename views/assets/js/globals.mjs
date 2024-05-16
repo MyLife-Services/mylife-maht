@@ -148,6 +148,28 @@ class Globals {
         }
     }
     /**
+     * Consumes an HTML id and returns the functionality name. Example: `library-upload` returns `upload`.
+     * @public
+     * @param {string} id - The HTML id to convert.
+     * @returns {string} - The functionality name.
+     */
+    HTMLIdToFunction(id){
+        if(id.includes('-'))
+            id = id.split('-').pop()
+        return id
+    }
+    /**
+     * Consumes an HTML id and returns the type. Example: `library-upload` returns `library`.
+     * @public
+     * @param {string} id - The HTML id to convert.
+     * @returns {string} - The type.
+     */
+    HTMLIdToType(id){
+        if(id.includes('-'))
+            id = id.split('-').slice(0, -1).join('-')
+        return id
+    }
+    /**
      * Hides an element, pre-executing any included callback function.
      * @public
      * @param {HTMLElement} element - The element to hide.
