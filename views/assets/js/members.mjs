@@ -84,7 +84,7 @@ function addMessageToColumn(message, options={
 	const chatBubble = document.createElement('div')
     chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.classList.add('chat-bubble', bubbleClass)
-    chatBubble.innerHTML = escapeHtml(messageContent)
+    chatBubble.innerHTML = messageContent
     mChatBubbleCount++
 	systemChat.appendChild(chatBubble)
 }
