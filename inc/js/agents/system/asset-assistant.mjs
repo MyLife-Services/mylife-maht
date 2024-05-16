@@ -4,12 +4,10 @@ import mime from 'mime-types'
 import FormData from 'form-data'
 import axios from 'axios'
 //	module constants
-//	module constants
 const { MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN, MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT, MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN, MYLIFE_SERVER_MBR_ID: mylifeMbrId, } = process.env
 const bearerToken = MYLIFE_EMBEDDING_SERVER_BEARER_TOKEN
 const fileSizeLimit = parseInt(MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT) || 1048576
 const fileSizeLimitAdmin = parseInt(MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760
-//	module class definition
 class oAIAssetAssistant {
 	#factory
 	#uploadedFileList=[] // uploaded versions

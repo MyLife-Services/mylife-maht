@@ -364,6 +364,42 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
+     * Returns all conversations of a specific-type stored in memory.
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @returns {Conversation[]} - The array of conversation objects.
+     */
+    getConversations(type='chat'){
+        return this.#conversations
+            .filter(_=>_?.type===type)
+    }
+    /**
+     * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
+     * @param {string} helpRequest - The help request text.
+     * @param {string} type - The type of help request.
+     * @returns {Promise<Object>} - openai `message` objects.
+     */
+    async help(helpRequest, type){
+        const processStartTime = Date.now()
+        if(!helpRequest?.length)
+            throw new Error('Help request required.')
+        // @stub - force-type into enum?
+        helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
+        const { thread_id, } = this.activeBot
+        const { bot_id, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
+            ?? this.helpBots?.[0]
+            ?? this.activeBot
+        // @stub rewrite mCallLLM, but ability to override conversation? No, I think in general I would prefer this to occur at factory  as it is here
+        const conversation = this.getConversation(thread_id)
+        const helpResponseArray = await this.factory.help(thread_id, bot_id, helpRequest)
+        conversation.addMessages(helpResponseArray)
+        if(mAllowSave)
+            conversation.save()
+        else
+            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+        const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
+        return response
+    }
+    /**
      * Allows member to reset passphrase.
      * @param {string} passphrase 
      * @returns {boolean} - true if passphrase reset successful.
