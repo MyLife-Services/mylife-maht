@@ -18,6 +18,7 @@ const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
     #activeChatCategory = mGetChatCategory()
+    #assetAgent
     #bots = []
     #conversations = []
     #evolver
@@ -48,6 +49,7 @@ class Avatar extends EventEmitter {
         super()
         this.#factory = factory
         this.#llmServices = llmServices
+        this.#assetAgent = new oAIAssetAssistant(this.#factory, this.globals, this.#llmServices)
     }
     /* public functions */
     /**
@@ -77,13 +79,20 @@ class Avatar extends EventEmitter {
             const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
             await Promise.all(requiredBotTypes.map(async botType =>{
                 if(!this.#bots.some(bot => bot.type === botType)){
-                    const _bot = await mBot(this.#factory, this, { type: botType })
-                    this.#bots.push(_bot)
+                    const hydratedBot = await mBot(this.#factory, this, { type: botType })
+                    this.#bots.push(hydratedBot)
                 }
             }))
             activeBot = this.avatarBot // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
+            /* conversations */
+            this.#bots.forEach(async bot=>{
+                console.log('createConversation', bot, bot.thread_id)
+                if(bot.thread_id)
+                    this.#conversations.push(await this.createConversation('chat', bot.thread_id))
+            })
+            console.log('createConversation', this.#conversations)
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             /* lived-experiences */
@@ -117,21 +126,30 @@ class Avatar extends EventEmitter {
      * Processes and executes incoming chat request.
      * @todo - cleanup/streamline frontend communication as it really gets limited to Q&A... other events would fire API calls on the same same session, so don't need to be in chat or conversation streams
      * @public
-     * @param {object} ctx - The context object.
+     * @param {string} activeBotId - The active bot id.
+     * @param {string} threadId - The openai thread id.
+     * @param {string} chatMessage - The chat message content.
      * @returns {object} - The response(s) to the chat request.
     */
-    async chatRequest(ctx){
+    async chatRequest(activeBotId, threadId, chatMessage){
         const processStartTime = Date.now()
-        const { chatMessage, } = ctx.state
-        const { message: prompt, role, thread_id, } = chatMessage
-        if(!prompt)
+        if(!chatMessage)
             throw new Error('No message provided in context')
-        // send active bot? send active conversation?
-        let conversation = this.getConversation(this.activeBot.thread_id)
-        if(!conversation)
-            conversation = await this.createConversation('chat')
-        conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        const messages = await mCallLLM(this.#llmServices, conversation, prompt, this.factory)
+        if(!activeBotId)
+            throw new Error('Parameter `activeBotId` required.')
+        const { activeBot, factory } = this
+        const { id: botId, thread_id: botThreadId, } = activeBot
+        if(botId!==activeBotId)
+            throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
+        if(botThreadId!==threadId)
+            throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
+        let conversation = this.getConversation(threadId)
+        if(!conversation){
+            throw new Error('No conversation found for thread id and could not be created.')
+        }
+            // conversation = await this.createConversation('chat')
+        conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
+        const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory)
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
@@ -156,6 +174,10 @@ class Avatar extends EventEmitter {
      * @returns {array} - The collection items with no wrapper.
      */
     async collections(type){
+        if(type==='file'){
+            await this.#assetAgent.init() // bypass factory for files
+            return this.#assetAgent.files
+        } // bypass factory for files
         const { factory, } = this
         const collections = ( await factory.collections(type) )
             .map(collection=>{
@@ -178,8 +200,14 @@ class Avatar extends EventEmitter {
             })
         return collections
     }
-    async createConversation(type='chat'){
-        const thread = await this.#llmServices.thread()
+    /**
+     * Create a new conversation, with or without thread id knowledge.
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
+     * @param {string} threadId - The openai thread id, if undefined, created.
+     * @returns {Promise<Conversation>} - The conversation object.
+     */
+    async createConversation(type='chat', threadId){
+        const thread = await this.#llmServices.thread(threadId)
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
@@ -291,13 +319,49 @@ class Avatar extends EventEmitter {
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
-     * @param {string} thread_id - openai thread id
+     * @param {string} threadId - openai thread id
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
      * @returns {Conversation} - The conversation object.
      */
-    getConversation(thread_id){
+    getConversation(threadId){
         return this.#conversations
-            .find(_=>_.thread?.id===thread_id)
+            .find(_=>_.thread?.id===threadId)
+    }
+    /**
+     * Returns all conversations of a specific-type stored in memory.
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @returns {Conversation[]} - The array of conversation objects.
+     */
+    getConversations(type='chat'){
+        return this.#conversations
+            .filter(_=>_?.type===type)
+    }
+    /**
+     * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
+     * @param {string} helpRequest - The help request text.
+     * @param {string} type - The type of help request.
+     * @returns {Promise<Object>} - openai `message` objects.
+     */
+    async help(helpRequest, type){
+        const processStartTime = Date.now()
+        if(!helpRequest?.length)
+            throw new Error('Help request required.')
+        // @stub - force-type into enum?
+        helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
+        const { thread_id, } = this.activeBot
+        const { bot_id, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
+            ?? this.helpBots?.[0]
+            ?? this.activeBot
+        // @stub rewrite mCallLLM, but ability to override conversation? No, I think in general I would prefer this to occur at factory  as it is here
+        const conversation = this.getConversation(thread_id)
+        const helpResponseArray = await this.factory.help(thread_id, bot_id, helpRequest)
+        conversation.addMessages(helpResponseArray)
+        if(mAllowSave)
+            conversation.save()
+        else
+            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+        const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
+        return response
     }
     /**
      * Returns all conversations of a specific-type stored in memory.
@@ -390,15 +454,58 @@ class Avatar extends EventEmitter {
      * @todo - implement MyLife file upload.
      * @param {File[]} files - The array of files to upload.
      * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
-     * @returns 
+     * @returns {boolean} - true if upload successful.
      */
     async upload(files, includeMyLife=false){
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot upload files.')
-        const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices, includeMyLife)
-        await assetAgent.init()
+        const { vectorstoreId, } = this.#factory
+        await this.#assetAgent.init(this.#factory.vectorstoreId, includeMyLife) /* or "re-init" */
+        await this.#assetAgent.upload(files)
+        const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = this.#assetAgent
+        if(!vectorstoreId && newVectorstoreId)
+            this.updateTools()
+        return {
+            uploads: files,
+            files: vectorstoreFileList,
+            success: true,
+        }
     }
-    // upon dissolution, forced/squeezed by session presumably (dehydrate), present itself to factory.evolution agent (or emit?) for inspection and incorporation if appropriate into datacore
+    /**
+     * Update tools for bot-assistant based on type.
+     * @todo - manage issue that several bots require attachment upon creation.
+     * @todo - move to llm code.
+     * @todo - allow for multiple types simultaneously.
+     * @param {string} bot_id - The bot id to update tools for.
+     * @param {string} type - The type of tool to update.
+     * @param {any} data - The data required by the switch type.
+     * @returns {void}
+     */
+    async updateTools(botId=this.avatarBot.bot_id, type='file_search', data){
+        let tools
+        switch(type){
+            case 'function': // @stub - function tools
+                tools = {
+                    tools: [{ type: 'function' }],
+                    function: {},
+                }
+                break
+            case 'file_search':
+            default:
+                if(!this.#factory.vectorstoreId)
+                    return
+                tools = {
+                    tools: [{ type: 'file_search' }],
+                    tool_resources: {
+                        file_search: {
+                            vector_store_ids: [this.#factory.vectorstoreId],
+                        }
+                    },
+                }
+        }
+        if(tools)
+            this.#llmServices.updateTools(botId, tools) /* no await */
+    }
     /* getters/setters */
     /**
      * Get the active bot. If no active bot, return this as default chat engine.

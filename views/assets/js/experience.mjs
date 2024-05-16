@@ -774,11 +774,16 @@ async function mGetExperiences(scope){
     }*/
     /* system experiences */
     if((scope ?? 'system')==='system'){
-        const systemExperiences = await mGetExperiencesFromServer(`/experiences`)
-        experiences.push(...systemExperiences.filter(
-            experience=>!experiences.some(_experience=>_experience.id===experience.id)
-        ))
+        let systemExperiences = await mGetExperiencesFromServer(`/experiences`)
+        systemExperiences = systemExperiences?.experiences
+            ?? systemExperiences
+            ?? experiences
+        if(systemExperiences?.length)
+            experiences.push(...systemExperiences.filter(
+                experience=>!experiences.some(_experience=>_experience.id===experience.id)
+            ))
     }
+    return experiences
 }
 /**
  * Get experiences from server.
