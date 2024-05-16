@@ -36,6 +36,14 @@ document.addEventListener('DOMContentLoaded', async event=>{
 })
 /* public functions */
 /**
+ * Get active bot in memory.
+ * @public
+ * @returns {object} - The active bot object.
+ */
+function activeBot(){
+    return mActiveBot
+}
+/**
  * Fetch bots from server, used primarily for initialization of page, though could be requested on-demand.
  * @public
  * @returns {Promise<Object[Array]>} - The bot object array, no wrapper.
@@ -941,6 +949,7 @@ function mViewItemPopup(event){
 /* exports */
 // @todo - export combine of fetchBots and updatePageBots
 export {
+    activeBot,
     fetchBots,
     fetchCollections,
     setActiveBot,

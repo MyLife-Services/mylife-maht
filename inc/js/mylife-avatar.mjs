@@ -79,13 +79,20 @@ class Avatar extends EventEmitter {
             const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
             await Promise.all(requiredBotTypes.map(async botType =>{
                 if(!this.#bots.some(bot => bot.type === botType)){
-                    const _bot = await mBot(this.#factory, this, { type: botType })
-                    this.#bots.push(_bot)
+                    const hydratedBot = await mBot(this.#factory, this, { type: botType })
+                    this.#bots.push(hydratedBot)
                 }
             }))
             activeBot = this.avatarBot // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
+            /* conversations */
+            this.#bots.forEach(async bot=>{
+                console.log('createConversation', bot, bot.thread_id)
+                if(bot.thread_id)
+                    this.#conversations.push(await this.createConversation('chat', bot.thread_id))
+            })
+            console.log('createConversation', this.#conversations)
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             /* lived-experiences */
@@ -119,21 +126,30 @@ class Avatar extends EventEmitter {
      * Processes and executes incoming chat request.
      * @todo - cleanup/streamline frontend communication as it really gets limited to Q&A... other events would fire API calls on the same same session, so don't need to be in chat or conversation streams
      * @public
-     * @param {object} ctx - The context object.
+     * @param {string} activeBotId - The active bot id.
+     * @param {string} threadId - The openai thread id.
+     * @param {string} chatMessage - The chat message content.
      * @returns {object} - The response(s) to the chat request.
     */
-    async chatRequest(ctx){
+    async chatRequest(activeBotId, threadId, chatMessage){
         const processStartTime = Date.now()
-        const { chatMessage, } = ctx.state
-        const { message: prompt, role, thread_id, } = chatMessage
-        if(!prompt)
+        if(!chatMessage)
             throw new Error('No message provided in context')
-        // send active bot? send active conversation?
-        let conversation = this.getConversation(this.activeBot.thread_id)
-        if(!conversation)
-            conversation = await this.createConversation('chat')
-        conversation.botId = this.activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        const messages = await mCallLLM(this.#llmServices, conversation, prompt, this.factory)
+        if(!activeBotId)
+            throw new Error('Parameter `activeBotId` required.')
+        const { activeBot, factory } = this
+        const { id: botId, thread_id: botThreadId, } = activeBot
+        if(botId!==activeBotId)
+            throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
+        if(botThreadId!==threadId)
+            throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
+        let conversation = this.getConversation(threadId)
+        if(!conversation){
+            throw new Error('No conversation found for thread id and could not be created.')
+        }
+            // conversation = await this.createConversation('chat')
+        conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
+        const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory)
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
@@ -184,8 +200,14 @@ class Avatar extends EventEmitter {
             })
         return collections
     }
-    async createConversation(type='chat'){
-        const thread = await this.#llmServices.thread()
+    /**
+     * Create a new conversation, with or without thread id knowledge.
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
+     * @param {string} threadId - The openai thread id, if undefined, created.
+     * @returns {Promise<Conversation>} - The conversation object.
+     */
+    async createConversation(type='chat', threadId){
+        const thread = await this.#llmServices.thread(threadId)
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
@@ -297,13 +319,13 @@ class Avatar extends EventEmitter {
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
-     * @param {string} thread_id - openai thread id
+     * @param {string} threadId - openai thread id
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
      * @returns {Conversation} - The conversation object.
      */
-    getConversation(thread_id){
+    getConversation(threadId){
         return this.#conversations
-            .find(_=>_.thread?.id===thread_id)
+            .find(_=>_.thread?.id===threadId)
     }
     /**
      * Returns all conversations of a specific-type stored in memory.

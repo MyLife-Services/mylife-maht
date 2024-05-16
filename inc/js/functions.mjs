@@ -73,12 +73,11 @@ async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	ctx.state.chatMessage = ctx.request.body
-	ctx.state.thread = ctx.state.MemberSession.thread
-	const message = ctx.request.body?.message ?? false /* body has all the nodes sent by fe */
+	const { botId, message, role, threadId, } = ctx.request.body
+		?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
-	const response = await ctx.state.avatar.chatRequest(ctx)
+	const response = await ctx.state.avatar.chatRequest(botId, threadId, message)
 	ctx.body = response
 }
 async function collections(ctx){

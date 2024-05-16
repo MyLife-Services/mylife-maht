@@ -426,6 +426,7 @@ async function mRunTrigger(openai, botId, threadId, factory){
 }
 /**
  * Create or retrieve an OpenAI thread.
+ * @todo - create case for failure in thread creation/retrieval
  * @module
  * @param {OpenAI} openai - openai object
  * @param {string} threadId - thread id
