@@ -189,7 +189,7 @@ function mBotIcon(type){
  */
 function mCreateCollectionItem(collectionItem){
     /* collection item container */
-    const { assistantType, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
+    const { assistantType, filename, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
     const item = document.createElement('div')
     item.id = `collection-item_${ id }`
     item.name = `collection-item-${ type }`
@@ -206,16 +206,32 @@ function mCreateCollectionItem(collectionItem){
     itemName.id = `collection-item-name_${ id }`
     itemName.name = `collection-item-name-${ type }`
     itemName.classList.add('collection-item-name', `${ type }-collection-item-name`)
-    itemName.innerText = title ?? name
+    itemName.innerText = title
+        ?? name
+        ?? filename
+        ?? `unknown ${ type } item`
     item.appendChild(itemName)
     /* buttons */
-    const itemDelete = mCreateCollectionItemDelete(type, id)
-    item.appendChild(itemDelete)
+    switch(type){
+        case 'file':
+            /* file-summary button */
+            break
+        default:
+            const itemDelete = mCreateCollectionItemDelete(type, id)
+            item.appendChild(itemDelete)
+            break
+    }
     /* popup */
-    const itemPopup = mCreateCollectionPopup(collectionItem)
-    item.appendChild(itemPopup)
-    /* listeners */
-    item.addEventListener('click', mViewItemPopup)
+    switch(type){
+        case 'file':
+            /* file-summary button */
+            break
+        default:
+            const itemPopup = mCreateCollectionPopup(collectionItem)
+            item.appendChild(itemPopup)
+            item.addEventListener('click', mViewItemPopup)
+            break
+    }
     return item
 }
 /**
@@ -734,9 +750,18 @@ function mUpdateBotContainers(){
  * @returns {void}
  */
 function mUpdateCollection(type, collection, collectionList){
+    console.log('mUpdateCollection()', type)
     collectionList.innerHTML = ''
     collection
-        .map(item=>({ ...item, type: item.type ?? item.being ?? type, }))
+        .map(item=>({
+            ...item,
+            name: item.name
+                ?? item.filename
+                ?? type,
+            type: item.type
+                ?? item.being
+                ?? type,
+        }))
         .filter(item=>item.type===type)
         .sort((a, b)=>a.name.localeCompare(b.name))
         .forEach(item=>{
@@ -877,7 +902,6 @@ async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
     // try adding listener to fileInput onChange now
     fileInput.addEventListener('change', async event=>{
         const { files, } = fileInput
-        console.log('mUploadFilesInput()::changed', fileInput.files)
         if(files?.length){
             /* send to server */
             const formData = new FormData()
@@ -890,7 +914,6 @@ async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
                 body: formData
             })
             const result = await response.json()
-            console.log('Server response:', result)
         }
     }, { once: true })
     mUploadFilesInputRemove(fileInput, uploadParent, uploadButton)
