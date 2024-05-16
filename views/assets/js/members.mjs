@@ -8,6 +8,7 @@ import {
     submitInput,
 } from './experience.mjs'
 import {
+    activeBot,
     setActiveBot as _setActiveBot,
     updatePageBots,
 } from './bots.mjs'
@@ -20,8 +21,7 @@ const mainContent = mGlobals.mainContent,
     navigation = mGlobals.navigation,
     sidebar = mGlobals.sidebar
 /* variables */
-let activeBot,
-    mAutoplay=false,
+let mAutoplay=false,
     mChatBubbleCount = 0,
     mExperience,
     mMemberId,
@@ -415,8 +415,8 @@ function mInitializePageListeners(){
         }
     })
 }
-function isActive(id) {
-    return id===activeBot.id
+function isActive(botId) {
+    return botId===activeBot().id
 }
 /**
  * Resets the animation of an element.
@@ -496,10 +496,12 @@ async function submit(message, bypass=false){
 	if(!message?.length)
 		throw new Error('submit(): `message` argument is required')
 	const url = window.location.origin + '/members';
+    const { id: botId, role, thread_id: threadId, } = activeBot()
 	const _request = {
-			agent: 'member',
-			id: null,
-			message: message,
+			role: 'member',
+			botId,
+            threadId,
+			message,
 		}
 	const options = {
 		method: 'POST',
@@ -513,12 +515,12 @@ async function submit(message, bypass=false){
 }
 async function submitChat(url, options) {
 	try {
-		const response = await fetch(url, options);
-		const jsonResponse = await response.json();
-		return jsonResponse;
-	} catch (err) {
-		console.log('fatal error', err);
-		return alert(`Error: ${err.message}`);
+		const response = await fetch(url, options)
+		const jsonResponse = await response.json()
+		return jsonResponse
+	} catch(error) {
+		console.log('fatal error', error)
+		return alert(`Error: ${error.message}`)
 	}
 }
 /**
