@@ -49,6 +49,7 @@ class Avatar extends EventEmitter {
         super()
         this.#factory = factory
         this.#llmServices = llmServices
+        this.#assetAgent = new oAIAssetAssistant(this.#factory, this.globals, this.#llmServices)
     }
     /* public functions */
     /**
@@ -157,6 +158,10 @@ class Avatar extends EventEmitter {
      * @returns {array} - The collection items with no wrapper.
      */
     async collections(type){
+        if(type==='file'){
+            await this.#assetAgent.init() // bypass factory for files
+            return this.#assetAgent.files
+        } // bypass factory for files
         const { factory, } = this
         const collections = ( await factory.collections(type) )
             .map(collection=>{
@@ -397,9 +402,9 @@ class Avatar extends EventEmitter {
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot upload files.')
         const { vectorstoreId, } = this.#factory
-        const assetAgent = new oAIAssetAssistant(files, this.#factory, this.globals, this.#llmServices)
-        await assetAgent.init(this.#factory.vectorstoreId, includeMyLife)
-        const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = assetAgent
+        await this.#assetAgent.init(this.#factory.vectorstoreId, includeMyLife) /* or "re-init" */
+        await this.#assetAgent.upload(files)
+        const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = this.#assetAgent
         if(!vectorstoreId && newVectorstoreId)
             this.updateTools()
         return {

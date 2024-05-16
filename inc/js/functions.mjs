@@ -82,7 +82,9 @@ async function chat(ctx){
 	ctx.body = response
 }
 async function collections(ctx){
-	ctx.body = await ctx.state.avatar.collections(ctx.params.type)
+	const { avatar, } = ctx.state
+	const { type, } = ctx.params
+	ctx.body = await avatar.collections(type)
 }
 /**
  * Manage delivery and receipt of contributions(s).

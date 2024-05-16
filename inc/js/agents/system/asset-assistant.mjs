@@ -12,59 +12,68 @@ const fileSizeLimitAdmin = parseInt(MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN
 //	module class definition
 class oAIAssetAssistant {
 	#factory
-	#files = []
+	#uploadedFileList=[] // uploaded versions
 	#globals
+	#includeMyLife=false
 	#llm
 	#response
 	#vectorstoreId
-	#vectorstoreFileList=[]
-	constructor(files, factory, globals, llm){
+	#vectorstoreFileList // openai vectorstore versions
+	constructor(factory, globals, llm){
 		this.#factory = factory
 		this.#globals = globals
 		this.#llm = llm
-		this.#files = this.#extractFiles(files)
+		this.#vectorstoreId = this.#factory.vectorstoreId
 	}
 	/**
 	 * Initializes the asset assistant by uploading the files to the vectorstore and optionally embedding and enacting the files.
-	 * @todo - Implement file name check before redundant upload; could ask user or overwrite (more complicated).
 	 * @param {string} vectorstoreId - The vectorstore id to upload the files into, if already exists (avatar would know).
 	 * @param {boolean} includeMyLife - Whether to embed and enact the files.
 	 * @returns {Promise<oAIAssetAssistant>} - The initialized asset assistant instance.
 	 */
-	async init(vectorstoreId, includeMyLife=false){
-		const fileStreams = this.files.map(file=>fs.createReadStream(file.filepath))
-		// @stub - do not upload if file name already exists?
-		const dataRecord = await this.#llm.upload(vectorstoreId, fileStreams, this.mbr_id)
-		this.files.forEach(file=>fs.unlinkSync(file.filepath)) /* delete .tmp files */
-		const { response, vectorstoreId: newVectorstoreId, success } = dataRecord
-		this.#response = response
-		this.#vectorstoreId = newVectorstoreId
-		if(!vectorstoreId && newVectorstoreId)
-			this.#factory.vectorstoreId = newVectorstoreId // saves to datacore
-		if(success && this.#vectorstoreId?.length)
-			await this.updateVectorstoreFileList()
-		if(includeMyLife){
-			await this.#embedFile()
-			await this.#enactFile()
-		}
+	async init(includeMyLife=false){
+		await this.updateVectorstoreFileList() // sets `this.#vectorstoreFileList`
+		this.#includeMyLife = includeMyLife
 		return this
 	}
 	async updateVectorstoreFileList(){
 		if(this.#vectorstoreId?.length){
 			const updateList = (await this.#llm.files(this.#vectorstoreId)).data
-				.filter(file=>!this.#vectorstoreFileList.find(vsFile=>vsFile.id===file.id))
+				.filter(file=>!(this.#vectorstoreFileList ?? []).find(vsFile=>vsFile.id===file.id))
 			if(updateList?.length){
-				this.#vectorstoreFileList.push(
-					...(await Promise.all(
-						updateList.map(async file =>await this.#llm.file(file.id))
-					))
+				this.#vectorstoreFileList = await Promise.all(
+					updateList.map(async file =>await this.#llm.file(file.id))
 				)
 			}
 		}
 	}
+	async upload(files){
+		if(!files || !files.length)
+			throw new Error('No files found in request.')
+		const newFiles = []
+		files.forEach(file => {
+			const hasFile = this.#uploadedFileList.some(_file=>_file.originalName===file.originalName)
+			if(!hasFile)
+				newFiles.push(this.#extractFile(file))
+		})
+		if(newFiles.length){ // only upload new files
+			const vectorstoreId = this.#vectorstoreId
+			this.#uploadedFileList.push(...newFiles)
+			const fileStreams = newFiles.map(file=>fs.createReadStream(file.filepath))
+			const dataRecord = await this.#llm.upload(vectorstoreId, fileStreams, this.mbr_id)
+			const { response, vectorstoreId: newVectorstoreId, success } = dataRecord
+			this.#response = response
+			this.#vectorstoreId = newVectorstoreId
+			if(!vectorstoreId && newVectorstoreId)
+				this.#factory.vectorstoreId = newVectorstoreId // saves to datacore
+			if(success && this.#vectorstoreId?.length)
+				await this.updateVectorstoreFileList()
+		}
+		files.forEach(file=>fs.unlinkSync(file.filepath)) /* delete .tmp files */
+	}
 	//	getters
 	get files(){
-		return this.#files
+		return this.vectorstoreFileList
 	}
 	get mbr_id(){
 		return this.#factory.mbr_id
@@ -81,7 +90,7 @@ class oAIAssetAssistant {
 	//	setters
 	//	private functions
 	async #embedFile(){
-		const file = this.#files[0]
+		const file = this.#uploadedFileList[0]
 		console.log(file)
 		console.log('#embedFile() begin')
 		const _metadata = {
@@ -92,7 +101,7 @@ class oAIAssetAssistant {
 		}
 		const _token = bearerToken
 		const _data = new FormData()
-		_data.append('file', fs.createReadStream(this.file.filepath), { contentType: this.file.mimetype })
+		_data.append('file', fs.createReadStream(file.filepath), { contentType: file.mimetype })
 		_data.append('metadata', JSON.stringify(_metadata))
 		const _request = {
 			method: 'post',
@@ -109,15 +118,20 @@ class oAIAssetAssistant {
 				console.log(`#embedFile() finished: ${response.data.ids}`)
 				return response.data
 			})
+			.then(response=>{
+				if(this.#includeMyLife)
+					return this.#enactFile(response.data)
+				return response.data
+			})
 			.catch((error) => {
 				console.error(error.message)
 				return {'#embedFile() finished error': error.message }
 			})
 	}
-	async #enactFile(){	//	vitalizes by saving to MyLife database
+	async #enactFile(file){	//	vitalizes by saving to MyLife database
 		console.log('#enactFile() begin')
 		const _fileContent = {
-			...this.file,
+			...file,
 			...{ mbr_id: this.mbr_id }
 		}
 		const oFile = new (AgentFactory.file)(_fileContent)
