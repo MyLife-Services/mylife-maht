@@ -95,12 +95,14 @@ class LLMServices {
         return await mThread(this.openai, threadId)
     }
     /**
-     * Updates assistand with specified tools. Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
+     * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
      * @param {string} assistantId - OpenAI assistant ID.
      * @param {object} tools - Tools object.
+     * @returns {Promise<Object>} - openai assistant object.
      */
-    async updateTools(assistantId, tools){
-        return await this.openai.beta.assistants.update(assistantId, tools)
+    async updateAssistant(assistantId, data){
+        data = mValidateAssistantData(data) // throws on improper format
+        return await this.openai.beta.assistants.update(assistantId, data)
     }
     /**
      * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
@@ -437,6 +439,29 @@ async function mThread(openai, threadId){
         return await openai.beta.threads.retrieve(threadId)
     else
         return await openai.beta.threads.create()
+}
+/**
+ * Validates assistant data before sending to OpenAI.
+ * @param {object} data - Object data to validate.
+ * @returns {object} - Cured assistant object data.
+ */
+function mValidateAssistantData(data){
+    // validate: data exists and is a basic object (not specialized? like array)
+    if(!data)
+        throw new Error('No data or data in incorrect format to send to OpenAI assistant.')
+    if(typeof data==='string')
+        data = { [`${ data.substring(0, 32) }`]: data }
+    if(typeof data!=='object')
+        throw new Error('Data to send to OpenAI assistant is not in correct format.')
+    const { description, instructions, metadata, model, name, temperature, tools, tool_resources, top_p, response_format, } = data
+    return {
+        description,
+        instructions,
+        model,
+        name,
+        tools,
+        tool_resources,
+    }
 }
 /* exports */
 export default LLMServices

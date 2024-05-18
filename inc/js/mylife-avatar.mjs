@@ -527,7 +527,7 @@ class Avatar extends EventEmitter {
                 }
         }
         if(tools)
-            this.#llmServices.updateTools(botId, tools) /* no await */
+            this.#llmServices.updateAssistant(botId, tools) /* no await */
     }
     /* getters/setters */
     /**

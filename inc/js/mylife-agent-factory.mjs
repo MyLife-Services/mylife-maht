@@ -676,9 +676,6 @@ class AgentFactory extends BotFactory{
 		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
 		this.core.vectorstoreId = vectorstoreId /* update local */
 	}
-	get vectorstoreId(){
-		return this.core.vectorstoreId
-	}
 }
 // private module functions
 /**
@@ -1105,6 +1102,13 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		tool_resources,
 	}
 }
+/**
+ * Retrieves any tools and tool-resources that need to be attached to the specific bot-type.
+ * @param {Globals} globals - Globals object.
+ * @param {string} toolName - Name of tool.
+ * @param {string} vectorstoreId - Vectorstore id.
+ * @returns {object} - { tools, tool_resources, }.
+ */
 function mGetGPTResources(globals, toolName, vectorstoreId){
 	switch(toolName){
 		case 'file_search':
