@@ -77,12 +77,15 @@ class Avatar extends EventEmitter {
         if(!this.isMyLife){
             /* bot checks */
             const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
-            await Promise.all(requiredBotTypes.map(async botType =>{
-                if(!this.#bots.some(bot => bot.type === botType)){
-                    const hydratedBot = await mBot(this.#factory, this, { type: botType })
-                    this.#bots.push(hydratedBot)
+            await Promise.all(
+                requiredBotTypes
+                    .map(async botType=>{
+                        if(!this.#bots.some(bot=>bot.type===botType)){
+                            const _bot = await mBot(this.#factory, this, { type: botType })
+                            this.#bots.push(_bot)
+                        }
                 }
-            }))
+            ))
             activeBot = this.avatarBot // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
@@ -201,13 +204,33 @@ class Avatar extends EventEmitter {
         return collections
     }
     /**
-     * Create a new conversation, with or without thread id knowledge.
-     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
-     * @param {string} threadId - The openai thread id, if undefined, created.
-     * @returns {Promise<Conversation>} - The conversation object.
+     * Create a new bot. Errors if bot cannot be created.
+     * @async
+     * @public
+     * @param {object} bot - The bot data object, requires type.
+     * @returns {object} - The new bot.
      */
-    async createConversation(type='chat', threadId){
-        const thread = await this.#llmServices.thread(threadId)
+    async createBot(bot){
+        const { type, } = bot
+        if(!type)
+            throw new Error('Bot type required to create.')
+        const singletonBotExists = this.bots
+            .filter(_bot=>_bot.type===type && !_bot.allowMultiple) // same type, self-declared singleton
+            .filter(_bot=>_bot.allowedBeings?.includes('avatar')) // avatar allowed to create
+            .length
+        if(singletonBotExists)
+            throw new Error(`Bot type "${type}" already exists and bot-multiples disallowed.`)
+        return await mBot(this.#factory, this, bot)
+    }
+    /**
+     * Create a new conversation.
+     * @async
+     * @public
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @returns {Conversation} - The conversation object.
+     */
+    async createConversation(type='chat'){
+        const thread = await this.#llmServices.thread()
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
@@ -997,13 +1020,14 @@ async function mBot(factory, avatar, bot){
         throw new Error('MyLife system avatar may not create or alter its associated bots.')
     const { newGuid, } = factory
     const { id: botId=newGuid, object_id: objectId, type: botType, } = bot
+    if(!botType?.length)
+        throw new Error('Bot type required to create.')
     /* set/reset required bot super-properties */
-    bot.mbr_id = mbr_id
+    bot.mbr_id = mbr_id /* constant */
     bot.object_id = objectId ?? avatarId /* all your bots belong to me */
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
-    if(botType?.length) /* `bot.type` mutable? */
-        bot.type = botType
-    let _bot = bots.find(oBot=>oBot.id===bot.id)
+    /* assign or create */
+    let _bot = bots.find(oBot=>oBot.id===botId)
         ?? await factory.createBot(bot)
     /* update bot */
     _bot = {..._bot, ...bot}

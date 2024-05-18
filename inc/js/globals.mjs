@@ -3,70 +3,123 @@ import EventEmitter from 'events'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 /* constants */
 const mAiJsFunctions = {
-	storySummary: {
-		description: "Generate a STORY summary with keywords and other critical data elements.",
-		name: "storySummary",
+	entrySummary: {
+		description: 'Generate a JOURNAL ENTRY `entry` summary with keywords and other critical data elements.',
+		name: 'entrySummary',
 		parameters: {
-			type: "object",
+			type: 'object',
 			properties: {
+				content: {
+					description: 'concatenated raw text content of member input for JOURNAL ENTRY.',
+				},
 				keywords: {
-					description: "Keywords most relevant to STORY.",
+					description: 'Keywords most relevant to JOURNAL ENTRY.',
 					items: {
-						description: "Keyword (single word or short phrase) to be used in STORY summary.",
+						description: 'Keyword (single word or short phrase) to be used in JOURNAL ENTRY summary.',
 						maxLength: 64,
-						type: "string"
+						type: 'string'
 					},
 					maxItems: 12,
 					minItems: 3,
-					type: "array"
+					type: 'array'
 				},
-				phaseOfLife: {
-					description: "Phase of life indicated in STORY.",
-					enum: [
-						"birth",
-						"childhood",
-						"adolescence",
-						"teenage",
-						"young-adult",
-						"adulthood",
-						"middle-age",
-						"senior",
-						"end-of-life",
-						"past-life",
-						"unknown",
-						"other"
-					],
-					maxLength: 64,
-					type: "string"
+				mood: {
+					description: 'Record member mood for day (or entry) in brief as ascertained from content of JOURNAL ENTRY.',
+					maxLength: 256,
+					type: 'string'
 				},
 				relationships: {
-					description: "MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`.",
-					type: "array",
+					description: 'Record individuals (or pets) mentioned in this `entry`.',
+					type: 'array',
 					items: {
-						description: "A name of relational individual/pet to the `story` content.",
-						type: "string"
+						description: 'A name of relational individual/pet to the `entry` content.',
+						type: 'string'
 					},
 					maxItems: 24
 				},
 				summary: {
-					description: "Generate a STORY summary from input.",
+					description: 'Generate a JOURNAL ENTRY summary from input.',
 					maxLength: 20480,
-					type: "string"
+					type: 'string'
 				},
 				title: {
-					description: "Generate display Title of the STORY.",
+					description: 'Generate display Title of the JOURNAL ENTRY.',
 					maxLength: 256,
-					type: "string"
+					type: 'string'
 				}
 			},
 			required: [
-				"keywords",
-				"phaseOfLife",
-				"summary",
-				"title"
+				'content',
+				'keywords',
+				'summary',
+				'title'
 			]
 		}
-	}
+	},
+	storySummary: {
+		description: 'Generate a STORY summary with keywords and other critical data elements.',
+		name: 'storySummary',
+		parameters: {
+			type: 'object',
+			properties: {
+				keywords: {
+					description: 'Keywords most relevant to STORY.',
+					items: {
+						description: 'Keyword (single word or short phrase) to be used in STORY summary.',
+						maxLength: 64,
+						type: 'string'
+					},
+					maxItems: 12,
+					minItems: 3,
+					type: 'array'
+				},
+				phaseOfLife: {
+					description: 'Phase of life indicated in STORY.',
+					enum: [
+						'birth',
+						'childhood',
+						'adolescence',
+						'teenage',
+						'young-adult',
+						'adulthood',
+						'middle-age',
+						'senior',
+						'end-of-life',
+						'past-life',
+						'unknown',
+						'other'
+					],
+					maxLength: 64,
+					type: 'string'
+				},
+				relationships: {
+					description: 'MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`.',
+					type: 'array',
+					items: {
+						description: 'A name of relational individual/pet to the `story` content.',
+						type: 'string'
+					},
+					maxItems: 24
+				},
+				summary: {
+					description: 'Generate a STORY summary from input.',
+					maxLength: 20480,
+					type: 'string'
+				},
+				title: {
+					description: 'Generate display Title of the STORY.',
+					maxLength: 256,
+					type: 'string'
+				}
+			},
+			required: [
+				'keywords',
+				'phaseOfLife',
+				'summary',
+				'title'
+			]
+		}
+	},
 }
 const mEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/	//	regex for email validation
 const mGuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i	//	regex for GUID validation
@@ -77,8 +130,33 @@ class Globals extends EventEmitter {
 		super()
 	}
 	/* public functions */
+	/**
+	 * Get a GPT File Search Tool structure.
+	 * @param {string} vectorstoreId - the vector store id to search.
+	 * @returns {object} - { file_search: { vector_store_ids: [vectorstoreId] } } - the GPT File Search Tool structure.
+	 */
+	getGPTFileSearchToolStructure(vectorstoreId){
+		return {
+			tools: ['file_search'],
+			tool_resources: {
+				file_search: {
+					vector_store_ids: vectorstoreId ? [vectorstoreId] : []
+				}
+			},
+		}
+	}
+	/**
+	 * Get a GPT Javascript function by name.
+	 * @param {string} name - the name of the function to retrieve.
+	 * @returns {object} - {type: 'function', function, } - the function object.
+	 */
 	getGPTJavascriptFunction(name){
-		return this.GPTJavascriptFunctions[name]
+		if(!name?.length)
+			throw new Error('getGPTJavascriptFunction() expects a function name as parameter')
+		return {
+			type: 'function',
+			function: this.GPTJavascriptFunctions[name]
+		}
 	}
 	getRegExp(str, isGlobal = false) {
 		if (typeof str !== 'string' || !str.length)

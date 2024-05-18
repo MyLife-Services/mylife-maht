@@ -676,6 +676,9 @@ class AgentFactory extends BotFactory{
 		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
 		this.core.vectorstoreId = vectorstoreId /* update local */
 	}
+	get vectorstoreId(){
+		return this.core.vectorstoreId
+	}
 }
 // private module functions
 /**
@@ -686,14 +689,17 @@ class AgentFactory extends BotFactory{
  * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
  */
 async function mAI_openai(llmServices, bot){
-    const { bot_name, description, model, name, instructions, tools=[], } = bot
+    const { bot_name, description, model, name, instructions, tools, tool_resources, type, } = bot
     const assistant = {
         description,
         model,
-        name: bot_name ?? name, // take friendly name before Cosmos
+        name: bot_name ?? `untitled-${ type }`, // take broken name before Cosmos `bot.name`
         instructions,
 		tools,
+		tool_resources,
     }
+	console.log(chalk.magenta(`mAI_openai::${type}`), assistant)
+	throw new Error('mAI_openai not yet implemented')
     return await llmServices.createBot(assistant)
 }
 function assignClassPropertyValues(_propertyDefinition){
@@ -819,8 +825,13 @@ async function mCreateBotLLM(llm, bot){
  * @returns {object} - Bot object
 */
 async function mCreateBot(llm, factory, bot){
+	/* deconstructions */
 	const { bot_name, description: botDescription, instructions: botInstructions, name: botDbName, type, } = bot
 	const { avatarId, } = factory
+	/* validation */
+	if(!avatarId)
+		throw new Error('avatar id required to create bot')
+	/* constants */
 	const botName = bot_name
 		?? botDbName
 		?? type
@@ -830,9 +841,7 @@ async function mCreateBot(llm, factory, bot){
 		?? mCreateBotInstructions(factory, bot)
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
-	const tools = mGetAIFunctions(type, factory.globals)
-	if(!avatarId)
-		throw new Error('avatar id required to create bot')
+	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
 	const botData = {
 		being: 'bot',
 		bot_name: botName,
@@ -844,8 +853,10 @@ async function mCreateBot(llm, factory, bot){
 		provider: 'openai',
 		purpose: description,
 		tools,
+		tool_resources,
 		type,
 	}
+	/* create bot */
 	botData.bot_id = await mCreateBotLLM(llm, botData) // create after as require model
 	return botData
 }
@@ -1056,28 +1067,52 @@ function mGenerateClassFromSchema(_schema) {
 	return _class
 }
 /**
- * Retrieves any functions that need to be attached to ai.
+ * Retrieves any functions that need to be attached to the specific bot-type.
+ * @todo - move to llmServices
  * @param {string} type - Type of bot.
  * @param {object} globals - Global functions for bot.
- * @returns {array} - Array of AI functions for bot type.
+ * @param {string} vectorstoreId - Vectorstore id.
+ * @returns {object} - OpenAi-ready object for functions { tools, tool_resources, }.
  */
-function mGetAIFunctions(type, globals){
-	const functions = []
+function mGetAIFunctions(type, globals, vectorstoreId){
+	console.log(chalk.magenta(`mGetAIFunctions::${vectorstoreId}`))
+	let includeSearch=false,
+		tool_resources,
+		tools = []
 	switch(type){
+		case 'journaler':
+			tools.push(globals.getGPTJavascriptFunction('entrySummary'))
+			includeSearch = true
+			break
+		case 'personal-assistant':
+		case 'personal-avatar':
+			includeSearch = true
+			break
 		case 'personal-biographer':
-			const biographerTools = ['storySummary']
-			biographerTools.forEach(toolName=>{
-				const jsToolDescription = {
-					type: 'function',
-					function: globals.getGPTJavascriptFunction(toolName),
-				}
-				functions.push(jsToolDescription)
-			})
+			tools.push(globals.getGPTJavascriptFunction('storySummary'))
+			includeSearch = true
 			break
 		default:
 			break
 	}
-	return functions
+	if(includeSearch){
+		const { tool_resources: gptResources, tools: gptTools, } = mGetGPTResources(globals, 'file_search', vectorstoreId)
+		tools.push(...gptTools)
+		tool_resources = gptResources
+	}
+	return {
+		tools,
+		tool_resources,
+	}
+}
+function mGetGPTResources(globals, toolName, vectorstoreId){
+	switch(toolName){
+		case 'file_search':
+			const { tools, tool_resources, } = globals.getGPTFileSearchToolStructure(vectorstoreId)
+			return { tools, tool_resources, }
+		default:
+			throw new Error('tool name not recognized')
+	}
 }
 /**
  * Take help request about MyLife and consults appropriate engine for response.
