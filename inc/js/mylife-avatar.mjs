@@ -91,11 +91,9 @@ class Avatar extends EventEmitter {
             this.#llmServices.botId = activeBot.bot_id
             /* conversations */
             this.#bots.forEach(async bot=>{
-                console.log('createConversation', bot, bot.thread_id)
                 if(bot.thread_id)
                     this.#conversations.push(await this.createConversation('chat', bot.thread_id))
             })
-            console.log('createConversation', this.#conversations)
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             /* lived-experiences */
