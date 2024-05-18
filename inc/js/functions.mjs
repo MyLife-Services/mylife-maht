@@ -1,5 +1,8 @@
 /* imports */
 import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
+import {
+	upload as apiUpload,
+} from './api-functions.mjs'
 /* module export functions */
 async function about(ctx){
 	ctx.state.title = `About MyLife`
@@ -70,16 +73,17 @@ async function challenge(ctx){
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	ctx.state.chatMessage = ctx.request.body
-	ctx.state.thread = ctx.state.MemberSession.thread
-	const message = ctx.request.body?.message ?? false /* body has all the nodes sent by fe */
+	const { botId, message, role, threadId, } = ctx.request.body
+		?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
-	const response = await ctx.state.avatar.chatRequest(ctx)
+	const response = await ctx.state.avatar.chatRequest(botId, threadId, message)
 	ctx.body = response
 }
 async function collections(ctx){
-	ctx.body = await ctx.state.avatar.collections(ctx.params.type)
+	const { avatar, } = ctx.state
+	const { type, } = ctx.params
+	ctx.body = await avatar.collections(type)
 }
 /**
  * Manage delivery and receipt of contributions(s).
@@ -247,16 +251,18 @@ async function signup(ctx) {
         message: 'Signup successful',
     }
 }
-async function _upload(ctx){	//	post file via post
-	//	revive or create nascent AI-Asset Assistant, that will be used to process the file from validation => storage
-	//	ultimately, this may want to move up in the chain, but perhaps not, considering the need to process binary file content
-	const _oAIAssetAssistant = await new oAIAssetAssistant(ctx).init()
-	ctx.body = _oAIAssetAssistant
-}
-async function upload(ctx){	//	upload display widget/for list and/or action(s)
-	ctx.state.title = `Upload`
-	ctx.state.subtitle = `Upload your files to <em>MyLife</em>`
-	await ctx.render('upload')	//	upload
+/**
+ * Proxy for uploading files to the API.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - The result of the upload as `ctx.body`.
+ */
+async function upload(ctx){
+	const { avatar, } = ctx.state
+	if(avatar.isMyLife)
+		throw new Error('Only logged in members may upload files')
+	ctx.session.APIMemberKey = avatar.mbr_id
+	ctx.session.isAPIValidated = true
+	await apiUpload(ctx)
 }
 /* module private functions */
 function mGetContributions(ctx){
@@ -315,5 +321,4 @@ export {
 	privacyPolicy,
 	signup,
 	upload,
-	_upload,
 }
