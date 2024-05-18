@@ -631,11 +631,11 @@ class Dataservices {
 				.reduce((obj, key) => {
 					obj[key] = bot[key]
 					return obj
-				}, {})
+				}, {}) // extract alterations
 			if(Object.keys(dataUpdates).length > 0){
 				bot = this.patch(bot.id, dataUpdates)
 			}
-		} else { // add
+		} else { // create
 			bot = this.pushItem(bot)
 		}
 		return bot

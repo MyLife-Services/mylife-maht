@@ -137,7 +137,7 @@ class Globals extends EventEmitter {
 	 */
 	getGPTFileSearchToolStructure(vectorstoreId){
 		return {
-			tools: ['file_search'],
+			tools: [{ type: 'file_search' }],
 			tool_resources: {
 				file_search: {
 					vector_store_ids: vectorstoreId ? [vectorstoreId] : []

@@ -220,7 +220,8 @@ class Avatar extends EventEmitter {
             .length
         if(singletonBotExists)
             throw new Error(`Bot type "${type}" already exists and bot-multiples disallowed.`)
-        return await mBot(this.#factory, this, bot)
+        const assistant = await mBot(this.#factory, this, bot)
+        return mPruneBot(assistant)
     }
     /**
      * Create a new conversation.
@@ -1027,21 +1028,24 @@ async function mBot(factory, avatar, bot){
     bot.object_id = objectId ?? avatarId /* all your bots belong to me */
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
     /* assign or create */
-    let _bot = bots.find(oBot=>oBot.id===botId)
-        ?? await factory.createBot(bot)
-    /* update bot */
-    _bot = {..._bot, ...bot}
-    /* create or update bot special properties */
-    const { thread_id, type, } = _bot
-    if(!thread_id?.length){
-        const excludeTypes = ['library',]
-        if(!excludeTypes.includes(type)){
-            const conversation = await avatar.createConversation()
-            _bot.thread_id = conversation.thread_id
+    let assistant = bots.find(oBot=>oBot.id===botId)
+    if(assistant){ /* update bot */
+        assistant = {...assistant, ...bot}
+        /* create or update bot special properties */
+        const { thread_id, type, } = assistant
+        if(!thread_id?.length){
+            const excludeTypes = ['library',]
+            if(!excludeTypes.includes(type)){
+                const conversation = await avatar.createConversation()
+                assistant.thread_id = conversation.thread_id
+            }
         }
+        factory.setBot(assistant) // update Cosmos (no need async)
+    } else { /* create assistant */
+        assistant = await factory.createBot(bot)
+        avatar.bots.push(bot)
     }
-    factory.setBot(_bot) // update Cosmos (no need async)
-    return _bot
+    return assistant
 }
 /**
  * Makes call to LLM and to return response(s) to prompt.
@@ -1654,6 +1658,17 @@ function mNavigation(scenes){
         .sort((a,b)=>{
             return (a.order ?? 0) - (b.order ?? 0)
         })
+}
+function mPruneBot(assistantData){
+    const { bot_id, bot_name: name, description, id, purpose, type, } = assistantData
+    return {
+        bot_id,
+        name,
+        description,
+        id,
+        purpose,
+        type,
+    }
 }
 /**
  * returns simple micro-message with category after logic mutation. 
