@@ -72,7 +72,8 @@ function category(ctx){ // sets category for avatar
  * @property {object} ctx.body - The result of the challenge.
  */
 async function challenge(ctx){
-	if(!ctx.params.mid?.length) ctx.throw(400, `requires member id`)
+	if(!ctx.params.mid?.length)
+		ctx.throw(400, `requires member id`)
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
