@@ -10,20 +10,54 @@ import {
 } from './members.mjs'
 import Globals from './globals.mjs'
 /* constants; DOM exists? */
+// @todo - placeholder, get from server
 const mAvailableMimeTypes = [],
+    mAvailableTeams={
+        creative: {
+            name: 'Creative',
+        },
+        health: {
+            name: 'Health',
+        },
+        memoire: {
+            allowCustom: true,
+            allowedTypes: ['diary','personal-biographer', 'journaler',],
+            description: 'The Memoire Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
+            name: 'Memoire',
+        },
+        professional: {
+            name: 'Job',
+        },
+        social: {
+            name: 'Social',
+        },
+        spiritual: {
+            name: 'Sprituality',
+        },
+        ubi: {
+            name: 'UBI',
+        },
+
+    },
     mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
     botBar = document.getElementById('bot-bar'),
+    mDefaultTeam = 'memoire',
     mGlobals = new Globals(),
-    mLibraries = ['experience', 'file', 'story'], // ['chat', 'entry', 'experience', 'file', 'story']
+    mLibraries = ['entry', 'experience', 'file', 'story'], // ['chat', 'conversation']
     mLibraryCollections = document.getElementById('library-collections'),
     mLibraryUpload = document.getElementById('library-upload'),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
     passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`),
     passphraseResetButton = document.getElementById(`passphrase-reset-button`),
-    passphraseSubmitButton = document.getElementById(`personal-avatar-passphrase-submit`)
+    passphraseSubmitButton = document.getElementById(`personal-avatar-passphrase-submit`),
+    mTeamAddMemberIcon = document.getElementById('add-team-member-icon'),
+    mTeamHeader = document.getElementById('team-header'),
+    mTeamName = document.getElementById('team-name'),
+    mTeamPopup = document.getElementById('team-popup')
 /* variables */
 let mActiveBot,
+    mActiveTeam,
     mPageBots
 /* onDomContentLoaded */
 document.addEventListener('DOMContentLoaded', async event=>{
@@ -31,7 +65,8 @@ document.addEventListener('DOMContentLoaded', async event=>{
     if(!bots?.length)
         throw new Error(`No bots found.`)
     mPageBots = bots
-    mActiveBot = mBot(id)
+    mActiveBot = await mBot(id)
+    mUpdateTeam()
     updatePageBots()
 })
 /* public functions */
@@ -78,7 +113,7 @@ async function fetchCollections(type){
 async function setActiveBot(event){
     const botId = event.target?.dataset?.botId
         ?? event.target.id.split('-').slice(0, -1).join('-')
-    const bot = mBot(botId)
+    const bot = await mBot(botId)
     mActiveBot = mActiveBot
         ?? bot
     if(!bot)
@@ -129,12 +164,13 @@ async function updatePageBots(bIncludeGreeting=false){
 /**
  * Find bot in mPageBots by id.
  * @requires mPageBots
- * @param {string} type - The bot type.
+ * @param {string} type - The bot type or id.
  * @returns {object} - The bot object.
  */
-function mBot(type){
+async function mBot(type){
     return mPageBots.find(bot=>bot.type===type)
         ?? mPageBots.find(bot=>bot.id===type)
+        ?? await mBotCreate(type)
 }
 /**
  * Check if bot is active (by id).
@@ -143,6 +179,21 @@ function mBot(type){
  */
 function mBotActive(id) {
     return (id && mActiveBot && id===mActiveBot.id)
+}
+/**
+ * Request bot be created on server.
+ * @param {string} type - bot type
+ * @returns {object} - bot object from server.
+ */
+async function mBotCreate(type){
+    const url = window.location.origin + '/members/bots/create'
+    const method = 'POST'
+    const body = JSON.stringify({ type, })
+    const headers = { 'Content-Type': 'application/json' }
+    let response = await fetch(url, { body, headers, method, })
+    if(!response.ok)
+        throw new Error(`server unable to create bot.`)
+    response = await response.json()
 }
 /**
  * Returns icon path string based on bot type.
@@ -280,6 +331,89 @@ function mCreateCollectionPopup(collectionItem){
     collectionPopup.appendChild(popupContent)
     collectionPopup.appendChild(popupClose)
     return collectionPopup
+}
+/**
+ * Create a team new popup.
+ * @requires mActiveTeam
+ * @requires mTeamPopup
+ * @param {string} type - The type of team to create.
+ * @param {boolean} showPopup - Whether or not to show the popup.
+ * @returns {void}
+ */
+function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
+    const { allowCustom, allowedTypes, } = mActiveTeam
+    mTeamPopup.innerHTML = '' // clear existing
+    const teamPopup = document.createElement('div')
+    teamPopup.classList.add(`team-popup-${ type }`, 'team-popup-content')
+    teamPopup.id = `team-popup-${ type }`
+    teamPopup.name = `team-popup-${ type }`
+    let popup
+    let offsetX = 0
+    switch(type){
+        case 'addTeamMember':
+            const memberSelect = document.createElement('select')
+            memberSelect.id = `team-member-select`
+            memberSelect.name = `team-member-select`
+            memberSelect.classList.add('team-member-select')
+            const memberOption = document.createElement('option')
+            memberOption.value = ''
+            memberOption.innerText = 'Select a team member...'
+            memberSelect.appendChild(memberOption)
+            allowedTypes.forEach(type=>{
+                if(mPageBots.find(bot=>bot.type===type)) // no duplicates currently
+                    return
+                const memberOption = document.createElement('option')
+                memberOption.value = type
+                memberOption.innerText = type
+                memberSelect.appendChild(memberOption)
+            })
+            if(allowCustom){
+                const divider = document.createElement('optgroup')
+                divider.label = "-----------------"
+                memberSelect.appendChild(divider)
+                const memberOptionCustom = document.createElement('option')
+                memberOptionCustom.value = 'custom'
+                memberOptionCustom.innerText = 'Create a custom team member...'
+                memberSelect.appendChild(memberOptionCustom)
+            }
+            popup = memberSelect
+            break
+        case 'teamSelect':
+            break
+        default:
+            break
+    }
+    mTeamPopup.appendChild(teamPopup)
+    if(popup){
+        teamPopup.appendChild(popup)
+        mTeamPopup.style.position = 'absolute'
+        mTeamPopup.style.visibility = 'hidden'
+        show(mTeamPopup)
+        offsetX = teamPopup.offsetWidth
+        mTeamPopup.style.left = `${ clickX - offsetX }px`
+        mTeamPopup.style.top = `${ clickY }px`
+        mTeamPopup.style.visibility = 'visible'
+        popup.focus()
+        document.addEventListener('click', mToggleTeamPopup, { once: true })
+        document.addEventListener('keydown', mToggleTeamPopup, { once: true })
+        popup.addEventListener('change', mToggleTeamPopup, { once: true })
+    }
+    if(showPopup)
+        show(mTeamPopup)
+}
+/**
+ * Create add a team member popup.
+ */
+function mCreateTeamMemberSelect(event){
+    const { clientX, clientY, } = event
+    mCreateTeamPopup('addTeamMember', clientX, clientY, true)
+}
+/**
+ * Create a team select popup.
+ */
+function mCreateTeamSelect(event){
+    const { clientX, clientY, } = event
+    mCreateTeamPopup('selectTeam', clientX, clientY, true)
 }
 /**
  * Delete collection item.
@@ -588,6 +722,51 @@ function mToggleCollectionItems(event){
         toggleVisibility(collectionList)
 }
 /**
+ * Toggles team popup visibility and associated functionality.
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mToggleTeamPopup(event){
+    const { clientX, clientY, key, target, type, } = event
+    const { value, } = this
+    let hidePopup = true
+    switch(type){
+        case 'change':
+            hidePopup = !value?.length
+            if(value?.length){ // request to server
+                /* validate */
+                let bot
+                try{
+                    bot = await mBot(value)
+                    console.log('mToggleTeamPopup::CHANGE to:', value, bot)
+                } catch(error) {
+                    console.log('mToggleTeamPopup::ERROR', error)
+                }
+                if(bot)
+                    mUpdateBotContainers()
+                hidePopup = true
+            }
+            break
+        case 'click':
+            hidePopup = !this.contains(target)
+            if(!hidePopup){
+                console.log('mToggleTeamPopup::CLICK-redo', hidePopup)
+                document.addEventListener('click', mToggleTeamPopup, { once: true })
+                return
+            }
+            break
+        case 'input':
+        case 'keydown':
+            hidePopup = key?.toLowerCase()!=='enter'
+            if(!hidePopup)
+                document.addEventListener('keydown', mToggleTeamPopup, { once: true })
+            break
+    }
+    if(hidePopup)
+        hide(mTeamPopup)
+}
+/**
  * Toggles passphrase input visibility.
  * @param {Event} event - The event object.
  * @returns {void}
@@ -682,15 +861,16 @@ function mUpdateBotBar(){
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
  * @todo - creation mechanism for new bots or to `reinitialize` or `reset` current bots, like avatar.
  * @todo - architect  better mechanic for populating and managing bot-specific options
+ * @async
  * @requires mActiveBot
  * @requires mPageBots
  * @returns {void}
  */
-function mUpdateBotContainers(){
+async function mUpdateBotContainers(){
     /* iterate over bot containers */
-    document.querySelectorAll('.bot-container').forEach(botContainer=>{
+    document.querySelectorAll('.bot-container').forEach(async botContainer=>{
         const { dataset, id: type, } = botContainer
-        const bot = mBot(type)
+        const bot = await mBot(type)
         if(!bot)
             return /* no problem if not found, available on different team */
         /* constants */
@@ -842,6 +1022,23 @@ function mUpdatePrivacySlider(type, privacy, botContainer){
             botContainer.setAttribute('data-privacy', privacySlider.value)
         })
     }
+}
+/**
+ * Updates the active team to specific or default.
+ * @param {string} teamName - The team name.
+ * @returns {void}
+ */
+async function mUpdateTeam(teamName=mDefaultTeam){
+    const team = mAvailableTeams[teamName]
+    if(!team)
+        throw new Error(`Team "${ teamName }" not available at this time.`)
+    mActiveTeam = team
+    const { description, name, } = team
+    mTeamName.innerText = `${ name } Team`
+    mTeamName.addEventListener('click', mCreateTeamSelect)
+    mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
+    hide(mTeamPopup)
+    show(mTeamHeader)
 }
 /**
  * Update the bot ticker with value from name input, and assert to `data-bot_name`.S

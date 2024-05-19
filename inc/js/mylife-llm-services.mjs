@@ -37,8 +37,9 @@ class LLMServices {
      * @param {object} assistant - Assistant object
      * @returns {Promise<object>} - openai assistant object
      */
-    async createBot(assistant){
-        return await this.openai.beta.assistants.create(assistant)
+    async createBot(assistantData){
+        assistantData = mValidateAssistantData(assistantData) // throws on improper format
+        return await this.openai.beta.assistants.create(assistantData)
     }
     /**
      * Returns openAI file object.
@@ -95,12 +96,14 @@ class LLMServices {
         return await mThread(this.openai, threadId)
     }
     /**
-     * Updates assistand with specified tools. Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
+     * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
      * @param {string} assistantId - OpenAI assistant ID.
-     * @param {object} tools - Tools object.
+     * @param {object} assistantData - Assistant data object.
+     * @returns {Promise<Object>} - openai assistant object.
      */
-    async updateTools(assistantId, tools){
-        return await this.openai.beta.assistants.update(assistantId, tools)
+    async updateAssistant(assistantId, assistantData){
+        assistantData = mValidateAssistantData(assistantData) // throws on improper format
+        return await this.openai.beta.assistants.update(assistantId, assistantData)
     }
     /**
      * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
@@ -257,15 +260,39 @@ async function mRunFunctions(openai, run, factory){
                     const { id, function: toolFunction, type, } = tool
                     let { arguments: toolArguments, name, } = toolFunction
                     switch(name.toLowerCase()){
+                        case 'entrysummary': // entrySummary in Globals
+                        case 'entry_summary':
+                        case 'entry summary':
+                            if(typeof toolArguments == 'string')
+                                toolArguments = JSON.parse(toolArguments)
+                            let action
+                            const entry = await factory.entry(toolArguments)
+                            if(entry){
+                                action = `share summary of summary and follow-up with probing question`
+                                const confirmation = {
+                                    tool_call_id: id,
+                                    output: JSON.stringify({ success: true, action, }),
+                                }
+                                return confirmation
+                            } else {
+                                action = `journal entry failed to save, notify member and continue on for now`
+                                const confirmation = {
+                                    tool_call_id: id,
+                                    output: JSON.stringify({ success: false, action, }),
+                                }
+                                return confirmation
+                            }
                         case 'hijackattempt':
                         case 'hijack_attempt':
                         case 'hijack attempt':
                             console.log('mRunFunctions()::hijack_attempt', toolArguments)
-                            const confirmation = {
-                                tool_call_id: id,
-                                output: JSON.stringify({ success: true, }),
+                            if(true){
+                                const confirmation = {
+                                    tool_call_id: id,
+                                    output: JSON.stringify({ success: true, }),
+                                }
+                                return confirmation
                             }
-                            return confirmation
                         case 'story': // storySummary.json
                         case 'storysummary':
                         case 'story-summary':
@@ -437,6 +464,33 @@ async function mThread(openai, threadId){
         return await openai.beta.threads.retrieve(threadId)
     else
         return await openai.beta.threads.create()
+}
+/**
+ * Validates assistant data before sending to OpenAI.
+ * @param {object} data - Object data to validate.
+ * @returns {object} - Cured assistant object data.
+ */
+function mValidateAssistantData(data){
+    if(!data)
+        throw new Error('No data or data in incorrect format to send to OpenAI assistant.')
+    if(typeof data==='string')
+        data = { [`${ data.substring(0, 32) }`]: data }
+    if(typeof data!=='object')
+        throw new Error('Data to send to OpenAI assistant is not in correct format.')
+    const { bot_name, description, instructions, metadata, model, name: gptName, temperature, tools, tool_resources, top_p, response_format, } = data
+    const name = bot_name ?? gptName // bot_name internal alias for openai `name`
+    const assistantData = {
+        description,
+        instructions,
+        metadata,
+        model,
+        name,
+        tools,
+        tool_resources,
+    }
+    if(!Object.keys(assistantData).length)
+        throw new Error('Assistant data is not in correct format.')
+    return assistantData
 }
 /* exports */
 export default LLMServices
