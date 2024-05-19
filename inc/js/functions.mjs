@@ -104,9 +104,9 @@ async function contributions(ctx){
 	)
 }
 async function createBot(ctx){
-	const { team, type, } = JSON.parse(ctx.request.body ?? '{}')
+	const { team, type, } = ctx.request.body
 	const { avatar, } = ctx.state
-	const bot = { type, } // `type` only requirement to create a known, MyLife-typed bot\
+	const bot = { type, } // `type` only requirement to create a known, MyLife-typed bot
 	ctx.body = await avatar.createBot(bot)
 }
 /**
