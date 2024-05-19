@@ -91,8 +91,9 @@ class Avatar extends EventEmitter {
             this.#llmServices.botId = activeBot.bot_id
             /* conversations */
             this.#bots.forEach(async bot=>{
-                if(bot.thread_id)
-                    this.#conversations.push(await this.createConversation('chat', bot.thread_id))
+                const { thread_id, } = bot
+                if(thread_id)
+                    this.#conversations.push(await this.createConversation('chat', thread_id))
             })
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
@@ -145,10 +146,9 @@ class Avatar extends EventEmitter {
         if(botThreadId!==threadId)
             throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
         let conversation = this.getConversation(threadId)
-        if(!conversation){
+        console.log('chatRequest()', threadId, activeBotId, botThreadId, this.bots)
+        if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
-        }
-            // conversation = await this.createConversation('chat')
         conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory)
         conversation.addMessages(messages)
@@ -226,10 +226,11 @@ class Avatar extends EventEmitter {
      * @async
      * @public
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @param {string} threadId - The openai thread id.
      * @returns {Conversation} - The conversation object.
      */
-    async createConversation(type='chat'){
-        const thread = await this.#llmServices.thread()
+    async createConversation(type='chat', threadId){
+        const thread = await this.#llmServices.thread(threadId)
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
@@ -346,8 +347,10 @@ class Avatar extends EventEmitter {
      * @returns {Conversation} - The conversation object.
      */
     getConversation(threadId){
-        return this.#conversations
-            .find(_=>_.thread?.id===threadId)
+        const conversation = this.#conversations
+            .find(conversation=>conversation.thread?.id ?? conversation.thread_id===threadId)
+        console.log('getConversation()', conversation.thread, conversation.thread_id, threadId, conversation.inspect(true))
+        return conversation
     }
     /**
      * Returns all conversations of a specific-type stored in memory.

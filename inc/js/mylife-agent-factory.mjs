@@ -468,6 +468,30 @@ class AgentFactory extends BotFactory{
 		)
 		return _core?.[0]??{}
 	}
+	async entry(entry){
+		if(!entry.summary?.length)
+			throw new Error('entry summary required')
+		const { mbr_id, newGuid: id, } = this
+		const { assistantType='journaler', being='entry', form='journal', keywords=['journal entry'], summary, title='New Journal Entry', } = entry
+		let { name, } = entry
+		name = name
+			?? title
+			?? `entry_${ mbr_id }_${ id }`
+		const completeEntry = {
+			...entry,
+			...{
+			assistantType,
+			being,
+			form,
+			id,
+			keywords,
+			mbr_id,
+			name,
+			summary,
+			title,
+		}}
+		return await this.dataservices.entry(completeEntry)
+	}
 	async getAlert(_alert_id){
 		const _alert = mAlerts.system.find(alert => alert.id === _alert_id)
 		return _alert ? _alert : await mDataservices.getAlert(_alert_id)

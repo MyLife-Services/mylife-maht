@@ -260,15 +260,39 @@ async function mRunFunctions(openai, run, factory){
                     const { id, function: toolFunction, type, } = tool
                     let { arguments: toolArguments, name, } = toolFunction
                     switch(name.toLowerCase()){
+                        case 'entrysummary': // entrySummary in Globals
+                        case 'entry_summary':
+                        case 'entry summary':
+                            if(typeof toolArguments == 'string')
+                                toolArguments = JSON.parse(toolArguments)
+                            let action
+                            const entry = await factory.entry(toolArguments)
+                            if(entry){
+                                action = `share summary of summary and follow-up with probing question`
+                                const confirmation = {
+                                    tool_call_id: id,
+                                    output: JSON.stringify({ success: true, action, }),
+                                }
+                                return confirmation
+                            } else {
+                                action = `journal entry failed to save, notify member and continue on for now`
+                                const confirmation = {
+                                    tool_call_id: id,
+                                    output: JSON.stringify({ success: false, action, }),
+                                }
+                                return confirmation
+                            }
                         case 'hijackattempt':
                         case 'hijack_attempt':
                         case 'hijack attempt':
                             console.log('mRunFunctions()::hijack_attempt', toolArguments)
-                            const confirmation = {
-                                tool_call_id: id,
-                                output: JSON.stringify({ success: true, }),
+                            if(true){
+                                const confirmation = {
+                                    tool_call_id: id,
+                                    output: JSON.stringify({ success: true, }),
+                                }
+                                return confirmation
                             }
-                            return confirmation
                         case 'story': // storySummary.json
                         case 'storysummary':
                         case 'story-summary':

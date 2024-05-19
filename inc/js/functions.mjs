@@ -81,7 +81,7 @@ async function chat(ctx){
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar, } = ctx.state
-	const response = await avatar.chatRequest(ctx)
+	const response = await avatar.chatRequest(botId, threadId, message, )
 	ctx.body = response
 }
 async function collections(ctx){
