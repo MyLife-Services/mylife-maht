@@ -88,9 +88,6 @@ class oAIAssetAssistant {
 	//	setters
 	//	private functions
 	async #embedFile(){
-		const file = this.#uploadedFileList[0]
-		console.log(file)
-		console.log('#embedFile() begin')
 		const _metadata = {
 			source: 'corporate',	//	logickify
 			source_id: file.originalFilename,

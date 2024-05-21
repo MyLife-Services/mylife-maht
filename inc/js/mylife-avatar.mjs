@@ -77,22 +77,24 @@ class Avatar extends EventEmitter {
         if(!this.isMyLife){
             /* bot checks */
             const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
-            await Promise.all(requiredBotTypes.map(async botType =>{
-                if(!this.#bots.some(bot => bot.type === botType)){
-                    const hydratedBot = await mBot(this.#factory, this, { type: botType })
-                    this.#bots.push(hydratedBot)
+            await Promise.all(
+                requiredBotTypes
+                    .map(async botType=>{
+                        if(!this.#bots.some(bot=>bot.type===botType)){
+                            const _bot = await mBot(this.#factory, this, { type: botType })
+                            this.#bots.push(_bot)
+                        }
                 }
-            }))
+            ))
             activeBot = this.avatarBot // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
             /* conversations */
             this.#bots.forEach(async bot=>{
-                console.log('createConversation', bot, bot.thread_id)
-                if(bot.thread_id)
-                    this.#conversations.push(await this.createConversation('chat', bot.thread_id))
+                const { thread_id, } = bot
+                if(thread_id)
+                    this.#conversations.push(await this.createConversation('chat', thread_id))
             })
-            console.log('createConversation', this.#conversations)
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             /* lived-experiences */
@@ -144,10 +146,9 @@ class Avatar extends EventEmitter {
         if(botThreadId!==threadId)
             throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
         let conversation = this.getConversation(threadId)
-        if(!conversation){
+        console.log('chatRequest()', threadId, activeBotId, botThreadId, this.bots)
+        if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
-        }
-            // conversation = await this.createConversation('chat')
         conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory)
         conversation.addMessages(messages)
@@ -201,10 +202,32 @@ class Avatar extends EventEmitter {
         return collections
     }
     /**
-     * Create a new conversation, with or without thread id knowledge.
-     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.
-     * @param {string} threadId - The openai thread id, if undefined, created.
-     * @returns {Promise<Conversation>} - The conversation object.
+     * Create a new bot. Errors if bot cannot be created.
+     * @async
+     * @public
+     * @param {object} bot - The bot data object, requires type.
+     * @returns {object} - The new bot.
+     */
+    async createBot(bot){
+        const { type, } = bot
+        if(!type)
+            throw new Error('Bot type required to create.')
+        const singletonBotExists = this.bots
+            .filter(_bot=>_bot.type===type && !_bot.allowMultiple) // same type, self-declared singleton
+            .filter(_bot=>_bot.allowedBeings?.includes('avatar')) // avatar allowed to create
+            .length
+        if(singletonBotExists)
+            throw new Error(`Bot type "${type}" already exists and bot-multiples disallowed.`)
+        const assistant = await mBot(this.#factory, this, bot)
+        return mPruneBot(assistant)
+    }
+    /**
+     * Create a new conversation.
+     * @async
+     * @public
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @param {string} threadId - The openai thread id.
+     * @returns {Conversation} - The conversation object.
      */
     async createConversation(type='chat', threadId){
         const thread = await this.#llmServices.thread(threadId)
@@ -324,8 +347,10 @@ class Avatar extends EventEmitter {
      * @returns {Conversation} - The conversation object.
      */
     getConversation(threadId){
-        return this.#conversations
-            .find(_=>_.thread?.id===threadId)
+        const conversation = this.#conversations
+            .find(conversation=>conversation.thread?.id ?? conversation.thread_id===threadId)
+        console.log('getConversation()', conversation.thread, conversation.thread_id, threadId, conversation.inspect(true))
+        return conversation
     }
     /**
      * Returns all conversations of a specific-type stored in memory.
@@ -504,7 +529,7 @@ class Avatar extends EventEmitter {
                 }
         }
         if(tools)
-            this.#llmServices.updateTools(botId, tools) /* no await */
+            this.#llmServices.updateAssistant(botId, tools) /* no await */
     }
     /* getters/setters */
     /**
@@ -997,27 +1022,31 @@ async function mBot(factory, avatar, bot){
         throw new Error('MyLife system avatar may not create or alter its associated bots.')
     const { newGuid, } = factory
     const { id: botId=newGuid, object_id: objectId, type: botType, } = bot
+    if(!botType?.length)
+        throw new Error('Bot type required to create.')
     /* set/reset required bot super-properties */
-    bot.mbr_id = mbr_id
+    bot.mbr_id = mbr_id /* constant */
     bot.object_id = objectId ?? avatarId /* all your bots belong to me */
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
-    if(botType?.length) /* `bot.type` mutable? */
-        bot.type = botType
-    let _bot = bots.find(oBot=>oBot.id===bot.id)
-        ?? await factory.createBot(bot)
-    /* update bot */
-    _bot = {..._bot, ...bot}
-    /* create or update bot special properties */
-    const { thread_id, type, } = _bot
-    if(!thread_id?.length){
-        const excludeTypes = ['library',]
-        if(!excludeTypes.includes(type)){
-            const conversation = await avatar.createConversation()
-            _bot.thread_id = conversation.thread_id
+    /* assign or create */
+    let assistant = bots.find(oBot=>oBot.id===botId)
+    if(assistant){ /* update bot */
+        assistant = {...assistant, ...bot}
+        /* create or update bot special properties */
+        const { thread_id, type, } = assistant
+        if(!thread_id?.length){
+            const excludeTypes = ['library',]
+            if(!excludeTypes.includes(type)){
+                const conversation = await avatar.createConversation()
+                assistant.thread_id = conversation.thread_id
+            }
         }
+        factory.setBot(assistant) // update Cosmos (no need async)
+    } else { /* create assistant */
+        assistant = await factory.createBot(bot)
+        avatar.bots.push(bot)
     }
-    factory.setBot(_bot) // update Cosmos (no need async)
-    return _bot
+    return assistant
 }
 /**
  * Makes call to LLM and to return response(s) to prompt.
@@ -1630,6 +1659,17 @@ function mNavigation(scenes){
         .sort((a,b)=>{
             return (a.order ?? 0) - (b.order ?? 0)
         })
+}
+function mPruneBot(assistantData){
+    const { bot_id, bot_name: name, description, id, purpose, type, } = assistantData
+    return {
+        bot_id,
+        name,
+        description,
+        id,
+        purpose,
+        type,
+    }
 }
 /**
  * returns simple micro-message with category after logic mutation. 

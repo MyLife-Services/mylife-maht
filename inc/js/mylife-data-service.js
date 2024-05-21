@@ -272,6 +272,15 @@ class Dataservices {
 	async deleteItem(id){
 		return await this.datamanager.deleteItem(id)
 	}
+	/**
+	 * Submits an entry to MyLife. Currently via API, but could be also work internally.
+	 * @param {object} entry - Entry object.
+	 * @returns {object} - The entry document from Cosmos.
+	 */
+	async entry(entry){
+		const entryItem = await this.datamanager.pushItem(entry)
+		return entryItem
+	}
 	async findRegistrationIdByEmail(_email){
 		/* pull record for email, returning id or new guid */
 		const _ = await this.getItems(
@@ -631,11 +640,11 @@ class Dataservices {
 				.reduce((obj, key) => {
 					obj[key] = bot[key]
 					return obj
-				}, {})
+				}, {}) // extract alterations
 			if(Object.keys(dataUpdates).length > 0){
 				bot = this.patch(bot.id, dataUpdates)
 			}
-		} else { // add
+		} else { // create
 			bot = this.pushItem(bot)
 		}
 		return bot

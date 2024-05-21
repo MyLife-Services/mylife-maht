@@ -10,6 +10,7 @@ import {
     chat,
     collections,
     contributions,
+    createBot,
     deleteItem,
     help,
     index,
@@ -100,6 +101,7 @@ _memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
+_memberRouter.post('/bots/create', createBot)
 _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('contributions/:cid', contributions)
