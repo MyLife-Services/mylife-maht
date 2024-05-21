@@ -135,6 +135,10 @@ class Avatar extends EventEmitter {
     */
     async chatRequest(activeBotId, threadId, chatMessage){
         const processStartTime = Date.now()
+        if(this.isMyLife){ /* MyLife chat request hasn't supplied basics to front-end yet */
+            activeBotId = this.activeBot.id
+            threadId = this.activeBot.thread_id
+        }
         if(!chatMessage)
             throw new Error('No message provided in context')
         if(!activeBotId)
