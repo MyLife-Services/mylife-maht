@@ -283,7 +283,7 @@ class Dataservices {
 	}
 	async findRegistrationIdByEmail(_email){
 		/* pull record for email, returning id or new guid */
-		const _ = await this.getItems(
+		const registered = await this.getItems(
 			'registration',
 			undefined,
 			[{ name: '@email',
@@ -291,7 +291,9 @@ class Dataservices {
 			}],
 			'registration',
 		)
-		return _?.[0]?.id??Guid.newGuid().toString() // needed to separate out, was failing
+		const registrationId = registered?.[0]?.id
+			?? this.globals.newGuid
+		return registrationId
 	}
 	/**
 	 * Retrieves a specific alert by its ID. _Currently placehoder_.
