@@ -10,6 +10,7 @@ import {
     chat,
     collections,
     contributions,
+    createBot,
     deleteItem,
     help,
     index,
@@ -22,7 +23,6 @@ import {
     privacyPolicy,
     signup,
     upload,
-    _upload
 } from './functions.mjs'
 import {
     availableExperiences,
@@ -81,6 +81,8 @@ _apiRouter.post('/library/:mid', library)
 _apiRouter.post('/register', register)
 _apiRouter.post('/story/library/:mid', storyLibrary) /* ordered first for path rendering */
 _apiRouter.post('/story/:mid', story)
+_apiRouter.post('/upload', upload)
+_apiRouter.post('/upload/:mid', upload)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/items/:iid', deleteItem)
@@ -94,18 +96,18 @@ _memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/mode', interfaceMode)
-_memberRouter.get('/upload', upload)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
+_memberRouter.post('/bots/create', createBot)
 _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('contributions/:cid', contributions)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
-_memberRouter.post('/upload', _upload)
+_memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())

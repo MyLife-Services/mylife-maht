@@ -1,3 +1,10 @@
+/* document vars */
+:root {
+    --slider-height: 1rem;
+    --slider-margin: 0.1rem;
+    --slider-width: 2rem;
+}
+/* bot bar */
 #bot-bar {
     align-items: flex-end;
     align-self: center;
@@ -59,10 +66,33 @@
     /* Show content when active */
     display: block;
 }
-.bot-header {
-    /* Styling for the header */
-	font-size: 1.2em;
+/* team */
+.add-team-member-icon {
+    font-size: 1.5rem;
+    padding: 0 1rem;
+    cursor: pointer;
 }
+.team-header {
+    align-items: center;
+    background-color: #333; /* Change as needed */
+    color: white;
+    display: flex;
+	font-size: 1.2rem;
+    justify-content: space-between;
+    padding: 0.8rem;
+}
+.team-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+.team-popup {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    position: absolute;
+    z-index: 50;
+}
+/* bot */
 .bot-icon {
     background-image: radial-gradient(circle at 0.1em 0.1em, #eaedff 0%, #1e3b4e 40%, rgb(60 162 213) 80%, #404553 100%);
 	border: rgba(0, 0, 0, 0.7) 0.12em solid !important;
@@ -263,6 +293,8 @@
     justify-content: flex-start;
     margin: 0.2em 0;
     max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
     width: 100%;
 }
 .collection-popup {
@@ -334,7 +366,46 @@
 .passphrase-reset {
     width: 100%;
 }
-/* bot slider */
+/* publicity sliders */
+.publicity {
+    align-items: center;
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: space-between;
+    gap: 0.5em;
+    margin: 0 0.5rem;
+    padding: 0.5rem;
+    width: 100%; /* fill row */
+}
+.publicity-toggle {
+    align-items: center;
+    display: flex;
+}
+.publicity-slider {
+    background-color: blanchedalmond;
+    border: thin solid navy;
+    border-radius: 2rem;
+    cursor: pointer;
+    display: flex;
+    height: var(--slider-height);
+    margin: 0 0.5rem;
+    width: var(--slider-width);
+    transition: .4s;
+}
+.publicity-slider:before { /* paint circle */
+    background-color: navy;
+    border-radius: 50%;
+    content: "";
+    margin: var(--slider-margin);
+    width: calc(var(--slider-height) - (var(--slider-margin)*2));
+    transition: ease-out .4s;
+}
+input:checked + .publicity-slider:before {
+    transform: translateX(
+        calc(var(--slider-height) - var(--slider-margin))
+    );
+}
+/* generic bot slider */
 .input-group {
     width: 100%;
     text-align: center;

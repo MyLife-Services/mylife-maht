@@ -1,5 +1,8 @@
 /* imports */
 import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
+import {
+	upload as apiUpload,
+} from './api-functions.mjs'
 /* module export functions */
 async function about(ctx){
 	ctx.state.title = `About MyLife`
@@ -14,8 +17,9 @@ async function about(ctx){
  * @returns {object} Koa Context object
  */
 function activateBot(ctx){
-	ctx.state.avatar.activeBotId = ctx.params.bid
-	ctx.body = { activeBotId: ctx.state.avatar.activeBotId }
+	const { avatar, } = ctx.state
+	avatar.activeBotId = ctx.params.bid
+	ctx.body = { activeBotId: avatar.activeBotId }
 }
 async function alerts(ctx){
 	// @todo: put into ctx the _type_ of alert to return, system use dataservices, member use personal
@@ -27,24 +31,25 @@ async function alerts(ctx){
 }
 async function bots(ctx){
 	const bot = ctx.request.body
+	const { avatar } = ctx.state
 	switch(ctx.method){
 		case 'POST': // create new bot
-			ctx.body = await ctx.state.avatar.setBot(bot)
+			ctx.body = await avatar.setBot(bot)
 			break
 		case 'PUT': // update bot
 			if(ctx.params.bid!==bot.id)
 				throw new Error('invalid bot data')
-			ctx.body = await ctx.state.avatar.setBot(bot)
+			ctx.body = await avatar.setBot(bot)
 			break
 		case 'GET':
 		default:
 			if(ctx.params?.bid?.length){ // specific bot
-				ctx.body = await ctx.state.avatar.bot(ctx.params.bid)
+				ctx.body = await avatar.bot(ctx.params.bid)
 			} else {
 				ctx.body = {
-					activeBotId: ctx.state.avatar.activeBotId,
-					bots: await ctx.state.avatar.bots,
-					mbr_id: ctx.state.avatar.mbr_id,
+					activeBotId: avatar.activeBotId,
+					bots: await avatar.bots,
+					mbr_id: avatar.mbr_id,
 				}
 			}
 			break
@@ -52,8 +57,9 @@ async function bots(ctx){
 }
 function category(ctx){ // sets category for avatar
 	ctx.state.category = ctx.request.body
-	ctx.state.avatar.setActiveCategory(ctx.state.category)
-	ctx.body = ctx.state.avatar.category
+	const { avatar, } = ctx.state
+	avatar.setActiveCategory(ctx.state.category)
+	ctx.body = avatar.category
 }
 /**
  * Challenge the member session with a passphrase.
@@ -66,20 +72,22 @@ function category(ctx){ // sets category for avatar
  * @property {object} ctx.body - The result of the challenge.
  */
 async function challenge(ctx){
-	if(!ctx.params.mid?.length) ctx.throw(400, `requires member id`)
+	if(!ctx.params.mid?.length)
+		ctx.throw(400, `requires member id`)
 	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
 }
 async function chat(ctx){
-	ctx.state.chatMessage = ctx.request.body
-	ctx.state.thread = ctx.state.MemberSession.thread
-	const message = ctx.request.body?.message ?? false /* body has all the nodes sent by fe */
+	const { botId, message, role, threadId, } = ctx.request.body
+		?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
-	const response = await ctx.state.avatar.chatRequest(ctx)
+	const { avatar, } = ctx.state
+	const response = await avatar.chatRequest(botId, threadId, message, )
 	ctx.body = response
 }
 async function collections(ctx){
-	ctx.body = await ctx.state.avatar.collections(ctx.params.type)
+	const { avatar, } = ctx.state
+	ctx.body = await avatar.collections(ctx.params.type)
 }
 /**
  * Manage delivery and receipt of contributions(s).
@@ -95,19 +103,26 @@ async function contributions(ctx){
 		:	mSetContributions(ctx)
 	)
 }
+async function createBot(ctx){
+	const { team, type, } = ctx.request.body
+	const { avatar, } = ctx.state
+	const bot = { type, } // `type` only requirement to create a known, MyLife-typed bot
+	ctx.body = await avatar.createBot(bot)
+}
 /**
  * Delete an item from collection via the member's avatar.
  * @async
  * @public
- * @requires ctx.state.avatar - The avatar object for the member.
- * @param {object} ctx - Koa Context object
+
+* @param {object} ctx - Koa Context object
  * @returns {boolean} - Under `ctx.body`, status of deletion.
  */
 async function deleteItem(ctx){
 	const { iid, } = ctx.params
+	const { avatar, } = ctx.state
 	if(!iid?.length)
 		ctx.throw(400, `missing item id`)
-	ctx.body = await ctx.state.avatar.deleteItem(iid)
+	ctx.body = await avatar.deleteItem(iid)
 }
 /**
  * Request help about MyLife.
@@ -126,7 +141,6 @@ async function help(ctx){
  * Index page for the application.
  * @async
  * @public
- * @requires ctx.state.avatar - The avatar object for the member or Q.
  * @param {object} ctx - Koa Context object
  */
 async function index(ctx){
@@ -142,10 +156,11 @@ async function index(ctx){
  * @property {string} ctx.body - The interface mode for the member.
  */
 function interfaceMode(ctx){
+	const { avatar, } = ctx.state
 	if(ctx.method==='POST' && ctx.request.body.mode){
-		ctx.state.avatar.mode = ctx.request.body.mode
+		avatar.mode = ctx.request.body.mode
 	}
-	ctx.body = ctx.state.avatar.mode
+	ctx.body = avatar.mode
 	return
 }
 async function login(ctx){
@@ -180,12 +195,13 @@ async function members(ctx){ // members home
 	await ctx.render('members')
 }
 async function passphraseReset(ctx){
-	if(ctx.state.avatar.isMyLife)
+	const { avatar, } = ctx.state
+	if(avatar?.isMyLife ?? true)
 		ctx.throw(400, `cannot reset system passphrase`)
 	const { passphrase } = ctx.request.body
 	if(!passphrase?.length)
 		ctx.throw(400, `passphrase required for reset`)
-	ctx.body = await ctx.state.avatar.resetPassphrase(passphrase)
+	ctx.body = await avatar.resetPassphrase(passphrase)
 }
 async function privacyPolicy(ctx){
 	ctx.state.title = `MyLife Privacy Policy`
@@ -247,16 +263,18 @@ async function signup(ctx) {
         message: 'Signup successful',
     }
 }
-async function _upload(ctx){	//	post file via post
-	//	revive or create nascent AI-Asset Assistant, that will be used to process the file from validation => storage
-	//	ultimately, this may want to move up in the chain, but perhaps not, considering the need to process binary file content
-	const _oAIAssetAssistant = await new oAIAssetAssistant(ctx).init()
-	ctx.body = _oAIAssetAssistant
-}
-async function upload(ctx){	//	upload display widget/for list and/or action(s)
-	ctx.state.title = `Upload`
-	ctx.state.subtitle = `Upload your files to <em>MyLife</em>`
-	await ctx.render('upload')	//	upload
+/**
+ * Proxy for uploading files to the API.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - The result of the upload as `ctx.body`.
+ */
+async function upload(ctx){
+	const { avatar, } = ctx.state
+	if(avatar.isMyLife)
+		throw new Error('Only logged in members may upload files')
+	ctx.session.APIMemberKey = avatar.mbr_id
+	ctx.session.isAPIValidated = true
+	await apiUpload(ctx)
 }
 /* module private functions */
 function mGetContributions(ctx){
@@ -281,14 +299,15 @@ function mGetContributions(ctx){
  * @param {object} ctx Koa Context object 
  */
 function mSetContributions(ctx){
+	const { avatar, } = ctx.state
 	if(!ctx.params?.cid)
 		ctx.throw(400, `missing contribution id`) // currently only accepts single contributions via post with :cid
 	ctx.state.cid = ctx.params.cid
 	const _contribution = ctx.request.body?.contribution??false
 	if(!_contribution)
 		ctx.throw(400, `missing contribution data`)
-	ctx.state.avatar.contribution = ctx.request.body.contribution
-	return ctx.state.avatar.contributions
+	avatar.contribution = ctx.request.body.contribution
+	return avatar.contributions
 		.filter(_contribution => (_contribution.id === ctx.state.cid))
 		.map(_contribution => (_contribution.memberView))
 }
@@ -303,6 +322,7 @@ export {
 	chat,
 	collections,
 	contributions,
+	createBot,
 	deleteItem,
 	help,
 	index,
@@ -315,5 +335,4 @@ export {
 	privacyPolicy,
 	signup,
 	upload,
-	_upload,
 }

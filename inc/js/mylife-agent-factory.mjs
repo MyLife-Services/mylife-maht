@@ -148,7 +148,6 @@ class BotFactory extends EventEmitter{
 	botInstructions(botType){
 		if(!botType)
 			throw new Error('bot type required')
-		console.log(chalk.magenta(`botInstructions::${botType}`), mBotInstructions)
 		if(!mBotInstructions[botType]){
 			if(!botInstructions)
 				throw new Error(`no bot instructions found for ${ botType }`)
@@ -185,10 +184,11 @@ class BotFactory extends EventEmitter{
 	async collections(type){
 		return await this.dataservices.collections(type)
 	}
-	async createBot(bot={ type: mDefaultBotType }){
-		bot.id = this.newGuid
-		const _bot = await mCreateBot(this.#llmServices, this, bot, this.avatarId)
-		return _bot
+	async createBot(assistantData={ type: mDefaultBotType }){
+		const bot = await mCreateBot(this.#llmServices, this, assistantData, this.avatarId)
+		if(!bot)
+			throw new Error('bot creation failed')
+		return bot
 	}
     /**
      * Delete an item from member container.
@@ -325,13 +325,13 @@ class BotFactory extends EventEmitter{
 	/**
 	 * Adds or updates a bot.
 	 * @public
-	 * @param {object} _bot - bot data.
+	 * @param {object} assistantData - bot data.
 	 * @returns {object} - The Cosmos bot.
 	 */
-	async setBot(_bot={ type: mDefaultBotType }){
-		if(!_bot?.id?.length)
-			_bot = await this.createBot(_bot)
-		return await this.dataservices.setBot(_bot)
+	async setBot(assistantData={ type: mDefaultBotType }){
+		if(!assistantData.id?.length) // **note**: may lead to recursivity; preferred mechanic?
+			assistantData = await this.createBot(assistantData)
+		return await this.dataservices.setBot(assistantData)
 	}
 	/**
 	 * Gets a collection of stories of a certain format.
@@ -467,6 +467,30 @@ class AgentFactory extends BotFactory{
 			_mbr_id,
 		)
 		return _core?.[0]??{}
+	}
+	async entry(entry){
+		if(!entry.summary?.length)
+			throw new Error('entry summary required')
+		const { mbr_id, newGuid: id, } = this
+		const { assistantType='journaler', being='entry', form='journal', keywords=['journal entry'], summary, title='New Journal Entry', } = entry
+		let { name, } = entry
+		name = name
+			?? title
+			?? `entry_${ mbr_id }_${ id }`
+		const completeEntry = {
+			...entry,
+			...{
+			assistantType,
+			being,
+			form,
+			id,
+			keywords,
+			mbr_id,
+			name,
+			summary,
+			title,
+		}}
+		return await this.dataservices.entry(completeEntry)
 	}
 	async getAlert(_alert_id){
 		const _alert = mAlerts.system.find(alert => alert.id === _alert_id)
@@ -666,25 +690,29 @@ class AgentFactory extends BotFactory{
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
+	get vectorstoreId(){
+		return this.core.vectorstoreId
+	}
+	set vectorstoreId(vectorstoreId){
+		/* validate vectorstoreId */
+		if(!vectorstoreId?.length)
+			throw new Error('vectorstoreId required')
+		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
+		this.core.vectorstoreId = vectorstoreId /* update local */
+	}
 }
 // private module functions
 /**
  * Initializes openAI assistant and returns associated `assistant` object.
  * @module
  * @param {LLMServices} llmServices - OpenAI object
- * @param {object} bot - bot creation instructions.
+ * @param {object} assistantData - Assistant object
  * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
  */
-async function mAI_openai(llmServices, bot){
-    const { bot_name, description, model, name, instructions, tools=[], } = bot
-    const assistant = {
-        description,
-        model,
-        name: bot_name ?? name, // take friendly name before Cosmos
-        instructions,
-		tools,
-    }
-    return await llmServices.createBot(assistant)
+async function mAI_openai(llmServices, assistantData){
+    const { bot_name, type, } = assistantData
+	assistantData.name = bot_name ?? `untitled-${ type }`
+    return await llmServices.createBot(assistantData)
 }
 function assignClassPropertyValues(_propertyDefinition){
 	switch (true) {
@@ -790,16 +818,17 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
  * @private
  * @param {LLMServices} llm - OpenAI object
  * @param {AgentFactory} factory - Agent Factory object
- * @param {object} bot - Bot object
+ * @param {object} assistantData - Bot object
  * @param {string} avatarId - Avatar id
  * @returns {string} - Bot assistant id in openAI
 */
-async function mCreateBotLLM(llm, bot){
-    const llmResponse = await mAI_openai(llm, bot)
+async function mCreateBotLLM(llm, assistantData){
+    const llmResponse = await mAI_openai(llm, assistantData)
     return llmResponse.id
 }
 /**
  * Creates bot and returns associated `bot` object.
+ * @todo - assistantData.name = botDbName should not be required, push logic to `llm-services`
  * @module
  * @async
  * @private
@@ -809,35 +838,48 @@ async function mCreateBotLLM(llm, bot){
  * @returns {object} - Bot object
 */
 async function mCreateBot(llm, factory, bot){
-	const { bot_name, description: botDescription, instructions: botInstructions, name: botDbName, type, } = bot
+	/* initial deconstructions */
+	const { bot_name: botName, description: botDescription, instructions: botInstructions, name: botDbName, type, } = bot
 	const { avatarId, } = factory
-	const botName = bot_name
-		?? botDbName
-		?? type
+	/* validation */
+	if(!avatarId)
+		throw new Error('avatar id required to create bot')
+	/* constants */
+	const bot_name = botName
+		?? `unknown-${ type }`
 	const description = botDescription
-		?? `I am a ${ type } bot for ${ factory.memberName }`
+		?? `I am a ${ type } for ${ factory.memberName }`
 	const instructions = botInstructions
 		?? mCreateBotInstructions(factory, bot)
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
-	const tools = mGetAIFunctions(type, factory.globals)
-	if(!avatarId)
-		throw new Error('avatar id required to create bot')
-	const botData = {
+	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
+	const id = factory.newGuid
+	const assistantData = {
 		being: 'bot',
-		bot_name: botName,
+		bot_name,
 		description,
+		id,
 		instructions,
+		metadata: { externalId: id, },
 		model: process.env.OPENAI_MODEL_CORE_BOT,
 		name,
 		object_id: avatarId,
 		provider: 'openai',
 		purpose: description,
 		tools,
+		tool_resources,
 		type,
 	}
-	botData.bot_id = await mCreateBotLLM(llm, botData) // create after as require model
-	return botData
+	/* create in LLM */
+	const botId = await mCreateBotLLM(llm, assistantData) // create after as require model
+	if(!botId)
+		throw new Error('bot creation failed')
+	/* create in MyLife datastore */
+	assistantData.bot_id = botId
+	const assistant = await factory.setBot(assistantData)
+	console.log(chalk.green(`bot created::${ type }`), assistant)
+	return assistant
 }
 /**
  * Returns MyLife-version of bot instructions.
@@ -851,42 +893,43 @@ function mCreateBotInstructions(factory, _bot){
 	if(!_bot)
 		throw new Error('bot object required')
 	const _type = _bot.type ?? mDefaultBotType
-    let _botInstructionSet = factory.botInstructions(_type) // no need to wait, should be updated or refresh server
-    _botInstructionSet = _botInstructionSet?.instructions
-    if(!_botInstructionSet)
+    let instructionSet = factory.botInstructions(_type) // no need to wait, should be updated or refresh server
+    instructionSet = instructionSet?.instructions
+    if(!instructionSet)
 		throw new Error(`bot instructions not found for type: ${_type}`)
     /* compile instructions */
-    let _botInstructions = ''
+    let instructions = ''
     switch(_type){
+		case 'journaler':
         case 'personal-avatar':
-            _botInstructions +=
-                  _botInstructionSet.preamble
-                + _botInstructionSet.general
+            instructions +=
+                  instructionSet.preamble
+                + instructionSet.general
             break
         case 'personal-biographer':
-            _botInstructions +=
-                  _botInstructionSet.preamble
-                + _botInstructionSet.purpose
-                + _botInstructionSet.prefix
-                + _botInstructionSet.general
+            instructions +=
+                  instructionSet.preamble
+                + instructionSet.purpose
+                + instructionSet.prefix
+                + instructionSet.general
             break
         default: // avatar
-            _botInstructions += _botInstructionSet.general
+            instructions += instructionSet.general
             break
     }
     /* apply replacements */
-    _botInstructionSet.replacements = _botInstructionSet?.replacements??[]
-    _botInstructionSet.replacements.forEach(_replacement=>{
+    instructionSet.replacements = instructionSet?.replacements??[]
+    instructionSet.replacements.forEach(_replacement=>{
         const _placeholderRegExp = factory.globals.getRegExp(_replacement.name, true)
         const _replacementText = eval(`factory?.${_replacement.replacement}`)
             ?? eval(`_bot?.${_replacement.replacement}`)
             ?? _replacement?.default
             ?? '`unknown-value`'
-        _botInstructions = _botInstructions.replace(_placeholderRegExp, () => _replacementText)
+        instructions = instructions.replace(_placeholderRegExp, () => _replacementText)
     })
     /* apply references */
-    _botInstructionSet.references = _botInstructionSet?.references??[]
-    _botInstructionSet.references.forEach(_reference=>{
+    instructionSet.references = instructionSet?.references??[]
+    instructionSet.references.forEach(_reference=>{
         const _referenceText = _reference.insert
         const _replacementText = eval(`factory?.${_reference.value}`)
             ?? eval(`_bot?.${_reference.value}`)
@@ -894,32 +937,32 @@ function mCreateBotInstructions(factory, _bot){
             ?? '`unknown-value`'
         switch(_reference.method??'replace'){
             case 'append-hard':
-                const _indexHard = _botInstructions.indexOf(_referenceText)
+                const _indexHard = instructions.indexOf(_referenceText)
                 if (_indexHard !== -1) {
-                _botInstructions =
-                    _botInstructions.slice(0, _indexHard + _referenceText.length)
+                instructions =
+                    instructions.slice(0, _indexHard + _referenceText.length)
                     + '\n'
                     + _replacementText
-                    + _botInstructions.slice(_indexHard + _referenceText.length)
+                    + instructions.slice(_indexHard + _referenceText.length)
                 }
                 break
             case 'append-soft':
-                const _indexSoft = _botInstructions.indexOf(_referenceText);
+                const _indexSoft = instructions.indexOf(_referenceText);
                 if (_indexSoft !== -1) {
-                _botInstructions =
-                      _botInstructions.slice(0, _indexSoft + _referenceText.length)
+                instructions =
+                      instructions.slice(0, _indexSoft + _referenceText.length)
                     + ' '
                     + _replacementText
-                    + _botInstructions.slice(_indexSoft + _referenceText.length)
+                    + instructions.slice(_indexSoft + _referenceText.length)
                 }
                 break
             case 'replace':
             default:
-                _botInstructions = _botInstructions.replace(_referenceText, _replacementText)
+                instructions = instructions.replace(_referenceText, _replacementText)
                 break
         }
     })
-    return _botInstructions
+    return instructions
 }
 function mExposedSchemas(factoryBlockedSchemas){
 	const _systemBlockedSchemas = ['dataservices','session']
@@ -1046,28 +1089,58 @@ function mGenerateClassFromSchema(_schema) {
 	return _class
 }
 /**
- * Retrieves any functions that need to be attached to ai.
+ * Retrieves any functions that need to be attached to the specific bot-type.
+ * @todo - move to llmServices
  * @param {string} type - Type of bot.
  * @param {object} globals - Global functions for bot.
- * @returns {array} - Array of AI functions for bot type.
+ * @param {string} vectorstoreId - Vectorstore id.
+ * @returns {object} - OpenAi-ready object for functions { tools, tool_resources, }.
  */
-function mGetAIFunctions(type, globals){
-	const functions = []
+function mGetAIFunctions(type, globals, vectorstoreId){
+	let includeSearch=false,
+		tool_resources,
+		tools = []
 	switch(type){
+		case 'journaler':
+			tools.push(globals.getGPTJavascriptFunction('entrySummary'))
+			includeSearch = true
+			break
+		case 'personal-assistant':
+		case 'personal-avatar':
+			includeSearch = true
+			break
 		case 'personal-biographer':
-			const biographerTools = ['storySummary']
-			biographerTools.forEach(toolName=>{
-				const jsToolDescription = {
-					type: 'function',
-					function: globals.getGPTJavascriptFunction(toolName),
-				}
-				functions.push(jsToolDescription)
-			})
+			tools.push(globals.getGPTJavascriptFunction('storySummary'))
+			includeSearch = true
 			break
 		default:
 			break
 	}
-	return functions
+	if(includeSearch){
+		const { tool_resources: gptResources, tools: gptTools, } = mGetGPTResources(globals, 'file_search', vectorstoreId)
+		tools.push(...gptTools)
+		tool_resources = gptResources
+	}
+	return {
+		tools,
+		tool_resources,
+	}
+}
+/**
+ * Retrieves any tools and tool-resources that need to be attached to the specific bot-type.
+ * @param {Globals} globals - Globals object.
+ * @param {string} toolName - Name of tool.
+ * @param {string} vectorstoreId - Vectorstore id.
+ * @returns {object} - { tools, tool_resources, }.
+ */
+function mGetGPTResources(globals, toolName, vectorstoreId){
+	switch(toolName){
+		case 'file_search':
+			const { tools, tool_resources, } = globals.getGPTFileSearchToolStructure(vectorstoreId)
+			return { tools, tool_resources, }
+		default:
+			throw new Error('tool name not recognized')
+	}
 }
 /**
  * Take help request about MyLife and consults appropriate engine for response.
@@ -1232,8 +1305,8 @@ async function mLoadSchemas(){
 	}
 }
 async function mPopulateBotInstructions(){
-	const _botInstructionSets = await mDataservices.botInstructions()
-	_botInstructionSets.forEach(_instructionSet=>{
+	const instructionSets = await mDataservices.botInstructions()
+	instructionSets.forEach(_instructionSet=>{
 		mBotInstructions[_instructionSet.type] = _instructionSet
 	})
 }

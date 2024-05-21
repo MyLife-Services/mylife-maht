@@ -1,37 +1,49 @@
-<div class="widget bot" id="bot-container">
-    <div class="bot-container" id="personal-avatar">
-        <div class="bot-status" id="personal-avatar-status">
-            <div class="bot-icon" id="personal-avatar-icon"></div>
-            <div class="bot-title" id="personal-avatar-title">Intelligent Assistant</div>
-            <div class="bot-name ticker" id="personal-avatar-name">
+<div id="bot-container" class="widget bot">
+    <div id="team-popup" class="popup team-popup"></div>
+    <div id="personal-avatar" class="bot-container">
+        <div id="personal-avatar-status" class="bot-status">
+            <div id="personal-avatar-icon" class="bot-icon"></div>
+            <div id="personal-avatar-title" class="bot-title">Intelligent Assistant</div>
+            <div id="personal-avatar-name" class="bot-name ticker">
                 <span id="personal-avatar-name-ticker"><%= avatar.name %></span>
             </div>
-            <div class="bot-options-dropdown" id="personal-avatar-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+            <div id="personal-avatar-options-dropdown" class="bot-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden" id="personal-avatar-options">
+        <div id="personal-avatar-options" class="bot-options hidden">
             <!-- Bot Name -->
-            <div class="input-group" id="personal-avatar-bot_name">
+            <div id="personal-avatar-bot_name" class="input-group">
                 <label for="personal-avatar-bot_name">Avatar Name:</label>
-                <input class="bot-input bot-name" id="personal-avatar-input-bot_name" maxlength="256" />
+                <input id="personal-avatar-input-bot_name" class="bot-input bot-name" maxlength="256" />
             </div>
             <!-- Date of Birth -->
-            <div class="input-group" id="personal-avatar-dob">
+            <div id="personal-avatar-dob" class="input-group">
                 <label for="personal-avatar-input dob">My Date of Birth:</label>
-                <input class="bot-date-input bot-dob" id="personal-avatar-input-dob" type="date" />
+                <input id="personal-avatar-input-dob" class="bot-date-input bot-dob" type="date" />
             </div>
-            <button class="button passphrase-reset" id="passphrase-reset-button">Reset passphrase</button>
+            <button id="passphrase-reset-button" class="button passphrase-reset">Reset passphrase</button>
             <div id="personal-avatar-passphrase-container" class="passphrase-container">
-                <span class="fas fa-trash passphrase-cancel" id="personal-avatar-passphrase-cancel"></span>
-                <input class="bot-input passphrase-input" id="personal-avatar-passphrase" maxlength="256" />
-                <span class="fa-solid fa-right-to-bracket passphrase-enter" id="personal-avatar-passphrase-submit"></span>
+                <span id="personal-avatar-passphrase-cancel" class="fas fa-trash passphrase-cancel"></span>
+                <input id="personal-avatar-passphrase" class="bot-input passphrase-input" maxlength="256" />
+                <span id="personal-avatar-passphrase-submit" class="fa-solid fa-right-to-bracket passphrase-enter"></span>
             </div>
-            <button class="button bot-update" id="personal-avatar-update">Update</button>
-            <button class="button bot-upload" id="personal-avatar-upload">Upload</button>
-            <button class="button bot-posterity" id="personal-avatar-posterity">View My Avatar</button>
-            <button class="button bot-import" id="personal-avatar-import">Import or Connect Assistants</button>
+            <div id="personal-avatar-publicity" class="publicity">
+                <div id="personal-avatar-publicity-toggle" class="publicity-toggle">
+                    <label id="personal-avatar-publicity-private-label" class="publicity-label label-off" data-checked-value="false">Private</label>
+                    <input id="personal-avatar-publicity-input" class="hide" type="checkbox" /><!-- hidden -->
+                    <span id="personal-avatar-publicity-slider" class="publicity-slider"></span>
+                    <label id="personal-avatar-publicity-public-label" class="publicity-label" data-checked-value="true">Public</label>
+                </div>
+                <span id="personal-avatar-publicity-toggle-view-icon" class="fas fa-eye publicity-toggle-view-icon"></span>
+                View
+            </div>            
+            <button id="personal-avatar-update" class="button bot-update">Update</button>
+            <button id="personal-avatar-import" class="button bot-import">Import Assistant</button>
         </div>
     </div>
-    <div class="header">Memoire Team</div>
+    <div id="team-header" class="header team-header">
+        <div id="team-name" class="team-name">Unknown Team</div>
+        <span id="add-team-member-icon" class="fas fa-person-circle-plus add-team-member-icon" name="add-team-member"></span>
+    </div>
     <div class="bot-container" id="personal-biographer">
         <div class="bot-status" id="personal-biographer-status">
             <div class="bot-icon" id="personal-biographer-icon"></div>
@@ -234,7 +246,7 @@
                 </div>
             </div>
             <button class="button bot-update" id="journaler-update" name="bot-update">Update</button>
-            <button class="button bot-upload" id="journaler-upload" name="bot-upload">Upload</button>
+            <!--<button class="button bot-upload" id="journaler-upload" name="bot-upload">Upload</button>-->
             <button class="button bot-write" id="journaler-write">Write About My Inner Life</button>
         </div>
     </div>
@@ -269,7 +281,17 @@
                         <div class="collection-item story-item">None</div>
                     </div>
                 </div>
-                <!--<div id="collection-entry" class="collection library-collection entry-collection"></div>-->
+                <div id="collection-entry" class="collection library-collection entry-collection">
+                    <div id="collection-bar-entry" class="collection-bar">
+                        <div id="collection-icon-entry" class="collection-icon collection-icon"></div>
+                        <div id="collection-title-entry" class="collection-title collection-title">Journal Entry Collection</div>
+                        <span class="fa-solid fa-refresh collection-refresh entry-refresh" id="collection-refresh-entry"></span>
+                    </div>
+                    <div id="collection-list-entry" class="collection-list entry-list">
+                        <!-- entries will be listed here -->
+                        <div class="collection-item entry-item">None</div>
+                    </div>
+                </div>
                 <div id="collection-experience" class="collection library-collection experience-collection">
                     <div id="collection-bar-experience" class="collection-bar">
                         <div id="collection-icon-experience" class="collection-icon collection-icon"></div>
@@ -295,8 +317,8 @@
                 </div>
             </div>
             <!-- bot buttons -->
-            <button class="button bot-update" id="library-update" name="bot-update">Update</button>
-            <button class="button bot-upload" id="library-upload" name="bot-upload">Upload</button>
+            <button id="library-update" class="button bot-update" name="bot-update">Update</button>
+            <button id="library-upload" class="button upload library-upload" name="bot-upload">Upload</button>
         </div>
     </div>
 </div>
