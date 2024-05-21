@@ -427,7 +427,7 @@ function extendClass_message(originClass, referencesObject) {
             return this
         }
         get micro(){
-            return { content: this.content, role: this.role??'user' }
+            return { content: this.content, role: this.role ?? 'user' }
         }
     }
     return Message

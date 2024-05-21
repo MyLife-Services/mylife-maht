@@ -124,6 +124,28 @@ async function deleteItem(ctx){
 		ctx.throw(400, `missing item id`)
 	ctx.body = await avatar.deleteItem(iid)
 }
+async function greetings(ctx){
+	const { dyn: dynamic, vld: validate, } = ctx.request.query
+	const { avatar, } = ctx.state
+	let response = { success: false, messages: [], }
+	switch(true){
+		case validate:
+			if(!avatar.isMyLife)
+				response = {
+					...response,
+					error: new Error('Only MyLife may validate greetings'),
+					messages: ['Only MyLife may validate greetings'],
+				}
+			else // @stub - validate registration request
+				response.messages.push(...await avatar.validateRegistration(validate))
+			break
+		default:
+			response.messages.push(...await avatar.getGreeting(dynamic))
+			break
+	}
+	response.success = response.messages.length > 0
+	ctx.body = response
+}
 /**
  * Request help about MyLife.
  * @param {Koa} ctx - Koa Context object, body={ request: string|required, mbr_id, type: string, }.
@@ -325,6 +347,7 @@ export {
 	createBot,
 	deleteItem,
 	help,
+	greetings,
 	index,
 	interfaceMode,
 	login,

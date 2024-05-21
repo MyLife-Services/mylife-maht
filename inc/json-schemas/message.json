@@ -40,7 +40,7 @@
             "type": "string",
 			"default": "chat",
             "description": "message type",
-            "enum": ["chat", "system", "error", "warning", "info", "debug"]
+            "enum": ["chat", "greeting", "system", "error", "warning", "info", "debug"]
         }
 	},
 	"additionalProperties": true,

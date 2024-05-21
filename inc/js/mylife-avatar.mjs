@@ -362,6 +362,14 @@ class Avatar extends EventEmitter {
             .filter(_=>_?.type===type)
     }
     /**
+     * Get a static or dynamic greeting from active bot.
+     * @param {boolean} dynamic - Whether to use LLM for greeting.
+     * @returns {array} - The greeting message(s) string array in order of display.
+     */
+    async getGreeting(dynamic=false){
+        return await mGreeting(this.activeBot, dynamic, this.#llmServices, this.#factory)
+    }
+    /**
      * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
      * @param {string} helpRequest - The help request text.
      * @param {string} type - The type of help request.
@@ -558,7 +566,8 @@ class Avatar extends EventEmitter {
      * @returns {void}
      */
     set activeBotId(_bot_id){ // default PA
-        if(!_bot_id?.length) _bot_id = this.avatarBot.id
+        if(!_bot_id?.length)
+            _bot_id = this.avatarBot.id
         this.#activeBotId = mFindBot(this, _bot_id)?.id??this.avatarBot.id
     }
     /**
@@ -1606,6 +1615,47 @@ function mGetChatCategory(_category) {
             _category?.content // test for undefined
     }
     return _proposedCategory
+}
+/**
+ * Returns set of Greeting messages, dynamic or static.
+ * @param {object} bot - The bot object.
+ * @param {boolean} dynamic - Whether to use dynamic greetings.
+ * @param {*} llm - The LLM object.
+ * @param {*} factory - The AgentFactory object.
+ * @returns {Promise<Message[]>} - The array of messages to respond with.
+ */
+async function mGreeting(bot, dynamic=false, llm, factory){
+    const processStartTime = Date.now()
+    const { bot_id, bot_name, id, greetings, greeting, thread_id, } = bot
+    const failGreeting = [`Hello! I'm concerned that there is something wrong with my instruction-set, as I was unable to find my greetings, but let's see if I can get back online.`, `How can I be of help today?`]
+    const greetingPrompt = factory.isMyLife
+        ? `Greet this new user with a hearty hello, and let them know that you are here to help them understand MyLife and the MyLife platform. Begin by asking them about something that's important to them--based on their response, explain how MyLife can help them.`
+        : `Greet me with a hearty hello as we start a new session, and let me know either where we left off, or how we should start for today!`
+    const QGreetings = [
+        `Hi, I'm Q, so nice to meet you!`,
+        `To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
+    ]
+    const botGreetings = greetings
+        ? greetings
+        : greeting
+            ? [greeting]
+            : null
+    let messages = !botGreetings || dynamic // consult LLM?
+        ? await llm.getLLMResponse(thread_id, bot_id, greetingPrompt, factory)
+        : botGreetings
+    if(!messages?.length)
+        messages = failGreeting
+    console.log('mGreeting', thread_id, bot_id, factory.message)
+    messages = messages
+        .map(message=>new (factory.message)({
+            being: 'message',
+            content: message,
+            thread_id,
+            role: 'assistant',
+            type: 'greeting'
+        }))
+        .map(message=>mPruneMessage(bot, message, 'greeting', processStartTime))
+    return messages
 }
 /**
  * Include help preamble to _LLM_ request, not outbound to member/guest.
