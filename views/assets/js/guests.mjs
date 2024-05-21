@@ -4,10 +4,6 @@ import Globals from './globals.mjs'
 const mGlobals = new Globals()
 /* constants */
 const mAvatarName = mGlobals.getAvatar()?.name
-const mGreeting = [
-	`Hi, I'm ${ mAvatarName }, so nice to meet you!`,
-	`To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
-]
 const hide = mGlobals.hide
 const mPlaceholder = `Type a message to ${ mAvatarName }...`
 const show = mGlobals.show
@@ -29,21 +25,9 @@ let aboutContainer,
     navigation,
     privacyContainer,
     sidebar
-document.addEventListener('DOMContentLoaded', ()=>{
-    /* assign page div variables */
-    aboutContainer = document.getElementById('about-container')
-    awaitButton = document.getElementById('await-button')
-    agentSpinner = document.getElementById('agent-spinner')
-    chatContainer = document.getElementById('chat-container')
-    chatLabel = document.getElementById('user-chat-label')
-    chatInput = document.getElementById('chat-user-message')
-    chatSubmit = document.getElementById('chat-user-submit')
-    chatSystem = document.getElementById('chat-system')
-    chatUser = document.getElementById('chat-user')
-    mainContent = mGlobals.mainContent
-    navigation = mGlobals.navigation
-    privacyContainer = document.getElementById('privacy-container')
-    sidebar = mGlobals.sidebar
+document.addEventListener('DOMContentLoaded', event=>{
+    /* load data */
+    mLoadStart()
     /* display page */
     mShowPage()
 })
@@ -57,8 +41,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
  */
 function mAddMessage(message, options={
 	bubbleClass: 'agent-bubble',
-	typewrite: true,
 	delay: 15,
+	typewrite: true,
 }){
     let messageContent = message.message ?? message
     const originalMessage = messageContent
@@ -112,6 +96,42 @@ function mAddUserMessage(event){
     })
 }
 /**
+ * Fetches the greeting messages from the server. The greeting object from server: { error, messages, success, }
+ * @private
+ * @param {boolean} dynamic - Whether or not greeting should be dynamically generated (true) or static (false).
+ * @returns {Promise<Message[]>} - The response Message array.
+ */
+async function mFetchGreetings(dynamic=false){
+    let query = window.location.search || '?'
+    dynamic = `dyn=${ dynamic }&`
+    query += dynamic
+    let url = window.location.origin
+        + '/greeting'
+        + query
+    try {
+        const response = await fetch(url)
+        const { messages, success, } = await response.json()
+        return messages
+    } catch(error) {
+        return [`Error: ${ error.message }`, `Please try again. If this persists, check back with me later or contact support.`]
+    }
+}
+/**
+ * Fetches the greeting messages or start routine from the server.
+ * @private
+ * @returns {void}
+ */
+async function mFetchStart(){
+    const greetings = await mFetchGreetings()
+    greetings.forEach(greeting=>{
+        mAddMessage(greeting, {
+            bubbleClass: 'agent-bubble',
+            delay: 10,
+            typewrite: true,
+        })
+    })
+}
+/**
  * Initializes event listeners.
  * @private
  * @returns {void}
@@ -121,6 +141,29 @@ function mInitializeListeners(){
         chatInput.addEventListener('input', mToggleInputTextarea)
     if(chatSubmit)
         chatSubmit.addEventListener('click', mAddUserMessage)
+}
+/**
+ * Load data for the page.
+ * @private
+ * @returns {void}
+ */
+async function mLoadStart(){
+    /* assign page div variables */
+    aboutContainer = document.getElementById('about-container')
+    awaitButton = document.getElementById('await-button')
+    agentSpinner = document.getElementById('agent-spinner')
+    chatContainer = document.getElementById('chat-container')
+    chatLabel = document.getElementById('user-chat-label')
+    chatInput = document.getElementById('chat-user-message')
+    chatSubmit = document.getElementById('chat-user-submit')
+    chatSystem = document.getElementById('chat-system')
+    chatUser = document.getElementById('chat-user')
+    mainContent = mGlobals.mainContent
+    navigation = mGlobals.navigation
+    privacyContainer = document.getElementById('privacy-container')
+    sidebar = mGlobals.sidebar
+    /* fetch the greeting messages */
+    await mFetchStart()
 }
 function scrollToBottom() {
     chatSystem.scrollTop = chatSystem.scrollHeight
@@ -153,34 +196,6 @@ function mShowPage(){
     show(chatSystem)
     show(chatContainer)
     show(chatUser)
-    /* welcome-01 */
-    mAddMessage({
-        message: mGreeting[0],
-    })
-    /* welcome-02 */
-    setTimeout(() => { // Set a timeout for 1 second to wait for the first line to be fully painted
-        // Set another timeout for 7.5 seconds to add the second message
-        const timerId = setTimeout(_addIntroductionMessage, 7500);
-        // Event listeners for member interactions
-        window.addEventListener('mousemove', _addIntroductionMessage, { once: true })
-        window.addEventListener('click', _addIntroductionMessage, { once: true })
-        window.addEventListener('focus', _addIntroductionMessage, { once: true })
-        window.addEventListener('scroll', _addIntroductionMessage, { once: true })
-        /* local timeout functions */
-        function _addIntroductionMessage() { // Clear the 7.5 seconds timeout if any event is triggered
-            clearTimeout(timerId)
-            mAddMessage({ message: mGreeting[1] })
-            _cleanupListeners()
-            // display chat lane with placeholder
-        }
-        // Cleanup function to remove event listeners
-        function _cleanupListeners() {
-            window.removeEventListener('mousemove', _addIntroductionMessage)
-            window.removeEventListener('click', _addIntroductionMessage)
-            window.removeEventListener('focus', _addIntroductionMessage)
-            window.removeEventListener('scroll', _addIntroductionMessage)
-    }
-    }, 1000)
 }
 /**
  * 
