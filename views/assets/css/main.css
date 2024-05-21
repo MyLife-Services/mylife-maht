@@ -245,18 +245,19 @@ body {
 	font-weight: bold;
 }
 .button {
+	align-items: center;
 	background-color: #007BFF; /* Default background color */
+	border: 2px solid #061320; /* Blue border */
+	border-radius: 12px; /* Rounded corners */
+	box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
+	cursor: pointer; /* Cursor changes to pointer on hover */
 	color: #fff; /* Text color */
 	display: flex;
 	margin: 12px;
 	margin-bottom: 18px;
-	border: 2px solid #061320; /* Blue border */
-	border-radius: 12px; /* Rounded corners */
-	box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
 	font-weight: bold; /* Bold text */
 	justify-content: center; /* Centers the button horizontally */
 	padding: 6px 12px; /* Adjust as needed */
-	cursor: pointer; /* Cursor changes to pointer on hover */
 	text-align: center; /* Center text */
 }
 .button:hover {
@@ -689,6 +690,17 @@ body {
 }
 .header-text {
     font-weight: bold;
+}
+/* MyLife general */
+.label-active {
+	color: navy;
+	cursor: default;
+	font-weight: bold;
+}
+.label-inactive {
+	color: gray;
+	cursor: pointer;
+	font-weight: normal;
 }
 /* keyframes */
 @keyframes alertFadeOut {

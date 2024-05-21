@@ -439,6 +439,33 @@ async function mDeleteCollectionItem(event){
         item.addEventListener('click', mDeleteCollectionItem, { once: true })
 }
 /**
+ * Find checkbox associated with element, or errors.
+ * @param {HTMLElement} element - The element to search for checkbox.
+ * @param {boolean} searchParent - Whether or not to search parent element.
+ * @returns {HTMLElement} - The input checkbox found in element.
+ */
+function mFindCheckbox(element, searchParent=true){
+    const { children, parentElement, } = element
+    if(mIsInputCheckbox(element))
+        return element
+    for(let child of children){
+        const result = mFindCheckbox(child, false)
+        if(result)
+            return result
+    }
+    if(searchParent && parentElement){
+        const { children: parentChildren, } = parentElement
+        // do not run second time (obviously)
+        for(let child of parentChildren){
+            if(child===element)
+                continue // skip redundant processing
+            const result = mFindCheckbox(child, false)
+            if(result)
+                return result
+        }
+    }
+}
+/**
  * Paints bot-greeting to column
  * @private
  * @requires mActiveBot
@@ -490,6 +517,16 @@ function mInputPassphrase(){
         show(passphraseSubmitButton)
     else
         hide(passphraseSubmitButton)
+}
+/**
+ * Determines whether or not the element is an input checkbox.
+ * @param {HTMLElement} element - The element to check.
+ * @returns {boolean} - Whether or not the element is an input checkbox.
+ */
+function mIsInputCheckbox(element){
+    const { tagName, type, } = element
+    const outcome = tagName.toLowerCase()==='input' && type.toLowerCase()==='checkbox'
+    return outcome
 }
 /**
  * Open bot container for passed element, closes all the rest.
@@ -831,6 +868,69 @@ function mTogglePopup(event){
     }
 }
 /**
+ * 
+ * @param {HTMLElement} element - The element to toggle classes on.
+ * @param {array} add - The classes to add.
+ * @param {array} remove - The classes to remove.
+ * @returns {void}
+ */
+function mToggleClass(element, add=[], remove=[]){
+    remove.forEach(className=>element.classList.remove(className))
+    add.forEach(className=>element.classList.add(className))
+}
+/**
+ * Toggles switch for element.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mToggleSwitch(event){
+    let target = this
+    if(event){
+        event.preventDefault()
+        event.stopPropagation()
+        target = event.target
+    }
+    const { children, } = this
+    let { id, } = this /* parent toggle id */
+    id = mGlobals.HTMLIdToType(id)
+    const associatedSwitch = mFindCheckbox(target) /* throws on missing */
+    const { checked, } = associatedSwitch
+    const { checkedValue=`${ event ? !checked : checked}`, } = target.dataset
+    associatedSwitch.checked = checkedValue==='true'
+    let labelId
+    /* send array children of this */
+    const labels = Array.from(children)
+        .filter(child=>{
+            const { tagName, } = child
+            return tagName.toLowerCase()==='label'
+        })
+    labels.forEach(label=>{
+        const { dataset, id: childLabelId, } = label
+        const { checked, } = associatedSwitch
+        const { checkedValue=`${ checked }`, } = dataset
+        if(checkedValue?.toLowerCase()===`${ checked }`)
+            labelId = childLabelId
+    })
+    if(labelId && labels.length)
+        mUpdateLabels(labelId, labels)
+}
+/**
+ * Toggles the privacy switch for the bot.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mToggleSwitchPrivacy(event){
+    let { id, } = this
+    id = id.replace('-toggle', '') // remove toggle
+    const type = mGlobals.HTMLIdToType(id)
+    const publicityCheckbox = document.getElementById(`${ type }-publicity-input`)
+    const viewIcon = document.getElementById(`${ type }-publicity-toggle-view-icon`)
+    const { checked=false, } = publicityCheckbox
+    mToggleSwitch.bind(this)(event)
+    mToggleClass(viewIcon, !checked ? ['fa-eye'] : ['fa-eye-slash'], checked ? ['fa-eye'] : ['fa-eye-slash'])
+    this.addEventListener('click', mToggleSwitchPrivacy, { once: true })
+}
+/**
  * Activates bot bar icon and container. Creates div and icon in bot bar.
  * @todo - limit to bots that actually show on sidebar?
  * @requires mActiveBot
@@ -990,6 +1090,24 @@ function mUpdateInterests(type, memberInterests, botContainer){
     })
 }
 /**
+ * Update the bot labels with specifics, .
+ * @param {string} activeLabel - The active label.
+ * @param {Array} labels - The array of possible labels.
+ * @returns {void}
+ */
+function mUpdateLabels(activeLabelId, labels){
+    labels.forEach(label=>{
+        const { id, name, value, } = label
+        if(id===activeLabelId){
+            label.classList.remove('label-inactive')
+            label.classList.add('label-active')
+        } else {
+            label.classList.remove('label-active')
+            label.classList.add('label-inactive')
+        }
+    })
+}
+/**
  * Update the bot narrative slider with specifics.
  * @param {string} type - The bot type.
  * @param {number} narrative - The narrative value.
@@ -1014,13 +1132,21 @@ function mUpdateNarrativeSlider(type, narrative, botContainer){
  * @returns {void}
  */
 function mUpdatePrivacySlider(type, privacy, botContainer){
-    const privacySlider = document.getElementById(`${ type }-privacy`)
-    if(privacySlider){
-        botContainer.setAttribute('data-privacy', privacy ?? privacySlider.value)
-        privacySlider.value = botContainer.getAttribute('data-privacy')
-        privacySlider.addEventListener('input', event=>{
-            botContainer.setAttribute('data-privacy', privacySlider.value)
-        })
+    const avatarPublicity = document.getElementById(`${ type }-publicity`)
+    if(avatarPublicity){ // 0.7 version
+        const publicityContainer = document.getElementById(`${ type }-publicity-toggle`)
+        mToggleSwitchPrivacy.bind(publicityContainer)()
+        // publicityContainer.addEventListener('click', mToggleSwitchPrivacy, { once: true })
+        
+    } else { // previous versions
+        const privacySlider = document.getElementById(`${ type }-privacy`)
+        if(privacySlider){
+            botContainer.setAttribute('data-privacy', privacy ?? privacySlider.value)
+            privacySlider.value = botContainer.getAttribute('data-privacy')
+            privacySlider.addEventListener('input', event=>{
+                botContainer.setAttribute('data-privacy', privacySlider.value)
+            })
+        }
     }
 }
 /**

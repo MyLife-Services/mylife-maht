@@ -26,9 +26,18 @@
                 <input id="personal-avatar-passphrase" class="bot-input passphrase-input" maxlength="256" />
                 <span id="personal-avatar-passphrase-submit" class="fa-solid fa-right-to-bracket passphrase-enter"></span>
             </div>
+            <div id="personal-avatar-publicity" class="publicity">
+                <div id="personal-avatar-publicity-toggle" class="publicity-toggle">
+                    <label id="personal-avatar-publicity-private-label" class="publicity-label label-off" data-checked-value="false">Private</label>
+                    <input id="personal-avatar-publicity-input" class="hide" type="checkbox" /><!-- hidden -->
+                    <span id="personal-avatar-publicity-slider" class="publicity-slider"></span>
+                    <label id="personal-avatar-publicity-public-label" class="publicity-label" data-checked-value="true">Public</label>
+                </div>
+                <span id="personal-avatar-publicity-toggle-view-icon" class="fas fa-eye publicity-toggle-view-icon"></span>
+                View
+            </div>            
             <button id="personal-avatar-update" class="button bot-update">Update</button>
-            <button id="personal-avatar-posterity" class="button bot-posterity">View My Avatar</button>
-            <button id="personal-avatar-import" class="button bot-import">Import or Connect Assistants</button>
+            <button id="personal-avatar-import" class="button bot-import">Import Assistant</button>
         </div>
     </div>
     <div id="team-header" class="header team-header">
