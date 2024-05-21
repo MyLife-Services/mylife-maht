@@ -645,6 +645,14 @@ class AgentFactory extends BotFactory{
 		if(!this.isMyLife) return false
 		return await mDataservices.testPartitionKey(_mbr_id)
 	}
+    /**
+     * Validate registration id.
+     * @param {Guid} validationId - The registration id.
+     * @returns {Promise<boolean[]>} - Whether or not code was valid (true) or not (false).
+     */
+	async validateRegistration(registrationId){
+		return await this.dataservices.validateRegistration(registrationId)
+	}
 	//	getters/setters
 	get alerts(){ // currently only returns system alerts
 		return mAlerts.system

@@ -543,6 +543,14 @@ class Avatar extends EventEmitter {
         if(tools)
             this.#llmServices.updateAssistant(botId, tools) /* no await */
     }
+    /**
+     * Validate registration id.
+     * @param {Guid} validationId - The registration id.
+     * @returns {Promise<boolean[]>} - Whether or not code was valid (true) or not (false).
+     */
+    async validateRegistration(validationId){
+        return await mValidateRegistration(this.#factory, validationId)
+    }
     /* getters/setters */
     /**
      * Get the active bot. If no active bot, return this as default chat engine.
@@ -1649,7 +1657,6 @@ async function mGreeting(bot, dynamic=false, llm, factory){
         : botGreetings
     if(!messages?.length)
         messages = failGreeting
-    console.log('mGreeting', thread_id, bot_id, factory.message)
     messages = messages
         .map(message=>new (factory.message)({
             being: 'message',
@@ -1849,6 +1856,25 @@ function mValidateMode(_requestedMode, _currentMode){
         default:
             return _requestedMode
     }
+}
+/**
+ * Validate registration id.
+ * @private
+ * @param {AgentFactory} factory - AgentFactory object.
+ * @param {Guid} validationId - The registration id.
+ * @returns {Promise<boolean[]>} - Whether or not code was valid (true) or not (false).
+ */
+async function mValidateRegistration(factory, validationId){
+    if(!this.isMyLife)
+        throw new Error('FAILURE::validateRegistration()::Only MyLife may validate registrations.')
+    if(!this.globals.isValidGuid(validationId))
+        throw new Error('FAILURE::validateRegistration()::Invalid validation id.')
+    const validated = factory.validateRegistration(validationId)
+    /* determine eligibility */
+    // if found, then check if eligible for registration (no constraints currently)
+
+    // create/reference function in Q
+
 }
 /* exports */
 export default Avatar
