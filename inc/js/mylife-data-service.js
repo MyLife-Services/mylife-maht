@@ -670,6 +670,15 @@ class Dataservices {
 		if(!this.isMyLife) return false
 		return await this.datamanager.testPartitionKey(_mbr_id)
 	}
+	/**
+	 * Returns the registration record by Id.
+	 * @param {string} registrationId - Guid for registration record in system container.
+	 * @returns {object} - The registration document, if exists.
+	 */
+	async validateRegistration(registrationId){
+		const registration = await this.getItem(registrationId, 'registration', this.mbr_id)
+		return registration
+	}
 }
 /* exports */
 export default Dataservices

@@ -1,0 +1,15 @@
+{
+    "description": "Confirm registration email by email provided by user, id stored in session memory",
+    "name": "confirmRegistration",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "description": "Email provided by user",
+            "format": "email",
+            "type": "string"
+        },
+        "required": [
+            "email"
+        ]
+    }
+}

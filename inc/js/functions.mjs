@@ -134,21 +134,17 @@ async function greetings(ctx){
 	const { dyn: dynamic, vld: validateId, } = ctx.request.query
 	const { avatar, } = ctx.state
 	let response = { success: false, messages: [], }
-	switch(true){
-		case validateId:
-			if(!avatar.isMyLife){
-				response = {
-					...response,
-					error: new Error('Only MyLife may validate greetings'),
-					messages: ['Only MyLife may validate greetings'],
-				}
-			} else // @stub - validate registration request
-				response.messages.push(...await avatar.validateRegistration(validateId))
-			break
-		default:
-			response.messages.push(...await avatar.getGreeting(dynamic))
-			break
-	}
+	if(validateId?.length){
+		if(!avatar.isMyLife){
+			response = {
+				...response,
+				error: new Error('Only MyLife may validate greetings'),
+				messages: ['Only MyLife may validate greetings'],
+			}
+		} else // @stub - validate registration request
+			response.messages.push(...await avatar.validateRegistration(validateId))
+	} else
+		response.messages.push(...await avatar.getGreeting(dynamic))
 	response.success = response.messages.length > 0
 	ctx.body = response
 }

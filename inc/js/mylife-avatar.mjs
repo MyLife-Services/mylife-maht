@@ -37,6 +37,7 @@ class Avatar extends EventEmitter {
     #livingExperience
     #llmServices
     #mode = 'standard' // interface-mode from module `mAvailableModes`
+    #mylifeRegistrationEmail
     #nickname // avatar nickname, need proxy here as getter is complex
     #proxyBeing = 'human'
     /**
@@ -204,6 +205,15 @@ class Avatar extends EventEmitter {
                 }
             })
         return collections
+    }
+    /**
+     * From gpt function call, confirms registration based on email.
+     * @returns 
+     */
+    async confirmRegistration(email, passphrase){
+        if(!this.isMyLife)
+            throw new Error('Only MyLife avatar can confirm registration.')
+        return await this.#factory.confirmRegistration()
     }
     /**
      * Create a new bot. Errors if bot cannot be created.
@@ -545,11 +555,17 @@ class Avatar extends EventEmitter {
     }
     /**
      * Validate registration id.
+     * @todo - move to MyLife only avatar variant.
      * @param {Guid} validationId - The registration id.
-     * @returns {Promise<boolean[]>} - Whether or not code was valid (true) or not (false).
+     * @returns {Promise<Object[]>} - Array of system messages.
      */
     async validateRegistration(validationId){
-        return await mValidateRegistration(this.#factory, validationId)
+        const { email, messages, success, } = await mValidateRegistration(this.activeBot, this.#factory, validationId)
+        if(success){
+            // @stub - move to MyLife only avatar variant, where below are private vars
+            this.#mylifeRegistrationEmail = email
+        }
+        return messages
     }
     /* getters/setters */
     /**
@@ -1139,6 +1155,21 @@ async function mCast(factory, cast){
         return actor
     }))
     return cast
+}
+function mCreateSystemMessage(activeBot, message, factory){
+    if(!(message instanceof factory.message)){
+        const { thread_id, } = activeBot
+        const content = message?.content ?? message?.message ?? message
+        message = new (factory.message)({
+            being: 'message',
+            content,
+            role: 'assistant',
+            thread_id,
+            type: 'system'
+        })
+    }
+    message = mPruneMessage(activeBot, message, 'system')
+    return message
 }
 /**
  * Takes character data and makes necessary adjustments to roles, urls, etc.
@@ -1858,23 +1889,47 @@ function mValidateMode(_requestedMode, _currentMode){
     }
 }
 /**
- * Validate registration id.
+ * Validate provided registration id.
  * @private
+ * @param {object} activeBot - The active bot object.
  * @param {AgentFactory} factory - AgentFactory object.
  * @param {Guid} validationId - The registration id.
- * @returns {Promise<boolean[]>} - Whether or not code was valid (true) or not (false).
+ * @returns {Promise<object>} - The validation result: { messages, success, }.
  */
-async function mValidateRegistration(factory, validationId){
-    if(!this.isMyLife)
+async function mValidateRegistration(activeBot, factory, validationId){
+    /* validate structure */
+    if(!factory.isMyLife)
         throw new Error('FAILURE::validateRegistration()::Only MyLife may validate registrations.')
-    if(!this.globals.isValidGuid(validationId))
+    if(!factory.globals.isValidGuid(validationId))
         throw new Error('FAILURE::validateRegistration()::Invalid validation id.')
-    const validated = factory.validateRegistration(validationId)
+    /* validate validationId */
+    let email,
+        message,
+        success = false
+    const registration = await factory.validateRegistration(validationId)
+    const messages = []
+    const failureMessage = 'I\'m sorry, but I was unable to validate your registration.'
     /* determine eligibility */
-    // if found, then check if eligible for registration (no constraints currently)
-
-    // create/reference function in Q
-
+    if(registration){
+        const { being, email: registrationEmail, humanName, } = registration
+        const eligible = being==='registration'
+            && factory.globals.isValidEmail(registrationEmail)
+        // ensure not in cosmos _already_: storedProc for this I think?
+        console.log('mValidateRegistration::eligible', registration, eligible)
+        if(eligible){
+            const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
+            message = mCreateSystemMessage(activeBot, successMessage, factory)
+            email = registrationEmail
+            console.log('mValidateRegistration::eligible', registration, message, email)
+            success = true
+        }
+    }
+    if(!message){
+        message = mCreateSystemMessage(activeBot, failureMessage, factory)
+    }
+    if(message)
+        messages.push(message)
+    return { email, messages, success, }
 }
 /* exports */
 export default Avatar

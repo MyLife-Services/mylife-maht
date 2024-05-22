@@ -102,7 +102,9 @@ function mAddUserMessage(event){
  * @returns {Promise<Message[]>} - The response Message array.
  */
 async function mFetchGreetings(dynamic=false){
-    let query = window.location.search || '?'
+    let query = window.location.search
+        ? window.location.search + '&'
+        : '?'
     dynamic = `dyn=${ dynamic }&`
     query += dynamic
     let url = window.location.origin
