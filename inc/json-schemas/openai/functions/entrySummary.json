@@ -1,0 +1,53 @@
+{
+    "description": "Generate a JOURNAL ENTRY `entry` summary with keywords and other critical data elements.",
+    "name": "entrySummary",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "content": {
+                "description": "concatenated raw text content of member input for JOURNAL ENTRY."
+            },
+            "keywords": {
+                "description": "Keywords most relevant to JOURNAL ENTRY.",
+                "items": {
+                    "description": "Keyword (single word or short phrase) to be used in JOURNAL ENTRY summary.",
+                    "maxLength": 64,
+                    "type": "string"
+                },
+                "maxItems": 12,
+                "minItems": 3,
+                "type": "array"
+            },
+            "mood": {
+                "description": "Record member mood for day (or entry) in brief as ascertained from content of JOURNAL ENTRY.",
+                "maxLength": 256,
+                "type": "string"
+            },
+            "relationships": {
+                "description": "Record individuals (or pets) mentioned in this `entry`.",
+                "type": "array",
+                "items": {
+                    "description": "A name of relational individual/pet to the `entry` content.",
+                    "type": "string"
+                },
+                "maxItems": 24
+            },
+            "summary": {
+                "description": "Generate a JOURNAL ENTRY summary from input.",
+                "maxLength": 20480,
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title of the JOURNAL ENTRY.",
+                "maxLength": 256,
+                "type": "string"
+            }
+        },
+        "required": [
+            "content",
+            "keywords",
+            "summary",
+            "title"
+        ]
+    }
+}
