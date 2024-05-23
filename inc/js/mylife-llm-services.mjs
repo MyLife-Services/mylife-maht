@@ -248,7 +248,7 @@ async function mRunFinish(llmServices, run, factory){
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  * @throws {Error} - If tool function not recognized
  */
-async function mRunFunctions(openai, run, factory){
+async function mRunFunctions(openai, run, factory){ // convert factory to avatar (or add)
     if(
             run.required_action?.type=='submit_tool_outputs'
         &&  run.required_action?.submit_tool_outputs?.tool_calls
@@ -259,53 +259,87 @@ async function mRunFunctions(openai, run, factory){
                 .map(async tool=>{
                     const { id, function: toolFunction, type, } = tool
                     let { arguments: toolArguments, name, } = toolFunction
+                    let action = '',
+                        confirmation = {
+                            tool_call_id: id,
+                            output: '',
+                        },
+                        success = false
+                    if(typeof toolArguments==='string')
+                        toolArguments = JSON.parse(toolArguments)
                     switch(name.toLowerCase()){
+                        case 'confirmregistration':
+                        case 'confirm_registration':
+                        case 'confirm registration':
+                            const { email, } = toolArguments
+                            if(!email?.length)
+                                action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
+                            else if(email.toLowerCase()!==factory.registrationData?.email?.toLowerCase())
+                                action = 'Email does not match -- if occurs more than three times in this thread, fire `hijackAttempt` function'
+                            else {
+                                success = factory.confirmRegistration()
+                                if(success)
+                                    action = `congratulate on registration and get required member data for follow-up: date of birth, initial account passphrase.`
+                                else
+                                    action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization'
+                                
+                            }
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
                         case 'entrysummary': // entrySummary in Globals
                         case 'entry_summary':
                         case 'entry summary':
-                            if(typeof toolArguments == 'string')
-                                toolArguments = JSON.parse(toolArguments)
-                            let action
                             const entry = await factory.entry(toolArguments)
                             if(entry){
                                 action = `share summary of summary and follow-up with probing question`
-                                const confirmation = {
+                                success = true
+                                confirmation = {
                                     tool_call_id: id,
                                     output: JSON.stringify({ success: true, action, }),
                                 }
                                 return confirmation
                             } else {
                                 action = `journal entry failed to save, notify member and continue on for now`
-                                const confirmation = {
-                                    tool_call_id: id,
-                                    output: JSON.stringify({ success: false, action, }),
-                                }
-                                return confirmation
                             }
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
                         case 'hijackattempt':
                         case 'hijack_attempt':
+                        case 'hijack-attempt':
                         case 'hijack attempt':
                             console.log('mRunFunctions()::hijack_attempt', toolArguments)
-                            if(true){
-                                const confirmation = {
-                                    tool_call_id: id,
-                                    output: JSON.stringify({ success: true, }),
-                                }
-                                return confirmation
+                            success = true
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
+                        case 'setmylifebasics':
+                        case 'set_mylife_basics':
+                        case 'set mylife basics':
+                            const { birthdate, passphrase, } = toolArguments
+                            action = `error setting basics for member: `
+                            if(!birthdate)
+                                action += 'birthdate missing, elicit birthdate; '
+                            if(!passphrase)
+                                action += 'passphrase missing, elicit passphrase; '
+                            try {
+                                success = await factory.createAccount(birthdate, passphrase)
+                                action = success
+                                    ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and ask if they are ready to continue journey.`
+                                    : action + 'server failure for `factory.createAccount()`'
+                            } catch(error){
+                                action += '__ERROR: ' + error.message
                             }
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
                         case 'story': // storySummary.json
                         case 'storysummary':
                         case 'story-summary':
                         case 'story_summary':
                         case 'story summary':
-                            if(typeof toolArguments == 'string')
-                                toolArguments = JSON.parse(toolArguments)
                             const story = await factory.story(toolArguments)
                             if(story){
                                 const { keywords, phaseOfLife='unknown', } = story
                                 let { interests, updates, } = factory.core
                                 // @stub - action integrates with story and interests/phase
-                                let action
                                 switch(true){
                                     case interests:
                                         console.log('mRunFunctions()::story-summary::interests', interests)
@@ -321,12 +355,10 @@ async function mRunFunctions(openai, run, factory){
                                         action = 'ask about another event in member\'s life'
                                         break
                                 }
-                                const confirmation = {
-                                    tool_call_id: id,
-                                    output: JSON.stringify({ success: true, action, }),
-                                }
-                                return confirmation
+                                success = true
                             } // error cascades
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
                         default:
                             throw new Error(`Tool function ${name} not recognized`)
                     }
@@ -337,7 +369,6 @@ async function mRunFunctions(openai, run, factory){
             run.id,
             { tool_outputs: toolCallsOutput },
         )
-        console.log('mRunFunctions::submitToolOutputs()::run=complete', finalOutput?.status)
         return finalOutput /* undefined indicates to ping again */
     }
 }

@@ -12,6 +12,7 @@ import {
     contributions,
     createBot,
     deleteItem,
+    greetings,
     help,
     index,
     interfaceMode,
@@ -53,6 +54,7 @@ _Router.get('/alerts', alerts)
 _Router.get('/login/:mid', login)
 _Router.get('/logout', logout)
 _Router.get('/experiences', availableExperiences)
+_Router.get('/greeting', greetings)
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
@@ -95,6 +97,7 @@ _memberRouter.get('/contributions', contributions)
 _memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
+_memberRouter.get('/greeting', greetings)
 _memberRouter.get('/mode', interfaceMode)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)

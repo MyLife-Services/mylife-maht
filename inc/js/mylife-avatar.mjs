@@ -138,6 +138,8 @@ class Avatar extends EventEmitter {
         if(this.isMyLife){ /* MyLife chat request hasn't supplied basics to front-end yet */
             activeBotId = this.activeBot.id
             threadId = this.activeBot.thread_id
+            if(this.#factory.registrationData) // trigger confirmation until session (or vld) ends
+                chatMessage = `CONFIRM REGISTRATION: ` + chatMessage
         }
         if(!chatMessage)
             throw new Error('No message provided in context')
@@ -150,7 +152,6 @@ class Avatar extends EventEmitter {
         if(botThreadId!==threadId)
             throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
         let conversation = this.getConversation(threadId)
-        console.log('chatRequest()', threadId, activeBotId, botThreadId, this.bots)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
@@ -159,7 +160,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('chatRequest::BYPASS-SAVE', conversation.message?.content)
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
@@ -353,7 +354,6 @@ class Avatar extends EventEmitter {
     getConversation(threadId){
         const conversation = this.#conversations
             .find(conversation=>conversation.thread?.id ?? conversation.thread_id===threadId)
-        console.log('getConversation()', conversation.thread, conversation.thread_id, threadId, conversation.inspect(true))
         return conversation
     }
     /**
@@ -364,6 +364,14 @@ class Avatar extends EventEmitter {
     getConversations(type='chat'){
         return this.#conversations
             .filter(_=>_?.type===type)
+    }
+    /**
+     * Get a static or dynamic greeting from active bot.
+     * @param {boolean} dynamic - Whether to use LLM for greeting.
+     * @returns {array} - The greeting message(s) string array in order of display.
+     */
+    async getGreeting(dynamic=false){
+        return await mGreeting(this.activeBot, dynamic, this.#llmServices, this.#factory)
     }
     /**
      * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
@@ -424,7 +432,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('helpRequest::BYPASS-SAVE', conversation.message.content)
         const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
         return response
     }
@@ -535,6 +543,20 @@ class Avatar extends EventEmitter {
         if(tools)
             this.#llmServices.updateAssistant(botId, tools) /* no await */
     }
+    /**
+     * Validate registration id.
+     * @todo - move to MyLife only avatar variant.
+     * @param {Guid} validationId - The registration id.
+     * @returns {Promise<Object[]>} - Array of system messages.
+     */
+    async validateRegistration(validationId){
+        const { messages, registrationData, success, } = await mValidateRegistration(this.activeBot, this.#factory, validationId)
+        if(success){
+            // @stub - move to MyLife only avatar variant, where below are private vars
+            this.#factory.registrationData = registrationData
+        }
+        return messages
+    }
     /* getters/setters */
     /**
      * Get the active bot. If no active bot, return this as default chat engine.
@@ -562,7 +584,8 @@ class Avatar extends EventEmitter {
      * @returns {void}
      */
     set activeBotId(_bot_id){ // default PA
-        if(!_bot_id?.length) _bot_id = this.avatarBot.id
+        if(!_bot_id?.length)
+            _bot_id = this.avatarBot.id
         this.#activeBotId = mFindBot(this, _bot_id)?.id??this.avatarBot.id
     }
     /**
@@ -1123,6 +1146,21 @@ async function mCast(factory, cast){
     }))
     return cast
 }
+function mCreateSystemMessage(activeBot, message, factory){
+    if(!(message instanceof factory.message)){
+        const { thread_id, } = activeBot
+        const content = message?.content ?? message?.message ?? message
+        message = new (factory.message)({
+            being: 'message',
+            content,
+            role: 'assistant',
+            thread_id,
+            type: 'system'
+        })
+    }
+    message = mPruneMessage(activeBot, message, 'system')
+    return message
+}
 /**
  * Takes character data and makes necessary adjustments to roles, urls, etc.
  * @todo - icon and background changes
@@ -1612,6 +1650,48 @@ function mGetChatCategory(_category) {
     return _proposedCategory
 }
 /**
+ * Returns set of Greeting messages, dynamic or static.
+ * @param {object} bot - The bot object.
+ * @param {boolean} dynamic - Whether to use dynamic greetings.
+ * @param {*} llm - The LLM object.
+ * @param {*} factory - The AgentFactory object.
+ * @returns {Promise<Message[]>} - The array of messages to respond with.
+ */
+async function mGreeting(bot, dynamic=false, llm, factory){
+    const processStartTime = Date.now()
+    const { bot_id, bot_name, id, greetings, greeting, thread_id, } = bot
+    const failGreeting = [`Hello! I'm concerned that there is something wrong with my instruction-set, as I was unable to find my greetings, but let's see if I can get back online.`, `How can I be of help today?`]
+    const greetingPrompt = factory.isMyLife
+        ? `Greet this new user with a hearty hello, and let them know that you are here to help them understand MyLife and the MyLife platform. Begin by asking them about something that's important to them--based on their response, explain how MyLife can help them.`
+        : `Greet me with a hearty hello as we start a new session, and let me know either where we left off, or how we should start for today!`
+    const QGreetings = [
+        `Hi, I'm Q, so nice to meet you!`,
+        `To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
+    ]
+    const botGreetings = greetings
+        ? greetings
+        : greeting
+            ? [greeting]
+            : factory.isMyLife
+                ? QGreetings
+                : null
+    let messages = botGreetings?.length && !dynamic
+        ? botGreetings
+        : await llm.getLLMResponse(thread_id, bot_id, greetingPrompt, factory) 
+    if(!messages?.length)
+        messages = failGreeting
+    messages = messages
+        .map(message=>new (factory.message)({
+            being: 'message',
+            content: message,
+            thread_id,
+            role: 'assistant',
+            type: 'greeting'
+        }))
+        .map(message=>mPruneMessage(bot, message, 'greeting', processStartTime))
+    return messages
+}
+/**
  * Include help preamble to _LLM_ request, not outbound to member/guest.
  * @todo - expand to include other types of help requests, perhaps more validation.
  * @param {string} type - The type of help request.
@@ -1799,6 +1879,49 @@ function mValidateMode(_requestedMode, _currentMode){
         default:
             return _requestedMode
     }
+}
+/**
+ * Validate provided registration id.
+ * @private
+ * @param {object} activeBot - The active bot object.
+ * @param {AgentFactory} factory - AgentFactory object.
+ * @param {Guid} validationId - The registration id.
+ * @returns {Promise<object>} - The validation result: { messages, success, }.
+ */
+async function mValidateRegistration(activeBot, factory, validationId){
+    /* validate structure */
+    if(!factory.isMyLife)
+        throw new Error('FAILURE::validateRegistration()::Only MyLife may validate registrations.')
+    if(!factory.globals.isValidGuid(validationId))
+        throw new Error('FAILURE::validateRegistration()::Invalid validation id.')
+    /* validate validationId */
+    let message,
+        registrationData = { id: validationId },
+        success = false
+    const registration = await factory.validateRegistration(validationId)
+    console.log('mValidateRegistration::registration', registration)
+    const messages = []
+    const failureMessage = `I\'m sorry, but I\'m currently unable to validate your registration id:<br />${ validationId }.<br />I\'d be happy to talk with you more about MyLife, but you may need to contact member support to resolve this issue.`
+    /* determine eligibility */
+    if(registration){
+        const { avatarNickname, being, email: registrationEmail, humanName, } = registration
+        const eligible = being==='registration'
+            && factory.globals.isValidEmail(registrationEmail)
+        if(eligible){
+            const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
+            message = mCreateSystemMessage(activeBot, successMessage, factory)
+            registrationData.avatarNickname = avatarNickname
+            registrationData.email = registrationEmail
+            registrationData.humanName = humanName
+            success = true
+        }
+    }
+    if(!message){
+        message = mCreateSystemMessage(activeBot, failureMessage, factory)
+    }
+    if(message)
+        messages.push(message)
+    return { registrationData, messages, success, }
 }
 /* exports */
 export default Avatar

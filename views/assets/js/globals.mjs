@@ -220,6 +220,18 @@ class Globals {
         mIsVisible(classList) ? mHide(element) : mShow(element)
     }
     /**
+     * Returns the URL parameters as an object.
+     * @returns {object} - The URL parameters as an object.
+     */
+    urlParameters(){
+        const parameters = new URLSearchParams(window.location.search)
+        let parametersObject = {}
+        for(let parameter of parameters) {
+            parametersObject[parameter[0]] = parameter[1]
+        }
+        return parametersObject
+    }
+    /**
      * Variable-izes (for js) a given string.
      * @param {string} undashedString - String to variable-ize.
      * @returns {string} - The variable-ized string.

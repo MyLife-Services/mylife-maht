@@ -82,7 +82,7 @@ async function chat(ctx){
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar, } = ctx.state
-	const response = await avatar.chatRequest(botId, threadId, message, )
+	const response = await avatar.chatRequest(botId, threadId, message)
 	ctx.body = response
 }
 async function collections(ctx){
@@ -123,6 +123,33 @@ async function deleteItem(ctx){
 	if(!iid?.length)
 		ctx.throw(400, `missing item id`)
 	ctx.body = await avatar.deleteItem(iid)
+}
+/**
+ * Get greetings for this bot/active bot.
+ * @todo - move dynamic system responses to a separate function (route /system)
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {object} - Greetings response message object: { success: false, messages: [], }.
+ */
+async function greetings(ctx){
+	const { vld: validateId, } = ctx.request.query
+	let { dyn: dynamic, } = ctx.request.query
+	if(typeof dynamic==='string')
+		dynamic = JSON.parse(dynamic)
+	const { avatar, } = ctx.state
+	let response = { success: false, messages: [], }
+	if(validateId?.length){
+		if(!avatar.isMyLife){
+			response = {
+				...response,
+				error: new Error('Only MyLife may validate greetings'),
+				messages: ['Only MyLife may validate greetings'],
+			}
+		} else // @stub - validate registration request
+			response.messages.push(...await avatar.validateRegistration(validateId))
+	} else
+		response.messages.push(...await avatar.getGreeting(dynamic))
+	response.success = response.messages.length > 0
+	ctx.body = response
 }
 /**
  * Request help about MyLife.
@@ -325,6 +352,7 @@ export {
 	createBot,
 	deleteItem,
 	help,
+	greetings,
 	index,
 	interfaceMode,
 	login,

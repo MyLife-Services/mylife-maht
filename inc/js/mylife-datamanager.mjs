@@ -131,12 +131,17 @@ class Datamanager {
 			.upsert(_candidate)
 		return doc
 	}
-	async testPartitionKey(_mbr_id){
-		const { resource: _result } = await this.#containers['members']
+	/**
+	 * Checks if provided mbr_id is an active partition key.
+	 * @param {string} mbr_id - The member id, also container name, to test.
+	 * @returns {boolean} - `true` if partition key is active, `false` otherwise.
+	 */
+	async testPartitionKey(mbr_id){
+		const { resource: result } = await this.#containers['members']
 			.scripts
 			.storedProcedure('testPartitionKey')
-			.execute(_mbr_id)	//	first parameter is partition key, second is passphrase, third is case sensitivity
-		return _result
+			.execute(mbr_id)	//	first parameter is partition key, second is passphrase, third is case sensitivity
+		return result
 	}
 	/* getters/setters */
 	get globals(){
