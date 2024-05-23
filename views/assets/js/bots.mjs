@@ -1,7 +1,7 @@
 /* bot functionality */
 /* imports */
 import {
-    addMessageToColumn,
+    addMessage,
     availableExperiences,
     hide,
     inExperience,
@@ -494,7 +494,7 @@ function mGreeting(){
         function addIntroductionMessage() { // Clear the 7.5 seconds timeout if any event is triggered
             clearTimeout(timerId)
             greeting.forEach(_greeting =>{
-                addMessageToColumn({ message: _greeting })
+                addMessage(_greeting)
             })
             cleanupListeners()
         }

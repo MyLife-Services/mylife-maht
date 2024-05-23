@@ -9,8 +9,8 @@ const mPlaceholder = `Type a message to ${ mAvatarName }...`
 const show = mGlobals.show
 /* variables */
 let mChatBubbleCount = 0,
-    threadId = null,
-    typingTimer
+    mDefaultTypeDelay = 7,
+    threadId = null
 /* page div variables */
 let aboutContainer,
     awaitButton,
@@ -35,47 +35,26 @@ document.addEventListener('DOMContentLoaded', event=>{
 /**
  * Adds a message to the chat column.
  * @private
- * @param {object|string} message - The message to add to the chat column.
+ * @param {string} message - The message to add to the chat column.
  * @param {object} options - The options for the chat bubble.
  * @returns`{void}
  */
-function mAddMessage(message, options={
-	bubbleClass: 'agent-bubble',
-	delay: 15,
-	typewrite: true,
-}){
-    let messageContent = message.message ?? message
-    const originalMessage = messageContent
-	const {
-		bubbleClass,
-		delay,
-		typewrite,
+function mAddMessage(message, options={}){
+    const {
+        bubbleClass='agent-bubble',
+		typeDelay=mDefaultTypeDelay,
+		typewrite=true,
 	} = options
 	const chatBubble = document.createElement('div')
 	chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.className = `chat-bubble ${bubbleClass}`
 	mChatBubbleCount++
 	chatSystem.appendChild(chatBubble)
-	messageContent = mGlobals.escapeHtml(messageContent)
-	if(typewrite){
-		let i = 0
-		let tempMessage = ''
-		function _typeAgentMessage() {
-			if (i <= originalMessage.length ?? 0) {
-				tempMessage += originalMessage.charAt(i)
-				chatBubble.innerHTML = ''
-				chatBubble.insertAdjacentHTML('beforeend', tempMessage)
-				i++
-				setTimeout(_typeAgentMessage, delay) // Adjust the typing speed here (50ms)
-				scrollToBottom()
-			} else {
-				chatBubble.setAttribute('status', 'done')
-			}
-		}
-		_typeAgentMessage()
-	} else {
-		chatBubble.insertAdjacentHTML('beforeend', originalMessage)
-		scrollToBottom()
+	if(typewrite)
+        mTypeMessage(chatBubble, message, typeDelay)
+	else {
+		chatBubble.insertAdjacentHTML('beforeend', message)
+        mScrollBottom()
 	}
 }
 /**
@@ -91,7 +70,7 @@ function mAddUserMessage(event){
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
     mSubmitInput(event, message)
-    mAddMessage({ message, }, { bubbleClass: 'user-bubble', delay: 7, })
+    mAddMessage(message, { bubbleClass: 'user-bubble', typeDelay: 2, })
 }
 /**
  * Fetches the greeting messages from the server. The greeting object from server: { error, messages, success, }
@@ -124,9 +103,11 @@ async function mFetchGreetings(dynamic=false){
 async function mFetchStart(){
     const greetings = await mFetchGreetings()
     greetings.forEach(greeting=>{
-        mAddMessage(greeting, {
+        const message = greeting?.message
+            ?? greeting
+        mAddMessage(message, {
             bubbleClass: 'agent-bubble',
-            delay: 10,
+            typeDelay: 8,
             typewrite: true,
         })
     })
@@ -165,7 +146,11 @@ async function mLoadStart(){
     /* fetch the greeting messages */
     await mFetchStart()
 }
-function scrollToBottom() {
+/**
+ * Scrolls overflow of system chat to bottom.
+ * @returns {void}
+ */
+function mScrollBottom() {
     chatSystem.scrollTop = chatSystem.scrollHeight
 }
 /**
@@ -225,11 +210,8 @@ async function mSubmitInput(event, message){
 	// now returns array of messages
 	_gptChat.forEach(gptMessage=>{
 		threadId = gptMessage.thread_id
-		mAddMessage({
-			message: gptMessage.message,
-			delay: 10,
-		});
-	});
+		mAddMessage(gptMessage.message)
+	})
     hide(awaitButton)
     chatInput.value = null
     chatInput.placeholder = mPlaceholder
@@ -260,4 +242,27 @@ function mToggleSubmitButton(){
     const hasInput = chatInput.value.trim().length ?? false
     chatSubmit.disabled = !hasInput
     chatSubmit.style.cursor = hasInput ? 'pointer' : 'not-allowed'
+}
+/**
+ * Types a message in the chat bubble.
+ * @param {HTMLDivElement} chatBubble - The chat bubble element.
+ * @param {string} message - The message to type.
+ * @param {number} typeDelay - The delay between typing each character.
+ * @returns {void}
+ */
+function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
+    let i = 0
+    let tempMessage = ''
+    function _typewrite() {
+        if(i <= message.length ?? 0){
+            tempMessage += message.charAt(i)
+            chatBubble.innerHTML = ''
+            chatBubble.insertAdjacentHTML('beforeend', tempMessage)
+            i++
+            setTimeout(_typewrite, typeDelay) // Adjust the typing speed here (50ms)
+        } else
+            chatBubble.setAttribute('status', 'done')
+        mScrollBottom()
+    }
+    _typewrite()
 }

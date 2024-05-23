@@ -24,8 +24,7 @@ const mainContent = mGlobals.mainContent,
 let mAutoplay=false,
     mChatBubbleCount = 0,
     mExperience,
-    mMemberId,
-    typingTimer
+    mMemberId
 /* page div variables */
 let activeCategory,
     awaitButton,
@@ -68,25 +67,10 @@ document.addEventListener('DOMContentLoaded', async event=>{
  * Pushes content to the chat column.
  * @public
  * @param {string} message - The message object to add to column.
- * @param {object} options - The options object.
+ * @param {object} options - The options object { bubbleClass, typeDelay, typewrite }.
  */
-function addMessageToColumn(message, options={
-	bubbleClass: 'agent-bubble',
-	_delay: 10,
-	_typewrite: true,
-}){
-    const messageContent = message.message ?? message
-	const {
-		bubbleClass,
-		_delay,
-		_typewrite,
-	} = options
-	const chatBubble = document.createElement('div')
-    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
-	chatBubble.classList.add('chat-bubble', bubbleClass)
-    chatBubble.innerHTML = messageContent
-    mChatBubbleCount++
-	systemChat.appendChild(chatBubble)
+function addMessage(message, options={}){
+    mAddMessage(message, options)
 }
 /**
  * Removes and attaches all payload elements to element.
@@ -309,7 +293,7 @@ function waitForUserAction(){
  * @param {Event} event - The event object.
  * @returns {Promise<void>}
  */
-async function mAddMemberDialog(event){
+async function mAddMemberMessage(event){
     event.stopPropagation()
 	event.preventDefault()
     let memberMessage = chatInputField.value.trim()
@@ -317,17 +301,42 @@ async function mAddMemberDialog(event){
         return
     /* prepare request */
     toggleMemberInput(false) /* hide */
-    addMessageToColumn({ message: memberMessage }, {
+    mAddMessage(memberMessage, {
         bubbleClass: 'user-bubble',
-        _delay: 7,
+        role: 'member',
+        typeDelay: 7,
     })
     /* server request */
     const responses = await submit(memberMessage, false)
     /* process responses */
-	responses.forEach(response => {
-		addMessageToColumn({ message: response.message })
-	})
+	responses
+        .forEach(response => {
+            mAddMessage(response?.message, {
+                bubbleClass: 'agent-bubble',
+                role: 'agent',
+                typeDelay: 1,
+            })
+        })
     toggleMemberInput(true)/* show */
+}
+async function mAddMessage(message, options={}){
+    const {
+		bubbleClass,
+        role='agent',
+		typeDelay=2,
+		typewrite=true,
+	} = options
+	const chatBubble = document.createElement('div')
+    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
+	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
+    mChatBubbleCount++
+	systemChat.appendChild(chatBubble)
+	if(typewrite)
+        mTypeMessage(chatBubble, message, typeDelay)
+	else {
+		chatBubble.insertAdjacentHTML('beforeend', message)
+        mScrollBottom()
+	}
 }
 function bot(_id){
     return mPageBots.find(bot => bot.id === _id)
@@ -402,7 +411,7 @@ function mInitializePageListeners(){
     })
     /* page listeners */
     chatInputField.addEventListener('input', toggleInputTextarea)
-    memberSubmit.addEventListener('click', mAddMemberDialog) /* note default listener */
+    memberSubmit.addEventListener('click', mAddMemberMessage) /* note default listener */
     chatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
@@ -437,7 +446,7 @@ function mResetAnimation(element){
  */
 function sceneTransition(type='interface'){
     /* assign listeners */
-    memberSubmit.removeEventListener('click', mAddMemberDialog)
+    memberSubmit.removeEventListener('click', mAddMemberMessage)
     memberSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
     hide(navigation)
@@ -457,13 +466,20 @@ function sceneTransition(type='interface'){
     showMemberChat()
 }
 /**
+ * Scrolls overflow of system chat to bottom.
+ * @returns {void}
+ */
+function mScrollBottom(){
+    systemChat.scrollTop = systemChat.scrollHeight
+}
+/**
  * Transitions the stage to active member version.
  * @param {boolean} includeSidebar - The include-sidebar flag.
  * @returns {void}
  */
 function mStageTransitionMember(includeSidebar=true){
     memberSubmit.removeEventListener('click', submitInput)
-    memberSubmit.addEventListener('click', mAddMemberDialog)
+    memberSubmit.addEventListener('click', mAddMemberMessage)
     hide(transport)
     hide(screen)
     document.querySelectorAll('.mylife-widget')
@@ -567,21 +583,28 @@ function toggleSubmitButtonState() {
  * Typewrites a message to a chat bubble.
  * @param {HTMLDivElement} chatBubble - The chat bubble element.
  * @param {string} message - The message to type.
- * @param {number} delay - The delay between iterations.
- * @param {number} i - The iteration number.
+ * @param {number} typeDelay - The delay between typing each character.
+ * @returns {void}
  */
-function mTypewriteMessage(chatBubble, message, delay=10, i=0){
-    if(i<message.length){
-        chatBubble.innerHTML += message.charAt(i)
-        i++
-        setTimeout(()=>mTypewriteMessage(chatBubble, message, delay, i), delay)
-    } else {
-        chatBubble.setAttribute('status', 'done')
+function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
+    let i = 0
+    let tempMessage = ''
+    function _typewrite() {
+        if(i <= message.length ?? 0){
+            tempMessage += message.charAt(i)
+            chatBubble.innerHTML = ''
+            chatBubble.insertAdjacentHTML('beforeend', tempMessage)
+            i++
+            setTimeout(_typewrite, typeDelay) // Adjust the typing speed here (50ms)
+        } else
+            chatBubble.setAttribute('status', 'done')
+        mScrollBottom()
     }
+    _typewrite()
 }
 /* exports */
 export {
-    addMessageToColumn,
+    addMessage,
     assignElements,
     availableExperiences,
     clearSystemChat,

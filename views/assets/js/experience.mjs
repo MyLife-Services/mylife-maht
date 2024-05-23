@@ -1,6 +1,6 @@
 /* imports */
 import {
-    addMessageToColumn,
+    addMessage,
     assignElements,
     clearSystemChat,
     escapeHtml,
