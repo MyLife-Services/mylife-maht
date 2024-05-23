@@ -130,6 +130,25 @@ class Globals extends EventEmitter {
 		super()
 	}
 	/* public functions */
+	createDocumentName(mbr_id, id, type){
+		if(!mbr_id || !id || !type)
+			throw new Error('createDocumentName() expects `mbr_id`, `id`, and `type`')
+		return `${ type.substring(0,32) }_${mbr_id}_${id}`
+	}
+	/**
+	 * Create a member id from a system name and id.
+	 * @param {string} sysName - System name to create the member id from.
+	 * @param {Guid} sysId - System id to create the member id from.
+	 * @returns {string} - The member id created from the system name and id.
+	 */
+	createMbr_id(sysName, sysId){
+		const mbr_id = sysName
+			.substring(0,64)
+			.replace(/\s/g, '_').toLowerCase()
+			+ '_'
+			+ sysId
+		return mbr_id
+	}
 	/**
 	 * Get a GPT File Search Tool structure.
 	 * @param {string} vectorstoreId - the vector store id to search.
