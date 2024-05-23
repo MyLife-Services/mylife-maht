@@ -70,9 +70,8 @@
 	max-height: 60%;
 	width: 100%;
 }
-.chat-member textarea,
-.chat-user textarea {
-    background-color: #ffffff; /* White background color */
+.chat-input{
+	background-color: #ffffff; /* White background color */
     border: 1px solid #ccc; /* Border color */
     border-radius: 12px; /* Rounded corners */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
@@ -81,6 +80,7 @@
     font-size: 1em; /* Adjust font size */
     line-height: 1.25; /* Adjust line height for better readability */
     margin: 0 1em; /* Margin for space outside the container */
+	min-height: 2rem;
     overflow: hidden; /* Hides the scrollbar */
     padding: 0.3em; /* Padding for space inside the container */
     resize: none; /* Allows vertical resizing, none to disable */
@@ -95,9 +95,6 @@
 	font-size: 24px; /* Icon size, adjust as needed */
 	cursor: pointer; /* Pointer cursor on hover */
 	z-index: 2; /* Ensure it's above other content */
-}
-.chat-user-input {
-	min-height: 2rem;
 }
 /* chat-submit button; requires special treament to overwrite button class for now */
 button.chat-submit { /* need specificity to overwrite button class */

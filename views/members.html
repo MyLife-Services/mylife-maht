@@ -11,11 +11,11 @@
 			</div>
 			<div id="member-chat-label" class="label">chat</div>
 		</div>
-		<textarea id="member-input" class="member-input"></textarea>
-		<button id="submit-button" class="button chat-submit" type="button" disabled>Submit</button>
+		<textarea id="chat-member-input" class="chat-input"></textarea>
+		<button id="chat-member-submit" class="button chat-submit" type="button" disabled>Submit</button>
 	</div>
 	<button id="await-button" class="await-button" type="button" disabled>
 		<span class="spinner-border spinner-border-sm await-button-spinner" role="status" aria-hidden="true"></span>
-		Connecting with <%= avatar.nickname %>...
+		<span class="await-button-text">Connecting with <%= avatar.nickname %>...</span>
 	</button>
 </div>

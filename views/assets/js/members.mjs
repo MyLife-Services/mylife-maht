@@ -47,9 +47,9 @@ document.addEventListener('DOMContentLoaded', async event=>{
     botBar = document.getElementById('bot-bar')
     chatContainer = document.getElementById('chat-container')
     chatInput = document.getElementById('chat-member')
-    chatInputField = document.getElementById('member-input')
+    chatInputField = document.getElementById('chat-member-input')
     chatRefresh = document.getElementById('chat-refresh')
-    memberSubmit = document.getElementById('submit-button')
+    memberSubmit = document.getElementById('chat-member-submit')
     sceneContinue = document.getElementById('experience-continue')
     spinner = document.getElementById('agent-spinner')
     transport = document.getElementById('experience-transport')
@@ -527,13 +527,17 @@ async function submitChat(url, options) {
  * Toggles the member input between input and server `waiting`.
  * @public
  * @param {boolean} display - Whether to show/hide (T/F), default `true`.
+ * @param {boolean} hidden - Whether to force-hide (T/F), default `false`. **Note**: used in `experience.mjs`
  * @returns {void}
  */
 function toggleMemberInput(display=true, hidden=false){
     if(display){
+        const { bot_name, id, mbr_id, provider, purpose, type, } = activeBot()
         hide(awaitButton)
         awaitButton.classList.remove('slide-up')
         chatInput.classList.add('slide-up')
+        chatInputField.style.height = 'auto'
+        chatInputField.placeholder = `type your message to ${ bot_name }...`
         chatInputField.value = null
         show(chatInput)
     } else {
