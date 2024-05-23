@@ -284,10 +284,15 @@ class BotFactory extends EventEmitter{
 					const stories = ( await this.stories(updatedLibrary.form) )
 						.filter(story=>!this.globals.isValidGuid(story?.library_id))
 						.map(story=>{
-							story.id = story.id ?? this.newGuid
-							story.author = story.author ?? this.mbr_name
-							story.title = story.title ?? story.id
-							return mInflateLibraryItem(story, updatedLibrary.id, this.mbr_id)
+							const { mbr_name, newGuid } = this
+							const { author=mbr_name, id=newGuid, title=mbr_name, } = story
+							story = {
+								...story,
+								author,
+								id,
+								title,
+							}
+							return mInflateLibraryItem(story, updatedLibrary.id, mbr_id)
 						})
 					updatedLibrary.items = [
 						...updatedLibrary.items,
@@ -532,14 +537,24 @@ class AgentFactory extends BotFactory {
 		return _core?.[0]??{}
 	}
 	async entry(entry){
-		if(!entry.summary?.length)
+		const {
+			assistantType='journaler',
+			being='entry',
+			form='journal',
+			keywords=[],
+			summary,
+			thread_id,
+			title='New Journal Entry',
+		} = entry
+		if(!summary?.length)
 			throw new Error('entry summary required')
 		const { mbr_id, newGuid: id, } = this
-		const { assistantType='journaler', being='entry', form='journal', keywords=['journal entry'], summary, title='New Journal Entry', } = entry
-		let { name, } = entry
-		name = name
-			?? title
-			?? `entry_${ mbr_id }_${ id }`
+		const name = `entry_${ title.substring(0,64) }_${ mbr_id }_${ id }`
+		/* assign default keywords */
+		if(!keywords.includes('memory'))
+			keywords.push('memory')
+		if(!keywords.includes('biographer'))
+			keywords.push('biographer')
 		const completeEntry = {
 			...entry,
 			...{
@@ -551,6 +566,7 @@ class AgentFactory extends BotFactory {
 			mbr_id,
 			name,
 			summary,
+			thread_id,
 			title,
 		}}
 		return await this.dataservices.entry(completeEntry)
@@ -678,25 +694,41 @@ class AgentFactory extends BotFactory {
 	 * @returns {object} - The story document from Cosmos.
 	 */
 	async story(story){
-		if(!story.summary?.length)
+		const { 
+			assistantType='biographer-bot',
+			being='story',
+			form='biographer',
+			keywords=[],
+			phaseOfLife='unknown',
+			summary,
+			thread_id,
+			title='New Memory Entry',
+		} = story
+		if(!summary?.length)
 			throw new Error('story summary required')
-		const id = this.newGuid
-		const title = story.title ?? 'New Memory Entry'
-		const finalStory = {
+		const { mbr_id, newGuid: id, } = this
+		const name = `story_${ title.substring(0,64) }_${ mbr_id }_${ id }`
+		/* assign default keywords */
+		if(!keywords.includes('memory'))
+			keywords.push('memory')
+		if(!keywords.includes('biographer'))
+			keywords.push('biographer')
+		const validatedStory = {
 			...story,
 			...{
-			assistantType: story.assistantType ?? 'biographer-bot',
-			being: story.being ?? 'story',
-			form: story.form ?? 'biographer',
-			id,
-			keywords: story.keywords ?? ['memory', 'biographer', 'entry'],
-			mbr_id: this.mbr_id,
-			name: story.name ?? title ?? `story_${ this.mbr_id }_${ id }`,
-			phaseOfLife: story.phaseOfLife ?? 'unknown',
-			summary: story.summary,
-			title,
-		}}
-		return await this.dataservices.story(finalStory)
+				assistantType,
+				being,
+				form,
+				id,
+				keywords,
+				mbr_id,
+				name,
+				phaseOfLife,
+				summary,
+				thread_id,
+				title,
+			}}
+		return await this.dataservices.story(validatedStory)
 	}
 	/**
 	 * Tests partition key for member

@@ -254,11 +254,12 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
         &&  run.required_action?.submit_tool_outputs?.tool_calls
         &&  run.required_action.submit_tool_outputs.tool_calls.length
     ){
+        const { assistant_id: bot_id, metadata, thread_id, } = run
         const toolCallsOutput = await Promise.all(
             run.required_action.submit_tool_outputs.tool_calls
                 .map(async tool=>{
                     const { id, function: toolFunction, type, } = tool
-                    let { arguments: toolArguments, name, } = toolFunction
+                    let { arguments: toolArguments={}, name, } = toolFunction
                     let action = '',
                         confirmation = {
                             tool_call_id: id,
@@ -266,7 +267,8 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                         },
                         success = false
                     if(typeof toolArguments==='string')
-                        toolArguments = JSON.parse(toolArguments)
+                        toolArguments = JSON.parse(toolArguments) ?? {}
+                    toolArguments.thread_id = thread_id
                     switch(name.toLowerCase()){
                         case 'confirmregistration':
                         case 'confirm_registration':
@@ -282,7 +284,6 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                                     action = `congratulate on registration and get required member data for follow-up: date of birth, initial account passphrase.`
                                 else
                                     action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization'
-                                
                             }
                             confirmation.output = JSON.stringify({ success, action, })
                             return confirmation
@@ -339,17 +340,23 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                             if(story){
                                 const { keywords, phaseOfLife='unknown', } = story
                                 let { interests, updates, } = factory.core
+                                if(typeof interests=='array')
+                                    interests = interests.join(', ')
+                                if(typeof updates=='array')
+                                    updates = updates.join(', ')
                                 // @stub - action integrates with story and interests/phase
                                 switch(true){
-                                    case interests:
-                                        console.log('mRunFunctions()::story-summary::interests', interests)
-                                        if(typeof interests == 'array')
-                                            interests = interests.join(',')
+                                    case interests?.length:
                                         action = `ask about a different interest from: ${ interests }`
+                                        console.log('mRunFunctions()::story-summary::interests', interests)
                                         break
                                     case phaseOfLife!=='unknown':
+                                        action = `ask about another encounter during this phase of life: ${ phaseOfLife }`
                                         console.log('mRunFunctions()::story-summary::phaseOfLife', phaseOfLife)
-                                        action = `ask about another encounter during this phase of life: ${story.phaseOfLife}`
+                                        break
+                                    case updates?.length:
+                                        action = `ask about current events related to or beyond: ${ updates }`
+                                        console.log('mRunFunctions()::story-summary::updates', updates)
                                         break
                                     default:
                                         action = 'ask about another event in member\'s life'
