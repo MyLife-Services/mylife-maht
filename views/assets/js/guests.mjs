@@ -86,14 +86,12 @@ function mAddMessage(message, options={
 function mAddUserMessage(event){
     event.preventDefault()
     // Dynamically get the current message element (input or textarea)
-    let userMessage = chatInput.value.trim()
-    if (!userMessage.length) return
-    userMessage = mGlobals.escapeHtml(userMessage) // Escape the user message
-    mSubmitInput(event, userMessage)
-    mAddMessage({ message: userMessage }, {
-        bubbleClass: 'user-bubble',
-        delay: 7,
-    })
+    const userMessage = chatInput.value.trim()
+    if(!userMessage.length)
+        return
+    const message = mGlobals.escapeHtml(userMessage) // Escape the user message
+    mSubmitInput(event, message)
+    mAddMessage({ message, }, { bubbleClass: 'user-bubble', delay: 7, })
 }
 /**
  * Fetches the greeting messages from the server. The greeting object from server: { error, messages, success, }
@@ -200,19 +198,26 @@ function mShowPage(){
     show(chatUser)
 }
 /**
- * 
- * @param {Event} event 
- * @param {string} _message 
+ * Submits a message to the server.
+ * @param {Event} event - The event object.
+ * @param {string} message - The message to submit. 
  */
-async function mSubmitInput(event, _message){
+async function mSubmitInput(event, message){
+    if(!message)
+        return
 	event.preventDefault()
 	const url = window.location.origin
+    const thread_id = threadId ?? null
 	const options = {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 		},
-		body: JSON.stringify({ message: _message, role: 'user', thread_id: threadId }),
+		body: JSON.stringify({
+            message,
+            role: 'user',
+            thread_id,
+        }),
 	}
     hide(chatUser)
     show(awaitButton)
@@ -228,6 +233,7 @@ async function mSubmitInput(event, _message){
     hide(awaitButton)
     chatInput.value = null
     chatInput.placeholder = mPlaceholder
+    mToggleInputTextarea()
     show(chatUser)
 }
 async function submitChat(url, options) {
