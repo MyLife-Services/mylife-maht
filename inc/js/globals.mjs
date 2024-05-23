@@ -142,6 +142,8 @@ class Globals extends EventEmitter {
 	 * @returns {string} - The member id created from the system name and id.
 	 */
 	createMbr_id(sysName, sysId){
+		if(!sysName?.length || !sysId?.length)
+			throw new Error('createMbr_id() expects a system name and id')
 		const mbr_id = sysName
 			.substring(0,64)
 			.replace(/\s/g, '_').toLowerCase()

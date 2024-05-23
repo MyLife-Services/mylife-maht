@@ -1899,21 +1899,20 @@ async function mValidateRegistration(activeBot, factory, validationId){
         registrationData = { id: validationId },
         success = false
     const registration = await factory.validateRegistration(validationId)
+    console.log('mValidateRegistration::registration', registration)
     const messages = []
-    const failureMessage = 'I\'m sorry, but I was unable to validate your registration.'
+    const failureMessage = `I\'m sorry, but I\'m currently unable to validate your registration id:<br />${ validationId }.<br />I\'d be happy to talk with you more about MyLife, but you may need to contact member support to resolve this issue.`
     /* determine eligibility */
     if(registration){
         const { avatarNickname, being, email: registrationEmail, humanName, } = registration
         const eligible = being==='registration'
             && factory.globals.isValidEmail(registrationEmail)
-        // ensure not in cosmos _already_: storedProc for this I think?
         if(eligible){
             const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
             message = mCreateSystemMessage(activeBot, successMessage, factory)
             registrationData.avatarNickname = avatarNickname
             registrationData.email = registrationEmail
             registrationData.humanName = humanName
-            console.log('mValidateRegistration::eligible', registrationData)
             success = true
         }
     }

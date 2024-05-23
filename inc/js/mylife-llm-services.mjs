@@ -275,7 +275,7 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                             if(!email?.length)
                                 action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
                             else if(email.toLowerCase()!==factory.registrationData?.email?.toLowerCase())
-                                action = 'Email does not match -- if occurs more than twice in this thread, fire `hijackAttempt` function'
+                                action = 'Email does not match -- if occurs more than three times in this thread, fire `hijackAttempt` function'
                             else {
                                 success = factory.confirmRegistration()
                                 if(success)
@@ -320,10 +320,13 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                                 action += 'birthdate missing, elicit birthdate; '
                             if(!passphrase)
                                 action += 'passphrase missing, elicit passphrase; '
-                            const basics = await factory.setMyLifeBasics(birthdate, passphrase)
-                            if(basics){
-                                action = `congratulate member on setting up their account, display \`passphrase\` and \`birthdate\` for confirmation, and ask if they are ready to continue journey.`
-                                success = true
+                            try {
+                                success = await factory.createAccount(birthdate, passphrase)
+                                action = success
+                                    ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and ask if they are ready to continue journey.`
+                                    : action + 'server failure for `factory.createAccount()`'
+                            } catch(error){
+                                action += '__ERROR: ' + error.message
                             }
                             confirmation.output = JSON.stringify({ success, action, })
                             return confirmation

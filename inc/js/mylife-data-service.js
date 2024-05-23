@@ -109,6 +109,24 @@ class Dataservices {
 		return this.#partitionId
 	}
 	//	public functions
+	async addCore(core){
+		const { id, mbr_id, } = core
+		if(!id?.length || !mbr_id?.length)
+			throw new Error('`core` must be a pre-formed object with id and mbr_id')
+		const extantCore = await this.getItem(id, undefined, mbr_id)
+		if(extantCore)
+			return { core: extantCore, success: false, } // no alterations, failure
+		core = { // enforce core data structure
+			...core,
+			being: 'core',
+			id,
+			format: 'human',
+			name: this.globals.createDocumentName(mbr_id, id, 'core'),
+			mbr_id,
+		}
+		core = await this.pushItem(core)
+		return { core, success: true, }
+	}
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
 	 * @public
@@ -259,8 +277,8 @@ class Dataservices {
 					return []
 				})
 	}
-	async datacore(_mbr_id){
-		return await this.getItem(_mbr_id)
+	async datacore(mbr_id){
+		return await this.getItem(mbr_id)
 	}
     /**
      * Delete an item from member container.
@@ -398,24 +416,24 @@ class Dataservices {
 	 * Retrieves a specific item by its ID.
 	 * @async
 	 * @public
-	 * @param {string} _id - The unique identifier for the item.
+	 * @param {string} id - The unique identifier for the item.
 	 * @param {string} container_id - The container to use, overriding default: `Members`.
-	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @param {string} mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(_id, container_id, _mbr_id=this.mbr_id) {
-		if(!_id) return
+	async getItem(id, container_id, mbr_id=this.mbr_id) {
+		if(!id)
+			return null
 		try{
 			return await this.datamanager.getItem(
-				_id,
+				id,
 				container_id,
-				{ partitionKey: _mbr_id, populateQuotaInfo: false, },
+				{ partitionKey: mbr_id, populateQuotaInfo: false, },
 			)
 		}
-		catch(_error){
-			console.log('mylife-data-service::getItem() error')
-			console.log(_error, _id, container_id,)
-			return
+		catch(error){
+			console.log('mylife-data-service::getItem() error', error, id, mbr_id, container_id,)
+			return null
 		}
 	}
 	/**
@@ -663,12 +681,13 @@ class Dataservices {
 	/**
 	 * Tests partition key for member
 	 * @public
-	 * @param {string} _mbr_id member id
-	 * @returns {boolean} returns true if partition key is valid
+	 * @param {string} mbr_id member id
+	 * @returns {boolean} - `true` if partition key is active, `false` otherwise.
 	 */
-	async testPartitionKey(_mbr_id){
-		if(!this.isMyLife) return false
-		return await this.datamanager.testPartitionKey(_mbr_id)
+	async testPartitionKey(mbr_id){
+		if(!this.isMyLife)
+			return false
+		return await this.datamanager.testPartitionKey(mbr_id)
 	}
 	/**
 	 * Returns the registration record by Id.
@@ -676,7 +695,13 @@ class Dataservices {
 	 * @returns {object} - The registration document, if exists.
 	 */
 	async validateRegistration(registrationId){
-		const registration = await this.getItem(registrationId, 'registration', this.mbr_id)
+		const { mbr_id, } = this
+		const registration = await this.getItem(registrationId, 'registration', mbr_id)
+		const { humanName, id, } = registration
+		if(humanName?.length && id?.length){
+			if(await this.testPartitionKey(this.globals.createMbr_id(humanName, registrationId)))
+				throw new Error('Registrant already a member!')
+		}
 		return registration
 	}
 }
