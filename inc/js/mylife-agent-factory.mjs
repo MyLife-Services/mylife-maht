@@ -418,6 +418,8 @@ class AgentFactory extends BotFactory {
 	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#llmServices = mLLMServices
 	#mylifeRegistrationData // @stub - move to unique MyLife factory
+	#registrationConfirmed // @stub - move to unique MyLife factory
+	#registrationDataConfirmed // @stub - move to unique MyLife factory
 	constructor(mbr_id){
 		super(mbr_id, false)
 	}
@@ -458,6 +460,13 @@ class AgentFactory extends BotFactory {
 	 */
 	async challengeAccess(_mbr_id, _passphrase){
 		return await mDataservices.challengeAccess(_mbr_id, _passphrase)
+	}
+	confirmRegistration(){
+		if(!this.registrationData)
+			throw new Error('registration data required')
+		this.#mylifeRegistrationData = null
+		this.#registrationConfirmed = true
+		return this.registrationConfirmed
 	}
 	async datacore(_mbr_id){
 		const _core = await mDataservices.getItems(
@@ -610,6 +619,10 @@ class AgentFactory extends BotFactory {
 		const savedExperience = await this.dataservices.saveExperience(_experience)
 		return savedExperience
 	}
+	async setMyLifeBasics(){
+		if(!this.isMyLife)
+			throw new Error('MyLife server required for this function')
+	}
 	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
 	 * @param {object} story - Story object.
@@ -686,6 +699,9 @@ class AgentFactory extends BotFactory {
 	}
 	get organization(){
 		return this.schemas.Organization
+	}
+	get registrationConfirmed(){
+		return this.#registrationConfirmed
 	}
 	/**
 	 * Gets registration data while user attempting to confirm.

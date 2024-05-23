@@ -259,7 +259,7 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                 .map(async tool=>{
                     const { id, function: toolFunction, type, } = tool
                     let { arguments: toolArguments, name, } = toolFunction
-                    let action,
+                    let action = '',
                         confirmation = {
                             tool_call_id: id,
                             output: '',
@@ -276,9 +276,13 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                                 action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
                             else if(email.toLowerCase()!==factory.registrationData?.email?.toLowerCase())
                                 action = 'Email does not match -- if occurs more than twice in this thread, fire `hijackAttempt` function'
-                            else{
-                                success = true
-                                action = `congratulate on registration and get required member data for follow-up: date of birth, initial account passphrase.`
+                            else {
+                                success = factory.confirmRegistration()
+                                if(success)
+                                    action = `congratulate on registration and get required member data for follow-up: date of birth, initial account passphrase.`
+                                else
+                                    action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization'
+                                
                             }
                             confirmation.output = JSON.stringify({ success, action, })
                             return confirmation
@@ -296,24 +300,33 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                                 return confirmation
                             } else {
                                 action = `journal entry failed to save, notify member and continue on for now`
-
                             }
-                            confirmation = {
-                                tool_call_id: id,
-                                output: JSON.stringify({ success, action, }),
-                            }
+                            confirmation.output = JSON.stringify({ success, action, })
                             return confirmation
                         case 'hijackattempt':
                         case 'hijack_attempt':
+                        case 'hijack-attempt':
                         case 'hijack attempt':
                             console.log('mRunFunctions()::hijack_attempt', toolArguments)
-                            if(true){
-                                confirmation = {
-                                    tool_call_id: id,
-                                    output: JSON.stringify({ success: true, }),
-                                }
-                                return confirmation
+                            success = true
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
+                        case 'setmylifebasics':
+                        case 'set_mylife_basics':
+                        case 'set mylife basics':
+                            const { birthdate, passphrase, } = toolArguments
+                            action = `error setting basics for member: `
+                            if(!birthdate)
+                                action += 'birthdate missing, elicit birthdate; '
+                            if(!passphrase)
+                                action += 'passphrase missing, elicit passphrase; '
+                            const basics = await factory.setMyLifeBasics(birthdate, passphrase)
+                            if(basics){
+                                action = `congratulate member on setting up their account, display \`passphrase\` and \`birthdate\` for confirmation, and ask if they are ready to continue journey.`
+                                success = true
                             }
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
                         case 'story': // storySummary.json
                         case 'storysummary':
                         case 'story-summary':
@@ -339,12 +352,10 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                                         action = 'ask about another event in member\'s life'
                                         break
                                 }
-                                confirmation = {
-                                    tool_call_id: id,
-                                    output: JSON.stringify({ success: true, action, }),
-                                }
-                                return confirmation
+                                success = true
                             } // error cascades
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
                         default:
                             throw new Error(`Tool function ${name} not recognized`)
                     }
@@ -355,7 +366,6 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
             run.id,
             { tool_outputs: toolCallsOutput },
         )
-        console.log('mRunFunctions::submitToolOutputs()::run=complete', finalOutput?.status)
         return finalOutput /* undefined indicates to ping again */
     }
 }
