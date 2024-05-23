@@ -414,9 +414,10 @@ class BotFactory extends EventEmitter{
 		return mSystemActor
 	}
 }
-class AgentFactory extends BotFactory{
+class AgentFactory extends BotFactory {
 	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#llmServices = mLLMServices
+	#mylifeRegistrationData // @stub - move to unique MyLife factory
 	constructor(mbr_id){
 		super(mbr_id, false)
 	}
@@ -686,6 +687,31 @@ class AgentFactory extends BotFactory{
 	get organization(){
 		return this.schemas.Organization
 	}
+	/**
+	 * Gets registration data while user attempting to confirm.
+	 * @returns {object} - Registration data in memory.
+	 */
+	get registrationData(){
+		return this.#mylifeRegistrationData
+	}
+	/**
+	 * Sets registration data while user attempting to confirm.
+	 * @todo - move to mylife agent factory
+	 * @param {object} registrationData - Registration data.
+	 * @returns {void}
+	 */
+	set registrationData(registrationData){
+		if(!this.isMyLife)
+			throw new Error('MyLife factory required to store registration data')
+		if(!registrationData)
+			throw new Error('registration data required')
+		if(!this.#mylifeRegistrationData){
+			this.#mylifeRegistrationData = registrationData
+			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
+				this.#mylifeRegistrationData = null
+			}, 300000)
+		}
+	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
 	}
@@ -707,6 +733,36 @@ class AgentFactory extends BotFactory{
 			throw new Error('vectorstoreId required')
 		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
 		this.core.vectorstoreId = vectorstoreId /* update local */
+	}
+}
+// @stub - MyLife factory class
+class MyLifeFactory extends AgentFactory {
+	#mylifeRegistrationData
+	constructor(){
+		super(mbr_id)
+	}
+	// no init() for MyLife server
+	/* public functions */
+	/* getters/setters */
+	/**
+	 * Gets registration data while user attempting to confirm.
+	 * @returns {object} - Registration data in memory.
+	 */
+	get registrationData(){
+		return this.#mylifeRegistrationData
+	}
+	/**
+	 * Sets registration data while user attempting to confirm. Persists for 5 minutes, and cannot be reset for session until expiration.
+	 * @param {object} registrationData - Registration data.
+	 * @returns {void}
+	 */
+	set registrationData(registrationData){
+		if(!this.#mylifeRegistrationData){
+			this.#mylifeRegistrationData = registrationData
+			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
+				this.#mylifeRegistrationData = null
+			}, 300000)
+		}
 	}
 }
 // private module functions

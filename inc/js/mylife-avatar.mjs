@@ -37,7 +37,6 @@ class Avatar extends EventEmitter {
     #livingExperience
     #llmServices
     #mode = 'standard' // interface-mode from module `mAvailableModes`
-    #mylifeRegistrationEmail
     #nickname // avatar nickname, need proxy here as getter is complex
     #proxyBeing = 'human'
     /**
@@ -139,6 +138,8 @@ class Avatar extends EventEmitter {
         if(this.isMyLife){ /* MyLife chat request hasn't supplied basics to front-end yet */
             activeBotId = this.activeBot.id
             threadId = this.activeBot.thread_id
+            if(this.#factory.registrationData) // trigger confirmation until session (or vld) ends
+                chatMessage = `CONFIRM REGISTRATION: ` + chatMessage
         }
         if(!chatMessage)
             throw new Error('No message provided in context')
@@ -151,7 +152,6 @@ class Avatar extends EventEmitter {
         if(botThreadId!==threadId)
             throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
         let conversation = this.getConversation(threadId)
-        console.log('chatRequest()', threadId, activeBotId, botThreadId, this.bots)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
@@ -160,7 +160,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('chatRequest::BYPASS-SAVE', conversation.message?.content)
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
@@ -205,15 +205,6 @@ class Avatar extends EventEmitter {
                 }
             })
         return collections
-    }
-    /**
-     * From gpt function call, confirms registration based on email.
-     * @returns 
-     */
-    async confirmRegistration(email, passphrase){
-        if(!this.isMyLife)
-            throw new Error('Only MyLife avatar can confirm registration.')
-        return await this.#factory.confirmRegistration()
     }
     /**
      * Create a new bot. Errors if bot cannot be created.
@@ -363,7 +354,6 @@ class Avatar extends EventEmitter {
     getConversation(threadId){
         const conversation = this.#conversations
             .find(conversation=>conversation.thread?.id ?? conversation.thread_id===threadId)
-        console.log('getConversation()', conversation.thread, conversation.thread_id, threadId, conversation.inspect(true))
         return conversation
     }
     /**
@@ -442,7 +432,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('helpRequest::BYPASS-SAVE', conversation.message.content)
         const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
         return response
     }
@@ -560,10 +550,10 @@ class Avatar extends EventEmitter {
      * @returns {Promise<Object[]>} - Array of system messages.
      */
     async validateRegistration(validationId){
-        const { email, messages, success, } = await mValidateRegistration(this.activeBot, this.#factory, validationId)
+        const { messages, registrationData, success, } = await mValidateRegistration(this.activeBot, this.#factory, validationId)
         if(success){
             // @stub - move to MyLife only avatar variant, where below are private vars
-            this.#mylifeRegistrationEmail = email
+            this.#factory.registrationData = registrationData
         }
         return messages
     }
@@ -1682,10 +1672,12 @@ async function mGreeting(bot, dynamic=false, llm, factory){
         ? greetings
         : greeting
             ? [greeting]
-            : null
-    let messages = !botGreetings || dynamic // consult LLM?
-        ? await llm.getLLMResponse(thread_id, bot_id, greetingPrompt, factory)
-        : botGreetings
+            : factory.isMyLife
+                ? QGreetings
+                : null
+    let messages = botGreetings?.length && !dynamic
+        ? botGreetings
+        : await llm.getLLMResponse(thread_id, bot_id, greetingPrompt, factory) 
     if(!messages?.length)
         messages = failGreeting
     messages = messages
@@ -1903,24 +1895,25 @@ async function mValidateRegistration(activeBot, factory, validationId){
     if(!factory.globals.isValidGuid(validationId))
         throw new Error('FAILURE::validateRegistration()::Invalid validation id.')
     /* validate validationId */
-    let email,
-        message,
+    let message,
+        registrationData = { id: validationId },
         success = false
     const registration = await factory.validateRegistration(validationId)
     const messages = []
     const failureMessage = 'I\'m sorry, but I was unable to validate your registration.'
     /* determine eligibility */
     if(registration){
-        const { being, email: registrationEmail, humanName, } = registration
+        const { avatarNickname, being, email: registrationEmail, humanName, } = registration
         const eligible = being==='registration'
             && factory.globals.isValidEmail(registrationEmail)
         // ensure not in cosmos _already_: storedProc for this I think?
-        console.log('mValidateRegistration::eligible', registration, eligible)
         if(eligible){
             const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
             message = mCreateSystemMessage(activeBot, successMessage, factory)
-            email = registrationEmail
-            console.log('mValidateRegistration::eligible', registration, message, email)
+            registrationData.avatarNickname = avatarNickname
+            registrationData.email = registrationEmail
+            registrationData.humanName = humanName
+            console.log('mValidateRegistration::eligible', registrationData)
             success = true
         }
     }
@@ -1929,7 +1922,7 @@ async function mValidateRegistration(activeBot, factory, validationId){
     }
     if(message)
         messages.push(message)
-    return { email, messages, success, }
+    return { registrationData, messages, success, }
 }
 /* exports */
 export default Avatar

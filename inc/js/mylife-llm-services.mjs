@@ -67,7 +67,6 @@ class LLMServices {
      * @returns {Promise<Object[]>} - Array of openai `message` objects.
      */
     async getLLMResponse(threadId, botId, prompt, factory){
-        console.log('LLMServices::getLLMResponse()', threadId, botId, prompt, factory)
         await mAssignRequestToThread(this.openai, threadId, prompt)
         const run = await mRunTrigger(this.openai, botId, threadId, factory)
         const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run
@@ -249,7 +248,7 @@ async function mRunFinish(llmServices, run, factory){
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  * @throws {Error} - If tool function not recognized
  */
-async function mRunFunctions(openai, run, factory){
+async function mRunFunctions(openai, run, factory){ // convert factory to avatar (or add)
     if(
             run.required_action?.type=='submit_tool_outputs'
         &&  run.required_action?.submit_tool_outputs?.tool_calls
@@ -260,35 +259,56 @@ async function mRunFunctions(openai, run, factory){
                 .map(async tool=>{
                     const { id, function: toolFunction, type, } = tool
                     let { arguments: toolArguments, name, } = toolFunction
+                    let action,
+                        confirmation = {
+                            tool_call_id: id,
+                            output: '',
+                        },
+                        success = false
+                    if(typeof toolArguments==='string')
+                        toolArguments = JSON.parse(toolArguments)
                     switch(name.toLowerCase()){
+                        case 'confirmregistration':
+                        case 'confirm_registration':
+                        case 'confirm registration':
+                            const { email, } = toolArguments
+                            if(!email?.length)
+                                action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
+                            else if(email.toLowerCase()!==factory.registrationData?.email?.toLowerCase())
+                                action = 'Email does not match -- if occurs more than twice in this thread, fire `hijackAttempt` function'
+                            else{
+                                success = true
+                                action = `congratulate on registration and get required member data for follow-up: date of birth, initial account passphrase.`
+                            }
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
                         case 'entrysummary': // entrySummary in Globals
                         case 'entry_summary':
                         case 'entry summary':
-                            if(typeof toolArguments == 'string')
-                                toolArguments = JSON.parse(toolArguments)
-                            let action
                             const entry = await factory.entry(toolArguments)
                             if(entry){
                                 action = `share summary of summary and follow-up with probing question`
-                                const confirmation = {
+                                success = true
+                                confirmation = {
                                     tool_call_id: id,
                                     output: JSON.stringify({ success: true, action, }),
                                 }
                                 return confirmation
                             } else {
                                 action = `journal entry failed to save, notify member and continue on for now`
-                                const confirmation = {
-                                    tool_call_id: id,
-                                    output: JSON.stringify({ success: false, action, }),
-                                }
-                                return confirmation
+
                             }
+                            confirmation = {
+                                tool_call_id: id,
+                                output: JSON.stringify({ success, action, }),
+                            }
+                            return confirmation
                         case 'hijackattempt':
                         case 'hijack_attempt':
                         case 'hijack attempt':
                             console.log('mRunFunctions()::hijack_attempt', toolArguments)
                             if(true){
-                                const confirmation = {
+                                confirmation = {
                                     tool_call_id: id,
                                     output: JSON.stringify({ success: true, }),
                                 }
@@ -299,14 +319,11 @@ async function mRunFunctions(openai, run, factory){
                         case 'story-summary':
                         case 'story_summary':
                         case 'story summary':
-                            if(typeof toolArguments == 'string')
-                                toolArguments = JSON.parse(toolArguments)
                             const story = await factory.story(toolArguments)
                             if(story){
                                 const { keywords, phaseOfLife='unknown', } = story
                                 let { interests, updates, } = factory.core
                                 // @stub - action integrates with story and interests/phase
-                                let action
                                 switch(true){
                                     case interests:
                                         console.log('mRunFunctions()::story-summary::interests', interests)
@@ -322,7 +339,7 @@ async function mRunFunctions(openai, run, factory){
                                         action = 'ask about another event in member\'s life'
                                         break
                                 }
-                                const confirmation = {
+                                confirmation = {
                                     tool_call_id: id,
                                     output: JSON.stringify({ success: true, action, }),
                                 }

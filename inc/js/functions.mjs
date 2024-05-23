@@ -131,7 +131,10 @@ async function deleteItem(ctx){
  * @returns {object} - Greetings response message object: { success: false, messages: [], }.
  */
 async function greetings(ctx){
-	const { dyn: dynamic, vld: validateId, } = ctx.request.query
+	const { vld: validateId, } = ctx.request.query
+	let { dyn: dynamic, } = ctx.request.query
+	if(typeof dynamic==='string')
+		dynamic = JSON.parse(dynamic)
 	const { avatar, } = ctx.state
 	let response = { success: false, messages: [], }
 	if(validateId?.length){
