@@ -691,15 +691,18 @@ class Dataservices {
 	}
 	/**
 	 * Returns the registration record by Id.
+	 * @todo - revisit hosts: currently process.env
 	 * @param {string} registrationId - Guid for registration record in system container.
 	 * @returns {object} - The registration document, if exists.
 	 */
 	async validateRegistration(registrationId){
 		const { mbr_id, } = this
 		const registration = await this.getItem(registrationId, 'registration', mbr_id)
-		const { humanName, id, } = registration
-		if(humanName?.length && id?.length){
-			if(await this.testPartitionKey(this.globals.createMbr_id(humanName, registrationId)))
+		const { avatarNickname, humanName, id, } = registration
+		if(avatarNickname?.length && id?.length){
+			const tempMbr_id = this.globals.createMbr_id(avatarNickname, id)
+			const exists = await this.testPartitionKey(tempMbr_id)
+			if(exists)
 				throw new Error('Registrant already a member!')
 		}
 		return registration
