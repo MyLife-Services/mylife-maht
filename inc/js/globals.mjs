@@ -136,18 +136,19 @@ class Globals extends EventEmitter {
 		return `${ type.substring(0,32) }_${mbr_id}_${id}`
 	}
 	/**
-	 * Create a member id from a system name and id.
+	 * Create a member id from a system name and id: sysName|sysId.
 	 * @param {string} sysName - System name to create the member id from.
-	 * @param {Guid} sysId - System id to create the member id from.
+	 * @param {Guid} sysId - System id to create the member id from, `Guid` required.
 	 * @returns {string} - The member id created from the system name and id.
 	 */
 	createMbr_id(sysName, sysId){
-		if(!sysName?.length || !sysId?.length)
-			throw new Error('createMbr_id() expects a system name and id')
+		if(!sysName?.length || !isValidGuid(sysId))
+			throw new Error('createMbr_id() expects params: sysName{string}, id{Guid}')
+		const delimiter = '|' // currently used to separate system name and id in mbr_id
 		const mbr_id = sysName
 			.substring(0,64)
 			.replace(/\s/g, '_').toLowerCase()
-			+ '_'
+			+ delimiter
 			+ sysId
 		return mbr_id
 	}
