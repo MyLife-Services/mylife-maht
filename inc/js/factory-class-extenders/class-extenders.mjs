@@ -143,7 +143,7 @@ function extendClass_conversation(originClass, referencesObject) {
             this.#thread = thread
             this.#botId = botId
             this.name = `conversation_${this.#factory.mbr_id}_${thread.thread_id}`
-            this.type = this.type??'chat'
+            this.type = this.type ?? 'chat'
         }
         /* public functions */
         /**

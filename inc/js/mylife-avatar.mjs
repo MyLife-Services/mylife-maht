@@ -90,11 +90,13 @@ class Avatar extends EventEmitter {
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
             /* conversations */
-            this.#bots.forEach(async bot=>{
-                const { thread_id, } = bot
-                if(thread_id)
-                    this.#conversations.push(await this.createConversation('chat', thread_id))
-            })
+            await Promise.all(
+                this.#bots.map(async bot=>{ 
+                    const { thread_id } = bot
+                    if(thread_id && !this.getConversation(thread_id))
+                        this.#conversations.push(await this.createConversation('chat', thread_id))
+                })
+            )
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             /* lived-experiences */
@@ -236,7 +238,7 @@ class Avatar extends EventEmitter {
      */
     async createConversation(type='chat', threadId){
         const thread = await this.#llmServices.thread(threadId)
-        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
+        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
     }
@@ -353,7 +355,7 @@ class Avatar extends EventEmitter {
      */
     getConversation(threadId){
         const conversation = this.#conversations
-            .find(conversation=>conversation.thread?.id ?? conversation.thread_id===threadId)
+            .find(conversation=>conversation.thread?.id===threadId)
         return conversation
     }
     /**
@@ -1066,6 +1068,7 @@ async function mBot(factory, avatar, bot){
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
                 assistant.thread_id = conversation.thread_id
+                avatar.conversations.push(conversation)
             }
         }
         factory.setBot(assistant) // update Cosmos (no need async)
