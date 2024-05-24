@@ -10,6 +10,7 @@ class Menu {
 		return [
 			{ display: `meet ${ _Agent.agentName }`, route: '/', icon: 'home' },
 			{ display: `about`, route: '/about', icon: 'about' },
+			{ display: `donate`, route: 'https://gofund.me/65013d6e', icon: 'donate' },
 //			{ display: `membership`, route: '/members', icon: 'membership' },
 //			{ display: `register`, route: '/register', icon: 'register' },
 		]

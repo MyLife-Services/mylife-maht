@@ -19,11 +19,11 @@ const mAvailableMimeTypes = [],
         health: {
             name: 'Health',
         },
-        memoire: {
+        memoir: {
             allowCustom: true,
             allowedTypes: ['diary','personal-biographer', 'journaler',],
-            description: 'The Memoire Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
-            name: 'Memoire',
+            description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
+            name: 'Memoir',
         },
         professional: {
             name: 'Job',
@@ -41,7 +41,7 @@ const mAvailableMimeTypes = [],
     },
     mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
     botBar = document.getElementById('bot-bar'),
-    mDefaultTeam = 'memoire',
+    mDefaultTeam = 'memoir',
     mGlobals = new Globals(),
     mLibraries = ['entry', 'experience', 'file', 'story'], // ['chat', 'conversation']
     mLibraryCollections = document.getElementById('library-collections'),

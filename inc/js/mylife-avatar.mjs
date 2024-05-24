@@ -141,7 +141,7 @@ class Avatar extends EventEmitter {
             activeBotId = this.activeBot.id
             threadId = this.activeBot.thread_id
             if(this.#factory.registrationData) // trigger confirmation until session (or vld) ends
-                chatMessage = `CONFIRM REGISTRATION: ` + chatMessage
+                chatMessage = `CONFIRM REGISTRATION: ${ chatMessage }`
         }
         if(!chatMessage)
             throw new Error('No message provided in context')
