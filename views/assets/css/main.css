@@ -584,25 +584,27 @@ body {
     background: white; /* Assuming a card-like look typically has a white background */
     background-position: center; /* Centers the image in the area */
     background-size: cover; /* Ensures the image covers the whole area */
-	border: rgb(0, 25, 51, .3) 2px dotted;
+    border: 2px dotted rgba(0, 25, 51, 0.3);
     border-radius: 22px;
-	display: none;
-	flex: 0 auto;
-	flex-direction: column;
-	font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
-	font-size: 0.8em;
-	height: fit-content; /* 100% will stretch to bottom */
-	max-width: 35%;
+    display: flex; /* Changed to flex for layout */
+    flex-direction: column;
+    flex: 1 1 auto; /* Allows growth and shrinkage */
+    font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
+    font-size: 0.8em;
+    max-height: 100vh; /* Prevents exceeding the viewport height */
+    max-width: 35%;
     padding: 0px;
+    height: auto; /* Ensure it adjusts based on content */
 }
 .sidebar-widget {
-	align-items: flex-start;
-	display: flex;
-	flex-direction: column;
-	margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1 1 auto; /* Allows growth and shrinkage */
     max-width: 100%;
-	padding: 0;
     width: 100%;
+    margin: 0;
+    padding: 0;
 }
 .teaser {
 	display: flex;

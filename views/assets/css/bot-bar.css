@@ -48,19 +48,20 @@
 	align-items: stretch;
 }
 .bot-container {
-	box-sizing: border-box;
     cursor: pointer;
-	display: none;
-	flex-direction: column;
-	justify-content: space-between;
-	margin: 0.2rem 0;
+    display: flex;
+    flex: 1 1 auto; /* Allow it to grow and shrink */
+    flex-direction: column;
+    justify-content: space-between;
+    margin: 0.2rem 0;
     max-width: 100%;
+    overflow: hidden;
     width: 100%;
 }
 .bot-content {
     /* Hidden by default */
-    display: none;
-    overflow: hidden;
+    display: flex;
+    overflow: auto;
 }
 .bot-content.visible {
     /* Show content when active */
@@ -131,12 +132,14 @@
 	display: none; /* Initially not displayed */
     margin: 0em 1em 1em 1em;
 	padding: 0.5em;
+    max-height: 50vh;
+    overflow-y: auto; /* Enable vertical scrolling */
 }
 .bot-options.open {
+    animation: _slideBotOptions 0.5s forwards;
     display: flex; /* Make it flex when open */
     flex-direction: row;
     flex-wrap: wrap;
-    animation: _slideBotOptions 0.5s forwards;
 }
 .bot-options-dropdown {
     align-items: center;
@@ -215,11 +218,9 @@
 	padding: 0;
 }
 .mylife-widget.bots {
-	align-items: flex-start;
-	display: flex;
 	flex-direction: column;
 	justify-content: flex-start;
-	max-width: 100%;
+    max-width: 100%;
 }
 /* bot-collections */
 .collection {
