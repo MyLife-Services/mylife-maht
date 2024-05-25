@@ -586,7 +586,7 @@ body {
     background-size: cover; /* Ensures the image covers the whole area */
     border: 2px dotted rgba(0, 25, 51, 0.3);
     border-radius: 22px;
-    display: flex; /* Changed to flex for layout */
+    display: none; /* Changed to flex for layout */
     flex-direction: column;
     flex: 1 1 auto; /* Allows growth and shrinkage */
     font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;

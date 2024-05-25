@@ -331,7 +331,6 @@ function mClearElement(element){
  * @returns {HTMLDivElement} - The dialog element.
  */
 function mCreateHelpInitiatorDialog(popupChat, type){
-    console.log('mCreateHelpInitiatorDialog', mActiveHelpType.id.split('-').pop())
     const dialog = document.createElement('div')
     dialog.classList.add('popup-dialog', 'help-initiator-dialog', `help-initiator-dialog-${ type }`)
     dialog.id = `help-initiator`
