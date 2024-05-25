@@ -90,6 +90,19 @@ class Globals {
             mLoginSelect.addEventListener('change', mSelectLoginId, { once: true })
     }
     /* public functions */
+	/**
+	 * Clears a const array with nod to garbage collection.
+	 * @param {Array} a - the array to clear.
+	 * @returns {void}
+	 */
+	clearArray(a){
+		if(!Array.isArray(a))
+			throw new TypeError('Expected an array to clear')
+		for(let i = 0; i < a.length; i++){
+			a[i] = null
+		}
+		a.length = 0
+	}
     /**
      * Clears an element of its contents, brute force currently via innerHTML.
      * @param {HTMLElement} element - The element to clear.

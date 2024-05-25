@@ -130,6 +130,19 @@ class Globals extends EventEmitter {
 		super()
 	}
 	/* public functions */
+	/**
+	 * Clears a const array with nod to garbage collection.
+	 * @param {Array} a - the array to clear.
+	 * @returns {void}
+	 */
+	clearArray(a){
+		if(!Array.isArray(a))
+			throw new TypeError('Expected an array to clear')
+		for(let i = 0; i < a.length; i++){
+			a[i] = null
+		}
+		a.length = 0
+	}
 	createDocumentName(mbr_id, id, type){
 		if(!mbr_id || !id || !type)
 			throw new Error('createDocumentName() expects `mbr_id`, `id`, and `type`')
