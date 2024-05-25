@@ -104,6 +104,17 @@ function availableExperiences(){
 function clearSystemChat(){
     mGlobals.clearElement(systemChat)
 }
+/**
+ * Called from setActiveBot, triggers any main interface changes as a result of new selection.
+ * @public
+ * @param {object} activeBot - The active bot.
+ * @returns {void}
+ */
+function decorateActiveBot(activeBot=activeBot()){
+    const { bot_name, id, purpose, type, } = activeBot
+    chatInputField.placeholder = `type your message to ${ bot_name }...`
+    // additional func? clear chat?
+}
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
 }
@@ -261,7 +272,7 @@ function stageTransition(endExperience=false){
     else {
         mStageTransitionMember()
         if(endExperience)
-            updatePageBots(true)
+            updatePageBots(undefined, true, false)
     }
 }
 /**
@@ -609,6 +620,7 @@ export {
     assignElements,
     availableExperiences,
     clearSystemChat,
+    decorateActiveBot,
     escapeHtml,
     getInputValue,
     getSystemChat,

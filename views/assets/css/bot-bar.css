@@ -18,12 +18,11 @@
     transition: max-height 0.5s ease-in-out; /* Animation for the windowshade effect */
     /* descendent styles */
     .bot-thumb {
-        width: 40px;
-        height: 40px;
-        transition: transform 0.3s ease, margin 0.3s ease;
         cursor: pointer;
+        height: 2.5rem;
+        margin: 0 0.1rem; /* Default margin */
+        transition: transform 0.3s ease, margin 0.3s ease;
         z-index: 1;
-        margin: 0; /* Default margin */
     }
     .bot-thumb:hover {
         transform: scale(1.5);
@@ -37,6 +36,11 @@
         cursor: pointer;
         margin-right: 1em; /* Space between containers in em */
         position: relative;
+    }
+    .bot-thumb-active {
+        background-image: radial-gradient(circle at center, rgba(255, 255, 0, 0.75) 0%, transparent 100%);
+        cursor: not-allowed;
+        z-index: 3;
     }
 }
 #bot-bar:hover {
