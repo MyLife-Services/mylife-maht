@@ -561,6 +561,7 @@ function toggleMemberInput(display=true, hidden=false){
         chatInput.classList.remove('fade-in')
         chatInput.classList.remove('slide-up')
         awaitButton.classList.add('slide-up')
+        awaitButton.innerHTML = `Connecting with ${ activeBot().bot_name }...`
         show(awaitButton)
     }
     if(hidden)
