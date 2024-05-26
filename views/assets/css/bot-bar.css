@@ -134,10 +134,33 @@
 	border-top: none;
 	box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
 	display: none; /* Initially not displayed */
-    margin: 0em 1em 1em 1em;
+    margin: 0em 0.5em 1em 1em;
 	padding: 0.5em;
     max-height: 50vh;
+    overflow-x: hidden;
     overflow-y: auto; /* Enable vertical scrolling */
+}
+/* Styles the scrollbar itself */
+.bot-options::-webkit-scrollbar,
+.checkbox-group::-webkit-scrollbar {
+    width: 6px; /* Adjust the width of the scrollbar */
+}
+/* Styles the track of the scrollbar */
+.bot-options::-webkit-scrollbar-track,
+.checkbox-group::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1); /* Color of the track */
+    border-radius: 10px; /* Optional: adds rounded corners to the track */
+}
+/* Styles the handle (thumb) of the scrollbar */
+.bot-options::-webkit-scrollbar-thumb,
+.checkbox-group::-webkit-scrollbar-thumb {
+    background: rgba(232, 226, 183, .5); /* Color of the thumb */
+    border-radius: 10px; /* Optional: adds rounded corners to the thumb */
+}
+/* Changes the color of the thumb when hovered over or clicked */
+.bot-options::-webkit-scrollbar-thumb:hover,
+.checkbox-group::-webkit-scrollbar-thumb:hover {
+    background: rgba(214, 198, 75, 0.5); /* Darker shade on hover */
 }
 .bot-options.open {
     animation: _slideBotOptions 0.5s forwards;
