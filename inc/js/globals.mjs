@@ -193,19 +193,19 @@ class Globals extends EventEmitter {
 			function: this.GPTJavascriptFunctions[name]
 		}
 	}
-	getRegExp(str, isGlobal = false) {
-		if (typeof str !== 'string' || !str.length)
+	getRegExp(text, isGlobal=false) {
+		if (typeof text !== 'string' || !text.length)
 			throw new Error('Expected a string')
 		return new RegExp(str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), isGlobal ? 'g' : '')
 	}
-	isValidEmail(_email){
-		return mEmailRegex.test(_email)
+	isValidEmail(email){
+		return typeof email === 'string' && mEmailRegex.test(email)
 	}
-	isValidGuid(_str='') {
-		return (typeof _str === 'string' && mGuidRegex.test(_str))
+	isValidGuid(text) {
+		return typeof text === 'string' && mGuidRegex.test(text)
 	}
-	stripCosmosFields(_obj){
-		return Object.fromEntries(Object.entries(_obj).filter(([k, v]) => !k.startsWith('_')))
+	stripCosmosFields(object){
+		return Object.fromEntries(Object.entries(object).filter(([k, v]) => !k.startsWith('_')))
 	}
 	sysId(_mbr_id){
 		if(!typeof _mbr_id==='string' || !_mbr_id.length || !_mbr_id.includes('|'))

@@ -93,7 +93,15 @@ if(!fs.existsSync(uploadDir)){
 app.context.MyLife = _Maht
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
-app.context.hostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID)
+const hostedMembers = JSON.parse(process.env?.MYLIFE_HOSTED_MBR_ID ?? '[]')
+if(!hostedMembers.length){
+	const members = ( await _Maht.hostedMembers() )
+		.map(member=>member.mbr_id)
+	hostedMembers.push(...members) // throws on empty
+}
+app.context.hostedMembers = hostedMembers
+	.sort((a, b)=>a.localeCompare(b))
+	.map(mbr_id=>({ 'id': mbr_id, 'name': _Maht.globals.sysName(mbr_id) }))
 app.keys = [process.env.MYLIFE_SESSION_KEY ?? `mylife-session-failsafe|${_Maht.newGuid()}`]
 // Enable Koa body w/ configuration
 app.use(koaBody({

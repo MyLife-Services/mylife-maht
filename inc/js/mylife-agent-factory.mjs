@@ -81,14 +81,14 @@ class BotFactory extends EventEmitter{
 	#dataservices
 	#llmServices = mLLMServices
 	#mbr_id
-	constructor(_mbr_id, _directHydration=true){
+	constructor(mbr_id, directHydration=true){
 		super()
-		this.#mbr_id = _mbr_id
-		if(mIsMyLife(_mbr_id) && _directHydration)
+		this.#mbr_id = mbr_id
+		if(mIsMyLife(mbr_id) && directHydration)
 			throw new Error('MyLife server cannot be accessed as a BotFactory alone')
 		else if(mIsMyLife(this.mbr_id))
 			this.#dataservices = mDataservices
-		else if(_directHydration)
+		else if(directHydration)
 			console.log(chalk.blueBright('BotFactory class instance for hydration request'), chalk.bgRed(this.mbr_id))
 	}
 	/* public functions */
@@ -846,12 +846,23 @@ class AgentFactory extends BotFactory {
 }
 // @stub - MyLife factory class
 class MyLifeFactory extends AgentFactory {
+	#dataservices = mDataservices
+	#llmServices = mLLMServices
 	#mylifeRegistrationData
+	#tempRegistrationData
 	constructor(){
-		super(mbr_id)
+		super(mPartitionId)
 	}
 	// no init() for MyLife server
 	/* public functions */
+	/**
+	 * Returns Array of hosted members based on validation requirements.
+	 * @param {Array} validations - Array of validation strings to filter membership.
+	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
+	 */
+	async hostedMembers(validations){
+		return await this.#dataservices.hostedMembers(validations)
+	}
 	/* getters/setters */
 	/**
 	 * Gets registration data while user attempting to confirm.
@@ -1591,7 +1602,7 @@ function mSanitizeSchemaValue(_value) {
 /* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance
 const _MyLife = await new MyLife(
-	new AgentFactory(mPartitionId)
+	new MyLifeFactory()
 )
 	.init()
 /* exports */

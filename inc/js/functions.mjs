@@ -72,9 +72,13 @@ function category(ctx){ // sets category for avatar
  * @property {object} ctx.body - The result of the challenge.
  */
 async function challenge(ctx){
-	if(!ctx.params.mid?.length)
-		ctx.throw(400, `requires member id`)
-	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
+	const { passphrase, } = ctx.request.body
+	if(!passphrase?.length)
+		ctx.throw(400, `challenge request requires passphrase`)
+	const { mid, } = ctx.params
+	if(!mid?.length)
+		ctx.throw(400, `challenge request requires member id`)
+	ctx.body = await ctx.session.MemberSession.challengeAccess(mid, passphrase)
 }
 async function chat(ctx){
 	const { botId, message, role, threadId, } = ctx.request.body
@@ -190,35 +194,21 @@ function interfaceMode(ctx){
 	ctx.body = avatar.mode
 	return
 }
-async function login(ctx){
-	if(!ctx.params.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
-	ctx.state.mid = decodeURIComponent(ctx.params.mid)
-	ctx.session.MemberSession.challenge_id = ctx.state.mid
-	ctx.state.title = ''
-	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.sysName(ctx.params.mid) }]:`
-	await ctx.render('members-challenge')
-}
 async function logout(ctx){
 	ctx.session = null
 	ctx.redirect('/')
 }
+/**
+ * Returns a member list for selection.
+ * @todo: should obscure and hash ids in session.mjs
+ * @todo: set and read long-cookies for seamless login
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Object[]} - List of hosted members available for login.
+ */
 async function loginSelect(ctx){
-	ctx.state.title = ''
-	//	listing comes from state.hostedMembers
-	// @todo: should obscure and hash ids in session.mjs
-	// @todo: set and read long-cookies for seamless login
-	ctx.state.hostedMembers = ctx.hostedMembers
-		.sort(
-			(a, b) => a.localeCompare(b)
-		)
-		.map(
-			_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.sysName(_mbr_id) })
-		)
-	ctx.state.subtitle = `Select your personal Avatar to continue:`
-	await ctx.render('members-select')
+	ctx.body = ctx.hostedMembers
 }
 async function members(ctx){ // members home
-	ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
 	await ctx.render('members')
 }
 async function passphraseReset(ctx){
@@ -355,7 +345,6 @@ export {
 	greetings,
 	index,
 	interfaceMode,
-	login,
 	logout,
 	loginSelect,
 	members,

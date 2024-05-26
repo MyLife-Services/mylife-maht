@@ -545,6 +545,14 @@ class Dataservices {
 		return await this.embedder.getLocalRecords(_question)
 	}
 	/**
+	 * Returns Array of hosted members based on validation requirements.
+	 * @param {Array} validations - Array of validation strings to filter membership.
+	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
+	 */
+	async hostedMembers(validations){
+		return await this.datamanager.hostedMembers(validations)
+	}
+	/**
 	 * Gets library from database.
 	 * @async
 	 * @public

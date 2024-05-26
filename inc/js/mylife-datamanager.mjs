@@ -24,7 +24,7 @@ class Datamanager {
 		const _client = new CosmosClient(_options)
 		this.database = _client.database(_config.members.id)
 		this.#partitionId = _config.members.container.partitionId
-		this.#coreId = _config.members.container?.coreId??this.#partitionId.split('|')[1]
+		this.#coreId = _config.members.container?.coreId ?? this.#partitionId.split('|')[1]
 		this.#containers = {
 			contribution_responses: this.database.container(_config.contributions.container.id),
 			members: this.database.container(_config.members.container.id),
@@ -36,7 +36,7 @@ class Datamanager {
 			populateQuotaInfo: false, // set this to true to include quota information in the response headers
 		}
 	}
-	//	init function
+	/* initialize */
 	async init() {
 		//	assign core
 		this.#core = await this.#containers['members']
@@ -48,28 +48,15 @@ class Datamanager {
 		console.log(chalk.yellowBright('database, container, core initialized:',chalk.bgYellowBright(`${this.#containers['members'].id} :: ${this.database.id} :: ${this.#core.resource.id}`) ))
 		return this
 	}
-	//	getter/setter property functions
-	/**
-	 * Returns container default for MyLife data.
-	*/
-	get containerDefault(){
-		return 'members'
-	}
-	/**
-	 * Returns datacore.
-	*/
-	get core(){
-		return this.#core?.resource
-	}
-	//	public functions
-	async challengeAccess(_mbr_id, _passphrase){
+	/* public functions */
+	async challengeAccess(mbr_id, passphrase){
 		//	in order to obscure passphrase, have db make comparison (could include flag for case insensitivity)
 		// Execute the stored procedure
-		const { resource: _result } = await this.#containers['members']
+		const { resource: result } = await this.#containers['members']
 			.scripts
 			.storedProcedure('checkMemberPassphrase')
-			.execute(_mbr_id, _passphrase, true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
-		return _result
+			.execute(mbr_id, passphrase, true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
+		return result
 	}
 	/**
 	 * Deletes a specific item from container.
@@ -103,6 +90,35 @@ class Datamanager {
 			.query(_querySpec, _options)
 			.fetchAll()
 		return resources
+	}
+	/**
+	 * Returns Array of hosted members based on validation requirements.
+	 * @param {Array} validations - Array of validation strings to filter membership.
+	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
+	 */
+	async hostedMembers(validations=['registration']){
+		let sql = 'select c.mbr_id, c.openaiapikey, c.validations'
+        + ' from root c'
+        + ` where c.being='core'`
+        + ` and c.form='human'`
+		if(validations.length){
+			sql += ` and is_array(c.validations) and array_length(c.validations) > 0`
+			const validationChecks = validations
+				.map(validation=>`array_contains(c.validations, '${validation}')`)
+				.join(' and ')
+			sql += ` and (${validationChecks})`
+		}
+        const querySpec = {
+            query: sql,
+            parameters: []
+        }
+        const { resources: documents } = await this.#containers['members']
+            .items
+            .query(querySpec, { enableCrossPartitionQuery: true })
+            .fetchAll()
+		if(!documents?.length)
+			throw new Error('No hosted members found')
+		return documents
 	}
 	async patchItem(_id, _item, _container_id=this.containerDefault){	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
@@ -140,35 +156,33 @@ class Datamanager {
 		const { resource: result } = await this.#containers['members']
 			.scripts
 			.storedProcedure('testPartitionKey')
-			.execute(mbr_id)	//	first parameter is partition key, second is passphrase, third is case sensitivity
+			.execute(mbr_id)
 		return result
 	}
 	/* getters/setters */
+	/**
+	 * Returns container default for MyLife data.
+	*/
+	get containerDefault(){
+		return 'members'
+	}
+	/**
+	 * Returns datacore.
+	*/
+	get core(){
+		return this.#core?.resource
+	}
 	get globals(){
 		return mGlobals
+	}
+	get mbr_id(){
+		return this.core.mbr_id
+			?? this.#partitionId
 	}
 }
 //	exports
 export default Datamanager
 /*
-	async addItem(item) {
-		debug('Adding an item to the database')
-		item.date = Date.now()
-		item.completed = false
-		const { resource: doc } = await this.container.items.create(item)
-		return doc
-	}
-
-	async updateItem(itemId) {
-		debug('Update an item in the database')
-		const doc = await this.getItem(itemId)
-		doc.completed = true
-
-		const { resource: replaced } = await this.container
-		.item(itemId, this.partitionKey)
-		.replace(doc)
-		return replaced
-	}
 COLLECTION PATCH:
 Body itself is the array of operations, second parameter is options, for configuration and filter?
 const filter = 'FROM products p WHERE p.used = false'

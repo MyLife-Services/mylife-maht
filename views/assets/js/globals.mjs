@@ -8,12 +8,8 @@ const mHelpInitiatorContent = {
 }
 const mNewGuid = () => crypto.randomUUID()
 /* module variables */
-let mActiveHelpType, // active help type, currently entire HTMLDivElement
-    mLoginButton,
-    mLoginContainer,
-    mChallengeInput,
-    mChallengeError,
-    mChallengeSubmit,
+let mAboutContainer,
+    mActiveHelpType, // active help type, currently entire HTMLDivElement
     mHelpAwait,
     mHelpClose,
     mHelpContainer,
@@ -28,7 +24,8 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mHelpSystemChat,
     mHelpType,
     mLoaded = false,
-    mLoginSelect,
+    mLoginButton,
+    mLoginContainer,
     mMainContent,
     mNavigation,
     mNavigationHelp,
@@ -39,13 +36,10 @@ class Globals {
     #uuid = mNewGuid()
     constructor(){
         if(!mLoaded){
+            mAboutContainer = document.getElementById('about-container')
             mLoginButton = document.getElementById('navigation-login-logout-button')
             mLoginContainer = document.getElementById('navigation-login-logout')
             mMainContent = document.getElementById('main-content')
-            mChallengeInput = document.getElementById('member-challenge-input-text')
-            mChallengeError = document.getElementById('member-challenge-error')
-            mChallengeSubmit = document.getElementById('member-challenge-submit')
-            mLoginSelect = document.getElementById('member-select')
             mHelpAwait = document.getElementById('help-await')
             mHelpClose = document.getElementById('help-close')
             mHelpContainer = document.getElementById('help-container')
@@ -67,7 +61,6 @@ class Globals {
         }
     }
     init(){
-        console.log('Globals::init()', this.#uuid)
         /* global visibility settings */
         this.hide(mHelpContainer)
         /* assign event listeners */
@@ -82,12 +75,6 @@ class Globals {
             mToggleHelpSubmit()
         }
         mLoginButton.addEventListener('click', this.loginLogout, { once: true })
-        if(mChallengeInput){
-            mChallengeInput.addEventListener('input', mToggleChallengeSubmit)
-            mChallengeSubmit.addEventListener('click', mSubmitChallenge)
-        }
-        if(mLoginSelect)
-            mLoginSelect.addEventListener('change', mSelectLoginId, { once: true })
     }
     /* public functions */
 	/**
@@ -204,14 +191,10 @@ class Globals {
             return false
         }
     }
-    loginLogout(event){
-        const { target: loginButton, } = event
-        if(loginButton!==mLoginButton)
-            throw new Error('loginLogout::loginButton not found')
-        if(loginButton.getAttribute('data-locked') === 'true')
-            mLogin()
-        else
-            mLogout()
+    async loginLogout(event){
+        this.getAttribute('data-locked')==='true'
+            ? mLogin()
+            : mLogout()
     }
     /**
      * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
@@ -477,13 +460,12 @@ function mLaunchTutorial(){
 //    mHide(mHelpContainer)
 }
 /**
- * Redirects to the login page.
+ * Redirects to login page (?select).
  * @private
  * @returns {void}
  */
 function mLogin(){
-    console.log('login')
-    window.location.href = '/select'
+    window.location.href = '/?type=select'
 }
 /**
  * Logs out the current user and redirects to homepage.
@@ -502,19 +484,6 @@ async function mLogout(){
         window.location.href = '/'
     else
         console.error('mLogout::response not ok', response)
-}
-/**
- * Redirects to the login page with a selected member id.
- * @param {Event} event - The event object.
- * @returns {void}
- */
-function mSelectLoginId(event){
-    event.preventDefault()
-    console.log('mSelectLoginId', mLoginSelect)
-    const { value, } = mLoginSelect
-    if(!value?.length)
-        return
-    window.location = `/login/${value}`
 }
 /**
  * Sets the type of help required by member.
@@ -556,39 +525,6 @@ function mShow(element, listenerFunction){
     if(!element.classList.contains('show')){
         element.classList.remove('hide')
         element.classList.add('show')
-    }
-}
-/**
- * Submits a challenge response to the server.
- * @module
- * @async
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function mSubmitChallenge(event){
-	event.preventDefault()
-    event.stopPropagation()
-    const { id, value: passphrase, } = mChallengeInput
-    if(!passphrase.trim().length)
-        return
-    mHide(mChallengeSubmit)
-	const _mbr_id = window.location.pathname.split('/')[window.location.pathname.split('/').length-1]
-	const url = window.location.origin+`/challenge/${_mbr_id}`
-	const options = {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({ passphrase, }),
-	}
-	const validatePassphrase = await mSubmitPassphrase(url, options)
-	if(validatePassphrase)
-        location.href = '/members'
-    else {
-        mChallengeError.innerHTML = 'Invalid passphrase: please try again and remember that passphrases are case sensitive.';
-        mChallengeInput.value = null
-        mChallengeInput.placeholder = 'Try your passphrase again...'
-        mChallengeInput.focus()
     }
 }
 /**
@@ -662,22 +598,6 @@ async function mSubmitHelpToServer(helpRequest, type='general', mbr_id){
         return jsonResponse
     else
         throw new Error(jsonResponse?.message ?? 'unknown server error')
-}
-/**
- * Submits a passphrase to the server.
- * @param {string} url - The url to submit the passphrase to.
- * @param {object} options - The options for the fetch request.
- * @returns {object} - The response from the server.
- */
-async function mSubmitPassphrase(url, options) {
-	try {
-		const response = await fetch(url, options)
-		const jsonResponse = await response.json()
-		return jsonResponse
-	} catch (err) {
-		console.log('fatal error', err)
-		return false
-	}
 }
 /**
  * Toggles the visibility of the challenge submit button based on `input` event.

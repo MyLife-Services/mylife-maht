@@ -1,54 +1,71 @@
 /* MyLife Member Challenge */
-.member-challenge-container {
-    align-items: flex-start;
+.challenge-error {
+    align-items: center;
+    color: darkred;
+    display: flex;
+    font-size: 0.9rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+    width: 90%;
+}
+.challenge-input,
+.member-selection {
+    align-self: center;
+    background-color: rgba(255, 255, 255, 0.8); /* dark gray background */
+    border: 0.01rem solid #000;
+    border-radius: 22rem;
+    display: flex;
+    justify-content: center;
+    margin: 1rem 0;
+    max-width: 90%;
+    min-width: 75%;
+    padding: 0.8rem;
+}
+.challenge-input {
+    align-items: center;
     display: flex;
     flex-direction: column;
-    height: auto;
-    justify-content: flex-start;
-    margin: 0;
-    padding: 2em 1em;
-    gap: 1em; /* Adds space between each child div */
-    width: 100%;
+    justify-content: center;
 }
-.member-challenge-error {
-    color: red;
-    font-size: 1.1em;
-    font-weight: bold;
-    margin: 1em 0;
-    width: 100%;
-}
-.member-challenge-input {
+.challenge-input-container {
+    align-items: center;
     display: flex;
-    flex-direction: row;
-    gap: 1em; /* Adds space between input and button */
-    width: 100%;
-}
-.member-challenge-label {
-    display: flex;
-    font-size: 1.1em;
-    font-weight: bold;
-    margin-right: 1em;
-}
-.member-challenge-input-text {
-    border: 1px solid #ccc;
-    border-radius: 5px;
     flex: 1;
-    font-size: 1.1em;
-    padding: 0.5em;
+    justify-content: center;
     width: 100%;
 }
-.member-challenge-submit {
-    background-color: #007BFF; /* Bootstrap primary blue */
+.challenge-input-text {
+    border: 0.1rem solid #ccc;
+    border-radius: 22rem;
+    flex: 1;
+    font-size: 0.9rem;
+    padding: 0.2rem;
+    width: 100%;
+}
+.challenge-submit {
+    align-items: center;
+    background-color: teal; /* Bootstrap primary blue */
     border: none;
     border-radius: 5px;
     color: white;
     cursor: pointer;
-    display: none;
-    padding: 0.5em 1em;
+    display: flex;
+    flex: 0 1 30%;
+    font-size: 0.9rem; /* Matches input font size */
+    justify-content: center;
+    height: 90%;
+    margin-left: 1rem;
+    max-width: 30%;
     transition: background-color 0.3s ease; /* Smooth transition for hover */
 }
-.member-challenge-submit:hover {
+.challenge-submit:hover {
     background-color: #003a77; /* Darker blue on hover */
+}
+.member-select {
+    display: flex;
+    flex-direction: column;
+    gap: 1em; /* Adds space between each child div */
+    width: 50%;
 }
 /* MyLife Contribution Request */
 .category-button {
