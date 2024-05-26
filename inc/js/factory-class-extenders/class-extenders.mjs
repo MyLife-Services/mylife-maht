@@ -15,7 +15,7 @@ import{
     mGetSceneNext,
 } from './class-experience-functions.mjs'
 import {
-	mAssignContent,
+	assignContent,
 } from './class-message-functions.mjs'
 /**
  * Extends the `Consent` class.
@@ -380,7 +380,6 @@ function extendClass_file(originClass, referencesObject) {
             //  self-validation
             if(!this.contents && this.type=='text')
                 throw new Error('No contents provided for text file; will not store')
-            //  save to embedder
         }
         //  public getters/setters
         //  private functions
@@ -406,7 +405,7 @@ function extendClass_message(originClass, referencesObject) {
             const { content, ..._obj } = obj
             super(_obj)
             try{
-                this.#content = mAssignContent(content ?? obj)
+                this.#content = assignContent(content ?? obj)
             } catch(e){
                 console.log('Message::constructor::ERROR', e)
                 this.#content = ''
@@ -418,7 +417,7 @@ function extendClass_message(originClass, referencesObject) {
         }
         set content(_content){
             try{
-                this.#content = mAssignContent(_content)
+                this.#content = assignContent(_content)
             } catch(e){
                 console.log('Message::content::ERROR', e)
             }

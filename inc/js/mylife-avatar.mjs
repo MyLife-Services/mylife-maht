@@ -17,7 +17,6 @@ const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
  */
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
-    #activeChatCategory = mGetChatCategory()
     #assetAgent
     #bots = []
     #conversations = []
@@ -162,7 +161,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message?.content)
+            console.log('chatRequest::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
@@ -451,19 +450,6 @@ class Avatar extends EventEmitter {
         return await this.#factory.resetPassphrase(passphrase)
     }
     /**
-     * Processes and executes incoming category set request.
-     * @todo - deprecate if possible.
-     * @public
-     * @param {string} _category - The category to set { category, contributionId, question }.
-     */
-    setActiveCategory(_category){
-        const _proposedCategory = mGetChatCategory(_category)
-        /* evolve contribution */
-        if(_proposedCategory?.category){ // no category, no contribution
-            this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
-        }
-    }
-    /**
      * Add or update bot, and identifies as activated, unless otherwise specified.
      * @todo - strip protected bot data/create class?.
      * @param {object} bot - Bot-data to set.
@@ -681,45 +667,12 @@ class Avatar extends EventEmitter {
         return this.experience.castMembers
     }
     /**
-     * Get the active chat category.
-     * @getter
-     * @returns {string} - The active chat category.
-     */
-    get category(){
-        return this.#activeChatCategory
-    }
-    /**
-     * Set the active chat category.
-     * @setter
-     * @param {string} _category - The new active chat category.
-     * @returns {void}
-     */
-    set category(_category){
-        this.#activeChatCategory = _category
-    }
-    /**
      * Get the cast.
      * @getter
      * @returns {array} - The cast.
      */
     get cast(){
         return this.experience.cast
-    }
-    /**
-     * Get contributions.
-     * @getter
-     * @returns {array} - The contributions.
-     */
-    get contributions(){
-        return this.#evolver?.contributions
-    }
-    /**
-     * Set incoming contribution.
-     * @setter
-     * @param {object} _contribution
-    */
-    set contribution(_contribution){
-        this.#evolver.contribution = _contribution
     }
     /**
      * Get uninstantiated class definition for conversation. If getting a specific conversation, use .conversation(id).
@@ -983,38 +936,6 @@ class Avatar extends EventEmitter {
  */
 function mAssignEvolverListeners(factory, evolver, avatar){
     /* assign evolver listeners */
-    evolver.on(
-        'on-contribution-new',
-        _contribution=>{
-            _contribution.emit('on-contribution-new', _contribution)
-        }
-    )
-    evolver.on(
-        'avatar-change-category',
-        (_current, _proposed)=>{
-            avatar.category = _proposed
-            console.log('avatar-change-category', avatar.category.category)
-        }
-    )
-    evolver.on(
-        'on-contribution-submitted',
-        _contribution=>{
-            // send to gpt for summary
-            const _responses = _contribution.responses.join('\n')
-            const _summary = factory.openai.completions.create({
-                model: 'gpt-4o',
-                prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
-                temperature: 1,
-                max_tokens: 700,
-                frequency_penalty: 0.87,
-                presence_penalty: 0.54,
-            })
-            // evaluate summary
-            console.log('on-contribution-submitted', _summary)
-            return
-            //  if summary is good, submit to cosmos
-        }
-    )
 }
 /**
  * Assigns (directly mutates) private experience variables from avatar.
@@ -1618,41 +1539,6 @@ function mFindBot(avatar, _botId){
         [0]
 }
 /**
- * Returns simple micro-category after logic mutation.
- * @module
- * @param {string} _category text of category
- * @returns {string} formatted category
- */
-function mFormatCategory(_category){
-    return _category
-        .trim()
-        .slice(0, 128)  //  hard cap at 128 chars
-        .replace(/\s+/g, '_')
-        .toLowerCase()
-}
-/**
- * Returns MyLife-version of chat category object
- * @module
- * @param {object} _category - local front-end category { category, contributionId, question/message/content }
- * @returns {object} - local category { category, contributionId, content }
- */
-function mGetChatCategory(_category) {
-    const _proposedCategory = {
-        category: '',
-        contributionId: undefined,
-        content: undefined,
-    }
-    if(_category?.category && _category.category.toLowerCase() !== 'off'){
-        _proposedCategory.category = mFormatCategory(_category.category)
-        _proposedCategory.contributionId = _category.contributionId
-        _proposedCategory.content = 
-            _category?.question??
-            _category?.message??
-            _category?.content // test for undefined
-    }
-    return _proposedCategory
-}
-/**
  * Returns set of Greeting messages, dynamic or static.
  * @param {object} bot - The bot object.
  * @param {boolean} dynamic - Whether to use dynamic greetings.
@@ -1759,9 +1645,7 @@ function mPruneBot(assistantData){
     }
 }
 /**
- * returns simple micro-message with category after logic mutation. 
- * Currently tuned for openAI gpt-assistant responses.
- * @todo - revamp as any of these LLMs can return JSON or run functions for modes.
+ * Returns frontend-ready Message object after logic mutation.
  * @module
  * @private
  * @param {object} bot - The bot object, usually active.
@@ -1774,8 +1658,6 @@ function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
     /* parse message */
     const { bot_id: activeBotAIId, id: activeBotId, } = bot
     let agent='server',
-        category,
-        contributions=[],
         purpose=type,
         response_time=Date.now()-processStartTime
     const { content: messageContent, thread_id, } = message
@@ -1793,8 +1675,6 @@ function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
         activeBotId,
         activeBotAIId,
         agent,
-        category,
-        contributions,
         message,
         purpose,
         response_time,

@@ -33,9 +33,6 @@ class Member extends EventEmitter {
 		this.factory.on('avatar-init-end',(_avatar,bytes)=>{
 			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
 		})
-		this.factory.on('on-contribution-new',(_contribution)=>{
-			console.log(chalk.grey(`Member::on-contribution-new`),_contribution.request)
-		})
 	}
 	//	getter/setter functions
 	get abilities(){
@@ -99,13 +96,6 @@ class Member extends EventEmitter {
 	}
 	set consent(_consent){
 		this.factory.consents.unshift(_consent.id)
-	}
-	/**
-	 * Gets Member Contributions, i.e., questions that need posing to Member
-	 * @returns {array} returns array of Member Contributions
-	 */
-	get contributions(){
-		return this.#avatar?.contributions
 	}
 	get core(){
 		return this.factory.core

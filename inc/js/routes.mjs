@@ -9,7 +9,6 @@ import {
     challenge,
     chat,
     collections,
-    contributions,
     createBot,
     deleteItem,
     greetings,
@@ -89,8 +88,6 @@ _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)
-_memberRouter.get('/contributions', contributions)
-_memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
@@ -103,7 +100,6 @@ _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/create', createBot)
 _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
-_memberRouter.post('contributions/:cid', contributions)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/upload', upload)

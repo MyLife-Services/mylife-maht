@@ -4,7 +4,6 @@ class MylifeMemberSession extends EventEmitter {
 	#alertsShown = [] // array of alert_id's shown to member in this session
 	#autoplayed = false // flag for autoplayed experience, one per session
 	#consents = []	//	consents are stored in the session
-	#contributions = []	//	intended to hold all relevant contribution questions for session
 	#experienceLocked = false
 	#experiences = []	//	holds id for experiences conducted in this session
 	#factory
@@ -214,9 +213,6 @@ class MylifeMemberSession extends EventEmitter {
 	}
 	get consents(){
 		return this.#consents
-	}
-	get contributions(){
-		return this.#contributions
 	}
 	get core(){
 		return this.factory.core

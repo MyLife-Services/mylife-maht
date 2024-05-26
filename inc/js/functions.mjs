@@ -93,20 +93,6 @@ async function collections(ctx){
 	const { avatar, } = ctx.state
 	ctx.body = await avatar.collections(ctx.params.type)
 }
-/**
- * Manage delivery and receipt of contributions(s).
- * @async
- * @public
- * @api no associated view
- * @param {object} ctx Koa Context object
- */
-async function contributions(ctx){
-	ctx.body = await (
-		(ctx.method==='GET')
-		?	mGetContributions(ctx)
-		:	mSetContributions(ctx)
-	)
-}
 async function createBot(ctx){
 	const { team, type, } = ctx.request.body
 	const { avatar, } = ctx.state
@@ -293,41 +279,6 @@ async function upload(ctx){
 	ctx.session.isAPIValidated = true
 	await apiUpload(ctx)
 }
-/* module private functions */
-function mGetContributions(ctx){
-	ctx.state.cid = ctx.params?.cid??false	//	contribution id
-	const statusOrder = ['new', 'prepared', 'requested', 'submitted', 'pending', 'accepted', 'rejected']
-	ctx.state.status = ctx.query?.status??'prepared'	//	default state for execution
-	return ctx.state.contributions
-		.filter(_contribution => (ctx.state.cid && _contribution.id === ctx.state.cid) || !ctx.state.cid)
-		.map(_contribution => (_contribution.memberView))
-		.sort((a, b) => {
-			// Get the index of the status for each contribution
-			const indexA = statusOrder.indexOf(a.status)
-			const indexB = statusOrder.indexOf(b.status)
-			// Sort based on the index
-			return indexA - indexB
-		})
-}
-/**
- * Manage receipt and setting of contributions(s).
- * @async
- * @module
- * @param {object} ctx Koa Context object 
- */
-function mSetContributions(ctx){
-	const { avatar, } = ctx.state
-	if(!ctx.params?.cid)
-		ctx.throw(400, `missing contribution id`) // currently only accepts single contributions via post with :cid
-	ctx.state.cid = ctx.params.cid
-	const _contribution = ctx.request.body?.contribution??false
-	if(!_contribution)
-		ctx.throw(400, `missing contribution data`)
-	avatar.contribution = ctx.request.body.contribution
-	return avatar.contributions
-		.filter(_contribution => (_contribution.id === ctx.state.cid))
-		.map(_contribution => (_contribution.memberView))
-}
 /* exports */
 export {
 	about,
@@ -338,7 +289,6 @@ export {
 	challenge,
 	chat,
 	collections,
-	contributions,
 	createBot,
 	deleteItem,
 	help,

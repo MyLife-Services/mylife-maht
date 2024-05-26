@@ -5,7 +5,6 @@
  */
 //	imports
 import Datamanager from "./mylife-datamanager.mjs"
-import PgvectorManager from "./mylife-pgvector-datamanager.mjs"
 /**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
@@ -38,13 +37,6 @@ class Dataservices {
      */
     #partitionId
     /**
-     * Manages interactions with Pgvector, which might be used for
-     * efficient vector operations in a Postgres database. This could include
-     * functionalities like similarity search, nearest neighbor search, etc.
-     * @private
-     */
-    #PgvectorManager
-    /**
      * A default SQL SELECT statement or part of it used to fetch
      * user-related data. It defines the columns to be retrieved in most
      * database queries within this service.
@@ -57,7 +49,6 @@ class Dataservices {
      */
 	constructor(_mbr_id){
 		this.#partitionId = _mbr_id
-		this.#PgvectorManager = new PgvectorManager()
 	}
     /**
      * Initializes the Datamanager instance and sets up core data.
@@ -89,9 +80,6 @@ class Dataservices {
 	}
 	get datamanager(){
 		return this.#Datamanager
-	}
-	get embedder(){
-		return this.#PgvectorManager
 	}
 	get globals(){
 		return this.datamanager.globals
@@ -393,26 +381,6 @@ class Dataservices {
 		return _chats
 	}
 	/**
-	 * Retrieves all seed contribution questions associated with being & category.
-	 * @async
-	 * @public
-	 * @param {string} being - The type of underlying datacore.
-	 * @param {string} _category - The category of seed questions to retrieve.
-	 * @returns {Promise<Object>} The item corresponding to the provided ID.
-	 */
-	async getContributionQuestions(being, _category, _maxNumber=3){
-		return (await this.getItems(
-			being,
-			['questions'],
-			[{ name: '@category', value: _category }],
-			'contribution_responses',
-		))
-			.map(_ => (_.questions))
-			.reduce((acc, val) => acc.concat(val), [])
-			.sort(() => Math.random() - Math.random())
-			.slice(0, _maxNumber)
-	}
-	/**
 	 * Retrieves a specific item by its ID.
 	 * @async
 	 * @public
@@ -534,15 +502,6 @@ class Dataservices {
 			_mbr_id,
 		)
 		return _items
-	}
-	/**
-	 * Retrieves local records based on a query.
-	 * @async
-	 * @param {string} _question - The query to retrieve records.
-	 * @returns {Promise<Array>} An array of local records matching the query.
-	 */
-	async getLocalRecords(_question){
-		return await this.embedder.getLocalRecords(_question)
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.

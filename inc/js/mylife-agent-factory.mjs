@@ -952,7 +952,6 @@ function mAvatarProperties(_core){
 		"being",
 		"bots",
 		"command_word",
-		"contributions",
 		"conversations",
 		"id",
 		"mbr_id",
