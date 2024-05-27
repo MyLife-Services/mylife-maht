@@ -212,57 +212,48 @@ async function privacyPolicy(ctx){
 	await ctx.render('privacy-policy')	//	privacy-policy
 }
 async function signup(ctx) {
-    const { email, humanName, avatarNickname } = ctx.request.body
-	const _signupPackage = {
-		'email': email,
-		'humanName': humanName,
-		'avatarNickname': avatarNickname,
+    const { email, humanName, avatarNickname, type='newsletter', } = ctx.request.body
+	const signupPacket = {
+		avatarNickname,
+		email,
+		humanName: humanName.substring(0, 64),
+		type,
 	}
-	//	validate session signup
-	if (ctx.session.signup)
+	let success = false
+	if(ctx.session.signup)
 		ctx.throw(400, 'Invalid input', { 
-			success: false,
+			success,
 			message: `session user already signed up`,
-			..._signupPackage 
+			payload: signupPacket,
 		})
-	//	validate package
-	if (Object.values(_signupPackage).some(value => !value)) {
-		const _missingFields = Object.entries(_signupPackage)
-			.filter(([key, value]) => !value)
-			.map(([key]) => key) // Extract just the key
-			.join(',')
+    if(!ctx.Globals.isValidEmail(email))
 		ctx.throw(400, 'Invalid input', { 
-			success: false,
-			message: `Missing required field(s): ${_missingFields}`,
-			..._signupPackage 
+			success,
+			message: 'Invalid input: email',
+			payload: signupPacket,
 		})
-	}
-    // Validate email
-    if (!ctx.Globals.isValidEmail(email))
+    if(!humanName || humanName.length < 3)
 		ctx.throw(400, 'Invalid input', { 
-			success: false,
-			message: 'Invalid input: emailInput',
-			..._signupPackage 
+			success,
+			message: 'Invalid input: First name must be between 3 and 64 characters: humanNameInput',
+			payload: signupPacket,
 		})
-    // Validate first name and avatar name
-    if (!humanName || humanName.length < 3 || humanName.length > 64 ||
-        !avatarNickname || avatarNickname.length < 3 || avatarNickname.length > 64)
-		ctx.throw(400, 'Invalid input', { 
-			success: false,
-			message: 'Invalid input: First name and avatar name must be between 3 and 64 characters: humanNameInput,avatarNicknameInput',
-			..._signupPackage 
+	if(( avatarNickname?.length < 3 ?? true ) && type==='register')
+		ctx.throw(400, 'Invalid input', {
+			success,
+			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNicknameInput',
+			payload: signupPacket,
 		})
-    // save to `registration` container of Cosmos expressly for signup data
-	_signupPackage.id = ctx.MyLife.newGuid
-	await ctx.MyLife.registerCandidate(_signupPackage)
-	// TODO: create account and avatar
-    // If all validations pass and signup is successful
+	signupPacket.id = ctx.MyLife.newGuid
+	const registrationData = await ctx.MyLife.registerCandidate(signupPacket)
+	console.log('signupPacket:', signupPacket, registrationData)
 	ctx.session.signup = true
-	const { mbr_id, ..._return } = _signupPackage // abstract out the mbr_id
+	success = true
+	const { mbr_id, ..._registrationData } = signupPacket // do not display
     ctx.status = 200 // OK
     ctx.body = {
-		..._return,
-        success: true,
+		payload: _registrationData,
+        success,
         message: 'Signup successful',
     }
 }

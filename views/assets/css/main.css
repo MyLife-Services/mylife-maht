@@ -241,12 +241,9 @@ body {
     color: white;
 }
 /* MyLife Signup Routine */
-.bold {
-	font-weight: bold;
-}
 .button {
 	align-items: center;
-	background-color: #007BFF; /* Default background color */
+	background-color: navy; /* Default background color */
 	border: 2px solid #061320; /* Blue border */
 	border-radius: 12px; /* Rounded corners */
 	box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
@@ -275,7 +272,7 @@ body {
 .button-container {
     display: flex;
     justify-content: center; /* Centers the button horizontally */
-    width: 100%; /* Ensures the container spans the full width */
+    width: 100%;
 }
 .button-join {
     background-color: green; /* Default background color */
@@ -316,7 +313,61 @@ body {
 	flex-wrap: wrap;
 	justify-content: center;
 	align-items: center;
-	padding: 0em 1.05em 1.05em 1.05em;
+	padding: 0.5rem;
+}
+.signup-form,
+.signup-success,
+.signup-teaser {
+	align-items: flex-start;
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+	max-height: 100%;
+	padding: 0 0.15rem;
+}
+.signup-input {
+	margin-bottom: 0.5rem;
+	text-align: left;
+}
+.signup-input-container {
+	background: linear-gradient(to right, rgba(94, 128, 191, 0.1), rgba(128, 0, 128, 0.1));
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	padding: 10px 12px;
+	width: 100%;
+	margin-top: 6px;
+	margin-bottom: 16px;
+	box-shadow: inset 1px 1px 3px rgba(94, 128, 191, 0.2), inset -1px -1px 3px rgba(128, 0, 128, 0.3);
+}
+.signup-input-label {
+	font-weight: bold;
+	font-style: normal;
+	font-stretch: condensed;
+}
+.signup-label {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    gap: 0.5em;
+}
+.signup-type {
+    align-items: center;
+    display: flex;
+    gap: 1em;
+}
+.signup-teaser-text {
+	display: block;
+	padding-bottom: 1rem;
+}
+.signup-teaser-text ul {
+	list-style-type: square;
+	margin-top: 6px;
+	margin-bottom: 6px;
+}
+.signup-teaser-text li {
+	margin-left: 12px;
+	margin-top: 6px;
 }
 /* MyLife Generic Popup */
 .popup-await {
@@ -561,25 +612,6 @@ body {
 	color: purple;
 }
 /* MyLife sidebar */
-.input {
-	margin-top: 6px;
-	text-align: left;
-}
-.input label {
-	font-weight: bold;
-	font-style: normal;
-	font-stretch: condensed;
-}
-.input-container {
-	background: linear-gradient(to right, rgba(94, 128, 191, 0.1), rgba(128, 0, 128, 0.1));
-	border: 1px solid #ccc;
-	border-radius: 4px;
-	padding: 10px 12px;
-	width: 100%;
-	margin-top: 6px;
-	margin-bottom: 16px;
-	box-shadow: inset 1px 1px 3px rgba(94, 128, 191, 0.2), inset -1px -1px 3px rgba(128, 0, 128, 0.3);
-}
 .sidebar {
     background: white; /* Assuming a card-like look typically has a white background */
     background-position: center; /* Centers the image in the area */
@@ -605,22 +637,6 @@ body {
     width: 100%;
     margin: 0;
     padding: 0;
-}
-.teaser {
-	display: flex;
-	flex-direction: column;
-	flex-wrap: wrap;
-	margin-left: 6px;
-	padding-bottom: 5px;
-}
-.teaser ul {
-	list-style-type: square;
-	margin-top: 6px;
-	margin-bottom: 6px;
-}
-.teaser li {
-	margin-left: 12px;
-	margin-top: 6px;
 }
 .visible {
 	opacity: 1;

@@ -8,10 +8,12 @@ const hide = mGlobals.hide
 const mPlaceholder = `Type a message to ${ mAvatarName }...`
 const show = mGlobals.show
 /* variables */
-let mChallengeMemberId,
+let mAvatarNameEdited = false,
+    mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultTypeDelay = 7,
     mPageType = null,
+    mSignupType = 'newsletter',
     threadId = null
 /* page div variables */
 let awaitButton,
@@ -30,10 +32,24 @@ let awaitButton,
     mainContent,
     navigation,
     privacyContainer,
-    sidebar
-document.addEventListener('DOMContentLoaded', event=>{
+    sidebar,
+    signupAvatarInput,
+    signupAvatarInputField,
+    signupButton,
+    signupEmailInputField,
+    signupErrorMessage,
+    signupForm,
+    signupHeader,
+    signupHumanNameInput,
+    signupNewsletter,
+    signupRegister,
+    signupSuccess,
+    signupTeaser,
+    signupTeaserButton
+/* page load */
+document.addEventListener('DOMContentLoaded', async event=>{
     /* load data */
-    mLoadStart()
+    await mLoadStart()
     /* display page */
     mShowPage()
 })
@@ -190,6 +206,7 @@ async function mFetchHostedMembers(){
  * @returns {void}
  */
 async function mFetchStart(){
+    await mSignupStatus()
     const messages = []
     let input // HTMLDivElement containing input element
     switch(mPageType){
@@ -247,6 +264,14 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
+    signupAvatarInputField.addEventListener('input', mUpdateFormState)
+    signupAvatarInputField.addEventListener('focus', _=>mAvatarNameEdited=true) // Detect if avatar name has been manually edited
+    signupButton.addEventListener('click', mSubmitSignup)
+    signupEmailInputField.addEventListener('input', mUpdateFormState)
+    signupHumanNameInput.addEventListener('input', mUpdateFormState)
+    signupNewsletter.addEventListener('click', mUpdateFormType)
+    signupRegister.addEventListener('click', mUpdateFormType)
+    signupTeaserButton.addEventListener('click', mToggleSignupForm)
     if(chatInput)
         chatInput.addEventListener('input', mToggleInputTextarea)
     if(chatSubmit)
@@ -271,6 +296,19 @@ async function mLoadStart(){
     navigation = mGlobals.navigation
     privacyContainer = document.getElementById('privacy-container')
     sidebar = mGlobals.sidebar
+    signupAvatarInputField = document.getElementById('avatar-name-input-text')
+    signupAvatarInput = document.getElementById('signup-avatar-name-input')
+    signupButton = document.getElementById('signup-submit')
+    signupEmailInputField = document.getElementById('email-input-text')
+    signupErrorMessage = document.getElementById('signup-error-message')
+    signupForm = document.getElementById('signup-form')
+    signupHeader = document.getElementById('signup-header')
+    signupHumanNameInput = document.getElementById('human-name-input-text')
+    signupNewsletter = document.getElementById('signup-newsletter')
+    signupRegister = document.getElementById('signup-register')
+    signupSuccess = document.getElementById('signup-success')
+    signupTeaser = document.getElementById('signup-teaser')
+    signupTeaserButton = document.getElementById('signup-button-teaser')
     /* fetch the greeting messages */
     // get query params
     mPageType = new URLSearchParams(window.location.search).get('type')
@@ -290,6 +328,10 @@ function mScrollBottom(){
  * @returns {void}
  */
 function mShowPage(){
+    /* DOM elements */
+    signupEmailInputField.tabIndex = 1
+    signupHumanNameInput.tabIndex = 2
+    signupAvatarInputField.tabIndex = 3
     /* assign listeners */
     mInitializeListeners()
     /* display elements */
@@ -311,6 +353,26 @@ function mShowPage(){
     show(chatSystem)
     show(chatContainer)
     show(chatUser)
+}
+async function mSignupStatus(){
+    const response = await fetch('/signup')
+    if(!response.ok)
+        throw new Error('Network response was not ok')
+    const isSignedUp = await response.json()
+    if(!isSignedUp){
+        hide(signupForm)
+        hide(signupSuccess)
+        show(signupTeaser)
+        show(signupTeaserButton)
+    } else
+        mSignupSuccess()
+}
+function mSignupSuccess(){
+    hide(signupForm)
+    hide(signupTeaser)
+    hide(signupTeaserButton)
+    show(signupSuccess)
+    signupHeader.innerHTML = `Thank you for joining our pilot!`
 }
 /**
  * Submits a challenge response to the server.
@@ -409,6 +471,43 @@ async function submitChat(url, options) {
 	}
 }
 /**
+ * Submits the signup form to the server.
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mSubmitSignup(event){
+    const { value: email, } = signupEmailInputField
+    const { value: humanName, } = signupHumanNameInput
+    const { value: avatarNickname, } = signupAvatarInputField
+    const formData = {
+        avatarNickname,
+        email,
+        humanName,
+        type: mSignupType,
+    }
+    const response = await fetch('/signup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    if(response.ok)
+        mSignupSuccess()
+    else {
+        const signupInputContainer = document.getElementById('signup-input-container')
+        if(signupInputContainer){
+            const errorDiv = document.createElement('div')
+            errorDiv.textContent = `Please review your inputs, system cannot process your request.`
+            errorDiv.classList.add('error-message')
+            signupInputContainer.prepend(errorDiv)
+            errorDiv.addEventListener('animationend', _=>errorDiv.remove())
+            setTimeout(_=>{
+                errorDiv.classList.add('fade-out')
+            }, 6000)
+        }
+    }
+}
+/**
  * Toggles the visibility of the challenge submit button based on `input` event.
  * @requires mChallengeSubmit
  * @param {Event} event - The event object.
@@ -430,6 +529,20 @@ function mToggleInputTextarea() {
     chatInput.style.height = 'auto' // Reset height to shrink if text is removed
     chatInput.style.height = chatInput.scrollHeight + 'px' // Set height based on content
 	mToggleSubmitButton()
+}
+/**
+ * Manages the visibility of the signup form.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mToggleSignupForm(event){
+    mGlobals.toggleVisibility(signupForm)
+    mGlobals.toggleVisibility(signupTeaser)
+    hide(signupSuccess)
+    hide(signupAvatarInput)
+    const altText = this.getAttribute('data-alt-text')
+    const currentText = this.innerText
+    this.innerText = currentText===altText ? "Join MyLife Pilot Program" : altText
 }
 /**
  * Toggles the disabled state of a button based on the input element value.
@@ -465,4 +578,37 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay, callback
         mScrollBottom()
     }
     _typewrite()
+}
+/**
+ * Updates the form input and button states based on the input fields.
+ * @private
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mUpdateFormState(event) {
+    const { value: emailValue, } = signupEmailInputField
+    const { value: humanNameValue, } = signupHumanNameInput
+    if(emailValue?.length && humanNameValue?.length > 2 && mSignupType==='register'){
+        show(signupAvatarInput)
+        if(!mAvatarNameEdited)
+            signupAvatarInputField.value = `${ humanNameValue.split(' ')[0] }-AI`; // Set value instead of placeholder
+    } else
+        hide(signupAvatarInput)
+    signupButton.disabled = !(
+           emailValue?.length > 5
+        && humanNameValue?.length > 2
+        && ( mSignupType!=='register' || signupAvatarInputField.value?.length > 2 )
+    )
+}
+/**
+ * Keeps track of signup type in modular scope.
+ * @private
+ * @requires mSignupType
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mUpdateFormType(event){
+    const { checked, value, } = this
+    mSignupType = value
+    mUpdateFormState()
 }
