@@ -64,13 +64,23 @@ document.addEventListener('DOMContentLoaded', async event=>{
 })
 /* public functions */
 /**
- * Pushes content to the chat column.
+ * Pushes message content to the chat column.
  * @public
  * @param {string} message - The message object to add to column.
  * @param {object} options - The options object { bubbleClass, typeDelay, typewrite }.
+ * @returns {void}
  */
 function addMessage(message, options={}){
     mAddMessage(message, options)
+}
+/**
+ * Pushes an array of messages to the chat column.
+ * @param {Array} messages - The array of string messages to add to the chat column.
+ * @param {object} options - The options object { bubbleClass, typeDelay, typewrite }.
+ * @returns {void}
+ */
+function addMessages(messages, options={}){
+    messages.forEach(message=>mAddMessage(message))
 }
 /**
  * Removes and attaches all payload elements to element.
@@ -330,6 +340,12 @@ async function mAddMemberMessage(event){
         })
     toggleMemberInput(true)/* show */
 }
+/**
+ * Adds specified string message to interface.
+ * @param {string} message - The message to add to the chat.
+ * @param {object} options - The options object { bubbleClass, role, typeDelay, typewrite }.
+ * @returns {void}
+ */
 async function mAddMessage(message, options={}){
     const {
 		bubbleClass,
@@ -617,6 +633,7 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
 /* exports */
 export {
     addMessage,
+    addMessages,
     assignElements,
     availableExperiences,
     clearSystemChat,
