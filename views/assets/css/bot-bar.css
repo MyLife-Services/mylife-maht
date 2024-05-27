@@ -295,15 +295,6 @@
     max-height: 3em;
     width: auto;
 }
-.collection-item-name {
-    color: navy;
-    display: flex;
-    flex: 1 1 auto;
-    font-size: 1.1em;
-    font-style: italic;
-    overflow: hidden;
-    text-wrap: nowrap;
-}
 .collection-item-delete {
     color: navy;
     display: flex;
@@ -313,6 +304,21 @@
 }
 .collection-item-delete:hover {
     color: red;
+}
+.collection-item-name {
+    color: navy;
+    display: flex;
+    flex: 1 1 auto;
+    font-size: 1.1em;
+    font-style: italic;
+    overflow: hidden;
+    text-wrap: nowrap;
+}
+.collection-item-summary {
+    color: darkblue;
+    display: flex;
+    flex: 0 1 auto;
+    font-size: 1.5rem;
 }
 .collection-list {
     display: none;
@@ -432,6 +438,10 @@ input:checked + .publicity-slider:before {
     transform: translateX(
         calc(var(--slider-height) - var(--slider-margin))
     );
+}
+/* summaries */
+.summary-error {
+    color: darkred;
 }
 /* generic bot slider */
 .input-group {

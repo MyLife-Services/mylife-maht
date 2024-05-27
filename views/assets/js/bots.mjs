@@ -2,8 +2,10 @@
 /* imports */
 import {
     addMessage,
+    addMessages,
     availableExperiences,
     decorateActiveBot,
+    fetchSummary,
     hide,
     inExperience,
     show,
@@ -333,7 +335,9 @@ function mCreateCollectionItem(collectionItem){
     /* buttons */
     switch(type){
         case 'file':
-            /* file-summary button */
+            /* file-summary icon */
+            const itemSummary = mCreateCollectionItemSummarize(type, id, filename)
+            item.appendChild(itemSummary)
             break
         default:
             const itemDelete = mCreateCollectionItemDelete(type, id)
@@ -363,9 +367,59 @@ function mCreateCollectionItemDelete(type, id){
     const itemDelete = document.createElement('span')
     itemDelete.id = `collection-item-delete_${ id }`
     itemDelete.name = `collection-item-delete-${ type }`
-    itemDelete.classList.add('fa-solid', 'fa-trash', 'collection-item-delete', `${ type }-collection-item-delete`)
+    itemDelete.classList.add('fas', 'fa-trash', 'collection-item-delete', `${ type }-collection-item-delete`)
     itemDelete.addEventListener('click', mDeleteCollectionItem, { once: true })
     return itemDelete
+}
+function mCreateCollectionItemSummarize(type, id, name){
+    const itemSummarize = document.createElement('span')
+    itemSummarize.classList.add('fas', 'fa-file-circle-question', 'collection-item-summary', `${ type }-collection-item-summary`)
+    itemSummarize.dataset.fileId = id /* raw openai file id */
+    itemSummarize.dataset.fileName = name
+    itemSummarize.dataset.id= `collection-item-summary-${ id }`
+    itemSummarize.dataset.type = type
+    itemSummarize.id = itemSummarize.dataset.id
+    itemSummarize.name = `collection-item-summary-${ type }`
+    itemSummarize.addEventListener('click', mSummarize, { once: true })
+    return itemSummarize
+}
+/**
+ * Processes a document summary request.
+ * @this - collection-item-summary (HTMLSpanElement)
+ * @private
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mSummarize(event){
+    event.preventDefault()
+    event.stopPropagation()
+    const { dataset, } = this
+    console.log('mSummarize::dataset', dataset, this)
+    if(!dataset)
+        throw new Error(`No dataset found for summary request.`)
+    const { fileId, fileName, type, } = dataset
+    if(type!=='file')
+        throw new Error(`Unimplemented type for summary request.`)
+    /* visibility triggers */
+    this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-question', 'fa-file-circle-xmark')
+    this.classList.add('fa-compass', 'spin')
+    /* fetch summary */
+    const { messages, success, } = await fetchSummary(fileId, fileName) // throws on console.error
+    /* visibility triggers */
+    this.classList.remove('fa-compass', 'spin')
+    if(success)
+        this.classList.add('fa-file-circle-xmark')
+    else
+        this.classList.add('fa-file-circle-exclamation', 'summarize-error')
+    /* print response */
+    addMessages(messages)
+    setTimeout(_=>{
+        this.addEventListener('click', mSummarize, { once: true })
+        this.classList.add('fa-file-circle-question')
+        this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-xmark', 'fa-compass') // jic
+        show(this)
+    }, 20*60*1000)
 }
 /**
  * Create a popup for viewing collection item.
@@ -845,7 +899,6 @@ async function mToggleCollectionItems(event){
         const refreshTrigger = document.getElementById(`collection-refresh-${ collectionType }`)
         if(!refreshTrigger)
             throw new Error(`Collection refresh not found for toggle.`)
-        show(refreshTrigger)
         dataset.init = true
         refreshTrigger.click() // retriggers this event, but will bypass this block
         return
@@ -856,11 +909,11 @@ async function mToggleCollectionItems(event){
         if(!collectionList)
             throw new Error(`associated collection list not found for refresh command`)
         // @stub - spin recycle symbol while servering
-        const collections = await mRefreshCollection(collectionType, collectionList)
+        await mRefreshCollection(collectionType, collectionList)
+        show(target)
         show(collectionList) // even if `none`
     } else
         toggleVisibility(collectionList)
-    console.log('mToggleCollectionItems::', target)
 }
 /**
  * Toggles team popup visibility and associated functionality.

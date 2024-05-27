@@ -21,6 +21,7 @@ import {
     passphraseReset,
     privacyPolicy,
     signup,
+    summarize,
     upload,
 } from './functions.mjs'
 import {
@@ -102,6 +103,7 @@ _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
+_memberRouter.post('/summarize', summarize)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths

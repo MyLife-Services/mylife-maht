@@ -474,6 +474,34 @@ class Avatar extends EventEmitter {
         }
         return this.#conversations[0].threadId
     }
+    async summarize(fileId, fileName, processStartTime=Date.now()){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot summarize files.')
+        if(!fileId?.length && !fileName?.length)
+            throw new Error('File id or name required for summarization.')
+        const { bot_id: botId, thread_id, } = this.personalAssistant
+        const prompt = `Summarize this file document: name=${ fileName }, id=${ fileId }`
+        const response = {
+            messages: [],
+            success: false,
+        }
+        try{
+            let messages = await mCallLLM(this.#llmServices, { botId, thread_id, }, prompt, this.#factory)
+            messages = messages
+                .map(message=>mPruneMessage(this.personalAssistant, message, 'mylife-file-summary', processStartTime))
+                .filter(message=>message && message.role!=='user')
+            if(!messages.length)
+                throw new Error('No valid messages returned from summarization.')
+            response.messages.push(...messages)
+            response.success = true
+        } catch(error) {
+            response.messages.push({ content: `Unfortunately, a server error occured: ${error.message}`, role: 'system', })
+            response.messages.push({ content: 'Please indicate in a help chat what went wrong. Or one might ask... why can\'t I do that, and I don\'t have a great answer at the moment.', role: 'system', })
+            response.error = error
+            console.log('ERROR::Avatar::summarize()', error)
+        }
+        return response
+    }
     /**
      * Upload files to MyLife and/or LLM.
      * @todo - implement MyLife file upload.
@@ -924,6 +952,9 @@ class Avatar extends EventEmitter {
         if(nickname!==this.name)
             this.#nickname = nickname
     }
+    get personalAssistant(){
+        return this.avatarBot
+    }
 }
 /* module functions */
 /**
@@ -1011,12 +1042,10 @@ async function mBot(factory, avatar, bot){
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
  */
 async function mCallLLM(llmServices, conversation, prompt, factory){
-    const { thread_id: threadId } = conversation
-    if(!threadId)
-        throw new Error('No `thread_id` found for conversation')
-    if(!conversation.botId)
-        throw new Error('No `botId` found for conversation')
-    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt, factory)
+    const { botId, thread_id: threadId } = conversation
+    if(!threadId || !botId)
+        throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
+    const messages = await llmServices.getLLMResponse(threadId, botId, prompt, factory)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })
@@ -1649,7 +1678,7 @@ function mPruneBot(assistantData){
  * @module
  * @private
  * @param {object} bot - The bot object, usually active.
- * @param {string} message - The text of LLM message.
+ * @param {string} message - The text of LLM message. Can parse array of messages from openAI.
  * @param {string} type - The type of message, defaults to chat.
  * @param {number} processStartTime - The time the process started, defaults to function call.
  * @returns {object} - The bot-included message object.

@@ -67,6 +67,8 @@ class LLMServices {
      * @returns {Promise<Object[]>} - Array of openai `message` objects.
      */
     async getLLMResponse(threadId, botId, prompt, factory){
+        if(!threadId?.length)
+            threadId = ( await mThread(this.openai) ).id
         await mAssignRequestToThread(this.openai, threadId, prompt)
         const run = await mRunTrigger(this.openai, botId, threadId, factory)
         const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run

@@ -80,7 +80,7 @@ function addMessage(message, options={}){
  * @returns {void}
  */
 function addMessages(messages, options={}){
-    messages.forEach(message=>mAddMessage(message))
+    messages.forEach(message=>mAddMessage(message, options))
 }
 /**
  * Removes and attaches all payload elements to element.
@@ -127,6 +127,18 @@ function decorateActiveBot(activeBot=activeBot()){
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
+}
+/**
+ * Fetches the summary via PA for a specified file.
+ * @param {string} fileId - The file ID.
+ * @param {string} fileName - The file name.
+ * @returns {Promise<object>} - The return is the summary object.
+ */
+async function fetchSummary(fileId, fileName){
+    /* validate request */
+    if(!fileId?.length && !fileName?.length)
+        throw new Error('fetchSummary::Error()::`fileId` or `fileName` is required')
+    return await mFetchSummary(fileId, fileName)
 }
 function getInputValue(){
     return chatInputField.value.trim()
@@ -342,11 +354,21 @@ async function mAddMemberMessage(event){
 }
 /**
  * Adds specified string message to interface.
- * @param {string} message - The message to add to the chat.
+ * @param {object|string} message - The message to add to the chat; if object, reduces to `.message` or fails.
  * @param {object} options - The options object { bubbleClass, role, typeDelay, typewrite }.
  * @returns {void}
  */
 async function mAddMessage(message, options={}){
+    if(typeof message==='object'){
+        if(message?.message){ // otherwise error throws for not string (i.e., Array or classed object)
+            options.role = message?.role // overwrite if exists
+                ?? options?.role
+                ?? 'agent'
+            message = message.message
+        }
+    }
+    if(typeof message!=='string' || !message.length)
+        throw new Error('mAddMessage::Error()::`message` string is required')
     const {
 		bubbleClass,
         role='agent',
@@ -386,6 +408,31 @@ function mFetchExperiences(){
             return response.json()
         })
         .catch(error=>console.log('mFetchExperiences::Error()', error))
+}
+/**
+ * Fetches the summary via PA for a specified file.
+ * @private
+ * @param {string} fileId - The file ID.
+ * @param {string} fileName - The file name.
+ * @returns {Promise<object>} - The return is the summary object.
+ */
+async function mFetchSummary(fileId, fileName){
+    const url = '/members/summarize'
+    const data = {
+        fileId,
+        fileName,
+    }
+    let response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    response = await response.json()
+    return response
 }
 function getActiveCategory(){
 	return activeCategory
@@ -639,6 +686,7 @@ export {
     clearSystemChat,
     decorateActiveBot,
     escapeHtml,
+    fetchSummary,
     getInputValue,
     getSystemChat,
     hide,

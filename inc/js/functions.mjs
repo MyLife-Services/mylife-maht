@@ -257,6 +257,13 @@ async function signup(ctx) {
         message: 'Signup successful',
     }
 }
+async function summarize(ctx){
+	const { avatar, } = ctx.state
+	const { fileId, fileName, } = ctx.request.body
+	if(avatar.isMyLife)
+		throw new Error('Only logged in members may summarize text')
+	ctx.body = await avatar.summarize(fileId, fileName)
+}
 /**
  * Proxy for uploading files to the API.
  * @param {Koa} ctx - Koa Context object
@@ -292,5 +299,6 @@ export {
 	passphraseReset,
 	privacyPolicy,
 	signup,
+	summarize,
 	upload,
 }

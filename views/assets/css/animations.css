@@ -1,3 +1,7 @@
+/* utility classes */
+.spin {
+    animation: spin 2s linear infinite;
+}
 /* Keyframes */
 @keyframes blink {
     0%, 100% { opacity: 1; }
@@ -47,6 +51,15 @@
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+/* spin & spinners */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+@keyframes spinReverse {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(-360deg); }
 }
 /* squeeze-out */
 @keyframes squeezeOutFromBottom {
