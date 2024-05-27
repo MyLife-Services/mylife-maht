@@ -99,10 +99,11 @@ async function fetchCollections(type){
     const url = window.location.origin
         + `/members/collections`
         + ( !type ? '' : `/${ type }` )
-    const response = await fetch(url)
+    let response = await fetch(url)
     if(!response.ok)
         throw new Error(`HTTP error! Status: ${response.status}`)
-    return await response.json()
+    response = await response.json()
+    return response
 }
 /**
  * Set active bot on server and update page bots.
@@ -614,21 +615,17 @@ function mOpenStatusDropdown(element){
 }
 /**
  * Refresh collection on click.
- * @param {Event} event - The event object.
+ * @this - collection-refresh
+ * @param {string} type - The collection type.
+ * @param {HTMLDivElement} collectionList - The collection list.
  * @returns {void}
  */
-async function mRefreshCollection(event){
-    const { id, } = event.target
-    const type = id.split('-').pop()
+async function mRefreshCollection(type, collectionList){
     if(!mLibraries.includes(type))
         throw new Error(`Library collection not implemented.`)
     const collection = await fetchCollections(type)
-    const collectionList = document.getElementById(`collection-list-${ type }`)
-    show(collectionList) /* no toggle, just show */
-    if(!collection.length) /* no items in collection */
-        return
-    mUpdateCollection(type, collection, collectionList)
-    event.target.addEventListener('click', mRefreshCollection, { once: true })
+    if(collection.length)
+        mUpdateCollection(type, collection, collectionList)
 }
 /**
  * Set Bot data on server.
@@ -779,6 +776,7 @@ async function mSubmitPassphrase(event){
  */
 async function mToggleBotContainers(event){
     event.stopPropagation()
+    // add turn for first time clicked on collection header it refreshes from server, then from there you need to click
     const botContainer = this
     const element = event.target
     const itemIdSnippet = element.id.split('-').pop()
@@ -789,7 +787,7 @@ async function mToggleBotContainers(event){
             // @todo: double-click to edit in place
             const _span = this.querySelector('span')
                 ? this.querySelector('span')
-                : event.target
+                : element
             _span.classList.toggle('no-animation')
             break
         case 'icon':
@@ -826,18 +824,43 @@ async function mToggleBotContainers(event){
 }
 /**
  * Toggles collection item visibility.
+ * @this - collection-bar
+ * @private
+ * @async
  * @param {Event} event - The event object.
  * @returns {void}
  */
-function mToggleCollectionItems(event){
+async function mToggleCollectionItems(event){
     event.stopPropagation()
-    const { currentTarget: element, target, } = event /* currentTarget=collection-bar, target=interior divs */
-    if(target.id.includes('collection-refresh')) /* exempt refresh */
+    /* constants */
+    const { target, } = event /* currentTarget=collection-bar, target=interior divs */
+    const { dataset, id, } = this
+    const collectionType = id.split('-').pop()
+    const collectionList = document.getElementById(`collection-list-${ collectionType }`)
+    /* validation */
+    if(!collectionList)
+        throw new Error(`Collection list not found for toggle.`)
+    /* functionality */
+    if(!dataset?.init){ // first click
+        const refreshTrigger = document.getElementById(`collection-refresh-${ collectionType }`)
+        if(!refreshTrigger)
+            throw new Error(`Collection refresh not found for toggle.`)
+        show(refreshTrigger)
+        dataset.init = true
+        refreshTrigger.click() // retriggers this event, but will bypass this block
         return
-    const collectionId = element.id.split('-').pop()
-    const collectionList = document.getElementById(`collection-list-${ collectionId }`)
-    if(collectionList)
+    }
+    /* toggle */
+    if(target.id===`collection-refresh-${ collectionType }`){ // refresh
+        const collectionList = document.getElementById(`collection-list-${ collectionType }`)
+        if(!collectionList)
+            throw new Error(`associated collection list not found for refresh command`)
+        // @stub - spin recycle symbol while servering
+        const collections = await mRefreshCollection(collectionType, collectionList)
+        show(collectionList) // even if `none`
+    } else
         toggleVisibility(collectionList)
+    console.log('mToggleCollectionItems::', target)
 }
 /**
  * Toggles team popup visibility and associated functionality.
@@ -1116,13 +1139,13 @@ function mUpdateBotContainerAddenda(botContainer, bot){
                         continue
                     }
                     const collectionBar = document.getElementById(`collection-bar-${ id }`)
-                    const collectionButton = document.getElementById(`collection-refresh-${ id }`)
-                    /* add listeners */
-                    if(collectionBar)
+                    if(collectionBar){
+                        const { dataset, } = collectionBar
+                        const refresh = document.getElementById(`collection-refresh-${ id }`)
+                        if(!dataset?.init && refresh) // first click
+                            hide(refresh)
                         collectionBar.addEventListener('click', mToggleCollectionItems)
-                    /* collection.click() to run on load */
-                    if(collectionButton)
-                        collectionButton.addEventListener('click', mRefreshCollection, { once: true })
+                    }
                 }
                 if(mLibraryUpload)
                     mLibraryUpload.addEventListener('click', mUploadFiles)
@@ -1158,7 +1181,6 @@ function mUpdateBotContainerAddenda(botContainer, bot){
  * @returns {void}
  */
 function mUpdateCollection(type, collection, collectionList){
-    console.log('mUpdateCollection()', type)
     collectionList.innerHTML = ''
     collection
         .map(item=>({
