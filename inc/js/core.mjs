@@ -33,9 +33,6 @@ class Member extends EventEmitter {
 		this.factory.on('avatar-init-end',(_avatar,bytes)=>{
 			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
 		})
-		this.factory.on('on-contribution-new',(_contribution)=>{
-			console.log(chalk.grey(`Member::on-contribution-new`),_contribution.request)
-		})
 	}
 	//	getter/setter functions
 	get abilities(){
@@ -99,13 +96,6 @@ class Member extends EventEmitter {
 	}
 	set consent(_consent){
 		this.factory.consents.unshift(_consent.id)
-	}
-	/**
-	 * Gets Member Contributions, i.e., questions that need posing to Member
-	 * @returns {array} returns array of Member Contributions
-	 */
-	get contributions(){
-		return this.#avatar?.contributions
 	}
 	get core(){
 		return this.factory.core
@@ -294,20 +284,34 @@ class MyLife extends Organization {	//	form=server
 		return await this.factory.getMyLifeSession()
 	}
 	/**
+	 * Returns Array of hosted members based on validation requirements.
+	 * @param {Array} validations - Array of validation strings to filter membership.
+	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
+	 */
+	async hostedMembers(validations){
+		return await this.factory.hostedMembers(validations)
+	}
+	/**
 	 * Submits a request for a library item from MyLife via API.
 	 * @public
-	 * @param {string} _mbr_id - Requesting Member id.
-	 * @param {string} _assistantType - String name of assistant type.
-	 * @param {string} _library - Library entry with or without `items`.
+	 * @param {string} mbr_id - Requesting Member id.
+	 * @param {string} assistantType - String name of assistant type.
+	 * @param {string} library - Library entry with or without `items`.
 	 * @returns {object} - The library document from Cosmos.
 	 */
-	async library(_mbr_id, _assistantType, _library){
-		_library.assistantType = _assistantType
-		_library.id = _library.id && this.globals.isValidGuid(_library.id) ? _library.id : this.globals.newGuid
-		_library.mbr_id = _mbr_id
-		_library.type = _library.type??_assistantType??'personal'
-		const _libraryCosmos = await this.factory.library(_library)
-		return this.globals.stripCosmosFields(_libraryCosmos)
+	async library(mbr_id, assistantType='personal-avatar', library){
+		const { id, type, } = library
+		library.assistantType = assistantType
+		library.id = this.globals.isValidGuid(id)
+			? id
+			: this.globals.newGuid
+		library.mbr_id = mbr_id
+		library.type = type
+			?? assistantType
+		const _library = this.globals.stripCosmosFields(
+			await this.factory.library(library)
+		)
+		return _library
 	}
 	/**
 	 * Registers a new candidate to MyLife membership

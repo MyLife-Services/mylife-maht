@@ -5,7 +5,6 @@
  */
 //	imports
 import Datamanager from "./mylife-datamanager.mjs"
-import PgvectorManager from "./mylife-pgvector-datamanager.mjs"
 /**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
@@ -38,13 +37,6 @@ class Dataservices {
      */
     #partitionId
     /**
-     * Manages interactions with Pgvector, which might be used for
-     * efficient vector operations in a Postgres database. This could include
-     * functionalities like similarity search, nearest neighbor search, etc.
-     * @private
-     */
-    #PgvectorManager
-    /**
      * A default SQL SELECT statement or part of it used to fetch
      * user-related data. It defines the columns to be retrieved in most
      * database queries within this service.
@@ -57,7 +49,6 @@ class Dataservices {
      */
 	constructor(_mbr_id){
 		this.#partitionId = _mbr_id
-		this.#PgvectorManager = new PgvectorManager()
 	}
     /**
      * Initializes the Datamanager instance and sets up core data.
@@ -90,9 +81,6 @@ class Dataservices {
 	get datamanager(){
 		return this.#Datamanager
 	}
-	get embedder(){
-		return this.#PgvectorManager
-	}
 	get globals(){
 		return this.datamanager.globals
 	}
@@ -109,6 +97,24 @@ class Dataservices {
 		return this.#partitionId
 	}
 	//	public functions
+	async addCore(core){
+		const { id, mbr_id, } = core
+		if(!id?.length || !mbr_id?.length)
+			throw new Error('`core` must be a pre-formed object with id and mbr_id')
+		const extantCore = await this.getItem(id, undefined, mbr_id)
+		if(extantCore)
+			return { core: extantCore, success: false, } // no alterations, failure
+		core = { // enforce core data structure
+			...core,
+			being: 'core',
+			id,
+			format: 'human',
+			name: this.globals.createDocumentName(mbr_id, id, 'core'),
+			mbr_id,
+		}
+		core = await this.pushItem(core)
+		return { core, success: true, }
+	}
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
 	 * @public
@@ -259,8 +265,8 @@ class Dataservices {
 					return []
 				})
 	}
-	async datacore(_mbr_id){
-		return await this.getItem(_mbr_id)
+	async datacore(mbr_id){
+		return await this.getItem(mbr_id)
 	}
     /**
      * Delete an item from member container.
@@ -283,7 +289,7 @@ class Dataservices {
 	}
 	async findRegistrationIdByEmail(_email){
 		/* pull record for email, returning id or new guid */
-		const _ = await this.getItems(
+		const registered = await this.getItems(
 			'registration',
 			undefined,
 			[{ name: '@email',
@@ -291,7 +297,9 @@ class Dataservices {
 			}],
 			'registration',
 		)
-		return _?.[0]?.id??Guid.newGuid().toString() // needed to separate out, was failing
+		const registrationId = registered?.[0]?.id
+			?? this.globals.newGuid
+		return registrationId
 	}
 	/**
 	 * Retrieves a specific alert by its ID. _Currently placehoder_.
@@ -373,47 +381,27 @@ class Dataservices {
 		return _chats
 	}
 	/**
-	 * Retrieves all seed contribution questions associated with being & category.
-	 * @async
-	 * @public
-	 * @param {string} being - The type of underlying datacore.
-	 * @param {string} _category - The category of seed questions to retrieve.
-	 * @returns {Promise<Object>} The item corresponding to the provided ID.
-	 */
-	async getContributionQuestions(being, _category, _maxNumber=3){
-		return (await this.getItems(
-			being,
-			['questions'],
-			[{ name: '@category', value: _category }],
-			'contribution_responses',
-		))
-			.map(_ => (_.questions))
-			.reduce((acc, val) => acc.concat(val), [])
-			.sort(() => Math.random() - Math.random())
-			.slice(0, _maxNumber)
-	}
-	/**
 	 * Retrieves a specific item by its ID.
 	 * @async
 	 * @public
-	 * @param {string} _id - The unique identifier for the item.
+	 * @param {string} id - The unique identifier for the item.
 	 * @param {string} container_id - The container to use, overriding default: `Members`.
-	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @param {string} mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(_id, container_id, _mbr_id=this.mbr_id) {
-		if(!_id) return
+	async getItem(id, container_id, mbr_id=this.mbr_id) {
+		if(!id)
+			return null
 		try{
 			return await this.datamanager.getItem(
-				_id,
+				id,
 				container_id,
-				{ partitionKey: _mbr_id, populateQuotaInfo: false, },
+				{ partitionKey: mbr_id, populateQuotaInfo: false, },
 			)
 		}
-		catch(_error){
-			console.log('mylife-data-service::getItem() error')
-			console.log(_error, _id, container_id,)
-			return
+		catch(error){
+			console.log('mylife-data-service::getItem() error', error, id, mbr_id, container_id,)
+			return null
 		}
 	}
 	/**
@@ -516,13 +504,12 @@ class Dataservices {
 		return _items
 	}
 	/**
-	 * Retrieves local records based on a query.
-	 * @async
-	 * @param {string} _question - The query to retrieve records.
-	 * @returns {Promise<Array>} An array of local records matching the query.
+	 * Returns Array of hosted members based on validation requirements.
+	 * @param {Array} validations - Array of validation strings to filter membership.
+	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
 	 */
-	async getLocalRecords(_question){
-		return await this.embedder.getLocalRecords(_question)
+	async hostedMembers(validations){
+		return await this.datamanager.hostedMembers(validations)
 	}
 	/**
 	 * Gets library from database.
@@ -661,12 +648,31 @@ class Dataservices {
 	/**
 	 * Tests partition key for member
 	 * @public
-	 * @param {string} _mbr_id member id
-	 * @returns {boolean} returns true if partition key is valid
+	 * @param {string} mbr_id member id
+	 * @returns {boolean} - `true` if partition key is active, `false` otherwise.
 	 */
-	async testPartitionKey(_mbr_id){
-		if(!this.isMyLife) return false
-		return await this.datamanager.testPartitionKey(_mbr_id)
+	async testPartitionKey(mbr_id){
+		if(!this.isMyLife)
+			return false
+		return await this.datamanager.testPartitionKey(mbr_id)
+	}
+	/**
+	 * Returns the registration record by Id.
+	 * @todo - revisit hosts: currently process.env
+	 * @param {string} registrationId - Guid for registration record in system container.
+	 * @returns {object} - The registration document, if exists.
+	 */
+	async validateRegistration(registrationId){
+		const { mbr_id, } = this
+		const registration = await this.getItem(registrationId, 'registration', mbr_id)
+		const { avatarNickname, humanName, id, } = registration
+		if(avatarNickname?.length && id?.length){
+			const tempMbr_id = this.globals.createMbr_id(avatarNickname, id)
+			const exists = await this.testPartitionKey(tempMbr_id)
+			if(exists)
+				throw new Error('Registrant already a member!')
+		}
+		return registration
 	}
 }
 /* exports */

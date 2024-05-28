@@ -131,6 +131,41 @@ class Globals extends EventEmitter {
 	}
 	/* public functions */
 	/**
+	 * Clears a const array with nod to garbage collection.
+	 * @param {Array} a - the array to clear.
+	 * @returns {void}
+	 */
+	clearArray(a){
+		if(!Array.isArray(a))
+			throw new TypeError('Expected an array to clear')
+		for(let i = 0; i < a.length; i++){
+			a[i] = null
+		}
+		a.length = 0
+	}
+	createDocumentName(mbr_id, id, type){
+		if(!mbr_id || !id || !type)
+			throw new Error('createDocumentName() expects `mbr_id`, `id`, and `type`')
+		return `${ type.substring(0,32) }_${mbr_id}_${id}`
+	}
+	/**
+	 * Create a member id from a system name and id: sysName|sysId.
+	 * @param {string} sysName - System name to create the member id from.
+	 * @param {Guid} sysId - System id to create the member id from, `Guid` required.
+	 * @returns {string} - The member id created from the system name and id.
+	 */
+	createMbr_id(sysName, sysId){
+		if(!sysName?.length || !isValidGuid(sysId))
+			throw new Error('createMbr_id() expects params: sysName{string}, id{Guid}')
+		const delimiter = '|' // currently used to separate system name and id in mbr_id
+		const mbr_id = sysName
+			.substring(0,64)
+			.replace(/\s/g, '_').toLowerCase()
+			+ delimiter
+			+ sysId
+		return mbr_id
+	}
+	/**
 	 * Get a GPT File Search Tool structure.
 	 * @param {string} vectorstoreId - the vector store id to search.
 	 * @returns {object} - { file_search: { vector_store_ids: [vectorstoreId] } } - the GPT File Search Tool structure.
@@ -158,19 +193,19 @@ class Globals extends EventEmitter {
 			function: this.GPTJavascriptFunctions[name]
 		}
 	}
-	getRegExp(str, isGlobal = false) {
-		if (typeof str !== 'string' || !str.length)
+	getRegExp(text, isGlobal=false) {
+		if (typeof text !== 'string' || !text.length)
 			throw new Error('Expected a string')
 		return new RegExp(str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), isGlobal ? 'g' : '')
 	}
-	isValidEmail(_email){
-		return mEmailRegex.test(_email)
+	isValidEmail(email){
+		return typeof email === 'string' && mEmailRegex.test(email)
 	}
-	isValidGuid(_str='') {
-		return (typeof _str === 'string' && mGuidRegex.test(_str))
+	isValidGuid(text) {
+		return typeof text === 'string' && mGuidRegex.test(text)
 	}
-	stripCosmosFields(_obj){
-		return Object.fromEntries(Object.entries(_obj).filter(([k, v]) => !k.startsWith('_')))
+	stripCosmosFields(object){
+		return Object.fromEntries(Object.entries(object).filter(([k, v]) => !k.startsWith('_')))
 	}
 	sysId(_mbr_id){
 		if(!typeof _mbr_id==='string' || !_mbr_id.length || !_mbr_id.includes('|'))

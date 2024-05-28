@@ -159,20 +159,6 @@ async function library(ctx){
     }
 }
 /**
- * Login function for member. Requires mid in params.
- * @module
- * @public
- * @param {Koa} ctx - Koa Context object
- * @returns {Koa} Koa Context object
- * @property {string} ctx.body.challengeId
- */
-async function login(ctx){
-	if(!ctx.params.mid?.length)
-        ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
-	ctx.session.MemberSession.challenge_id = decodeURIComponent(ctx.params.mid)
-    ctx.body = { challengeId: ctx.session.MemberSession.challenge_id }
-}
-/**
  * Logout function for member.
  * @param {Koa} ctx - Koa Context object
  * @returns 
@@ -362,7 +348,6 @@ export {
     experiencesLived,
     keyValidation,
     library,
-    login,
     logout,
     register,
     story,

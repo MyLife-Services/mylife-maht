@@ -72,9 +72,13 @@ function category(ctx){ // sets category for avatar
  * @property {object} ctx.body - The result of the challenge.
  */
 async function challenge(ctx){
-	if(!ctx.params.mid?.length)
-		ctx.throw(400, `requires member id`)
-	ctx.body = await ctx.session.MemberSession.challengeAccess(ctx.request.body.passphrase)
+	const { passphrase, } = ctx.request.body
+	if(!passphrase?.length)
+		ctx.throw(400, `challenge request requires passphrase`)
+	const { mid, } = ctx.params
+	if(!mid?.length)
+		ctx.throw(400, `challenge request requires member id`)
+	ctx.body = await ctx.session.MemberSession.challengeAccess(mid, passphrase)
 }
 async function chat(ctx){
 	const { botId, message, role, threadId, } = ctx.request.body
@@ -82,26 +86,12 @@ async function chat(ctx){
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar, } = ctx.state
-	const response = await avatar.chatRequest(botId, threadId, message, )
+	const response = await avatar.chatRequest(botId, threadId, message)
 	ctx.body = response
 }
 async function collections(ctx){
 	const { avatar, } = ctx.state
 	ctx.body = await avatar.collections(ctx.params.type)
-}
-/**
- * Manage delivery and receipt of contributions(s).
- * @async
- * @public
- * @api no associated view
- * @param {object} ctx Koa Context object
- */
-async function contributions(ctx){
-	ctx.body = await (
-		(ctx.method==='GET')
-		?	mGetContributions(ctx)
-		:	mSetContributions(ctx)
-	)
 }
 async function createBot(ctx){
 	const { team, type, } = ctx.request.body
@@ -123,6 +113,33 @@ async function deleteItem(ctx){
 	if(!iid?.length)
 		ctx.throw(400, `missing item id`)
 	ctx.body = await avatar.deleteItem(iid)
+}
+/**
+ * Get greetings for this bot/active bot.
+ * @todo - move dynamic system responses to a separate function (route /system)
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {object} - Greetings response message object: { success: false, messages: [], }.
+ */
+async function greetings(ctx){
+	const { vld: validateId, } = ctx.request.query
+	let { dyn: dynamic, } = ctx.request.query
+	if(typeof dynamic==='string')
+		dynamic = JSON.parse(dynamic)
+	const { avatar, } = ctx.state
+	let response = { success: false, messages: [], }
+	if(validateId?.length){
+		if(!avatar.isMyLife){
+			response = {
+				...response,
+				error: new Error('Only MyLife may validate greetings'),
+				messages: ['Only MyLife may validate greetings'],
+			}
+		} else // @stub - validate registration request
+			response.messages.push(...await avatar.validateRegistration(validateId))
+	} else
+		response.messages.push(...await avatar.getGreeting(dynamic))
+	response.success = response.messages.length > 0
+	ctx.body = response
 }
 /**
  * Request help about MyLife.
@@ -163,35 +180,21 @@ function interfaceMode(ctx){
 	ctx.body = avatar.mode
 	return
 }
-async function login(ctx){
-	if(!ctx.params.mid?.length) ctx.throw(400, `missing member id`) // currently only accepts single contributions via post with :cid
-	ctx.state.mid = decodeURIComponent(ctx.params.mid)
-	ctx.session.MemberSession.challenge_id = ctx.state.mid
-	ctx.state.title = ''
-	ctx.state.subtitle = `Enter passphrase for activation [member ${ ctx.Globals.sysName(ctx.params.mid) }]:`
-	await ctx.render('members-challenge')
-}
 async function logout(ctx){
 	ctx.session = null
 	ctx.redirect('/')
 }
+/**
+ * Returns a member list for selection.
+ * @todo: should obscure and hash ids in session.mjs
+ * @todo: set and read long-cookies for seamless login
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Object[]} - List of hosted members available for login.
+ */
 async function loginSelect(ctx){
-	ctx.state.title = ''
-	//	listing comes from state.hostedMembers
-	// @todo: should obscure and hash ids in session.mjs
-	// @todo: set and read long-cookies for seamless login
-	ctx.state.hostedMembers = ctx.hostedMembers
-		.sort(
-			(a, b) => a.localeCompare(b)
-		)
-		.map(
-			_mbr_id => ({ 'id': _mbr_id, 'name': ctx.Globals.sysName(_mbr_id) })
-		)
-	ctx.state.subtitle = `Select your personal Avatar to continue:`
-	await ctx.render('members-select')
+	ctx.body = ctx.hostedMembers
 }
 async function members(ctx){ // members home
-	ctx.state.subtitle = `Welcome Agent ${ctx.state.member.agentName}`
 	await ctx.render('members')
 }
 async function passphraseReset(ctx){
@@ -209,59 +212,57 @@ async function privacyPolicy(ctx){
 	await ctx.render('privacy-policy')	//	privacy-policy
 }
 async function signup(ctx) {
-    const { email, humanName, avatarNickname } = ctx.request.body
-	const _signupPackage = {
-		'email': email,
-		'humanName': humanName,
-		'avatarNickname': avatarNickname,
+    const { email, humanName, avatarNickname, type='newsletter', } = ctx.request.body
+	const signupPacket = {
+		avatarNickname,
+		email,
+		humanName: humanName.substring(0, 64),
+		type,
 	}
-	//	validate session signup
-	if (ctx.session.signup)
+	let success = false
+	if(ctx.session.signup)
 		ctx.throw(400, 'Invalid input', { 
-			success: false,
+			success,
 			message: `session user already signed up`,
-			..._signupPackage 
+			payload: signupPacket,
 		})
-	//	validate package
-	if (Object.values(_signupPackage).some(value => !value)) {
-		const _missingFields = Object.entries(_signupPackage)
-			.filter(([key, value]) => !value)
-			.map(([key]) => key) // Extract just the key
-			.join(',')
+    if(!ctx.Globals.isValidEmail(email))
 		ctx.throw(400, 'Invalid input', { 
-			success: false,
-			message: `Missing required field(s): ${_missingFields}`,
-			..._signupPackage 
+			success,
+			message: 'Invalid input: email',
+			payload: signupPacket,
 		})
-	}
-    // Validate email
-    if (!ctx.Globals.isValidEmail(email))
+    if(!humanName || humanName.length < 3)
 		ctx.throw(400, 'Invalid input', { 
-			success: false,
-			message: 'Invalid input: emailInput',
-			..._signupPackage 
+			success,
+			message: 'Invalid input: First name must be between 3 and 64 characters: humanNameInput',
+			payload: signupPacket,
 		})
-    // Validate first name and avatar name
-    if (!humanName || humanName.length < 3 || humanName.length > 64 ||
-        !avatarNickname || avatarNickname.length < 3 || avatarNickname.length > 64)
-		ctx.throw(400, 'Invalid input', { 
-			success: false,
-			message: 'Invalid input: First name and avatar name must be between 3 and 64 characters: humanNameInput,avatarNicknameInput',
-			..._signupPackage 
+	if(( avatarNickname?.length < 3 ?? true ) && type==='register')
+		ctx.throw(400, 'Invalid input', {
+			success,
+			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNicknameInput',
+			payload: signupPacket,
 		})
-    // save to `registration` container of Cosmos expressly for signup data
-	_signupPackage.id = ctx.MyLife.newGuid
-	await ctx.MyLife.registerCandidate(_signupPackage)
-	// TODO: create account and avatar
-    // If all validations pass and signup is successful
+	signupPacket.id = ctx.MyLife.newGuid
+	const registrationData = await ctx.MyLife.registerCandidate(signupPacket)
+	console.log('signupPacket:', signupPacket, registrationData)
 	ctx.session.signup = true
-	const { mbr_id, ..._return } = _signupPackage // abstract out the mbr_id
+	success = true
+	const { mbr_id, ..._registrationData } = signupPacket // do not display
     ctx.status = 200 // OK
     ctx.body = {
-		..._return,
-        success: true,
+		payload: _registrationData,
+        success,
         message: 'Signup successful',
     }
+}
+async function summarize(ctx){
+	const { avatar, } = ctx.state
+	const { fileId, fileName, } = ctx.request.body
+	if(avatar.isMyLife)
+		throw new Error('Only logged in members may summarize text')
+	ctx.body = await avatar.summarize(fileId, fileName)
 }
 /**
  * Proxy for uploading files to the API.
@@ -276,41 +277,6 @@ async function upload(ctx){
 	ctx.session.isAPIValidated = true
 	await apiUpload(ctx)
 }
-/* module private functions */
-function mGetContributions(ctx){
-	ctx.state.cid = ctx.params?.cid??false	//	contribution id
-	const statusOrder = ['new', 'prepared', 'requested', 'submitted', 'pending', 'accepted', 'rejected']
-	ctx.state.status = ctx.query?.status??'prepared'	//	default state for execution
-	return ctx.state.contributions
-		.filter(_contribution => (ctx.state.cid && _contribution.id === ctx.state.cid) || !ctx.state.cid)
-		.map(_contribution => (_contribution.memberView))
-		.sort((a, b) => {
-			// Get the index of the status for each contribution
-			const indexA = statusOrder.indexOf(a.status)
-			const indexB = statusOrder.indexOf(b.status)
-			// Sort based on the index
-			return indexA - indexB
-		})
-}
-/**
- * Manage receipt and setting of contributions(s).
- * @async
- * @module
- * @param {object} ctx Koa Context object 
- */
-function mSetContributions(ctx){
-	const { avatar, } = ctx.state
-	if(!ctx.params?.cid)
-		ctx.throw(400, `missing contribution id`) // currently only accepts single contributions via post with :cid
-	ctx.state.cid = ctx.params.cid
-	const _contribution = ctx.request.body?.contribution??false
-	if(!_contribution)
-		ctx.throw(400, `missing contribution data`)
-	avatar.contribution = ctx.request.body.contribution
-	return avatar.contributions
-		.filter(_contribution => (_contribution.id === ctx.state.cid))
-		.map(_contribution => (_contribution.memberView))
-}
 /* exports */
 export {
 	about,
@@ -321,18 +287,18 @@ export {
 	challenge,
 	chat,
 	collections,
-	contributions,
 	createBot,
 	deleteItem,
 	help,
+	greetings,
 	index,
 	interfaceMode,
-	login,
 	logout,
 	loginSelect,
 	members,
 	passphraseReset,
 	privacyPolicy,
 	signup,
+	summarize,
 	upload,
 }

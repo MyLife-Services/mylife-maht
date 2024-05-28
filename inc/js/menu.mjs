@@ -8,8 +8,10 @@ class Menu {
 	}
 	#setMenu(_Agent){
 		return [
-			{ display: `meet ${ _Agent.agentName }`, route: '/', icon: 'home' },
+//			{ display: `home`, route: '/', icon: 'home' },
 			{ display: `about`, route: '/about', icon: 'about' },
+			{ display: `walkthrough`, route: 'https://medium.com/@ewbj/mylife-we-save-your-life-480a80956a24', icon: 'gear' },
+			{ display: `donate`, route: 'https://gofund.me/65013d6e', icon: 'donate' },
 //			{ display: `membership`, route: '/members', icon: 'membership' },
 //			{ display: `register`, route: '/register', icon: 'register' },
 		]

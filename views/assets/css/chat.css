@@ -9,6 +9,7 @@
     color: #dcb6ff; /* White text for better readability */
 }
 .await-button {
+	align-self: center;
 	background-color: #007BFF;
 	border: aliceblue solid thin;
 	border-radius: 0.3em;
@@ -69,9 +70,8 @@
 	max-height: 60%;
 	width: 100%;
 }
-.chat-member textarea,
-.chat-user textarea {
-    background-color: #ffffff; /* White background color */
+.chat-input {
+	background-color: #ffffff; /* White background color */
     border: 1px solid #ccc; /* Border color */
     border-radius: 12px; /* Rounded corners */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
@@ -80,7 +80,10 @@
     font-size: 1em; /* Adjust font size */
     line-height: 1.25; /* Adjust line height for better readability */
     margin: 0 1em; /* Margin for space outside the container */
-    overflow: hidden; /* Hides the scrollbar */
+	min-height: 2rem;
+	max-height: 50vh;
+    overflow-x: hidden;
+	overflow-y: auto; /* Allows vertical scrolling */
     padding: 0.3em; /* Padding for space inside the container */
     resize: none; /* Allows vertical resizing, none to disable */
 }
@@ -95,6 +98,7 @@
 	cursor: pointer; /* Pointer cursor on hover */
 	z-index: 2; /* Ensure it's above other content */
 }
+/* chat-submit button; requires special treament to overwrite button class for now */
 button.chat-submit { /* need specificity to overwrite button class */
 	flex: 0 0 auto;
 	color: rgba(65, 84, 104, 0.85);
@@ -121,28 +125,33 @@ button.chat-submit:disabled {
 	height: 100%;
 	justify-content: flex-start;
 	margin-top: 0.8em;
+	min-height: 30vh;
 	overflow-x: hidden;
     overflow-y: scroll;
 	width: 100%;
 }
 /* Styles the scrollbar itself */
-.chat-system::-webkit-scrollbar {
+.chat-system::-webkit-scrollbar,
+.chat-input::-webkit-scrollbar {
     width: 6px; /* Adjust the width of the scrollbar */
 }
 /* Styles the track of the scrollbar */
-.chat-system::-webkit-scrollbar-track {
+.chat-system::-webkit-scrollbar-track,
+.chat-input::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.1); /* Color of the track */
     border-radius: 10px; /* Optional: adds rounded corners to the track */
 }
 /* Styles the handle (thumb) of the scrollbar */
-.chat-system::-webkit-scrollbar-thumb {
+.chat-system::-webkit-scrollbar-thumb,
+.chat-input::-webkit-scrollbar-thumb {
     background: rgba(232, 226, 183, .5); /* Color of the thumb */
     border-radius: 10px; /* Optional: adds rounded corners to the thumb */
 }
 /* Changes the color of the thumb when hovered over or clicked */
-.chat-system::-webkit-scrollbar-thumb:hover {
+.chat-system::-webkit-scrollbar-thumb:hover,
+.chat-input::-webkit-scrollbar-thumb:active {
     background: rgba(214, 198, 75, 0.5); /* Darker shade on hover */
-}
+}	
 .help-bubble {
 	animation: slideInFromBottom 0.5s ease-out;
 }
