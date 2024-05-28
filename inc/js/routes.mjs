@@ -9,19 +9,19 @@ import {
     challenge,
     chat,
     collections,
-    contributions,
     createBot,
     deleteItem,
+    greetings,
     help,
     index,
     interfaceMode,
-    login,
     logout,
     loginSelect,
     members,
     passphraseReset,
     privacyPolicy,
     signup,
+    summarize,
     upload,
 } from './functions.mjs'
 import {
@@ -35,7 +35,6 @@ import {
     experiencesLived,
     keyValidation,
     library,
-    login as apiLogin,
     logout as apiLogout,
     register,
     story,
@@ -50,9 +49,9 @@ const _apiRouter = new Router()
 _Router.get('/', index)
 _Router.get('/about', about)
 _Router.get('/alerts', alerts)
-_Router.get('/login/:mid', login)
 _Router.get('/logout', logout)
 _Router.get('/experiences', availableExperiences)
+_Router.get('/greeting', greetings)
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
@@ -67,7 +66,6 @@ _apiRouter.get('/alerts', alerts)
 _apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.get('/experiences/:mid', experiences) // **note**: currently triggers autoplay experience
 _apiRouter.get('/experiencesLived/:mid', experiencesLived)
-_apiRouter.get('/login/:mid', apiLogin)
 _apiRouter.get('/logout', apiLogout)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.patch('/experiences/:mid/experience/:eid/cast', experienceCast)
@@ -91,10 +89,9 @@ _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)
-_memberRouter.get('/contributions', contributions)
-_memberRouter.get('/contributions/:cid', contributions)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
+_memberRouter.get('/greeting', greetings)
 _memberRouter.get('/mode', interfaceMode)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)
@@ -104,9 +101,9 @@ _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/create', createBot)
 _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
-_memberRouter.post('contributions/:cid', contributions)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
+_memberRouter.post('/summarize', summarize)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 // Mount the subordinate routers along respective paths
@@ -122,21 +119,14 @@ function connectRoutes(_Menu){
 	return _Router
 }
 /**
- * Validates member session is locked
+ * Ensure member session is unlocked or return to select.
  * @param {object} ctx Koa context object
  * @param {function} next Koa next function
  * @returns {function} Koa next function
  */
 async function memberValidation(ctx, next) {
-    // validation logic
-    if(ctx.state.locked){
-        ctx.redirect(
-            ( ctx.params?.mid?.length??false)
-            ?   `/login/${encodeURIComponent(ctx.params.mid)}`
-            :   '/select'
-        ) // Redirect to /members if not authorized
-        return
-    }
+    if(ctx.state.locked)
+        ctx.redirect(`/?type=select`) // Redirect to /members if not authorized
     await next() // Proceed to the next middleware if authorized
 }
 /**

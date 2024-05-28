@@ -24,8 +24,7 @@ const mainContent = mGlobals.mainContent,
 let mAutoplay=false,
     mChatBubbleCount = 0,
     mExperience,
-    mMemberId,
-    typingTimer
+    mMemberId
 /* page div variables */
 let activeCategory,
     awaitButton,
@@ -47,9 +46,9 @@ document.addEventListener('DOMContentLoaded', async event=>{
     botBar = document.getElementById('bot-bar')
     chatContainer = document.getElementById('chat-container')
     chatInput = document.getElementById('chat-member')
-    chatInputField = document.getElementById('member-input')
+    chatInputField = document.getElementById('chat-member-input')
     chatRefresh = document.getElementById('chat-refresh')
-    memberSubmit = document.getElementById('submit-button')
+    memberSubmit = document.getElementById('chat-member-submit')
     sceneContinue = document.getElementById('experience-continue')
     spinner = document.getElementById('agent-spinner')
     transport = document.getElementById('experience-transport')
@@ -65,28 +64,23 @@ document.addEventListener('DOMContentLoaded', async event=>{
 })
 /* public functions */
 /**
- * Pushes content to the chat column.
+ * Pushes message content to the chat column.
  * @public
  * @param {string} message - The message object to add to column.
- * @param {object} options - The options object.
+ * @param {object} options - The options object { bubbleClass, typeDelay, typewrite }.
+ * @returns {void}
  */
-function addMessageToColumn(message, options={
-	bubbleClass: 'agent-bubble',
-	_delay: 10,
-	_typewrite: true,
-}){
-    const messageContent = message.message ?? message
-	const {
-		bubbleClass,
-		_delay,
-		_typewrite,
-	} = options
-	const chatBubble = document.createElement('div')
-    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
-	chatBubble.classList.add('chat-bubble', bubbleClass)
-    chatBubble.innerHTML = messageContent
-    mChatBubbleCount++
-	systemChat.appendChild(chatBubble)
+function addMessage(message, options={}){
+    mAddMessage(message, options)
+}
+/**
+ * Pushes an array of messages to the chat column.
+ * @param {Array} messages - The array of string messages to add to the chat column.
+ * @param {object} options - The options object { bubbleClass, typeDelay, typewrite }.
+ * @returns {void}
+ */
+function addMessages(messages, options={}){
+    messages.forEach(message=>mAddMessage(message, options))
 }
 /**
  * Removes and attaches all payload elements to element.
@@ -120,8 +114,31 @@ function availableExperiences(){
 function clearSystemChat(){
     mGlobals.clearElement(systemChat)
 }
+/**
+ * Called from setActiveBot, triggers any main interface changes as a result of new selection.
+ * @public
+ * @param {object} activeBot - The active bot.
+ * @returns {void}
+ */
+function decorateActiveBot(activeBot=activeBot()){
+    const { bot_name, id, purpose, type, } = activeBot
+    chatInputField.placeholder = `type your message to ${ bot_name }...`
+    // additional func? clear chat?
+}
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
+}
+/**
+ * Fetches the summary via PA for a specified file.
+ * @param {string} fileId - The file ID.
+ * @param {string} fileName - The file name.
+ * @returns {Promise<object>} - The return is the summary object.
+ */
+async function fetchSummary(fileId, fileName){
+    /* validate request */
+    if(!fileId?.length && !fileName?.length)
+        throw new Error('fetchSummary::Error()::`fileId` or `fileName` is required')
+    return await mFetchSummary(fileId, fileName)
 }
 function getInputValue(){
     return chatInputField.value.trim()
@@ -277,7 +294,7 @@ function stageTransition(endExperience=false){
     else {
         mStageTransitionMember()
         if(endExperience)
-            updatePageBots(true)
+            updatePageBots(undefined, true, false)
     }
 }
 /**
@@ -309,7 +326,7 @@ function waitForUserAction(){
  * @param {Event} event - The event object.
  * @returns {Promise<void>}
  */
-async function mAddMemberDialog(event){
+async function mAddMemberMessage(event){
     event.stopPropagation()
 	event.preventDefault()
     let memberMessage = chatInputField.value.trim()
@@ -317,17 +334,58 @@ async function mAddMemberDialog(event){
         return
     /* prepare request */
     toggleMemberInput(false) /* hide */
-    addMessageToColumn({ message: memberMessage }, {
+    mAddMessage(memberMessage, {
         bubbleClass: 'user-bubble',
-        _delay: 7,
+        role: 'member',
+        typeDelay: 7,
     })
     /* server request */
     const responses = await submit(memberMessage, false)
     /* process responses */
-	responses.forEach(response => {
-		addMessageToColumn({ message: response.message })
-	})
+	responses
+        .forEach(response => {
+            mAddMessage(response?.message, {
+                bubbleClass: 'agent-bubble',
+                role: 'agent',
+                typeDelay: 1,
+            })
+        })
     toggleMemberInput(true)/* show */
+}
+/**
+ * Adds specified string message to interface.
+ * @param {object|string} message - The message to add to the chat; if object, reduces to `.message` or fails.
+ * @param {object} options - The options object { bubbleClass, role, typeDelay, typewrite }.
+ * @returns {void}
+ */
+async function mAddMessage(message, options={}){
+    if(typeof message==='object'){
+        if(message?.message){ // otherwise error throws for not string (i.e., Array or classed object)
+            options.role = message?.role // overwrite if exists
+                ?? options?.role
+                ?? 'agent'
+            message = message.message
+        }
+    }
+    if(typeof message!=='string' || !message.length)
+        throw new Error('mAddMessage::Error()::`message` string is required')
+    const {
+		bubbleClass,
+        role='agent',
+		typeDelay=2,
+		typewrite=true,
+	} = options
+	const chatBubble = document.createElement('div')
+    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
+	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
+    mChatBubbleCount++
+	systemChat.appendChild(chatBubble)
+	if(typewrite)
+        mTypeMessage(chatBubble, message, typeDelay)
+	else {
+		chatBubble.insertAdjacentHTML('beforeend', message)
+        mScrollBottom()
+	}
 }
 function bot(_id){
     return mPageBots.find(bot => bot.id === _id)
@@ -350,6 +408,31 @@ function mFetchExperiences(){
             return response.json()
         })
         .catch(error=>console.log('mFetchExperiences::Error()', error))
+}
+/**
+ * Fetches the summary via PA for a specified file.
+ * @private
+ * @param {string} fileId - The file ID.
+ * @param {string} fileName - The file name.
+ * @returns {Promise<object>} - The return is the summary object.
+ */
+async function mFetchSummary(fileId, fileName){
+    const url = '/members/summarize'
+    const data = {
+        fileId,
+        fileName,
+    }
+    let response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    response = await response.json()
+    return response
 }
 function getActiveCategory(){
 	return activeCategory
@@ -402,7 +485,7 @@ function mInitializePageListeners(){
     })
     /* page listeners */
     chatInputField.addEventListener('input', toggleInputTextarea)
-    memberSubmit.addEventListener('click', mAddMemberDialog) /* note default listener */
+    memberSubmit.addEventListener('click', mAddMemberMessage) /* note default listener */
     chatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
@@ -437,7 +520,7 @@ function mResetAnimation(element){
  */
 function sceneTransition(type='interface'){
     /* assign listeners */
-    memberSubmit.removeEventListener('click', mAddMemberDialog)
+    memberSubmit.removeEventListener('click', mAddMemberMessage)
     memberSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
     hide(navigation)
@@ -457,13 +540,20 @@ function sceneTransition(type='interface'){
     showMemberChat()
 }
 /**
+ * Scrolls overflow of system chat to bottom.
+ * @returns {void}
+ */
+function mScrollBottom(){
+    systemChat.scrollTop = systemChat.scrollHeight
+}
+/**
  * Transitions the stage to active member version.
  * @param {boolean} includeSidebar - The include-sidebar flag.
  * @returns {void}
  */
 function mStageTransitionMember(includeSidebar=true){
     memberSubmit.removeEventListener('click', submitInput)
-    memberSubmit.addEventListener('click', mAddMemberDialog)
+    memberSubmit.addEventListener('click', mAddMemberMessage)
     hide(transport)
     hide(screen)
     document.querySelectorAll('.mylife-widget')
@@ -527,13 +617,17 @@ async function submitChat(url, options) {
  * Toggles the member input between input and server `waiting`.
  * @public
  * @param {boolean} display - Whether to show/hide (T/F), default `true`.
+ * @param {boolean} hidden - Whether to force-hide (T/F), default `false`. **Note**: used in `experience.mjs`
  * @returns {void}
  */
 function toggleMemberInput(display=true, hidden=false){
     if(display){
+        const { bot_name, id, mbr_id, provider, purpose, type, } = activeBot()
         hide(awaitButton)
         awaitButton.classList.remove('slide-up')
         chatInput.classList.add('slide-up')
+        chatInputField.style.height = 'auto'
+        chatInputField.placeholder = `type your message to ${ bot_name }...`
         chatInputField.value = null
         show(chatInput)
     } else {
@@ -541,6 +635,7 @@ function toggleMemberInput(display=true, hidden=false){
         chatInput.classList.remove('fade-in')
         chatInput.classList.remove('slide-up')
         awaitButton.classList.add('slide-up')
+        awaitButton.innerHTML = `Connecting with ${ activeBot().bot_name }...`
         show(awaitButton)
     }
     if(hidden)
@@ -563,25 +658,35 @@ function toggleSubmitButtonState() {
  * Typewrites a message to a chat bubble.
  * @param {HTMLDivElement} chatBubble - The chat bubble element.
  * @param {string} message - The message to type.
- * @param {number} delay - The delay between iterations.
- * @param {number} i - The iteration number.
+ * @param {number} typeDelay - The delay between typing each character.
+ * @returns {void}
  */
-function mTypewriteMessage(chatBubble, message, delay=10, i=0){
-    if(i<message.length){
-        chatBubble.innerHTML += message.charAt(i)
-        i++
-        setTimeout(()=>mTypewriteMessage(chatBubble, message, delay, i), delay)
-    } else {
-        chatBubble.setAttribute('status', 'done')
+function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
+    let i = 0
+    let tempMessage = ''
+    function _typewrite() {
+        if(i <= message.length ?? 0){
+            tempMessage += message.charAt(i)
+            chatBubble.innerHTML = ''
+            chatBubble.insertAdjacentHTML('beforeend', tempMessage)
+            i++
+            setTimeout(_typewrite, typeDelay) // Adjust the typing speed here (50ms)
+        } else
+            chatBubble.setAttribute('status', 'done')
+        mScrollBottom()
     }
+    _typewrite()
 }
 /* exports */
 export {
-    addMessageToColumn,
+    addMessage,
+    addMessages,
     assignElements,
     availableExperiences,
     clearSystemChat,
+    decorateActiveBot,
     escapeHtml,
+    fetchSummary,
     getInputValue,
     getSystemChat,
     hide,

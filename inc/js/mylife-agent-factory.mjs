@@ -81,14 +81,14 @@ class BotFactory extends EventEmitter{
 	#dataservices
 	#llmServices = mLLMServices
 	#mbr_id
-	constructor(_mbr_id, _directHydration=true){
+	constructor(mbr_id, directHydration=true){
 		super()
-		this.#mbr_id = _mbr_id
-		if(mIsMyLife(_mbr_id) && _directHydration)
+		this.#mbr_id = mbr_id
+		if(mIsMyLife(mbr_id) && directHydration)
 			throw new Error('MyLife server cannot be accessed as a BotFactory alone')
 		else if(mIsMyLife(this.mbr_id))
 			this.#dataservices = mDataservices
-		else if(_directHydration)
+		else if(directHydration)
 			console.log(chalk.blueBright('BotFactory class instance for hydration request'), chalk.bgRed(this.mbr_id))
 	}
 	/* public functions */
@@ -284,10 +284,15 @@ class BotFactory extends EventEmitter{
 					const stories = ( await this.stories(updatedLibrary.form) )
 						.filter(story=>!this.globals.isValidGuid(story?.library_id))
 						.map(story=>{
-							story.id = story.id ?? this.newGuid
-							story.author = story.author ?? this.mbr_name
-							story.title = story.title ?? story.id
-							return mInflateLibraryItem(story, updatedLibrary.id, this.mbr_id)
+							const { mbr_name, newGuid } = this
+							const { author=mbr_name, id=newGuid, title=mbr_name, } = story
+							story = {
+								...story,
+								author,
+								id,
+								title,
+							}
+							return mInflateLibraryItem(story, updatedLibrary.id, mbr_id)
 						})
 					updatedLibrary.items = [
 						...updatedLibrary.items,
@@ -414,9 +419,11 @@ class BotFactory extends EventEmitter{
 		return mSystemActor
 	}
 }
-class AgentFactory extends BotFactory{
+class AgentFactory extends BotFactory {
 	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#llmServices = mLLMServices
+	#mylifeRegistrationData // @stub - move to unique MyLife factory
+	#tempRegistrationData // @stub - move to unique MyLife factory
 	constructor(mbr_id){
 		super(mbr_id, false)
 	}
@@ -451,32 +458,103 @@ class AgentFactory extends BotFactory{
 	}
 	/**
 	 * Accesses MyLife Dataservices to challenge access to a member's account.
-	 * @param {string} _mbr_id 
-	 * @param {string} _passphrase 
+	 * @param {string} mbr_id 
+	 * @param {string} passphrase 
 	 * @returns {object} - Returns passphrase document if access is granted.
 	 */
-	async challengeAccess(_mbr_id, _passphrase){
-		return await mDataservices.challengeAccess(_mbr_id, _passphrase)
+	async challengeAccess(mbr_id, passphrase){
+		return await mDataservices.challengeAccess(mbr_id, passphrase)
 	}
-	async datacore(_mbr_id){
+	confirmRegistration(){
+		if(!this.isMyLife)
+			throw new Error('MyLife server required for this function')
+		if(!this.registrationData)
+			return false
+		this.#mylifeRegistrationData = this.#tempRegistrationData
+		this.#tempRegistrationData = null
+		return true
+	}
+	/**
+	 * Set MyLife core account basics. { birthdate, passphrase, }
+	 * @todo - move to mylife agent factory
+	 * @param {string} birthdate - The birthdate of the member.
+	 * @param {string} passphrase - The passphrase of the member.
+	 * @returns {boolean} - `true` if successful
+	 */
+	async createAccount(birthdate, passphrase){
+		let success = false
+		try{
+			if(!this.isMyLife) // @stub
+				throw new Error('MyLife server required for this request')
+			if(!birthdate?.length || !passphrase?.length)
+				throw new Error('birthdate _**and**_ passphrase required')
+			const { avatarNickname, email, humanName, id, interests, } = this.#mylifeRegistrationData
+			let { updates='', } = this.#mylifeRegistrationData
+			if(!id)
+				throw new Error('registration not confirmed, cannot accept request')
+			if(!humanName)
+				throw new Error('member personal name required to create account')
+			birthdate = new Date(birthdate).toISOString()
+			if(!birthdate?.length)
+				throw new Error('birthdate format could not be parsed')
+			const birth = [{ // current 20240523 format
+				date: birthdate,
+			}]
+			const mbr_id = this.globals.createMbr_id(avatarNickname ?? humanName, id)
+			if(await this.testPartitionKey(mbr_id))
+				throw new Error('mbr_id already exists')
+			const names = [humanName] // currently array of flat strings
+			updates = (updates.length ? ' ' : '')
+				+ `${ humanName } has just joined MyLife on ${ new Date().toDateString() }!`
+			const validation = ['registration',] // list of passed validation routines
+			const core = {
+				birth,
+				email,
+				id,
+				interests,
+				mbr_id,
+				names,
+				passphrase,
+				updates,
+				validation,
+			}
+			const save = await this.dataservices.addCore(core)
+			this.#mylifeRegistrationData = null
+			this.#tempRegistrationData = null
+			success = save.success
+			console.log(chalk.blueBright('createAccount()'), save)
+		} catch(error){ console.log(chalk.blueBright('createAccount()::error'), chalk.bgRed(error)) }
+		return success
+	}
+	async datacore(mbr_id){
 		const _core = await mDataservices.getItems(
 			'core',
 			undefined,
 			undefined,
 			undefined,
-			_mbr_id,
+			mbr_id,
 		)
 		return _core?.[0]??{}
 	}
 	async entry(entry){
-		if(!entry.summary?.length)
+		const {
+			assistantType='journaler',
+			being='entry',
+			form='journal',
+			keywords=[],
+			summary,
+			thread_id,
+			title='New Journal Entry',
+		} = entry
+		if(!summary?.length)
 			throw new Error('entry summary required')
 		const { mbr_id, newGuid: id, } = this
-		const { assistantType='journaler', being='entry', form='journal', keywords=['journal entry'], summary, title='New Journal Entry', } = entry
-		let { name, } = entry
-		name = name
-			?? title
-			?? `entry_${ mbr_id }_${ id }`
+		const name = `entry_${ title.substring(0,64) }_${ mbr_id }_${ id }`
+		/* assign default keywords */
+		if(!keywords.includes('memory'))
+			keywords.push('memory')
+		if(!keywords.includes('biographer'))
+			keywords.push('biographer')
 		const completeEntry = {
 			...entry,
 			...{
@@ -488,6 +566,7 @@ class AgentFactory extends BotFactory{
 			mbr_id,
 			name,
 			summary,
+			thread_id,
 			title,
 		}}
 		return await this.dataservices.entry(completeEntry)
@@ -615,35 +694,70 @@ class AgentFactory extends BotFactory{
 	 * @returns {object} - The story document from Cosmos.
 	 */
 	async story(story){
-		if(!story.summary?.length)
+		const { 
+			assistantType='biographer-bot',
+			being='story',
+			form='biographer',
+			keywords=[],
+			phaseOfLife='unknown',
+			summary,
+			thread_id,
+			title='New Memory Entry',
+		} = story
+		if(!summary?.length)
 			throw new Error('story summary required')
-		const id = this.newGuid
-		const title = story.title ?? 'New Memory Entry'
-		const finalStory = {
+		const { mbr_id, newGuid: id, } = this
+		const name = `story_${ title.substring(0,64) }_${ mbr_id }_${ id }`
+		/* assign default keywords */
+		if(!keywords.includes('memory'))
+			keywords.push('memory')
+		if(!keywords.includes('biographer'))
+			keywords.push('biographer')
+		const validatedStory = {
 			...story,
 			...{
-			assistantType: story.assistantType ?? 'biographer-bot',
-			being: story.being ?? 'story',
-			form: story.form ?? 'biographer',
-			id,
-			keywords: story.keywords ?? ['memory', 'biographer', 'entry'],
-			mbr_id: this.mbr_id,
-			name: story.name ?? title ?? `story_${ this.mbr_id }_${ id }`,
-			phaseOfLife: story.phaseOfLife ?? 'unknown',
-			summary: story.summary,
-			title,
-		}}
-		return await this.dataservices.story(finalStory)
+				assistantType,
+				being,
+				form,
+				id,
+				keywords,
+				mbr_id,
+				name,
+				phaseOfLife,
+				summary,
+				thread_id,
+				title,
+			}}
+		return await this.dataservices.story(validatedStory)
 	}
 	/**
 	 * Tests partition key for member
 	 * @public
-	 * @param {string} _mbr_id member id
-	 * @returns {boolean} returns true if partition key is valid
+	 * @param {string} mbr_id member id
+	 * @returns {boolean}  - `true` if partition key is active, `false` otherwise.
 	 */
-	async testPartitionKey(_mbr_id){
-		if(!this.isMyLife) return false
-		return await mDataservices.testPartitionKey(_mbr_id)
+	async testPartitionKey(mbr_id){
+		if(!this.isMyLife)
+			return false
+		return await mDataservices.testPartitionKey(mbr_id)
+	}
+    /**
+     * Validate registration id.
+     * @param {Guid} validationId - The registration id.
+     * @returns {Promise<object>} - Registration data from system datacore.
+     */
+	async validateRegistration(registrationId){
+		let registration,
+			success = false
+		try{
+			registration = await this.dataservices.validateRegistration(registrationId)
+			success = registration.id?.length
+			console.log(chalk.blueBright('validateRegistration()'), success)
+		} catch(error){
+			registration = null
+			console.log(chalk.blueBright('validateRegistration()::error'), chalk.bgRed(error))
+		}
+		return registration
 	}
 	//	getters/setters
 	get alerts(){ // currently only returns system alerts
@@ -678,6 +792,35 @@ class AgentFactory extends BotFactory{
 	get organization(){
 		return this.schemas.Organization
 	}
+	/**
+	 * Gets registration data while user attempting to confirm. If temp data exists, it takes primacy, otherwise hardened `#mylifeRegistrationData` is returned.
+	 * @returns {object} - Registration data in memory.
+	 */
+	get registrationData(){
+		return this.#tempRegistrationData
+			?? this.#mylifeRegistrationData
+	}
+	/**
+	 * Sets registration data while user attempting to confirm.
+	 * @todo - move to mylife agent factory
+	 * @param {object} registrationData - Registration data.
+	 * @returns {void}
+	 */
+	set registrationData(registrationData){
+		if(!this.isMyLife)
+			throw new Error('MyLife factory required to store registration data')
+		if(!registrationData)
+			throw new Error('registration data required')
+		if(!this.#tempRegistrationData){
+			const { id, } = registrationData
+			if(!id?.length)
+				throw new Error('registration id required')
+			this.#tempRegistrationData = registrationData
+			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
+				this.#tempRegistrationData = null
+			}, 300000)
+		}
+	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
 	}
@@ -699,6 +842,47 @@ class AgentFactory extends BotFactory{
 			throw new Error('vectorstoreId required')
 		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
 		this.core.vectorstoreId = vectorstoreId /* update local */
+	}
+}
+// @stub - MyLife factory class
+class MyLifeFactory extends AgentFactory {
+	#dataservices = mDataservices
+	#llmServices = mLLMServices
+	#mylifeRegistrationData
+	#tempRegistrationData
+	constructor(){
+		super(mPartitionId)
+	}
+	// no init() for MyLife server
+	/* public functions */
+	/**
+	 * Returns Array of hosted members based on validation requirements.
+	 * @param {Array} validations - Array of validation strings to filter membership.
+	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
+	 */
+	async hostedMembers(validations){
+		return await this.#dataservices.hostedMembers(validations)
+	}
+	/* getters/setters */
+	/**
+	 * Gets registration data while user attempting to confirm.
+	 * @returns {object} - Registration data in memory.
+	 */
+	get registrationData(){
+		return this.#mylifeRegistrationData
+	}
+	/**
+	 * Sets registration data while user attempting to confirm. Persists for 5 minutes, and cannot be reset for session until expiration.
+	 * @param {object} registrationData - Registration data.
+	 * @returns {void}
+	 */
+	set registrationData(registrationData){
+		if(!this.#mylifeRegistrationData){
+			this.#mylifeRegistrationData = registrationData
+			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
+				this.#mylifeRegistrationData = null
+			}, 300000)
+		}
 	}
 }
 // private module functions
@@ -768,7 +952,6 @@ function mAvatarProperties(_core){
 		"being",
 		"bots",
 		"command_word",
-		"contributions",
 		"conversations",
 		"id",
 		"mbr_id",
@@ -1418,7 +1601,7 @@ function mSanitizeSchemaValue(_value) {
 /* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance
 const _MyLife = await new MyLife(
-	new AgentFactory(mPartitionId)
+	new MyLifeFactory()
 )
 	.init()
 /* exports */

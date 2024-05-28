@@ -1,0 +1,17 @@
+{
+    "name": "confirmRegistration",
+    "description": "Confirm registration email provided by user",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "email": {
+                "description": "Email address provided by user",
+                "format": "email",
+                "type": "string"
+            }
+        },
+        "required": [
+            "email"
+        ]
+    }
+}

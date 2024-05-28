@@ -17,7 +17,6 @@ const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
  */
 class Avatar extends EventEmitter {
     #activeBotId // id of active bot in this.#bots; empty or undefined, then this
-    #activeChatCategory = mGetChatCategory()
     #assetAgent
     #bots = []
     #conversations = []
@@ -90,11 +89,13 @@ class Avatar extends EventEmitter {
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
             /* conversations */
-            this.#bots.forEach(async bot=>{
-                const { thread_id, } = bot
-                if(thread_id)
-                    this.#conversations.push(await this.createConversation('chat', thread_id))
-            })
+            await Promise.all(
+                this.#bots.map(async bot=>{ 
+                    const { thread_id } = bot
+                    if(thread_id && !this.getConversation(thread_id))
+                        this.#conversations.push(await this.createConversation('chat', thread_id))
+                })
+            )
             /* experience variables */
             this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
             /* lived-experiences */
@@ -138,6 +139,8 @@ class Avatar extends EventEmitter {
         if(this.isMyLife){ /* MyLife chat request hasn't supplied basics to front-end yet */
             activeBotId = this.activeBot.id
             threadId = this.activeBot.thread_id
+            if(this.#factory.registrationData) // trigger confirmation until session (or vld) ends
+                chatMessage = `CONFIRM REGISTRATION: ${ chatMessage }`
         }
         if(!chatMessage)
             throw new Error('No message provided in context')
@@ -150,7 +153,6 @@ class Avatar extends EventEmitter {
         if(botThreadId!==threadId)
             throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
         let conversation = this.getConversation(threadId)
-        console.log('chatRequest()', threadId, activeBotId, botThreadId, this.bots)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
@@ -159,7 +161,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('chatRequest::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
@@ -235,7 +237,7 @@ class Avatar extends EventEmitter {
      */
     async createConversation(type='chat', threadId){
         const thread = await this.#llmServices.thread(threadId)
-        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type: type }, this.#factory, thread, this.activeBotId) // guid only
+        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, this.activeBotId) // guid only
         this.#conversations.push(conversation)
         return conversation
     }
@@ -352,8 +354,7 @@ class Avatar extends EventEmitter {
      */
     getConversation(threadId){
         const conversation = this.#conversations
-            .find(conversation=>conversation.thread?.id ?? conversation.thread_id===threadId)
-        console.log('getConversation()', conversation.thread, conversation.thread_id, threadId, conversation.inspect(true))
+            .find(conversation=>conversation.thread?.id===threadId)
         return conversation
     }
     /**
@@ -364,6 +365,14 @@ class Avatar extends EventEmitter {
     getConversations(type='chat'){
         return this.#conversations
             .filter(_=>_?.type===type)
+    }
+    /**
+     * Get a static or dynamic greeting from active bot.
+     * @param {boolean} dynamic - Whether to use LLM for greeting.
+     * @returns {array} - The greeting message(s) string array in order of display.
+     */
+    async getGreeting(dynamic=false){
+        return await mGreeting(this.activeBot, dynamic, this.#llmServices, this.#factory)
     }
     /**
      * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
@@ -424,7 +433,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('helpRequest::BYPASS-SAVE', conversation.message.content)
         const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
         return response
     }
@@ -439,19 +448,6 @@ class Avatar extends EventEmitter {
         if(!passphrase?.length)
             throw new Error('Passphrase required for reset.')
         return await this.#factory.resetPassphrase(passphrase)
-    }
-    /**
-     * Processes and executes incoming category set request.
-     * @todo - deprecate if possible.
-     * @public
-     * @param {string} _category - The category to set { category, contributionId, question }.
-     */
-    setActiveCategory(_category){
-        const _proposedCategory = mGetChatCategory(_category)
-        /* evolve contribution */
-        if(_proposedCategory?.category){ // no category, no contribution
-            this.#evolver.setContribution(this.#activeChatCategory, _proposedCategory)
-        }
     }
     /**
      * Add or update bot, and identifies as activated, unless otherwise specified.
@@ -477,6 +473,34 @@ class Avatar extends EventEmitter {
             await this.createConversation()
         }
         return this.#conversations[0].threadId
+    }
+    async summarize(fileId, fileName, processStartTime=Date.now()){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot summarize files.')
+        if(!fileId?.length && !fileName?.length)
+            throw new Error('File id or name required for summarization.')
+        const { bot_id: botId, thread_id, } = this.personalAssistant
+        const prompt = `Summarize this file document: name=${ fileName }, id=${ fileId }`
+        const response = {
+            messages: [],
+            success: false,
+        }
+        try{
+            let messages = await mCallLLM(this.#llmServices, { botId, thread_id, }, prompt, this.#factory)
+            messages = messages
+                .map(message=>mPruneMessage(this.personalAssistant, message, 'mylife-file-summary', processStartTime))
+                .filter(message=>message && message.role!=='user')
+            if(!messages.length)
+                throw new Error('No valid messages returned from summarization.')
+            response.messages.push(...messages)
+            response.success = true
+        } catch(error) {
+            response.messages.push({ content: `Unfortunately, a server error occured: ${error.message}`, role: 'system', })
+            response.messages.push({ content: 'Please indicate in a help chat what went wrong. Or one might ask... why can\'t I do that, and I don\'t have a great answer at the moment.', role: 'system', })
+            response.error = error
+            console.log('ERROR::Avatar::summarize()', error)
+        }
+        return response
     }
     /**
      * Upload files to MyLife and/or LLM.
@@ -535,6 +559,20 @@ class Avatar extends EventEmitter {
         if(tools)
             this.#llmServices.updateAssistant(botId, tools) /* no await */
     }
+    /**
+     * Validate registration id.
+     * @todo - move to MyLife only avatar variant.
+     * @param {Guid} validationId - The registration id.
+     * @returns {Promise<Object[]>} - Array of system messages.
+     */
+    async validateRegistration(validationId){
+        const { messages, registrationData, success, } = await mValidateRegistration(this.activeBot, this.#factory, validationId)
+        if(success){
+            // @stub - move to MyLife only avatar variant, where below are private vars
+            this.#factory.registrationData = registrationData
+        }
+        return messages
+    }
     /* getters/setters */
     /**
      * Get the active bot. If no active bot, return this as default chat engine.
@@ -562,7 +600,8 @@ class Avatar extends EventEmitter {
      * @returns {void}
      */
     set activeBotId(_bot_id){ // default PA
-        if(!_bot_id?.length) _bot_id = this.avatarBot.id
+        if(!_bot_id?.length)
+            _bot_id = this.avatarBot.id
         this.#activeBotId = mFindBot(this, _bot_id)?.id??this.avatarBot.id
     }
     /**
@@ -656,45 +695,12 @@ class Avatar extends EventEmitter {
         return this.experience.castMembers
     }
     /**
-     * Get the active chat category.
-     * @getter
-     * @returns {string} - The active chat category.
-     */
-    get category(){
-        return this.#activeChatCategory
-    }
-    /**
-     * Set the active chat category.
-     * @setter
-     * @param {string} _category - The new active chat category.
-     * @returns {void}
-     */
-    set category(_category){
-        this.#activeChatCategory = _category
-    }
-    /**
      * Get the cast.
      * @getter
      * @returns {array} - The cast.
      */
     get cast(){
         return this.experience.cast
-    }
-    /**
-     * Get contributions.
-     * @getter
-     * @returns {array} - The contributions.
-     */
-    get contributions(){
-        return this.#evolver?.contributions
-    }
-    /**
-     * Set incoming contribution.
-     * @setter
-     * @param {object} _contribution
-    */
-    set contribution(_contribution){
-        this.#evolver.contribution = _contribution
     }
     /**
      * Get uninstantiated class definition for conversation. If getting a specific conversation, use .conversation(id).
@@ -946,6 +952,9 @@ class Avatar extends EventEmitter {
         if(nickname!==this.name)
             this.#nickname = nickname
     }
+    get personalAssistant(){
+        return this.avatarBot
+    }
 }
 /* module functions */
 /**
@@ -958,38 +967,6 @@ class Avatar extends EventEmitter {
  */
 function mAssignEvolverListeners(factory, evolver, avatar){
     /* assign evolver listeners */
-    evolver.on(
-        'on-contribution-new',
-        _contribution=>{
-            _contribution.emit('on-contribution-new', _contribution)
-        }
-    )
-    evolver.on(
-        'avatar-change-category',
-        (_current, _proposed)=>{
-            avatar.category = _proposed
-            console.log('avatar-change-category', avatar.category.category)
-        }
-    )
-    evolver.on(
-        'on-contribution-submitted',
-        _contribution=>{
-            // send to gpt for summary
-            const _responses = _contribution.responses.join('\n')
-            const _summary = factory.openai.completions.create({
-                model: 'gpt-4o',
-                prompt: 'summarize answers in 512 chars or less, if unsummarizable, return "NONE": ' + _responses,
-                temperature: 1,
-                max_tokens: 700,
-                frequency_penalty: 0.87,
-                presence_penalty: 0.54,
-            })
-            // evaluate summary
-            console.log('on-contribution-submitted', _summary)
-            return
-            //  if summary is good, submit to cosmos
-        }
-    )
 }
 /**
  * Assigns (directly mutates) private experience variables from avatar.
@@ -1043,6 +1020,7 @@ async function mBot(factory, avatar, bot){
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
                 assistant.thread_id = conversation.thread_id
+                avatar.conversations.push(conversation)
             }
         }
         factory.setBot(assistant) // update Cosmos (no need async)
@@ -1064,12 +1042,10 @@ async function mBot(factory, avatar, bot){
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
  */
 async function mCallLLM(llmServices, conversation, prompt, factory){
-    const { thread_id: threadId } = conversation
-    if(!threadId)
-        throw new Error('No `thread_id` found for conversation')
-    if(!conversation.botId)
-        throw new Error('No `botId` found for conversation')
-    const messages = await llmServices.getLLMResponse(threadId, conversation.botId, prompt, factory)
+    const { botId, thread_id: threadId } = conversation
+    if(!threadId || !botId)
+        throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
+    const messages = await llmServices.getLLMResponse(threadId, botId, prompt, factory)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })
@@ -1122,6 +1098,21 @@ async function mCast(factory, cast){
         return actor
     }))
     return cast
+}
+function mCreateSystemMessage(activeBot, message, factory){
+    if(!(message instanceof factory.message)){
+        const { thread_id, } = activeBot
+        const content = message?.content ?? message?.message ?? message
+        message = new (factory.message)({
+            being: 'message',
+            content,
+            role: 'assistant',
+            thread_id,
+            type: 'system'
+        })
+    }
+    message = mPruneMessage(activeBot, message, 'system')
+    return message
 }
 /**
  * Takes character data and makes necessary adjustments to roles, urls, etc.
@@ -1577,39 +1568,46 @@ function mFindBot(avatar, _botId){
         [0]
 }
 /**
- * Returns simple micro-category after logic mutation.
- * @module
- * @param {string} _category text of category
- * @returns {string} formatted category
+ * Returns set of Greeting messages, dynamic or static.
+ * @param {object} bot - The bot object.
+ * @param {boolean} dynamic - Whether to use dynamic greetings.
+ * @param {*} llm - The LLM object.
+ * @param {*} factory - The AgentFactory object.
+ * @returns {Promise<Message[]>} - The array of messages to respond with.
  */
-function mFormatCategory(_category){
-    return _category
-        .trim()
-        .slice(0, 128)  //  hard cap at 128 chars
-        .replace(/\s+/g, '_')
-        .toLowerCase()
-}
-/**
- * Returns MyLife-version of chat category object
- * @module
- * @param {object} _category - local front-end category { category, contributionId, question/message/content }
- * @returns {object} - local category { category, contributionId, content }
- */
-function mGetChatCategory(_category) {
-    const _proposedCategory = {
-        category: '',
-        contributionId: undefined,
-        content: undefined,
-    }
-    if(_category?.category && _category.category.toLowerCase() !== 'off'){
-        _proposedCategory.category = mFormatCategory(_category.category)
-        _proposedCategory.contributionId = _category.contributionId
-        _proposedCategory.content = 
-            _category?.question??
-            _category?.message??
-            _category?.content // test for undefined
-    }
-    return _proposedCategory
+async function mGreeting(bot, dynamic=false, llm, factory){
+    const processStartTime = Date.now()
+    const { bot_id, bot_name, id, greetings, greeting, thread_id, } = bot
+    const failGreeting = [`Hello! I'm concerned that there is something wrong with my instruction-set, as I was unable to find my greetings, but let's see if I can get back online.`, `How can I be of help today?`]
+    const greetingPrompt = factory.isMyLife
+        ? `Greet this new user with a hearty hello, and let them know that you are here to help them understand MyLife and the MyLife platform. Begin by asking them about something that's important to them--based on their response, explain how MyLife can help them.`
+        : `Greet me with a hearty hello as we start a new session, and let me know either where we left off, or how we should start for today!`
+    const QGreetings = [
+        `Hi, I'm Q, so nice to meet you!`,
+        `To get started, tell me a little bit about something or someone that is really important to you &mdash; or ask me a question about MyLife.`
+    ]
+    const botGreetings = greetings
+        ? greetings
+        : greeting
+            ? [greeting]
+            : factory.isMyLife
+                ? QGreetings
+                : null
+    let messages = botGreetings?.length && !dynamic
+        ? botGreetings
+        : await llm.getLLMResponse(thread_id, bot_id, greetingPrompt, factory) 
+    if(!messages?.length)
+        messages = failGreeting
+    messages = messages
+        .map(message=>new (factory.message)({
+            being: 'message',
+            content: message,
+            thread_id,
+            role: 'assistant',
+            type: 'greeting'
+        }))
+        .map(message=>mPruneMessage(bot, message, 'greeting', processStartTime))
+    return messages
 }
 /**
  * Include help preamble to _LLM_ request, not outbound to member/guest.
@@ -1676,13 +1674,11 @@ function mPruneBot(assistantData){
     }
 }
 /**
- * returns simple micro-message with category after logic mutation. 
- * Currently tuned for openAI gpt-assistant responses.
- * @todo - revamp as any of these LLMs can return JSON or run functions for modes.
+ * Returns frontend-ready Message object after logic mutation.
  * @module
  * @private
  * @param {object} bot - The bot object, usually active.
- * @param {string} message - The text of LLM message.
+ * @param {string} message - The text of LLM message. Can parse array of messages from openAI.
  * @param {string} type - The type of message, defaults to chat.
  * @param {number} processStartTime - The time the process started, defaults to function call.
  * @returns {object} - The bot-included message object.
@@ -1691,8 +1687,6 @@ function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
     /* parse message */
     const { bot_id: activeBotAIId, id: activeBotId, } = bot
     let agent='server',
-        category,
-        contributions=[],
         purpose=type,
         response_time=Date.now()-processStartTime
     const { content: messageContent, thread_id, } = message
@@ -1710,8 +1704,6 @@ function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
         activeBotId,
         activeBotAIId,
         agent,
-        category,
-        contributions,
         message,
         purpose,
         response_time,
@@ -1799,6 +1791,49 @@ function mValidateMode(_requestedMode, _currentMode){
         default:
             return _requestedMode
     }
+}
+/**
+ * Validate provided registration id.
+ * @private
+ * @param {object} activeBot - The active bot object.
+ * @param {AgentFactory} factory - AgentFactory object.
+ * @param {Guid} validationId - The registration id.
+ * @returns {Promise<object>} - The validation result: { messages, success, }.
+ */
+async function mValidateRegistration(activeBot, factory, validationId){
+    /* validate structure */
+    if(!factory.isMyLife)
+        throw new Error('FAILURE::validateRegistration()::Only MyLife may validate registrations.')
+    if(!factory.globals.isValidGuid(validationId))
+        throw new Error('FAILURE::validateRegistration()::Invalid validation id.')
+    /* validate validationId */
+    let message,
+        registrationData = { id: validationId },
+        success = false
+    const registration = await factory.validateRegistration(validationId)
+    console.log('mValidateRegistration::registration', registration)
+    const messages = []
+    const failureMessage = `I\'m sorry, but I\'m currently unable to validate your registration id:<br />${ validationId }.<br />I\'d be happy to talk with you more about MyLife, but you may need to contact member support to resolve this issue.`
+    /* determine eligibility */
+    if(registration){
+        const { avatarNickname, being, email: registrationEmail, humanName, } = registration
+        const eligible = being==='registration'
+            && factory.globals.isValidEmail(registrationEmail)
+        if(eligible){
+            const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
+            message = mCreateSystemMessage(activeBot, successMessage, factory)
+            registrationData.avatarNickname = avatarNickname
+            registrationData.email = registrationEmail
+            registrationData.humanName = humanName
+            success = true
+        }
+    }
+    if(!message){
+        message = mCreateSystemMessage(activeBot, failureMessage, factory)
+    }
+    if(message)
+        messages.push(message)
+    return { registrationData, messages, success, }
 }
 /* exports */
 export default Avatar

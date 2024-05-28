@@ -40,7 +40,7 @@
             "type": "string",
 			"default": "chat",
             "description": "message type",
-            "enum": ["chat", "system", "error", "warning", "info", "debug"]
+            "enum": ["chat", "greeting", "system", "error", "warning", "info", "debug"]
         }
 	},
 	"additionalProperties": true,
@@ -258,7 +258,7 @@
 		"message_member_chat": {
 			"name": "Message_member_chat",
 			"type": "object",
-			"required": ["agent", "category", "contributions", "id", "message", "type"],
+			"required": ["agent", "category", "id", "message", "type"],
 			"properties": {
 				"agent": {
 					"const": "member",
@@ -266,22 +266,6 @@
 					"type": "string",
 					"description": "type of entity submitting",
 					"$comment": "three distinct and possible submittors: assistant (deprecate to avatar/agent), member (human), user (human)"
-				},
-				"category": {
-					"type": "string",
-					"default": "",
-					"description": "message category, if applicable",
-					"$comment": "in this instance, member has clicked a topic related to contribution(s) (whose .id is included in `contributions` array) and is submitting their response related to that `contribution.category`; category topics can span multiple response messages, but a category reset should equally reset the `contributions` array to empty"
-				},
-				"contributions": {
-					"type": "array",
-					"default": [],
-					"items": {
-						"type": "string",
-						"format": "uuid",
-						"description": "contribution object ids"
-					},
-					"uniqueItems": true
 				},
 				"id": {
 					"type": "string",
@@ -300,12 +284,6 @@
 					"type": "integer",
 					"description": "UNIX date-time of front-end receipt to delivery of response",
 					"$comment": "tracks from point of delivery of request to point of delivery of response; can be used to track response time of member, assistant and potentially MyLife server services; could contribute to extrapolate other facets of human behavioral responses with digital interface devices"
-				},
-				"purpose": {
-					"type": "string",
-					"default": "",
-					"description": "message purpose, if applicable",
-					"$comment": "quite interesting to presume to extrapolate the purpose of a given message, but it certainly could be done; for example, if a 'response to a contribution request', then pupose can be explicated; currently unimplemented"
 				},
 				"type": {
 					"type": "string",
