@@ -457,7 +457,6 @@ function mLaunchTutorial(){
     let event = new CustomEvent('launchExperience', { detail: 'aae28fe4-30f9-4c29-9174-a0616569e762', })
     window.dispatchEvent(event)
     mHelpClose.click()
-//    mHide(mHelpContainer)
 }
 /**
  * Redirects to login page (?select).

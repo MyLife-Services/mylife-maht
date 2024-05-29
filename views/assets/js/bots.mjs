@@ -3,11 +3,9 @@
 import {
     addMessage,
     addMessages,
-    availableExperiences,
     decorateActiveBot,
     fetchSummary,
     hide,
-    inExperience,
     show,
     toggleVisibility,
 } from './members.mjs'
@@ -69,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
         throw new Error(`ERROR: No bots returned from server`)
     updatePageBots(bots) // includes p-a
     await setActiveBot(id, true)
-
+    console.log('bots.mjs::DOMContentLoaded()::mPageBots', mPageBots)
 })
 /* public functions */
 /**
@@ -215,7 +213,6 @@ async function updatePageBots(bots=(mPageBots ?? []), includeGreeting=false, dyn
     if(!bots?.length)
         throw new Error(`No bots provided to update page.`)
     mPageBots = bots
-    console.log('updatePageBots::', bots, includeGreeting, dynamic)
     mUpdateTeam()
     mUpdateBotContainers()
     mUpdateBotBar()

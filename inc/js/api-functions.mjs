@@ -8,8 +8,17 @@ const mBotSecrets = JSON.parse(process.env.OPENAI_JWT_SECRETS)
  * @returns {Object[]} - Array of Experience Objects.
  */
 async function availableExperiences(ctx){
-    ctx.body = await ctx.MyLife.availableExperiences()
-    console.log(chalk.yellowBright('availableExperiences()', ctx.body))
+    const { mbr_id } = ctx.state.avatar
+    const experiences = await ctx.MyLife.availableExperiences()
+    const autoplay = experiences
+        .find(experience=>experience.autoplay) // find first (of any) autoplay experience
+        ?.id
+        ?? false
+    ctx.body = {
+        autoplay,
+        experiences: experiences,
+        mbr_id,
+    }
 }
 // @todo implement builder functionality, allowing for interface creation of experiences by members
 // @todo implement access to exposed member experiences using `mbr_key` as parameter to `factory.getItem()`

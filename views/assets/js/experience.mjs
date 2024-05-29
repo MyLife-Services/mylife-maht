@@ -6,8 +6,8 @@ import {
     escapeHtml,
     getInputValue,
     getSystemChat,
+    globals,
     hide,
-    inExperience,
     replaceElement,
     sceneTransition as memberSceneTransition,
     show,
@@ -63,7 +63,17 @@ let inputElement = document.getElementById(`experience-input`) /* unique as is s
 /* event listeners */
 document.addEventListener('DOMContentLoaded', async event=>{
     mExperiences.push(...await mGetExperiences()) // stock all experiences internally
-    console.log('experience.mjs::DOMContentLoaded()::end::mExperiences', mExperiences)
+    /* document listeners for experience launch */
+    window.addEventListener('launchExperience', async event=>{
+        const { detail: experienceId } = event
+        if(!globals.isGuid(experienceId))
+            throw new Error('mInitializePageListeners::launchExperience::Error()::`detail` is required')
+        mExperience = mExperiences.find(experience=>experience.id===experienceId)
+        if(!mExperience)
+            throw new Error('mInitializePageListeners()::launchExperience::no experience found in `mExperiences`')
+        stageTransition(experienceId, false)
+    })
+    console.log('experience.mjs::DOMContentLoaded()::mExperiences', mExperiences)
 })
 /* public functions */
 /**
@@ -85,8 +95,7 @@ async function experienceEnd(){
     /* end experience onscreen */
     sceneStage.innerHTML = '' // clear full-screen character-lanes
     clearSystemChat() // clear member chat lanes
-    stageTransition(true) // request force-clear of member experience
-    console.log('experienceEnd::endExperience', endExperience)
+    stageTransition(null, true) // request force-clear of member experience
 }
 /**
  * Play experience onscreen, mutates `mExperience` object.
@@ -187,12 +196,15 @@ function experienceSkip(sceneId){
 /**
  * Start experience onscreen, displaying welcome ande loading remaining data.
  * @public
- * @param {Guid} experience - The Experience object.
+ * @param {Guid} experienceId - The Experience object.
  * @returns {Promise<void>} - The return is its own success.
  */
-async function experienceStart(experience){
-    /* load experience data */
-    mExperience = experience
+async function experienceStart(experienceId){
+    if(!globals.isGuid(experienceId))
+        throw new Error('experienceStart::Error()::valid `experienceId` is required')
+    mExperience = mExperiences.find(experience=>experience.id===experienceId)
+    if(!mExperience)
+        throw new Error('experienceStart::Error()::no experience found in `mExperiences` to match `experienceId`: ' + experienceId)
     /* present stage */
     mStageWelcome()
     const { description, events, id, name, purpose, title, skippable=false } = mExperience
@@ -758,20 +770,12 @@ function mEventStage(){
 }
 /**
  * Get experiences from server according to scope or universal.
- * @todo - move fetch from `members.mjs` to here.
  * @param {string} scope - The scope of the experiences to retrieve; undefined=all.
  * @returns {Promise<Experience[]>} - The return is an array of Experience objects.
  */
 async function mGetExperiences(scope){
     const experiences = []
     // @stub - member experience fetch goes here
-    /* member experiences 
-    if((scope ?? 'member')==='member'){
-        const memberExperiences = await mGetExperiencesFromServer(`/members/experiences`)
-        experiences.push(...memberExperiences.filter(
-            experience=>!experiences.some(_experience=>_experience.id===experience.id)
-        ))
-    }*/
     /* system experiences */
     if((scope ?? 'system')==='system'){
         let systemExperiences = await mGetExperiencesFromServer(`/experiences`)
@@ -927,7 +931,6 @@ function mSceneTransition(){
             break
         case 'full':
         default:
-            console.log('mSceneTransition::full')
             /* add character lanes */
             cast
                 .filter(character=>{
@@ -1034,8 +1037,9 @@ function mUpdateModerator(clearModerator=false){
         mModerator = null
         return
     }
-    if(!mModerator)
-        mModerator = mExperience.cast.find(character=>mIsAvatar(character.type))
+    if(!mModerator) // currently moderator is required
+        mModerator = mExperience.cast
+            .find(character=>mIsAvatar(character.type))
     moderatorIcon.appendChild(mAssignIcon(mModerator))
     moderatorSubmit.addEventListener('click', submitInput)
 }
@@ -1063,7 +1067,3 @@ export {
     experienceStart,
     submitInput,
 }
-/* end notes
-===============================================================================
-this module presumes all frontend mode-locking has been done by importer.
-*/
