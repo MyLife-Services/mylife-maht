@@ -118,6 +118,7 @@ async function mChallengeMember(event){
     const messages = [`If you want to get to ${ memberName }, I challenge you to a game of passphrase!`, `Please enter the passphrase for your account to continue...`]
     await mAddMessages(messages, { typeDelay: 6, })
     chatSystem.appendChild(mCreateChallengeElement())
+    mScrollBottom()
 }
 /**
  * Creates a challenge element for the user to enter their passphrase. Simultaneously sets modular variables to the instantion of the challenge element. Unclear what happens if multiples are attempted to spawn, but code shouldn't allow for that, only hijax. See the `@required` for elements that this function generates and associates.
