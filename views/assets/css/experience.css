@@ -377,6 +377,7 @@
     border-radius: 8px;
     border: .1em solid #000;
     box-shadow: .1em .1em 0 rgba(0, 0, 0, 0.1);
+    flex-direction: column; /* Stack items vertically */
     margin-bottom: 10px; /* Space between dialog boxes */
     padding: 8px 12px;
     position: relative; /* For positioning the arrow */

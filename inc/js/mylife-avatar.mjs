@@ -265,12 +265,17 @@ class Avatar extends EventEmitter {
      */
     experienceEnd(experienceId){
         const { experience, factory, mode, } = this
-        if(this.isMyLife) // @stub - allow guest experiences
-            throw new Error('FAILURE::experienceEnd()::MyLife avatar cannot conduct nor end experiences at this time.')
-        if(mode!=='experience')
-            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in an experience.')
-        if(this.experience?.id!==experienceId)
-            throw new Error('FAILURE::experienceEnd()::Avatar is not currently in the requested experience.')
+        try {
+            if(this.isMyLife) // @stub - allow guest experiences
+                throw new Error(`MyLife avatar can neither conduct nor end experiences`)
+            if(mode!=='experience')
+                throw new Error(`Avatar is not currently in an experience; mode: ${ mode }`)
+            if(this.experience?.id!==experienceId)
+                throw new Error(`Avatar is not currently in the requested experiece; experience: ${ experienceId }`)
+        } catch(error) {
+            console.log('ERROR::experienceEnd()', error.message)
+            return
+        }
         this.mode = 'standard'
         const { id, location, title, variables, } = experience
         const { mbr_id, newGuid, } = factory
@@ -1042,10 +1047,11 @@ async function mBot(factory, avatar, bot){
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
  */
 async function mCallLLM(llmServices, conversation, prompt, factory){
-    const { botId, thread_id: threadId } = conversation
+    const { botId, bot_id, thread_id: threadId } = conversation
+    const id = botId ?? bot_id
     if(!threadId || !botId)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
-    const messages = await llmServices.getLLMResponse(threadId, botId, prompt, factory)
+    const messages = await llmServices.getLLMResponse(threadId, id, prompt, factory)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })
@@ -1188,17 +1194,25 @@ async function mEventDialog(llm, experience, event, iteration=0){
             let prompt = dialogPrompt
             const { cast, memberDialog, scriptAdvisorBotId, scriptDialog, variables: experienceVariables, } = experience
             const castMember = cast.find(castMember=>castMember.id===characterId)
-            scriptDialog.botId = castMember.bot?.bot_id ?? scriptAdvisorBotId ?? this.activebot.bot_id // set llm assistant id
+            const { bot, } = castMember
+            const { bot_id, id, } = bot // two properties needed for mPruneMessage
+            if(!bot_id || !id){
+                console.log('mEventDialog::bot id not found in cast', characterId, castMember, bot)
+                throw new Error('Bot id not found in cast.')
+            }
+            scriptDialog.botId = bot_id ?? scriptAdvisorBotId
+            console.log('mEventDialog::bot id found in cast', characterId, castMember.inspect(true), scriptDialog.botId)
             if(example?.length)
                 prompt = `using example: "${example}";\n` + prompt
             if(dialogVariables.length)
                 prompt = mReplaceVariables(prompt, dialogVariables, experienceVariables)
-            const messages = await mCallLLM(llm, scriptDialog, prompt) ?? []
-            if(!messages.length)
-                console.log('mEventDialog::no messages returned from LLM', prompt, scriptDialog.botId)
+            const messages = await mCallLLM(llm, scriptDialog, prompt)
+            if(!messages?.length)
+                console.log('mEventDialog::no messages returned from LLM', prompt, bot_id)
             scriptDialog.addMessages(messages)
-            memberDialog.addMessage(scriptDialog.mostRecentDialog)
-            return memberDialog.mostRecentDialog
+            memberDialog.addMessage(scriptDialog.mostRecentDialog) // text string
+            const responseDialog = new Marked().parse(memberDialog.mostRecentDialog)
+            return responseDialog
         default:
             throw new Error(`Dialog type \`${type}\` not recognized`)
     }   
