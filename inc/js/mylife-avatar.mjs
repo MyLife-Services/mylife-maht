@@ -1083,17 +1083,21 @@ async function mCancelRun(llmServices, threadId, runId,){
  * @returns {Promise<array>} - Array of ExperienceCastMember instances
  */
 async function mCast(factory, cast){
-    // create `actors`, may need to create class
     cast = await Promise.all(cast.map(async castMember=>{
         const actor = new (factory.castMember)(castMember)
-        switch(castMember.type.toLowerCase()){
-            case 'mylife':
-            case 'q':
+        const { type, } = castMember
+        switch(type.toLowerCase()){
+            case 'actor': // system actor
             case 'system':
-                actor.bot = await factory.systemActor
+                actor.bot = await factory.actorGeneric
                 actor.bot_id = actor.bot.id
                 break
-            case 'bot':
+            case 'mylife': // Q
+            case 'q':
+                actor.bot = await factory.actorQ
+                actor.bot_id = actor.bot.id
+                break
+            case 'bot': // identified member-specific bot
             case 'member':
             case 'member-bot':
             default:
@@ -1142,7 +1146,6 @@ async function mEventCharacter(llm, experience, character){
             ? mReplaceVariables(role, variables, experience.variables)
             : role
         character.role = castMember.role
-        console.log('mEventCharacter::returnCharacter', character, castMember.role)
     }
     return character
 }

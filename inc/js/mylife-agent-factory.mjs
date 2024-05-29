@@ -20,10 +20,9 @@ import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
 /* module constants */
-// global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
-const mBotInstructions = {}
 const mDataservices = await new Dataservices(mPartitionId).init()
+const mBotInstructions = {}
 const mDefaultBotType = 'personal-avatar'
 const mExtensionFunctions = {
 	extendClass_consent: extendClass_consent,
@@ -56,6 +55,8 @@ const vmClassGenerator = vm.createContext({
 //	eventEmitter: EventEmitter,
 })
 /* dependent constants and functions */
+const mActorGeneric = await mDataservices.bot(undefined, 'actor')
+const mActorQ = await mDataservices.bot(undefined, 'personal-avatar') // little-Q!
 const mAlerts = {
 	system: await mDataservices.getAlerts(), // not sure if we need other types in global module, but feasibly historical alerts could be stored here, etc.
 }
@@ -67,7 +68,6 @@ const mSchemas = {
 	member: Member,
 	session: MylifeMemberSession
 }
-const mSystemActor = await mDataservices.bot(undefined, 'actor', undefined)
 /* module construction functions */
 mConfigureSchemaPrototypes()
 mPopulateBotInstructions()
@@ -114,28 +114,24 @@ class BotFactory extends EventEmitter{
 	 * @param {string} type - The bot type.
 	 * @returns {object} - The bot.
 	 */
-	async bot(_bot_id, type=mDefaultBotType, _mbr_id){
+	async bot(id, type=mDefaultBotType, mbr_id){
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
-			if(!_mbr_id)
+			if(!mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
-			const _botFactory = new BotFactory(_mbr_id)
-			await _botFactory.init()
-			_botFactory.bot = await _botFactory.bot(_bot_id, type, _mbr_id)
-			if(!_botFactory?.bot){ // create bot on member behalf
-				console.log(chalk.magenta(`bot hydration-create::${type}`))
-				// do not need intelligence behind this object yet, for that, spotlight is a mini-avatar
-				_botFactory.bot = await _botFactory.setBot({ type: type })
-			}
-			// rather than just a bot in this event, return micro-hydrated bot (mini-avatar ultimately)
-			return _botFactory
+			const botFactory = new BotFactory(mbr_id)
+			await botFactory.init()
+			botFactory.bot = await botFactory.bot(id, type, mbr_id)
+			if(!botFactory?.bot) // create bot on member behalf
+				botFactory.bot = await botFactory.setBot({ type: type })
+			return botFactory
 		}
-		return ( await this.dataservices.getItem(_bot_id) )
+		return ( await this.dataservices.getItem(id) )
 			?? ( await this.dataservices.getItemByField(
 					'bot',
 					'type',
 					type,
 					undefined,
-					_mbr_id
+					mbr_id
 				) )
 			?? ( await this.bots(undefined,type)?.[0] )
 	}
@@ -351,6 +347,22 @@ class BotFactory extends EventEmitter{
 		)
 	}
 	/* getters/setters */
+	/**
+	 * Returns the system actor bot data.
+	 * @getter
+	 * @returns {object} - The system actor bot data.
+	 */
+	get actorGeneric(){
+		return mActorGeneric
+	}
+	/**
+	 * Returns MyLife _Q_ actor bot data.
+	 * @getter
+	 * @returns {object} - Q actor bot data.
+	 */
+	get actorQ(){
+		return mActorQ
+	}
 	get avatarId(){
 		return this.core?.avatar_id
 	}
@@ -410,13 +422,6 @@ class BotFactory extends EventEmitter{
 	}
 	get newGuid(){
 		return mNewGuid()
-	}
-	/**
-	 * @todo - determine hydration method, timing and requirements for `actor`(s); they remain currently unhydrated, only need `bot_id`
-	 * @returns {object} - The system actor bot data.
-	 */
-	get systemActor(){
-		return mSystemActor
 	}
 }
 class AgentFactory extends BotFactory {
@@ -636,8 +641,8 @@ class AgentFactory extends BotFactory {
 		const _microBot = await this.libraryBot(bot_id, mbr_id)
 		return await _microBot.library(_library)
 	}
-	async libraryBot(_bot_id, _mbr_id){
-		return await this.bot(_bot_id, 'library', _mbr_id)
+	async libraryBot(id){
+		return await this.bot(id, 'library')
 	}
 	/**
 	 * Registers a new candidate to MyLife membership

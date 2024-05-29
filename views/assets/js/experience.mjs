@@ -533,6 +533,7 @@ function mCreateModeratorInputDialog(){
  */
 async function mEndServerExperience(){
     const { id, } = mExperience
+        ?? {} // call even when ended first on server
     if(!id)
         return false
     const response = await fetch(`/members/experience/${id}/end`, {

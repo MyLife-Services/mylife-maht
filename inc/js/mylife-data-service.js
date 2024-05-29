@@ -131,17 +131,16 @@ class Dataservices {
 	/**
 	 * Get a bot specified by id or type.
 	 * @public
-	 * @param {string} _bot_id - The bot id.
-	 * @param {string} _bot_type - The bot type.
-	 * @param {string} _mbr_id - The member id.
+	 * @param {string} id - The bot id.
+	 * @param {string} type - The bot type.
 	 * @returns {object} - The bot or `undefined` if no bot found.
 	 */
-	async bot(_bot_id, _bot_type='personal-avatar', _mbr_id=this.mbr_id){
-		if(_bot_id){
-			return await this.getItem(_bot_id)
+	async bot(id, type='personal-avatar'){
+		if(id){
+			return await this.getItem(id)
 		} else {
-			const _bots = await this.bots(_bot_type)
-			return _bots?.[0]
+			const bots = await this.bots(type)
+			return bots[0]
 		}
 	}
 	/**
