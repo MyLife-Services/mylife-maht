@@ -264,6 +264,22 @@ class Dataservices {
 					return []
 				})
 	}
+	/**
+	 * Creates a new bot in the database.
+	 * @param {object} bot - The bot object to create.
+	 * @returns {object} - The bot object.
+	 */
+	async createBot(bot){
+		/* validation */
+		const { id, type, } = bot
+		if(!type?.length)
+			throw new Error('ERROR::createBot::Bot `type` required.')
+		if(!id?.length)
+			bot.id = this.globals.newGuid
+		bot.being = 'bot' // no mods
+		/* create bot */
+		return await this.pushItem(bot)
+	}
 	async datacore(mbr_id){
 		return await this.getItem(mbr_id)
 	}
@@ -614,28 +630,6 @@ class Dataservices {
 		return savedExperience
 	}
 	/**
-	 * Sets a bot in the database. Performs logic to reduce the bot to the minimum required data, as Mongo/Cosmos has a limitation of 10 patch items in one batch array.
-	 * @param {object} bot - The bot object to set.
-	 * @returns {object} - The bot object.
-	 */
-	async setBot(bot){
-		const originalBot = await this.bot(bot.id)
-		if(originalBot){ // update
-			const dataUpdates = Object.keys(bot)
-				.filter(key => !key.startsWith('_') && bot[key] !== originalBot[key])
-				.reduce((obj, key) => {
-					obj[key] = bot[key]
-					return obj
-				}, {}) // extract alterations
-			if(Object.keys(dataUpdates).length > 0){
-				bot = this.patch(bot.id, dataUpdates)
-			}
-		} else { // create
-			bot = this.pushItem(bot)
-		}
-		return bot
-	}
-	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
 	 * @param {object} story - Story object.
 	 * @returns {object} - The story document from Cosmos.
@@ -654,6 +648,17 @@ class Dataservices {
 		if(!this.isMyLife)
 			return false
 		return await this.datamanager.testPartitionKey(mbr_id)
+	}
+	/**
+	 * Sets a bot in the database. Performs logic to reduce the bot to the minimum required data, as Mongo/Cosmos has a limitation of 10 patch items in one batch array.
+	 * @param {object} bot - The bot object to set.
+	 * @returns {object} - The bot object.
+	 */
+	async updateBot(bot){
+		const { id, type: discardType, ...botUpdates } = bot
+		if(!Object.keys(botUpdates))
+			return bot
+		return await this.patch(bot.id, botUpdates)
 	}
 	/**
 	 * Returns the registration record by Id.

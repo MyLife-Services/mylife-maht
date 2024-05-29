@@ -110,8 +110,9 @@ class BotFactory extends EventEmitter{
 	 * If caller is `MyLife` then bot is found or created and then activated via a micro-hydration.
 	 * @todo - determine if spotlight-bot is required for any animation, or a micro-hydrated bot is sufficient.
 	 * @public
-	 * @param {string} _bot_id - The bot id.
+	 * @param {string} id - The bot id.
 	 * @param {string} type - The bot type.
+	 * @param {string} mbr_id - The member id.
 	 * @returns {object} - The bot.
 	 */
 	async bot(id, type=mDefaultBotType, mbr_id){
@@ -122,7 +123,7 @@ class BotFactory extends EventEmitter{
 			await botFactory.init()
 			botFactory.bot = await botFactory.bot(id, type, mbr_id)
 			if(!botFactory?.bot) // create bot on member behalf
-				botFactory.bot = await botFactory.setBot({ type: type })
+				botFactory.bot = await botFactory.createBot({ type: type })
 			return botFactory
 		}
 		return ( await this.dataservices.getItem(id) )
@@ -324,27 +325,26 @@ class BotFactory extends EventEmitter{
         return await this.dataservices.resetPassphrase(passphrase)
     }
 	/**
-	 * Adds or updates a bot.
-	 * @public
-	 * @param {object} assistantData - bot data.
-	 * @returns {object} - The Cosmos bot.
-	 */
-	async setBot(assistantData={ type: mDefaultBotType }){
-		if(!assistantData.id?.length) // **note**: may lead to recursivity; preferred mechanic?
-			assistantData = await this.createBot(assistantData)
-		return await this.dataservices.setBot(assistantData)
-	}
-	/**
 	 * Gets a collection of stories of a certain format.
 	 * @todo - currently disconnected from a library, but no decisive mechanic for incorporating library shell.
-	 * @param {*} _form 
-	 * @returns 
+	 * @param {string} form - The form of the stories to retrieve.
+	 * @returns {object[]} - The stories.
 	 */
-	async stories(_form){
+	async stories(form){
 		return await this.dataservices.getItemsByFields(
 			'story',
-			[{ name: '@form', value: _form }],
+			[{ name: '@form', value: form }],
 		)
+	}
+	/**
+	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
+	 * @public
+	 * @param {object} bot - The bot data.
+	 * @param {object} options - Function options: `{ instructions: boolean, model: boolean, tools: boolean }`. Meant to express whether or not these elements should be refreshed. Useful during updates.
+	 * @returns {object} - The Cosmos bot.
+	 */
+	async updateBot(bot, options){
+		return await mUpdateBot(this, this.#llmServices, bot, options)
 	}
 	/* getters/setters */
 	/**
@@ -582,10 +582,10 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Returns all alerts of a given type, currently only _system_ alerts are available. Refreshes by definition from the database.
-	 * @param {string} _type 
+	 * @param {string} type 
 	 * @returns {array} array of current alerts
 	 */
-	async getAlerts(_type){
+	async getAlerts(type){
 		const _systemAlerts = await this.dataservices.getAlerts()
 		mAlerts.system = _systemAlerts
 		return this.alerts
@@ -895,26 +895,27 @@ class MyLifeFactory extends AgentFactory {
  * Initializes openAI assistant and returns associated `assistant` object.
  * @module
  * @param {LLMServices} llmServices - OpenAI object
- * @param {object} assistantData - Assistant object
+ * @param {object} bot - The assistand data object
  * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
  */
-async function mAI_openai(llmServices, assistantData){
-    const { bot_name, type, } = assistantData
-	assistantData.name = bot_name ?? `untitled-${ type }`
-    return await llmServices.createBot(assistantData)
+async function mAI_openai(llmServices, bot){
+    const { bot_name, type, } = bot
+	bot.name = bot_name
+		?? `untitled-${ type }`
+    return await llmServices.createBot(bot)
 }
-function assignClassPropertyValues(_propertyDefinition){
+function assignClassPropertyValues(propertyDefinition){
 	switch (true) {
-		case _propertyDefinition?.const!==undefined:	//	constants
-			return `'${_propertyDefinition.const}'`
-		case _propertyDefinition?.default!==undefined:	//	defaults: bypass logic
-			if(Array.isArray(_propertyDefinition.default)){
+		case propertyDefinition?.const!==undefined:	//	constants
+			return `'${propertyDefinition.const}'`
+		case propertyDefinition?.default!==undefined:	//	defaults: bypass logic
+			if(Array.isArray(propertyDefinition.default)){
 				return '[]'
 			}
-			return `'${_propertyDefinition.default}'`
+			return `'${ propertyDefinition.default }'`
 		default:
-			//	presumption: _propertyDefinition.type is not array [though can be]
-			switch (_propertyDefinition?.type) {
+			//	presumption: propertyDefinition.type is not array [though can be]
+			switch (propertyDefinition?.type) {
 				case 'array':
 					return '[]'
 				case 'boolean':
@@ -923,7 +924,7 @@ function assignClassPropertyValues(_propertyDefinition){
 				case 'number':
 					return 0
 				case 'string':
-					switch (_propertyDefinition?.format) {
+					switch (propertyDefinition?.format) {
 						case 'date':
 						case 'date-time':
 							return `'${new Date().toDateString()}'`
@@ -967,8 +968,8 @@ function mAvatarProperties(_core){
 		"object_id",
 		"proxyBeing",
 		"type"
-	].forEach(_prop=>{
-		delete _avatarProperties[_prop]
+	].forEach(prop=>{
+		delete _avatarProperties[prop]
 	})
 	return {
 		..._avatarProperties,
@@ -1039,6 +1040,9 @@ async function mCreateBot(llm, factory, bot){
 		?? `I am a ${ type } for ${ factory.memberName }`
 	const instructions = botInstructions
 		?? mCreateBotInstructions(factory, bot)
+	const model = process.env.OPENAI_MODEL_CORE_BOT
+		?? process.env.OPENAI_MODEL_CORE_AVATAR
+		?? 'gpt-3.5-turbo'
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
 	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
@@ -1050,7 +1054,7 @@ async function mCreateBot(llm, factory, bot){
 		id,
 		instructions,
 		metadata: { externalId: id, },
-		model: process.env.OPENAI_MODEL_CORE_BOT,
+		model,
 		name,
 		object_id: avatarId,
 		provider: 'openai',
@@ -1065,7 +1069,7 @@ async function mCreateBot(llm, factory, bot){
 		throw new Error('bot creation failed')
 	/* create in MyLife datastore */
 	assistantData.bot_id = botId
-	const assistant = await factory.setBot(assistantData)
+	const assistant = await factory.dataservices.createBot(assistantData)
 	console.log(chalk.green(`bot created::${ type }`), assistant)
 	return assistant
 }
@@ -1074,20 +1078,20 @@ async function mCreateBot(llm, factory, bot){
  * @module
  * @private
  * @param {BotFactory} factory - Factory object
- * @param {object} _bot - Bot object
+ * @param {object} bot - Bot object
  * @returns {string} - flattened string of instructions
  */
-function mCreateBotInstructions(factory, _bot){
-	if(!_bot)
+function mCreateBotInstructions(factory, bot){
+	if(!bot)
 		throw new Error('bot object required')
-	const _type = _bot.type ?? mDefaultBotType
-    let instructionSet = factory.botInstructions(_type) // no need to wait, should be updated or refresh server
+	const { type=mDefaultBotType, } = bot
+    let instructionSet = factory.botInstructions(type) // no need to wait, should be updated or refresh server
     instructionSet = instructionSet?.instructions
-    if(!instructionSet)
-		throw new Error(`bot instructions not found for type: ${_type}`)
+    if(!instructionSet) // @stub - custom must have instruction loophole
+		throw new Error(`bot instructions not found for type: ${ type }`)
     /* compile instructions */
     let instructions = ''
-    switch(_type){
+    switch(type){
 		case 'journaler':
         case 'personal-avatar':
             instructions +=
@@ -1110,7 +1114,7 @@ function mCreateBotInstructions(factory, _bot){
     instructionSet.replacements.forEach(_replacement=>{
         const _placeholderRegExp = factory.globals.getRegExp(_replacement.name, true)
         const _replacementText = eval(`factory?.${_replacement.replacement}`)
-            ?? eval(`_bot?.${_replacement.replacement}`)
+            ?? eval(`bot?.${_replacement.replacement}`)
             ?? _replacement?.default
             ?? '`unknown-value`'
         instructions = instructions.replace(_placeholderRegExp, () => _replacementText)
@@ -1120,7 +1124,7 @@ function mCreateBotInstructions(factory, _bot){
     instructionSet.references.forEach(_reference=>{
         const _referenceText = _reference.insert
         const _replacementText = eval(`factory?.${_reference.value}`)
-            ?? eval(`_bot?.${_reference.value}`)
+            ?? eval(`bot?.${_reference.value}`)
             ?? _reference.default
             ?? '`unknown-value`'
         switch(_reference.method??'replace'){
@@ -1195,13 +1199,13 @@ function mExtendClass(_class) {
 /**
  * Ingests components of the JSON schema and generates text for class code.
  * @param {string} _className - Sanitized class name
- * @param {object} _properties - Sanitized properties of class
+ * @param {object} properties - Sanitized properties of class
  * @returns {string} - Returns class code in text format for rendering into node js object
  */
-function mGenerateClassCode(_className, _properties){
-	//	delete known excluded _properties in source
-	for(const _prop in _properties){
-		if(_prop in mExcludeProperties){ delete _properties[_prop] }
+function mGenerateClassCode(_className, properties){
+	//	delete known excluded properties in source
+	for(const prop in properties){
+		if(prop in mExcludeProperties){ delete properties[prop] }
 	}
 	// Generate class
 	let classCode = `
@@ -1211,10 +1215,10 @@ class ${_className} {
 #excludeConstructors = ${ '['+Object.keys(mExcludeProperties).map(key => "'" + key + "'").join(',')+']' }
 #name
 `
-	for (const _prop in _properties) {	//	assign default values as animated from schema
-		const _value = mSanitizeSchemaValue(assignClassPropertyValues(_properties[_prop]))
+	for (const prop in properties) {	//	assign default values as animated from schema
+		const _value = mSanitizeSchemaValue(assignClassPropertyValues(properties[prop]))
 		//	this is the value in error that needs sanitizing
-		classCode += `	#${(_value)?`${_prop} = ${_value}`:_prop}\n`
+		classCode += `	#${(_value)?`${prop} = ${_value}`:prop}\n`
 	}
 	classCode += `
 // class constructor
@@ -1222,7 +1226,7 @@ constructor(obj){
 	try{
 		for(const _key in obj){
 			//	exclude known private properties and db properties beginning with '_'
-			if(this.#excludeConstructors.filter(_prop=>{ return (_prop==_key || _key.charAt(0)=='_')}).length) { continue }
+			if(this.#excludeConstructors.filter(_=>{ return (_==_key || _key.charAt(0)=='_')}).length) { continue }
 			try{
 				eval(\`this.\#\${_key}=obj[_key]\`)
 			} catch(err){
@@ -1238,21 +1242,21 @@ constructor(obj){
 }
 // if id changes are necessary, then use set .id() to trigger the change
 // getters/setters for private vars`
-	for (const _prop in _properties) {
-		const _type = _properties[_prop].type
+	for (const prop in properties) {
+		const type = properties[prop].type
 		// generate getters/setters
 		classCode += `
-get ${_prop}(){
-	return this.#${_prop}
+get ${ prop }(){
+	return this.#${ prop }
 }
-set ${_prop}(_value) {	// setter with type validation
-	if(typeof _value !== '${_type}' && '${_type}' !== 'undefined'){
-		if(!('${_type}'==='array' && Array.isArray(_value))){
-			throw new Error('Invalid type for property ${_prop}: expected ${_type}')
+set ${ prop }(_value) {	// setter with type validation
+	if(typeof _value !== '${ type }' && '${ type }' !== 'undefined'){
+		if(!('${ type }'==='array' && Array.isArray(_value))){
+			throw new Error('Invalid type for property ${ prop }: expected ${ type }')
 		}
 	}
-	if(this?.#${_prop}) this.#${_prop} = _value
-	else this.${_prop} = _value
+	if(this?.#${ prop }) this.#${ prop } = _value
+	else this.${ prop } = _value
 }`
 	}
 	//	functions
@@ -1260,8 +1264,8 @@ set ${_prop}(_value) {	// setter with type validation
 	classCode += `	// public functions
 inspect(_all=false){
 	let _this = (_all)?{`
-	for (const _prop in _properties) {
-		classCode += `			${_prop}: this.#${_prop},\n`
+	for (const prop in properties) {
+		classCode += `			${ prop }: this.#${ prop },\n`
 	}
 	classCode += `		}:{}
 	return {...this,..._this}
@@ -1523,10 +1527,10 @@ function mSanitizeSchemaClasses(_schema){
 	_classes.map(_class=>mSanitizeSchemaKeys(_class, mutatedKeys))
 	if(Object.keys(mutatedKeys).length){
 		_classes.forEach(_class=>{
-			const { name: _name, properties: _properties } = _class
-			mSanitizeSchemaReferences(_properties, mutatedKeys)
+			const { name: _name, properties: properties } = _class
+			mSanitizeSchemaReferences(properties, mutatedKeys)
 			// recursively loop `properties` for key `$ref`
-			Object.keys(_properties)
+			Object.keys(properties)
 				.forEach(_key=>mSanitizeSchemaReferences(_key, mutatedKeys))
 
 		})
@@ -1574,20 +1578,20 @@ function mSanitizeSchemaKeys(_class, _mutatedKeysObject){
 		}
 	})
 }
-function mSanitizeSchemaReferences(_properties, _mutatedKeysObject){
-	Object.keys(_properties)
+function mSanitizeSchemaReferences(properties, _mutatedKeysObject){
+	Object.keys(properties)
 		.forEach(_key=>{
 			if(_key==='$ref'){
 				// mutate $ref key
-				const _classReferenceName = _properties['$ref'].split('/').pop()
+				const _classReferenceName = properties['$ref'].split('/').pop()
 				const _sanitizedKey = _mutatedKeysObject[_classReferenceName]
 					?? _mutatedKeysObject[_classReferenceName.toLowerCase()]
 				if(_sanitizedKey){
 					// set $ref to sanitized key, as that will be the actual Class Name inside MyLife. **note**: remove all '/$defs/' as there is no nesting inside `schemas`
-					_properties['$ref'] = _sanitizedKey
+					properties['$ref'] = _sanitizedKey
 				}
-			} else if(typeof _properties[_key] === 'object'){
-				mSanitizeSchemaReferences( _properties[_key], _mutatedKeysObject )
+			} else if(typeof properties[_key] === 'object'){
+				mSanitizeSchemaReferences( properties[_key], _mutatedKeysObject )
 			}
 	})
 }
@@ -1602,6 +1606,51 @@ function mSanitizeSchemaValue(_value) {
     trimmedStr = trimmedStr.replace(/(?<!\\)[`\\$'"]/g, "\\$&")
 
     return wasTrimmed ? _value[0] + trimmedStr + _value[0] : trimmedStr
+}
+/**
+ * Updates bot in Cosmos, and if necessary, in LLM.
+ * @param {AgentFactory} factory - Factory object
+ * @param {LLMServices} llm - LLMServices object
+ * @param {object} bot - Bot object
+ * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean }
+ * @returns 
+ */
+async function mUpdateBot(factory, llm, bot, options={}){
+	/* constants */
+	const {
+		id, // no modifications; see below
+		instructions: removeInstructions,
+		model: removeModel,
+		tools: removeTools,
+		tool_resources: removeResources,
+		type, // no modifications
+		...botData // extract member-driven bot data
+	} = bot
+	const {
+		instructions=false,
+		model=false,
+		tools=false,
+	} = options
+	if(!factory.globals.isValidGuid(id))
+		throw new Error('bot `id` required in bot argument: `{ id: guid }`')
+	botData.id = id // validated
+	if(instructions)
+		botData.instructions = mCreateBotInstructions(type)
+	if(tools){
+		const { tools, tool_resources, } = mGetAIFunctions(type)
+		botData.tools = tools
+		botData.tool_resources = tool_resources
+	}
+	if(model)
+		botData.model = process.env.OPENAI_MODEL_CORE_BOT
+			?? 'gpt-4o'
+	/* update LLM */
+	const { bot_id, bot_name: name, instructions: _instructions, metadata, model: _model, tools: _tools,  } = botData
+	if(bot_id?.length && (_instructions || metadata || _model || name || _tools)){
+		const updatedBot = await llm.updateBot(botData)
+		console.log(chalk.green('mUpdateBot()::update in LLM'), bot_id, bot, botData, updatedBot)
+	}
+	return await factory.dataservices.updateBot(botData)
 }
 /* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance

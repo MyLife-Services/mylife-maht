@@ -34,12 +34,14 @@ class LLMServices {
     /* public methods */
     /**
      * Creates openAI GPT API assistant.
-     * @param {object} assistant - Assistant object
+     * @param {object} bot - The bot object
      * @returns {Promise<object>} - openai assistant object
      */
-    async createBot(assistantData){
-        assistantData = mValidateAssistantData(assistantData) // throws on improper format
-        return await this.openai.beta.assistants.create(assistantData)
+    async createBot(bot){
+        const assistantData = mValidateAssistantData(bot) // throws on improper format
+        const assistant = await this.openai.beta.assistants.create(assistantData)
+        console.log('LLMServices::createBot()::assistant', assistant)
+        return assistant
     }
     /**
      * Returns openAI file object.
@@ -99,13 +101,17 @@ class LLMServices {
     }
     /**
      * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
-     * @param {string} assistantId - OpenAI assistant ID.
-     * @param {object} assistantData - Assistant data object.
+     * @param {string} bot - The bot object data.
      * @returns {Promise<Object>} - openai assistant object.
      */
-    async updateAssistant(assistantId, assistantData){
+    async updateBot(bot){
+        let { bot_id, ...assistantData } = bot
+        if(!bot_id?.length)
+            throw new Error('No bot ID provided for update')
         assistantData = mValidateAssistantData(assistantData) // throws on improper format
-        return await this.openai.beta.assistants.update(assistantId, assistantData)
+        const assistant = await this.openai.beta.assistants.update(bot_id, assistantData)
+        console.log('LLMServices::updateBot()::assistant', assistant)
+        return assistant
     }
     /**
      * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
@@ -517,8 +523,28 @@ function mValidateAssistantData(data){
         data = { [`${ data.substring(0, 32) }`]: data }
     if(typeof data!=='object')
         throw new Error('Data to send to OpenAI assistant is not in correct format.')
-    const { bot_name, description, instructions, metadata, model, name: gptName, temperature, tools, tool_resources, top_p, response_format, } = data
-    const name = bot_name ?? gptName // bot_name internal alias for openai `name`
+    const {
+        bot_name,
+        description,
+        id,
+        instructions,
+        metadata={},
+        model,
+        name: gptName,
+        temperature,
+        tools,
+        tool_resources,
+        top_p,
+        response_format,
+    } = data
+    const name = bot_name
+        ?? gptName // bot_name internal mylife-alias for openai `name`
+    delete metadata.created
+    metadata.updated = `${ Date.now() }` // metadata nodes must be strings
+    if(id)
+        metadata.id = id
+    else
+        metadata.created = `${ Date.now() }`
     const assistantData = {
         description,
         instructions,
@@ -529,7 +555,7 @@ function mValidateAssistantData(data){
         tool_resources,
     }
     if(!Object.keys(assistantData).length)
-        throw new Error('Assistant data is not in correct format.')
+        throw new Error('Assistant data does not have the correct structure.')
     return assistantData
 }
 /* exports */

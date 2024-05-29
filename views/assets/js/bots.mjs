@@ -685,8 +685,11 @@ async function mRefreshCollection(type, collectionList){
  */
 async function setBot(bot){
     try {
-        const url = window.location.origin + '/members/bots/' + bot.id
-        const method = bot.id?.length ? 'PUT' : 'POST'
+        const { id, } = bot
+        const url = window.location.origin + '/members/bots/' + id
+        const method = id?.length
+            ? 'PUT' // update
+            : 'POST' // create
         let response = await fetch(url, {
             method: method,
             headers: {

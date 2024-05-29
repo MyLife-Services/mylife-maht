@@ -455,22 +455,17 @@ class Avatar extends EventEmitter {
         return await this.#factory.resetPassphrase(passphrase)
     }
     /**
-     * Add or update bot, and identifies as activated, unless otherwise specified.
-     * @todo - strip protected bot data/create class?.
-     * @param {object} bot - Bot-data to set.
-     * @param {boolean} activate - Whether to activate bot, default=`true`.
+     * Update a specific bot.
+     * @param {object} bot - Bot data to set.
      * @returns {object} - The updated bot.
      */
-    async setBot(bot, activate=true){
+    async updateBot(bot){
         bot = await mBot(this.#factory, this, bot)
         /* add/update bot */
         if(!this.#bots.some(_bot => _bot.id === bot.id))
             this.#bots.push(bot)
         else
             this.#bots = this.#bots.map(_bot=>_bot.id===bot.id ? bot : _bot)
-        /* activation */
-        if(activate)
-            this.activeBotId = bot.id
         return bot
     }
     async thread_id(){
@@ -539,7 +534,7 @@ class Avatar extends EventEmitter {
      * @param {any} data - The data required by the switch type.
      * @returns {void}
      */
-    async updateTools(botId=this.avatarBot.bot_id, type='file_search', data){
+    async updateTools(bot_id=this.avatarBot.bot_id, type='file_search', data){
         let tools
         switch(type){
             case 'function': // @stub - function tools
@@ -562,7 +557,7 @@ class Avatar extends EventEmitter {
                 }
         }
         if(tools)
-            this.#llmServices.updateAssistant(botId, tools) /* no await */
+            this.#llmServices.updateBot({ bot_id, tools, }) /* no await */
     }
     /**
      * Validate registration id.
@@ -585,7 +580,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The active bot.
      */
     get activeBot(){
-        return this.#bots.find(_bot=>_bot.id===this.activeBotId)
+        return this.#bots.find(bot=>bot.id===this.activeBotId)
     }
     get activeBotAIId(){
         return this.activeBot.bot_id
@@ -601,13 +596,13 @@ class Avatar extends EventEmitter {
     /**
      * Set the active bot id. If not match found in bot list, then defaults back to this.id
      * @setter
-     * @param {string} _bot_id - The active bot id.
+     * @param {string} bot_id - The active bot id, defaults to personal-avatar.
      * @returns {void}
      */
-    set activeBotId(_bot_id){ // default PA
-        if(!_bot_id?.length)
-            _bot_id = this.avatarBot.id
-        this.#activeBotId = mFindBot(this, _bot_id)?.id??this.avatarBot.id
+    set activeBotId(bot_id=this.avatarBot.id){
+        this.#activeBotId = 
+            ( mFindBot(this, bot_id) ?? this.avatarBot )
+                .id
     }
     /**
      * Get actor or default avatar bot.
@@ -1014,26 +1009,37 @@ async function mBot(factory, avatar, bot){
     bot.mbr_id = mbr_id /* constant */
     bot.object_id = objectId ?? avatarId /* all your bots belong to me */
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
-    /* assign or create */
-    let assistant = bots.find(oBot=>oBot.id===botId)
-    if(assistant){ /* update bot */
-        assistant = {...assistant, ...bot}
+    /* update/create */
+    let originBot = bots.find(oBot=>oBot.id===botId)
+    if(originBot){ /* update bot */
+        const updateBot = Object.keys(bot)
+            .reduce((diff, key) => {
+                if (bot[key] !== originBot[key]) {
+                    diff[key] = bot[key]
+                }
+                return diff
+            }, {})
         /* create or update bot special properties */
-        const { thread_id, type, } = assistant
-        if(!thread_id?.length){
-            const excludeTypes = ['library',]
+        const { bot_id, thread_id, type, } = originBot // @stub - `bot_id` cannot be updated through this mechanic
+        if(!thread_id?.length){ // add thread_id to relevant bots
+            const excludeTypes = ['library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
-                assistant.thread_id = conversation.thread_id
+                updateBot.thread_id = conversation.thread_id
                 avatar.conversations.push(conversation)
             }
         }
-        factory.setBot(assistant) // update Cosmos (no need async)
+        if(Object.keys(updateBot).length){
+            updateBot.bot_id = bot_id
+            updateBot.id = botId
+            updateBot.type = type
+            bot = await factory.updateBot(updateBot) // update Cosmos & LLM (no need await)
+        }
     } else { /* create assistant */
-        assistant = await factory.createBot(bot)
+        bot = await factory.createBot(bot)
         avatar.bots.push(bot)
     }
-    return assistant
+    return bot
 }
 /**
  * Makes call to LLM and to return response(s) to prompt.
@@ -1576,13 +1582,13 @@ async function mExperienceStart(avatar, factory, experienceId, avatarExperienceV
  * Gets bot by id.
  * @module
  * @param {object} avatar - Avatar instance.
- * @param {string} _botId - Bot id
+ * @param {string} id - Bot id
  * @returns {object} - Bot object
  */
-function mFindBot(avatar, _botId){
+function mFindBot(avatar, id){
     return avatar.bots
-        .filter(_bot=>{ return _bot.id==_botId })
-        [0]
+        .filter(bot=>{ return bot.id==id })
+            ?.[0]
 }
 /**
  * Returns set of Greeting messages, dynamic or static.
