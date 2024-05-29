@@ -1647,8 +1647,10 @@ async function mUpdateBot(factory, llm, bot, options={}){
 	/* update LLM */
 	const { bot_id, bot_name: name, instructions: _instructions, metadata, model: _model, tools: _tools,  } = botData
 	if(bot_id?.length && (_instructions || metadata || _model || name || _tools)){
-		const updatedBot = await llm.updateBot(botData)
-		console.log(chalk.green('mUpdateBot()::update in LLM'), bot_id, bot, botData, updatedBot)
+		await llm.updateBot(botData)
+		const updatedLLMFields = Object.keys(botData)
+			.filter(key=>key!=='id' && key!=='bot_id') // strip mechanicals
+		console.log(chalk.green('mUpdateBot()::update in LLM'), bot_id, id, updatedLLMFields)
 	}
 	return await factory.dataservices.updateBot(botData)
 }

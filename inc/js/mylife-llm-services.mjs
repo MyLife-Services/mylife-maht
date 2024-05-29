@@ -110,7 +110,6 @@ class LLMServices {
             throw new Error('No bot ID provided for update')
         assistantData = mValidateAssistantData(assistantData) // throws on improper format
         const assistant = await this.openai.beta.assistants.update(bot_id, assistantData)
-        console.log('LLMServices::updateBot()::assistant', assistant)
         return assistant
     }
     /**
