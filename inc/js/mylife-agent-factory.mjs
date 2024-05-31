@@ -259,10 +259,11 @@ class BotFactory extends EventEmitter{
      * @param {string} thread_id - The thread id.
      * @param {string} bot_id - The bot id.
      * @param {string} helpRequest - The help request string.
+	 * @param {Avatar} avatar - The avatar instance.
 	 * @returns {Promise<Object>} - openai `message` objects.
 	 */
-	async help(thread_id, bot_id, helpRequest){
-		return await mHelp(thread_id, bot_id, helpRequest, this)
+	async help(thread_id, bot_id, helpRequest, avatar){
+		return await mHelp(thread_id, bot_id, helpRequest, this, avatar)
 	}
 	/**
 	 * Gets, creates or updates Library in Cosmos.
@@ -654,14 +655,6 @@ class AgentFactory extends BotFactory {
 	}
 	async libraryBot(id){
 		return await this.bot(id, 'library')
-	}
-	/**
-	 * Registers a new candidate to MyLife membership
-	 * @public
-	 * @param {object} candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
-	 */
-	async registerCandidate(candidate){
-		return await this.dataservices.registerCandidate(candidate)
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.
@@ -1349,10 +1342,11 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
  * @param {string} bot_id - The bot id.
  * @param {string} helpRequest - The help request string.
  * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation.
+ * @param {Avatar} avatar - The avatar instance.
  * @returns {Promise<Object>} - openai `message` objects.
  */
-async function mHelp(thread_id, bot_id, helpRequest, factory){
-	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory)
+async function mHelp(thread_id, bot_id, helpRequest, factory, avatar){
+	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory, avatar)
 	return response
 }
 /**

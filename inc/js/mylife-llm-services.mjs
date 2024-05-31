@@ -66,13 +66,14 @@ class LLMServices {
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} prompt - Member input.
      * @param {AgentFactory} factory - Avatar Factory object to process request.
+     * @param {Avatar} avatar - Avatar object.
      * @returns {Promise<Object[]>} - Array of openai `message` objects.
      */
-    async getLLMResponse(threadId, botId, prompt, factory){
+    async getLLMResponse(threadId, botId, prompt, factory, avatar){
         if(!threadId?.length)
             threadId = ( await mThread(this.openai) ).id
         await mAssignRequestToThread(this.openai, threadId, prompt)
-        const run = await mRunTrigger(this.openai, botId, threadId, factory)
+        const run = await mRunTrigger(this.openai, botId, threadId, factory, avatar)
         const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run
         const llmMessageObject = await mMessages(this.provider, threadId)
         const { data: llmMessages} = llmMessageObject
@@ -85,10 +86,11 @@ class LLMServices {
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} helpRequest - Member input.
      * @param {AgentFactory} factory - Avatar Factory object to process request.
+     * @param {Avatar} avatar - Avatar object.
      * @returns {Promise<Object>} - openai `message` objects.
      */
-    async help(threadId, botId, helpRequest, factory){
-        const helpResponse = await this.getLLMResponse(threadId, botId, helpRequest, factory)
+    async help(threadId, botId, helpRequest, factory, avatar){
+        const helpResponse = await this.getLLMResponse(threadId, botId, helpRequest, factory, avatar)
         return helpResponse
     }
     /**
@@ -220,13 +222,14 @@ async function mMessages(openai, threadId){
  * @param {OpenAI} openai - openai object
  * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  * @param {AgentFactory} factory - Avatar Factory object to process request
+ * @param {Avatar} avatar - Avatar object
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  */
-async function mRunFinish(llmServices, run, factory){
+async function mRunFinish(llmServices, run, factory, avatar){
     return new Promise((resolve, reject) => {
         const checkInterval = setInterval(async () => {
             try {
-                const functionRun = await mRunStatus(llmServices, run, factory)
+                const functionRun = await mRunStatus(llmServices, run, factory, avatar)
                 console.log('mRunFinish::functionRun()', functionRun?.status)
                 if(functionRun?.status ?? functionRun ?? false){
                     clearInterval(checkInterval)
@@ -250,12 +253,14 @@ async function mRunFinish(llmServices, run, factory){
  * @module
  * @private
  * @async
+ * @param {OpenAI} openai - openai object
  * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  * @param {AgentFactory} factory - Avatar Factory object to process request
+ * @param {Avatar} avatar - Avatar object
  * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
  * @throws {Error} - If tool function not recognized
  */
-async function mRunFunctions(openai, run, factory){ // convert factory to avatar (or add)
+async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
     if(
             run.required_action?.type=='submit_tool_outputs'
         &&  run.required_action?.submit_tool_outputs?.tool_calls
@@ -280,10 +285,10 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                         case 'confirmregistration':
                         case 'confirm_registration':
                         case 'confirm registration':
-                            const { email, } = toolArguments
-                            if(!email?.length)
+                            const { email: confirmEmail, } = toolArguments
+                            if(!confirmEmail?.length)
                                 action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
-                            else if(email.toLowerCase()!==factory.registrationData?.email?.toLowerCase())
+                            else if(confirmEmail.toLowerCase()!==factory.registrationData?.confirmEmail?.toLowerCase())
                                 action = 'Email does not match -- if occurs more than three times in this thread, fire `hijackAttempt` function'
                             else {
                                 success = factory.confirmRegistration()
@@ -316,6 +321,17 @@ async function mRunFunctions(openai, run, factory){ // convert factory to avatar
                         case 'hijack-attempt':
                         case 'hijack attempt':
                             console.log('mRunFunctions()::hijack_attempt', toolArguments)
+                            action = 'attempt noted in system and user ejected; greet per normal as first time new user'
+                            success = true
+                            confirmation.output = JSON.stringify({ success, action, })
+                            return confirmation
+                        case 'registerCandidate':
+                        case 'register_candidate':
+                        case 'register candidate':
+                            const { avatarName, email: registerEmail, humanName, } = toolArguments
+                            console.log('mRunFunctions()::avatar', avatar)
+                            console.log('mRunFunctions()::register_candidate', toolArguments)
+                            action = 'candidate registered in system; let them know they will be contacted by email within the week and if they have any more questions'
                             success = true
                             confirmation.output = JSON.stringify({ success, action, })
                             return confirmation
@@ -405,9 +421,10 @@ async function mRuns(openai, threadId){
  * @param {OpenAI} openai - openai object
  * @param {object} run - Run id
  * @param {AgentFactory} factory - Avatar Factory object to process request
+ * @param {Avatar} avatar - Avatar object
  * @returns {boolean} - true if run completed, voids otherwise
  */
-async function mRunStatus(openai, run, factory){
+async function mRunStatus(openai, run, factory, avatar){
     run = await openai.beta.threads.runs
         .retrieve(
             run.thread_id,
@@ -415,7 +432,7 @@ async function mRunStatus(openai, run, factory){
         )
     switch(run.status){
         case 'requires_action':
-            const completedRun = await mRunFunctions(openai, run, factory)
+            const completedRun = await mRunFunctions(openai, run, factory, avatar)
             return completedRun /* if undefined, will ping again */
         case 'completed':
             return run // run
@@ -484,14 +501,15 @@ async function mRunStart(llmServices, assistantId, threadId){
  * @param {string} botId - Bot id
  * @param {string} threadId - Thread id
  * @param {AgentFactory} factory - Avatar Factory object to process request
+ * @param {Avatar} avatar - Avatar object
  * @returns {void} - All content generated by run is available in `avatar`.
  */
-async function mRunTrigger(openai, botId, threadId, factory){
+async function mRunTrigger(openai, botId, threadId, factory, avatar){
     const run = await mRunStart(openai, botId, threadId)
     if(!run)
         throw new Error('Run failed to start')
     // ping status; returns `completed` run
-    const finishRun = await mRunFinish(openai, run, factory)
+    const finishRun = await mRunFinish(openai, run, factory, avatar)
         .then(response=>response)
         .catch(err=>err)
     return finishRun

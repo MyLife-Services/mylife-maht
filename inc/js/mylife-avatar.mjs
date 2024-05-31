@@ -156,7 +156,7 @@ class Avatar extends EventEmitter {
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory)
+        const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory, this)
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
@@ -395,7 +395,6 @@ class Avatar extends EventEmitter {
         const { bot_id, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
             ?? this.helpBots?.[0]
             ?? this.activeBot
-        // @stub rewrite mCallLLM, but ability to override conversation? No, I think in general I would prefer this to occur at factory  as it is here
         const conversation = this.getConversation(thread_id)
         const helpResponseArray = await this.factory.help(thread_id, bot_id, helpRequest)
         conversation.addMessages(helpResponseArray)
@@ -431,7 +430,6 @@ class Avatar extends EventEmitter {
         const { bot_id, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
             ?? this.helpBots?.[0]
             ?? this.activeBot
-        // @stub rewrite mCallLLM, but ability to override conversation? No, I think in general I would prefer this to occur at factory  as it is here
         const conversation = this.getConversation(thread_id)
         const helpResponseArray = await this.factory.help(thread_id, bot_id, helpRequest)
         conversation.addMessages(helpResponseArray)
@@ -486,7 +484,7 @@ class Avatar extends EventEmitter {
             success: false,
         }
         try{
-            let messages = await mCallLLM(this.#llmServices, { botId, thread_id, }, prompt, this.#factory)
+            let messages = await mCallLLM(this.#llmServices, { botId, thread_id, }, prompt, this.#factory, this)
             messages = messages
                 .map(message=>mPruneMessage(this.personalAssistant, message, 'mylife-file-summary', processStartTime))
                 .filter(message=>message && message.role!=='user')
@@ -1059,19 +1057,21 @@ async function mBot(factory, avatar, bot){
  * Makes call to LLM and to return response(s) to prompt.
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
  * @todo - address disconnect between conversations held in memory in avatar and those in openAI threads; use `addLLMMessages` to post internally
+ * @todo - would dynamic event dialog be handled more effectively with a callback routine function, I think so, and would still allow for avatar to vet, etc.
  * @module
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
  * @param {string} prompt - dialog-prompt/message for llm
  * @param {AgentFactory} factory - Agent Factory object required for function execution
- * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order.
+ * @param {object} avatar - Avatar object
+ * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order
  */
-async function mCallLLM(llmServices, conversation, prompt, factory){
+async function mCallLLM(llmServices, conversation, prompt, factory, avatar){
     const { botId, bot_id, thread_id: threadId } = conversation
     const id = botId ?? bot_id
     if(!threadId || !botId)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
-    const messages = await llmServices.getLLMResponse(threadId, id, prompt, factory)
+    const messages = await llmServices.getLLMResponse(threadId, id, prompt, factory, avatar)
     messages.sort((mA, mB) => {
         return mB.created_at - mA.created_at
     })
@@ -1314,7 +1314,8 @@ async function mEventInput(llm, experience, event, iteration=0, memberInput){
         ?? experience.cast[0]?.bot?.bot_id
     const scriptConsultant = scriptAdvisor ?? scriptDialog ?? dialog
     scriptConsultant.botId = scriptAdvisorBotId
-    const messages = await mCallLLM(llm, scriptConsultant, prompt) ?? []
+    const messages = await mCallLLM(llm, scriptConsultant, prompt)
+        ?? []
     if(!messages.length){
         console.log('mEventInput::no messages returned from LLM', prompt, scriptAdvisorBotId, scriptConsultant)
         throw new Error('No messages returned from LLM')
