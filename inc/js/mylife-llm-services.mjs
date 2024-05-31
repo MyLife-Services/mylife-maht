@@ -1,8 +1,8 @@
 import OpenAI from 'openai'
 /* module constants */
 const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
-const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 const mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890
+const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 /* class definition */
 /**
  * LLM Services class.

@@ -123,6 +123,8 @@ const mAiJsFunctions = {
 }
 const mEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/	//	regex for email validation
 const mGuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i	//	regex for GUID validation
+const mOpenAIBotModel = process.env.OPENAI_MODEL_CORE_BOT
+	?? 'gpt-4o' // current MyLife OpenAI model for system on-demand and custom bots (personal-avatar may be different)
 // module classes
 class Globals extends EventEmitter {
 	constructor() {
@@ -196,7 +198,7 @@ class Globals extends EventEmitter {
 	getRegExp(text, isGlobal=false) {
 		if (typeof text !== 'string' || !text.length)
 			throw new Error('Expected a string')
-		return new RegExp(str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), isGlobal ? 'g' : '')
+		return new RegExp(text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), isGlobal ? 'g' : '')
 	}
 	isValidEmail(email){
 		return typeof email === 'string' && mEmailRegex.test(email)
@@ -219,14 +221,17 @@ class Globals extends EventEmitter {
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
 	}
 	//	getters/setters
-	get uploadPath(){
-		return './.uploads/.tmp/'
+	get currentOpenAIBotModel(){
+		return mOpenAIBotModel
+	}
+	get GPTJavascriptFunctions(){
+		return mAiJsFunctions
 	}
 	get newGuid(){	//	this.newGuid
 		return Guid.newGuid().toString()
 	}
-	get GPTJavascriptFunctions(){
-		return mAiJsFunctions
+	get uploadPath(){
+		return './.uploads/.tmp/'
 	}
 }
 //	exports

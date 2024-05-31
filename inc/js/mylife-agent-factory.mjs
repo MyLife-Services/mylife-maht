@@ -378,6 +378,12 @@ class BotFactory extends EventEmitter{
 	get dataservices(){
 		return this.#dataservices
 	}
+	get dob(){
+		let birthdate = this.core.birth[0].date
+		if(birthdate?.length)
+			birthdate = new Date(birthdate).toISOString().split('T')[0]
+		return birthdate
+	}
 	/**
 	 * Returns experience class definition.
 	 */
@@ -417,8 +423,13 @@ class BotFactory extends EventEmitter{
 	get mbr_name(){
 		return this.globals.sysName(this.mbr_id)
 	}
+	get memberFirstName(){
+		return this.memberName
+			?.split(' ')[0]
+	}
 	get memberName(){
-		return this.dataservices.core.names?.[0]??this.mbr_name
+		return this.core.names?.[0]
+			?? this.mbr_name
 	}
 	get newGuid(){
 		return mNewGuid()
@@ -1082,48 +1093,45 @@ async function mCreateBot(llm, factory, bot){
  * @returns {string} - flattened string of instructions
  */
 function mCreateBotInstructions(factory, bot){
-	if(!bot)
-		throw new Error('bot object required')
+	if(typeof bot!=='object' || !bot.type?.length)
+		throw new Error('bot object required, and  requires `type` property')
 	const { type=mDefaultBotType, } = bot
-    let instructionSet = factory.botInstructions(type) // no need to wait, should be updated or refresh server
-    instructionSet = instructionSet?.instructions
+    const instructionSet = factory.botInstructions(type)?.instructions // no need to wait, should be updated or refresh server
     if(!instructionSet) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
+    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructionSet
     /* compile instructions */
-    let instructions = ''
+	let instructions
     switch(type){
 		case 'journaler':
         case 'personal-avatar':
-            instructions +=
-                  instructionSet.preamble
-                + instructionSet.general
+            instructions = preamble
+                + general
             break
         case 'personal-biographer':
-            instructions +=
-                  instructionSet.preamble
-                + instructionSet.purpose
-                + instructionSet.prefix
-                + instructionSet.general
+            instructions = preamble
+                + purpose
+                + prefix
+                + general
             break
-        default: // avatar
-            instructions += instructionSet.general
+        default:
+            instructions = general
             break
     }
     /* apply replacements */
-    instructionSet.replacements = instructionSet?.replacements??[]
-    instructionSet.replacements.forEach(_replacement=>{
-        const _placeholderRegExp = factory.globals.getRegExp(_replacement.name, true)
-        const _replacementText = eval(`factory?.${_replacement.replacement}`)
-            ?? eval(`bot?.${_replacement.replacement}`)
-            ?? _replacement?.default
+    replacements.forEach(replacement=>{
+        const placeholderRegExp = factory.globals.getRegExp(replacement.name, true)
+        const replacementText = eval(`bot?.${replacement.replacement}`)
+			?? eval(`factory?.${replacement.replacement}`)
+            ?? eval(`factory.core?.${replacement.replacement}`)
+            ?? replacement?.default
             ?? '`unknown-value`'
-        instructions = instructions.replace(_placeholderRegExp, () => _replacementText)
+        instructions = instructions.replace(placeholderRegExp, _=>replacementText)
     })
     /* apply references */
-    instructionSet.references = instructionSet?.references??[]
-    instructionSet.references.forEach(_reference=>{
+    references.forEach(_reference=>{
         const _referenceText = _reference.insert
-        const _replacementText = eval(`factory?.${_reference.value}`)
+        const replacementText = eval(`factory?.${_reference.value}`)
             ?? eval(`bot?.${_reference.value}`)
             ?? _reference.default
             ?? '`unknown-value`'
@@ -1134,7 +1142,7 @@ function mCreateBotInstructions(factory, bot){
                 instructions =
                     instructions.slice(0, _indexHard + _referenceText.length)
                     + '\n'
-                    + _replacementText
+                    + replacementText
                     + instructions.slice(_indexHard + _referenceText.length)
                 }
                 break
@@ -1144,13 +1152,13 @@ function mCreateBotInstructions(factory, bot){
                 instructions =
                       instructions.slice(0, _indexSoft + _referenceText.length)
                     + ' '
-                    + _replacementText
+                    + replacementText
                     + instructions.slice(_indexSoft + _referenceText.length)
                 }
                 break
             case 'replace':
             default:
-                instructions = instructions.replace(_referenceText, _replacementText)
+                instructions = instructions.replace(_referenceText, replacementText)
                 break
         }
     })
@@ -1611,7 +1619,7 @@ function mSanitizeSchemaValue(_value) {
  * Updates bot in Cosmos, and if necessary, in LLM.
  * @param {AgentFactory} factory - Factory object
  * @param {LLMServices} llm - LLMServices object
- * @param {object} bot - Bot object
+ * @param {object} bot - Bot object, winnow via mBot in `mylife-avatar.mjs` to only updated fields
  * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean }
  * @returns 
  */
@@ -1620,39 +1628,42 @@ async function mUpdateBot(factory, llm, bot, options={}){
 	const {
 		id, // no modifications; see below
 		instructions: removeInstructions,
-		model: removeModel,
 		tools: removeTools,
 		tool_resources: removeResources,
 		type, // no modifications
 		...botData // extract member-driven bot data
 	} = bot
 	const {
-		instructions=false,
-		model=false,
-		tools=false,
+		instructions: updateInstructions=false,
+		model: updateModel=false,
+		tools: updateTools=false,
 	} = options
 	if(!factory.globals.isValidGuid(id))
 		throw new Error('bot `id` required in bot argument: `{ id: guid }`')
-	botData.id = id // validated
-	if(instructions)
-		botData.instructions = mCreateBotInstructions(type)
-	if(tools){
-		const { tools, tool_resources, } = mGetAIFunctions(type)
+	if(updateInstructions){
+		// @stub - update core based on updatebot? type-interests as example? yes.
+		const instructions = mCreateBotInstructions(factory, bot)
+		botData.instructions = instructions
+	}
+	if(updateTools){
+		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
 		botData.tools = tools
 		botData.tool_resources = tool_resources
 	}
-	if(model)
-		botData.model = process.env.OPENAI_MODEL_CORE_BOT
-			?? 'gpt-4o'
-	/* update LLM */
-	const { bot_id, bot_name: name, instructions: _instructions, metadata, model: _model, tools: _tools,  } = botData
-	if(bot_id?.length && (_instructions || metadata || _model || name || _tools)){
+	if(updateModel)
+		botData.model = factory.globals.currentOpenAIBotModel
+	botData.id = id // validated
+	/* LLM updates */
+	const { bot_id, bot_name: name, instructions, metadata, tools, } = botData
+	if(bot_id?.length && (instructions || metadata || name || tools)){
+		botData.model = factory.globals.currentOpenAIBotModel // not dynamic
 		await llm.updateBot(botData)
 		const updatedLLMFields = Object.keys(botData)
 			.filter(key=>key!=='id' && key!=='bot_id') // strip mechanicals
 		console.log(chalk.green('mUpdateBot()::update in LLM'), bot_id, id, updatedLLMFields)
 	}
-	return await factory.dataservices.updateBot(botData)
+	const updatedBot = await factory.dataservices.updateBot(botData)
+	return updatedBot
 }
 /* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance

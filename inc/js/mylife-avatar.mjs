@@ -726,6 +726,9 @@ class Avatar extends EventEmitter {
     get core(){
         return this.#factory.core
     }
+    get dob(){
+        return this.#factory.dob
+    }
     /**
      * Get the current experience.
      * @getter
@@ -851,7 +854,7 @@ class Avatar extends EventEmitter {
      * @returns {guid} - The member's core guid.
      */
     get mbr_sysId(){
-        return this.globals.sysId(this.mbr_id)
+        return this.#factory.mbr_id_id
     }
     /**
      * Get the system name portion of member id.
@@ -859,7 +862,7 @@ class Avatar extends EventEmitter {
      * @returns {guid} - The member's system name.
      */
     get mbr_sysName(){
-        return this.globals.sysName(this.mbr_id)
+        return this.#factory.mbr_name
     }
     /**
      * Gets first name of member from `#factory`.
@@ -867,7 +870,7 @@ class Avatar extends EventEmitter {
      * @returns {guid} - The member's core guid.
      */
     get memberFirstName(){
-        return this.memberName.split(' ')[0]??this.nickname??this.name
+        return this.#factory.memberFirstName
     }
     /**
      * Gets full name of member from `#factory`.
@@ -988,7 +991,7 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
     return {...experienceVariables, ...localOverrides}
 }
 /**
- * Updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
+ * Validates and cleans bot object then updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
  * @todo Fix occasions where there will be no object_id property to use, as it was created through a hydration method based on API usage, so will be attached to mbr_id, but NOT avatar.id
  * @module
  * @param {AgentFactory} factory - Agent Factory object
@@ -1012,15 +1015,15 @@ async function mBot(factory, avatar, bot){
     /* update/create */
     let originBot = bots.find(oBot=>oBot.id===botId)
     if(originBot){ /* update bot */
+        const options = {}
         const updateBot = Object.keys(bot)
             .reduce((diff, key) => {
-                if (bot[key] !== originBot[key]) {
+                if(bot[key]!==originBot[key])
                     diff[key] = bot[key]
-                }
                 return diff
             }, {})
         /* create or update bot special properties */
-        const { bot_id, thread_id, type, } = originBot // @stub - `bot_id` cannot be updated through this mechanic
+        const { thread_id, type, } = originBot // @stub - `bot_id` cannot be updated through this mechanic
         if(!thread_id?.length){ // add thread_id to relevant bots
             const excludeTypes = ['library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
@@ -1030,16 +1033,27 @@ async function mBot(factory, avatar, bot){
             }
         }
         if(Object.keys(updateBot).length){
+            let updatedOriginBot = {...originBot, ...updateBot} // consolidated update
+            const { bot_id, id, } = updatedOriginBot
             updateBot.bot_id = bot_id
-            updateBot.id = botId
+            updateBot.id = id
             updateBot.type = type
-            bot = await factory.updateBot(updateBot) // update Cosmos & LLM (no need await)
+            const { interests, dob, privacy, } = updateBot
+            /* set options */
+            if(interests?.length || dob?.length || privacy?.length){
+                options.instructions = true
+                options.model = true
+                options.tools = false /* tools not updated through this mechanic */
+            }
+            updatedOriginBot = await factory.updateBot(updateBot, options)
+            originBot = mSanitize(updatedOriginBot)
         }
     } else { /* create assistant */
         bot = await factory.createBot(bot)
         avatar.bots.push(bot)
     }
-    return bot
+    return originBot
+        ?? bot
 }
 /**
  * Makes call to LLM and to return response(s) to prompt.
@@ -1775,6 +1789,19 @@ function mReplaceVariables(prompt, variableList, variableValues){
             prompt = prompt.replace(new RegExp(`@@${keyName}`, 'g'), value)
     })
     return prompt
+}
+/**
+ * Takes an object and removes MyLife database fields unintended for external observance.
+ * @param {object} obj - Object to sanitize.
+ * @returns {object} - Sanitized object.
+ */
+function mSanitize(obj){
+    const removalCharacters = ['_', '$']
+    for(const key in obj){
+        if(removalCharacters.includes(key[0]))
+            delete obj[key]
+    }
+    return obj
 }
 /**
  * Returns a sanitized event.
