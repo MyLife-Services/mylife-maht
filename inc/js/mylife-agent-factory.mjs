@@ -482,15 +482,6 @@ class AgentFactory extends BotFactory {
 	async challengeAccess(mbr_id, passphrase){
 		return await mDataservices.challengeAccess(mbr_id, passphrase)
 	}
-	confirmRegistration(){
-		if(!this.isMyLife)
-			throw new Error('MyLife server required for this function')
-		if(!this.registrationData)
-			return false
-		this.#mylifeRegistrationData = this.#tempRegistrationData
-		this.#tempRegistrationData = null
-		return true
-	}
 	/**
 	 * Set MyLife core account basics. { birthdate, passphrase, }
 	 * @todo - move to mylife agent factory
@@ -505,7 +496,7 @@ class AgentFactory extends BotFactory {
 				throw new Error('MyLife server required for this request')
 			if(!birthdate?.length || !passphrase?.length)
 				throw new Error('birthdate _**and**_ passphrase required')
-			const { avatarNickname, email, humanName, id, interests, } = this.#mylifeRegistrationData
+			const { avatarName, email, humanName, id, interests, } = this.#mylifeRegistrationData
 			let { updates='', } = this.#mylifeRegistrationData
 			if(!id)
 				throw new Error('registration not confirmed, cannot accept request')
@@ -517,7 +508,7 @@ class AgentFactory extends BotFactory {
 			const birth = [{ // current 20240523 format
 				date: birthdate,
 			}]
-			const mbr_id = this.globals.createMbr_id(avatarNickname ?? humanName, id)
+			const mbr_id = this.globals.createMbr_id(avatarName ?? humanName, id)
 			if(await this.testPartitionKey(mbr_id))
 				throw new Error('mbr_id already exists')
 			const names = [humanName] // currently array of flat strings
@@ -865,12 +856,32 @@ class MyLifeFactory extends AgentFactory {
 	// no init() for MyLife server
 	/* public functions */
 	/**
+	 * Confirms registration for a new member.
+	 * @returns {boolean} - `true` if registration confirmed.
+	 */
+	confirmRegistration(){
+		if(!this.registrationData)
+			return false
+		this.#mylifeRegistrationData = this.#tempRegistrationData
+		this.#tempRegistrationData = null
+		return true
+	}
+	/**
 	 * Returns Array of hosted members based on validation requirements.
 	 * @param {Array} validations - Array of validation strings to filter membership.
 	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
 	 */
 	async hostedMembers(validations){
 		return await this.#dataservices.hostedMembers(validations)
+	}
+	/**
+	 * Registers a new candidate to MyLife membership
+	 * @public
+	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
+	 * @returns {object} - The registration document from Cosmos.
+	 */
+	async registerCandidate(candidate){
+		return await this.#dataservices.registerCandidate(candidate)
 	}
 	/* getters/setters */
 	/**

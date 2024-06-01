@@ -480,9 +480,9 @@ async function submitChat(url, options) {
 async function mSubmitSignup(event){
     const { value: email, } = signupEmailInputField
     const { value: humanName, } = signupHumanNameInput
-    const { value: avatarNickname, } = signupAvatarInputField
+    const { value: avatarName, } = signupAvatarInputField
     const formData = {
-        avatarNickname,
+        avatarName,
         email,
         humanName,
         type: mSignupType,

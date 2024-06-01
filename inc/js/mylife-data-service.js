@@ -598,14 +598,25 @@ class Dataservices {
 	/**
 	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
+	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
+	 * @returns {object} - The registration document from Cosmos.
 	 */
-	async registerCandidate(_candidate){
-		_candidate.mbr_id = this.#partitionId
-		_candidate.id = await this.findRegistrationIdByEmail(_candidate.email)
-		_candidate.being = 'registration'
-		_candidate.name = `${_candidate.email.split('@')[0]}-${_candidate.email.split('@')[1]}_${_candidate.id}`
-		return await this.datamanager.registerCandidate(_candidate)
+	async registerCandidate(candidate){
+		const { avatarName, email, id: candidateId, humanName, type='newsletter', } = candidate
+		const being = 'registration'
+		const id = candidateId 
+			?? await this.findRegistrationIdByEmail(email) /* defaults to newGuid */
+		const mbr_id = this.#partitionId
+		const name = `${ avatarName ?? humanName ?? 'registerCandidate' }-${id}`
+		candidate = {
+			...candidate,
+			being,
+			id,
+			mbr_id,
+			name,
+			type,
+		}
+		return await this.datamanager.registerCandidate(candidate)
 	}
     /**
      * Allows member to reset passphrase.
@@ -669,9 +680,9 @@ class Dataservices {
 	async validateRegistration(registrationId){
 		const { mbr_id, } = this
 		const registration = await this.getItem(registrationId, 'registration', mbr_id)
-		const { avatarNickname, humanName, id, } = registration
-		if(avatarNickname?.length && id?.length){
-			const tempMbr_id = this.globals.createMbr_id(avatarNickname, id)
+		const { avatarName, humanName, id, } = registration
+		if(avatarName?.length && id?.length){
+			const tempMbr_id = this.globals.createMbr_id(avatarName, id)
 			const exists = await this.testPartitionKey(tempMbr_id)
 			if(exists)
 				throw new Error('Registrant already a member!')

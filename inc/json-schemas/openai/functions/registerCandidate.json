@@ -1,0 +1,41 @@
+{
+    "name": "registerCandidate",
+    "description": "Register candidate for MyLife",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "avatarName": {
+                "description": "Avatar name provided by registrant, if none, use `Workhorse`",
+                "maxLength": 32,
+                "minLength": 3,
+                "type": "string"
+            },
+            "email": {
+                "description": "Email address provided by registrant",
+                "format": "email",
+                "type": "string"
+            },
+            "humanName": {
+                "description": "Name provided by registrant",
+                "maxLength": 64,
+                "minLength": 3,
+                "type": "string"
+            },
+            "type": {
+                "default": "register",
+                "description": "Type of registration",
+                "enum": [
+                    "newsletter",
+                    "register"
+                ],
+                "type": "string"
+            }
+        },
+        "required": [
+            "avatarName",
+            "email",
+            "humanName",
+            "type"
+        ]
+    }
+}

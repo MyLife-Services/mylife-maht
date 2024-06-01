@@ -138,7 +138,7 @@ class Datamanager {
 	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
+	 * @param {object} _candidate { 'avatarName': string, 'email': string, 'humanName': string, }
 	 */
 	async registerCandidate(_candidate){
 		const { resource: doc } = await this.#containers['registration']

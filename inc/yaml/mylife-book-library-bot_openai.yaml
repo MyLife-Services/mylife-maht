@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: MyLife GPT Webhook Receiver API
+  title: MyLife Library Bot API
   description: This API is for receiving webhooks from [MyLife Library Bot instance]().
   version: 1.0.0
 servers:

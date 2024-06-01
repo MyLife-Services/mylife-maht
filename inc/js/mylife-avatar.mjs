@@ -441,6 +441,17 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
+     * Register a candidate in database.
+     * @param {object} candidate - The candidate data object.
+     * @returns {object} - The registration object.
+     */
+    async registerCandidate(candidate){
+        const registration = await this.#factory.registerCandidate(candidate)
+        delete registration.mbr_id
+        delete registration.passphrase
+        return registration
+    }
+    /**
      * Allows member to reset passphrase.
      * @param {string} passphrase 
      * @returns {boolean} - true if passphrase reset successful.
@@ -453,25 +464,12 @@ class Avatar extends EventEmitter {
         return await this.#factory.resetPassphrase(passphrase)
     }
     /**
-     * Update a specific bot.
-     * @param {object} bot - Bot data to set.
-     * @returns {object} - The updated bot.
+     * Summarize the file indicated.
+     * @param {string} fileId 
+     * @param {string} fileName 
+     * @param {number} processStartTime 
+     * @returns {Object} - The response object { messages, success, error,}
      */
-    async updateBot(bot){
-        bot = await mBot(this.#factory, this, bot)
-        /* add/update bot */
-        if(!this.#bots.some(_bot => _bot.id === bot.id))
-            this.#bots.push(bot)
-        else
-            this.#bots = this.#bots.map(_bot=>_bot.id===bot.id ? bot : _bot)
-        return bot
-    }
-    async thread_id(){
-        if(!this.#conversations.length){
-            await this.createConversation()
-        }
-        return this.#conversations[0].threadId
-    }
     async summarize(fileId, fileName, processStartTime=Date.now()){
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot summarize files.')
@@ -500,6 +498,12 @@ class Avatar extends EventEmitter {
         }
         return response
     }
+    async thread_id(){
+        if(!this.#conversations.length){
+            await this.createConversation()
+        }
+        return this.#conversations[0].threadId
+    }
     /**
      * Upload files to MyLife and/or LLM.
      * @todo - implement MyLife file upload.
@@ -521,6 +525,20 @@ class Avatar extends EventEmitter {
             files: vectorstoreFileList,
             success: true,
         }
+    }
+    /**
+     * Update a specific bot.
+     * @param {object} bot - Bot data to set.
+     * @returns {object} - The updated bot.
+     */
+    async updateBot(bot){
+        bot = await mBot(this.#factory, this, bot)
+        /* add/update bot */
+        if(!this.#bots.some(_bot => _bot.id === bot.id))
+            this.#bots.push(bot)
+        else
+            this.#bots = this.#bots.map(_bot=>_bot.id===bot.id ? bot : _bot)
+        return bot
     }
     /**
      * Update tools for bot-assistant based on type.
@@ -1867,13 +1885,13 @@ async function mValidateRegistration(activeBot, factory, validationId){
     const failureMessage = `I\'m sorry, but I\'m currently unable to validate your registration id:<br />${ validationId }.<br />I\'d be happy to talk with you more about MyLife, but you may need to contact member support to resolve this issue.`
     /* determine eligibility */
     if(registration){
-        const { avatarNickname, being, email: registrationEmail, humanName, } = registration
+        const { avatarName, being, email: registrationEmail, humanName, } = registration
         const eligible = being==='registration'
             && factory.globals.isValidEmail(registrationEmail)
         if(eligible){
             const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
             message = mCreateSystemMessage(activeBot, successMessage, factory)
-            registrationData.avatarNickname = avatarNickname
+            registrationData.avatarName = avatarName ?? humanName ?? 'My AI-Agent'
             registrationData.email = registrationEmail
             registrationData.humanName = humanName
             success = true

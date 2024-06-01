@@ -177,14 +177,21 @@ async function logout(ctx){
     ctx.status = 200
     ctx.body = { success: true }
 }
+/**
+ * Registration function for new members.
+ * @todo - throttle register requests to prevent abuse.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object
+ */
 async function register(ctx){
-	const _registrationData = ctx.request.body
+	const registrationData = ctx.request.body
+    const { avatar, } = ctx.state
 	const {
 		registrationInterests,
 		contact={}, // as to not elicit error destructuring
 		personalInterests,
 		additionalInfo
-	} = _registrationData
+	} = registrationData
 	const {
 		avatarName,
 		humanName,
@@ -199,16 +206,13 @@ async function register(ctx){
 	// Email validation
     if (!ctx.Globals.isValidEmail(contact.email))
         ctx.throw(400, 'Invalid email format.')
-	// throttle requests?
-	// write to cosmos db
-	_registrationData.email = email // required at root for select
-	const _ = ctx.MyLife.registerCandidate(_registrationData)
-	const { mbr_id, ..._return } = _registrationData // abstract out the mbr_id
+	registrationData.email = email // required at root for select
+	const registration = await avatar.registerCandidate(registrationData)
 	ctx.status = 200
     ctx.body = {
         success: true,
         message: 'Registration completed successfully.',
-		data: _return,
+		data: registration,
     }
 }
 /**

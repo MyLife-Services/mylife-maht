@@ -218,9 +218,9 @@ async function privacyPolicy(ctx){
 	await ctx.render('privacy-policy')	//	privacy-policy
 }
 async function signup(ctx) {
-    const { email, humanName, avatarNickname, type='newsletter', } = ctx.request.body
+    const { avatarName, email, humanName, type='newsletter', } = ctx.request.body
 	const signupPacket = {
-		avatarNickname,
+		avatarName,
 		email,
 		humanName: humanName.substring(0, 64),
 		type,
@@ -244,10 +244,10 @@ async function signup(ctx) {
 			message: 'Invalid input: First name must be between 3 and 64 characters: humanNameInput',
 			payload: signupPacket,
 		})
-	if(( avatarNickname?.length < 3 ?? true ) && type==='register')
+	if(( avatarName?.length < 3 ?? true ) && type==='register')
 		ctx.throw(400, 'Invalid input', {
 			success,
-			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNicknameInput',
+			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNameInput',
 			payload: signupPacket,
 		})
 	signupPacket.id = ctx.MyLife.newGuid
