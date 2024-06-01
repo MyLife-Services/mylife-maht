@@ -157,7 +157,7 @@ class Globals extends EventEmitter {
 	 * @returns {string} - The member id created from the system name and id.
 	 */
 	createMbr_id(sysName, sysId){
-		if(!sysName?.length || !isValidGuid(sysId))
+		if(!sysName?.length || !this.isValidGuid(sysId))
 			throw new Error('createMbr_id() expects params: sysName{string}, id{Guid}')
 		const delimiter = '|' // currently used to separate system name and id in mbr_id
 		const mbr_id = sysName
@@ -203,7 +203,7 @@ class Globals extends EventEmitter {
 	isValidEmail(email){
 		return typeof email === 'string' && mEmailRegex.test(email)
 	}
-	isValidGuid(text) {
+	isValidGuid(text){
 		return typeof text === 'string' && mGuidRegex.test(text)
 	}
 	stripCosmosFields(object){

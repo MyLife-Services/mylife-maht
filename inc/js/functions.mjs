@@ -133,16 +133,9 @@ async function greetings(ctx){
 		dynamic = JSON.parse(dynamic)
 	const { avatar, } = ctx.state
 	let response = { success: false, messages: [], }
-	if(validateId?.length){
-		if(!avatar.isMyLife){
-			response = {
-				...response,
-				error: new Error('Only MyLife may validate greetings'),
-				messages: ['Only MyLife may validate greetings'],
-			}
-		} else // @stub - validate registration request
-			response.messages.push(...await avatar.validateRegistration(validateId))
-	} else
+	if(validateId?.length)
+		response.messages.push(...await avatar.validateRegistration(validateId))
+	else
 		response.messages.push(...await avatar.getGreeting(dynamic))
 	response.success = response.messages.length > 0
 	ctx.body = response
@@ -255,7 +248,7 @@ async function signup(ctx) {
 	console.log('signupPacket:', signupPacket, registrationData)
 	ctx.session.signup = true
 	success = true
-	const { mbr_id, ..._registrationData } = signupPacket // do not display
+	const { mbr_id, ..._registrationData } = signupPacket // do not display theoretical memberId
     ctx.status = 200 // OK
     ctx.body = {
 		payload: _registrationData,

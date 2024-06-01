@@ -287,13 +287,12 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'confirm_registration':
                             case 'confirm registration':
                                 console.log('mRunFunctions()::confirmregistration', toolArguments)
-                                const { email: confirmEmail, } = toolArguments
+                                let { email: confirmEmail, } = toolArguments
+                                confirmEmail = confirmEmail.trim()
                                 if(!confirmEmail?.length)
                                     action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
-                                else if(confirmEmail.toLowerCase()!==factory.registrationData?.confirmEmail?.toLowerCase())
-                                    action = 'Email does not match -- if occurs more than three times in this thread, fire `hijackAttempt` function'
                                 else {
-                                    success = factory.confirmRegistration()
+                                    success = factory.confirmRegistration(confirmEmail)
                                     if(success)
                                         action = `congratulate on registration and get required member data for follow-up: date of birth, initial account passphrase.`
                                     else
@@ -342,10 +341,10 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                 }
                                 confirmation.output = JSON.stringify({ success, action, })
                                 return confirmation
-                            case 'setmylifebasics':
-                            case 'set_mylife_basics':
-                            case 'set mylife basics':
-                                console.log('mRunFunctions()::registerCandidate', toolArguments)
+                            case 'createaccount':
+                            case 'create_account':
+                            case 'create account':
+                                console.log('mRunFunctions()::createAccount', toolArguments)
                                 const { birthdate, passphrase, } = toolArguments
                                 action = `error setting basics for member: `
                                 if(!birthdate)

@@ -139,8 +139,10 @@ class Avatar extends EventEmitter {
         if(this.isMyLife){ /* MyLife chat request hasn't supplied basics to front-end yet */
             activeBotId = this.activeBot.id
             threadId = this.activeBot.thread_id
-            if(this.#factory.registrationData) // trigger confirmation until session (or vld) ends
+            if(this.isValidating) // trigger confirmation until session (or vld) ends
                 chatMessage = `CONFIRM REGISTRATION: ${ chatMessage }`
+            if(this.isCreatingAccount)
+                chatMessage = `CREATE ACCOUNT: ${ chatMessage }`
         }
         if(!chatMessage)
             throw new Error('No message provided in context')
@@ -583,10 +585,6 @@ class Avatar extends EventEmitter {
      */
     async validateRegistration(validationId){
         const { messages, registrationData, success, } = await mValidateRegistration(this.activeBot, this.#factory, validationId)
-        if(success){
-            // @stub - move to MyLife only avatar variant, where below are private vars
-            this.#factory.registrationData = registrationData
-        }
         return messages
     }
     /* getters/setters */
@@ -804,6 +802,14 @@ class Avatar extends EventEmitter {
         return this.bots.filter(bot=>bot.type==='help')
     }
     /**
+     * Test whether avatar session is creating an account.
+     * @getter
+     * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
+     */
+    get isCreatingAccount(){
+        return this.#factory.isCreatingAccount
+    }
+    /**
      * Test whether avatar is in an `experience`.
      * @getter
      * @returns {boolean} - Avatar is in `experience` (true) or not (false).
@@ -818,6 +824,14 @@ class Avatar extends EventEmitter {
      */
     get isMyLife(){
         return this.#factory.isMyLife
+    }
+    /**
+     * Test whether avatar is `validating` in session.
+     * @getter
+     * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
+     */
+    get isValidating(){
+        return this.#factory.isValidating
     }
     /**
      * Get the current living experience.
@@ -1871,8 +1885,6 @@ function mValidateMode(_requestedMode, _currentMode){
  */
 async function mValidateRegistration(activeBot, factory, validationId){
     /* validate structure */
-    if(!factory.isMyLife)
-        throw new Error('FAILURE::validateRegistration()::Only MyLife may validate registrations.')
     if(!factory.globals.isValidGuid(validationId))
         throw new Error('FAILURE::validateRegistration()::Invalid validation id.')
     /* validate validationId */
@@ -1880,7 +1892,6 @@ async function mValidateRegistration(activeBot, factory, validationId){
         registrationData = { id: validationId },
         success = false
     const registration = await factory.validateRegistration(validationId)
-    console.log('mValidateRegistration::registration', registration)
     const messages = []
     const failureMessage = `I\'m sorry, but I\'m currently unable to validate your registration id:<br />${ validationId }.<br />I\'d be happy to talk with you more about MyLife, but you may need to contact member support to resolve this issue.`
     /* determine eligibility */
@@ -1892,16 +1903,13 @@ async function mValidateRegistration(activeBot, factory, validationId){
             const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
             message = mCreateSystemMessage(activeBot, successMessage, factory)
             registrationData.avatarName = avatarName ?? humanName ?? 'My AI-Agent'
-            registrationData.email = registrationEmail
             registrationData.humanName = humanName
             success = true
         }
     }
-    if(!message){
+    if(!message)
         message = mCreateSystemMessage(activeBot, failureMessage, factory)
-    }
-    if(message)
-        messages.push(message)
+    messages.push(message)
     return { registrationData, messages, success, }
 }
 /* exports */

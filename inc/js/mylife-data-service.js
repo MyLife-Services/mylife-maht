@@ -680,8 +680,10 @@ class Dataservices {
 	async validateRegistration(registrationId){
 		const { mbr_id, } = this
 		const registration = await this.getItem(registrationId, 'registration', mbr_id)
-		const { avatarName, humanName, id, } = registration
-		if(avatarName?.length && id?.length){
+		if(!registration)
+			throw new Error(`Registration not found: ${registrationId}`)
+		const { avatarName, id, } = registration
+		if(id?.length){
 			const tempMbr_id = this.globals.createMbr_id(avatarName, id)
 			const exists = await this.testPartitionKey(tempMbr_id)
 			if(exists)

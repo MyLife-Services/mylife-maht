@@ -439,8 +439,6 @@ class BotFactory extends EventEmitter{
 class AgentFactory extends BotFactory {
 	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#llmServices = mLLMServices
-	#mylifeRegistrationData // @stub - move to unique MyLife factory
-	#tempRegistrationData // @stub - move to unique MyLife factory
 	constructor(mbr_id){
 		super(mbr_id, false)
 	}
@@ -481,58 +479,6 @@ class AgentFactory extends BotFactory {
 	 */
 	async challengeAccess(mbr_id, passphrase){
 		return await mDataservices.challengeAccess(mbr_id, passphrase)
-	}
-	/**
-	 * Set MyLife core account basics. { birthdate, passphrase, }
-	 * @todo - move to mylife agent factory
-	 * @param {string} birthdate - The birthdate of the member.
-	 * @param {string} passphrase - The passphrase of the member.
-	 * @returns {boolean} - `true` if successful
-	 */
-	async createAccount(birthdate, passphrase){
-		let success = false
-		try{
-			if(!this.isMyLife) // @stub
-				throw new Error('MyLife server required for this request')
-			if(!birthdate?.length || !passphrase?.length)
-				throw new Error('birthdate _**and**_ passphrase required')
-			const { avatarName, email, humanName, id, interests, } = this.#mylifeRegistrationData
-			let { updates='', } = this.#mylifeRegistrationData
-			if(!id)
-				throw new Error('registration not confirmed, cannot accept request')
-			if(!humanName)
-				throw new Error('member personal name required to create account')
-			birthdate = new Date(birthdate).toISOString()
-			if(!birthdate?.length)
-				throw new Error('birthdate format could not be parsed')
-			const birth = [{ // current 20240523 format
-				date: birthdate,
-			}]
-			const mbr_id = this.globals.createMbr_id(avatarName ?? humanName, id)
-			if(await this.testPartitionKey(mbr_id))
-				throw new Error('mbr_id already exists')
-			const names = [humanName] // currently array of flat strings
-			updates = (updates.length ? ' ' : '')
-				+ `${ humanName } has just joined MyLife on ${ new Date().toDateString() }!`
-			const validation = ['registration',] // list of passed validation routines
-			const core = {
-				birth,
-				email,
-				id,
-				interests,
-				mbr_id,
-				names,
-				passphrase,
-				updates,
-				validation,
-			}
-			const save = await this.dataservices.addCore(core)
-			this.#mylifeRegistrationData = null
-			this.#tempRegistrationData = null
-			success = save.success
-			console.log(chalk.blueBright('createAccount()'), save)
-		} catch(error){ console.log(chalk.blueBright('createAccount()::error'), chalk.bgRed(error)) }
-		return success
 	}
 	async datacore(mbr_id){
 		const _core = await mDataservices.getItems(
@@ -741,24 +687,6 @@ class AgentFactory extends BotFactory {
 			return false
 		return await mDataservices.testPartitionKey(mbr_id)
 	}
-    /**
-     * Validate registration id.
-     * @param {Guid} validationId - The registration id.
-     * @returns {Promise<object>} - Registration data from system datacore.
-     */
-	async validateRegistration(registrationId){
-		let registration,
-			success = false
-		try{
-			registration = await this.dataservices.validateRegistration(registrationId)
-			success = registration.id?.length
-			console.log(chalk.blueBright('validateRegistration()'), success)
-		} catch(error){
-			registration = null
-			console.log(chalk.blueBright('validateRegistration()::error'), chalk.bgRed(error))
-		}
-		return registration
-	}
 	//	getters/setters
 	get alerts(){ // currently only returns system alerts
 		return mAlerts.system
@@ -792,35 +720,6 @@ class AgentFactory extends BotFactory {
 	get organization(){
 		return this.schemas.Organization
 	}
-	/**
-	 * Gets registration data while user attempting to confirm. If temp data exists, it takes primacy, otherwise hardened `#mylifeRegistrationData` is returned.
-	 * @returns {object} - Registration data in memory.
-	 */
-	get registrationData(){
-		return this.#tempRegistrationData
-			?? this.#mylifeRegistrationData
-	}
-	/**
-	 * Sets registration data while user attempting to confirm.
-	 * @todo - move to mylife agent factory
-	 * @param {object} registrationData - Registration data.
-	 * @returns {void}
-	 */
-	set registrationData(registrationData){
-		if(!this.isMyLife)
-			throw new Error('MyLife factory required to store registration data')
-		if(!registrationData)
-			throw new Error('registration data required')
-		if(!this.#tempRegistrationData){
-			const { id, } = registrationData
-			if(!id?.length)
-				throw new Error('registration id required')
-			this.#tempRegistrationData = registrationData
-			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
-				this.#tempRegistrationData = null
-			}, 300000)
-		}
-	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
 	}
@@ -844,27 +743,83 @@ class AgentFactory extends BotFactory {
 		this.core.vectorstoreId = vectorstoreId /* update local */
 	}
 }
-// @stub - MyLife factory class
 class MyLifeFactory extends AgentFactory {
+	#accountCreation
 	#dataservices = mDataservices
 	#llmServices = mLLMServices
 	#mylifeRegistrationData
 	#tempRegistrationData
 	constructor(){
 		super(mPartitionId)
-	}
-	// no init() for MyLife server
+	} // no init() for MyLife server
 	/* public functions */
 	/**
-	 * Confirms registration for a new member.
+	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
+	 * @param {string} email - The supplied email to confirm registration.
 	 * @returns {boolean} - `true` if registration confirmed.
 	 */
-	confirmRegistration(){
-		if(!this.registrationData)
-			return false
-		this.#mylifeRegistrationData = this.#tempRegistrationData
-		this.#tempRegistrationData = null
-		return true
+	confirmRegistration(email){
+		if(!this.#tempRegistrationData)
+			throw new Error('registration not found; note that registration is set to timeout after five minutes')
+		const confirmed = typeof email==='string'
+			&& typeof this.#tempRegistrationData.email==='string' // humor me, as it error-proofs next condition
+			&& this.#tempRegistrationData.email.toLowerCase()===email.toLowerCase()
+		if(confirmed){
+			this.#mylifeRegistrationData = this.#tempRegistrationData
+			this.#tempRegistrationData = null
+		}
+		return confirmed
+	}
+	/**
+	 * Set MyLife core account basics. { birthdate, passphrase, }
+	 * @todo - move to mylife agent factory
+	 * @param {string} birthdate - The birthdate of the member.
+	 * @param {string} passphrase - The passphrase of the member.
+	 * @returns {boolean} - `true` if successful
+	 */
+	async createAccount(birthdate, passphrase){
+		let success = false
+		try{
+			if(!this.isMyLife) // @stub
+				throw new Error('MyLife server required for this request')
+			if(!birthdate?.length || !passphrase?.length)
+				throw new Error('birthdate _**and**_ passphrase required')
+			const { avatarName, email, humanName, id, interests, } = this.#mylifeRegistrationData
+			let { updates='', } = this.#mylifeRegistrationData
+			if(!id)
+				throw new Error('registration not confirmed, cannot accept request')
+			if(!humanName)
+				throw new Error('member personal name required to create account')
+			birthdate = new Date(birthdate).toISOString()
+			if(!birthdate?.length)
+				throw new Error('birthdate format could not be parsed')
+			const birth = [{ // current 20240523 format
+				date: birthdate,
+			}]
+			const mbr_id = this.globals.createMbr_id(avatarName ?? humanName, id)
+			if(await this.testPartitionKey(mbr_id))
+				throw new Error('mbr_id already exists')
+			const names = [humanName] // currently array of flat strings
+			updates = (updates.length ? ' ' : '')
+				+ `${ humanName } has just joined MyLife on ${ new Date().toDateString() }!`
+			const validation = ['registration',] // list of passed validation routines
+			const core = {
+				birth,
+				email,
+				id,
+				interests,
+				mbr_id,
+				names,
+				passphrase,
+				updates,
+				validation,
+			}
+			const save = await this.dataservices.addCore(core)
+			this.#mylifeRegistrationData = null
+			success = save.success
+			console.log(chalk.blueBright('createAccount()'), save)
+		} catch(error){ console.log(chalk.blueBright('createAccount()::error'), chalk.bgRed(error)) }
+		return success
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.
@@ -883,27 +838,50 @@ class MyLifeFactory extends AgentFactory {
 	async registerCandidate(candidate){
 		return await this.#dataservices.registerCandidate(candidate)
 	}
-	/* getters/setters */
-	/**
-	 * Gets registration data while user attempting to confirm.
-	 * @returns {object} - Registration data in memory.
-	 */
-	get registrationData(){
-		return this.#mylifeRegistrationData
-	}
-	/**
-	 * Sets registration data while user attempting to confirm. Persists for 5 minutes, and cannot be reset for session until expiration.
-	 * @param {object} registrationData - Registration data.
-	 * @returns {void}
-	 */
-	set registrationData(registrationData){
-		if(!this.#mylifeRegistrationData){
-			this.#mylifeRegistrationData = registrationData
-			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
-				this.#mylifeRegistrationData = null
-			}, 300000)
+    /**
+     * Validate registration id.
+     * @param {Guid} validationId - The registration id.
+     * @returns {Promise<object>} - Registration data from system datacore.
+     */
+	async validateRegistration(registrationId){
+		if(!registrationId?.length)
+			throw new Error('registration id required')
+		let registration,
+			success = false
+		this.#mylifeRegistrationData = null
+		try{
+			registration = await this.dataservices.validateRegistration(registrationId)
+			const { id, } = registration
+			if(id?.length){
+				success = true
+				this.#tempRegistrationData = registration
+				setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
+					this.#tempRegistrationData = null
+				}, 5 * 60 * 1000)
+			}
+		} catch(error){
+			this.#tempRegistrationData = null
+			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`))
 		}
+		return this.#tempRegistrationData
 	}
+	/* getters/setters */
+    /**
+     * Test whether avatar session is creating an account.
+     * @getter
+     * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
+     */
+    get isCreatingAccount(){
+        return this.#mylifeRegistrationData!==null
+    }
+    /**
+     * Test whether factory is currently `validating` a session.
+     * @getter
+     * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
+     */
+    get isValidating(){
+        return this.#tempRegistrationData!==null
+    }
 }
 // private module functions
 /**
