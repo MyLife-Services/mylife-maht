@@ -316,10 +316,10 @@ class MyLife extends Organization {	//	form=server
 	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
+	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
 	 */
-	async registerCandidate(_candidate){
-		return await this.factory.registerCandidate(_candidate)
+	async registerCandidate(candidate){
+		return await this.factory.registerCandidate(candidate)
 	}
 	/**
 	 * Submits a story to MyLife via API. Unclear if can be dual-purposed for internal, or if internal still instantiates API context.

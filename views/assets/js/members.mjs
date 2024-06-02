@@ -16,14 +16,12 @@ import Globals from './globals.mjs'
 /* variables */
 /* constants */
 const mGlobals = new Globals()
-const mExperiences = []
 const mainContent = mGlobals.mainContent,
     navigation = mGlobals.navigation,
     sidebar = mGlobals.sidebar
 /* variables */
 let mAutoplay=false,
-    mChatBubbleCount = 0,
-    mExperience,
+    mChatBubbleCount=0,
     mMemberId
 /* page div variables */
 let activeCategory,
@@ -55,12 +53,10 @@ document.addEventListener('DOMContentLoaded', async event=>{
     screen = document.getElementById('experience-modal')
     systemChat = document.getElementById('chat-system')
     /* determine mode, default = member bot interface */
-    const initialized = await mInitialize()
-    if(!initialized)
-        throw new Error('CRITICAL::mInitialize::Error()')
+    await mInitialize() // throws if error
     stageTransition()
+    console.log('members.mjs::DOMContentLoaded')
     /* **note**: bots run independently upon conclusion */
-    console.log('members.mjs::DOMContentLoaded()::end::mbr_id', mMemberId)
 })
 /* public functions */
 /**
@@ -96,14 +92,6 @@ function assignElements(parent=chatInput, elements, clear=true){
         while(parent.firstChild)
             parent.removeChild(parent.firstChild)
     elements.forEach(element=>parent.appendChild(element))
-}
-/**
- * Get experiences available to the member.
- * @returns {object[]} - The available experiences.
- */
-function availableExperiences(){
-    // repull from server? prefer separate function
-    return mExperiences
 }
 /**
  * Clears the system chat by removing all chat bubbles instances.
@@ -283,19 +271,14 @@ function showSidebar(){
 /**
  * Enacts stage transition.
  * @public
- * @requires mExperience
+ * @param {string} experienceId - The experience ID, optional.
  * @returns {void}
  */
-function stageTransition(endExperience=false){
-    if(endExperience)
-        mExperience = null
-    if(mExperience?.id)
-        experienceStart(mExperience)
-    else {
+function stageTransition(experienceId){
+    if(mGlobals.isGuid(experienceId))
+        experienceStart(experienceId)
+    else
         mStageTransitionMember()
-        if(endExperience)
-            updatePageBots(undefined, true, false)
-    }
 }
 /**
  * Toggle visibility functionality.
@@ -387,27 +370,12 @@ async function mAddMessage(message, options={}){
         mScrollBottom()
 	}
 }
-function bot(_id){
-    return mPageBots.find(bot => bot.id === _id)
-}
-/**
- * Proxy to start first experience.
- * @param {Event} event - The event object.
- * @returns {void}
- */
-function mExperienceStart(event){
-    mExperience = mExperiences[0]
-    if(mExperience)
-        stageTransition()
-}
-function mFetchExperiences(){
-    return fetch('/members/experiences/')
-        .then(response=>{
-            if(!response.ok)
-                throw new Error(`HTTP error! Status: ${response.status}`)
-            return response.json()
-        })
-        .catch(error=>console.log('mFetchExperiences::Error()', error))
+async function mFetchExperiences(){
+    let response = await fetch('/members/experiences/')
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    response = await response.json()
+    return response
 }
 /**
  * Fetches the summary via PA for a specified file.
@@ -440,30 +408,12 @@ function getActiveCategory(){
 /**
  * Initialize module variables based on server fetch.
  * @private
- * @requires mExperience
- * @requires mExperiences
  * @requires mMemberId
  * @returns {Promise<boolean>} - The return is a boolean indicating success.
  */
-function mInitialize(){
+async function mInitialize(){
     /* page listeners */
     mInitializePageListeners()
-    /* experiences */
-    return mFetchExperiences()
-        .then(experiencesObject=>{
-            const { autoplay, experiences, mbr_id } = experiencesObject
-            mExperiences.push(...experiences.filter(experience => !mExperiences.some(e => e.id === experience.id))) // only `unknown`
-            mMemberId = mbr_id /* should exist regardless, though should apply independently */
-            return autoplay
-        })
-        .then(autoplay=>{
-            if(autoplay)
-                mExperience = mExperiences.find(experience => experience.id===autoplay)
-            return true
-        })
-        .catch(err => {
-            console.log('Error fetching experiences:', err)
-        })
 }
 /**
  * Initialize page listeners.
@@ -471,18 +421,6 @@ function mInitialize(){
  * @returns {void}
  */
 function mInitializePageListeners(){
-    /* document listeners */
-    window.addEventListener('launchExperience', async event=>{
-        if(event.detail?.length){
-            mExperience = mExperiences.find(experience=>experience.id===event.detail)
-                ?? mExperiences[0]
-                ?? await mFetchExperiences()?.[0]
-            if(!mExperience)
-                throw new Error('mInitializePageListeners::launchExperience::Error()::no experience found in `mExperiences`')
-            stageTransition()
-        }
-        console.log('launchExperience', event.detail)
-    })
     /* page listeners */
     chatInputField.addEventListener('input', toggleInputTextarea)
     memberSubmit.addEventListener('click', mAddMemberMessage) /* note default listener */
@@ -497,20 +435,6 @@ function mInitializePageListeners(){
             })
         }
     })
-}
-function isActive(botId) {
-    return botId===activeBot().id
-}
-/**
- * Resets the animation of an element.
- * @param {HTMLElement} element - The element to reset animation.
- * @returns {void}
- */
-function mResetAnimation(element){
-    element.style.animation = 'none';
-    // Trigger a reflow to restart the animation
-    element.offsetHeight;
-    element.style.animation = '';
 }
 /**
  * Transitions and sets the stage to experience version of member screen indicated.
@@ -682,13 +606,13 @@ export {
     addMessage,
     addMessages,
     assignElements,
-    availableExperiences,
     clearSystemChat,
     decorateActiveBot,
     escapeHtml,
     fetchSummary,
     getInputValue,
     getSystemChat,
+    mGlobals as globals,
     hide,
     hideMemberChat,
     inExperience,

@@ -1,0 +1,22 @@
+{
+    "name": "createAccount",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "passphrase": {
+          "description": "Private passphrase provided by user, may have spaces",
+          "type": "string"
+        },
+        "birthdate": {
+          "description": "Birthdate of user",
+          "format": "sql date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "birthdate",
+        "passphrase"
+      ]
+    },
+    "description": "Creates accout, requirig basic personal information for account creation: birthdate and passphrase"
+  }

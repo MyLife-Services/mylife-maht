@@ -131,17 +131,16 @@ class Dataservices {
 	/**
 	 * Get a bot specified by id or type.
 	 * @public
-	 * @param {string} _bot_id - The bot id.
-	 * @param {string} _bot_type - The bot type.
-	 * @param {string} _mbr_id - The member id.
+	 * @param {string} id - The bot id.
+	 * @param {string} type - The bot type.
 	 * @returns {object} - The bot or `undefined` if no bot found.
 	 */
-	async bot(_bot_id, _bot_type='personal-avatar', _mbr_id=this.mbr_id){
-		if(_bot_id){
-			return await this.getItem(_bot_id)
+	async bot(id, type='personal-avatar'){
+		if(id){
+			return await this.getItem(id)
 		} else {
-			const _bots = await this.bots(_bot_type)
-			return _bots?.[0]
+			const bots = await this.bots(type)
+			return bots[0]
 		}
 	}
 	/**
@@ -264,6 +263,22 @@ class Dataservices {
 					console.log('mylife-data-service::collections() error', err)
 					return []
 				})
+	}
+	/**
+	 * Creates a new bot in the database.
+	 * @param {object} bot - The bot object to create.
+	 * @returns {object} - The bot object.
+	 */
+	async createBot(bot){
+		/* validation */
+		const { id, type, } = bot
+		if(!type?.length)
+			throw new Error('ERROR::createBot::Bot `type` required.')
+		if(!id?.length)
+			bot.id = this.globals.newGuid
+		bot.being = 'bot' // no mods
+		/* create bot */
+		return await this.pushItem(bot)
 	}
 	async datacore(mbr_id){
 		return await this.getItem(mbr_id)
@@ -583,14 +598,25 @@ class Dataservices {
 	/**
 	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
+	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
+	 * @returns {object} - The registration document from Cosmos.
 	 */
-	async registerCandidate(_candidate){
-		_candidate.mbr_id = this.#partitionId
-		_candidate.id = await this.findRegistrationIdByEmail(_candidate.email)
-		_candidate.being = 'registration'
-		_candidate.name = `${_candidate.email.split('@')[0]}-${_candidate.email.split('@')[1]}_${_candidate.id}`
-		return await this.datamanager.registerCandidate(_candidate)
+	async registerCandidate(candidate){
+		const { avatarName, email, id: candidateId, humanName, type='newsletter', } = candidate
+		const being = 'registration'
+		const id = candidateId 
+			?? await this.findRegistrationIdByEmail(email) /* defaults to newGuid */
+		const mbr_id = this.#partitionId
+		const name = `${ avatarName ?? humanName ?? 'registerCandidate' }-${id}`
+		candidate = {
+			...candidate,
+			being,
+			id,
+			mbr_id,
+			name,
+			type,
+		}
+		return await this.datamanager.registerCandidate(candidate)
 	}
     /**
      * Allows member to reset passphrase.
@@ -615,28 +641,6 @@ class Dataservices {
 		return savedExperience
 	}
 	/**
-	 * Sets a bot in the database. Performs logic to reduce the bot to the minimum required data, as Mongo/Cosmos has a limitation of 10 patch items in one batch array.
-	 * @param {object} bot - The bot object to set.
-	 * @returns {object} - The bot object.
-	 */
-	async setBot(bot){
-		const originalBot = await this.bot(bot.id)
-		if(originalBot){ // update
-			const dataUpdates = Object.keys(bot)
-				.filter(key => !key.startsWith('_') && bot[key] !== originalBot[key])
-				.reduce((obj, key) => {
-					obj[key] = bot[key]
-					return obj
-				}, {}) // extract alterations
-			if(Object.keys(dataUpdates).length > 0){
-				bot = this.patch(bot.id, dataUpdates)
-			}
-		} else { // create
-			bot = this.pushItem(bot)
-		}
-		return bot
-	}
-	/**
 	 * Submits a story to MyLife. Currently via API, but could be also work internally.
 	 * @param {object} story - Story object.
 	 * @returns {object} - The story document from Cosmos.
@@ -657,6 +661,17 @@ class Dataservices {
 		return await this.datamanager.testPartitionKey(mbr_id)
 	}
 	/**
+	 * Sets a bot in the database. Performs logic to reduce the bot to the minimum required data, as Mongo/Cosmos has a limitation of 10 patch items in one batch array.
+	 * @param {object} bot - The bot object to set.
+	 * @returns {object} - The bot object.
+	 */
+	async updateBot(bot){
+		const { id, type: discardType, ...botUpdates } = bot
+		if(!Object.keys(botUpdates))
+			return bot
+		return await this.patch(bot.id, botUpdates)
+	}
+	/**
 	 * Returns the registration record by Id.
 	 * @todo - revisit hosts: currently process.env
 	 * @param {string} registrationId - Guid for registration record in system container.
@@ -665,9 +680,11 @@ class Dataservices {
 	async validateRegistration(registrationId){
 		const { mbr_id, } = this
 		const registration = await this.getItem(registrationId, 'registration', mbr_id)
-		const { avatarNickname, humanName, id, } = registration
-		if(avatarNickname?.length && id?.length){
-			const tempMbr_id = this.globals.createMbr_id(avatarNickname, id)
+		if(!registration)
+			throw new Error(`Registration not found: ${registrationId}`)
+		const { avatarName, id, } = registration
+		if(id?.length){
+			const tempMbr_id = this.globals.createMbr_id(avatarName, id)
 			const exists = await this.testPartitionKey(tempMbr_id)
 			if(exists)
 				throw new Error('Registrant already a member!')
