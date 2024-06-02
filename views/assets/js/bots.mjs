@@ -380,6 +380,12 @@ function mCreateCollectionItemSummarize(type, id, name){
     itemSummarize.addEventListener('click', mSummarize, { once: true })
     return itemSummarize
 }
+async function mImproveMemory(event){
+    event.stopPropagation()
+    const { target, } = event
+    console.log('mImproveMemory::target', target, this)
+    this.addEventListener('click', mImproveMemory, { once: true })
+}
 /**
  * Processes a document summary request.
  * @this - collection-item-summary (HTMLSpanElement)
@@ -423,24 +429,132 @@ async function mSummarize(event){
  * @param {object} collectionItem - The collection item object.
  * @returns {HTMLDivElement} - The collection popup.
  */
-function mCreateCollectionPopup(collectionItem){
-    const { id, summary, type, } = collectionItem
+function mCreateCollectionPopup(collectionItem) {
+    const { id, name, summary, title, type } = collectionItem
     const collectionPopup = document.createElement('div')
-    collectionPopup.id = `popup-container_${ id }`
-    collectionPopup.name = `collection-popup_${ type }`
+    collectionPopup.id = `popup-container_${id}`
+    collectionPopup.name = `collection-popup_${type}`
     collectionPopup.classList.add('collection-popup', 'popup-container')
-    /* create popup content */
-    const popupContent = document.createElement('div')
-    popupContent.classList.add('popup-content', 'collection-popup-content')
-    popupContent.innerText = summary ?? JSON.stringify(collectionItem)
+    collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
+    /* Variables for dragging */
+    let isDragging = false
+    let offsetX, offsetY
+    /* Mouse down event to initiate drag */
+    collectionPopup.addEventListener('mousedown', (e)=>{
+        isDragging = true
+        offsetX = e.clientX - collectionPopup.offsetLeft
+        offsetY = e.clientY - collectionPopup.offsetTop
+        e.stopPropagation()
+    })
+    /* Mouse move event to drag the element */
+    document.addEventListener('mousemove', (e)=>{
+        if (isDragging) {
+            collectionPopup.style.position = 'absolute'
+            collectionPopup.style.left = `${e.clientX - offsetX}px`
+            collectionPopup.style.top = `${e.clientY - offsetY}px`
+        }
+    })
+    /* Mouse up event to end drag */
+    document.addEventListener('mouseup', ()=>{
+        isDragging = false
+    })
+    /* popup header */
+    const popupHeader = document.createElement('div')
+    popupHeader.classList.add('popup-header', 'collection-popup-header')
+    popupHeader.id = `popup-header_${id}`
+    popupHeader.innerText = title ?? `${type} Item`
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
+    popupClose.id = `popup-close_${id}`
     popupClose.setAttribute('aria-label', 'Close')
     popupClose.addEventListener('click', mTogglePopup)
+    /* create popup body/container */
+    const popupBody = document.createElement('div')
+    popupBody.classList.add('popup-body', 'collection-popup-body')
+    popupBody.id = `popup-body_${id}`
+    popupBody.name = `popup-body-${type}`
+    /* create popup content */
+    const popupContent = document.createElement('div')
+    popupContent.classList.add('popup-content', 'collection-popup-content')
+    popupContent.id = `popup-content_${id}`
+    popupContent.innerText = summary ?? JSON.stringify(collectionItem)
+    /* create popup sidebar */
+    const sidebar = document.createElement('div')
+    sidebar.classList.add('popup-sidebar')
+    sidebar.id = `popup-sidebar_${id}`
+    /* create edit toggle button */
+    const popupEdit = document.createElement('span')
+    popupEdit.classList.add('fas', 'fa-edit', 'popup-edit-icon')
+    popupEdit.addEventListener('click', (event)=>{
+        _toggleEditable(event, true, popupContent, popupEdit)
+    })
+    popupContent.addEventListener('dblclick', (event)=>{
+        _toggleEditable(event, true, popupContent, popupEdit)
+    }) /* double-click to toggle edit */
+    popupContent.addEventListener('blur', (event) => {
+        _toggleEditable(event, false, popupContent, popupEdit)
+    })
+    popupContent.addEventListener('keydown', (event) => {
+        if(event.key==='Escape')
+            _toggleEditable(event, false, popupContent, popupEdit)
+    })
+    /* inline function to toggle editable state */
+    function _toggleEditable(event, state, contentElement, editIcon){
+        event.stopPropagation()
+        console.log('Toggle editable:', state, contentElement.contentEditable)
+        contentElement.contentEditable = state
+            ?? !contentElement.contentEditable
+            ?? false
+        contentElement.focus()
+    }
+    sidebar.appendChild(popupEdit)
+    /* create emoticon bar */
+    const emoticons = ['😀', '😢', '😡', '😍', '😱'] // Add more emoticons as needed
+    emoticons.forEach(emoticon => {
+        const emoticonButton = document.createElement('button')
+        emoticonButton.classList.add('emoticon-button')
+        emoticonButton.innerText = emoticon
+        emoticonButton.addEventListener('click', (event)=>{
+            event.stopPropagation()
+            popupContent.innerText += ` ${emoticon}`
+        })
+        sidebar.appendChild(emoticonButton)
+    })
+    /* append to body */
+    popupBody.appendChild(popupContent)
+    popupBody.appendChild(sidebar)
+    /* create type-specific elements */
+    let typePopup
+    switch (type) {
+        case 'entry':
+        case 'experience':
+        case 'file':
+        case 'story': // memory
+            /* improve memory container */
+            const improveMemory = document.createElement('div')
+            improveMemory.classList.add(`collection-popup-${type}`)
+            improveMemory.id = `popup-${type}_${id}`
+            improveMemory.name = 'improve-memory-container'
+            improveMemory.addEventListener('click', mImproveMemory, { once: true })
+            /* memory media-carousel */
+            const memoryCarousel = document.createElement('div')
+            memoryCarousel.classList.add('memory-carousel')
+            memoryCarousel.id = `popup-carousel_${id}`
+            memoryCarousel.name = 'memory-carousel'
+            /* append elements */
+            improveMemory.appendChild(memoryCarousel)
+            typePopup = improveMemory
+            break
+        default:
+            break
+    }
     /* append elements */
-    collectionPopup.appendChild(popupContent)
+    collectionPopup.appendChild(popupHeader)
     collectionPopup.appendChild(popupClose)
+    collectionPopup.appendChild(popupBody)
+    if(typePopup)
+        collectionPopup.appendChild(typePopup)
     return collectionPopup
 }
 /**
@@ -701,7 +815,6 @@ async function setBot(bot){
             throw new Error(`HTTP error! Status: ${response.status}`)
         }
         response = await response.json()
-        console.log('Success:', response)
         return response
     } catch (error) {
         console.log('Error posting bot data:', error)
@@ -992,6 +1105,7 @@ function mTogglePassphrase(event){
  * @returns {void}
  */
 function mTogglePopup(event){
+    event.stopPropagation()
     const { activeId, } = event.detail
     let { popup, } = event.detail
     popup = popup ?? event.target
@@ -999,7 +1113,6 @@ function mTogglePopup(event){
     if(!popup)
         throw new Error(`Popup not found.`)
     if(popupId!==activeId){ /* close */
-        console.log('mTogglePopup::CLOSE', activeId, popupId)
         popup.classList.remove('collection-popup-visible')
         // does this reset the location?
     } else { /* open */
@@ -1457,6 +1570,7 @@ function mUploadFilesInputRemove(fileInput, uploadParent, uploadButton){
  */
 function mViewItemPopup(event){
     event.stopPropagation()
+    console.log('View item popup:', event.target, this)
     const activeId = event.target.id.split('_').pop()
     /* get all instances of class */
     document.querySelectorAll('.collection-popup')

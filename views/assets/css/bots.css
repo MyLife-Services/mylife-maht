@@ -5,7 +5,7 @@
     --slider-width: 2rem;
 }
 /* bot bar */
-#bot-bar {
+.bot-bar {
     align-items: flex-end;
     align-self: center;
     background: rgba(0, 0, 0, 0.25); /* url('../png/circuit-background.png') no-repeat center/250% */
@@ -16,36 +16,35 @@
     width: 65%; /* Set width to 65% of the parent container */
     max-height: 0.5em; /* Start with a small height */
     transition: max-height 0.5s ease-in-out; /* Animation for the windowshade effect */
-    /* descendent styles */
-    .bot-thumb {
-        cursor: pointer;
-        height: 2.5rem;
-        margin: 0 0.1rem; /* Default margin */
-        transition: transform 0.3s ease, margin 0.3s ease;
-        z-index: 1;
-    }
-    .bot-thumb:hover {
-        transform: scale(1.5);
-        z-index: 2;
-        margin: 0 1em; /* Increase margin on hover in em */
-    }
-    .bot-thumb-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        margin-right: 1em; /* Space between containers in em */
-        position: relative;
-    }
-    .bot-thumb-active {
-        background-image: radial-gradient(circle at center, rgba(255, 255, 0, 0.75) 0%, transparent 100%);
-        cursor: not-allowed;
-        z-index: 3;
-    }
 }
-#bot-bar:hover {
+.bot-bar:hover {
     max-height: 3em; /* Adjust to desired expanded height */
     overflow: visible; /* Make overflow visible on hover */
+}
+.bot-thumb {
+    cursor: pointer;
+    height: 2.5rem;
+    margin: 0 0.1rem; /* Default margin */
+    transition: transform 0.3s ease, margin 0.3s ease;
+    z-index: 1;
+}
+.bot-thumb:hover {
+    transform: scale(1.5);
+    z-index: 2;
+    margin: 0 1em; /* Increase margin on hover in em */
+}
+.bot-thumb-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-right: 1em; /* Space between containers in em */
+    position: relative;
+}
+.bot-thumb-active {
+    background-image: radial-gradient(circle at center, rgba(255, 255, 0, 0.75) 0%, transparent 100%);
+    cursor: not-allowed;
+    z-index: 3;
 }
 /* bot widget */
 .bot { /* along with widget */
@@ -334,6 +333,7 @@
 .collection-popup {
     display: flex;
     flex: 1 0 auto;
+    flex-direction: column;
     height: auto;
     left: auto;
     overflow: auto;
@@ -347,6 +347,14 @@
 .collection-popup.popup-container {
     bottom: auto;
 }
+.collection-popup-body {
+    display: flex;
+    flex: 0;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin: 0.25em;
+    padding: 0.25em;
+}
 .popup-close.collection-popup-close {
     font-size: 1rem;
 }
@@ -357,6 +365,26 @@
 }
 .popup-content.collection-popup-content {
     font-size: 0.75rem;
+}
+.popup-header.collection-popup-header {
+    align-items: center;
+    background-color: navy;
+    color: aliceblue;
+    display: flex;
+    flex-direction: row;
+    font-size: 1rem;
+    font-weight: bold;
+    padding: 0.5em;
+}
+.collection-popup-story {
+    align-items: center;
+    border: thick solid navy;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: center;
+    margin: 0.25em;
+    padding: 02.5em;
 }
 .collection-popup-visible {
     top: auto;
