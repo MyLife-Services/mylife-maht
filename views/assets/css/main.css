@@ -613,6 +613,7 @@ body {
 }
 /* MyLife sidebar */
 .sidebar {
+	align-items: flex-start;
     background: white; /* Assuming a card-like look typically has a white background */
     background-position: center; /* Centers the image in the area */
     background-size: cover; /* Ensures the image covers the whole area */
@@ -627,16 +628,6 @@ body {
     max-width: 35%;
     padding: 0px;
     height: auto; /* Ensure it adjusts based on content */
-}
-.sidebar-widget {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex: 1 1 auto; /* Allows growth and shrinkage */
-    max-width: 100%;
-    width: 100%;
-    margin: 0;
-    padding: 0;
 }
 .visible {
 	opacity: 1;

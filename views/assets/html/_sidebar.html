@@ -1,4 +1,14 @@
-<div class="sidebar-widget">
-	<% include _sidebar-widgets %>
+<div
+	class="mylife-widget sign-up"
+	data-require-login="false"
+	id="sign-up-widget"
+>
+	<% include _signup %>
 </div>
-<!-- More non-widget objects can be added here -->
+<div
+	class="mylife-widget bots"
+	data-require-login="true"
+	id="bots-widget"
+>
+	<% include _bots %>
+</div>
