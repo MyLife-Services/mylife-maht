@@ -701,6 +701,9 @@ body {
     font-weight: bold;
 }
 /* MyLife general */
+.grabbing {
+	cursor: grabbing;
+}
 .label-active {
 	color: navy;
 	cursor: default;
@@ -710,6 +713,10 @@ body {
 	color: gray;
 	cursor: pointer;
 	font-weight: normal;
+}
+.offscreen {
+	position: absolute;
+	left: 110vw;
 }
 /* keyframes */
 @keyframes alertFadeOut {

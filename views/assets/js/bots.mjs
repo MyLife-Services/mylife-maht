@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
 })
 /* public functions */
 /**
- * Get active bot in memory.
+ * Get active bot.
  * @public
  * @returns {object} - The active bot object.
  */
@@ -165,41 +165,6 @@ async function setActiveBot(event, dynamic=false){
     mSpotlightBotStatus()
     mGreeting(dynamic)
     decorateActiveBot(mActiveBot)
-}
-/**
- * Highlights bot bar icon of active bot.
- * @public
- * @requires mActiveBot
- * @returns {void}
- */
-function mSpotlightBotBar(){
-    document.querySelectorAll('.bot-thumb')
-        .forEach(icon=>{
-            if(icon.alt===mActiveBot?.type)
-                icon.classList.add('bot-thumb-active')
-            else
-                icon.classList.remove('bot-thumb-active')
-        })
-}
-/**
- * Highlights bot container of active bot.
- * @public
- * @requires mActiveBot
- * @returns {void}
- */
-function mSpotlightBotStatus(){
-    mPageBots
-        .forEach(bot=>{
-            const { id, type, } = bot
-            const botContainer = document.getElementById(type)
-            if(botContainer){ // exists on-page
-                // set data attribute for active bot
-                const { dataset, } = botContainer
-                if(dataset && id)
-                    botContainer.dataset.active = id===mActiveBot?.id
-                mSetBotIconStatus(bot)
-            }
-        })
 }
 /**
  * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
@@ -349,7 +314,7 @@ function mCreateCollectionItem(collectionItem){
         default:
             const itemPopup = mCreateCollectionPopup(collectionItem)
             item.appendChild(itemPopup)
-            item.addEventListener('click', mViewItemPopup)
+            item.addEventListener('click', mTogglePopup)
             break
     }
     return item
@@ -432,37 +397,43 @@ async function mSummarize(event){
 function mCreateCollectionPopup(collectionItem) {
     const { id, name, summary, title, type } = collectionItem
     const collectionPopup = document.createElement('div')
+    collectionPopup.classList.add('collection-popup', 'popup-container')
+    collectionPopup.dataset.active = 'false'
+    collectionPopup.dataset.id = id
+    collectionPopup.dataset.title = title
+    collectionPopup.dataset.type = type
     collectionPopup.id = `popup-container_${id}`
     collectionPopup.name = `collection-popup_${type}`
-    collectionPopup.classList.add('collection-popup', 'popup-container')
     collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
+    /* popup header */
+    const popupHeader = document.createElement('div')
+    popupHeader.classList.add('popup-header', 'collection-popup-header')
+    popupHeader.id = `popup-header_${id}`
+    popupHeader.innerText = title ?? `${type} Item`
     /* Variables for dragging */
     let isDragging = false
     let offsetX, offsetY
     /* Mouse down event to initiate drag */
-    collectionPopup.addEventListener('mousedown', (e)=>{
+    popupHeader.addEventListener('mousedown', (e)=>{
         isDragging = true
         offsetX = e.clientX - collectionPopup.offsetLeft
         offsetY = e.clientY - collectionPopup.offsetTop
         e.stopPropagation()
     })
     /* Mouse move event to drag the element */
-    document.addEventListener('mousemove', (e)=>{
-        if (isDragging) {
-            collectionPopup.style.position = 'absolute'
+    popupHeader.addEventListener('mousemove', (e)=>{
+        if(isDragging){
             collectionPopup.style.left = `${e.clientX - offsetX}px`
+            collectionPopup.style.position = 'absolute'
             collectionPopup.style.top = `${e.clientY - offsetY}px`
         }
     })
     /* Mouse up event to end drag */
-    document.addEventListener('mouseup', ()=>{
+    popupHeader.addEventListener('mouseup', ()=>{
         isDragging = false
+        collectionPopup.dataset.offsetX = collectionPopup.offsetLeft
+        collectionPopup.dataset.offsetY = collectionPopup.offsetTop
     })
-    /* popup header */
-    const popupHeader = document.createElement('div')
-    popupHeader.classList.add('popup-header', 'collection-popup-header')
-    popupHeader.id = `popup-header_${id}`
-    popupHeader.innerText = title ?? `${type} Item`
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
@@ -537,6 +508,16 @@ function mCreateCollectionPopup(collectionItem) {
             improveMemory.id = `popup-${type}_${id}`
             improveMemory.name = 'improve-memory-container'
             improveMemory.addEventListener('click', mImproveMemory, { once: true })
+            /* story input(+submit), shadows(+click), buttons */
+            const memoryInputLane = document.createElement('div')
+            memoryInputLane.classList.add('memory-input-lane')
+            /* story input */
+            const memoryInput = document.createElement('input')
+            memoryInput.classList.add('memory-input')
+            memoryInput.id = `memory-input_${ id } `
+            memoryInput.name = 'memory-input'
+            memoryInput.placeholder = `Ask ${ id } about this...`
+            memoryInputLane.appendChild(memoryInput)
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
             memoryCarousel.classList.add('memory-carousel')
@@ -797,7 +778,7 @@ async function mRefreshCollection(type, collectionList){
  * @param {Object} bot - bot object
  * @returns {void}
  */
-async function setBot(bot){
+async function mSetBot(bot){
     try {
         const { id, } = bot
         const url = window.location.origin + '/members/bots/' + id
@@ -902,6 +883,41 @@ function mSetBotIconStatus(bot){
     }
 }
 /**
+ * Highlights bot bar icon of active bot.
+ * @public
+ * @requires mActiveBot
+ * @returns {void}
+ */
+function mSpotlightBotBar(){
+    document.querySelectorAll('.bot-thumb')
+        .forEach(icon=>{
+            if(icon.alt===mActiveBot?.type)
+                icon.classList.add('bot-thumb-active')
+            else
+                icon.classList.remove('bot-thumb-active')
+        })
+}
+/**
+ * Highlights bot container of active bot.
+ * @public
+ * @requires mActiveBot
+ * @returns {void}
+ */
+function mSpotlightBotStatus(){
+    mPageBots
+        .forEach(bot=>{
+            const { id, type, } = bot
+            const botContainer = document.getElementById(type)
+            if(botContainer){ // exists on-page
+                // set data attribute for active bot
+                const { dataset, } = botContainer
+                if(dataset && id)
+                    botContainer.dataset.active = id===mActiveBot?.id
+                mSetBotIconStatus(bot)
+            }
+        })
+}
+/**
  * Submit updated passphrase for MyLife via avatar.
  * @private
  * @async
@@ -981,7 +997,7 @@ async function mToggleBotContainers(event){
                 updateBot.narrative = this.getAttribute('data-narrative')
             if(this.getAttribute('data-privacy')?.length)
                 updateBot.privacy = this.getAttribute('data-privacy')
-            if(!setBot(updateBot))
+            if(!mSetBot(updateBot))
                 throw new Error(`Error updating bot.`)
             break
         case 'upload':
@@ -1101,40 +1117,51 @@ function mTogglePassphrase(event){
 }
 /**
  * Toggles popup visibility.
+ * @this - collection-item
  * @param {Event} event - The event object.
  * @returns {void}
  */
 function mTogglePopup(event){
     event.stopPropagation()
-    const { activeId, } = event.detail
-    let { popup, } = event.detail
-    popup = popup ?? event.target
-    const popupId = popup.id.split('_').pop()
+    const { id, } = this
+    const popupId = id.split('_').pop()
+    const popup = document.getElementById(`popup-container_${ popupId }`)
     if(!popup)
-        throw new Error(`Popup not found.`)
-    if(popupId!==activeId){ /* close */
-        popup.classList.remove('collection-popup-visible')
-        // does this reset the location?
+        throw new Error(`Popup not found: ${ popupId }`)
+    const { active, } = popup.dataset
+    if(active==='true'){ /* close */
+        console.log('mTogglePopup::closing:', popupId, popup.dataset, active)
+        popup.dataset.active = 'false'
+        hide(popup)
     } else { /* open */
-        popup.classList.add('collection-popup-visible')
-        const item = popup.parentElement
-        /* calculate desired position */
-        const popupHalfHeight = popup.offsetHeight / 2
-        const itemHalfHeight = item.offsetHeight / 2
-        const desiredMiddlePosition = item.offsetTop + itemHalfHeight
-        let topPosition = desiredMiddlePosition - popupHalfHeight
-        /* screen failsafes */
-        if(topPosition < 0){
-            topPosition = 0
-        } else if (topPosition + popup.offsetHeight > window.innerHeight){
-            topPosition = window.innerHeight - popup.offsetHeight
+        const { title, type, } = popup.dataset
+        let { offsetX, offsetY, } = popup.dataset
+        if(!offsetX || !offsetY){ // initial placement onscreen
+            const item = popup.parentElement // collection-item
+            /* calculate desired position */
+            const popupHalfHeight = popup.offsetHeight / 2
+            const itemHalfHeight = item.offsetHeight / 2
+            const desiredMiddlePosition = item.offsetTop + itemHalfHeight
+            let topPosition = desiredMiddlePosition - popupHalfHeight
+            /* screen failsafes */
+            if(topPosition < 0){
+                topPosition = 0
+            } else if (topPosition + popup.offsetHeight > window.innerHeight){
+                topPosition = window.innerHeight - popup.offsetHeight
+            }
+            const leftPosition = item.offsetLeft - popup.offsetWidth - 10 // hard-coded 10px to the left
+            /* set dataset */
+            offsetX = `${ leftPosition }px`
+            offsetY = `${ topPosition }px`
+            popup.dataset.offsetY = offsetY
+            popup.dataset.offsetX = offsetX
         }
-        // Position the popup 20px to the left of the item's left edge
-        const leftPosition = item.offsetLeft - popup.offsetWidth - 20
         /* position */
-        popup.style.top = `${ topPosition }px`
-        popup.style.left = `${ leftPosition }px`
-        console.log('mTogglePopup::OPEN', popup.offsetLeft, popup.offsetWidth, item.offsetWidth, item.offsetLeft)
+        popup.style.left = offsetX
+        popup.style.right = 'auto'
+        popup.style.top = offsetY
+        show(popup)
+        popup.dataset.active = 'true'
     }
 }
 /**
@@ -1562,22 +1589,6 @@ function mUploadFilesInputRemove(fileInput, uploadParent, uploadButton){
     if(fileInput && uploadParent.contains(fileInput))
         uploadParent.removeChild(fileInput)
     uploadButton.disabled = false
-}
-/**
- * View/toggles collection item popup.
- * @param {Event} event - The event object.
- * @returns {void}
- */
-function mViewItemPopup(event){
-    event.stopPropagation()
-    console.log('View item popup:', event.target, this)
-    const activeId = event.target.id.split('_').pop()
-    /* get all instances of class */
-    document.querySelectorAll('.collection-popup')
-        .forEach(popup=>{
-            const newEvent = new CustomEvent('custom', { detail: { activeId, popup } })
-            mTogglePopup(newEvent)
-        })
 }
 /* exports */
 // @todo - export combine of fetchBots and updatePageBots
