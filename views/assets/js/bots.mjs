@@ -543,19 +543,70 @@ function mCreateCollectionPopup(collectionItem) {
             /* story input(+submit), shadows(+click), buttons */
             const memoryInputLane = document.createElement('div')
             memoryInputLane.classList.add('memory-input-lane')
-            /* story input */
+            /* story shadows */
+            const memoryShadows = document.createElement('div')
+            memoryShadows.classList.add('memory-shadow')
+            memoryShadows.id = `memory-shadow_${ id }`
+            const textArray = [
+                'In the world at the time...',
+                'Add friends involved...',
+                'I lived at...',
+            ]
+            let currentIndex = 0
+            const p = document.createElement('p')
+            p.textContent = textArray[currentIndex]
+            memoryShadows.appendChild(p)
+            const intervalId = setInterval(()=>{ // cycle through the array elements every 3 seconds
+                currentIndex = (currentIndex + 1) % textArray.length
+                p.textContent = textArray[currentIndex]
+            }, 10000)
+            const upButton = document.createElement('button')
+            upButton.textContent = 'Up';
+            upButton.addEventListener('click', event=>{
+                event.stopPropagation()
+                currentIndex = (currentIndex - 1 + textArray.length) % textArray.length
+                p.textContent = textArray[currentIndex]
+            })
+            const downButton = document.createElement('button')
+            downButton.textContent = 'Down'
+            downButton.addEventListener('click', event=>{
+                event.stopPropagation()
+                currentIndex = (currentIndex + 1) % textArray.length
+                p.textContent = textArray[currentIndex]
+            })
+            memoryShadows.appendChild(upButton)
+            memoryShadows.appendChild(downButton)
+            memoryInputLane.appendChild(memoryShadows)
+            /* memory input */
             const memoryInput = document.createElement('input')
             memoryInput.classList.add('memory-input')
             memoryInput.id = `memory-input_${ id } `
             memoryInput.name = 'memory-input'
             memoryInput.placeholder = `Ask ${ id } about this...`
             memoryInputLane.appendChild(memoryInput)
+            /* memory submit */
+            const memorySubmit = document.createElement('button')
+            memorySubmit.classList.add('memory-submit')
+            memorySubmit.id = `memory-submit_${ id }`
+            memorySubmit.name = 'memory-submit'
+            memorySubmit.textContent = 'Submit'
+            memorySubmit.addEventListener('click', mTogglePopup, { once: true })
+            memoryInputLane.appendChild(memorySubmit)
+            /* experience memory */
+            const memoryExperience = document.createElement('button')
+            memoryExperience.classList.add('memory-experience')
+            memoryExperience.id = `memory-experience_${ id }`
+            memoryExperience.name = 'memory-experience'
+            memoryExperience.textContent = 'Experience Memory'
+            memoryInputLane.appendChild(memoryExperience)
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
             memoryCarousel.classList.add('memory-carousel')
-            memoryCarousel.id = `popup-carousel_${id}`
+            memoryCarousel.id = `memory-carousel_${ id }`
             memoryCarousel.name = 'memory-carousel'
+            memoryCarousel.textContent = 'Coming soon: media file uploads to Enhance and Improve memories'
             /* append elements */
+            improveMemory.appendChild(memoryInputLane)
             improveMemory.appendChild(memoryCarousel)
             typePopup = improveMemory
             break
