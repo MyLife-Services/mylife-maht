@@ -1,5 +1,5 @@
 @import url('animations.css');
-@import url('bot-bar.css');
+@import url('bots.css');
 @import url('chat.css');
 @import url('experience.css');
 @import url('members.css');
@@ -477,6 +477,24 @@ body {
 	right: 1em;
 	top: 1em;
 }
+.popup-sidebar {
+    align-items: center;
+	display: flex;
+	flex-direction: column;
+	max-width: 3rem;
+    justify-content: center;
+}
+.popup-sidebar-emoticon,
+.popup-sidebar-icon {
+	cursor: pointer;
+	font-size: 1.25rem;
+	margin: 0;
+	margin-bottom: 0.5rem;
+	width: auto;
+}
+.popup-sidebar-icon {
+	font-size: 1.5rem;
+}
 .popup-title {
 	margin-left: 1em;
     font-weight: bold;
@@ -613,6 +631,7 @@ body {
 }
 /* MyLife sidebar */
 .sidebar {
+	align-items: flex-start;
     background: white; /* Assuming a card-like look typically has a white background */
     background-position: center; /* Centers the image in the area */
     background-size: cover; /* Ensures the image covers the whole area */
@@ -627,16 +646,6 @@ body {
     max-width: 35%;
     padding: 0px;
     height: auto; /* Ensure it adjusts based on content */
-}
-.sidebar-widget {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex: 1 1 auto; /* Allows growth and shrinkage */
-    max-width: 100%;
-    width: 100%;
-    margin: 0;
-    padding: 0;
 }
 .visible {
 	opacity: 1;
@@ -710,6 +719,9 @@ body {
     font-weight: bold;
 }
 /* MyLife general */
+.grabbing {
+	cursor: grabbing;
+}
 .label-active {
 	color: navy;
 	cursor: default;
@@ -719,6 +731,10 @@ body {
 	color: gray;
 	cursor: pointer;
 	font-weight: normal;
+}
+.offscreen {
+	position: absolute;
+	left: 110vw;
 }
 /* keyframes */
 @keyframes alertFadeOut {
