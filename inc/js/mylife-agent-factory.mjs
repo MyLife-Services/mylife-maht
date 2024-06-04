@@ -700,8 +700,6 @@ class AgentFactory extends BotFactory {
 	 * @returns {Promise<object>} - The updated item.
 	 */
 	async updateItem(item){
-		console.log(chalk.blueBright('updateItem()'))
-		console.log(item)
 		const { id, } = item
 		const response = await this.dataservices.patch(id, item)
 		return response
@@ -844,7 +842,7 @@ class MyLifeFactory extends AgentFactory {
 		throw new Error('MyLife server cannot create items')
 	}
 	deleteItem(){
-		throw new Error('MyLife server cannot create items')
+		throw new Error('MyLife server cannot delete items')
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.
@@ -862,6 +860,9 @@ class MyLifeFactory extends AgentFactory {
 	 */
 	async registerCandidate(candidate){
 		return await this.#dataservices.registerCandidate(candidate)
+	}
+	updateItem(){
+		throw new Error('MyLife server cannot update items')
 	}
     /**
      * Validate registration id.

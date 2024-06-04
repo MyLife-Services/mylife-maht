@@ -465,7 +465,6 @@ class Avatar extends EventEmitter {
                 success = this.globals.isValidGuid(item?.id)
                 break
             case 'put': /* update */
-                console.log('item()::put', item, id)
                 if(globals.isValidGuid(id)){
                     item = await this.#factory.updateItem(item)
                     success = this.globals.isValidGuid(item?.id)
