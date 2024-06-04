@@ -143,6 +143,7 @@ class Avatar extends EventEmitter {
                 chatMessage = `CONFIRM REGISTRATION: ${ chatMessage }`
             if(this.isCreatingAccount)
                 chatMessage = `CREATE ACCOUNT: ${ chatMessage }`
+            console.log('chatRequest::MyLife', activeBotId, threadId, chatMessage)
         }
         if(!chatMessage)
             throw new Error('No message provided in context')

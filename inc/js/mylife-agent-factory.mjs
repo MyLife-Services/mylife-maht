@@ -898,7 +898,7 @@ class MyLifeFactory extends AgentFactory {
      * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
      */
     get isCreatingAccount(){
-        return this.#mylifeRegistrationData!==null
+        return this.#mylifeRegistrationData!=null
     }
     /**
      * Test whether factory is currently `validating` a session.
@@ -906,7 +906,7 @@ class MyLifeFactory extends AgentFactory {
      * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
      */
     get isValidating(){
-        return this.#tempRegistrationData!==null
+        return this.#tempRegistrationData!=null
     }
 }
 // private module functions
