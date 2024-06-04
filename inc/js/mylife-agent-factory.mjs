@@ -187,16 +187,6 @@ class BotFactory extends EventEmitter{
 			throw new Error('bot creation failed')
 		return bot
 	}
-    /**
-     * Delete an item from member container.
-     * @param {Guid} id - The id of the item to delete.
-     * @returns {boolean} - true if item deleted successfully.
-     */
-	async deleteItem(id){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot delete items.')
-		return await this.dataservices.deleteItem(id)
-	}
 	/**
 	 * Gets array of member `experiences` from database. When placed here, it allows for a bot to be spawned who has access to this information, which would make sense for a mini-avatar whose aim is to report what experiences a member has endured.
 	 * @public
@@ -480,6 +470,15 @@ class AgentFactory extends BotFactory {
 	async challengeAccess(mbr_id, passphrase){
 		return await mDataservices.challengeAccess(mbr_id, passphrase)
 	}
+	/**
+	 * Creates a new collection item in the member's container.
+	 * @param {object} item - The item to create.
+	 * @returns {object} - The created item.
+	 */
+	async createIten(item){
+		const response = await this.dataservices.pushItem(item)
+		return response
+	}
 	async datacore(mbr_id){
 		const _core = await mDataservices.getItems(
 			'core',
@@ -489,6 +488,14 @@ class AgentFactory extends BotFactory {
 			mbr_id,
 		)
 		return _core?.[0]??{}
+	}
+    /**
+     * Delete an item from member container.
+     * @param {Guid} id - The id of the item to delete.
+     * @returns {boolean} - true if item deleted successfully.
+     */
+	async deleteItem(id){
+		return await this.dataservices.deleteItem(id)
 	}
 	async entry(entry){
 		const {
@@ -687,7 +694,19 @@ class AgentFactory extends BotFactory {
 			return false
 		return await mDataservices.testPartitionKey(mbr_id)
 	}
-	//	getters/setters
+	/**
+	 * Updates a collection item.
+	 * @param {object} item - The item to update.
+	 * @returns {Promise<object>} - The updated item.
+	 */
+	async updateItem(item){
+		console.log(chalk.blueBright('updateItem()'))
+		console.log(item)
+		const { id, } = item
+		const response = await this.dataservices.patch(id, item)
+		return response
+	}
+	/* getters/setters */
 	get alerts(){ // currently only returns system alerts
 		return mAlerts.system
 	}
@@ -820,6 +839,12 @@ class MyLifeFactory extends AgentFactory {
 			console.log(chalk.blueBright('createAccount()'), save)
 		} catch(error){ console.log(chalk.blueBright('createAccount()::error'), chalk.bgRed(error)) }
 		return success
+	}
+	createItem(){
+		throw new Error('MyLife server cannot create items')
+	}
+	deleteItem(){
+		throw new Error('MyLife server cannot create items')
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.

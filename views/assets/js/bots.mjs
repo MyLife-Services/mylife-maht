@@ -402,14 +402,14 @@ function mCreateCollectionPopup(collectionItem) {
     collectionPopup.dataset.id = id
     collectionPopup.dataset.title = title
     collectionPopup.dataset.type = type
-    collectionPopup.id = `popup-container_${id}`
-    collectionPopup.name = `collection-popup_${type}`
+    collectionPopup.id = `popup-container_${ id }`
+    collectionPopup.name = `collection-popup_${ type }`
     collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
     /* popup header */
     const popupHeader = document.createElement('div')
     popupHeader.classList.add('popup-header', 'collection-popup-header')
-    popupHeader.id = `popup-header_${id}`
-    popupHeader.innerText = title ?? `${type} Item`
+    popupHeader.id = `popup-header_${ id }`
+    popupHeader.innerText = title ?? `${ type } Item`
     /* Variables for dragging */
     let isDragging = false
     let offsetX, offsetY
@@ -437,58 +437,80 @@ function mCreateCollectionPopup(collectionItem) {
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
-    popupClose.id = `popup-close_${id}`
+    popupClose.id = `popup-close_${ id }`
     popupClose.setAttribute('aria-label', 'Close')
     popupClose.addEventListener('click', mTogglePopup)
     /* create popup body/container */
     const popupBody = document.createElement('div')
     popupBody.classList.add('popup-body', 'collection-popup-body')
-    popupBody.id = `popup-body_${id}`
-    popupBody.name = `popup-body-${type}`
+    popupBody.id = `popup-body_${ id }`
+    popupBody.name = `popup-body-${ type }`
     /* create popup content */
-    const popupContent = document.createElement('div')
+    const content = summary ?? JSON.stringify(collectionItem)
+    const popupContent = document.createElement('textarea')
     popupContent.classList.add('popup-content', 'collection-popup-content')
+    popupContent.dataset.lastUpdatedContent = content
     popupContent.id = `popup-content_${id}`
-    popupContent.innerText = summary ?? JSON.stringify(collectionItem)
+    popupContent.readOnly = true
+    popupContent.value = content
     /* create popup sidebar */
     const sidebar = document.createElement('div')
     sidebar.classList.add('popup-sidebar')
-    sidebar.id = `popup-sidebar_${id}`
+    sidebar.id = `popup-sidebar_${ id }`
     /* create edit toggle button */
     const popupEdit = document.createElement('span')
-    popupEdit.classList.add('fas', 'fa-edit', 'popup-edit-icon')
+    popupEdit.classList.add('fas', 'fa-edit', 'popup-sidebar-icon')
+    popupEdit.id = `popup-edit_${ id }`
+    popupEdit.dataset.id = id
+    popupEdit.dataset.contentId = popupContent.id
+    /* create save button */
+    const popupSave = document.createElement('span')
+    popupSave.classList.add('fas', 'fa-save', 'popup-sidebar-icon')
+    popupSave.id = `popup-save_${ id }`
+    popupSave.dataset.id = id
+    popupSave.dataset.contentId = popupContent.id
+    popupSave.addEventListener('click', mSetCollectionItem)
+    /* toggle-edit listeners */
     popupEdit.addEventListener('click', (event)=>{
-        _toggleEditable(event, true, popupContent, popupEdit)
+        const { target: editIcon,} = event
+        const content = document.getElementById(editIcon.dataset?.contentId)
+        if(!content)
+            throw new Error(`No content found for edit request.`)        
+        _toggleEditable(event, false, content)
     })
     popupContent.addEventListener('dblclick', (event)=>{
-        _toggleEditable(event, true, popupContent, popupEdit)
+        const { target: contentElement, } = event
+        _toggleEditable(event, false, contentElement)
     }) /* double-click to toggle edit */
     popupContent.addEventListener('blur', (event) => {
-        _toggleEditable(event, false, popupContent, popupEdit)
+        const { target: contentElement, } = event
+        _toggleEditable(event, true, contentElement)
+        // @stub - update content on server call if dynamic
     })
     popupContent.addEventListener('keydown', (event) => {
+        const { target: contentElement, } = event
         if(event.key==='Escape')
-            _toggleEditable(event, false, popupContent, popupEdit)
+            _toggleEditable(event, true, contentElement)
     })
     /* inline function to toggle editable state */
-    function _toggleEditable(event, state, contentElement, editIcon){
+    function _toggleEditable(event, state, contentElement){
         event.stopPropagation()
-        console.log('Toggle editable:', state, contentElement.contentEditable)
-        contentElement.contentEditable = state
-            ?? !contentElement.contentEditable
-            ?? false
+        contentElement.readOnly = state
+            ?? !contentElement.readOnly
+            ?? true
         contentElement.focus()
     }
     sidebar.appendChild(popupEdit)
+    sidebar.appendChild(popupSave)
     /* create emoticon bar */
     const emoticons = ['😀', '😢', '😡', '😍', '😱'] // Add more emoticons as needed
     emoticons.forEach(emoticon => {
-        const emoticonButton = document.createElement('button')
-        emoticonButton.classList.add('emoticon-button')
+        const emoticonButton = document.createElement('span')
+        emoticonButton.classList.add('popup-sidebar-emoticon')
         emoticonButton.innerText = emoticon
         emoticonButton.addEventListener('click', (event)=>{
             event.stopPropagation()
-            popupContent.innerText += ` ${emoticon}`
+            popupContent.innerText += ` ${ emoticon }`
         })
         sidebar.appendChild(emoticonButton)
     })
@@ -881,6 +903,51 @@ function mSetBotIconStatus(bot){
             botIcon.classList.add('error')
             return 'error'
     }
+}
+/**
+ * Sets collection item content.
+ * @private
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mSetCollectionItem(event){
+    event.stopPropagation()
+    const { contentId, id, } = this.dataset
+    const contentElement = document.getElementById(contentId)
+    if(!contentElement)
+        throw new Error(`No content found for collection item update.`)
+    const { dataset, } = contentElement
+    const { emoticons=[], lastUpdatedContent, } = dataset
+    const { value: content, } = contentElement
+    if(content!=lastUpdatedContent && await mSetCollectionItemOnServer(id, content, emoticons))
+        contentElement.dataset.lastUpdatedContent = content
+    else
+        contentElement.value = lastUpdatedContent
+}
+/**
+ * Sets collection item content on server.
+ * @private
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mSetCollectionItemOnServer(id, content, emoticons){
+    const summary = content
+    const url = window.location.origin + '/members/item/' + id
+    const method = 'PUT'
+    let response = await fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ emoticons, summary, })
+    })
+    if(!response.ok)
+        return false
+    response = await response.json()
+    return response?.success
+        ?? false
 }
 /**
  * Highlights bot bar icon of active bot.

@@ -443,6 +443,44 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
+     * Manages a collection item's functionality.
+     * @param {object} item - The item data object.
+     * @param {string} method - The http method used to indicate response.
+     * @returns {Promise<object>} - Returns void if item created successfully.
+     */
+    async item(item, method){
+        console.log('item()', item, method)
+        const { globals, } = this
+        let { id, } = item
+        let success = false
+        switch(method.toLowerCase()){
+            case 'delete':
+                if(globals.isValidGuid(id))
+                    item = await this.#factory.deleteItem(id)
+                success = item ?? success
+                break
+            case 'post': /* create */
+                console.log('item()::post', item)
+                item = await this.#factory.createItem(item)
+                success = this.globals.isValidGuid(item?.id)
+                break
+            case 'put': /* update */
+                console.log('item()::put', item, id)
+                if(globals.isValidGuid(id)){
+                    item = await this.#factory.updateItem(item)
+                    success = this.globals.isValidGuid(item?.id)
+                }
+                break
+            default:
+                console.log('item()::default', item)
+                break
+        }
+        return {
+            item,
+            success,
+        }
+    }
+    /**
      * Register a candidate in database.
      * @param {object} candidate - The candidate data object.
      * @returns {object} - The registration object.

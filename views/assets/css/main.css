@@ -477,6 +477,24 @@ body {
 	right: 1em;
 	top: 1em;
 }
+.popup-sidebar {
+    align-items: center;
+	display: flex;
+	flex-direction: column;
+	max-width: 3rem;
+    justify-content: center;
+}
+.popup-sidebar-emoticon,
+.popup-sidebar-icon {
+	cursor: pointer;
+	font-size: 1.25rem;
+	margin: 0;
+	margin-bottom: 0.5rem;
+	width: auto;
+}
+.popup-sidebar-icon {
+	font-size: 1.5rem;
+}
 .popup-title {
 	margin-left: 1em;
     font-weight: bold;
