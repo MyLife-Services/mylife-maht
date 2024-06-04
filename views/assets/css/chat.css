@@ -28,7 +28,7 @@
     border-radius: 18px; /* Rounded corners for a modern look */
     box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
     margin-bottom: 0.5rem;
-    max-width: 80%;
+    max-width: 90%;
     min-width: 30%;
     padding: 10px 15px; /* Padding for content inside bubble */
 	font-size: .9em;

@@ -30,26 +30,32 @@ async function alerts(ctx){
 	}
 }
 async function bots(ctx){
-	const bot = ctx.request.body
+	const { bid, } = ctx.params // botId sent in url path
 	const { avatar } = ctx.state
+	const bot = ctx.request.body ?? {}
+	const { id, } = bot
 	switch(ctx.method){
 		case 'POST': // create new bot
-			ctx.body = await avatar.setBot(bot)
+			ctx.body = await avatar.createBot(bot)
 			break
 		case 'PUT': // update bot
-			if(ctx.params.bid!==bot.id)
-				throw new Error('invalid bot data')
-			ctx.body = await avatar.setBot(bot)
+			ctx.body = await avatar.updateBot(bot)
 			break
 		case 'GET':
 		default:
-			if(ctx.params?.bid?.length){ // specific bot
+			if(bid?.length){ // specific bot
 				ctx.body = await avatar.bot(ctx.params.bid)
 			} else {
-				ctx.body = {
-					activeBotId: avatar.activeBotId,
-					bots: await avatar.bots,
-					mbr_id: avatar.mbr_id,
+				const {
+					activeBotId,
+					bots: awaitBots,  // **note**: bots needs await
+					mbr_id,
+				} = avatar
+				const bots = await awaitBots
+				ctx.body = { // wrap bots
+					activeBotId,
+					bots,
+					mbr_id,
 				}
 			}
 			break
@@ -127,16 +133,9 @@ async function greetings(ctx){
 		dynamic = JSON.parse(dynamic)
 	const { avatar, } = ctx.state
 	let response = { success: false, messages: [], }
-	if(validateId?.length){
-		if(!avatar.isMyLife){
-			response = {
-				...response,
-				error: new Error('Only MyLife may validate greetings'),
-				messages: ['Only MyLife may validate greetings'],
-			}
-		} else // @stub - validate registration request
-			response.messages.push(...await avatar.validateRegistration(validateId))
-	} else
+	if(validateId?.length)
+		response.messages.push(...await avatar.validateRegistration(validateId))
+	else
 		response.messages.push(...await avatar.getGreeting(dynamic))
 	response.success = response.messages.length > 0
 	ctx.body = response
@@ -180,6 +179,15 @@ function interfaceMode(ctx){
 	ctx.body = avatar.mode
 	return
 }
+async function item(ctx){
+	const { iid: id, } = ctx.params
+	const { avatar, } = ctx.state
+	const { globals, } = avatar
+	const { method, } = ctx.request
+	const item = ctx.request.body
+	item.id = id
+	ctx.body = await avatar.item(item, method)
+}
 async function logout(ctx){
 	ctx.session = null
 	ctx.redirect('/')
@@ -212,9 +220,9 @@ async function privacyPolicy(ctx){
 	await ctx.render('privacy-policy')	//	privacy-policy
 }
 async function signup(ctx) {
-    const { email, humanName, avatarNickname, type='newsletter', } = ctx.request.body
+    const { avatarName, email, humanName, type='newsletter', } = ctx.request.body
 	const signupPacket = {
-		avatarNickname,
+		avatarName,
 		email,
 		humanName: humanName.substring(0, 64),
 		type,
@@ -238,10 +246,10 @@ async function signup(ctx) {
 			message: 'Invalid input: First name must be between 3 and 64 characters: humanNameInput',
 			payload: signupPacket,
 		})
-	if(( avatarNickname?.length < 3 ?? true ) && type==='register')
+	if(( avatarName?.length < 3 ?? true ) && type==='register')
 		ctx.throw(400, 'Invalid input', {
 			success,
-			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNicknameInput',
+			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNameInput',
 			payload: signupPacket,
 		})
 	signupPacket.id = ctx.MyLife.newGuid
@@ -249,7 +257,7 @@ async function signup(ctx) {
 	console.log('signupPacket:', signupPacket, registrationData)
 	ctx.session.signup = true
 	success = true
-	const { mbr_id, ..._registrationData } = signupPacket // do not display
+	const { mbr_id, ..._registrationData } = signupPacket // do not display theoretical memberId
     ctx.status = 200 // OK
     ctx.body = {
 		payload: _registrationData,
@@ -293,6 +301,7 @@ export {
 	greetings,
 	index,
 	interfaceMode,
+	item,
 	logout,
 	loginSelect,
 	members,

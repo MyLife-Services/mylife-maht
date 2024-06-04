@@ -15,6 +15,7 @@ import {
     help,
     index,
     interfaceMode,
+    item,
     logout,
     loginSelect,
     members,
@@ -92,6 +93,7 @@ _memberRouter.get('/collections/:type', collections)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
+_memberRouter.get('/item/:iid', item)
 _memberRouter.get('/mode', interfaceMode)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)
@@ -106,6 +108,7 @@ _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
+_memberRouter.put('/item/:iid', item)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())

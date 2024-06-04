@@ -119,26 +119,33 @@ class Datamanager {
 			throw new Error('No hosted members found')
 		return documents
 	}
-	async patchItem(_id, _item, _container_id=this.containerDefault){	//	patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
-		//	[Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
-		if(!Array.isArray(_item)) _item = [_item]
-		const { resource: _update } = await this.#containers[_container_id]
-			.item(_id, this.#partitionId)
-			.patch(_item)	//	see below for filter-patch example
-		return _update
+	async patchItem(id, item, container_id=this.containerDefault){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+		// [Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
+		if(!Array.isArray(item))
+			item = [item]
+		const { resource: update, } = await this.#containers[container_id]
+			.item(id, this.#partitionId)
+			.patch(item) //	see below for filter-patch example
+		return update
 	}
-	async pushItem(_item, _container_id=this.containerDefault){
-		_item.id = _item?.id??this.globals.newGuid
-		_item.mbr_id = _item?.mbr_id??this.#partitionId
-		const { resource: doc } = await this.#containers[_container_id]
+	async pushItem(item, container_id=this.containerDefault){
+		/* validate item */
+		const { being, id, mbr_id, } = item
+		if(!being?.length)
+			throw new Error('property `being` is required')
+		item.id = id
+			?? this.globals.newGuid
+		item.mbr_id = mbr_id
+			?? this.#partitionId
+		const { resource: doc } = await this.#containers[container_id]
 			.items
-			.upsert(_item)
+			.upsert(item)
 		return doc
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
-	 * @param {object} _candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
+	 * @param {object} _candidate { 'avatarName': string, 'email': string, 'humanName': string, }
 	 */
 	async registerCandidate(_candidate){
 		const { resource: doc } = await this.#containers['registration']

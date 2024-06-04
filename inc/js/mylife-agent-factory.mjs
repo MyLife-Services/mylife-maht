@@ -20,10 +20,9 @@ import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
 import chalk from 'chalk'
 /* module constants */
-// global object keys to exclude from class creations [apparently fastest way in js to lookup items, as they are hash tables]
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
-const mBotInstructions = {}
 const mDataservices = await new Dataservices(mPartitionId).init()
+const mBotInstructions = {}
 const mDefaultBotType = 'personal-avatar'
 const mExtensionFunctions = {
 	extendClass_consent: extendClass_consent,
@@ -56,6 +55,8 @@ const vmClassGenerator = vm.createContext({
 //	eventEmitter: EventEmitter,
 })
 /* dependent constants and functions */
+const mActorGeneric = await mDataservices.bot(undefined, 'actor')
+const mActorQ = await mDataservices.bot(undefined, 'personal-avatar') // little-Q!
 const mAlerts = {
 	system: await mDataservices.getAlerts(), // not sure if we need other types in global module, but feasibly historical alerts could be stored here, etc.
 }
@@ -67,7 +68,6 @@ const mSchemas = {
 	member: Member,
 	session: MylifeMemberSession
 }
-const mSystemActor = await mDataservices.bot(undefined, 'actor', undefined)
 /* module construction functions */
 mConfigureSchemaPrototypes()
 mPopulateBotInstructions()
@@ -110,32 +110,29 @@ class BotFactory extends EventEmitter{
 	 * If caller is `MyLife` then bot is found or created and then activated via a micro-hydration.
 	 * @todo - determine if spotlight-bot is required for any animation, or a micro-hydrated bot is sufficient.
 	 * @public
-	 * @param {string} _bot_id - The bot id.
+	 * @param {string} id - The bot id.
 	 * @param {string} type - The bot type.
+	 * @param {string} mbr_id - The member id.
 	 * @returns {object} - The bot.
 	 */
-	async bot(_bot_id, type=mDefaultBotType, _mbr_id){
+	async bot(id, type=mDefaultBotType, mbr_id){
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
-			if(!_mbr_id)
+			if(!mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
-			const _botFactory = new BotFactory(_mbr_id)
-			await _botFactory.init()
-			_botFactory.bot = await _botFactory.bot(_bot_id, type, _mbr_id)
-			if(!_botFactory?.bot){ // create bot on member behalf
-				console.log(chalk.magenta(`bot hydration-create::${type}`))
-				// do not need intelligence behind this object yet, for that, spotlight is a mini-avatar
-				_botFactory.bot = await _botFactory.setBot({ type: type })
-			}
-			// rather than just a bot in this event, return micro-hydrated bot (mini-avatar ultimately)
-			return _botFactory
+			const botFactory = new BotFactory(mbr_id)
+			await botFactory.init()
+			botFactory.bot = await botFactory.bot(id, type, mbr_id)
+			if(!botFactory?.bot) // create bot on member behalf
+				botFactory.bot = await botFactory.createBot({ type: type })
+			return botFactory
 		}
-		return ( await this.dataservices.getItem(_bot_id) )
+		return ( await this.dataservices.getItem(id) )
 			?? ( await this.dataservices.getItemByField(
 					'bot',
 					'type',
 					type,
 					undefined,
-					_mbr_id
+					mbr_id
 				) )
 			?? ( await this.bots(undefined,type)?.[0] )
 	}
@@ -189,16 +186,6 @@ class BotFactory extends EventEmitter{
 		if(!bot)
 			throw new Error('bot creation failed')
 		return bot
-	}
-    /**
-     * Delete an item from member container.
-     * @param {Guid} id - The id of the item to delete.
-     * @returns {boolean} - true if item deleted successfully.
-     */
-	async deleteItem(id){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot delete items.')
-		return await this.dataservices.deleteItem(id)
 	}
 	/**
 	 * Gets array of member `experiences` from database. When placed here, it allows for a bot to be spawned who has access to this information, which would make sense for a mini-avatar whose aim is to report what experiences a member has endured.
@@ -262,10 +249,11 @@ class BotFactory extends EventEmitter{
      * @param {string} thread_id - The thread id.
      * @param {string} bot_id - The bot id.
      * @param {string} helpRequest - The help request string.
+	 * @param {Avatar} avatar - The avatar instance.
 	 * @returns {Promise<Object>} - openai `message` objects.
 	 */
-	async help(thread_id, bot_id, helpRequest){
-		return await mHelp(thread_id, bot_id, helpRequest, this)
+	async help(thread_id, bot_id, helpRequest, avatar){
+		return await mHelp(thread_id, bot_id, helpRequest, this, avatar)
 	}
 	/**
 	 * Gets, creates or updates Library in Cosmos.
@@ -328,29 +316,44 @@ class BotFactory extends EventEmitter{
         return await this.dataservices.resetPassphrase(passphrase)
     }
 	/**
-	 * Adds or updates a bot.
-	 * @public
-	 * @param {object} assistantData - bot data.
-	 * @returns {object} - The Cosmos bot.
-	 */
-	async setBot(assistantData={ type: mDefaultBotType }){
-		if(!assistantData.id?.length) // **note**: may lead to recursivity; preferred mechanic?
-			assistantData = await this.createBot(assistantData)
-		return await this.dataservices.setBot(assistantData)
-	}
-	/**
 	 * Gets a collection of stories of a certain format.
 	 * @todo - currently disconnected from a library, but no decisive mechanic for incorporating library shell.
-	 * @param {*} _form 
-	 * @returns 
+	 * @param {string} form - The form of the stories to retrieve.
+	 * @returns {object[]} - The stories.
 	 */
-	async stories(_form){
+	async stories(form){
 		return await this.dataservices.getItemsByFields(
 			'story',
-			[{ name: '@form', value: _form }],
+			[{ name: '@form', value: form }],
 		)
 	}
+	/**
+	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
+	 * @public
+	 * @param {object} bot - The bot data.
+	 * @param {object} options - Function options: `{ instructions: boolean, model: boolean, tools: boolean }`. Meant to express whether or not these elements should be refreshed. Useful during updates.
+	 * @returns {object} - The Cosmos bot.
+	 */
+	async updateBot(bot, options){
+		return await mUpdateBot(this, this.#llmServices, bot, options)
+	}
 	/* getters/setters */
+	/**
+	 * Returns the system actor bot data.
+	 * @getter
+	 * @returns {object} - The system actor bot data.
+	 */
+	get actorGeneric(){
+		return mActorGeneric
+	}
+	/**
+	 * Returns MyLife _Q_ actor bot data.
+	 * @getter
+	 * @returns {object} - Q actor bot data.
+	 */
+	get actorQ(){
+		return mActorQ
+	}
 	get avatarId(){
 		return this.core?.avatar_id
 	}
@@ -365,6 +368,12 @@ class BotFactory extends EventEmitter{
 	}
 	get dataservices(){
 		return this.#dataservices
+	}
+	get dob(){
+		let birthdate = this.core.birth[0].date
+		if(birthdate?.length)
+			birthdate = new Date(birthdate).toISOString().split('T')[0]
+		return birthdate
 	}
 	/**
 	 * Returns experience class definition.
@@ -405,25 +414,21 @@ class BotFactory extends EventEmitter{
 	get mbr_name(){
 		return this.globals.sysName(this.mbr_id)
 	}
+	get memberFirstName(){
+		return this.memberName
+			?.split(' ')[0]
+	}
 	get memberName(){
-		return this.dataservices.core.names?.[0]??this.mbr_name
+		return this.core.names?.[0]
+			?? this.mbr_name
 	}
 	get newGuid(){
 		return mNewGuid()
-	}
-	/**
-	 * @todo - determine hydration method, timing and requirements for `actor`(s); they remain currently unhydrated, only need `bot_id`
-	 * @returns {object} - The system actor bot data.
-	 */
-	get systemActor(){
-		return mSystemActor
 	}
 }
 class AgentFactory extends BotFactory {
 	#exposedSchemas = mExposedSchemas(['avatar','agent','consent','consent_log','relationship'])	//	run-once 'caching' for schemas exposed to the public, args are array of key-removals; ex: `avatar` is not an open class once extended by server
 	#llmServices = mLLMServices
-	#mylifeRegistrationData // @stub - move to unique MyLife factory
-	#tempRegistrationData // @stub - move to unique MyLife factory
 	constructor(mbr_id){
 		super(mbr_id, false)
 	}
@@ -465,66 +470,14 @@ class AgentFactory extends BotFactory {
 	async challengeAccess(mbr_id, passphrase){
 		return await mDataservices.challengeAccess(mbr_id, passphrase)
 	}
-	confirmRegistration(){
-		if(!this.isMyLife)
-			throw new Error('MyLife server required for this function')
-		if(!this.registrationData)
-			return false
-		this.#mylifeRegistrationData = this.#tempRegistrationData
-		this.#tempRegistrationData = null
-		return true
-	}
 	/**
-	 * Set MyLife core account basics. { birthdate, passphrase, }
-	 * @todo - move to mylife agent factory
-	 * @param {string} birthdate - The birthdate of the member.
-	 * @param {string} passphrase - The passphrase of the member.
-	 * @returns {boolean} - `true` if successful
+	 * Creates a new collection item in the member's container.
+	 * @param {object} item - The item to create.
+	 * @returns {object} - The created item.
 	 */
-	async createAccount(birthdate, passphrase){
-		let success = false
-		try{
-			if(!this.isMyLife) // @stub
-				throw new Error('MyLife server required for this request')
-			if(!birthdate?.length || !passphrase?.length)
-				throw new Error('birthdate _**and**_ passphrase required')
-			const { avatarNickname, email, humanName, id, interests, } = this.#mylifeRegistrationData
-			let { updates='', } = this.#mylifeRegistrationData
-			if(!id)
-				throw new Error('registration not confirmed, cannot accept request')
-			if(!humanName)
-				throw new Error('member personal name required to create account')
-			birthdate = new Date(birthdate).toISOString()
-			if(!birthdate?.length)
-				throw new Error('birthdate format could not be parsed')
-			const birth = [{ // current 20240523 format
-				date: birthdate,
-			}]
-			const mbr_id = this.globals.createMbr_id(avatarNickname ?? humanName, id)
-			if(await this.testPartitionKey(mbr_id))
-				throw new Error('mbr_id already exists')
-			const names = [humanName] // currently array of flat strings
-			updates = (updates.length ? ' ' : '')
-				+ `${ humanName } has just joined MyLife on ${ new Date().toDateString() }!`
-			const validation = ['registration',] // list of passed validation routines
-			const core = {
-				birth,
-				email,
-				id,
-				interests,
-				mbr_id,
-				names,
-				passphrase,
-				updates,
-				validation,
-			}
-			const save = await this.dataservices.addCore(core)
-			this.#mylifeRegistrationData = null
-			this.#tempRegistrationData = null
-			success = save.success
-			console.log(chalk.blueBright('createAccount()'), save)
-		} catch(error){ console.log(chalk.blueBright('createAccount()::error'), chalk.bgRed(error)) }
-		return success
+	async createIten(item){
+		const response = await this.dataservices.pushItem(item)
+		return response
 	}
 	async datacore(mbr_id){
 		const _core = await mDataservices.getItems(
@@ -535,6 +488,14 @@ class AgentFactory extends BotFactory {
 			mbr_id,
 		)
 		return _core?.[0]??{}
+	}
+    /**
+     * Delete an item from member container.
+     * @param {Guid} id - The id of the item to delete.
+     * @returns {boolean} - true if item deleted successfully.
+     */
+	async deleteItem(id){
+		return await this.dataservices.deleteItem(id)
 	}
 	async entry(entry){
 		const {
@@ -577,10 +538,10 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Returns all alerts of a given type, currently only _system_ alerts are available. Refreshes by definition from the database.
-	 * @param {string} _type 
+	 * @param {string} type 
 	 * @returns {array} array of current alerts
 	 */
-	async getAlerts(_type){
+	async getAlerts(type){
 		const _systemAlerts = await this.dataservices.getAlerts()
 		mAlerts.system = _systemAlerts
 		return this.alerts
@@ -636,16 +597,8 @@ class AgentFactory extends BotFactory {
 		const _microBot = await this.libraryBot(bot_id, mbr_id)
 		return await _microBot.library(_library)
 	}
-	async libraryBot(_bot_id, _mbr_id){
-		return await this.bot(_bot_id, 'library', _mbr_id)
-	}
-	/**
-	 * Registers a new candidate to MyLife membership
-	 * @public
-	 * @param {object} candidate { 'email': string, 'humanName': string, 'avatarNickname': string }
-	 */
-	async registerCandidate(candidate){
-		return await this.dataservices.registerCandidate(candidate)
+	async libraryBot(id){
+		return await this.bot(id, 'library')
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.
@@ -741,25 +694,17 @@ class AgentFactory extends BotFactory {
 			return false
 		return await mDataservices.testPartitionKey(mbr_id)
 	}
-    /**
-     * Validate registration id.
-     * @param {Guid} validationId - The registration id.
-     * @returns {Promise<object>} - Registration data from system datacore.
-     */
-	async validateRegistration(registrationId){
-		let registration,
-			success = false
-		try{
-			registration = await this.dataservices.validateRegistration(registrationId)
-			success = registration.id?.length
-			console.log(chalk.blueBright('validateRegistration()'), success)
-		} catch(error){
-			registration = null
-			console.log(chalk.blueBright('validateRegistration()::error'), chalk.bgRed(error))
-		}
-		return registration
+	/**
+	 * Updates a collection item.
+	 * @param {object} item - The item to update.
+	 * @returns {Promise<object>} - The updated item.
+	 */
+	async updateItem(item){
+		const { id, } = item
+		const response = await this.dataservices.patch(id, item)
+		return response
 	}
-	//	getters/setters
+	/* getters/setters */
 	get alerts(){ // currently only returns system alerts
 		return mAlerts.system
 	}
@@ -792,35 +737,6 @@ class AgentFactory extends BotFactory {
 	get organization(){
 		return this.schemas.Organization
 	}
-	/**
-	 * Gets registration data while user attempting to confirm. If temp data exists, it takes primacy, otherwise hardened `#mylifeRegistrationData` is returned.
-	 * @returns {object} - Registration data in memory.
-	 */
-	get registrationData(){
-		return this.#tempRegistrationData
-			?? this.#mylifeRegistrationData
-	}
-	/**
-	 * Sets registration data while user attempting to confirm.
-	 * @todo - move to mylife agent factory
-	 * @param {object} registrationData - Registration data.
-	 * @returns {void}
-	 */
-	set registrationData(registrationData){
-		if(!this.isMyLife)
-			throw new Error('MyLife factory required to store registration data')
-		if(!registrationData)
-			throw new Error('registration data required')
-		if(!this.#tempRegistrationData){
-			const { id, } = registrationData
-			if(!id?.length)
-				throw new Error('registration id required')
-			this.#tempRegistrationData = registrationData
-			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
-				this.#tempRegistrationData = null
-			}, 300000)
-		}
-	}
 	get schema(){	//	proxy for schemas
 		return this.schemas
 	}
@@ -844,17 +760,90 @@ class AgentFactory extends BotFactory {
 		this.core.vectorstoreId = vectorstoreId /* update local */
 	}
 }
-// @stub - MyLife factory class
 class MyLifeFactory extends AgentFactory {
+	#accountCreation
 	#dataservices = mDataservices
 	#llmServices = mLLMServices
 	#mylifeRegistrationData
 	#tempRegistrationData
 	constructor(){
 		super(mPartitionId)
-	}
-	// no init() for MyLife server
+	} // no init() for MyLife server
 	/* public functions */
+	/**
+	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
+	 * @param {string} email - The supplied email to confirm registration.
+	 * @returns {boolean} - `true` if registration confirmed.
+	 */
+	confirmRegistration(email){
+		if(!this.#tempRegistrationData)
+			throw new Error('registration not found; note that registration is set to timeout after five minutes')
+		const confirmed = typeof email==='string'
+			&& typeof this.#tempRegistrationData.email==='string' // humor me, as it error-proofs next condition
+			&& this.#tempRegistrationData.email.toLowerCase()===email.toLowerCase()
+		if(confirmed){
+			this.#mylifeRegistrationData = this.#tempRegistrationData
+			this.#tempRegistrationData = null
+		}
+		return confirmed
+	}
+	/**
+	 * Set MyLife core account basics. { birthdate, passphrase, }
+	 * @todo - move to mylife agent factory
+	 * @param {string} birthdate - The birthdate of the member.
+	 * @param {string} passphrase - The passphrase of the member.
+	 * @returns {boolean} - `true` if successful
+	 */
+	async createAccount(birthdate, passphrase){
+		let success = false
+		try{
+			if(!this.isMyLife) // @stub
+				throw new Error('MyLife server required for this request')
+			if(!birthdate?.length || !passphrase?.length)
+				throw new Error('birthdate _**and**_ passphrase required')
+			const { avatarName, email, humanName, id, interests, } = this.#mylifeRegistrationData
+			let { updates='', } = this.#mylifeRegistrationData
+			if(!id)
+				throw new Error('registration not confirmed, cannot accept request')
+			if(!humanName)
+				throw new Error('member personal name required to create account')
+			birthdate = new Date(birthdate).toISOString()
+			if(!birthdate?.length)
+				throw new Error('birthdate format could not be parsed')
+			const birth = [{ // current 20240523 format
+				date: birthdate,
+			}]
+			const mbr_id = this.globals.createMbr_id(avatarName ?? humanName, id)
+			if(await this.testPartitionKey(mbr_id))
+				throw new Error('mbr_id already exists')
+			const names = [humanName] // currently array of flat strings
+			updates = (updates.length ? ' ' : '')
+				+ `${ humanName } has just joined MyLife on ${ new Date().toDateString() }!`
+			const validation = ['registration',] // list of passed validation routines
+			const core = {
+				birth,
+				email,
+				id,
+				interests,
+				mbr_id,
+				names,
+				passphrase,
+				updates,
+				validation,
+			}
+			const save = await this.dataservices.addCore(core)
+			this.#mylifeRegistrationData = null
+			success = save.success
+			console.log(chalk.blueBright('createAccount()'), save)
+		} catch(error){ console.log(chalk.blueBright('createAccount()::error'), chalk.bgRed(error)) }
+		return success
+	}
+	createItem(){
+		throw new Error('MyLife server cannot create items')
+	}
+	deleteItem(){
+		throw new Error('MyLife server cannot delete items')
+	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.
 	 * @param {Array} validations - Array of validation strings to filter membership.
@@ -863,53 +852,89 @@ class MyLifeFactory extends AgentFactory {
 	async hostedMembers(validations){
 		return await this.#dataservices.hostedMembers(validations)
 	}
-	/* getters/setters */
 	/**
-	 * Gets registration data while user attempting to confirm.
-	 * @returns {object} - Registration data in memory.
+	 * Registers a new candidate to MyLife membership
+	 * @public
+	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
+	 * @returns {object} - The registration document from Cosmos.
 	 */
-	get registrationData(){
-		return this.#mylifeRegistrationData
+	async registerCandidate(candidate){
+		return await this.#dataservices.registerCandidate(candidate)
 	}
-	/**
-	 * Sets registration data while user attempting to confirm. Persists for 5 minutes, and cannot be reset for session until expiration.
-	 * @param {object} registrationData - Registration data.
-	 * @returns {void}
-	 */
-	set registrationData(registrationData){
-		if(!this.#mylifeRegistrationData){
-			this.#mylifeRegistrationData = registrationData
-			setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
-				this.#mylifeRegistrationData = null
-			}, 300000)
+	updateItem(){
+		throw new Error('MyLife server cannot update items')
+	}
+    /**
+     * Validate registration id.
+     * @param {Guid} validationId - The registration id.
+     * @returns {Promise<object>} - Registration data from system datacore.
+     */
+	async validateRegistration(registrationId){
+		if(!registrationId?.length)
+			throw new Error('registration id required')
+		let registration,
+			success = false
+		this.#mylifeRegistrationData = null
+		try{
+			registration = await this.dataservices.validateRegistration(registrationId)
+			const { id, } = registration
+			if(id?.length){
+				success = true
+				this.#tempRegistrationData = registration
+				setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
+					this.#tempRegistrationData = null
+				}, 5 * 60 * 1000)
+			}
+		} catch(error){
+			this.#tempRegistrationData = null
+			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`))
 		}
+		return this.#tempRegistrationData
 	}
+	/* getters/setters */
+    /**
+     * Test whether avatar session is creating an account.
+     * @getter
+     * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
+     */
+    get isCreatingAccount(){
+        return this.#mylifeRegistrationData!=null
+    }
+    /**
+     * Test whether factory is currently `validating` a session.
+     * @getter
+     * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
+     */
+    get isValidating(){
+        return this.#tempRegistrationData!=null
+    }
 }
 // private module functions
 /**
  * Initializes openAI assistant and returns associated `assistant` object.
  * @module
  * @param {LLMServices} llmServices - OpenAI object
- * @param {object} assistantData - Assistant object
+ * @param {object} bot - The assistand data object
  * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
  */
-async function mAI_openai(llmServices, assistantData){
-    const { bot_name, type, } = assistantData
-	assistantData.name = bot_name ?? `untitled-${ type }`
-    return await llmServices.createBot(assistantData)
+async function mAI_openai(llmServices, bot){
+    const { bot_name, type, } = bot
+	bot.name = bot_name
+		?? `untitled-${ type }`
+    return await llmServices.createBot(bot)
 }
-function assignClassPropertyValues(_propertyDefinition){
+function assignClassPropertyValues(propertyDefinition){
 	switch (true) {
-		case _propertyDefinition?.const!==undefined:	//	constants
-			return `'${_propertyDefinition.const}'`
-		case _propertyDefinition?.default!==undefined:	//	defaults: bypass logic
-			if(Array.isArray(_propertyDefinition.default)){
+		case propertyDefinition?.const!==undefined:	//	constants
+			return `'${propertyDefinition.const}'`
+		case propertyDefinition?.default!==undefined:	//	defaults: bypass logic
+			if(Array.isArray(propertyDefinition.default)){
 				return '[]'
 			}
-			return `'${_propertyDefinition.default}'`
+			return `'${ propertyDefinition.default }'`
 		default:
-			//	presumption: _propertyDefinition.type is not array [though can be]
-			switch (_propertyDefinition?.type) {
+			//	presumption: propertyDefinition.type is not array [though can be]
+			switch (propertyDefinition?.type) {
 				case 'array':
 					return '[]'
 				case 'boolean':
@@ -918,7 +943,7 @@ function assignClassPropertyValues(_propertyDefinition){
 				case 'number':
 					return 0
 				case 'string':
-					switch (_propertyDefinition?.format) {
+					switch (propertyDefinition?.format) {
 						case 'date':
 						case 'date-time':
 							return `'${new Date().toDateString()}'`
@@ -962,8 +987,8 @@ function mAvatarProperties(_core){
 		"object_id",
 		"proxyBeing",
 		"type"
-	].forEach(_prop=>{
-		delete _avatarProperties[_prop]
+	].forEach(prop=>{
+		delete _avatarProperties[prop]
 	})
 	return {
 		..._avatarProperties,
@@ -1034,6 +1059,9 @@ async function mCreateBot(llm, factory, bot){
 		?? `I am a ${ type } for ${ factory.memberName }`
 	const instructions = botInstructions
 		?? mCreateBotInstructions(factory, bot)
+	const model = process.env.OPENAI_MODEL_CORE_BOT
+		?? process.env.OPENAI_MODEL_CORE_AVATAR
+		?? 'gpt-3.5-turbo'
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
 	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
@@ -1045,7 +1073,7 @@ async function mCreateBot(llm, factory, bot){
 		id,
 		instructions,
 		metadata: { externalId: id, },
-		model: process.env.OPENAI_MODEL_CORE_BOT,
+		model,
 		name,
 		object_id: avatarId,
 		provider: 'openai',
@@ -1060,7 +1088,7 @@ async function mCreateBot(llm, factory, bot){
 		throw new Error('bot creation failed')
 	/* create in MyLife datastore */
 	assistantData.bot_id = botId
-	const assistant = await factory.setBot(assistantData)
+	const assistant = await factory.dataservices.createBot(assistantData)
 	console.log(chalk.green(`bot created::${ type }`), assistant)
 	return assistant
 }
@@ -1069,53 +1097,50 @@ async function mCreateBot(llm, factory, bot){
  * @module
  * @private
  * @param {BotFactory} factory - Factory object
- * @param {object} _bot - Bot object
+ * @param {object} bot - Bot object
  * @returns {string} - flattened string of instructions
  */
-function mCreateBotInstructions(factory, _bot){
-	if(!_bot)
-		throw new Error('bot object required')
-	const _type = _bot.type ?? mDefaultBotType
-    let instructionSet = factory.botInstructions(_type) // no need to wait, should be updated or refresh server
-    instructionSet = instructionSet?.instructions
-    if(!instructionSet)
-		throw new Error(`bot instructions not found for type: ${_type}`)
+function mCreateBotInstructions(factory, bot){
+	if(typeof bot!=='object' || !bot.type?.length)
+		throw new Error('bot object required, and  requires `type` property')
+	const { type=mDefaultBotType, } = bot
+    const instructionSet = factory.botInstructions(type)?.instructions // no need to wait, should be updated or refresh server
+    if(!instructionSet) // @stub - custom must have instruction loophole
+		throw new Error(`bot instructions not found for type: ${ type }`)
+    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructionSet
     /* compile instructions */
-    let instructions = ''
-    switch(_type){
+	let instructions
+    switch(type){
 		case 'journaler':
         case 'personal-avatar':
-            instructions +=
-                  instructionSet.preamble
-                + instructionSet.general
+            instructions = preamble
+                + general
             break
         case 'personal-biographer':
-            instructions +=
-                  instructionSet.preamble
-                + instructionSet.purpose
-                + instructionSet.prefix
-                + instructionSet.general
+            instructions = preamble
+                + purpose
+                + prefix
+                + general
             break
-        default: // avatar
-            instructions += instructionSet.general
+        default:
+            instructions = general
             break
     }
     /* apply replacements */
-    instructionSet.replacements = instructionSet?.replacements??[]
-    instructionSet.replacements.forEach(_replacement=>{
-        const _placeholderRegExp = factory.globals.getRegExp(_replacement.name, true)
-        const _replacementText = eval(`factory?.${_replacement.replacement}`)
-            ?? eval(`_bot?.${_replacement.replacement}`)
-            ?? _replacement?.default
+    replacements.forEach(replacement=>{
+        const placeholderRegExp = factory.globals.getRegExp(replacement.name, true)
+        const replacementText = eval(`bot?.${replacement.replacement}`)
+			?? eval(`factory?.${replacement.replacement}`)
+            ?? eval(`factory.core?.${replacement.replacement}`)
+            ?? replacement?.default
             ?? '`unknown-value`'
-        instructions = instructions.replace(_placeholderRegExp, () => _replacementText)
+        instructions = instructions.replace(placeholderRegExp, _=>replacementText)
     })
     /* apply references */
-    instructionSet.references = instructionSet?.references??[]
-    instructionSet.references.forEach(_reference=>{
+    references.forEach(_reference=>{
         const _referenceText = _reference.insert
-        const _replacementText = eval(`factory?.${_reference.value}`)
-            ?? eval(`_bot?.${_reference.value}`)
+        const replacementText = eval(`factory?.${_reference.value}`)
+            ?? eval(`bot?.${_reference.value}`)
             ?? _reference.default
             ?? '`unknown-value`'
         switch(_reference.method??'replace'){
@@ -1125,7 +1150,7 @@ function mCreateBotInstructions(factory, _bot){
                 instructions =
                     instructions.slice(0, _indexHard + _referenceText.length)
                     + '\n'
-                    + _replacementText
+                    + replacementText
                     + instructions.slice(_indexHard + _referenceText.length)
                 }
                 break
@@ -1135,13 +1160,13 @@ function mCreateBotInstructions(factory, _bot){
                 instructions =
                       instructions.slice(0, _indexSoft + _referenceText.length)
                     + ' '
-                    + _replacementText
+                    + replacementText
                     + instructions.slice(_indexSoft + _referenceText.length)
                 }
                 break
             case 'replace':
             default:
-                instructions = instructions.replace(_referenceText, _replacementText)
+                instructions = instructions.replace(_referenceText, replacementText)
                 break
         }
     })
@@ -1190,13 +1215,13 @@ function mExtendClass(_class) {
 /**
  * Ingests components of the JSON schema and generates text for class code.
  * @param {string} _className - Sanitized class name
- * @param {object} _properties - Sanitized properties of class
+ * @param {object} properties - Sanitized properties of class
  * @returns {string} - Returns class code in text format for rendering into node js object
  */
-function mGenerateClassCode(_className, _properties){
-	//	delete known excluded _properties in source
-	for(const _prop in _properties){
-		if(_prop in mExcludeProperties){ delete _properties[_prop] }
+function mGenerateClassCode(_className, properties){
+	//	delete known excluded properties in source
+	for(const prop in properties){
+		if(prop in mExcludeProperties){ delete properties[prop] }
 	}
 	// Generate class
 	let classCode = `
@@ -1206,10 +1231,10 @@ class ${_className} {
 #excludeConstructors = ${ '['+Object.keys(mExcludeProperties).map(key => "'" + key + "'").join(',')+']' }
 #name
 `
-	for (const _prop in _properties) {	//	assign default values as animated from schema
-		const _value = mSanitizeSchemaValue(assignClassPropertyValues(_properties[_prop]))
+	for (const prop in properties) {	//	assign default values as animated from schema
+		const _value = mSanitizeSchemaValue(assignClassPropertyValues(properties[prop]))
 		//	this is the value in error that needs sanitizing
-		classCode += `	#${(_value)?`${_prop} = ${_value}`:_prop}\n`
+		classCode += `	#${(_value)?`${prop} = ${_value}`:prop}\n`
 	}
 	classCode += `
 // class constructor
@@ -1217,7 +1242,7 @@ constructor(obj){
 	try{
 		for(const _key in obj){
 			//	exclude known private properties and db properties beginning with '_'
-			if(this.#excludeConstructors.filter(_prop=>{ return (_prop==_key || _key.charAt(0)=='_')}).length) { continue }
+			if(this.#excludeConstructors.filter(_=>{ return (_==_key || _key.charAt(0)=='_')}).length) { continue }
 			try{
 				eval(\`this.\#\${_key}=obj[_key]\`)
 			} catch(err){
@@ -1233,21 +1258,21 @@ constructor(obj){
 }
 // if id changes are necessary, then use set .id() to trigger the change
 // getters/setters for private vars`
-	for (const _prop in _properties) {
-		const _type = _properties[_prop].type
+	for (const prop in properties) {
+		const type = properties[prop].type
 		// generate getters/setters
 		classCode += `
-get ${_prop}(){
-	return this.#${_prop}
+get ${ prop }(){
+	return this.#${ prop }
 }
-set ${_prop}(_value) {	// setter with type validation
-	if(typeof _value !== '${_type}' && '${_type}' !== 'undefined'){
-		if(!('${_type}'==='array' && Array.isArray(_value))){
-			throw new Error('Invalid type for property ${_prop}: expected ${_type}')
+set ${ prop }(_value) {	// setter with type validation
+	if(typeof _value !== '${ type }' && '${ type }' !== 'undefined'){
+		if(!('${ type }'==='array' && Array.isArray(_value))){
+			throw new Error('Invalid type for property ${ prop }: expected ${ type }')
 		}
 	}
-	if(this?.#${_prop}) this.#${_prop} = _value
-	else this.${_prop} = _value
+	if(this?.#${ prop }) this.#${ prop } = _value
+	else this.${ prop } = _value
 }`
 	}
 	//	functions
@@ -1255,8 +1280,8 @@ set ${_prop}(_value) {	// setter with type validation
 	classCode += `	// public functions
 inspect(_all=false){
 	let _this = (_all)?{`
-	for (const _prop in _properties) {
-		classCode += `			${_prop}: this.#${_prop},\n`
+	for (const prop in properties) {
+		classCode += `			${ prop }: this.#${ prop },\n`
 	}
 	classCode += `		}:{}
 	return {...this,..._this}
@@ -1332,10 +1357,11 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
  * @param {string} bot_id - The bot id.
  * @param {string} helpRequest - The help request string.
  * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation.
+ * @param {Avatar} avatar - The avatar instance.
  * @returns {Promise<Object>} - openai `message` objects.
  */
-async function mHelp(thread_id, bot_id, helpRequest, factory){
-	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory)
+async function mHelp(thread_id, bot_id, helpRequest, factory, avatar){
+	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory, avatar)
 	return response
 }
 /**
@@ -1518,10 +1544,10 @@ function mSanitizeSchemaClasses(_schema){
 	_classes.map(_class=>mSanitizeSchemaKeys(_class, mutatedKeys))
 	if(Object.keys(mutatedKeys).length){
 		_classes.forEach(_class=>{
-			const { name: _name, properties: _properties } = _class
-			mSanitizeSchemaReferences(_properties, mutatedKeys)
+			const { name: _name, properties: properties } = _class
+			mSanitizeSchemaReferences(properties, mutatedKeys)
 			// recursively loop `properties` for key `$ref`
-			Object.keys(_properties)
+			Object.keys(properties)
 				.forEach(_key=>mSanitizeSchemaReferences(_key, mutatedKeys))
 
 		})
@@ -1569,20 +1595,20 @@ function mSanitizeSchemaKeys(_class, _mutatedKeysObject){
 		}
 	})
 }
-function mSanitizeSchemaReferences(_properties, _mutatedKeysObject){
-	Object.keys(_properties)
+function mSanitizeSchemaReferences(properties, _mutatedKeysObject){
+	Object.keys(properties)
 		.forEach(_key=>{
 			if(_key==='$ref'){
 				// mutate $ref key
-				const _classReferenceName = _properties['$ref'].split('/').pop()
+				const _classReferenceName = properties['$ref'].split('/').pop()
 				const _sanitizedKey = _mutatedKeysObject[_classReferenceName]
 					?? _mutatedKeysObject[_classReferenceName.toLowerCase()]
 				if(_sanitizedKey){
 					// set $ref to sanitized key, as that will be the actual Class Name inside MyLife. **note**: remove all '/$defs/' as there is no nesting inside `schemas`
-					_properties['$ref'] = _sanitizedKey
+					properties['$ref'] = _sanitizedKey
 				}
-			} else if(typeof _properties[_key] === 'object'){
-				mSanitizeSchemaReferences( _properties[_key], _mutatedKeysObject )
+			} else if(typeof properties[_key] === 'object'){
+				mSanitizeSchemaReferences( properties[_key], _mutatedKeysObject )
 			}
 	})
 }
@@ -1597,6 +1623,56 @@ function mSanitizeSchemaValue(_value) {
     trimmedStr = trimmedStr.replace(/(?<!\\)[`\\$'"]/g, "\\$&")
 
     return wasTrimmed ? _value[0] + trimmedStr + _value[0] : trimmedStr
+}
+/**
+ * Updates bot in Cosmos, and if necessary, in LLM.
+ * @param {AgentFactory} factory - Factory object
+ * @param {LLMServices} llm - LLMServices object
+ * @param {object} bot - Bot object, winnow via mBot in `mylife-avatar.mjs` to only updated fields
+ * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean }
+ * @returns 
+ */
+async function mUpdateBot(factory, llm, bot, options={}){
+	/* constants */
+	const {
+		id, // no modifications; see below
+		instructions: removeInstructions,
+		tools: removeTools,
+		tool_resources: removeResources,
+		type, // no modifications
+		...botData // extract member-driven bot data
+	} = bot
+	const {
+		instructions: updateInstructions=false,
+		model: updateModel=false,
+		tools: updateTools=false,
+	} = options
+	if(!factory.globals.isValidGuid(id))
+		throw new Error('bot `id` required in bot argument: `{ id: guid }`')
+	if(updateInstructions){
+		// @stub - update core based on updatebot? type-interests as example? yes.
+		const instructions = mCreateBotInstructions(factory, bot)
+		botData.instructions = instructions
+	}
+	if(updateTools){
+		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
+		botData.tools = tools
+		botData.tool_resources = tool_resources
+	}
+	if(updateModel)
+		botData.model = factory.globals.currentOpenAIBotModel
+	botData.id = id // validated
+	/* LLM updates */
+	const { bot_id, bot_name: name, instructions, metadata, tools, } = botData
+	if(bot_id?.length && (instructions || metadata || name || tools)){
+		botData.model = factory.globals.currentOpenAIBotModel // not dynamic
+		await llm.updateBot(botData)
+		const updatedLLMFields = Object.keys(botData)
+			.filter(key=>key!=='id' && key!=='bot_id') // strip mechanicals
+		console.log(chalk.green('mUpdateBot()::update in LLM'), bot_id, id, updatedLLMFields)
+	}
+	const updatedBot = await factory.dataservices.updateBot(botData)
+	return updatedBot
 }
 /* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance

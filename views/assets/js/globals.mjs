@@ -454,10 +454,9 @@ function mIsVisible(classList){
  * @returns {void}
  */
 function mLaunchTutorial(){
-    let event = new CustomEvent('launchExperience', { detail: '88043968-d7ef-4a57-a923-335bc9f92792', })
+    let event = new CustomEvent('launchExperience', { detail: 'aae28fe4-30f9-4c29-9174-a0616569e762', })
     window.dispatchEvent(event)
     mHelpClose.click()
-//    mHide(mHelpContainer)
 }
 /**
  * Redirects to login page (?select).
