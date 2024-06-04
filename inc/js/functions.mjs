@@ -179,6 +179,15 @@ function interfaceMode(ctx){
 	ctx.body = avatar.mode
 	return
 }
+async function item(ctx){
+	const { iid: id, } = ctx.params
+	const { avatar, } = ctx.state
+	const { globals, } = avatar
+	const { method, } = ctx.request
+	const item = ctx.request.body
+	item.id = id
+	ctx.body = await avatar.item(item, method)
+}
 async function logout(ctx){
 	ctx.session = null
 	ctx.redirect('/')
@@ -292,6 +301,7 @@ export {
 	greetings,
 	index,
 	interfaceMode,
+	item,
 	logout,
 	loginSelect,
 	members,

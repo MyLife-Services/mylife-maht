@@ -578,12 +578,12 @@ class Dataservices {
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
 	 * @async
-	 * @param {string} _id - The unique identifier for the item to be patched.
+	 * @param {string} id - The unique identifier for the item to be patched.
 	 * @param {Array<Object>} data - The data for patching, including the path and operation.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(_id, data){ // path Embedded in data
-		return await this.datamanager.patchItem(_id , data)
+	async patchItem(id, data){ // path Embedded in data
+		return await this.datamanager.patchItem(id , data)
 	}
     /**
      * Pushes a new item to the data manager
