@@ -495,6 +495,7 @@ function mCreateCollectionPopup(collectionItem) {
     /* inline function to toggle editable state */
     function _toggleEditable(event, state, contentElement){
         event.stopPropagation()
+        contentElement.dataset.lastCursorPosition = contentElement.selectionStart
         contentElement.readOnly = state
             ?? !contentElement.readOnly
             ?? true
@@ -510,7 +511,16 @@ function mCreateCollectionPopup(collectionItem) {
         emoticonButton.innerText = emoticon
         emoticonButton.addEventListener('click', (event)=>{
             event.stopPropagation()
-            popupContent.innerText += ` ${ emoticon }`
+            console.log('Emoticon:write', emoticon, popupContent.readOnly, popupContent)
+            const { lastCursorPosition, } = popupContent.dataset
+            const insert = ` ${ emoticon }`
+            if(lastCursorPosition){
+                const textBeforeCursor = popupContent.value.substring(0, lastCursorPosition)
+                const textAfterCursor = popupContent.value.substring(popupContent.selectionEnd)
+                popupContent.value = textBeforeCursor + insert + textAfterCursor
+                popupContent.selectionStart = popupContent.selectionEnd = lastCursorPosition + emoticon.length + 1
+            } else
+                popupContent.value += insert
         })
         sidebar.appendChild(emoticonButton)
     })
