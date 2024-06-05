@@ -1142,7 +1142,7 @@ async function mCreateBot(llm, factory, bot){
 		throw new Error('avatar id required to create bot')
 	/* constants */
 	const bot_name = botName
-		?? `unknown-${ type }`
+		?? `My ${ type }`
 	const description = botDescription
 		?? `I am a ${ type } for ${ factory.memberName }`
 	const instructions = botInstructions

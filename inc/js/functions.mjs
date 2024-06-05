@@ -100,9 +100,11 @@ async function collections(ctx){
 	ctx.body = await avatar.collections(ctx.params.type)
 }
 async function createBot(ctx){
-	const { team, type, } = ctx.request.body
+	const { teamId, type, } = ctx.request.body
 	const { avatar, } = ctx.state
-	const bot = { type, } // `type` only requirement to create a known, MyLife-typed bot
+	const bot = { teams: [], type, } // `type` only requirement to create a known, MyLife-typed bot
+	if(teamId?.length)
+		bot.teams.push(teamId)
 	ctx.body = await avatar.createBot(bot)
 }
 /**
