@@ -43,14 +43,17 @@ const mExcludeProperties = {
 const mLLMServices = new LLMServices()
 const mMyLifeTeams = [
 	{
+		active: true,
 		allowCustom: true,
-		allowedTypes: ['art', 'idea', 'library', 'sound',],
+		allowedTypes: ['art', 'idea', 'library',],
+		defaultTypes: ['idea', 'library',],
 		description: 'The Creative Team is dedicated to help you experience productive creativity sessions.',
 		id: '84aa50ca-fb64-43d8-b140-31d2373f3cd2',
 		name: 'creative',
 		title: 'Creative',
 	},
 	{
+		active: false,
 		allowCustom: false,
 		allowedTypes: ['fitness', 'health', 'insurance', 'medical', 'prescriptions', 'yoga', 'nutrition',],
 		defaultTypes: ['fitness', 'health', 'medical',],
@@ -60,8 +63,9 @@ const mMyLifeTeams = [
 		title: 'Health',
 	},
 	{
+		active: true,
 		allowCustom: true,
-		allowedTypes: ['diary', 'journaler', 'library', 'personal-biographer', 'storyteller', ],
+		allowedTypes: ['diary', 'journaler', 'library', 'personal-biographer',],
 		defaultTypes: ['personal-biographer', 'library',],
 		description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
 		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
@@ -69,6 +73,7 @@ const mMyLifeTeams = [
 		title: 'Memoir',
 	},
 	{
+		active: false,
 		allowCustom: true,
 		allowedTypes: ['personal-assistant', 'idea', 'note', 'resume', 'scheduler', 'task',],
 		defaultTypes: ['personal-assistant', 'resume', 'scheduler',],
@@ -78,6 +83,7 @@ const mMyLifeTeams = [
 		title: 'Professional',
 	},
 	{
+		active: false,
 		allowCustom: true,
 		allowedTypes: ['connection', 'experience', 'social', 'relationship',],
 		defaultTypes: ['connection', 'relationship',],
@@ -87,6 +93,7 @@ const mMyLifeTeams = [
 		title: 'Social',
 	},
 	{
+		active: false,
 		allowCustom: true,
 		allowedTypes: ['library', 'note', 'poem', 'quote', 'religion',],
 		defaultTypes: ['library', 'quote', 'religion',],
@@ -96,6 +103,7 @@ const mMyLifeTeams = [
 		title: 'Spirituality',
 	},
 	{
+		active: true,
 		allowCustom: true,
 		allowedTypes: ['data-ownership', 'investment', 'library', 'ubi',],
 		defaultTypes: ['library', 'ubi'],
@@ -405,7 +413,7 @@ class BotFactory extends EventEmitter{
 	 * @returns {object[]} - The array of MyLife Teams.
 	 */
 	teams(){
-		return mMyLifeTeams
+		return mMyLifeTeams.filter(team=>team.active ?? false)
 	}
 	/**
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
@@ -1191,7 +1199,12 @@ function mCreateBotInstructions(factory, bot){
     /* compile instructions */
 	let instructions
     switch(type){
+		case 'diary':
 		case 'journaler':
+            instructions = purpose
+				+ prefix
+                + general
+			break
         case 'personal-avatar':
             instructions = preamble
                 + general
@@ -1389,6 +1402,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		tool_resources,
 		tools = []
 	switch(type){
+		case 'diary':
 		case 'journaler':
 			tools.push(globals.getGPTJavascriptFunction('entrySummary'))
 			includeSearch = true
