@@ -176,10 +176,11 @@ async function setActiveBot(event, dynamic=false){
  * @param {boolean} includeGreeting - Include bot-greeting.
  * @returns {void}
  */
-async function updatePageBots(bots, includeGreeting=false, dynamic=false){
+async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
     if(!bots?.length)
         throw new Error(`No bots provided to update page.`)
-    mBots = bots
+    if(mBots!==bots)
+        mBots = bots
     await mUpdateTeams()
     await mUpdateBotContainers()
     mUpdateBotBar()
@@ -208,18 +209,21 @@ function mBotActive(id){
 }
 /**
  * Request bot be created on server.
+ * @requires mActiveTeam
  * @param {string} type - bot type
  * @returns {object} - bot object from server.
  */
-async function mBotCreate(type){
+async function mCreateBot(type){
+    const { id: teamId, } = mActiveTeam
     const url = window.location.origin + '/members/bots/create'
     const method = 'POST'
-    const body = JSON.stringify({ type, })
+    const body = JSON.stringify({ teamId, type, })
     const headers = { 'Content-Type': 'application/json' }
     let response = await fetch(url, { body, headers, method, })
     if(!response.ok)
         throw new Error(`server unable to create bot.`)
     response = await response.json()
+    return response
 }
 /**
  * Returns icon path string based on bot type.
@@ -238,6 +242,8 @@ function mBotIcon(type){
             break
         case 'diary':
         case 'diarist':
+            image+='diary-thumb.png'
+            break
         case 'journal':
         case 'journaler':
             image+='journal-thumb.png'
@@ -662,6 +668,26 @@ function mCreateCollectionPopup(collectionItem) {
     return collectionPopup
 }
 /**
+ * Create a team member that has been selected from add-team-member icon.
+ * @requires mActiveTeam
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mCreateTeamMember(event){
+    event.stopPropagation()
+    const { value: type, } = this
+    if(!type)
+        throw new Error(`no team member type selected`)
+    // const { description, id, teams, } = await mCreateBot(type)
+    const bot = await mCreateBot(type)
+    if(!bot)
+        throw new Error(`no bot created for team member`)
+    const { description, id, teams, } = bot
+    mBots.push(bot)
+    setActiveBot(id)
+    updatePageBots(mBots, true, true)
+}
+/**
  * Create a team new popup.
  * @requires mActiveTeam
  * @requires mTeamPopup
@@ -711,6 +737,7 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
                 memberSelect.appendChild(memberOptionCustom)
             }
             memberSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
+            memberSelect.addEventListener('change', mCreateTeamMember, { once: true })
             listener = mTeamMemberSelect
             popup = memberSelect
             break
