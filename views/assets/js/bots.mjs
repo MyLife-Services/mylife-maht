@@ -353,11 +353,17 @@ function mCreateCollectionItemSummarize(type, id, name){
     itemSummarize.addEventListener('click', mSummarize, { once: true })
     return itemSummarize
 }
-async function mImproveMemory(event){
+/**
+ * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mMemoryShadow(event){
     event.stopPropagation()
-    const { target, } = event
-    console.log('mImproveMemory::target', target, this)
-    this.addEventListener('click', mImproveMemory, { once: true })
+    const { shadowTextId, } = this.dataset
+    const shadowText = document.getElementById(shadowTextId)
+    console.log('mMemoryShadow::target', shadowText)
+    this.addEventListener('click', mMemoryShadow, { once: true })
 }
 /**
  * Processes a document summary request.
@@ -585,66 +591,120 @@ function mCreateCollectionPopup(collectionItem) {
             improveMemory.classList.add(`collection-popup-${type}`)
             improveMemory.id = `popup-${type}_${id}`
             improveMemory.name = 'improve-memory-container'
-            improveMemory.addEventListener('click', mImproveMemory, { once: true })
             /* story input(+submit), shadows(+click), buttons */
             const memoryInputLane = document.createElement('div')
             memoryInputLane.classList.add('memory-input-lane')
             /* story shadows */
-            const memoryShadows = document.createElement('div')
-            memoryShadows.classList.add('memory-shadow')
-            memoryShadows.id = `memory-shadow_${ id }`
-            const textArray = [
+            const shadowBox = document.createElement('div')
+            shadowBox.classList.add('memory-shadow')
+            shadowBox.id = `memory-shadow_${ id }`
+            shadowBox.name = 'memory-shadow'
+            shadowBox.addEventListener('click', mMemoryShadow, { once: true })
+            const shadows = [
                 'In the world at the time...',
-                'Add friends involved...',
+                'Some friends involved...',
                 'I lived at...',
             ]
-            let currentIndex = 0
-            const p = document.createElement('p')
-            p.textContent = textArray[currentIndex]
-            memoryShadows.appendChild(p)
+            let currentIndex = Math.floor(Math.random() * shadows.length)
+            const shadowText = document.createElement('span')
+            shadowText.classList.add('memory-shadow-text')
+            shadowText.id = `memory-shadow-text_${ id }`
+            shadowText.textContent = shadows[currentIndex]
+            shadowBox.appendChild(shadowText)
+            shadowBox.dataset.shadowTextId = shadowText.id
             const intervalId = setInterval(()=>{ // cycle through the array elements every 3 seconds
-                currentIndex = (currentIndex + 1) % textArray.length
-                p.textContent = textArray[currentIndex]
+                currentIndex = (currentIndex + 1) % shadows.length
+                shadowText.textContent = shadows[currentIndex]
             }, 10000)
             const upButton = document.createElement('button')
             upButton.textContent = 'Up';
             upButton.addEventListener('click', event=>{
                 event.stopPropagation()
-                currentIndex = (currentIndex - 1 + textArray.length) % textArray.length
-                p.textContent = textArray[currentIndex]
+                currentIndex = (currentIndex - 1 + shadows.length) % shadows.length
+                shadowText.textContent = shadows[currentIndex]
             })
             const downButton = document.createElement('button')
             downButton.textContent = 'Down'
             downButton.addEventListener('click', event=>{
                 event.stopPropagation()
-                currentIndex = (currentIndex + 1) % textArray.length
-                p.textContent = textArray[currentIndex]
+                currentIndex = (currentIndex + 1) % shadows.length
+                shadowText.textContent = shadows[currentIndex]
             })
-            memoryShadows.appendChild(upButton)
-            memoryShadows.appendChild(downButton)
-            memoryInputLane.appendChild(memoryShadows)
-            /* memory input */
-            const memoryInput = document.createElement('input')
-            memoryInput.classList.add('memory-input')
-            memoryInput.id = `memory-input_${ id } `
-            memoryInput.name = 'memory-input'
-            memoryInput.placeholder = `Ask ${ id } about this...`
-            memoryInputLane.appendChild(memoryInput)
-            /* memory submit */
-            const memorySubmit = document.createElement('button')
-            memorySubmit.classList.add('memory-submit')
-            memorySubmit.id = `memory-submit_${ id }`
-            memorySubmit.name = 'memory-submit'
-            memorySubmit.textContent = 'Submit'
-            memorySubmit.addEventListener('click', mTogglePopup, { once: true })
-            memoryInputLane.appendChild(memorySubmit)
-            /* experience memory */
-            const memoryExperience = document.createElement('button')
-            memoryExperience.classList.add('memory-experience')
-            memoryExperience.id = `memory-experience_${ id }`
-            memoryExperience.name = 'memory-experience'
-            memoryExperience.textContent = 'Experience Memory'
-            memoryInputLane.appendChild(memoryExperience)
+            shadowBox.appendChild(upButton)
+            shadowBox.appendChild(downButton)
+            memoryInputLane.appendChild(shadowBox)
+            /* share/experience memory */
+            const shareMemmory = document.createElement('div')
+            shareMemmory.classList.add('share-memory-container')
+            /* actor */
+            const actorList = ['Biographer', 'My Avatar', 'Member avatar', 'Q', 'MyLife Professional Actor', 'Custom']
+            const actor = document.createElement('select')
+            actor.classList.add('share-memory-actor-select')
+            actor.id = `share-memory-actor-select_${ id }`
+            actor.name = 'share-memory-actor-select'
+            /* actor/narrator label; **note**: for instance if member has tuned a specific bot of theirs to have an outgoing voice they like */
+            const actorLabel = document.createElement('label')
+            actorLabel.classList.add('share-memory-actor-select-label')
+            actorLabel.htmlFor = actor.id
+            actorLabel.id = `share-memory-actor-select-label_${ id }`
+            actorLabel.textContent = 'Select Actor/Narrator:'
+            shareMemmory.appendChild(actorLabel)
+            const actorOption = document.createElement('option')
+            actorOption.disabled = true
+            actorOption.selected = true
+            actorOption.value = ''
+            actor.appendChild(actorOption)
+            actorList.forEach(option=>{
+                const actorOption = document.createElement('option')
+                actorOption.selected = false
+                actorOption.textContent = option
+                actorOption.value = option
+                actor.appendChild(actorOption)
+            })
+            shareMemmory.appendChild(actor)
+            /* pov options */
+            const povList = ['Protagonist', 'Antagonist', 'Supporting', 'Background', 'Observer', 'Narrator', 'Specific Character (would present list)']
+            const pov = document.createElement('select')
+            pov.classList.add('share-memory-pov-select')
+            pov.id = `share-memory-pov-select_${ id }`
+            pov.name = 'share-memory-pov-select'
+            /* pov label */
+            const povLabel = document.createElement('label')
+            povLabel.classList.add('share-memory-pov-select-label')
+            povLabel.htmlFor = pov.id
+            povLabel.id = `share-memory-pov-select-label_${ id }`
+            povLabel.textContent = 'Point of View:'
+            shareMemmory.appendChild(povLabel)
+            const povOption = document.createElement('option')
+            povOption.disabled = true
+            povOption.selected = true
+            povOption.value = ''
+            povOption.textContent = 'Select a point of view for listener...'
+            pov.appendChild(povOption)
+            povList.forEach(option=>{
+                const povOption = document.createElement('option')
+                povOption.value = option
+                povOption.textContent = option
+                pov.appendChild(povOption)
+            })
+            shareMemmory.appendChild(pov)
+            /* narrative style */
+            const narrativeStyle = document.createElement('textarea')
+            narrativeStyle.classList.add('share-memory-context')
+            narrativeStyle.id = `share-memory-context_${ id }`
+            narrativeStyle.name = 'share-memory-context'
+            narrativeStyle.placeholder = 'How should the story be told? Should it be scary? humorous? choose your own adventure?'
+            // listener would trigger on blur/change - could change to radio buttons or such
+            shareMemmory.appendChild(narrativeStyle)
+            /* play memory */
+            const memoryPlay = document.createElement('button')
+            memoryPlay.classList.add('play-memory')
+            memoryPlay.id = `play-memory_${ id }`
+            memoryPlay.name = 'play-memory'
+            memoryPlay.textContent = 'Play Memory'
+            shareMemmory.appendChild(memoryPlay)
+            memoryInputLane.appendChild(shareMemmory)
+            // play memory
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
             memoryCarousel.classList.add('memory-carousel')

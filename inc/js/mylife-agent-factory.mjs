@@ -45,8 +45,8 @@ const mMyLifeTeams = [
 	{
 		active: true,
 		allowCustom: true,
-		allowedTypes: ['art', 'idea', 'library',],
-		defaultTypes: ['idea', 'library',],
+		allowedTypes: ['artifact', 'curator', 'editor', 'idea', 'library', 'marketer'],
+		defaultTypes: ['artifact', 'idea', 'library',],
 		description: 'The Creative Team is dedicated to help you experience productive creativity sessions.',
 		id: '84aa50ca-fb64-43d8-b140-31d2373f3cd2',
 		name: 'creative',

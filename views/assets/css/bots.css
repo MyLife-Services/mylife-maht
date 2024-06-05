@@ -396,8 +396,8 @@
     flex: 1 1 auto;
     flex-direction: column;
     justify-content: center;
-    margin: 0.25rem;
-    padding: 02.5rem;
+    margin: 0.22rem;
+    padding: 0.22rem;
 }
 .collection-refresh {
     color: aliceblue;
