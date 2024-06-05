@@ -559,7 +559,7 @@ class Avatar extends EventEmitter {
                     const teams = [teamId,]
                     bot = await this.createBot({ teams, type, })
                 }
-            }
+            } else continue // already in team
             if(bot)
                 teamBots.push(bot)
         }
