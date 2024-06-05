@@ -10,7 +10,6 @@ import {
 import {
     activeBot,
     setActiveBot as _setActiveBot,
-    updatePageBots,
 } from './bots.mjs'
 import Globals from './globals.mjs'
 /* variables */

@@ -538,6 +538,41 @@ class Avatar extends EventEmitter {
         }
         return response
     }
+    /**
+     * Get a specified team, its details and _instanced_ bots, by id for the member.
+     * @param {Koa} ctx - Koa Context object
+     * @returns {object} - Team object
+     */
+    async team(teamId){
+        const team = this.#factory.team(teamId)
+        const { allowedTypes=[], defaultTypes=[], type, } = team
+        const teamBots = this.bots
+            .filter(bot=>bot?.teams?.includes(teamId))
+        for(const type of defaultTypes){
+            let bot = teamBots.find(bot=>bot.type===type)
+            if(!bot){
+                bot = this.bots.find(bot=>bot.type===type)
+                if(bot){ // local conscription
+                    bot.teams = [...bot?.teams ?? [], teamId,]
+                    await this.updateBot(bot) // save Cosmos no await
+                } else { // create
+                    const teams = [teamId,]
+                    bot = await this.createBot({ teams, type, })
+                }
+            }
+            if(bot)
+                teamBots.push(bot)
+        }
+        team.bots = teamBots
+        return team
+    }
+    /**
+     * Get a list of available teams and their default details.
+     * @returns {Object[]} - List of team objects.
+     */
+    teams(){
+        return this.#factory.teams()
+    }
     async thread_id(){
         if(!this.#conversations.length){
             await this.createConversation()
@@ -572,13 +607,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The updated bot.
      */
     async updateBot(bot){
-        bot = await mBot(this.#factory, this, bot)
-        /* add/update bot */
-        if(!this.#bots.some(_bot => _bot.id === bot.id))
-            this.#bots.push(bot)
-        else
-            this.#bots = this.#bots.map(_bot=>_bot.id===bot.id ? bot : _bot)
-        return bot
+        return await mBot(this.#factory, this, bot) // note: mBot() updates `avatar.bots`
     }
     /**
      * Update tools for bot-assistant based on type.
@@ -1084,7 +1113,7 @@ async function mBot(factory, avatar, bot){
     let originBot = bots.find(oBot=>oBot.id===botId)
     if(originBot){ /* update bot */
         const options = {}
-        const updateBot = Object.keys(bot)
+        const updatedBot = Object.keys(bot)
             .reduce((diff, key) => {
                 if(bot[key]!==originBot[key])
                     diff[key] = bot[key]
@@ -1096,24 +1125,24 @@ async function mBot(factory, avatar, bot){
             const excludeTypes = ['library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
-                updateBot.thread_id = conversation.thread_id
+                updatedBot.thread_id = conversation.thread_id
                 avatar.conversations.push(conversation)
             }
         }
-        if(Object.keys(updateBot).length){
-            let updatedOriginBot = {...originBot, ...updateBot} // consolidated update
+        if(Object.keys(updatedBot).length){
+            let updatedOriginBot = {...originBot, ...updatedBot} // consolidated update
             const { bot_id, id, } = updatedOriginBot
-            updateBot.bot_id = bot_id
-            updateBot.id = id
-            updateBot.type = type
-            const { interests, dob, privacy, } = updateBot
+            updatedBot.bot_id = bot_id
+            updatedBot.id = id
+            updatedBot.type = type
+            const { interests, dob, privacy, } = updatedBot
             /* set options */
             if(interests?.length || dob?.length || privacy?.length){
                 options.instructions = true
                 options.model = true
                 options.tools = false /* tools not updated through this mechanic */
             }
-            updatedOriginBot = await factory.updateBot(updateBot, options)
+            updatedOriginBot = await factory.updateBot(updatedBot, options)
             originBot = mSanitize(updatedOriginBot)
         }
     } else { /* create assistant */

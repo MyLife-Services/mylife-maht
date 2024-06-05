@@ -23,6 +23,8 @@ import {
     privacyPolicy,
     signup,
     summarize,
+    team,
+    teams,
     upload,
 } from './functions.mjs'
 import {
@@ -95,6 +97,7 @@ _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/item/:iid', item)
 _memberRouter.get('/mode', interfaceMode)
+_memberRouter.get('/teams', teams)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
@@ -106,6 +109,7 @@ _memberRouter.post('/category', category)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/summarize', summarize)
+_memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/item/:iid', item)

@@ -41,6 +41,70 @@ const mExcludeProperties = {
 	name: true
 }
 const mLLMServices = new LLMServices()
+const mMyLifeTeams = [
+	{
+		allowCustom: true,
+		allowedTypes: ['art', 'idea', 'library', 'sound',],
+		description: 'The Creative Team is dedicated to help you experience productive creativity sessions.',
+		id: '84aa50ca-fb64-43d8-b140-31d2373f3cd2',
+		name: 'creative',
+		title: 'Creative',
+	},
+	{
+		allowCustom: false,
+		allowedTypes: ['fitness', 'health', 'insurance', 'medical', 'prescriptions', 'yoga', 'nutrition',],
+		defaultTypes: ['fitness', 'health', 'medical',],
+		description: 'The Health Team is dedicated to help you manage your health and wellness.',
+		id: '238da931-4c25-4868-928f-5ad1087a990b',
+		name: 'health',
+		title: 'Health',
+	},
+	{
+		allowCustom: true,
+		allowedTypes: ['diary', 'journaler', 'library', 'personal-biographer', 'storyteller', ],
+		defaultTypes: ['personal-biographer', 'library',],
+		description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
+		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
+		name: 'memoir',
+		title: 'Memoir',
+	},
+	{
+		allowCustom: true,
+		allowedTypes: ['personal-assistant', 'idea', 'note', 'resume', 'scheduler', 'task',],
+		defaultTypes: ['personal-assistant', 'resume', 'scheduler',],
+		description: 'The Professional Team is dedicated to your professional success.',
+		id: '5b7c4109-4985-4d98-b59b-e2c821c3ea28',
+		name: 'professional',
+		title: 'Professional',
+	},
+	{
+		allowCustom: true,
+		allowedTypes: ['connection', 'experience', 'social', 'relationship',],
+		defaultTypes: ['connection', 'relationship',],
+		description: 'The Social Team is dedicated to help you connect with others.',
+		id: 'e8b1f6d0-8a3b-4f9b-9e6a-4e3c5b7e3e9f',
+		name: 'social',
+		title: 'Social',
+	},
+	{
+		allowCustom: true,
+		allowedTypes: ['library', 'note', 'poem', 'quote', 'religion',],
+		defaultTypes: ['library', 'quote', 'religion',],
+		description: 'The Spirituality Team is dedicated to help you creatively explore your spiritual side.',
+		id: 'bea7bb4a-a339-4026-ad1c-75f604dc3349',
+		name: 'sprituality',
+		title: 'Spirituality',
+	},
+	{
+		allowCustom: true,
+		allowedTypes: ['data-ownership', 'investment', 'library', 'ubi',],
+		defaultTypes: ['library', 'ubi'],
+		description: 'The Universal Basic Income (UBI) Team is dedicated to helping you tailor your MyLife revenue streams based upon consensual access to your personal MyLife data.',
+		id: '8a4d7340-ac62-40f1-8c77-f17c68797925',
+		name: 'ubi',
+		title: 'UBI',
+	}
+]
 const mNewGuid = ()=>Guid.newGuid().toString()
 const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
@@ -326,6 +390,22 @@ class BotFactory extends EventEmitter{
 			'story',
 			[{ name: '@form', value: form }],
 		)
+	}
+	/**
+	 * Gets a MyLife Team by id.
+	 * @param {Guid} teamId - The Team id.
+	 * @returns {object} - The Team.
+	 */
+	team(teamId){
+		return mMyLifeTeams
+			.find(team=>team.id===teamId)
+	}
+	/**
+	 * Retrieves list of MyLife Teams.
+	 * @returns {object[]} - The array of MyLife Teams.
+	 */
+	teams(){
+		return mMyLifeTeams
 	}
 	/**
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.

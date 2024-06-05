@@ -13,33 +13,6 @@ import Globals from './globals.mjs'
 /* constants; DOM exists? */
 // @todo - placeholder, get from server
 const mAvailableMimeTypes = [],
-    mAvailableTeams={
-        creative: {
-            name: 'Creative',
-        },
-        health: {
-            name: 'Health',
-        },
-        memoir: {
-            allowCustom: true,
-            allowedTypes: ['diary','personal-biographer', 'journaler',],
-            description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
-            name: 'Memoir',
-        },
-        professional: {
-            name: 'Job',
-        },
-        social: {
-            name: 'Social',
-        },
-        spiritual: {
-            name: 'Sprituality',
-        },
-        ubi: {
-            name: 'UBI',
-        },
-
-    },
     mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
     botBar = document.getElementById('bot-bar'),
     mDefaultTeam = 'memoir',
@@ -55,7 +28,8 @@ const mAvailableMimeTypes = [],
     mTeamAddMemberIcon = document.getElementById('add-team-member-icon'),
     mTeamHeader = document.getElementById('team-header'),
     mTeamName = document.getElementById('team-name'),
-    mTeamPopup = document.getElementById('team-popup')
+    mTeamPopup = document.getElementById('team-popup'),
+    mTeams = []
 /* variables */
 let mActiveBot,
     mActiveTeam,
@@ -77,6 +51,15 @@ document.addEventListener('DOMContentLoaded', async event=>{
  */
 function activeBot(){
     return mActiveBot
+}
+/**
+ * Get specific bot by id (first) or type.
+ * @param {string} type - The bot type, optional.
+ * @param {Guid} id - The bot id, optional.
+ * @returns {object} - The bot object.
+ */
+function bot(type='personal-avatar', id){
+    return mBot(id ?? type)
 }
 /**
  * Fetch bots from server, used primarily for initialization of page, though could be requested on-demand.
@@ -104,6 +87,25 @@ async function fetchCollections(type){
         throw new Error(`HTTP error! Status: ${response.status}`)
     response = await response.json()
     return response
+}
+async function fetchTeam(teamId){
+    const url = window.location.origin + '/members/teams/' + teamId
+    const method = 'POST'
+    const response = await fetch(url, { method, })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    return await response.json()
+}
+/**
+ * Fetch MyLife Teams from server.
+ * @returns {Object[Array]} - The list of available team objects.
+ */
+async function fetchTeams(){
+    const url = window.location.origin + '/members/teams'
+    const response = await fetch(url)
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    return await response.json()
 }
 /**
  * Set active bot on server and update page bots.
@@ -178,7 +180,7 @@ async function updatePageBots(bots=(mPageBots ?? []), includeGreeting=false, dyn
     if(!bots?.length)
         throw new Error(`No bots provided to update page.`)
     mPageBots = bots
-    mUpdateTeam()
+    mUpdateTeams()
     mUpdateBotContainers()
     mUpdateBotBar()
     if(includeGreeting)
@@ -388,6 +390,20 @@ async function mSummarize(event){
         this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-xmark', 'fa-compass') // jic
         show(this)
     }, 20*60*1000)
+}
+/**
+ * Closes the team popup.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mCloseTeamPopup(event){
+    event.preventDefault()
+    event.stopPropagation()
+    const { ctrlKey, key, target, } = event
+    if((key && key!='Escape') && !(ctrlKey && key=='w'))
+        return
+    document.removeEventListener('keydown', mCloseTeamPopup)
+    hide(mTeamPopup)
 }
 /**
  * Create a popup for viewing collection item.
@@ -625,12 +641,14 @@ function mCreateCollectionPopup(collectionItem) {
  * Create a team new popup.
  * @requires mActiveTeam
  * @requires mTeamPopup
+ * @requires mTeams
  * @param {string} type - The type of team to create.
  * @param {boolean} showPopup - Whether or not to show the popup.
  * @returns {void}
  */
 function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
     const { allowCustom, allowedTypes, } = mActiveTeam
+    mTeamPopup.style.visibility = 'hidden'
     mTeamPopup.innerHTML = '' // clear existing
     const teamPopup = document.createElement('div')
     teamPopup.classList.add(`team-popup-${ type }`, 'team-popup-content')
@@ -638,6 +656,7 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
     teamPopup.name = `team-popup-${ type }`
     let popup
     let offsetX = 0
+    let listener
     switch(type){
         case 'addTeamMember':
             const memberSelect = document.createElement('select')
@@ -645,15 +664,17 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
             memberSelect.name = `team-member-select`
             memberSelect.classList.add('team-member-select')
             const memberOption = document.createElement('option')
+            memberOption.disabled = true
+            memberOption.innerText = 'Select a team member to add...'
+            memberOption.selected = true
             memberOption.value = ''
-            memberOption.innerText = 'Select a team member...'
             memberSelect.appendChild(memberOption)
             allowedTypes.forEach(type=>{
                 if(mPageBots.find(bot=>bot.type===type)) // no duplicates currently
                     return
                 const memberOption = document.createElement('option')
-                memberOption.value = type
                 memberOption.innerText = type
+                memberOption.value = type
                 memberSelect.appendChild(memberOption)
             })
             if(allowCustom){
@@ -665,42 +686,75 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
                 memberOptionCustom.innerText = 'Create a custom team member...'
                 memberSelect.appendChild(memberOptionCustom)
             }
+            memberSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
+            listener = mTeamMemberSelect
             popup = memberSelect
             break
-        case 'teamSelect':
+        case 'selectTeam':
+            console.log('Create team select popup:', mTeams, mActiveTeam)
+            const teamSelect = document.createElement('select')
+            teamSelect.id = `team-select`
+            teamSelect.name = `team-select`
+            teamSelect.classList.add('team-select')
+            const teamOption = document.createElement('option')
+            teamOption.disabled = true
+            teamOption.innerText = `MyLife's pre-defined agent teams...`
+            teamOption.selected = true
+            teamOption.value = ''
+            teamSelect.appendChild(teamOption)
+            mTeams.forEach(team=>{
+                const { name, } = team
+                const teamOption = document.createElement('option')
+                teamOption.value = name
+                teamOption.innerText = name
+                teamSelect.appendChild(teamOption)
+            })
+            teamSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
+            listener = mTeamSelect
+            popup = teamSelect
             break
         default:
             break
     }
     mTeamPopup.appendChild(teamPopup)
+    if(showPopup){
+        show(mTeamPopup)
+        document.addEventListener('click', mCloseTeamPopup, { once: true })
+        document.addEventListener('keydown', mCloseTeamPopup)
+    }
     if(popup){
         teamPopup.appendChild(popup)
         mTeamPopup.style.position = 'absolute'
-        mTeamPopup.style.visibility = 'hidden'
-        show(mTeamPopup)
         offsetX = teamPopup.offsetWidth
-        mTeamPopup.style.left = `${ clickX - offsetX }px`
-        mTeamPopup.style.top = `${ clickY }px`
-        mTeamPopup.style.visibility = 'visible'
+        let leftPosition = clickX - offsetX / 2
+        const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+        if(leftPosition < 0)
+            leftPosition = 0
+        else if(leftPosition + offsetX > viewportWidth)
+            leftPosition = viewportWidth - offsetX
+        mTeamPopup.style.left = `${ leftPosition }px`
+        mTeamPopup.style.top = `${clickY}px`
         popup.focus()
-        document.addEventListener('click', mToggleTeamPopup, { once: true })
-        document.addEventListener('keydown', mToggleTeamPopup, { once: true })
-        popup.addEventListener('change', mToggleTeamPopup, { once: true })
+        if(listener)
+            popup.addEventListener('change', listener, { once: true })
     }
-    if(showPopup)
-        show(mTeamPopup)
+    mTeamPopup.style.visibility = 'visible'
 }
 /**
  * Create add a team member popup.
  */
 function mCreateTeamMemberSelect(event){
+    event.stopPropagation()
     const { clientX, clientY, } = event
     mCreateTeamPopup('addTeamMember', clientX, clientY, true)
 }
 /**
  * Create a team select popup.
+ * @param {Event} event - The event object.
+ * @returns {void}
  */
 function mCreateTeamSelect(event){
+    event.stopPropagation()
     const { clientX, clientY, } = event
     mCreateTeamPopup('selectTeam', clientX, clientY, true)
 }
@@ -1079,6 +1133,33 @@ async function mSubmitPassphrase(event){
     }
 }
 /**
+ * Manages `change` event selection of team member from `team-select` dropdown.
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mTeamMemberSelect(event){
+    const { value, } = this
+    if(value?.length){ // request to server
+        /* validate */
+        const bot = mBot(value)
+        if(bot)
+            mUpdateBotContainers()
+    }
+    mCloseTeamPopup(event)
+}
+/**
+ * Manages `change` event selection of team from `team-select` dropdown.
+ * @requires mActiveTeam
+ * @param {Event} event - The event object. 
+ * @returns {void}
+ */
+function mTeamSelect(event){
+    const { value, } = this
+    mUpdateTeams(value) // `change` requires that value not be the same
+    mCloseTeamPopup(event)
+}
+/**
  * Toggles bot containers and checks for various actions on master click of `this` bot-container. Sub-elements appear as targets and are rendered appropriately.
  * @private
  * @async
@@ -1171,51 +1252,6 @@ async function mToggleCollectionItems(event){
         show(collectionList) // even if `none`
     } else
         toggleVisibility(collectionList)
-}
-/**
- * Toggles team popup visibility and associated functionality.
- * @async
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function mToggleTeamPopup(event){
-    const { clientX, clientY, key, target, type, } = event
-    const { value, } = this
-    let hidePopup = true
-    switch(type){
-        case 'change':
-            hidePopup = !value?.length
-            if(value?.length){ // request to server
-                /* validate */
-                let bot
-                try{
-                    bot = mBot(value)
-                    console.log('mToggleTeamPopup::CHANGE to:', value, bot)
-                } catch(error) {
-                    console.log('mToggleTeamPopup::ERROR', error)
-                }
-                if(bot)
-                    mUpdateBotContainers()
-                hidePopup = true
-            }
-            break
-        case 'click':
-            hidePopup = !this.contains(target)
-            if(!hidePopup){
-                console.log('mToggleTeamPopup::CLICK-redo', hidePopup)
-                document.addEventListener('click', mToggleTeamPopup, { once: true })
-                return
-            }
-            break
-        case 'input':
-        case 'keydown':
-            hidePopup = key?.toLowerCase()!=='enter'
-            if(!hidePopup)
-                document.addEventListener('keydown', mToggleTeamPopup, { once: true })
-            break
-    }
-    if(hidePopup)
-        hide(mTeamPopup)
 }
 /**
  * Toggles passphrase input visibility.
@@ -1363,7 +1399,10 @@ function mToggleSwitchPrivacy(event){
  * @returns {void}
  */
 function mUpdateBotBar(){
-    botBar.innerHTML = '' // clear existing
+    botBar.innerHTML = ''
+    // show avatar
+    // show team
+    // show additionals
     mPageBots
         .forEach(bot => {
             // Create a container div for each bot
@@ -1614,17 +1653,33 @@ function mUpdatePrivacySlider(type, privacy, botContainer){
 }
 /**
  * Updates the active team to specific or default.
+ * @requires mActiveTeam
  * @requires mAvailableTeams
- * @param {string} teamName - The team name.
+ * @requires mDefaultTeam
+ * @requires mTeams
+ * @param {string} identifier - The name or id of active team.
  * @returns {void}
  */
-async function mUpdateTeam(teamName=mDefaultTeam){
-    const team = mAvailableTeams[teamName]
+async function mUpdateTeams(identifier=mDefaultTeam){
+    if(!mTeams?.length)
+        mTeams.push(...await fetchTeams())
+    const team = mTeams
+        .find(team=>team.name===identifier || team.id===identifier)
     if(!team)
-        throw new Error(`Team "${ teamName }" not available at this time.`)
-    mActiveTeam = team
-    const { description, name, } = team
-    mTeamName.innerText = `${ name } Team`
+        throw new Error(`Team "${ identifier }" not available at this time.`)
+    if(mActiveTeam!==team){
+        console.log('mUpdateTeams()::identifier', mActiveTeam, team)
+        const { id: teamId, } = team
+        const activeTeam = await fetchTeam(teamId) // set team on server and receive bot ids in `bots`
+        if(activeTeam)
+            mActiveTeam = activeTeam
+        console.log('mUpdateTeams()::activeTeam', mActiveTeam)
+    }
+    const { allowedTypes, description, id, name, title, } = team
+    mTeamName.dataset.id = id
+    mTeamName.dataset.description = description
+    mTeamName.innerText = `${ title ?? name } Team`
+    mTeamName.title = description
     mTeamName.addEventListener('click', mCreateTeamSelect)
     mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
     hide(mTeamPopup)
@@ -1722,8 +1777,11 @@ function mUploadFilesInputRemove(fileInput, uploadParent, uploadButton){
 // @todo - export combine of fetchBots and updatePageBots
 export {
     activeBot,
+    bot,
     fetchBots,
     fetchCollections,
+    fetchTeam,
+    fetchTeams,
     setActiveBot,
     updatePageBots,
 }

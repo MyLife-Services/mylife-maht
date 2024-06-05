@@ -97,6 +97,14 @@
     position: absolute;
     z-index: 50;
 }
+.team-popup-content {
+    background-color: #333; /* Change as needed */
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 0.8rem;
+}
 /* bot */
 .bot-icon {
     background-image: radial-gradient(circle at 0.1rem 0.1rem, #eaedff 0%, #1e3b4e 40%, rgb(60 162 213) 80%, #404553 100%);
