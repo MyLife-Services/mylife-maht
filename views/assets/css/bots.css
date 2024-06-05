@@ -22,6 +22,11 @@
     max-height: 3rem; /* Adjust to desired expanded height */
     overflow: visible; /* Make overflow visible on hover */
 }
+.bot-bar-divider {
+    background-color: rgba(255, 255, 255, 0.5); /* White with 50% opacity */
+    height: 100%; /* Height of the divider */
+    width: 0.1rem; /* Full width */
+}
 .bot-thumb {
     cursor: pointer;
     height: 2.5rem;
@@ -39,7 +44,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    margin-right: 1rem; /* Space between containers in em */
+    margin-right: 0.22rem; /* Space between containers in em */
     position: relative;
 }
 .bot-thumb-active {

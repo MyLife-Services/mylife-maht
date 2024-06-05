@@ -33,7 +33,7 @@ const mAvailableMimeTypes = [],
 /* variables */
 let mActiveBot,
     mActiveTeam,
-    mPageBots
+    mBots
 /* onDomContentLoaded */
 document.addEventListener('DOMContentLoaded', async event=>{
     const { bots, activeBotId: id } = await fetchBots()
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
         throw new Error(`ERROR: No bots returned from server`)
     updatePageBots(bots) // includes p-a
     await setActiveBot(id, true)
-    console.log('bots.mjs::DOMContentLoaded()::mPageBots', mPageBots)
+    console.log('bots.mjs::DOMContentLoaded()::mBots', mBots)
 })
 /* public functions */
 /**
@@ -51,15 +51,6 @@ document.addEventListener('DOMContentLoaded', async event=>{
  */
 function activeBot(){
     return mActiveBot
-}
-/**
- * Get specific bot by id (first) or type.
- * @param {string} type - The bot type, optional.
- * @param {Guid} id - The bot id, optional.
- * @returns {object} - The bot object.
- */
-function bot(type='personal-avatar', id){
-    return mBot(id ?? type)
 }
 /**
  * Fetch bots from server, used primarily for initialization of page, though could be requested on-demand.
@@ -108,9 +99,18 @@ async function fetchTeams(){
     return await response.json()
 }
 /**
+ * Get specific bot by id (first) or type.
+ * @param {string} type - The bot type, optional.
+ * @param {Guid} id - The bot id, optional.
+ * @returns {object} - The bot object.
+ */
+function getBot(type='personal-avatar', id){
+    return mBot(id ?? type)
+}
+/**
  * Set active bot on server and update page bots.
  * @requires mActiveBot
- * @requires mPageBots
+ * @requires mBots
  * @param {Event} event - The event object.
  * @param {boolean} dynamic - Whether or not to add dynamic greeting, only triggered from source code.
  * @returns {void}
@@ -171,31 +171,31 @@ async function setActiveBot(event, dynamic=false){
 /**
  * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
  * @public
- * @requires mPageBots() - though will default to empty array.
+ * @requires mBots
  * @param {Array} bots - The bot objects to update page with.
  * @param {boolean} includeGreeting - Include bot-greeting.
  * @returns {void}
  */
-async function updatePageBots(bots=(mPageBots ?? []), includeGreeting=false, dynamic=false){
+async function updatePageBots(bots, includeGreeting=false, dynamic=false){
     if(!bots?.length)
         throw new Error(`No bots provided to update page.`)
-    mPageBots = bots
-    mUpdateTeams()
-    mUpdateBotContainers()
+    mBots = bots
+    await mUpdateTeams()
+    await mUpdateBotContainers()
     mUpdateBotBar()
     if(includeGreeting)
         mGreeting(dynamic)
 }
 /* private functions */
 /**
- * Find bot in mPageBots by id.
- * @requires mPageBots
+ * Find bot in mBots by id.
+ * @requires mBots
  * @param {string} type - The bot type or id.
  * @returns {object} - The bot object.
  */
 function mBot(type){
-    return mPageBots.find(bot=>bot.type===type)
-        ?? mPageBots.find(bot=>bot.id===type)
+    return mBots.find(bot=>bot.type===type)
+        ?? mBots.find(bot=>bot.id===type)
 }
 /**
  * Check if bot is active (by id).
@@ -404,6 +404,30 @@ function mCloseTeamPopup(event){
         return
     document.removeEventListener('keydown', mCloseTeamPopup)
     hide(mTeamPopup)
+}
+/**
+ * Creates bot thumb container.
+ * @param {object} bot - The bot object, defaults to personal-avatar.
+ * @returns {HTMLDivElement} - The bot thumb container.
+ */
+function mCreateBotThumb(bot=getBot()){
+    const { bot_name, id, type, } = bot
+    /* bot-thumb container */
+    const botThumbContainer = document.createElement('div')
+    botThumbContainer.id = `bot-bar-container_${ id }`
+    botThumbContainer.name = `bot-bar-container-${ type }`
+    botThumbContainer.title = bot_name
+    botThumbContainer.addEventListener('click', setActiveBot)
+    botThumbContainer.classList.add('bot-thumb-container')
+    /* bot-thumb */
+    const botIconImage = document.createElement('img')
+    botIconImage.classList.add('bot-thumb')
+    botIconImage.src = mBotIcon(type)
+    botIconImage.alt = type
+    botIconImage.id = `bot-bar-icon_${ id }`
+    botIconImage.dataset.bot_id = id
+    botThumbContainer.appendChild(botIconImage)
+    return botThumbContainer
 }
 /**
  * Create a popup for viewing collection item.
@@ -670,7 +694,7 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
             memberOption.value = ''
             memberSelect.appendChild(memberOption)
             allowedTypes.forEach(type=>{
-                if(mPageBots.find(bot=>bot.type===type)) // no duplicates currently
+                if(mBots.find(bot=>bot.type===type)) // no duplicates currently
                     return
                 const memberOption = document.createElement('option')
                 memberOption.innerText = type
@@ -1086,7 +1110,7 @@ function mSpotlightBotBar(){
  * @returns {void}
  */
 function mSpotlightBotStatus(){
-    mPageBots
+    mBots
         .forEach(bot=>{
             const { id, type, } = bot
             const botContainer = document.getElementById(type)
@@ -1395,43 +1419,39 @@ function mToggleSwitchPrivacy(event){
  * Activates bot bar icon and container. Creates div and icon in bot bar.
  * @todo - limit to bots that actually show on sidebar?
  * @requires mActiveBot
- * @requires mPageBots
+ * @requires mBots
  * @returns {void}
  */
 function mUpdateBotBar(){
     botBar.innerHTML = ''
-    // show avatar
-    // show team
+    if(!mBots?.length)
+        throw new Error(`No bots found for bot bar.`)
+    botBar.appendChild(mCreateBotThumb()) // avatar
+    botBar.appendChild(_thumbDivider())
+    console.log('mUpdateBotBar()::mActiveTeam', mActiveTeam)
+    mActiveTeam?.bots // active team bots
+        .forEach(bot=>botBar.appendChild(mCreateBotThumb(bot)))
+    botBar.appendChild(_thumbDivider())
     // show additionals
-    mPageBots
-        .forEach(bot => {
-            // Create a container div for each bot
-            const botThumbContainer = document.createElement('div')
-            botThumbContainer.addEventListener('click', setActiveBot)
-            botThumbContainer.classList.add('bot-thumb-container')
-            // Create an icon element for each bot container
-            const botIconImage = document.createElement('img')
-            botIconImage.classList.add('bot-thumb')
-            botIconImage.src = mBotIcon(bot.type)
-            botIconImage.alt = bot.type
-            botIconImage.id = `bot-bar-icon_${bot.id}`
-            botIconImage.dataset.botId = bot.id
-            botBar.appendChild(botIconImage)
-        })
+
+    function _thumbDivider(){
+        const divider = document.createElement('div')
+        divider.classList.add('bot-bar-divider')
+        return divider
+    }
 }
 /**
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
  * @todo - creation mechanism for new bots or to `reinitialize` or `reset` current bots, like avatar.
  * @todo - architect  better mechanic for populating and managing bot-specific options
  * @async
- * @requires mPageBots
+ * @requires mBots
  * @param {boolean} includePersonalAvatar - Include personal avatar, use false when switching teams.
  * @returns {void}
  */
 async function mUpdateBotContainers(includePersonalAvatar=true){
-    if(!mPageBots?.length)
-        throw new Error(`mPageBots not populated.`)
-    // get array with containers on-page; should be all bots x team + 'p-a'
+    if(!mBots?.length)
+        throw new Error(`mBots not populated.`)
     const botContainers = Array.from(document.querySelectorAll('.bot-container'))
     if(!botContainers.length)
         throw new Error(`No bot containers found on page`)
@@ -1440,12 +1460,12 @@ async function mUpdateBotContainers(includePersonalAvatar=true){
 }
 /**
  * Updates the bot container with specifics.
+ * @todo - will need to refactor to allow for on-demand containers; could still come from HTML fragments, but cannot be "hard-coded" by type as they are, given that different teams will have different bots of the _same_ `type`.
  * @param {HTMLDivElement} botContainer - The bot container.
  * @param {boolean} includePersonalAvatar - Include personal avatar.
- * @param {boolean} showContainer - Show the container, if data exists.
  * @returns {void}
  */
-function mUpdateBotContainer(botContainer, includePersonalAvatar = true, showContainer = true) {
+function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
     const { id: type } = botContainer
     if(type==='personal-avatar' && !includePersonalAvatar)
         return /* skip personal avatar when requested */
@@ -1668,12 +1688,10 @@ async function mUpdateTeams(identifier=mDefaultTeam){
     if(!team)
         throw new Error(`Team "${ identifier }" not available at this time.`)
     if(mActiveTeam!==team){
-        console.log('mUpdateTeams()::identifier', mActiveTeam, team)
         const { id: teamId, } = team
         const activeTeam = await fetchTeam(teamId) // set team on server and receive bot ids in `bots`
         if(activeTeam)
             mActiveTeam = activeTeam
-        console.log('mUpdateTeams()::activeTeam', mActiveTeam)
     }
     const { allowedTypes, description, id, name, title, } = team
     mTeamName.dataset.id = id
@@ -1777,11 +1795,11 @@ function mUploadFilesInputRemove(fileInput, uploadParent, uploadButton){
 // @todo - export combine of fetchBots and updatePageBots
 export {
     activeBot,
-    bot,
     fetchBots,
     fetchCollections,
     fetchTeam,
     fetchTeams,
+    getBot,
     setActiveBot,
     updatePageBots,
 }
