@@ -1423,17 +1423,27 @@ function mToggleSwitchPrivacy(event){
  * @returns {void}
  */
 function mUpdateBotBar(){
+    const botBarBots = []
     botBar.innerHTML = ''
     if(!mBots?.length)
         throw new Error(`No bots found for bot bar.`)
-    botBar.appendChild(mCreateBotThumb()) // avatar
+    const avatarThumb = mCreateBotThumb(getBot())
+    botBar.appendChild(avatarThumb) // avatar
     botBar.appendChild(_thumbDivider())
-    console.log('mUpdateBotBar()::mActiveTeam', mActiveTeam)
+    botBarBots.push(getBot().id) // active bot
     mActiveTeam?.bots // active team bots
-        .forEach(bot=>botBar.appendChild(mCreateBotThumb(bot)))
+        .forEach(bot=>{
+            botBar.appendChild(mCreateBotThumb(bot))
+            botBarBots.push(bot.id)
+        })
     botBar.appendChild(_thumbDivider())
-    // show additionals
-
+    // create remaining bots
+    mBots
+        .filter(bot=>!botBarBots.includes(bot.id))
+        .forEach(bot=>{
+            botBar.appendChild(mCreateBotThumb(bot))
+            botBarBots.push(bot.id)
+        })
     function _thumbDivider(){
         const divider = document.createElement('div')
         divider.classList.add('bot-bar-divider')
