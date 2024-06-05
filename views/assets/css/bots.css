@@ -39,7 +39,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    margin-right: 1rem; /* Space between containers in em */
+    margin-right: 0.22rem; /* Space between containers in em */
     position: relative;
 }
 .bot-thumb-active {
