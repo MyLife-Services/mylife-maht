@@ -450,7 +450,6 @@ class Avatar extends EventEmitter {
      * @returns {Promise<object>} - Returns void if item created successfully.
      */
     async item(item, method){
-        console.log('item()', item, method)
         const { globals, } = this
         let { id, } = item
         let success = false
@@ -461,7 +460,6 @@ class Avatar extends EventEmitter {
                 success = item ?? success
                 break
             case 'post': /* create */
-                console.log('item()::post', item)
                 item = await this.#factory.createItem(item)
                 success = this.globals.isValidGuid(item?.id)
                 break
@@ -476,7 +474,7 @@ class Avatar extends EventEmitter {
                 break
         }
         return {
-            item,
+            item: mPruneItem(item),
             success,
         }
     }
@@ -1799,6 +1797,11 @@ function mNavigation(scenes){
             return (a.order ?? 0) - (b.order ?? 0)
         })
 }
+/**
+ * Returns a frontend-ready bot object.
+ * @param {object} assistantData - The assistant data object.
+ * @returns {object} - The pruned bot object.
+ */
 function mPruneBot(assistantData){
     const { bot_id, bot_name: name, description, id, purpose, type, } = assistantData
     return {
@@ -1809,6 +1812,28 @@ function mPruneBot(assistantData){
         purpose,
         type,
     }
+}
+/**
+ * Returns a frontend-ready object, pruned of cosmos database fields.
+ * @param {object} document - The document object to prune.
+ * @returns {object} - The pruned document object.
+ */
+function mPruneDocument(document){
+    const {
+        being,
+        mbr_id,
+        name,
+        _attachments,
+        _etag,
+        _rid,
+        _self,
+        _ts,
+        ..._document
+    } = document
+    return _document
+}
+function mPruneItem(item){
+    return mPruneDocument(item)
 }
 /**
  * Returns frontend-ready Message object after logic mutation.

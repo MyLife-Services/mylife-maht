@@ -391,7 +391,6 @@
 }
 .collection-popup-story {
     align-items: center;
-    border: thick solid navy;
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
@@ -503,6 +502,31 @@ input:checked + .publicity-slider:before {
     justify-content: space-between;
     margin: 0;
     padding: 0;
+}
+.memory-shadow {
+    align-items: center;
+    display: flex;
+    flex: 0 0 40%;
+    flex-direction: row;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+}
+.memory-shadow-pagers {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    justify-content: center;
+    margin: 0 0.5rem;
+}
+.memory-shadow-text {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    justify-content: center;
+    margin: 0;
 }
 /* summaries */
 .summary-error {

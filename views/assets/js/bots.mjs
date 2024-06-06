@@ -601,9 +601,9 @@ function mCreateCollectionPopup(collectionItem) {
             shadowBox.name = 'memory-shadow'
             shadowBox.addEventListener('click', mMemoryShadow, { once: true })
             const shadows = [
-                'In the world at the time...',
-                'Some friends involved...',
-                'I lived at...',
+                'Remind me what was going on in the world at the time...',
+                'I can remember some friends involved...',
+                'At the time, I lived at...',
             ]
             let currentIndex = Math.floor(Math.random() * shadows.length)
             const shadowText = document.createElement('span')
@@ -616,30 +616,39 @@ function mCreateCollectionPopup(collectionItem) {
                 currentIndex = (currentIndex + 1) % shadows.length
                 shadowText.textContent = shadows[currentIndex]
             }, 10000)
-            const upButton = document.createElement('button')
-            upButton.textContent = 'Up';
-            upButton.addEventListener('click', event=>{
+            /* pagers */
+            const shadowPagers = document.createElement('div')
+            shadowPagers.classList.add('memory-shadow-pagers')
+            shadowPagers.id = `memory-shadow-pagers_${ id }`
+            const backPager = document.createElement('div')
+            backPager.classList.add('caret', 'caret-up')
+            backPager.addEventListener('click', event=>{
                 event.stopPropagation()
                 currentIndex = (currentIndex - 1 + shadows.length) % shadows.length
                 shadowText.textContent = shadows[currentIndex]
             })
-            const downButton = document.createElement('button')
-            downButton.textContent = 'Down'
-            downButton.addEventListener('click', event=>{
+            const nextPager = document.createElement('div')
+            nextPager.classList.add('caret', 'caret-down')
+            nextPager.addEventListener('click', event=>{
                 event.stopPropagation()
                 currentIndex = (currentIndex + 1) % shadows.length
                 shadowText.textContent = shadows[currentIndex]
             })
-            shadowBox.appendChild(upButton)
-            shadowBox.appendChild(downButton)
+            shadowPagers.appendChild(backPager)
+            shadowPagers.appendChild(nextPager)
+            shadowBox.appendChild(shadowPagers)
             memoryInputLane.appendChild(shadowBox)
             /* share/experience memory */
-            const shareMemmory = document.createElement('div')
-            shareMemmory.classList.add('share-memory-container')
+            const shareMemory = document.createElement('div')
+            shareMemory.classList.add('share-memory-container')
+            shareMemory.id = `share-memory_${ id }`
+            shareMemory.name = 'share-memory-container'
             /* actor */
             const actorList = ['Biographer', 'My Avatar', 'Member avatar', 'Q', 'MyLife Professional Actor', 'Custom']
             const actor = document.createElement('select')
             actor.classList.add('share-memory-actor-select')
+            actor.dataset.id = id
+            actor.dataset.type = `actor`
             actor.id = `share-memory-actor-select_${ id }`
             actor.name = 'share-memory-actor-select'
             /* actor/narrator label; **note**: for instance if member has tuned a specific bot of theirs to have an outgoing voice they like */
@@ -648,7 +657,7 @@ function mCreateCollectionPopup(collectionItem) {
             actorLabel.htmlFor = actor.id
             actorLabel.id = `share-memory-actor-select-label_${ id }`
             actorLabel.textContent = 'Select Actor/Narrator:'
-            shareMemmory.appendChild(actorLabel)
+            shareMemory.appendChild(actorLabel)
             const actorOption = document.createElement('option')
             actorOption.disabled = true
             actorOption.selected = true
@@ -661,11 +670,14 @@ function mCreateCollectionPopup(collectionItem) {
                 actorOption.value = option
                 actor.appendChild(actorOption)
             })
-            shareMemmory.appendChild(actor)
+            actor.addEventListener('change', mStory)
+            shareMemory.appendChild(actor)
             /* pov options */
             const povList = ['Protagonist', 'Antagonist', 'Supporting', 'Background', 'Observer', 'Narrator', 'Specific Character (would present list)']
             const pov = document.createElement('select')
             pov.classList.add('share-memory-pov-select')
+            pov.dataset.id = id
+            pov.dataset.type = `pov`
             pov.id = `share-memory-pov-select_${ id }`
             pov.name = 'share-memory-pov-select'
             /* pov label */
@@ -674,7 +686,7 @@ function mCreateCollectionPopup(collectionItem) {
             povLabel.htmlFor = pov.id
             povLabel.id = `share-memory-pov-select-label_${ id }`
             povLabel.textContent = 'Point of View:'
-            shareMemmory.appendChild(povLabel)
+            shareMemory.appendChild(povLabel)
             const povOption = document.createElement('option')
             povOption.disabled = true
             povOption.selected = true
@@ -687,23 +699,28 @@ function mCreateCollectionPopup(collectionItem) {
                 povOption.textContent = option
                 pov.appendChild(povOption)
             })
-            shareMemmory.appendChild(pov)
-            /* narrative style */
-            const narrativeStyle = document.createElement('textarea')
-            narrativeStyle.classList.add('share-memory-context')
-            narrativeStyle.id = `share-memory-context_${ id }`
-            narrativeStyle.name = 'share-memory-context'
-            narrativeStyle.placeholder = 'How should the story be told? Should it be scary? humorous? choose your own adventure?'
-            // listener would trigger on blur/change - could change to radio buttons or such
-            shareMemmory.appendChild(narrativeStyle)
+            pov.addEventListener('change', mStory)
+            shareMemory.appendChild(pov)
+            /* narrative context */
+            const narrativeContext = document.createElement('textarea')
+            narrativeContext.classList.add('share-memory-context')
+            narrativeContext.dataset.id = id
+            narrativeContext.dataset.previousValue = ''
+            narrativeContext.dataset.type = `narrative`
+            narrativeContext.id = `share-memory-context_${ id }`
+            narrativeContext.name = 'share-memory-context'
+            narrativeContext.placeholder = 'How should the story be told? Should it be scary? humorous? choose your own adventure?'
+            narrativeContext.value = narrativeContext.dataset.previousValue
+            narrativeContext.addEventListener('blur', mStoryContext)
+            shareMemory.appendChild(narrativeContext)
             /* play memory */
             const memoryPlay = document.createElement('button')
             memoryPlay.classList.add('play-memory')
             memoryPlay.id = `play-memory_${ id }`
             memoryPlay.name = 'play-memory'
             memoryPlay.textContent = 'Play Memory'
-            shareMemmory.appendChild(memoryPlay)
-            memoryInputLane.appendChild(shareMemmory)
+            shareMemory.appendChild(memoryPlay)
+            memoryInputLane.appendChild(shareMemory)
             // play memory
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
@@ -1209,6 +1226,39 @@ function mSpotlightBotStatus(){
                 mSetBotIconStatus(bot)
             }
         })
+}
+/**
+ * Submit updated `story` data. No need to return unless an error, which is currently thrown.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mStory(event){
+    event.stopPropagation()
+    const { dataset, value, } = this
+    const { id, type: field, } = dataset
+    if(!value?.length)
+        throw new Error(`No value provided for story update.`)
+    const url = window.location.origin + '/members/item/' + id
+    const method = 'PUT'
+    let response = await fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [`${ field }`]: value })
+    })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    response = await response.json()
+    if(!response.success)
+        throw new Error(`Narrative "${ value }" not accepted.`)
+}
+async function mStoryContext(event){
+    const { dataset, value, } = this
+    const { previousValue, } = dataset
+    if(previousValue==value)
+        return
+    mStory.bind(this)(event) // no need await
 }
 /**
  * Submit updated passphrase for MyLife via avatar.
