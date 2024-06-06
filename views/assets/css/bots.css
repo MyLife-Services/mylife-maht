@@ -500,6 +500,7 @@ input:checked + .publicity-slider:before {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    gap: 0.5rem;
     margin: 0;
     padding: 0;
 }
@@ -527,6 +528,21 @@ input:checked + .publicity-slider:before {
     flex: 1 1 auto;
     justify-content: center;
     margin: 0;
+}
+.share-memory-container { /* panel for how others `experience` memory story */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+}
+.share-memory-select { /* container for share memory selection packet */
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
 }
 /* summaries */
 .summary-error {

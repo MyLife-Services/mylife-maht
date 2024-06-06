@@ -643,6 +643,9 @@ function mCreateCollectionPopup(collectionItem) {
             shareMemory.classList.add('share-memory-container')
             shareMemory.id = `share-memory_${ id }`
             shareMemory.name = 'share-memory-container'
+            const shareMemoryActorSelect = document.createElement('div')
+            shareMemoryActorSelect.classList.add('share-memory-select')
+            shareMemoryActorSelect.title = `Select the actor or narrator for the story. Who should tell your story? Or who will play "you"?`
             /* actor */
             const actorList = ['Biographer', 'My Avatar', 'Member avatar', 'Q', 'MyLife Professional Actor', 'Custom']
             const actor = document.createElement('select')
@@ -656,12 +659,13 @@ function mCreateCollectionPopup(collectionItem) {
             actorLabel.classList.add('share-memory-actor-select-label')
             actorLabel.htmlFor = actor.id
             actorLabel.id = `share-memory-actor-select-label_${ id }`
-            actorLabel.textContent = 'Select Actor/Narrator:'
-            shareMemory.appendChild(actorLabel)
+            actorLabel.textContent = 'Actor/Narrator:'
+            shareMemoryActorSelect.appendChild(actorLabel)
             const actorOption = document.createElement('option')
             actorOption.disabled = true
             actorOption.selected = true
             actorOption.value = ''
+            actorOption.textContent = 'Select narrator...'
             actor.appendChild(actorOption)
             actorList.forEach(option=>{
                 const actorOption = document.createElement('option')
@@ -671,9 +675,13 @@ function mCreateCollectionPopup(collectionItem) {
                 actor.appendChild(actorOption)
             })
             actor.addEventListener('change', mStory)
-            shareMemory.appendChild(actor)
-            /* pov options */
-            const povList = ['Protagonist', 'Antagonist', 'Supporting', 'Background', 'Observer', 'Narrator', 'Specific Character (would present list)']
+            shareMemoryActorSelect.appendChild(actor)
+            shareMemory.appendChild(shareMemoryActorSelect)
+            /* pov */
+            const shareMemoryPovSelect = document.createElement('div')
+            shareMemoryPovSelect.classList.add('share-memory-select')
+            shareMemoryPovSelect.title = `This refers to the position of the "listener" in the story. Who is the listener? Are they referred to as the protagonist? Antagonist? A particular person or character in your story?`
+            const povList = ['Me', 'Protagonist', 'Antagonist', 'Character',]
             const pov = document.createElement('select')
             pov.classList.add('share-memory-pov-select')
             pov.dataset.id = id
@@ -686,12 +694,12 @@ function mCreateCollectionPopup(collectionItem) {
             povLabel.htmlFor = pov.id
             povLabel.id = `share-memory-pov-select-label_${ id }`
             povLabel.textContent = 'Point of View:'
-            shareMemory.appendChild(povLabel)
+            shareMemoryPovSelect.appendChild(povLabel)
             const povOption = document.createElement('option')
             povOption.disabled = true
             povOption.selected = true
             povOption.value = ''
-            povOption.textContent = 'Select a point of view for listener...'
+            povOption.textContent = 'Select listener vantage...'
             pov.appendChild(povOption)
             povList.forEach(option=>{
                 const povOption = document.createElement('option')
@@ -700,7 +708,8 @@ function mCreateCollectionPopup(collectionItem) {
                 pov.appendChild(povOption)
             })
             pov.addEventListener('change', mStory)
-            shareMemory.appendChild(pov)
+            shareMemoryPovSelect.appendChild(pov)
+            shareMemory.appendChild(shareMemoryPovSelect)
             /* narrative context */
             const narrativeContext = document.createElement('textarea')
             narrativeContext.classList.add('share-memory-context')
@@ -710,6 +719,7 @@ function mCreateCollectionPopup(collectionItem) {
             narrativeContext.id = `share-memory-context_${ id }`
             narrativeContext.name = 'share-memory-context'
             narrativeContext.placeholder = 'How should the story be told? Should it be scary? humorous? choose your own adventure?'
+            narrativeContext.title = `How should the story be told? Should it be scary? humorous? Will it be a choose your own adventure that deviates from the reality of your memory?`
             narrativeContext.value = narrativeContext.dataset.previousValue
             narrativeContext.addEventListener('blur', mStoryContext)
             shareMemory.appendChild(narrativeContext)
