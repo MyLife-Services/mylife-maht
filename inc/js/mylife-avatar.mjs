@@ -72,7 +72,7 @@ class Avatar extends EventEmitter {
         this.nickname = this.nickname ?? this.names?.[0] ?? `${this.memberFirstName ?? 'member'}'s avatar`
         /* create evolver (exclude MyLife) */
         this.#bots = await this.#factory.bots(this.id)
-        let activeBot = this.avatarBot
+        let activeBot = this.avatar
         if(!this.isMyLife){
             /* bot checks */
             const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
@@ -85,7 +85,7 @@ class Avatar extends EventEmitter {
                         }
                 }
             ))
-            activeBot = this.avatarBot // second time is a charm
+            activeBot = this.avatar // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
             /* conversations */
@@ -119,11 +119,12 @@ class Avatar extends EventEmitter {
     /**
      * Get a bot.
      * @public
-     * @param {string} _bot_id - The bot id.
+     * @async
+     * @param {Guid} id - The bot id.
      * @returns {object} - The bot.
      */
-    async bot(_bot_id){
-        return await this.#factory.bot(_bot_id)
+    async bot(id){
+        return await this.#factory.bot(id)
     }
     /**
      * Processes and executes incoming chat request.
@@ -508,6 +509,7 @@ class Avatar extends EventEmitter {
      * @returns {Object} - The response object { messages, success, error,}
      */
     async shadow(shadowId, itemId){
+        const processingStartTime = Date.now()
         const shadows = await this.shadows()
         const shadow = shadows.find(shadow=>shadow.id===shadowId)
         if(!shadow)
@@ -516,8 +518,26 @@ class Avatar extends EventEmitter {
         const item = await this.#factory.item(itemId)
         if(!item)
             throw new Error(`cannot find item: ${ itemId }`)
-        const { summary, } = item
-        // given birthdate, include summary and ask question
+        let { form, summary, } = item
+        // @stub - develop additional form types, entry or idea for instance
+        const dob = new Date(this.#factory.dob)
+        const diff_ms = Date.now() - dob.getTime()
+        const age_dt = new Date(diff_ms)
+        const age = Math.abs(age_dt.getUTCFullYear() - 1970)
+        const message = `Given age of member: ${ age } and updated summary of personal memory: ${ summary }\n- answer the question: "${ text }"`
+        const bot = this?.[form] ?? this.activeBot
+        const tailgate = {
+            content: `Would you like to add this, or part of it, to your memory?`, // @stub - tailgate for additional data
+            thread_id: bot.thread_id,
+        }
+        let messages = await mCallLLM(this.#llmServices, bot, message, this.#factory, this)
+        messages = messages.map(message=>mPruneMessage(bot, message, 'shadow', processingStartTime))
+        messages.push(mPruneMessage(bot, tailgate, 'system', processingStartTime))
+        return {
+            itemId,
+            messages,
+            success: true,
+        }
     }
     /**
      * Gets the list of shadows.
@@ -642,7 +662,7 @@ class Avatar extends EventEmitter {
      * @param {any} data - The data required by the switch type.
      * @returns {void}
      */
-    async updateTools(bot_id=this.avatarBot.bot_id, type='file_search', data){
+    async updateTools(bot_id=this.avatar.bot_id, type='file_search', data){
         let tools
         switch(type){
             case 'function': // @stub - function tools
@@ -703,9 +723,9 @@ class Avatar extends EventEmitter {
      * @param {string} bot_id - The active bot id, defaults to personal-avatar.
      * @returns {void}
      */
-    set activeBotId(bot_id=this.avatarBot.id){
+    set activeBotId(bot_id=this.avatar.id){
         this.#activeBotId = 
-            ( mFindBot(this, bot_id) ?? this.avatarBot )
+            ( mFindBot(this, bot_id) ?? this.avatar )
                 .id
     }
     /**
@@ -714,7 +734,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The actor bot (or default bot).
      */
     get actorBot(){
-        return this.#bots.find(_bot=>_bot.type==='actor')??this.avatarBot
+        return this.#bots.find(_bot=>_bot.type==='actor')??this.avatar
     }
     /**
      * Get the age of the member.
@@ -750,7 +770,7 @@ class Avatar extends EventEmitter {
      * @getter
      * @returns {object} - The personal avatar bot.
      */
-    get avatarBot(){
+    get avatar(){
         return this.bots.find(_bot=>_bot.type==='personal-avatar')
     }
     /**
@@ -761,6 +781,9 @@ class Avatar extends EventEmitter {
     */
     get being(){    //  
         return this.#proxyBeing
+    }
+    get biographer(){
+        return this.#bots.find(_bot=>_bot.type==='personal-biographer')
     }
     /**
      * Get the birthdate of _member_ from `#factory`.
@@ -1076,7 +1099,7 @@ class Avatar extends EventEmitter {
             this.#nickname = nickname
     }
     get personalAssistant(){
-        return this.avatarBot
+        return this.avatar
     }
 }
 /* module functions */
@@ -1178,8 +1201,8 @@ async function mBot(factory, avatar, bot){
 /**
  * Makes call to LLM and to return response(s) to prompt.
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
- * @todo - address disconnect between conversations held in memory in avatar and those in openAI threads; use `addLLMMessages` to post internally
  * @todo - would dynamic event dialog be handled more effectively with a callback routine function, I think so, and would still allow for avatar to vet, etc.
+ * @todo - convert conversation requirements to bot
  * @module
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
@@ -1191,7 +1214,7 @@ async function mBot(factory, avatar, bot){
 async function mCallLLM(llmServices, conversation, prompt, factory, avatar){
     const { botId, bot_id, thread_id: threadId } = conversation
     const id = botId ?? bot_id
-    if(!threadId || !botId)
+    if(!threadId || !id)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
     const messages = await llmServices.getLLMResponse(threadId, id, prompt, factory, avatar)
     messages.sort((mA, mB) => {
