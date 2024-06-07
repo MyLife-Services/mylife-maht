@@ -534,6 +534,7 @@ class Avatar extends EventEmitter {
         messages = messages.map(message=>mPruneMessage(bot, message, 'shadow', processingStartTime))
         messages.push(mPruneMessage(bot, tailgate, 'system', processingStartTime))
         return {
+            processingBotId: bot.id,
             itemId,
             messages,
             success: true,
