@@ -500,28 +500,28 @@ function mStageTransitionMember(includeSidebar=true){
 /**
  * Submits a message to MyLife Member Services chat.
  * @param {string} message - The message to submit.
- * @param {boolean} bypass - The bypass-server flag.
  * @returns 
  */
-async function submit(message, bypass=false){
-    if(bypass)
-        return [{ message: message }]
+async function submit(message, proxyInfo){
 	if(!message?.length)
 		throw new Error('submit(): `message` argument is required')
-	const url = window.location.origin + '/members';
+    const { itemId, proxy='', shadowId, } = proxyInfo ?? {}
+	const url = window.location.origin + '/members' + proxy
     const { id: botId, role, thread_id: threadId, } = activeBot()
 	const _request = {
 			role: 'member',
 			botId,
+            itemId,
             threadId,
 			message,
+            shadowId,
 		}
 	const options = {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 		},
-		body: JSON.stringify(_request),	//	todo: pull json schema for this object from `/messages/$defs/message_member_chat`
+		body: JSON.stringify(_request),
 	}
 	const chatResponse = await submitChat(url, options)
     return chatResponse

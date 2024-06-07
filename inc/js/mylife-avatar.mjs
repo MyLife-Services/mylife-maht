@@ -502,6 +502,31 @@ class Avatar extends EventEmitter {
         return await this.#factory.resetPassphrase(passphrase)
     }
     /**
+     * Takes a shadow message and sends it to the appropriate bot for response.
+     * @param {Guid} shadowId - The shadow id.
+     * @param {Guid} itemId - The item id.
+     * @returns {Object} - The response object { messages, success, error,}
+     */
+    async shadow(shadowId, itemId){
+        const shadows = await this.shadows()
+        const shadow = shadows.find(shadow=>shadow.id===shadowId)
+        if(!shadow)
+            throw new Error('Shadow not found.')
+        const { text, type, } = shadow
+        const item = await this.#factory.item(itemId)
+        if(!item)
+            throw new Error(`cannot find item: ${ itemId }`)
+        const { summary, } = item
+        // given birthdate, include summary and ask question
+    }
+    /**
+     * Gets the list of shadows.
+     * @returns {Object[]} - Array of shadow objects.
+     */
+    async shadows(){
+        return await this.#factory.shadows()
+    }
+    /**
      * Summarize the file indicated.
      * @param {string} fileId 
      * @param {string} fileName 

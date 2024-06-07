@@ -221,6 +221,22 @@ async function privacyPolicy(ctx){
 	ctx.state.subtitle = `Effective Date: 2024-01-01`
 	await ctx.render('privacy-policy')	//	privacy-policy
 }
+async function shadow(ctx){
+	const { avatar, } = ctx.state
+	const { botId, itemId, message, threadId, shadowId, } = ctx.request.body // necessary to flip active bot, or just presume to use the creator of the shadow?
+	if(!itemId?.length)
+		ctx.throw(400, `missing item id`)
+	ctx.body = await avatar.shadow(shadowId, itemId)
+}
+/**
+ * Gets the list of shadows.
+ * @returns {Object[]} - Array of shadow objects.
+ */
+async function shadows(ctx){
+	const { avatar, } = ctx.state
+	const response = await avatar.shadows()
+	ctx.body = response
+}
 async function signup(ctx) {
     const { avatarName, email, humanName, type='newsletter', } = ctx.request.body
 	const signupPacket = {
@@ -330,6 +346,8 @@ export {
 	members,
 	passphraseReset,
 	privacyPolicy,
+	shadow,
+	shadows,
 	signup,
 	summarize,
 	team,

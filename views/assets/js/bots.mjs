@@ -7,6 +7,7 @@ import {
     fetchSummary,
     hide,
     show,
+    submit,
     toggleVisibility,
 } from './members.mjs'
 import Globals from './globals.mjs'
@@ -33,15 +34,17 @@ const mAvailableMimeTypes = [],
 /* variables */
 let mActiveBot,
     mActiveTeam,
-    mBots
+    mBots,
+    mShadows
 /* onDomContentLoaded */
 document.addEventListener('DOMContentLoaded', async event=>{
+    mShadows = await mGlobals.fetchShadows()
     const { bots, activeBotId: id } = await fetchBots()
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
     updatePageBots(bots) // includes p-a
     await setActiveBot(id, true)
-    console.log('bots.mjs::DOMContentLoaded()::mBots', mBots)
+    console.log('bots.mjs::DOMContentLoaded()::mBots', mBots, mShadows)
 })
 /* public functions */
 /**
@@ -355,15 +358,29 @@ function mCreateCollectionItemSummarize(type, id, name){
 }
 /**
  * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
+ * @requires mShadows
  * @param {Event} event - The event object.
  * @returns {void}
  */
 async function mMemoryShadow(event){
     event.stopPropagation()
-    const { shadowTextId, } = this.dataset
-    const shadowText = document.getElementById(shadowTextId)
-    console.log('mMemoryShadow::target', shadowText)
-    this.addEventListener('click', mMemoryShadow, { once: true })
+    const { itemId, shadowId, } = this.dataset // type enum: [agent, member]
+    const shadow = mShadows.find(shadow=>shadow.id===shadowId)
+    console.log('mMemoryShadow::shadow', shadow, itemId, shadowId, )
+    if(!shadow)
+        return
+    const { categories, id, text, type, } = shadow
+    switch(type){
+        case 'agent': /* agent shadows go directly to server for answer */
+            addMessage(text, { role: 'member', })
+            const response = submit(text, { itemId, proxy: '/shadow', shadowId, }) /* proxy submission, use endpoint: /shadow */
+            console.log('mMemoryShadow::response', response)
+            break
+        case 'member': /* member shadows populate main chat input */
+            break
+        default:
+            throw new Error(`Unimplemented shadow type: ${ type }`)
+    }
 }
 /**
  * Processes a document summary request.
@@ -588,57 +605,16 @@ function mCreateCollectionPopup(collectionItem) {
         case 'story': // memory
             /* improve memory container */
             const improveMemory = document.createElement('div')
-            improveMemory.classList.add(`collection-popup-${type}`)
-            improveMemory.id = `popup-${type}_${id}`
+            improveMemory.classList.add(`collection-popup-${ type }`)
+            improveMemory.id = `popup-${ type }_${ id }`
             improveMemory.name = 'improve-memory-container'
-            /* story input(+submit), shadows(+click), buttons */
-            const memoryInputLane = document.createElement('div')
-            memoryInputLane.classList.add('memory-input-lane')
+            /* shadows, share-memory panel */
+            const improveMemoryLane = document.createElement('div')
+            improveMemoryLane.classList.add('improve-memory-lane')
             /* story shadows */
-            const shadowBox = document.createElement('div')
-            shadowBox.classList.add('memory-shadow')
-            shadowBox.id = `memory-shadow_${ id }`
-            shadowBox.name = 'memory-shadow'
-            shadowBox.addEventListener('click', mMemoryShadow, { once: true })
-            const shadows = [
-                'Remind me what was going on in the world at the time...',
-                'I can remember some friends involved...',
-                'At the time, I lived at...',
-            ]
-            let currentIndex = Math.floor(Math.random() * shadows.length)
-            const shadowText = document.createElement('span')
-            shadowText.classList.add('memory-shadow-text')
-            shadowText.id = `memory-shadow-text_${ id }`
-            shadowText.textContent = shadows[currentIndex]
-            shadowBox.appendChild(shadowText)
-            shadowBox.dataset.shadowTextId = shadowText.id
-            const intervalId = setInterval(()=>{ // cycle through the array elements every 3 seconds
-                currentIndex = (currentIndex + 1) % shadows.length
-                shadowText.textContent = shadows[currentIndex]
-            }, 10000)
-            /* pagers */
-            const shadowPagers = document.createElement('div')
-            shadowPagers.classList.add('memory-shadow-pagers')
-            shadowPagers.id = `memory-shadow-pagers_${ id }`
-            const backPager = document.createElement('div')
-            backPager.classList.add('caret', 'caret-up')
-            backPager.addEventListener('click', event=>{
-                event.stopPropagation()
-                currentIndex = (currentIndex - 1 + shadows.length) % shadows.length
-                shadowText.textContent = shadows[currentIndex]
-            })
-            const nextPager = document.createElement('div')
-            nextPager.classList.add('caret', 'caret-down')
-            nextPager.addEventListener('click', event=>{
-                event.stopPropagation()
-                currentIndex = (currentIndex + 1) % shadows.length
-                shadowText.textContent = shadows[currentIndex]
-            })
-            shadowPagers.appendChild(backPager)
-            shadowPagers.appendChild(nextPager)
-            shadowBox.appendChild(shadowPagers)
-            memoryInputLane.appendChild(shadowBox)
-            /* share/experience memory */
+            if(mShadows?.length)
+                improveMemoryLane.appendChild(mCreateMemoryShadows(id))
+            /* share memory panel */
             const shareMemory = document.createElement('div')
             shareMemory.classList.add('share-memory-container')
             shareMemory.id = `share-memory_${ id }`
@@ -730,7 +706,7 @@ function mCreateCollectionPopup(collectionItem) {
             memoryPlay.name = 'play-memory'
             memoryPlay.textContent = 'Play Memory'
             shareMemory.appendChild(memoryPlay)
-            memoryInputLane.appendChild(shareMemory)
+            improveMemoryLane.appendChild(shareMemory)
             // play memory
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
@@ -739,7 +715,7 @@ function mCreateCollectionPopup(collectionItem) {
             memoryCarousel.name = 'memory-carousel'
             memoryCarousel.textContent = 'Coming soon: media file uploads to Enhance and Improve memories'
             /* append elements */
-            improveMemory.appendChild(memoryInputLane)
+            improveMemory.appendChild(improveMemoryLane)
             improveMemory.appendChild(memoryCarousel)
             typePopup = improveMemory
             break
@@ -753,6 +729,76 @@ function mCreateCollectionPopup(collectionItem) {
     if(typePopup)
         collectionPopup.appendChild(typePopup)
     return collectionPopup
+}
+/**
+ * Create a memory shadow `HTMLDivElement`.
+ * @requires mShadows
+ * @param {Guid} itemId - The collection item id.
+ * @returns {HTMLDivElement} - The shadowbox <div>.
+ */
+function mCreateMemoryShadows(itemId){
+    let currentIndex = Math.floor(Math.random() * mShadows.length)
+    const shadow = mShadows[currentIndex]
+    const shadowBox = document.createElement('div')
+    shadowBox.classList.add('memory-shadow')
+    shadowBox.dataset.itemId = itemId
+    shadowBox.id = `memory-shadow_${ itemId }`
+    shadowBox.name = 'memory-shadow'
+    shadowBox.addEventListener('wheel', _=>console.log('wheel', _.deltaMode)) // no scroll
+    /* shadow vertical carousel */
+    // @stub - include vertical carousel with more visible prompts, as if on a cylinder
+    /* single shadow text */
+    const { categories, id, text, type, } = shadow
+    const shadowText = document.createElement('div')
+    shadowText.classList.add('memory-shadow-text')
+    shadowText.dataset.itemId = itemId
+    shadowText.dataset.shadowId = id
+    shadowText.textContent = text
+    shadowText.addEventListener('click', mMemoryShadow)
+    shadowBox.appendChild(shadowText)
+    // @stub - add mousewheel event listener to scroll through shadows
+    /* pagers */
+    const shadowPagers = document.createElement('div')
+    shadowPagers.classList.add('memory-shadow-pagers')
+    shadowPagers.id = `memory-shadow-pagers_${ itemId }`
+    /* back pager */
+    const backPager = document.createElement('div')
+    backPager.dataset.direction = 'back'
+    backPager.id = `memory-shadow-back_${ itemId }`
+    backPager.classList.add('caret', 'caret-up')
+    backPager.addEventListener('click', _pager)
+    /* next pager */
+    const nextPager = document.createElement('div')
+    nextPager.dataset.direction = 'next'
+    nextPager.id = `memory-shadow-next_${ itemId }`
+    nextPager.classList.add('caret', 'caret-down')
+    nextPager.addEventListener('click', _pager)
+    /* inline function _pager */
+    function _pager(event){
+        event.stopPropagation()
+        const { direction, } = this.dataset
+        currentIndex = direction==='next'
+            ? (currentIndex + 1) % mShadows.length
+            : (currentIndex - 1 + mShadows.length) % mShadows.length
+        const { text, } = mShadows[currentIndex]
+        shadowText.dataset.shadowId = mShadows[currentIndex].id
+        shadowText.textContent = text
+    }
+    shadowPagers.appendChild(backPager)
+    shadowPagers.appendChild(nextPager)
+    shadowBox.appendChild(shadowPagers)
+    /* loop */
+    const seconds = 20 * 1000
+    let intervalId
+    startShadows()
+    function startShadows(){
+        stopShadows()
+        intervalId = setInterval(_=>nextPager.click(), seconds)
+    }
+    function stopShadows(){
+        clearInterval(intervalId)
+    }
+    return shadowBox
 }
 /**
  * Create a team member that has been selected from add-team-member icon.

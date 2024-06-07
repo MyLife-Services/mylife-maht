@@ -21,6 +21,8 @@ import {
     members,
     passphraseReset,
     privacyPolicy,
+    shadow,
+    shadows,
     signup,
     summarize,
     team,
@@ -58,6 +60,7 @@ _Router.get('/greeting', greetings)
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
+_Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
@@ -108,6 +111,7 @@ _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
+_memberRouter.post('/shadow', shadow)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)

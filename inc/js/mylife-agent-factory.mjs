@@ -117,6 +117,62 @@ const mNewGuid = ()=>Guid.newGuid().toString()
 const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
 const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
+const mShadows = [
+	{
+		being: 'shadow',
+		categories: ['world events'],
+		form: 'story',
+		id: 'e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
+		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
+		text: `What was happening in the world at the time...?`,
+		type: 'agent',
+	},
+	{
+		being: 'shadow',
+		categories: ['personal', 'residence'],
+		form: 'story',
+		id: '0087b3ec-956e-436a-9272-eceed5e97ad0',
+		name: 'shadow_0087b3ec-956e-436a-9272-eceed5e97ad0',
+		text: `At the time, I was living at...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['relations',],
+		form: 'story',
+		id: '0aac1ca3-a9d2-4587-ad9f-3e85e5391f44',
+		name: 'shadow_0aac1ca3-a9d2-4587-ad9f-3e85e5391f44',
+		text: `Some people involved were...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['reflection', 'personal'],
+		form: 'story',
+		id: '040850c1-9991-46be-b962-8cf4ad9cfb24',
+		name: 'shadow_040850c1-9991-46be-b962-8cf4ad9cfb24',
+		text: `Reflecting on this, I wish I had instead...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['personal', 'thoughts'],
+		form: 'story',
+		id: '447b70e7-a443-4165-becf-fbd74265a618',
+		name: 'shadow_447b70e7-a443-4165-becf-fbd74265a618',
+		text: `I remember thinking...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['observational', 'objectivity', 'reflection'],
+		form: 'story',
+		id: '3bfebafb-7e44-4236-86c3-938e2f42fdd7',
+		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
+		text: `What would a normal person have done in this situation...?`,
+		type: 'agent',
+	},
+] // **note**: members use shadows to help them add content to the summaries of their experiences, whereas agents return the requested content
 const vmClassGenerator = vm.createContext({
 	exports: {},
 	console: console,
@@ -388,6 +444,14 @@ class BotFactory extends EventEmitter{
         return await this.dataservices.resetPassphrase(passphrase)
     }
 	/**
+	 * Gets the list of shadows.
+	 * @param {Guid} itemId - The itemId (or type?) to filter shadow return.
+	 * @returns {object[]} - The shadows.
+	 */
+	async shadows(itemId){
+		return mShadows
+	}
+	/**
 	 * Gets a collection of stories of a certain format.
 	 * @todo - currently disconnected from a library, but no decisive mechanic for incorporating library shell.
 	 * @param {string} form - The form of the stories to retrieve.
@@ -563,7 +627,7 @@ class AgentFactory extends BotFactory {
 	 * @param {object} item - The item to create.
 	 * @returns {object} - The created item.
 	 */
-	async createIten(item){
+	async createItem(item){
 		const response = await this.dataservices.pushItem(item)
 		return response
 	}
@@ -584,6 +648,14 @@ class AgentFactory extends BotFactory {
      */
 	async deleteItem(id){
 		return await this.dataservices.deleteItem(id)
+	}
+	/**
+	 * Retrieves a collection item by Id.
+	 * @param {Guid} id - The id of the collection item to retrieve.
+	 * @returns {object} - The item.
+	 */
+	async item(id){
+		return await this.dataservices.getItem(id)
 	}
 	async entry(entry){
 		const {

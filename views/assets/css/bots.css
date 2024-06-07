@@ -390,9 +390,9 @@
     padding: 0.5rem;
 }
 .collection-popup-story {
-    align-items: center;
+    align-items: flex-start;
+    cursor: default;
     display: flex;
-    flex: 1 1 auto;
     flex-direction: column;
     justify-content: center;
     margin: 0.22rem;
@@ -483,35 +483,62 @@ input:checked + .publicity-slider:before {
     margin: 0.25rem;
     padding: 0.25rem;
 }
+.improve-memory-lane {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
 .memory-carousel {
     align-items: center;
     background-color: white;
     color: gray;
     display: flex;
     flex-direction: row;
-    justify-content: center;
+    justify-content: flex-start;
     height: 5rem;
     margin: 0.25rem;
     padding: 0.25rem;
-    text-align: center;
+    text-align: flex-start;
     width: 100%;
-}
-.memory-input-lane {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin: 0;
-    padding: 0;
 }
 .memory-shadow {
     align-items: center;
+    background-color: teal;
+    border: thin solid white;
+    border-radius: 1rem;
     display: flex;
     flex: 0 0 40%;
     flex-direction: row;
-    justify-content: center;
+    justify-content: flex-start;
+    min-height: 4rem;
+    max-height: 7rem;
+    overflow: hidden;
+}
+.memory-shadow-carousel {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    justify-content: flex-start;
     margin: 0;
+    max-height: 10rem;
     padding: 0;
+    text-wrap: wrap;
+    transition: transform 0.5s ease;
+}
+.memory-shadow-fade {
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,1) 100%);
+    pointer-events: none;
 }
 .memory-shadow-pagers {
     align-items: center;
@@ -522,12 +549,14 @@ input:checked + .publicity-slider:before {
     margin: 0 0.5rem;
 }
 .memory-shadow-text {
-    align-items: flex-start;
+    color: whitesmoke;
+    cursor: pointer;
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
-    justify-content: center;
-    margin: 0;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    transition: opacity 0.5s ease; /* Smooth transition for opacity */
 }
 .share-memory-container { /* panel for how others `experience` memory story */
     display: flex;
