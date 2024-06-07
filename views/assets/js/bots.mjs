@@ -8,6 +8,7 @@ import {
     hide,
     show,
     submit,
+    toggleMemberInput,
     toggleVisibility,
 } from './members.mjs'
 import Globals from './globals.mjs'
@@ -364,17 +365,26 @@ function mCreateCollectionItemSummarize(type, id, name){
  */
 async function mMemoryShadow(event){
     event.stopPropagation()
-    const { itemId, shadowId, } = this.dataset // type enum: [agent, member]
+    const { itemId, lastResponse, shadowId, } = this.dataset // type enum: [agent, member]
     const shadow = mShadows.find(shadow=>shadow.id===shadowId)
-    console.log('mMemoryShadow::shadow', shadow, itemId, shadowId, )
     if(!shadow)
         return
     const { categories, id, text, type, } = shadow
     switch(type){
         case 'agent': /* agent shadows go directly to server for answer */
             addMessage(text, { role: 'member', })
-            const response = submit(text, { itemId, proxy: '/shadow', shadowId, }) /* proxy submission, use endpoint: /shadow */
-            console.log('mMemoryShadow::response', response)
+            const response = await submit(text, { itemId, proxy: '/shadow', shadowId, }) /* proxy submission, use endpoint: /shadow */
+            const { error, errors: _errors, itemId: responseItemId, messages, processingBotId, success=false, } = response
+            const errors = error?.length ? [error] : _errors
+            if(!success || !messages?.length)
+                throw new Error(`No response from server for shadow request.`)
+            const botId = processingBotId
+                ?? messages[0].activeBotId
+                ?? mActiveBot?.id
+            if(mActiveBot?.id===botId)
+                setActiveBot(botId)
+            this.dataset.lastResponse = JSON.stringify(messages)
+            addMessages(messages) // print to screen
             break
         case 'member': /* member shadows populate main chat input */
             break
@@ -744,7 +754,8 @@ function mCreateMemoryShadows(itemId){
     shadowBox.dataset.itemId = itemId
     shadowBox.id = `memory-shadow_${ itemId }`
     shadowBox.name = 'memory-shadow'
-    shadowBox.addEventListener('wheel', _=>console.log('wheel', _.deltaMode)) // no scroll
+    // @stub - add mousewheel event listener to scroll through shadows
+    // shadowBox.addEventListener('wheel', _=>console.log('wheel', _.deltaMode)) // no scroll
     /* shadow vertical carousel */
     // @stub - include vertical carousel with more visible prompts, as if on a cylinder
     /* single shadow text */
@@ -752,6 +763,7 @@ function mCreateMemoryShadows(itemId){
     const shadowText = document.createElement('div')
     shadowText.classList.add('memory-shadow-text')
     shadowText.dataset.itemId = itemId
+    shadowText.dataset.lastResponse = '' // array of messages, will need to stringify/parse
     shadowText.dataset.shadowId = id
     shadowText.textContent = text
     shadowText.addEventListener('click', mMemoryShadow)

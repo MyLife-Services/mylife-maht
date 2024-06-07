@@ -500,9 +500,11 @@ function mStageTransitionMember(includeSidebar=true){
 /**
  * Submits a message to MyLife Member Services chat.
  * @param {string} message - The message to submit.
+ * @param {object} proxyInfo - The proxy information { itemId, proxy, shadowId }.
+ * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`.
  * @returns 
  */
-async function submit(message, proxyInfo){
+async function submit(message, proxyInfo, hideMemberChat=true){
 	if(!message?.length)
 		throw new Error('submit(): `message` argument is required')
     const { itemId, proxy='', shadowId, } = proxyInfo ?? {}
@@ -523,7 +525,11 @@ async function submit(message, proxyInfo){
 		},
 		body: JSON.stringify(_request),
 	}
+    if(hideMemberChat)
+        toggleMemberInput(false)
 	const chatResponse = await submitChat(url, options)
+    if(hideMemberChat)
+        toggleMemberInput(true)
     return chatResponse
 }
 async function submitChat(url, options) {
