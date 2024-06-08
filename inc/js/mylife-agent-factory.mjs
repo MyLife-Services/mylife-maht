@@ -124,7 +124,7 @@ const mShadows = [
 		form: 'story',
 		id: 'e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
 		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
-		text: `What was happening in the world at the time...?`,
+		text: `What was happening in the world at the time?`,
 		type: 'agent',
 	},
 	{
@@ -151,7 +151,7 @@ const mShadows = [
 		form: 'story',
 		id: '040850c1-9991-46be-b962-8cf4ad9cfb24',
 		name: 'shadow_040850c1-9991-46be-b962-8cf4ad9cfb24',
-		text: `Reflecting on this, I wish I had instead...`,
+		text: `In hindsight, I wish I had...`,
 		type: 'member',
 	},
 	{
@@ -169,7 +169,7 @@ const mShadows = [
 		form: 'story',
 		id: '3bfebafb-7e44-4236-86c3-938e2f42fdd7',
 		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
-		text: `What would a normal person have done in this situation...?`,
+		text: `What would a normal person have done in this situation?`,
 		type: 'agent',
 	},
 ] // **note**: members use shadows to help them add content to the summaries of their experiences, whereas agents return the requested content
