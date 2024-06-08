@@ -1,0 +1,22 @@
+{
+    "description": "Updates a story summary (in total) as referenced by itemId",
+    "name": "udpateSummary",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Id of summary to update",
+                "format": "uuid",
+                "type": "string"
+            },
+            "summary": {
+                "description": "The new updated and complete summary",
+                "type": "string"
+            }
+        },
+        "required": [
+            "itemId",
+            "title"
+        ]
+    }
+}
