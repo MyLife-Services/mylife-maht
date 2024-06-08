@@ -6,6 +6,7 @@ import {
     decorateActiveBot,
     fetchSummary,
     hide,
+    seedInput,
     show,
     submit,
     toggleMemberInput,
@@ -369,11 +370,11 @@ async function mMemoryShadow(event){
     const shadow = mShadows.find(shadow=>shadow.id===shadowId)
     if(!shadow)
         return
-    const { categories, id, text, type, } = shadow
+    const { categories, id, proxy='/shadow', text, type, } = shadow
     switch(type){
         case 'agent': /* agent shadows go directly to server for answer */
             addMessage(text, { role: 'member', })
-            const response = await submit(text, { itemId, proxy: '/shadow', shadowId, }) /* proxy submission, use endpoint: /shadow */
+            const response = await submit(text, { itemId, proxy, shadowId, }) /* proxy submission, use endpoint: /shadow */
             const { error, errors: _errors, itemId: responseItemId, messages, processingBotId, success=false, } = response
             const errors = error?.length ? [error] : _errors
             if(!success || !messages?.length)
@@ -387,10 +388,18 @@ async function mMemoryShadow(event){
             addMessages(messages) // print to screen
             break
         case 'member': /* member shadows populate main chat input */
+            const action = `update-memory`
+            const seedText = text.replace(/(\.\.\.|…)\s*$/, '').trim() + ' '
+            seedInput(proxy, action, itemId, shadowId, seedText, text)
             break
         default:
             throw new Error(`Unimplemented shadow type: ${ type }`)
     }
+    /* close popup */
+    // @stub - minimize to header instead?
+    const popupClose = document.getElementById(`popup-close_${ itemId }`)
+    if(popupClose)
+        popupClose.click()
 }
 /**
  * Processes a document summary request.

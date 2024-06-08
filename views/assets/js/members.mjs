@@ -303,6 +303,7 @@ function waitForUserAction(){
 /* private functions */
 /**
  * Adds a message to the chat column on member's behalf.
+ * @todo - normalize return from backend so no need for special processing.
  * @private
  * @async
  * @param {Event} event - The event object.
@@ -322,11 +323,32 @@ async function mAddMemberMessage(event){
         typeDelay: 7,
     })
     /* server request */
-    const responses = await submit(memberMessage, false)
-    /* process responses */
-	responses
-        .forEach(response => {
-            mAddMessage(response?.message, {
+    let messages,
+        response = await submit(memberMessage)
+    /* special processing cases */
+    // @stub - special processing cases remove
+    if(!Array.isArray(response)){
+        switch(typeof response){
+            case 'object':
+                if(processingBotId?.length && processingBotId!=activeBot().id)
+                    setActiveBot(processingBotId)
+                messages = response.messages
+                break
+            case 'boolean': // pass-through intentional
+            case 'number':
+                response = response.toString()
+            case 'string':
+                messages = [{ message: response }]
+                break
+            default:
+                throw new Error('mAddMemberMessage::Error()::`response` is indecipherable')
+        }
+    } else
+        messages = response
+    /* process response */
+	messages
+        .forEach(message => {
+            mAddMessage(message.message ?? message.content, {
                 bubbleClass: 'agent-bubble',
                 role: 'agent',
                 typeDelay: 1,
@@ -436,6 +458,26 @@ function mInitializePageListeners(){
     })
 }
 /**
+ * Primitive step to set a "modality" or intercession for the member chat. Currently will key off dataset in `chatInputField`.
+ * @todo - mature this architecture
+ * @param {string} proxy - The proxy endpoint for this chat exchange.
+ * @param {string} action - The action to take on the proxy endpoint.
+ * @param {Guid} itemId - The item ID as context for chat exchange.
+ * @param {Guid} shadowId - The shadow ID as context for chat exchange.
+ * @param {string} value - The value to seed the input with.
+ * @param {string} placeholder - The placeholder to seed the input with.
+ */
+function seedInput(proxy, action, itemId, shadowId, value, placeholder){
+    chatInputField.dataset.action = action
+    chatInputField.dataset.active = 'true'
+    chatInputField.dataset.itemId = itemId
+    chatInputField.dataset.proxy = proxy
+    chatInputField.dataset.shadowId = shadowId
+    chatInputField.value = value
+    chatInputField.placeholder = placeholder
+    chatInputField.focus()
+}
+/**
  * Transitions and sets the stage to experience version of member screen indicated.
  * @public
  * @param {string} type - The type of scene transition, defaults to `interface`.
@@ -507,23 +549,26 @@ function mStageTransitionMember(includeSidebar=true){
 async function submit(message, proxyInfo, hideMemberChat=true){
 	if(!message?.length)
 		throw new Error('submit(): `message` argument is required')
-    const { itemId, proxy='', shadowId, } = proxyInfo ?? {}
+    const { action, active, itemId, proxy='', shadowId, } = proxyInfo
+        ?? chatInputField.dataset
 	const url = window.location.origin + '/members' + proxy
-    const { id: botId, role, thread_id: threadId, } = activeBot()
-	const _request = {
-			role: 'member',
+    const { id: botId, thread_id: threadId, } = activeBot()
+	const request = {
+            action,
+            active,
 			botId,
             itemId,
-            threadId,
 			message,
+			role: 'member',
             shadowId,
+            threadId,
 		}
 	const options = {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 		},
-		body: JSON.stringify(_request),
+		body: JSON.stringify(request),
 	}
     if(hideMemberChat)
         toggleMemberInput(false)
@@ -623,6 +668,7 @@ export {
     inExperience,
     replaceElement,
     sceneTransition,
+    seedInput,
     setActiveBot,
     setActiveCategory,
     show,

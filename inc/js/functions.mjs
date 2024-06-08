@@ -223,10 +223,12 @@ async function privacyPolicy(ctx){
 }
 async function shadow(ctx){
 	const { avatar, } = ctx.state
-	const { botId, itemId, message, threadId, shadowId, } = ctx.request.body // necessary to flip active bot, or just presume to use the creator of the shadow?
+	const { active=true, botId, itemId, message, role, threadId, shadowId, title, } = ctx.request.body // necessary to flip active bot, or just presume to use the creator of the shadow?
 	if(!itemId?.length)
 		ctx.throw(400, `missing item id`)
-	ctx.body = await avatar.shadow(shadowId, itemId)
+	if(!active) // @stub - redirect to normal chat?
+		ctx.throw(400, `shadow must be active`)
+	ctx.body = await avatar.shadow(shadowId, itemId, title, message)
 }
 /**
  * Gets the list of shadows.

@@ -506,9 +506,11 @@ class Avatar extends EventEmitter {
      * Takes a shadow message and sends it to the appropriate bot for response.
      * @param {Guid} shadowId - The shadow id.
      * @param {Guid} itemId - The item id.
-     * @returns {Object} - The response object { messages, success, error,}
+     * @param {string} title - The title of the original summary.
+     * @param {string} message - The member (interacting with shadow) message content.
+     * @returns {Object} - The response object { error, itemId, messages, processingBotId, success, }
      */
-    async shadow(shadowId, itemId){
+    async shadow(shadowId, itemId, title, message){
         const processingStartTime = Date.now()
         const shadows = await this.shadows()
         const shadow = shadows.find(shadow=>shadow.id===shadowId)
@@ -518,25 +520,36 @@ class Avatar extends EventEmitter {
         const item = await this.#factory.item(itemId)
         if(!item)
             throw new Error(`cannot find item: ${ itemId }`)
-        let { form, summary, } = item
-        // @stub - develop additional form types, entry or idea for instance
-        const dob = new Date(this.#factory.dob)
-        const diff_ms = Date.now() - dob.getTime()
-        const age_dt = new Date(diff_ms)
-        const age = Math.abs(age_dt.getUTCFullYear() - 1970)
-        const message = `Given age of member: ${ age } and updated summary of personal memory: ${ summary }\n- answer the question: "${ text }"`
-        const bot = this?.[form] ?? this.activeBot
-        const tailgate = {
-            content: `Would you like to add this, or part of it, to your memory?`, // @stub - tailgate for additional data
-            thread_id: bot.thread_id,
+        const { form, summary, } = item
+        let tailgate
+        const bot = this?.[form] ?? this.activeBot /* currently only `biographer` which transforms thusly when referenced here as this[form] */
+        switch(type){
+            case 'member':
+                message = `update-memory-request: itemId=${ itemId }\n` + message
+                break
+            case 'agent':
+                // @stub - develop additional form types, entry or idea for instance
+                const dob = new Date(this.#factory.dob)
+                const diff_ms = Date.now() - dob.getTime()
+                const age_dt = new Date(diff_ms)
+                const age = Math.abs(age_dt.getUTCFullYear() - 1970)
+                message = `Given age of member: ${ age } and updated summary of personal memory: ${ summary }\n- answer the question: "${ text }"`
+                tailgate = {
+                    content: `Would you like to add this, or part of it, to your memory?`, // @stub - tailgate for additional data
+                    thread_id: bot.thread_id,
+                }
+                break
+            default:
+                break
         }
         let messages = await mCallLLM(this.#llmServices, bot, message, this.#factory, this)
         messages = messages.map(message=>mPruneMessage(bot, message, 'shadow', processingStartTime))
-        messages.push(mPruneMessage(bot, tailgate, 'system', processingStartTime))
+        if(tailgate?.length)
+            messages.push(mPruneMessage(bot, tailgate, 'system'))
         return {
-            processingBotId: bot.id,
             itemId,
             messages,
+            processingBotId: bot.id,
             success: true,
         }
     }
