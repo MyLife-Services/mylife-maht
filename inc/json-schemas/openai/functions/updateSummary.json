@@ -1,6 +1,6 @@
 {
     "description": "Updates a story summary (in total) as referenced by itemId",
-    "name": "udpateSummary",
+    "name": "updateSummary",
     "parameters": {
         "type": "object",
         "properties": {
