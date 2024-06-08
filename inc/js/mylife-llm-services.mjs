@@ -215,6 +215,10 @@ async function mMessages(openai, threadId){
     return await openai.beta.threads.messages
         .list(threadId)
 }
+async function mRunCancel(openai, threadId, runId){
+    const run = await openai.beta.threads.runs.cancel(threadId, runId)
+    return run
+}
 /**
  * Maintains vigil for status of openAI `run = 'completed'`.
  * @module
@@ -237,6 +241,7 @@ async function mRunFinish(llmServices, run, factory, avatar){
                 }
             } catch (error) {
                 clearInterval(checkInterval)
+                mRunCancel(llmServices, run.thread_id, run.id)
                 reject(error)
             }
         }, mPingIntervalMs)
@@ -267,7 +272,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
             &&  run.required_action?.submit_tool_outputs?.tool_calls
             &&  run.required_action.submit_tool_outputs.tool_calls.length
         ){
-            const { assistant_id: bot_id, metadata, thread_id, } = run
+            const { assistant_id: bot_id, id: runId, metadata, thread_id, } = run
             const toolCallsOutput = await Promise.all(
                 run.required_action.submit_tool_outputs.tool_calls
                     .map(async tool=>{
@@ -353,8 +358,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     action = `continue with initial instructions`
                                     success = true
                                 }
-                                const getSummaryResponse = { action, itemId, success, summary, }
-                                confirmation.output = JSON.stringify(getSummaryResponse)
+                                confirmation.output = JSON.stringify({ action, itemId, success, summary, })
                                 console.log('mRunFunctions()::getSummary::confirmation', confirmation)
                                 return confirmation
                             case 'hijackattempt':
@@ -419,9 +423,10 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'updatesummary':
                             case 'update_summary':
                             case 'update summary':
-                                console.log('mRunFunctions()::getSummary::start', item)
-                                const { summary: updatedSummary, } = item ?? {}
-                                await factory.updateItem(itemId, { summary: updatedSummary, })
+                                console.log('mRunFunctions()::updatesummary::start', item, itemId, toolArguments)
+                                const { summary: updatedSummary, } = toolArguments
+                                // remove await once confirmed updates are connected
+                                await factory.updateItem({ id: itemId, summary: updatedSummary, })
                                 action=`confirm success and present updated summary to member`
                                 success = true
                                 confirmation.output = JSON.stringify({ action, success, })
@@ -444,7 +449,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
         }
     }
     catch(error){
-        console.log('mRunFunctions()::error', error.message)
+        console.log('mRunFunctions()::error::canceling-run', error.message, error.stack)
         rethrow(error)
     }
 }

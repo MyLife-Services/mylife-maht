@@ -1231,7 +1231,7 @@ async function mCallLLM(llmServices, conversation, prompt, factory, avatar){
     if(!threadId || !id)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
     const messages = await llmServices.getLLMResponse(threadId, id, prompt, factory, avatar)
-    messages.sort((mA, mB) => {
+    messages.sort((mA, mB)=>{
         return mB.created_at - mA.created_at
     })
     return messages

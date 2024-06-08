@@ -860,8 +860,8 @@ class AgentFactory extends BotFactory {
 	 * @returns {Promise<object>} - The updated item.
 	 */
 	async updateItem(item){
-		const { id, } = item
-		const response = await this.dataservices.patch(id, item)
+		const { id, ..._item } = item
+		const response = await this.dataservices.patch(id, _item)
 		return response
 	}
 	/* getters/setters */

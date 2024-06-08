@@ -330,9 +330,10 @@ async function mAddMemberMessage(event){
     if(!Array.isArray(response)){
         switch(typeof response){
             case 'object':
+                const { itemId, messages: responseMessages, processingBotId, success, } = response
                 if(processingBotId?.length && processingBotId!=activeBot().id)
                     setActiveBot(processingBotId)
-                messages = response.messages
+                messages = responseMessages
                 break
             case 'boolean': // pass-through intentional
             case 'number':
