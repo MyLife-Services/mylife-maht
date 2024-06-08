@@ -574,6 +574,10 @@ async function submit(message, proxyInfo, hideMemberChat=true){
     if(hideMemberChat)
         toggleMemberInput(false)
 	const chatResponse = await submitChat(url, options)
+    /* clear dataset, proxy only request level */
+    for(let key in chatInputField.dataset){ // nuclear erasure
+        delete chatInputField.dataset[key]
+    }
     if(hideMemberChat)
         toggleMemberInput(true)
     return chatResponse
