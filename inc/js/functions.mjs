@@ -111,8 +111,7 @@ async function createBot(ctx){
  * Delete an item from collection via the member's avatar.
  * @async
  * @public
-
-* @param {object} ctx - Koa Context object
+ * @param {object} ctx - Koa Context object
  * @returns {boolean} - Under `ctx.body`, status of deletion.
  */
 async function deleteItem(ctx){
