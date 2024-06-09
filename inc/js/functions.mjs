@@ -313,6 +313,15 @@ function teams(ctx){
 	const { avatar, } = ctx.state
 	ctx.body = avatar.teams()
 }
+async function updateBotInstructions(ctx){
+	const { botId, } = ctx.request.body
+	const { avatar, } = ctx.state
+	let success = false
+	const bot = await avatar.updateBot(botId, { instructions: true, model: true, tools: true, })
+	if(bot)
+		success = true
+	ctx.body = { bot, success, }
+}
 /**
  * Proxy for uploading files to the API.
  * @param {Koa} ctx - Koa Context object
@@ -354,5 +363,6 @@ export {
 	summarize,
 	team,
 	teams,
+	updateBotInstructions,
 	upload,
 }

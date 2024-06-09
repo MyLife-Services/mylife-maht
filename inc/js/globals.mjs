@@ -56,6 +56,23 @@ const mAiJsFunctions = {
 			]
 		}
 	},
+	getSummary: {
+		description: "Gets a story summary by itemId",
+		name: "getSummary",
+		parameters: {
+			type: "object",
+			properties: {
+				itemId: {
+					description: "Id of summary to retrieve",
+					format: "uuid",
+					type: "string"
+				}
+			},
+			required: [
+				"itemId"
+			]
+		}
+	},
 	storySummary: {
 		description: 'Generate a STORY summary with keywords and other critical data elements.',
 		name: 'storySummary',
@@ -117,6 +134,28 @@ const mAiJsFunctions = {
 				'phaseOfLife',
 				'summary',
 				'title'
+			]
+		}
+	},
+	updateSummary: {
+		description: "Updates a story summary (in total) as referenced by itemId",
+		name: "updateSummary",
+		parameters: {
+			type: "object",
+			properties: {
+				itemId: {
+					description: "Id of summary to update",
+					format: "uuid",
+					type: "string"
+				},
+				summary: {
+					description: "The new updated and complete summary",
+					type: "string"
+				}
+			},
+			required: [
+				"itemId",
+				"title"
 			]
 		}
 	},

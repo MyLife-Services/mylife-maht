@@ -1778,6 +1778,21 @@ function mUpdateBotContainerAddenda(botContainer, bot){
         }
 }
 /**
+ * Requests update of bot instructions and functions on LLM model.
+ * @public
+ * @async
+ * @requires mActiveBot
+ * @returns {void} - presumes success or failure, but beyond control of front-end.
+ */
+async function updateBotInstructions(){
+    const { id, } = mActiveBot
+    const url = window.location.origin + '/members/bots/system-update/' + id
+    const method = 'PUT'
+    const response = await fetch(url, { method: method })
+    const { success, } = await response.json()
+    console.log(`Bot instructions update success: ${ success ?? false }`)
+}
+/**
  * Update the identified collection with provided specifics.
  * @param {string} type - The bot type.
  * @param {Array} collection - The collection items.

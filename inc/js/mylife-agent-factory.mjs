@@ -276,15 +276,17 @@ class BotFactory extends EventEmitter{
 	 * @param {string} type - The bot type.
 	 * @returns {object} - The bot instructions.
 	 */
-	botInstructions(botType){
-		if(!botType)
-			throw new Error('bot type required')
-		if(!mBotInstructions[botType]){
-			if(!botInstructions)
-				throw new Error(`no bot instructions found for ${ botType }`)
-			mBotInstructions[botType] = botInstructions
-		}
-		return mBotInstructions[botType]
+	botInstructions(type='personal-avatar'){
+		return mBotInstructions[type]
+	}
+	/**
+	 * Returns bot instructions version.
+	 * @param {string} type - The bot type.
+	 * @returns {number} - The bot instructions version.
+	 */
+	botInstructionsVersion(type){
+		return mBotInstructions[type]?.version
+			?? 1.0
 	}
 	/**
 	 * Gets a member's bots.
@@ -316,7 +318,7 @@ class BotFactory extends EventEmitter{
 		return await this.dataservices.collections(type)
 	}
 	async createBot(assistantData={ type: mDefaultBotType }){
-		const bot = await mCreateBot(this.#llmServices, this, assistantData, this.avatarId)
+		const bot = await mCreateBot(this.#llmServices, this, assistantData)
 		if(!bot)
 			throw new Error('bot creation failed')
 		return bot
@@ -1086,7 +1088,7 @@ class MyLifeFactory extends AgentFactory {
 async function mAI_openai(llmServices, bot){
     const { bot_name, type, } = bot
 	bot.name = bot_name
-		?? `untitled-${ type }`
+		?? `My ${ type }`
     return await llmServices.createBot(bot)
 }
 function assignClassPropertyValues(propertyDefinition){
@@ -1213,7 +1215,7 @@ async function mCreateBotLLM(llm, assistantData){
 */
 async function mCreateBot(llm, factory, bot){
 	/* initial deconstructions */
-	const { bot_name: botName, description: botDescription, instructions: botInstructions, name: botDbName, type, } = bot
+	const { bot_name: botName, description: botDescription, name: botDbName, type, } = bot
 	const { avatarId, } = factory
 	/* validation */
 	if(!avatarId)
@@ -1223,11 +1225,10 @@ async function mCreateBot(llm, factory, bot){
 		?? `My ${ type }`
 	const description = botDescription
 		?? `I am a ${ type } for ${ factory.memberName }`
-	const instructions = botInstructions
-		?? mCreateBotInstructions(factory, bot)
+	const { instructions, version, } = mCreateBotInstructions(factory, bot)
 	const model = process.env.OPENAI_MODEL_CORE_BOT
 		?? process.env.OPENAI_MODEL_CORE_AVATAR
-		?? 'gpt-3.5-turbo'
+		?? 'gpt-4o'
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
 	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
@@ -1247,6 +1248,7 @@ async function mCreateBot(llm, factory, bot){
 		tools,
 		tool_resources,
 		type,
+		version,
 	}
 	/* create in LLM */
 	const botId = await mCreateBotLLM(llm, assistantData) // create after as require model
@@ -1264,18 +1266,17 @@ async function mCreateBot(llm, factory, bot){
  * @private
  * @param {BotFactory} factory - Factory object
  * @param {object} bot - Bot object
- * @returns {string} - flattened string of instructions
+ * @returns {object} - minor 
  */
 function mCreateBotInstructions(factory, bot){
 	if(typeof bot!=='object' || !bot.type?.length)
 		throw new Error('bot object required, and  requires `type` property')
 	const { type=mDefaultBotType, } = bot
-    const instructionSet = factory.botInstructions(type)?.instructions // no need to wait, should be updated or refresh server
-    if(!instructionSet) // @stub - custom must have instruction loophole
+    let { instructions, version, } = factory.botInstructions(type)
+    if(!instructions) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
-    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructionSet
+    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructions
     /* compile instructions */
-	let instructions
     switch(type){
 		case 'diary':
 		case 'journaler':
@@ -1341,7 +1342,7 @@ function mCreateBotInstructions(factory, bot){
                 break
         }
     })
-    return instructions
+    return { instructions, version, }
 }
 function mExposedSchemas(factoryBlockedSchemas){
 	const _systemBlockedSchemas = ['dataservices','session']
@@ -1490,7 +1491,11 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 			includeSearch = true
 			break
 		case 'personal-biographer':
-			tools.push(globals.getGPTJavascriptFunction('storySummary'))
+			tools.push(
+				globals.getGPTJavascriptFunction('storySummary'),
+				globals.getGPTJavascriptFunction('getSummary'),
+				globals.getGPTJavascriptFunction('updateSummary')
+			)
 			includeSearch = true
 			break
 		default:
@@ -1687,9 +1692,11 @@ async function mLoadSchemas(){
 }
 async function mPopulateBotInstructions(){
 	const instructionSets = await mDataservices.botInstructions()
-	instructionSets.forEach(_instructionSet=>{
-		mBotInstructions[_instructionSet.type] = _instructionSet
-	})
+	instructionSets
+		.forEach(instructionSet=>{
+			const { type, } = instructionSet
+			mBotInstructions[type] = instructionSet
+		})
 }
 /**
  * Ingests a text (or JSON-parsed) schema and returns an array of sanitized schema.
@@ -1822,9 +1829,9 @@ async function mUpdateBot(factory, llm, bot, options={}){
 	if(!factory.globals.isValidGuid(id))
 		throw new Error('bot `id` required in bot argument: `{ id: guid }`')
 	if(updateInstructions){
-		// @stub - update core based on updatebot? type-interests as example? yes.
-		const instructions = mCreateBotInstructions(factory, bot)
+		const { instructions, version=1.0, } = mCreateBotInstructions(factory, bot)
 		botData.instructions = instructions
+		botData.version = version /* omitted from llm, but appears on updateBot */
 	}
 	if(updateTools){
 		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)

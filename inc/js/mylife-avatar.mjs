@@ -650,8 +650,8 @@ class Avatar extends EventEmitter {
         await this.#assetAgent.init(this.#factory.vectorstoreId, includeMyLife) /* or "re-init" */
         await this.#assetAgent.upload(files)
         const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = this.#assetAgent
-        if(!vectorstoreId && newVectorstoreId)
-            this.updateTools()
+        if(!vectorstoreId && newVectorstoreId) // ensure access for LLM
+            this.updateInstructions(this.activeBot.id, false, false, true)
         return {
             uploads: files,
             files: vectorstoreFileList,
@@ -667,39 +667,26 @@ class Avatar extends EventEmitter {
         return await mBot(this.#factory, this, bot) // note: mBot() updates `avatar.bots`
     }
     /**
-     * Update tools for bot-assistant based on type.
-     * @todo - manage issue that several bots require attachment upon creation.
-     * @todo - move to llm code.
-     * @todo - allow for multiple types simultaneously.
-     * @param {string} bot_id - The bot id to update tools for.
-     * @param {string} type - The type of tool to update.
-     * @param {any} data - The data required by the switch type.
-     * @returns {void}
+     * Update core  for bot-assistant based on type. Default updates all LLM pertinent properties.
+     * @param {string} id - The id of bot to update.
+     * @param {boolean} includeInstructions - Whether to include instructions in the update.
+     * @param {boolean} includeModel - Whether to include model in the update.
+     * @param {boolean} includeTools - Whether to include tools in the update.
+     * @returns {object} - The updated bot object.
      */
-    async updateTools(bot_id=this.avatar.bot_id, type='file_search', data){
-        let tools
-        switch(type){
-            case 'function': // @stub - function tools
-                tools = {
-                    tools: [{ type: 'function' }],
-                    function: {},
-                }
-                break
-            case 'file_search':
-            default:
-                if(!this.#factory.vectorstoreId)
-                    return
-                tools = {
-                    tools: [{ type: 'file_search' }],
-                    tool_resources: {
-                        file_search: {
-                            vector_store_ids: [this.#factory.vectorstoreId],
-                        }
-                    },
-                }
+    async updateInstructions(id=this.activeBot.id, includeInstructions=true, includeModel=true, includeTools=true){
+        const { type, } = this.#bots.find(bot=>bot.id===id)
+            ?? this.activeBot
+        if(!type?.length)
+            return
+        const bot = { id, type, }
+        const options = {
+            instructions: includeInstructions,
+            model: includeModel,
+            tools: includeTools,
         }
-        if(tools)
-            this.#llmServices.updateBot({ bot_id, tools, }) /* no await */
+        const response = await this.#factory.updateBot(bot, options)
+        return mPruneBot(response)
     }
     /**
      * Validate registration id.
@@ -734,13 +721,17 @@ class Avatar extends EventEmitter {
     /**
      * Set the active bot id. If not match found in bot list, then defaults back to this.id
      * @setter
-     * @param {string} bot_id - The active bot id, defaults to personal-avatar.
+     * @requires mBotInstructions
+     * @param {string} id - The active bot id, defaults to personal-avatar.
      * @returns {void}
      */
-    set activeBotId(bot_id=this.avatar.id){
-        this.#activeBotId = 
-            ( mFindBot(this, bot_id) ?? this.avatar )
-                .id
+    set activeBotId(id=this.avatar.id){
+        const newActiveBot = mFindBot(this, id) ?? this.avatar
+        const { id: newActiveId, type, version: botVersion=1.0, } = newActiveBot
+        const currentVersion = this.#factory.botInstructionsVersion(type)
+        if(botVersion!==currentVersion)
+            this.updateInstructions(newActiveId, true, false, true)
+        this.#activeBotId = newActiveId
     }
     /**
      * Get actor or default avatar bot.
