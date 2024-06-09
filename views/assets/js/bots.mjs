@@ -6,40 +6,16 @@ import {
     decorateActiveBot,
     fetchSummary,
     hide,
+    seedInput,
     show,
+    submit,
+    toggleMemberInput,
     toggleVisibility,
 } from './members.mjs'
 import Globals from './globals.mjs'
 /* constants; DOM exists? */
 // @todo - placeholder, get from server
 const mAvailableMimeTypes = [],
-    mAvailableTeams={
-        creative: {
-            name: 'Creative',
-        },
-        health: {
-            name: 'Health',
-        },
-        memoir: {
-            allowCustom: true,
-            allowedTypes: ['diary','personal-biographer', 'journaler',],
-            description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
-            name: 'Memoir',
-        },
-        professional: {
-            name: 'Job',
-        },
-        social: {
-            name: 'Social',
-        },
-        spiritual: {
-            name: 'Sprituality',
-        },
-        ubi: {
-            name: 'UBI',
-        },
-
-    },
     mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
     botBar = document.getElementById('bot-bar'),
     mDefaultTeam = 'memoir',
@@ -55,19 +31,22 @@ const mAvailableMimeTypes = [],
     mTeamAddMemberIcon = document.getElementById('add-team-member-icon'),
     mTeamHeader = document.getElementById('team-header'),
     mTeamName = document.getElementById('team-name'),
-    mTeamPopup = document.getElementById('team-popup')
+    mTeamPopup = document.getElementById('team-popup'),
+    mTeams = []
 /* variables */
 let mActiveBot,
     mActiveTeam,
-    mBots
+    mBots,
+    mShadows
 /* onDomContentLoaded */
 document.addEventListener('DOMContentLoaded', async event=>{
+    mShadows = await mGlobals.fetchShadows()
     const { bots, activeBotId: id } = await fetchBots()
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
     updatePageBots(bots) // includes p-a
     await setActiveBot(id, true)
-    console.log('bots.mjs::DOMContentLoaded()::mBots', mBots)
+    console.log('bots.mjs::DOMContentLoaded()::mBots', mBots, mShadows)
 })
 /* public functions */
 /**
@@ -104,6 +83,34 @@ async function fetchCollections(type){
         throw new Error(`HTTP error! Status: ${response.status}`)
     response = await response.json()
     return response
+}
+async function fetchTeam(teamId){
+    const url = window.location.origin + '/members/teams/' + teamId
+    const method = 'POST'
+    const response = await fetch(url, { method, })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    return await response.json()
+}
+/**
+ * Fetch MyLife Teams from server.
+ * @returns {Object[Array]} - The list of available team objects.
+ */
+async function fetchTeams(){
+    const url = window.location.origin + '/members/teams'
+    const response = await fetch(url)
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    return await response.json()
+}
+/**
+ * Get specific bot by id (first) or type.
+ * @param {string} type - The bot type, optional.
+ * @param {Guid} id - The bot id, optional.
+ * @returns {object} - The bot object.
+ */
+function getBot(type='personal-avatar', id){
+    return mBot(id ?? type)
 }
 /**
  * Set active bot on server and update page bots.
@@ -174,12 +181,13 @@ async function setActiveBot(event, dynamic=false){
  * @param {boolean} includeGreeting - Include bot-greeting.
  * @returns {void}
  */
-async function updatePageBots(bots, includeGreeting=false, dynamic=false){
+async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
     if(!bots?.length)
         throw new Error(`No bots provided to update page.`)
-    mBots = bots
-    mUpdateTeam()
-    mUpdateBotContainers()
+    if(mBots!==bots)
+        mBots = bots
+    await mUpdateTeams()
+    await mUpdateBotContainers()
     mUpdateBotBar()
     if(includeGreeting)
         mGreeting(dynamic)
@@ -206,18 +214,21 @@ function mBotActive(id){
 }
 /**
  * Request bot be created on server.
+ * @requires mActiveTeam
  * @param {string} type - bot type
  * @returns {object} - bot object from server.
  */
-async function mBotCreate(type){
+async function mCreateBot(type){
+    const { id: teamId, } = mActiveTeam
     const url = window.location.origin + '/members/bots/create'
     const method = 'POST'
-    const body = JSON.stringify({ type, })
+    const body = JSON.stringify({ teamId, type, })
     const headers = { 'Content-Type': 'application/json' }
     let response = await fetch(url, { body, headers, method, })
     if(!response.ok)
         throw new Error(`server unable to create bot.`)
     response = await response.json()
+    return response
 }
 /**
  * Returns icon path string based on bot type.
@@ -236,6 +247,8 @@ function mBotIcon(type){
             break
         case 'diary':
         case 'diarist':
+            image+='diary-thumb.png'
+            break
         case 'journal':
         case 'journaler':
             image+='journal-thumb.png'
@@ -345,11 +358,48 @@ function mCreateCollectionItemSummarize(type, id, name){
     itemSummarize.addEventListener('click', mSummarize, { once: true })
     return itemSummarize
 }
-async function mImproveMemory(event){
+/**
+ * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
+ * @requires mShadows
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mMemoryShadow(event){
     event.stopPropagation()
-    const { target, } = event
-    console.log('mImproveMemory::target', target, this)
-    this.addEventListener('click', mImproveMemory, { once: true })
+    const { itemId, lastResponse, shadowId, } = this.dataset // type enum: [agent, member]
+    const shadow = mShadows.find(shadow=>shadow.id===shadowId)
+    if(!shadow)
+        return
+    const { categories, id, proxy='/shadow', text, type, } = shadow
+    switch(type){
+        case 'agent': /* agent shadows go directly to server for answer */
+            addMessage(text, { role: 'member', })
+            const response = await submit(text, { itemId, proxy, shadowId, }) /* proxy submission, use endpoint: /shadow */
+            const { error, errors: _errors, itemId: responseItemId, messages, processingBotId, success=false, } = response
+            const errors = error?.length ? [error] : _errors
+            if(!success || !messages?.length)
+                throw new Error(`No response from server for shadow request.`)
+            const botId = processingBotId
+                ?? messages[0].activeBotId
+                ?? mActiveBot?.id
+            if(mActiveBot?.id===botId)
+                setActiveBot(botId)
+            this.dataset.lastResponse = JSON.stringify(messages)
+            addMessages(messages) // print to screen
+            break
+        case 'member': /* member shadows populate main chat input */
+            const action = `update-memory`
+            const seedText = text.replace(/(\.\.\.|…)\s*$/, '').trim() + ' '
+            seedInput(proxy, action, itemId, shadowId, seedText, text)
+            break
+        default:
+            throw new Error(`Unimplemented shadow type: ${ type }`)
+    }
+    /* close popup */
+    // @stub - minimize to header instead?
+    const popupClose = document.getElementById(`popup-close_${ itemId }`)
+    if(popupClose)
+        popupClose.click()
 }
 /**
  * Processes a document summary request.
@@ -388,6 +438,44 @@ async function mSummarize(event){
         this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-xmark', 'fa-compass') // jic
         show(this)
     }, 20*60*1000)
+}
+/**
+ * Closes the team popup.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mCloseTeamPopup(event){
+    event.preventDefault()
+    event.stopPropagation()
+    const { ctrlKey, key, target, } = event
+    if((key && key!='Escape') && !(ctrlKey && key=='w'))
+        return
+    document.removeEventListener('keydown', mCloseTeamPopup)
+    hide(mTeamPopup)
+}
+/**
+ * Creates bot thumb container.
+ * @param {object} bot - The bot object, defaults to personal-avatar.
+ * @returns {HTMLDivElement} - The bot thumb container.
+ */
+function mCreateBotThumb(bot=getBot()){
+    const { bot_name, id, type, } = bot
+    /* bot-thumb container */
+    const botThumbContainer = document.createElement('div')
+    botThumbContainer.id = `bot-bar-container_${ id }`
+    botThumbContainer.name = `bot-bar-container-${ type }`
+    botThumbContainer.title = bot_name
+    botThumbContainer.addEventListener('click', setActiveBot)
+    botThumbContainer.classList.add('bot-thumb-container')
+    /* bot-thumb */
+    const botIconImage = document.createElement('img')
+    botIconImage.classList.add('bot-thumb')
+    botIconImage.src = mBotIcon(type)
+    botIconImage.alt = type
+    botIconImage.id = `bot-bar-icon_${ id }`
+    botIconImage.dataset.bot_id = id
+    botThumbContainer.appendChild(botIconImage)
+    return botThumbContainer
 }
 /**
  * Create a popup for viewing collection item.
@@ -536,69 +624,109 @@ function mCreateCollectionPopup(collectionItem) {
         case 'story': // memory
             /* improve memory container */
             const improveMemory = document.createElement('div')
-            improveMemory.classList.add(`collection-popup-${type}`)
-            improveMemory.id = `popup-${type}_${id}`
+            improveMemory.classList.add(`collection-popup-${ type }`)
+            improveMemory.id = `popup-${ type }_${ id }`
             improveMemory.name = 'improve-memory-container'
-            improveMemory.addEventListener('click', mImproveMemory, { once: true })
-            /* story input(+submit), shadows(+click), buttons */
-            const memoryInputLane = document.createElement('div')
-            memoryInputLane.classList.add('memory-input-lane')
+            /* shadows, share-memory panel */
+            const improveMemoryLane = document.createElement('div')
+            improveMemoryLane.classList.add('improve-memory-lane')
             /* story shadows */
-            const memoryShadows = document.createElement('div')
-            memoryShadows.classList.add('memory-shadow')
-            memoryShadows.id = `memory-shadow_${ id }`
-            const textArray = [
-                'In the world at the time...',
-                'Add friends involved...',
-                'I lived at...',
-            ]
-            let currentIndex = 0
-            const p = document.createElement('p')
-            p.textContent = textArray[currentIndex]
-            memoryShadows.appendChild(p)
-            const intervalId = setInterval(()=>{ // cycle through the array elements every 3 seconds
-                currentIndex = (currentIndex + 1) % textArray.length
-                p.textContent = textArray[currentIndex]
-            }, 10000)
-            const upButton = document.createElement('button')
-            upButton.textContent = 'Up';
-            upButton.addEventListener('click', event=>{
-                event.stopPropagation()
-                currentIndex = (currentIndex - 1 + textArray.length) % textArray.length
-                p.textContent = textArray[currentIndex]
+            if(mShadows?.length)
+                improveMemoryLane.appendChild(mCreateMemoryShadows(id))
+            /* share memory panel */
+            const shareMemory = document.createElement('div')
+            shareMemory.classList.add('share-memory-container')
+            shareMemory.id = `share-memory_${ id }`
+            shareMemory.name = 'share-memory-container'
+            const shareMemoryActorSelect = document.createElement('div')
+            shareMemoryActorSelect.classList.add('share-memory-select')
+            shareMemoryActorSelect.title = `Select the actor or narrator for the story. Who should tell your story? Or who will play "you"?`
+            /* actor */
+            const actorList = ['Biographer', 'My Avatar', 'Member avatar', 'Q', 'MyLife Professional Actor', 'Custom']
+            const actor = document.createElement('select')
+            actor.classList.add('share-memory-actor-select')
+            actor.dataset.id = id
+            actor.dataset.type = `actor`
+            actor.id = `share-memory-actor-select_${ id }`
+            actor.name = 'share-memory-actor-select'
+            /* actor/narrator label; **note**: for instance if member has tuned a specific bot of theirs to have an outgoing voice they like */
+            const actorLabel = document.createElement('label')
+            actorLabel.classList.add('share-memory-actor-select-label')
+            actorLabel.htmlFor = actor.id
+            actorLabel.id = `share-memory-actor-select-label_${ id }`
+            actorLabel.textContent = 'Actor/Narrator:'
+            shareMemoryActorSelect.appendChild(actorLabel)
+            const actorOption = document.createElement('option')
+            actorOption.disabled = true
+            actorOption.selected = true
+            actorOption.value = ''
+            actorOption.textContent = 'Select narrator...'
+            actor.appendChild(actorOption)
+            actorList.forEach(option=>{
+                const actorOption = document.createElement('option')
+                actorOption.selected = false
+                actorOption.textContent = option
+                actorOption.value = option
+                actor.appendChild(actorOption)
             })
-            const downButton = document.createElement('button')
-            downButton.textContent = 'Down'
-            downButton.addEventListener('click', event=>{
-                event.stopPropagation()
-                currentIndex = (currentIndex + 1) % textArray.length
-                p.textContent = textArray[currentIndex]
+            actor.addEventListener('change', mStory)
+            shareMemoryActorSelect.appendChild(actor)
+            shareMemory.appendChild(shareMemoryActorSelect)
+            /* pov */
+            const shareMemoryPovSelect = document.createElement('div')
+            shareMemoryPovSelect.classList.add('share-memory-select')
+            shareMemoryPovSelect.title = `This refers to the position of the "listener" in the story. Who is the listener? Are they referred to as the protagonist? Antagonist? A particular person or character in your story?`
+            const povList = ['Me', 'Protagonist', 'Antagonist', 'Character',]
+            const pov = document.createElement('select')
+            pov.classList.add('share-memory-pov-select')
+            pov.dataset.id = id
+            pov.dataset.type = `pov`
+            pov.id = `share-memory-pov-select_${ id }`
+            pov.name = 'share-memory-pov-select'
+            /* pov label */
+            const povLabel = document.createElement('label')
+            povLabel.classList.add('share-memory-pov-select-label')
+            povLabel.htmlFor = pov.id
+            povLabel.id = `share-memory-pov-select-label_${ id }`
+            povLabel.textContent = 'Point of View:'
+            shareMemoryPovSelect.appendChild(povLabel)
+            const povOption = document.createElement('option')
+            povOption.disabled = true
+            povOption.selected = true
+            povOption.value = ''
+            povOption.textContent = 'Select listener vantage...'
+            pov.appendChild(povOption)
+            povList.forEach(option=>{
+                const povOption = document.createElement('option')
+                povOption.value = option
+                povOption.textContent = option
+                pov.appendChild(povOption)
             })
-            memoryShadows.appendChild(upButton)
-            memoryShadows.appendChild(downButton)
-            memoryInputLane.appendChild(memoryShadows)
-            /* memory input */
-            const memoryInput = document.createElement('input')
-            memoryInput.classList.add('memory-input')
-            memoryInput.id = `memory-input_${ id } `
-            memoryInput.name = 'memory-input'
-            memoryInput.placeholder = `Ask ${ id } about this...`
-            memoryInputLane.appendChild(memoryInput)
-            /* memory submit */
-            const memorySubmit = document.createElement('button')
-            memorySubmit.classList.add('memory-submit')
-            memorySubmit.id = `memory-submit_${ id }`
-            memorySubmit.name = 'memory-submit'
-            memorySubmit.textContent = 'Submit'
-            memorySubmit.addEventListener('click', mTogglePopup, { once: true })
-            memoryInputLane.appendChild(memorySubmit)
-            /* experience memory */
-            const memoryExperience = document.createElement('button')
-            memoryExperience.classList.add('memory-experience')
-            memoryExperience.id = `memory-experience_${ id }`
-            memoryExperience.name = 'memory-experience'
-            memoryExperience.textContent = 'Experience Memory'
-            memoryInputLane.appendChild(memoryExperience)
+            pov.addEventListener('change', mStory)
+            shareMemoryPovSelect.appendChild(pov)
+            shareMemory.appendChild(shareMemoryPovSelect)
+            /* narrative context */
+            const narrativeContext = document.createElement('textarea')
+            narrativeContext.classList.add('share-memory-context')
+            narrativeContext.dataset.id = id
+            narrativeContext.dataset.previousValue = ''
+            narrativeContext.dataset.type = `narrative`
+            narrativeContext.id = `share-memory-context_${ id }`
+            narrativeContext.name = 'share-memory-context'
+            narrativeContext.placeholder = 'How should the story be told? Should it be scary? humorous? choose your own adventure?'
+            narrativeContext.title = `How should the story be told? Should it be scary? humorous? Will it be a choose your own adventure that deviates from the reality of your memory?`
+            narrativeContext.value = narrativeContext.dataset.previousValue
+            narrativeContext.addEventListener('blur', mStoryContext)
+            shareMemory.appendChild(narrativeContext)
+            /* play memory */
+            const memoryPlay = document.createElement('button')
+            memoryPlay.classList.add('play-memory')
+            memoryPlay.id = `play-memory_${ id }`
+            memoryPlay.name = 'play-memory'
+            memoryPlay.textContent = 'Play Memory'
+            shareMemory.appendChild(memoryPlay)
+            improveMemoryLane.appendChild(shareMemory)
+            // play memory
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
             memoryCarousel.classList.add('memory-carousel')
@@ -606,7 +734,7 @@ function mCreateCollectionPopup(collectionItem) {
             memoryCarousel.name = 'memory-carousel'
             memoryCarousel.textContent = 'Coming soon: media file uploads to Enhance and Improve memories'
             /* append elements */
-            improveMemory.appendChild(memoryInputLane)
+            improveMemory.appendChild(improveMemoryLane)
             improveMemory.appendChild(memoryCarousel)
             typePopup = improveMemory
             break
@@ -622,15 +750,109 @@ function mCreateCollectionPopup(collectionItem) {
     return collectionPopup
 }
 /**
+ * Create a memory shadow `HTMLDivElement`.
+ * @requires mShadows
+ * @param {Guid} itemId - The collection item id.
+ * @returns {HTMLDivElement} - The shadowbox <div>.
+ */
+function mCreateMemoryShadows(itemId){
+    let currentIndex = Math.floor(Math.random() * mShadows.length)
+    const shadow = mShadows[currentIndex]
+    const shadowBox = document.createElement('div')
+    shadowBox.classList.add('memory-shadow')
+    shadowBox.dataset.itemId = itemId
+    shadowBox.id = `memory-shadow_${ itemId }`
+    shadowBox.name = 'memory-shadow'
+    // @stub - add mousewheel event listener to scroll through shadows
+    // shadowBox.addEventListener('wheel', _=>console.log('wheel', _.deltaMode)) // no scroll
+    /* shadow vertical carousel */
+    // @stub - include vertical carousel with more visible prompts, as if on a cylinder
+    /* single shadow text */
+    const { categories, id, text, type, } = shadow
+    const shadowText = document.createElement('div')
+    shadowText.classList.add('memory-shadow-text')
+    shadowText.dataset.itemId = itemId
+    shadowText.dataset.lastResponse = '' // array of messages, will need to stringify/parse
+    shadowText.dataset.shadowId = id
+    shadowText.textContent = text
+    shadowText.addEventListener('click', mMemoryShadow)
+    shadowBox.appendChild(shadowText)
+    // @stub - add mousewheel event listener to scroll through shadows
+    /* pagers */
+    const shadowPagers = document.createElement('div')
+    shadowPagers.classList.add('memory-shadow-pagers')
+    shadowPagers.id = `memory-shadow-pagers_${ itemId }`
+    /* back pager */
+    const backPager = document.createElement('div')
+    backPager.dataset.direction = 'back'
+    backPager.id = `memory-shadow-back_${ itemId }`
+    backPager.classList.add('caret', 'caret-up')
+    backPager.addEventListener('click', _pager)
+    /* next pager */
+    const nextPager = document.createElement('div')
+    nextPager.dataset.direction = 'next'
+    nextPager.id = `memory-shadow-next_${ itemId }`
+    nextPager.classList.add('caret', 'caret-down')
+    nextPager.addEventListener('click', _pager)
+    /* inline function _pager */
+    function _pager(event){
+        event.stopPropagation()
+        const { direction, } = this.dataset
+        currentIndex = direction==='next'
+            ? (currentIndex + 1) % mShadows.length
+            : (currentIndex - 1 + mShadows.length) % mShadows.length
+        const { text, } = mShadows[currentIndex]
+        shadowText.dataset.shadowId = mShadows[currentIndex].id
+        shadowText.textContent = text
+    }
+    shadowPagers.appendChild(backPager)
+    shadowPagers.appendChild(nextPager)
+    shadowBox.appendChild(shadowPagers)
+    /* loop */
+    const seconds = 20 * 1000
+    let intervalId
+    startShadows()
+    function startShadows(){
+        stopShadows()
+        intervalId = setInterval(_=>nextPager.click(), seconds)
+    }
+    function stopShadows(){
+        clearInterval(intervalId)
+    }
+    return shadowBox
+}
+/**
+ * Create a team member that has been selected from add-team-member icon.
+ * @requires mActiveTeam
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mCreateTeamMember(event){
+    event.stopPropagation()
+    const { value: type, } = this
+    if(!type)
+        throw new Error(`no team member type selected`)
+    // const { description, id, teams, } = await mCreateBot(type)
+    const bot = await mCreateBot(type)
+    if(!bot)
+        throw new Error(`no bot created for team member`)
+    const { description, id, teams, } = bot
+    mBots.push(bot)
+    setActiveBot(id)
+    updatePageBots(mBots, true, true)
+}
+/**
  * Create a team new popup.
  * @requires mActiveTeam
  * @requires mTeamPopup
+ * @requires mTeams
  * @param {string} type - The type of team to create.
  * @param {boolean} showPopup - Whether or not to show the popup.
  * @returns {void}
  */
 function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
     const { allowCustom, allowedTypes, } = mActiveTeam
+    mTeamPopup.style.visibility = 'hidden'
     mTeamPopup.innerHTML = '' // clear existing
     const teamPopup = document.createElement('div')
     teamPopup.classList.add(`team-popup-${ type }`, 'team-popup-content')
@@ -638,6 +860,7 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
     teamPopup.name = `team-popup-${ type }`
     let popup
     let offsetX = 0
+    let listener
     switch(type){
         case 'addTeamMember':
             const memberSelect = document.createElement('select')
@@ -645,15 +868,17 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
             memberSelect.name = `team-member-select`
             memberSelect.classList.add('team-member-select')
             const memberOption = document.createElement('option')
+            memberOption.disabled = true
+            memberOption.innerText = 'Select a team member to add...'
+            memberOption.selected = true
             memberOption.value = ''
-            memberOption.innerText = 'Select a team member...'
             memberSelect.appendChild(memberOption)
             allowedTypes.forEach(type=>{
                 if(mBots.find(bot=>bot.type===type)) // no duplicates currently
                     return
                 const memberOption = document.createElement('option')
-                memberOption.value = type
                 memberOption.innerText = type
+                memberOption.value = type
                 memberSelect.appendChild(memberOption)
             })
             if(allowCustom){
@@ -665,42 +890,76 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
                 memberOptionCustom.innerText = 'Create a custom team member...'
                 memberSelect.appendChild(memberOptionCustom)
             }
+            memberSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
+            memberSelect.addEventListener('change', mCreateTeamMember, { once: true })
+            listener = mTeamMemberSelect
             popup = memberSelect
             break
-        case 'teamSelect':
+        case 'selectTeam':
+            console.log('Create team select popup:', mTeams, mActiveTeam)
+            const teamSelect = document.createElement('select')
+            teamSelect.id = `team-select`
+            teamSelect.name = `team-select`
+            teamSelect.classList.add('team-select')
+            const teamOption = document.createElement('option')
+            teamOption.disabled = true
+            teamOption.innerText = `MyLife's pre-defined agent teams...`
+            teamOption.selected = true
+            teamOption.value = ''
+            teamSelect.appendChild(teamOption)
+            mTeams.forEach(team=>{
+                const { name, } = team
+                const teamOption = document.createElement('option')
+                teamOption.value = name
+                teamOption.innerText = name
+                teamSelect.appendChild(teamOption)
+            })
+            teamSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
+            listener = mTeamSelect
+            popup = teamSelect
             break
         default:
             break
     }
     mTeamPopup.appendChild(teamPopup)
+    if(showPopup){
+        show(mTeamPopup)
+        document.addEventListener('click', mCloseTeamPopup, { once: true })
+        document.addEventListener('keydown', mCloseTeamPopup)
+    }
     if(popup){
         teamPopup.appendChild(popup)
         mTeamPopup.style.position = 'absolute'
-        mTeamPopup.style.visibility = 'hidden'
-        show(mTeamPopup)
         offsetX = teamPopup.offsetWidth
-        mTeamPopup.style.left = `${ clickX - offsetX }px`
-        mTeamPopup.style.top = `${ clickY }px`
-        mTeamPopup.style.visibility = 'visible'
+        let leftPosition = clickX - offsetX / 2
+        const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+        if(leftPosition < 0)
+            leftPosition = 0
+        else if(leftPosition + offsetX > viewportWidth)
+            leftPosition = viewportWidth - offsetX
+        mTeamPopup.style.left = `${ leftPosition }px`
+        mTeamPopup.style.top = `${clickY}px`
         popup.focus()
-        document.addEventListener('click', mToggleTeamPopup, { once: true })
-        document.addEventListener('keydown', mToggleTeamPopup, { once: true })
-        popup.addEventListener('change', mToggleTeamPopup, { once: true })
+        if(listener)
+            popup.addEventListener('change', listener, { once: true })
     }
-    if(showPopup)
-        show(mTeamPopup)
+    mTeamPopup.style.visibility = 'visible'
 }
 /**
  * Create add a team member popup.
  */
 function mCreateTeamMemberSelect(event){
+    event.stopPropagation()
     const { clientX, clientY, } = event
     mCreateTeamPopup('addTeamMember', clientX, clientY, true)
 }
 /**
  * Create a team select popup.
+ * @param {Event} event - The event object.
+ * @returns {void}
  */
 function mCreateTeamSelect(event){
+    event.stopPropagation()
     const { clientX, clientY, } = event
     mCreateTeamPopup('selectTeam', clientX, clientY, true)
 }
@@ -1046,6 +1305,39 @@ function mSpotlightBotStatus(){
         })
 }
 /**
+ * Submit updated `story` data. No need to return unless an error, which is currently thrown.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mStory(event){
+    event.stopPropagation()
+    const { dataset, value, } = this
+    const { id, type: field, } = dataset
+    if(!value?.length)
+        throw new Error(`No value provided for story update.`)
+    const url = window.location.origin + '/members/item/' + id
+    const method = 'PUT'
+    let response = await fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [`${ field }`]: value })
+    })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    response = await response.json()
+    if(!response.success)
+        throw new Error(`Narrative "${ value }" not accepted.`)
+}
+async function mStoryContext(event){
+    const { dataset, value, } = this
+    const { previousValue, } = dataset
+    if(previousValue==value)
+        return
+    mStory.bind(this)(event) // no need await
+}
+/**
  * Submit updated passphrase for MyLife via avatar.
  * @private
  * @async
@@ -1077,6 +1369,33 @@ async function mSubmitPassphrase(event){
         console.log('Error submitting passphrase:', err)
         mTogglePassphrase(true)
     }
+}
+/**
+ * Manages `change` event selection of team member from `team-select` dropdown.
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mTeamMemberSelect(event){
+    const { value, } = this
+    if(value?.length){ // request to server
+        /* validate */
+        const bot = mBot(value)
+        if(bot)
+            mUpdateBotContainers()
+    }
+    mCloseTeamPopup(event)
+}
+/**
+ * Manages `change` event selection of team from `team-select` dropdown.
+ * @requires mActiveTeam
+ * @param {Event} event - The event object. 
+ * @returns {void}
+ */
+function mTeamSelect(event){
+    const { value, } = this
+    mUpdateTeams(value) // `change` requires that value not be the same
+    mCloseTeamPopup(event)
 }
 /**
  * Toggles bot containers and checks for various actions on master click of `this` bot-container. Sub-elements appear as targets and are rendered appropriately.
@@ -1171,51 +1490,6 @@ async function mToggleCollectionItems(event){
         show(collectionList) // even if `none`
     } else
         toggleVisibility(collectionList)
-}
-/**
- * Toggles team popup visibility and associated functionality.
- * @async
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function mToggleTeamPopup(event){
-    const { clientX, clientY, key, target, type, } = event
-    const { value, } = this
-    let hidePopup = true
-    switch(type){
-        case 'change':
-            hidePopup = !value?.length
-            if(value?.length){ // request to server
-                /* validate */
-                let bot
-                try{
-                    bot = mBot(value)
-                    console.log('mToggleTeamPopup::CHANGE to:', value, bot)
-                } catch(error) {
-                    console.log('mToggleTeamPopup::ERROR', error)
-                }
-                if(bot)
-                    mUpdateBotContainers()
-                hidePopup = true
-            }
-            break
-        case 'click':
-            hidePopup = !this.contains(target)
-            if(!hidePopup){
-                console.log('mToggleTeamPopup::CLICK-redo', hidePopup)
-                document.addEventListener('click', mToggleTeamPopup, { once: true })
-                return
-            }
-            break
-        case 'input':
-        case 'keydown':
-            hidePopup = key?.toLowerCase()!=='enter'
-            if(!hidePopup)
-                document.addEventListener('keydown', mToggleTeamPopup, { once: true })
-            break
-    }
-    if(hidePopup)
-        hide(mTeamPopup)
 }
 /**
  * Toggles passphrase input visibility.
@@ -1363,31 +1637,32 @@ function mToggleSwitchPrivacy(event){
  * @returns {void}
  */
 function mUpdateBotBar(){
+    const botBarBots = []
     botBar.innerHTML = ''
     if(!mBots?.length)
         throw new Error(`No bots found for bot bar.`)
-    // show avatar
-    // show team
-    // show additionals
+    const avatarThumb = mCreateBotThumb(getBot())
+    botBar.appendChild(avatarThumb) // avatar
+    botBar.appendChild(_thumbDivider())
+    botBarBots.push(getBot().id) // active bot
+    mActiveTeam?.bots // active team bots
+        .forEach(bot=>{
+            botBar.appendChild(mCreateBotThumb(bot))
+            botBarBots.push(bot.id)
+        })
+    botBar.appendChild(_thumbDivider())
+    // create remaining bots
     mBots
-        .map(bot=>mCreateBotThumb(bot)) // array of HTMLDivElements for bot-thumbs
-        .forEach(botIcon=>botBar.appendChild(botIcon))
-}
-function mCreateBotThumb(bot){
-    const { id, type, } = bot
-    /* bot-thumb container */
-    const botThumbContainer = document.createElement('div')
-    botThumbContainer.addEventListener('click', setActiveBot)
-    botThumbContainer.classList.add('bot-thumb-container')
-    /* bot-thumb */
-    const botIconImage = document.createElement('img')
-    botIconImage.classList.add('bot-thumb')
-    botIconImage.src = mBotIcon(type)
-    botIconImage.alt = type
-    botIconImage.id = `bot-bar-icon_${ id }`
-    botIconImage.dataset.bot_id = id
-    botThumbContainer.appendChild(botIconImage)
-    return botThumbContainer
+        .filter(bot=>!botBarBots.includes(bot.id))
+        .forEach(bot=>{
+            botBar.appendChild(mCreateBotThumb(bot))
+            botBarBots.push(bot.id)
+        })
+    function _thumbDivider(){
+        const divider = document.createElement('div')
+        divider.classList.add('bot-bar-divider')
+        return divider
+    }
 }
 /**
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
@@ -1501,6 +1776,21 @@ function mUpdateBotContainerAddenda(botContainer, bot){
             default:
                 break
         }
+}
+/**
+ * Requests update of bot instructions and functions on LLM model.
+ * @public
+ * @async
+ * @requires mActiveBot
+ * @returns {void} - presumes success or failure, but beyond control of front-end.
+ */
+async function updateBotInstructions(){
+    const { id, } = mActiveBot
+    const url = window.location.origin + '/members/bots/system-update/' + id
+    const method = 'PUT'
+    const response = await fetch(url, { method: method })
+    const { success, } = await response.json()
+    console.log(`Bot instructions update success: ${ success ?? false }`)
 }
 /**
  * Update the identified collection with provided specifics.
@@ -1622,17 +1912,31 @@ function mUpdatePrivacySlider(type, privacy, botContainer){
 }
 /**
  * Updates the active team to specific or default.
+ * @requires mActiveTeam
  * @requires mAvailableTeams
- * @param {string} teamName - The team name.
+ * @requires mDefaultTeam
+ * @requires mTeams
+ * @param {string} identifier - The name or id of active team.
  * @returns {void}
  */
-async function mUpdateTeam(teamName=mDefaultTeam){
-    const team = mAvailableTeams[teamName]
+async function mUpdateTeams(identifier=mDefaultTeam){
+    if(!mTeams?.length)
+        mTeams.push(...await fetchTeams())
+    const team = mTeams
+        .find(team=>team.name===identifier || team.id===identifier)
     if(!team)
-        throw new Error(`Team "${ teamName }" not available at this time.`)
-    mActiveTeam = team
-    const { description, name, } = team
-    mTeamName.innerText = `${ name } Team`
+        throw new Error(`Team "${ identifier }" not available at this time.`)
+    if(mActiveTeam!==team){
+        const { id: teamId, } = team
+        const activeTeam = await fetchTeam(teamId) // set team on server and receive bot ids in `bots`
+        if(activeTeam)
+            mActiveTeam = activeTeam
+    }
+    const { allowedTypes, description, id, name, title, } = team
+    mTeamName.dataset.id = id
+    mTeamName.dataset.description = description
+    mTeamName.innerText = `${ title ?? name } Team`
+    mTeamName.title = description
     mTeamName.addEventListener('click', mCreateTeamSelect)
     mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
     hide(mTeamPopup)
@@ -1732,6 +2036,9 @@ export {
     activeBot,
     fetchBots,
     fetchCollections,
+    fetchTeam,
+    fetchTeams,
+    getBot,
     setActiveBot,
     updatePageBots,
 }

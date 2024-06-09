@@ -72,7 +72,7 @@ class Avatar extends EventEmitter {
         this.nickname = this.nickname ?? this.names?.[0] ?? `${this.memberFirstName ?? 'member'}'s avatar`
         /* create evolver (exclude MyLife) */
         this.#bots = await this.#factory.bots(this.id)
-        let activeBot = this.avatarBot
+        let activeBot = this.avatar
         if(!this.isMyLife){
             /* bot checks */
             const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
@@ -85,7 +85,7 @@ class Avatar extends EventEmitter {
                         }
                 }
             ))
-            activeBot = this.avatarBot // second time is a charm
+            activeBot = this.avatar // second time is a charm
             this.activeBotId = activeBot.id
             this.#llmServices.botId = activeBot.bot_id
             /* conversations */
@@ -119,11 +119,12 @@ class Avatar extends EventEmitter {
     /**
      * Get a bot.
      * @public
-     * @param {string} _bot_id - The bot id.
+     * @async
+     * @param {Guid} id - The bot id.
      * @returns {object} - The bot.
      */
-    async bot(_bot_id){
-        return await this.#factory.bot(_bot_id)
+    async bot(id){
+        return await this.#factory.bot(id)
     }
     /**
      * Processes and executes incoming chat request.
@@ -450,7 +451,6 @@ class Avatar extends EventEmitter {
      * @returns {Promise<object>} - Returns void if item created successfully.
      */
     async item(item, method){
-        console.log('item()', item, method)
         const { globals, } = this
         let { id, } = item
         let success = false
@@ -461,7 +461,6 @@ class Avatar extends EventEmitter {
                 success = item ?? success
                 break
             case 'post': /* create */
-                console.log('item()::post', item)
                 item = await this.#factory.createItem(item)
                 success = this.globals.isValidGuid(item?.id)
                 break
@@ -476,7 +475,7 @@ class Avatar extends EventEmitter {
                 break
         }
         return {
-            item,
+            item: mPruneItem(item),
             success,
         }
     }
@@ -502,6 +501,64 @@ class Avatar extends EventEmitter {
         if(!passphrase?.length)
             throw new Error('Passphrase required for reset.')
         return await this.#factory.resetPassphrase(passphrase)
+    }
+    /**
+     * Takes a shadow message and sends it to the appropriate bot for response.
+     * @param {Guid} shadowId - The shadow id.
+     * @param {Guid} itemId - The item id.
+     * @param {string} title - The title of the original summary.
+     * @param {string} message - The member (interacting with shadow) message content.
+     * @returns {Object} - The response object { error, itemId, messages, processingBotId, success, }
+     */
+    async shadow(shadowId, itemId, title, message){
+        const processingStartTime = Date.now()
+        const shadows = await this.shadows()
+        const shadow = shadows.find(shadow=>shadow.id===shadowId)
+        if(!shadow)
+            throw new Error('Shadow not found.')
+        const { text, type, } = shadow
+        const item = await this.#factory.item(itemId)
+        if(!item)
+            throw new Error(`cannot find item: ${ itemId }`)
+        const { form, summary, } = item
+        let tailgate
+        const bot = this?.[form] ?? this.activeBot /* currently only `biographer` which transforms thusly when referenced here as this[form] */
+        switch(type){
+            case 'member':
+                message = `update-memory-request: itemId=${ itemId }\n` + message
+                break
+            case 'agent':
+                // @stub - develop additional form types, entry or idea for instance
+                const dob = new Date(this.#factory.dob)
+                const diff_ms = Date.now() - dob.getTime()
+                const age_dt = new Date(diff_ms)
+                const age = Math.abs(age_dt.getUTCFullYear() - 1970)
+                message = `Given age of member: ${ age } and updated summary of personal memory: ${ summary }\n- answer the question: "${ text }"`
+                tailgate = {
+                    content: `Would you like to add this, or part of it, to your memory?`, // @stub - tailgate for additional data
+                    thread_id: bot.thread_id,
+                }
+                break
+            default:
+                break
+        }
+        let messages = await mCallLLM(this.#llmServices, bot, message, this.#factory, this)
+        messages = messages.map(message=>mPruneMessage(bot, message, 'shadow', processingStartTime))
+        if(tailgate?.length)
+            messages.push(mPruneMessage(bot, tailgate, 'system'))
+        return {
+            itemId,
+            messages,
+            processingBotId: bot.id,
+            success: true,
+        }
+    }
+    /**
+     * Gets the list of shadows.
+     * @returns {Object[]} - Array of shadow objects.
+     */
+    async shadows(){
+        return await this.#factory.shadows()
     }
     /**
      * Summarize the file indicated.
@@ -538,6 +595,41 @@ class Avatar extends EventEmitter {
         }
         return response
     }
+    /**
+     * Get a specified team, its details and _instanced_ bots, by id for the member.
+     * @param {Koa} ctx - Koa Context object
+     * @returns {object} - Team object
+     */
+    async team(teamId){
+        const team = this.#factory.team(teamId)
+        const { allowedTypes=[], defaultTypes=[], type, } = team
+        const teamBots = this.bots
+            .filter(bot=>bot?.teams?.includes(teamId))
+        for(const type of defaultTypes){
+            let bot = teamBots.find(bot=>bot.type===type)
+            if(!bot){
+                bot = this.bots.find(bot=>bot.type===type)
+                if(bot){ // local conscription
+                    bot.teams = [...bot?.teams ?? [], teamId,]
+                    await this.updateBot(bot) // save Cosmos no await
+                } else { // create
+                    const teams = [teamId,]
+                    bot = await this.createBot({ teams, type, })
+                }
+            } else continue // already in team
+            if(bot)
+                teamBots.push(bot)
+        }
+        team.bots = teamBots
+        return team
+    }
+    /**
+     * Get a list of available teams and their default details.
+     * @returns {Object[]} - List of team objects.
+     */
+    teams(){
+        return this.#factory.teams()
+    }
     async thread_id(){
         if(!this.#conversations.length){
             await this.createConversation()
@@ -558,8 +650,8 @@ class Avatar extends EventEmitter {
         await this.#assetAgent.init(this.#factory.vectorstoreId, includeMyLife) /* or "re-init" */
         await this.#assetAgent.upload(files)
         const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = this.#assetAgent
-        if(!vectorstoreId && newVectorstoreId)
-            this.updateTools()
+        if(!vectorstoreId && newVectorstoreId) // ensure access for LLM
+            this.updateInstructions(this.activeBot.id, false, false, true)
         return {
             uploads: files,
             files: vectorstoreFileList,
@@ -572,48 +664,29 @@ class Avatar extends EventEmitter {
      * @returns {object} - The updated bot.
      */
     async updateBot(bot){
-        bot = await mBot(this.#factory, this, bot)
-        /* add/update bot */
-        if(!this.#bots.some(_bot => _bot.id === bot.id))
-            this.#bots.push(bot)
-        else
-            this.#bots = this.#bots.map(_bot=>_bot.id===bot.id ? bot : _bot)
-        return bot
+        return await mBot(this.#factory, this, bot) // note: mBot() updates `avatar.bots`
     }
     /**
-     * Update tools for bot-assistant based on type.
-     * @todo - manage issue that several bots require attachment upon creation.
-     * @todo - move to llm code.
-     * @todo - allow for multiple types simultaneously.
-     * @param {string} bot_id - The bot id to update tools for.
-     * @param {string} type - The type of tool to update.
-     * @param {any} data - The data required by the switch type.
-     * @returns {void}
+     * Update core  for bot-assistant based on type. Default updates all LLM pertinent properties.
+     * @param {string} id - The id of bot to update.
+     * @param {boolean} includeInstructions - Whether to include instructions in the update.
+     * @param {boolean} includeModel - Whether to include model in the update.
+     * @param {boolean} includeTools - Whether to include tools in the update.
+     * @returns {object} - The updated bot object.
      */
-    async updateTools(bot_id=this.avatarBot.bot_id, type='file_search', data){
-        let tools
-        switch(type){
-            case 'function': // @stub - function tools
-                tools = {
-                    tools: [{ type: 'function' }],
-                    function: {},
-                }
-                break
-            case 'file_search':
-            default:
-                if(!this.#factory.vectorstoreId)
-                    return
-                tools = {
-                    tools: [{ type: 'file_search' }],
-                    tool_resources: {
-                        file_search: {
-                            vector_store_ids: [this.#factory.vectorstoreId],
-                        }
-                    },
-                }
+    async updateInstructions(id=this.activeBot.id, includeInstructions=true, includeModel=true, includeTools=true){
+        const { type, } = this.#bots.find(bot=>bot.id===id)
+            ?? this.activeBot
+        if(!type?.length)
+            return
+        const bot = { id, type, }
+        const options = {
+            instructions: includeInstructions,
+            model: includeModel,
+            tools: includeTools,
         }
-        if(tools)
-            this.#llmServices.updateBot({ bot_id, tools, }) /* no await */
+        const response = await this.#factory.updateBot(bot, options)
+        return mPruneBot(response)
     }
     /**
      * Validate registration id.
@@ -648,13 +721,17 @@ class Avatar extends EventEmitter {
     /**
      * Set the active bot id. If not match found in bot list, then defaults back to this.id
      * @setter
-     * @param {string} bot_id - The active bot id, defaults to personal-avatar.
+     * @requires mBotInstructions
+     * @param {string} id - The active bot id, defaults to personal-avatar.
      * @returns {void}
      */
-    set activeBotId(bot_id=this.avatarBot.id){
-        this.#activeBotId = 
-            ( mFindBot(this, bot_id) ?? this.avatarBot )
-                .id
+    set activeBotId(id=this.avatar.id){
+        const newActiveBot = mFindBot(this, id) ?? this.avatar
+        const { id: newActiveId, type, version: botVersion=1.0, } = newActiveBot
+        const currentVersion = this.#factory.botInstructionsVersion(type)
+        if(botVersion!==currentVersion)
+            this.updateInstructions(newActiveId, true, false, true)
+        this.#activeBotId = newActiveId
     }
     /**
      * Get actor or default avatar bot.
@@ -662,7 +739,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The actor bot (or default bot).
      */
     get actorBot(){
-        return this.#bots.find(_bot=>_bot.type==='actor')??this.avatarBot
+        return this.#bots.find(_bot=>_bot.type==='actor')??this.avatar
     }
     /**
      * Get the age of the member.
@@ -698,7 +775,7 @@ class Avatar extends EventEmitter {
      * @getter
      * @returns {object} - The personal avatar bot.
      */
-    get avatarBot(){
+    get avatar(){
         return this.bots.find(_bot=>_bot.type==='personal-avatar')
     }
     /**
@@ -709,6 +786,9 @@ class Avatar extends EventEmitter {
     */
     get being(){    //  
         return this.#proxyBeing
+    }
+    get biographer(){
+        return this.#bots.find(_bot=>_bot.type==='personal-biographer')
     }
     /**
      * Get the birthdate of _member_ from `#factory`.
@@ -1024,7 +1104,7 @@ class Avatar extends EventEmitter {
             this.#nickname = nickname
     }
     get personalAssistant(){
-        return this.avatarBot
+        return this.avatar
     }
 }
 /* module functions */
@@ -1084,7 +1164,7 @@ async function mBot(factory, avatar, bot){
     let originBot = bots.find(oBot=>oBot.id===botId)
     if(originBot){ /* update bot */
         const options = {}
-        const updateBot = Object.keys(bot)
+        const updatedBot = Object.keys(bot)
             .reduce((diff, key) => {
                 if(bot[key]!==originBot[key])
                     diff[key] = bot[key]
@@ -1096,24 +1176,24 @@ async function mBot(factory, avatar, bot){
             const excludeTypes = ['library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
-                updateBot.thread_id = conversation.thread_id
+                updatedBot.thread_id = conversation.thread_id
                 avatar.conversations.push(conversation)
             }
         }
-        if(Object.keys(updateBot).length){
-            let updatedOriginBot = {...originBot, ...updateBot} // consolidated update
+        if(Object.keys(updatedBot).length){
+            let updatedOriginBot = {...originBot, ...updatedBot} // consolidated update
             const { bot_id, id, } = updatedOriginBot
-            updateBot.bot_id = bot_id
-            updateBot.id = id
-            updateBot.type = type
-            const { interests, dob, privacy, } = updateBot
+            updatedBot.bot_id = bot_id
+            updatedBot.id = id
+            updatedBot.type = type
+            const { interests, dob, privacy, } = updatedBot
             /* set options */
             if(interests?.length || dob?.length || privacy?.length){
                 options.instructions = true
                 options.model = true
                 options.tools = false /* tools not updated through this mechanic */
             }
-            updatedOriginBot = await factory.updateBot(updateBot, options)
+            updatedOriginBot = await factory.updateBot(updatedBot, options)
             originBot = mSanitize(updatedOriginBot)
         }
     } else { /* create assistant */
@@ -1126,8 +1206,8 @@ async function mBot(factory, avatar, bot){
 /**
  * Makes call to LLM and to return response(s) to prompt.
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
- * @todo - address disconnect between conversations held in memory in avatar and those in openAI threads; use `addLLMMessages` to post internally
  * @todo - would dynamic event dialog be handled more effectively with a callback routine function, I think so, and would still allow for avatar to vet, etc.
+ * @todo - convert conversation requirements to bot
  * @module
  * @param {LLMServices} llmServices - OpenAI object currently
  * @param {Conversation} conversation - Conversation object
@@ -1139,10 +1219,10 @@ async function mBot(factory, avatar, bot){
 async function mCallLLM(llmServices, conversation, prompt, factory, avatar){
     const { botId, bot_id, thread_id: threadId } = conversation
     const id = botId ?? bot_id
-    if(!threadId || !botId)
+    if(!threadId || !id)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
     const messages = await llmServices.getLLMResponse(threadId, id, prompt, factory, avatar)
-    messages.sort((mA, mB) => {
+    messages.sort((mA, mB)=>{
         return mB.created_at - mA.created_at
     })
     return messages
@@ -1770,6 +1850,11 @@ function mNavigation(scenes){
             return (a.order ?? 0) - (b.order ?? 0)
         })
 }
+/**
+ * Returns a frontend-ready bot object.
+ * @param {object} assistantData - The assistant data object.
+ * @returns {object} - The pruned bot object.
+ */
 function mPruneBot(assistantData){
     const { bot_id, bot_name: name, description, id, purpose, type, } = assistantData
     return {
@@ -1780,6 +1865,28 @@ function mPruneBot(assistantData){
         purpose,
         type,
     }
+}
+/**
+ * Returns a frontend-ready object, pruned of cosmos database fields.
+ * @param {object} document - The document object to prune.
+ * @returns {object} - The pruned document object.
+ */
+function mPruneDocument(document){
+    const {
+        being,
+        mbr_id,
+        name,
+        _attachments,
+        _etag,
+        _rid,
+        _self,
+        _ts,
+        ..._document
+    } = document
+    return _document
+}
+function mPruneItem(item){
+    return mPruneDocument(item)
 }
 /**
  * Returns frontend-ready Message object after logic mutation.

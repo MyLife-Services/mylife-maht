@@ -21,8 +21,13 @@ import {
     members,
     passphraseReset,
     privacyPolicy,
+    shadow,
+    shadows,
     signup,
     summarize,
+    team,
+    teams,
+    updateBotInstructions,
     upload,
 } from './functions.mjs'
 import {
@@ -56,6 +61,7 @@ _Router.get('/greeting', greetings)
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
+_Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
@@ -95,6 +101,7 @@ _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/item/:iid', item)
 _memberRouter.get('/mode', interfaceMode)
+_memberRouter.get('/teams', teams)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
@@ -105,9 +112,12 @@ _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
+_memberRouter.post('/shadow', shadow)
 _memberRouter.post('/summarize', summarize)
+_memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
+_memberRouter.put('/bots/system-update/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())

@@ -100,9 +100,11 @@ async function collections(ctx){
 	ctx.body = await avatar.collections(ctx.params.type)
 }
 async function createBot(ctx){
-	const { team, type, } = ctx.request.body
+	const { teamId, type, } = ctx.request.body
 	const { avatar, } = ctx.state
-	const bot = { type, } // `type` only requirement to create a known, MyLife-typed bot
+	const bot = { teams: [], type, } // `type` only requirement to create a known, MyLife-typed bot
+	if(teamId?.length)
+		bot.teams.push(teamId)
 	ctx.body = await avatar.createBot(bot)
 }
 /**
@@ -219,6 +221,24 @@ async function privacyPolicy(ctx){
 	ctx.state.subtitle = `Effective Date: 2024-01-01`
 	await ctx.render('privacy-policy')	//	privacy-policy
 }
+async function shadow(ctx){
+	const { avatar, } = ctx.state
+	const { active=true, botId, itemId, message, role, threadId, shadowId, title, } = ctx.request.body // necessary to flip active bot, or just presume to use the creator of the shadow?
+	if(!itemId?.length)
+		ctx.throw(400, `missing item id`)
+	if(!active) // @stub - redirect to normal chat?
+		ctx.throw(400, `shadow must be active`)
+	ctx.body = await avatar.shadow(shadowId, itemId, title, message)
+}
+/**
+ * Gets the list of shadows.
+ * @returns {Object[]} - Array of shadow objects.
+ */
+async function shadows(ctx){
+	const { avatar, } = ctx.state
+	const response = await avatar.shadows()
+	ctx.body = response
+}
 async function signup(ctx) {
     const { avatarName, email, humanName, type='newsletter', } = ctx.request.body
 	const signupPacket = {
@@ -273,6 +293,36 @@ async function summarize(ctx){
 	ctx.body = await avatar.summarize(fileId, fileName)
 }
 /**
+ * Get a specified team, its details and bots, by id for the member.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - Team object
+ */
+async function team(ctx){
+	const { tid, } = ctx.params
+	if(!tid?.length)
+		ctx.throw(400, `missing team id`)
+	const { avatar, } = ctx.state
+	ctx.body = await avatar.team(tid)
+}
+/**
+ * Get a list of available teams and their default details.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {Object[]} - List of team objects.
+ */
+function teams(ctx){
+	const { avatar, } = ctx.state
+	ctx.body = avatar.teams()
+}
+async function updateBotInstructions(ctx){
+	const { botId, } = ctx.request.body
+	const { avatar, } = ctx.state
+	let success = false
+	const bot = await avatar.updateBot(botId, { instructions: true, model: true, tools: true, })
+	if(bot)
+		success = true
+	ctx.body = { bot, success, }
+}
+/**
  * Proxy for uploading files to the API.
  * @param {Koa} ctx - Koa Context object
  * @returns {object} - The result of the upload as `ctx.body`.
@@ -307,7 +357,12 @@ export {
 	members,
 	passphraseReset,
 	privacyPolicy,
+	shadow,
+	shadows,
 	signup,
 	summarize,
+	team,
+	teams,
+	updateBotInstructions,
 	upload,
 }

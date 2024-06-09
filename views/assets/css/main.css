@@ -719,6 +719,24 @@ body {
     font-weight: bold;
 }
 /* MyLife general */
+.caret {
+	border-style: solid;
+    cursor: pointer;
+	height: 0;
+    width: 0;
+}
+.caret-up {
+    border-width: 0 8px 8px 8px; /* Adjust sizes as needed */
+    border-color: transparent transparent #ccc transparent;
+    margin-bottom: 5px; /* Space between the up and down carets */
+    filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.3)); /* Bevel effect */
+}
+.caret-down {
+    border-width: 8px 8px 0 8px; /* Adjust sizes as needed */
+    border-color: #ccc transparent transparent transparent;
+    margin-top: 5px; /* Space between the up and down carets */
+    filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.3)); /* Bevel effect */
+}
 .grabbing {
 	cursor: grabbing;
 }

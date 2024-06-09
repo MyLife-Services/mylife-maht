@@ -41,10 +41,144 @@ const mExcludeProperties = {
 	name: true
 }
 const mLLMServices = new LLMServices()
+const mMyLifeTeams = [
+	{
+		active: true,
+		allowCustom: true,
+		allowedTypes: ['artifact', 'curator', 'editor', 'idea', 'library', 'marketer'],
+		defaultTypes: ['artifact', 'idea', 'library',],
+		description: 'The Creative Team is dedicated to help you experience productive creativity sessions.',
+		id: '84aa50ca-fb64-43d8-b140-31d2373f3cd2',
+		name: 'creative',
+		title: 'Creative',
+	},
+	{
+		active: false,
+		allowCustom: false,
+		allowedTypes: ['fitness', 'health', 'insurance', 'medical', 'prescriptions', 'yoga', 'nutrition',],
+		defaultTypes: ['fitness', 'health', 'medical',],
+		description: 'The Health Team is dedicated to help you manage your health and wellness.',
+		id: '238da931-4c25-4868-928f-5ad1087a990b',
+		name: 'health',
+		title: 'Health',
+	},
+	{
+		active: true,
+		allowCustom: true,
+		allowedTypes: ['diary', 'journaler', 'library', 'personal-biographer',],
+		defaultTypes: ['personal-biographer', 'library',],
+		description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
+		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
+		name: 'memoir',
+		title: 'Memoir',
+	},
+	{
+		active: false,
+		allowCustom: true,
+		allowedTypes: ['personal-assistant', 'idea', 'note', 'resume', 'scheduler', 'task',],
+		defaultTypes: ['personal-assistant', 'resume', 'scheduler',],
+		description: 'The Professional Team is dedicated to your professional success.',
+		id: '5b7c4109-4985-4d98-b59b-e2c821c3ea28',
+		name: 'professional',
+		title: 'Professional',
+	},
+	{
+		active: false,
+		allowCustom: true,
+		allowedTypes: ['connection', 'experience', 'social', 'relationship',],
+		defaultTypes: ['connection', 'relationship',],
+		description: 'The Social Team is dedicated to help you connect with others.',
+		id: 'e8b1f6d0-8a3b-4f9b-9e6a-4e3c5b7e3e9f',
+		name: 'social',
+		title: 'Social',
+	},
+	{
+		active: false,
+		allowCustom: true,
+		allowedTypes: ['library', 'note', 'poem', 'quote', 'religion',],
+		defaultTypes: ['library', 'quote', 'religion',],
+		description: 'The Spirituality Team is dedicated to help you creatively explore your spiritual side.',
+		id: 'bea7bb4a-a339-4026-ad1c-75f604dc3349',
+		name: 'sprituality',
+		title: 'Spirituality',
+	},
+	{
+		active: true,
+		allowCustom: true,
+		allowedTypes: ['data-ownership', 'investment', 'library', 'ubi',],
+		defaultTypes: ['library', 'ubi'],
+		description: 'The Universal Basic Income (UBI) Team is dedicated to helping you tailor your MyLife revenue streams based upon consensual access to your personal MyLife data.',
+		id: '8a4d7340-ac62-40f1-8c77-f17c68797925',
+		name: 'ubi',
+		title: 'UBI',
+	}
+]
 const mNewGuid = ()=>Guid.newGuid().toString()
 const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
 const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
+const mShadows = [
+	{
+		being: 'shadow',
+		categories: ['world events'],
+		form: 'story',
+		id: 'e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
+		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
+		proxy: '/shadow',
+		text: `What was happening in the world at the time?`,
+		type: 'agent',
+	},
+	{
+		being: 'shadow',
+		categories: ['personal', 'residence'],
+		form: 'story',
+		id: '0087b3ec-956e-436a-9272-eceed5e97ad0',
+		name: 'shadow_0087b3ec-956e-436a-9272-eceed5e97ad0',
+		proxy: '/shadow',
+		text: `At the time, I was living at...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['relations',],
+		form: 'story',
+		id: '0aac1ca3-a9d2-4587-ad9f-3e85e5391f44',
+		name: 'shadow_0aac1ca3-a9d2-4587-ad9f-3e85e5391f44',
+		proxy: '/shadow',
+		text: `Some people involved were...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['reflection', 'personal'],
+		form: 'story',
+		id: '040850c1-9991-46be-b962-8cf4ad9cfb24',
+		name: 'shadow_040850c1-9991-46be-b962-8cf4ad9cfb24',
+		proxy: '/shadow',
+		text: `In hindsight, I wish I had...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['personal', 'thoughts'],
+		form: 'story',
+		id: '447b70e7-a443-4165-becf-fbd74265a618',
+		name: 'shadow_447b70e7-a443-4165-becf-fbd74265a618',
+		proxy: '/shadow',
+		text: `I remember thinking...`,
+		type: 'member',
+	},
+	{
+		being: 'shadow',
+		categories: ['observational', 'objectivity', 'reflection'],
+		form: 'story',
+		id: '3bfebafb-7e44-4236-86c3-938e2f42fdd7',
+		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
+		proxy: '/shadow',
+		text: `What would a normal person have done in this situation?`,
+		type: 'agent',
+	},
+] // **note**: members use shadows to help them add content to the summaries of their experiences, whereas agents return the requested content
 const vmClassGenerator = vm.createContext({
 	exports: {},
 	console: console,
@@ -142,15 +276,17 @@ class BotFactory extends EventEmitter{
 	 * @param {string} type - The bot type.
 	 * @returns {object} - The bot instructions.
 	 */
-	botInstructions(botType){
-		if(!botType)
-			throw new Error('bot type required')
-		if(!mBotInstructions[botType]){
-			if(!botInstructions)
-				throw new Error(`no bot instructions found for ${ botType }`)
-			mBotInstructions[botType] = botInstructions
-		}
-		return mBotInstructions[botType]
+	botInstructions(type='personal-avatar'){
+		return mBotInstructions[type]
+	}
+	/**
+	 * Returns bot instructions version.
+	 * @param {string} type - The bot type.
+	 * @returns {number} - The bot instructions version.
+	 */
+	botInstructionsVersion(type){
+		return mBotInstructions[type]?.version
+			?? 1.0
 	}
 	/**
 	 * Gets a member's bots.
@@ -182,7 +318,7 @@ class BotFactory extends EventEmitter{
 		return await this.dataservices.collections(type)
 	}
 	async createBot(assistantData={ type: mDefaultBotType }){
-		const bot = await mCreateBot(this.#llmServices, this, assistantData, this.avatarId)
+		const bot = await mCreateBot(this.#llmServices, this, assistantData)
 		if(!bot)
 			throw new Error('bot creation failed')
 		return bot
@@ -316,6 +452,14 @@ class BotFactory extends EventEmitter{
         return await this.dataservices.resetPassphrase(passphrase)
     }
 	/**
+	 * Gets the list of shadows.
+	 * @param {Guid} itemId - The itemId (or type?) to filter shadow return.
+	 * @returns {object[]} - The shadows.
+	 */
+	async shadows(itemId){
+		return mShadows
+	}
+	/**
 	 * Gets a collection of stories of a certain format.
 	 * @todo - currently disconnected from a library, but no decisive mechanic for incorporating library shell.
 	 * @param {string} form - The form of the stories to retrieve.
@@ -326,6 +470,22 @@ class BotFactory extends EventEmitter{
 			'story',
 			[{ name: '@form', value: form }],
 		)
+	}
+	/**
+	 * Gets a MyLife Team by id.
+	 * @param {Guid} teamId - The Team id.
+	 * @returns {object} - The Team.
+	 */
+	team(teamId){
+		return mMyLifeTeams
+			.find(team=>team.id===teamId)
+	}
+	/**
+	 * Retrieves list of MyLife Teams.
+	 * @returns {object[]} - The array of MyLife Teams.
+	 */
+	teams(){
+		return mMyLifeTeams.filter(team=>team.active ?? false)
 	}
 	/**
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
@@ -475,7 +635,7 @@ class AgentFactory extends BotFactory {
 	 * @param {object} item - The item to create.
 	 * @returns {object} - The created item.
 	 */
-	async createIten(item){
+	async createItem(item){
 		const response = await this.dataservices.pushItem(item)
 		return response
 	}
@@ -496,6 +656,14 @@ class AgentFactory extends BotFactory {
      */
 	async deleteItem(id){
 		return await this.dataservices.deleteItem(id)
+	}
+	/**
+	 * Retrieves a collection item by Id.
+	 * @param {Guid} id - The id of the collection item to retrieve.
+	 * @returns {object} - The item.
+	 */
+	async item(id){
+		return await this.dataservices.getItem(id)
 	}
 	async entry(entry){
 		const {
@@ -700,8 +868,8 @@ class AgentFactory extends BotFactory {
 	 * @returns {Promise<object>} - The updated item.
 	 */
 	async updateItem(item){
-		const { id, } = item
-		const response = await this.dataservices.patch(id, item)
+		const { id, ..._item } = item
+		const response = await this.dataservices.patch(id, _item)
 		return response
 	}
 	/* getters/setters */
@@ -920,7 +1088,7 @@ class MyLifeFactory extends AgentFactory {
 async function mAI_openai(llmServices, bot){
     const { bot_name, type, } = bot
 	bot.name = bot_name
-		?? `untitled-${ type }`
+		?? `My ${ type }`
     return await llmServices.createBot(bot)
 }
 function assignClassPropertyValues(propertyDefinition){
@@ -1047,21 +1215,20 @@ async function mCreateBotLLM(llm, assistantData){
 */
 async function mCreateBot(llm, factory, bot){
 	/* initial deconstructions */
-	const { bot_name: botName, description: botDescription, instructions: botInstructions, name: botDbName, type, } = bot
+	const { bot_name: botName, description: botDescription, name: botDbName, type, } = bot
 	const { avatarId, } = factory
 	/* validation */
 	if(!avatarId)
 		throw new Error('avatar id required to create bot')
 	/* constants */
 	const bot_name = botName
-		?? `unknown-${ type }`
+		?? `My ${ type }`
 	const description = botDescription
 		?? `I am a ${ type } for ${ factory.memberName }`
-	const instructions = botInstructions
-		?? mCreateBotInstructions(factory, bot)
+	const { instructions, version, } = mCreateBotInstructions(factory, bot)
 	const model = process.env.OPENAI_MODEL_CORE_BOT
 		?? process.env.OPENAI_MODEL_CORE_AVATAR
-		?? 'gpt-3.5-turbo'
+		?? 'gpt-4o'
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
 	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
@@ -1081,6 +1248,7 @@ async function mCreateBot(llm, factory, bot){
 		tools,
 		tool_resources,
 		type,
+		version,
 	}
 	/* create in LLM */
 	const botId = await mCreateBotLLM(llm, assistantData) // create after as require model
@@ -1098,20 +1266,24 @@ async function mCreateBot(llm, factory, bot){
  * @private
  * @param {BotFactory} factory - Factory object
  * @param {object} bot - Bot object
- * @returns {string} - flattened string of instructions
+ * @returns {object} - minor 
  */
 function mCreateBotInstructions(factory, bot){
 	if(typeof bot!=='object' || !bot.type?.length)
 		throw new Error('bot object required, and  requires `type` property')
 	const { type=mDefaultBotType, } = bot
-    const instructionSet = factory.botInstructions(type)?.instructions // no need to wait, should be updated or refresh server
-    if(!instructionSet) // @stub - custom must have instruction loophole
+    let { instructions, version, } = factory.botInstructions(type)
+    if(!instructions) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
-    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructionSet
+    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructions
     /* compile instructions */
-	let instructions
     switch(type){
+		case 'diary':
 		case 'journaler':
+            instructions = purpose
+				+ prefix
+                + general
+			break
         case 'personal-avatar':
             instructions = preamble
                 + general
@@ -1170,7 +1342,7 @@ function mCreateBotInstructions(factory, bot){
                 break
         }
     })
-    return instructions
+    return { instructions, version, }
 }
 function mExposedSchemas(factoryBlockedSchemas){
 	const _systemBlockedSchemas = ['dataservices','session']
@@ -1309,6 +1481,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		tool_resources,
 		tools = []
 	switch(type){
+		case 'diary':
 		case 'journaler':
 			tools.push(globals.getGPTJavascriptFunction('entrySummary'))
 			includeSearch = true
@@ -1318,7 +1491,11 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 			includeSearch = true
 			break
 		case 'personal-biographer':
-			tools.push(globals.getGPTJavascriptFunction('storySummary'))
+			tools.push(
+				globals.getGPTJavascriptFunction('storySummary'),
+				globals.getGPTJavascriptFunction('getSummary'),
+				globals.getGPTJavascriptFunction('updateSummary')
+			)
 			includeSearch = true
 			break
 		default:
@@ -1515,9 +1692,11 @@ async function mLoadSchemas(){
 }
 async function mPopulateBotInstructions(){
 	const instructionSets = await mDataservices.botInstructions()
-	instructionSets.forEach(_instructionSet=>{
-		mBotInstructions[_instructionSet.type] = _instructionSet
-	})
+	instructionSets
+		.forEach(instructionSet=>{
+			const { type, } = instructionSet
+			mBotInstructions[type] = instructionSet
+		})
 }
 /**
  * Ingests a text (or JSON-parsed) schema and returns an array of sanitized schema.
@@ -1650,9 +1829,9 @@ async function mUpdateBot(factory, llm, bot, options={}){
 	if(!factory.globals.isValidGuid(id))
 		throw new Error('bot `id` required in bot argument: `{ id: guid }`')
 	if(updateInstructions){
-		// @stub - update core based on updatebot? type-interests as example? yes.
-		const instructions = mCreateBotInstructions(factory, bot)
+		const { instructions, version=1.0, } = mCreateBotInstructions(factory, bot)
 		botData.instructions = instructions
+		botData.version = version /* omitted from llm, but appears on updateBot */
 	}
 	if(updateTools){
 		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
