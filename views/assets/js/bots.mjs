@@ -1,6 +1,7 @@
 /* bot functionality */
 /* imports */
 import {
+    addInput,
     addMessage,
     addMessages,
     decorateActiveBot,
@@ -720,10 +721,12 @@ function mCreateCollectionPopup(collectionItem) {
             shareMemory.appendChild(narrativeContext)
             /* play memory */
             const memoryPlay = document.createElement('button')
-            memoryPlay.classList.add('play-memory')
-            memoryPlay.id = `play-memory_${ id }`
-            memoryPlay.name = 'play-memory'
-            memoryPlay.textContent = 'Play Memory'
+            memoryPlay.classList.add('relive-memory')
+            memoryPlay.dataset.id = id
+            memoryPlay.id = `relive-memory_${ id }`
+            memoryPlay.name = 'relive-memory'
+            memoryPlay.textContent = 'Relive Memory'
+            memoryPlay.addEventListener('click', mReliveMemory, { once: true })
             shareMemory.appendChild(memoryPlay)
             improveMemoryLane.appendChild(shareMemory)
             // play memory
@@ -1114,6 +1117,36 @@ async function mRefreshCollection(type, collectionList){
     const collection = await fetchCollections(type)
     if(collection.length)
         mUpdateCollection(type, collection, collectionList)
+}
+async function mReliveMemory(event){
+    event.preventDefault()
+    event.stopPropagation()
+    const { id, } = this.dataset
+    const popupClose = document.getElementById(`popup-close_${ id }`)
+    if(popupClose)
+        popupClose.click()
+    const { messages, success, } = await mReliveMemoryRequest(id)
+    if(success){
+        addMessages(messages)
+        // create input - create this function in member, as it will display it in chat and pipe it back here as below
+        const input = document.createElement('button')
+        input.addEventListener('click', mReliveMemory, { once: true })
+        input.textContent = 'next'
+        addInput(input)
+    } else
+        throw new Error(`Failed to fetch memory for relive request.`)
+}
+async function mReliveMemoryRequest(id){
+    try {
+        const url = window.location.origin + '/members/memory/relive/' + id
+        let response = await fetch(url, { method: 'PATCH' })
+        if(!response.ok)
+            throw new Error(`HTTP error! Status: ${response.status}`)
+        response = await response.json()
+        return response
+    } catch (error) {
+        console.log('Error fetching memory for relive:', error)
+    }
 }
 /**
  * Set Bot data on server.

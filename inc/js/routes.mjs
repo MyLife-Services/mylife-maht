@@ -31,6 +31,12 @@ import {
     upload,
 } from './functions.mjs'
 import {
+    collectMemory,
+    improveMemory,
+    reliveMemory,
+    livingMemory,
+} from './memory-functions.mjs'
+import {
     availableExperiences,
     experience,
     experienceCast,
@@ -105,6 +111,8 @@ _memberRouter.get('/teams', teams)
 _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
+_memberRouter.patch('/memory/relive/:iid', reliveMemory)
+_memberRouter.patch('/memory/living/:iid', livingMemory)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/create', createBot)

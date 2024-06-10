@@ -38,6 +38,7 @@ class Avatar extends EventEmitter {
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as getter is complex
     #proxyBeing = 'human'
+    #relivingMemories = [] // array of active reliving memories, with items, maybe conversations, included
     /**
      * @constructor
      * @param {Object} obj - The data object from which to create the avatar
@@ -237,12 +238,15 @@ class Avatar extends EventEmitter {
      * @public
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
      * @param {string} threadId - The openai thread id.
+     * @param {string} botId - The bot id.
+     * @param {boolean} saveToConversations - Whether to save the conversation to local memory; certain system and memory actions will be saved in their own threads.
      * @returns {Conversation} - The conversation object.
      */
-    async createConversation(type='chat', threadId){
+    async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
         const thread = await this.#llmServices.thread(threadId)
-        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, this.activeBotId) // guid only
-        this.#conversations.push(conversation)
+        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
+        if(saveToConversations)
+            this.#conversations.push(conversation)
         return conversation
     }
     /**
@@ -255,7 +259,12 @@ class Avatar extends EventEmitter {
     async deleteItem(id){
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot delete items.')
-        return await this.factory.deleteItem(id)
+        return await this.#factory.deleteItem(id)
+    }
+    async endMemory(id){
+        const item = this.relivingMemories.find(item=>item.id===id)
+        /* save conversation fragments */
+        return true
     }
     /**
      * Ends an experience.
@@ -462,7 +471,8 @@ class Avatar extends EventEmitter {
                 break
             case 'post': /* create */
                 item = await this.#factory.createItem(item)
-                success = this.globals.isValidGuid(item?.id)
+                id = item?.id
+                success = this.globals.isValidGuid(id)
                 break
             case 'put': /* update */
                 if(globals.isValidGuid(id)){
@@ -489,6 +499,20 @@ class Avatar extends EventEmitter {
         delete registration.mbr_id
         delete registration.passphrase
         return registration
+    }
+    /**
+     * Reliving a memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage they choose.
+     * @param {Guid} iid - The item id.
+     * @returns {Object} - livingMemory engagement object (i.e., includes frontend parameters for engagement as per instructions for included `portrayMemory` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
+     */
+    async reliveMemory(iid){
+        const item = await this.#factory.item(iid)
+        const { id, } = item
+        if(!id)
+            throw new Error(`item does not exist in member container: ${ iid }`)
+        /* develop narration */
+        const narration = await mReliveMemoryNarration(this, this.#factory, this.#llmServices, this.biographer, item)
+        return narration // include any required .map() pruning
     }
     /**
      * Allows member to reset passphrase.
@@ -1105,6 +1129,14 @@ class Avatar extends EventEmitter {
     }
     get personalAssistant(){
         return this.avatar
+    }
+    /**
+     * Get the `active` reliving memories.
+     * @getter
+     * @returns {object[]} - The active reliving memories.
+     */
+    get relivingMemories(){
+        return this.#relivingMemories
     }
 }
 /* module functions */
@@ -1948,6 +1980,63 @@ function mPruneMessages(bot, messageArray, type='chat', processStartTime=Date.no
         message: messageContent,
     }
     return message
+}
+/**
+ * Returns a narration packet for a memory reliving. Will allow for and accommodate the incorporation of helpful data _from_ the avatar member into the memory item `summary` and other metadata. The bot by default will:
+ * - break memory into `scenes` (minimum of 3: 1) set scene, ask for input [determine default what] 2) develop action, dramatize, describe input mechanic 3) conclude scene, moralize - what did you learn? then share what you feel author learned
+ * - perform/narrate the memory as scenes describe
+ * - others are common to living, but with `reliving`, the biographer bot (only narrator allowed in .10) incorporate any user-contributed contexts or imrpovements to the memory summary that drives the living and sharing. All by itemId.
+ * - if user "interrupts" then interruption content should be added to memory updateSummary; doubt I will keep work interrupt, but this too is hopefully able to merely be embedded in the biographer bot instructions.
+ * Currently testing efficacy of all instructions (i.e., no callbacks, as not necessary yet) being embedded in my biog-bot, `madrigal`.
+ * @param {Avatar} avatar - Member's avatar object.
+ * @param {AgentFactory} factory - Member's AgentFactory object.
+ * @param {LLMServices} llm - OpenAI object.
+ * @param {object} bot - The bot object.
+ * @param {object} item - The memory object.
+ * @param {string} memberInput - The member input (or simply: NEXT, SKIP, etc.)
+ * @returns {Promise<object>} - The reliving memory object for frontend to execute.
+ */
+async function mReliveMemoryNarration(avatar, factory, llm, bot, item, memberInput='NEXT'){
+    const { relivingMemories, } = avatar
+    const { bot_id, id: botId, thread_id, } = bot
+    const { id, } = item
+    const processStartTime = Date.now()
+    let message = `## relive memory itemId: ${id}\n`
+    let relivingMemory = relivingMemories.find(reliving=>reliving.item.id===id)
+    if(!relivingMemory){ /* create new activated reliving memory */
+        const conversation = await avatar.createConversation('memory', undefined, botId, false)
+        conversation.botId = bot_id
+        const { threadId, } = conversation
+        relivingMemory = {
+            bot,
+            conversation,
+            id,
+            item,
+            threadId,
+        }
+        relivingMemories.push(relivingMemory)
+        console.log('mReliveMemoryNarration::new reliving memory created', conversation.inspect(true), conversation.bot, bot_id)
+    } else /* opportunity for member interrupt */
+        message += `MEMBER: ${memberInput}\n`
+    const { conversation, threadId, } = relivingMemory
+    let messages = await mCallLLM(llm, conversation, message, factory, avatar)
+    conversation.addMessages(messages)
+    console.log('chatRequest::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
+    /* frontend mutations */
+    messages = conversation.messages
+        .filter(message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
+            return messages.find(_message=>_message.id===message.id)
+                && message.type==='chat'
+                && message.role!=='user'
+        })
+        .map(message=>mPruneMessage(bot, message, 'chat', processStartTime))
+    const memory = {
+        id,
+        messages,
+        success: true,
+        threadId,
+    }
+    return memory
 }
 /**
  * Replaces variables in prompt with Experience values.

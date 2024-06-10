@@ -59,6 +59,14 @@ document.addEventListener('DOMContentLoaded', async event=>{
 })
 /* public functions */
 /**
+ * Adds an input element (button, input, textarea,) to the system chat column.
+ * @param {HTMLElement} HTMLElement - The HTML element to add to the system chat column.
+ * @returns {void}
+ */
+function addInput(HTMLElement){
+    systemChat.appendChild(HTMLElement)
+}
+/**
  * Pushes message content to the chat column.
  * @public
  * @param {string} message - The message object to add to column.
@@ -658,6 +666,7 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
 }
 /* exports */
 export {
+    addInput,
     addMessage,
     addMessages,
     assignElements,

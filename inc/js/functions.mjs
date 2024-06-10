@@ -23,6 +23,7 @@ function activateBot(ctx){
 }
 async function alerts(ctx){
 	// @todo: put into ctx the _type_ of alert to return, system use dataservices, member use personal
+	const { MemberSession, } = ctx.state
 	if(ctx.params?.aid){ // specific system alert
 		ctx.body = await ctx.state.MemberSession.alert(ctx.params.aid)
 	} else { // all system alerts
