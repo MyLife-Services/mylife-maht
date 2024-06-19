@@ -209,8 +209,8 @@ function extendClass_conversation(originClass, referencesObject) {
         get botId(){
             return this.bot_id
         }
-        set botId(_botId){
-            this.#botId = _botId
+        set botId(botId){
+            this.#botId = botId
         }
         get isSaved(){
             return this.#saved
