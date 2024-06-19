@@ -1121,7 +1121,7 @@ async function mRefreshCollection(type, collectionList){
 async function mReliveMemory(event){
     event.preventDefault()
     event.stopPropagation()
-    const { id, } = this.dataset
+    const { id, inputContent, } = this.dataset
     const popupClose = document.getElementById(`popup-close_${ id }`)
     if(popupClose)
         popupClose.click()
@@ -1131,6 +1131,9 @@ async function mReliveMemory(event){
         // create input - create this function in member, as it will display it in chat and pipe it back here as below
         const input = document.createElement('button')
         input.addEventListener('click', mReliveMemory, { once: true })
+        input.dataset.id = id
+        if(inputContent?.length)
+            input.dataset.inputContent = inputContent
         input.textContent = 'next'
         addInput(input)
     } else
