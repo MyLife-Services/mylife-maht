@@ -1,0 +1,17 @@
+{
+    "description": "Gets a story summary by itemId",
+    "name": "getSummary",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Id of summary to update",
+                "format": "uuid",
+                "type": "string"
+            }
+        },
+        "required": [
+            "itemId"
+        ]
+    }
+}

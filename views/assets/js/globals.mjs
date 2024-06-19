@@ -114,6 +114,9 @@ class Globals {
 		const escapedText = text.replace(/[&<>"']/g, m=>(map[m]) )
 		return escapedText
 	}
+    async fetchShadows(){
+        return await mFetchShadows()
+    }
     /**
      * Returns the avatar object if poplated by on-page EJS script.
      * @todo - refactor to api call
@@ -148,6 +151,16 @@ class Globals {
         }
     }
     /**
+     * Hides an element, pre-executing any included callback function.
+     * @public
+     * @param {HTMLElement} element - The element to hide.
+     * @param {function} callbackFunction - The callback function to execute after the element is hidden.
+     * @returns {void}
+     */
+    hide(element, callbackFunction){
+        mHide(element, callbackFunction)
+    }
+    /**
      * Consumes an HTML id and returns the functionality name. Example: `library-upload` returns `upload`.
      * @public
      * @param {string} id - The HTML id to convert.
@@ -168,16 +181,6 @@ class Globals {
         if(id.includes('-'))
             id = id.split('-').slice(0, -1).join('-')
         return id
-    }
-    /**
-     * Hides an element, pre-executing any included callback function.
-     * @public
-     * @param {HTMLElement} element - The element to hide.
-     * @param {function} callbackFunction - The callback function to execute after the element is hidden.
-     * @returns {void}
-     */
-    hide(element, callbackFunction){
-        mHide(element, callbackFunction)
     }
     /**
      * Determines whether the argument is a valid guid.
@@ -406,6 +409,25 @@ function mCreateTutorialLauncher(){
     tutorialLauncher.innerHTML = 'Launch Tutorial'
     tutorialLauncher.addEventListener('click', mLaunchTutorial, { once: true })
     return tutorialLauncher
+}
+/**
+ * Fetches shadows from the server.
+ * @private
+ * @async
+ * @returns {Object[]} - The shadows array.
+ */
+async function mFetchShadows(){
+    let response = await fetch('/shadows', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    if(response.ok)
+        response = await response.json()
+    else
+        throw new Error('mFetchShadows::response not ok')
+    return response
 }
 /**
  * Returns help content appropriate to indicated `type`.

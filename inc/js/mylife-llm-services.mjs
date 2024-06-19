@@ -215,6 +215,10 @@ async function mMessages(openai, threadId){
     return await openai.beta.threads.messages
         .list(threadId)
 }
+async function mRunCancel(openai, threadId, runId){
+    const run = await openai.beta.threads.runs.cancel(threadId, runId)
+    return run
+}
 /**
  * Maintains vigil for status of openAI `run = 'completed'`.
  * @module
@@ -237,6 +241,7 @@ async function mRunFinish(llmServices, run, factory, avatar){
                 }
             } catch (error) {
                 clearInterval(checkInterval)
+                mRunCancel(llmServices, run.thread_id, run.id)
                 reject(error)
             }
         }, mPingIntervalMs)
@@ -267,7 +272,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
             &&  run.required_action?.submit_tool_outputs?.tool_calls
             &&  run.required_action.submit_tool_outputs.tool_calls.length
         ){
-            const { assistant_id: bot_id, metadata, thread_id, } = run
+            const { assistant_id: bot_id, id: runId, metadata, thread_id, } = run
             const toolCallsOutput = await Promise.all(
                 run.required_action.submit_tool_outputs.tool_calls
                     .map(async tool=>{
@@ -282,6 +287,10 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                         if(typeof toolArguments==='string')
                             toolArguments = JSON.parse(toolArguments) ?? {}
                         toolArguments.thread_id = thread_id
+                        const { itemId, } = toolArguments
+                        let item
+                        if(itemId)
+                            item = await factory.item(itemId)
                         switch(name.toLowerCase()){
                             case 'confirmregistration':
                             case 'confirm_registration':
@@ -298,48 +307,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     else
                                         action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization'
                                 }
-                                confirmation.output = JSON.stringify({ success, action, })
-                                return confirmation
-                            case 'entrysummary': // entrySummary in Globals
-                            case 'entry_summary':
-                            case 'entry summary':
-                                const entry = await factory.entry(toolArguments)
-                                if(entry){
-                                    action = `share summary of summary and follow-up with probing question`
-                                    success = true
-                                    confirmation = {
-                                        tool_call_id: id,
-                                        output: JSON.stringify({ success: true, action, }),
-                                    }
-                                    return confirmation
-                                } else {
-                                    action = `journal entry failed to save, notify member and continue on for now`
-                                }
-                                confirmation.output = JSON.stringify({ success, action, })
-                                return confirmation
-                            case 'hijackattempt':
-                            case 'hijack_attempt':
-                            case 'hijack-attempt':
-                            case 'hijack attempt':
-                                console.log('mRunFunctions()::hijack_attempt', toolArguments)
-                                action = 'attempt noted in system and user ejected; greet per normal as first time new user'
-                                success = true
-                                confirmation.output = JSON.stringify({ success, action, })
-                                return confirmation
-                            case 'registercandidate':
-                            case 'register_candidate':
-                            case 'register candidate':
-                                console.log('mRunFunctions()::registercandidate', toolArguments)
-                                const { avatarName, email: registerEmail, humanName, type, } = toolArguments /* rename email as it triggers IDE error being in switch */
-                                const registration = await factory.registerCandidate({ avatarName, email: registerEmail, humanName, type, })
-                                if(!registration)
-                                    action = 'error registering candidate in system; notify member of system error and continue discussing MyLife organization'
-                                else {
-                                    action = 'candidate registered in system; let them know they will be contacted by email within the week and if they have any more questions'
-                                    success = true
-                                    console.log('mRunFunctions()::avatar', avatar, registration, toolArguments)
-                                }
-                                confirmation.output = JSON.stringify({ success, action, })
+                                confirmation.output = JSON.stringify({ action, success, })
                                 return confirmation
                             case 'createaccount':
                             case 'create_account':
@@ -359,7 +327,63 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                 } catch(error){
                                     action += '__ERROR: ' + error.message
                                 }
-                                confirmation.output = JSON.stringify({ success, action, })
+                                confirmation.output = JSON.stringify({ action, success, })
+                                return confirmation
+                            case 'entrysummary': // entrySummary in Globals
+                            case 'entry_summary':
+                            case 'entry summary':
+                                const entry = await factory.entry(toolArguments)
+                                if(entry){
+                                    action = `share summary of summary and follow-up with probing question`
+                                    success = true
+                                    confirmation = {
+                                        tool_call_id: id,
+                                        output: JSON.stringify({ success: true, action, }),
+                                    }
+                                    return confirmation
+                                } else {
+                                    action = `journal entry failed to save, notify member and continue on for now`
+                                }
+                                confirmation.output = JSON.stringify({ action, success, })
+                                return confirmation
+                            case 'getsummary':
+                            case 'get_summary':
+                            case 'get summary':
+                                console.log('mRunFunctions()::getSummary::start', item)
+                                let { summary, } = item ?? {}
+                                if(!summary?.length){
+                                    action = `error getting summary for itemId: ${ itemId ?? 'missing itemId' } - halt any further processing and instead ask user to paste summary into chat and you will continue from there to incorporate their message.`
+                                    summary = 'no summary found for itemId'
+                                } else {
+                                    action = `continue with initial instructions`
+                                    success = true
+                                }
+                                confirmation.output = JSON.stringify({ action, itemId, success, summary, })
+                                console.log('mRunFunctions()::getSummary::confirmation', confirmation)
+                                return confirmation
+                            case 'hijackattempt':
+                            case 'hijack_attempt':
+                            case 'hijack-attempt':
+                            case 'hijack attempt':
+                                console.log('mRunFunctions()::hijack_attempt', toolArguments)
+                                action = 'attempt noted in system and user ejected; greet per normal as first time new user'
+                                success = true
+                                confirmation.output = JSON.stringify({ action, success, })
+                                return confirmation
+                            case 'registercandidate':
+                            case 'register_candidate':
+                            case 'register candidate':
+                                console.log('mRunFunctions()::registercandidate', toolArguments)
+                                const { avatarName, email: registerEmail, humanName, type, } = toolArguments /* rename email as it triggers IDE error being in switch */
+                                const registration = await factory.registerCandidate({ avatarName, email: registerEmail, humanName, type, })
+                                if(!registration)
+                                    action = 'error registering candidate in system; notify member of system error and continue discussing MyLife organization'
+                                else {
+                                    action = 'candidate registered in system; let them know they will be contacted by email within the week and if they have any more questions'
+                                    success = true
+                                    console.log('mRunFunctions()::avatar', avatar, registration, toolArguments)
+                                }
+                                confirmation.output = JSON.stringify({ action, success, })
                                 return confirmation
                             case 'story': // storySummary.json
                             case 'storysummary':
@@ -394,12 +418,24 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     }
                                     success = true
                                 } // error cascades
-                                confirmation.output = JSON.stringify({ success, action, })
+                                confirmation.output = JSON.stringify({ action, success, })
+                                return confirmation
+                            case 'updatesummary':
+                            case 'update_summary':
+                            case 'update summary':
+                                console.log('mRunFunctions()::updatesummary::start', item, itemId, toolArguments)
+                                const { summary: updatedSummary, } = toolArguments
+                                // remove await once confirmed updates are connected
+                                await factory.updateItem({ id: itemId, summary: updatedSummary, })
+                                action=`confirm success and present updated summary to member`
+                                success = true
+                                confirmation.output = JSON.stringify({ action, success, })
+                                console.log('mRunFunctions()::getSummary::confirmation', confirmation)
                                 return confirmation
                             default:
                                 console.log(`ERROR::mRunFunctions()::toolFunction not found: ${ name }`, toolFunction)
                                 action = `toolFunction not found: ${ name }, apologize for the error and continue on with the conversation; system notified to fix`
-                                confirmation.output = JSON.stringify({ success, action, })
+                                confirmation.output = JSON.stringify({ action, success, })
                                 return confirmation
                         }
                     }))
@@ -413,7 +449,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
         }
     }
     catch(error){
-        console.log('mRunFunctions()::error', error.message)
+        console.log('mRunFunctions()::error::canceling-run', error.message, error.stack)
         rethrow(error)
     }
 }
