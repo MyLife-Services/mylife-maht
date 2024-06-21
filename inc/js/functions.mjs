@@ -162,6 +162,8 @@ async function help(ctx){
  * @param {object} ctx - Koa Context object
  */
 async function index(ctx){
+	if(!ctx.state?.locked ?? true)
+		ctx.redirect(`/members`) // Redirect to /members if authorized
 	await ctx.render('index')
 }
 /**
