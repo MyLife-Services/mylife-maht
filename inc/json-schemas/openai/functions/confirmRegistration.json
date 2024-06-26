@@ -1,17 +1,23 @@
 {
     "name": "confirmRegistration",
-    "description": "Confirm registration email provided by user",
+    "description": "Confirm registration email provided by user with registrationId provided by system",
     "parameters": {
-        "type": "object",
-        "properties": {
-            "email": {
-                "description": "Email address provided by user",
-                "format": "email",
-                "type": "string"
-            }
+      "type": "object",
+      "properties": {
+        "email": {
+          "description": "Email address provided by user",
+          "format": "email",
+          "type": "string"
         },
-        "required": [
-            "email"
-        ]
+        "registrationId": {
+          "description": "registrationId provided by system",
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "email",
+        "registrationId"
+      ]
     }
-}
+  }

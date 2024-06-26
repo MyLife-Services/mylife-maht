@@ -216,8 +216,10 @@ async function mMessages(openai, threadId){
         .list(threadId)
 }
 async function mRunCancel(openai, threadId, runId){
-    const run = await openai.beta.threads.runs.cancel(threadId, runId)
-    return run
+    try {
+        const run = await openai.beta.threads.runs.cancel(threadId, runId)
+        return run
+    } catch(err) { return false }
 }
 /**
  * Maintains vigil for status of openAI `run = 'completed'`.
@@ -296,24 +298,23 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'confirm_registration':
                             case 'confirm registration':
                                 console.log('mRunFunctions()::confirmregistration', toolArguments)
-                                let { email: confirmEmail, } = toolArguments
+                                let { email: confirmEmail, registrationId, } = toolArguments
                                 confirmEmail = confirmEmail.trim()
                                 if(!confirmEmail?.length)
                                     action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
-                                else {
-                                    success = factory.confirmRegistration(confirmEmail)
-                                    if(success)
-                                        action = `congratulate on registration and get required member data for follow-up: date of birth, initial account passphrase.`
-                                    else
-                                        action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization'
-                                }
+                                else if(!registrationId?.length)
+                                    action = `No registrationId provided, continue discussing MyLife organization but forget all current registration data`
+                                else if(await factory.confirmRegistration(confirmEmail, registrationId))
+                                    action = `congratulate on registration (**important** note registrationId=${ registrationId }) and get required member data for follow-up: date of birth, initial account passphrase.`
+                                else
+                                    action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization; forget all current registration data.'
                                 confirmation.output = JSON.stringify({ action, success, })
                                 return confirmation
                             case 'createaccount':
                             case 'create_account':
                             case 'create account':
-                                console.log('mRunFunctions()::createAccount', toolArguments)
-                                const { birthdate, passphrase, } = toolArguments
+                                console.log('mRunFunctions()::createAccount', toolArguments, factory.mylifeRegistrationData)
+                                const { birthdate, id, passphrase, } = toolArguments
                                 action = `error setting basics for member: `
                                 if(!birthdate)
                                     action += 'birthdate missing, elicit birthdate; '

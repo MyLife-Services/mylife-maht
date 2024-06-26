@@ -99,6 +99,7 @@ if(!hostedMembers.length){
 		.map(member=>member.mbr_id)
 	hostedMembers.push(...members) // throws on empty
 }
+console.log(chalk.bgBlue('hosted-members', chalk.yellowBright(hostedMembers.join(', '))))
 app.context.hostedMembers = hostedMembers
 	.sort((a, b)=>a.localeCompare(b))
 	.map(mbr_id=>({ 'id': mbr_id, 'name': _Maht.globals.sysName(mbr_id) }))
