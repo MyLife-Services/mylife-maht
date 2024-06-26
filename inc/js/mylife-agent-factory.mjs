@@ -1003,7 +1003,7 @@ class MyLifeFactory extends AgentFactory {
 			const names = [humanName] // currently array of flat strings
 			updates = (updates.length ? ' ' : '')
 				+ `${ humanName } joined MyLife on ${ new Date().toDateString() }`
-			const validation = ['registration',] // list of passed validation routines
+			const validations = ['registration',] // list of passed validation routines
 			const core = {
 				avatarId,
 				birth,
@@ -1014,7 +1014,7 @@ class MyLifeFactory extends AgentFactory {
 				names,
 				passphrase,
 				updates,
-				validation,
+				validations,
 			}
 			memberAccount = await this.dataservices.addCore(core)
 			this.#registrationData = null

@@ -127,7 +127,7 @@ class Dataservices {
 			...core,
 			being: 'core',
 			id,
-			format: 'human',
+			form: 'human',
 			name: this.globals.createDocumentName(mbr_id, id, 'core'),
 			mbr_id,
 		}
@@ -737,23 +737,27 @@ function mAvatarProperties(core, globals){
 		...avatarProperties
 	} = core
 	const a = [
-		"assistant",
-		"avatarId",
-		"avatarName",
-		"being",
-		"bots",
-		"command_word",
-		"conversations",
-		"id",
-		"mbr_id",
-		"messages",
-		"metadata",
-		"name",
-		"names",
-		"object_id",
-		"parent_id",
-		"proxyBeing",
-		"type"
+		'assistant',
+		'avatarId',
+		'avatarName',
+		'being',
+		'bots',
+		'command_word',
+		'conversations',
+		'form',
+		'format',
+		'id',
+		'mbr_id',
+		'messages',
+		'metadata',
+		'name',
+		'names',
+		'object_id',
+		'parent_id',
+		'proxyBeing',
+		'type',
+		'validation',
+		'validations',
 	]
 	a.forEach(prop=>{
 		delete avatarProperties[prop]
