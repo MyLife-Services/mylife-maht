@@ -729,52 +729,51 @@ class Dataservices {
  */
 function mAvatarProperties(core, globals){
 	const {
-		avatarId,
+		avatarId: id,
 		avatarName,
-		id,
+		id: coreId,
 		mbr_id,
 		names=['default-name-error'],
 		...avatarProperties
 	} = core
-	const a = [
+	const being = 'avatar'
+	const nickname = avatarName ?? globals.sysName(mbr_id) // keep first, has dependencies
+	const name = `avatar_${ nickname }_${ id }`
+	const object_id = id
+	const parent_id = object_id
+	const proxyBeing = 'human'
+	const stripProperties = [
 		'assistant',
+		'assistant_id',
 		'avatarId',
 		'avatarName',
-		'being',
 		'bots',
 		'command_word',
 		'conversations',
 		'form',
 		'format',
-		'id',
-		'mbr_id',
 		'messages',
 		'metadata',
-		'name',
-		'names',
-		'object_id',
-		'parent_id',
-		'proxyBeing',
-		'type',
+		'thread_id',
 		'validation',
 		'validations',
 	]
-	a.forEach(prop=>{
+	const type = 'openai_gpt'
+	stripProperties.forEach(prop=>{
 		delete avatarProperties[prop]
 	})
 	return {
 		...avatarProperties,
-		being: 'avatar',
-		id: avatarId,
+		being,
+		id,
 		mbr_id,
-		name: avatarName
-			?? globals.sysName(mbr_id),
+		name,
 		names,
-		nickname: avatarProperties.nickname ?? names[0],
-		object_id: id,
-		parent_id: id,
-		proxyBeing: 'human',
-		type: 'openai_assistant', // @stub - aggregator hook
+		nickname,
+		object_id,
+		parent_id,
+		proxyBeing,
+		type, // @stub - aggregator hook
 	}
 }
 /* exports */
