@@ -6,7 +6,7 @@ import {
 /* module export functions */
 async function about(ctx){
 	ctx.state.title = `About MyLife`
-	await ctx.render('about')	//	about
+	await ctx.render('about') // about
 }
 /**
  * Activate a bot for the member
@@ -162,6 +162,8 @@ async function help(ctx){
  * @param {object} ctx - Koa Context object
  */
 async function index(ctx){
+	if(!ctx.state?.locked ?? true)
+		ctx.redirect(`/members`) // Redirect to /members if authorized
 	await ctx.render('index')
 }
 /**

@@ -31,6 +31,7 @@ let awaitButton,
     loginSelect,
     mainContent,
     navigation,
+    pageLoader,
     privacyContainer,
     sidebar,
     signupAvatarInput,
@@ -210,7 +211,11 @@ async function mFetchStart(){
     await mSignupStatus()
     const messages = []
     let input // HTMLDivElement containing input element
+    console.log('pageType', mPageType)
     switch(mPageType){
+        case 'about':
+        case 'privacy-policy':
+            break
         case 'challenge':
         case 'select':
             const hostedMembers = await mFetchHostedMembers()
@@ -295,6 +300,7 @@ async function mLoadStart(){
     chatUser = document.getElementById('chat-user')
     mainContent = mGlobals.mainContent
     navigation = mGlobals.navigation
+    pageLoader = document.getElementById('page-loader')
     privacyContainer = document.getElementById('privacy-container')
     sidebar = mGlobals.sidebar
     signupAvatarInputField = document.getElementById('avatar-name-input-text')
@@ -311,8 +317,8 @@ async function mLoadStart(){
     signupTeaser = document.getElementById('signup-teaser')
     signupTeaserButton = document.getElementById('signup-button-teaser')
     /* fetch the greeting messages */
-    // get query params
     mPageType = new URLSearchParams(window.location.search).get('type')
+        ?? window.location.pathname.split('/').pop()
     await mFetchStart()
 }
 /**
@@ -336,6 +342,7 @@ function mShowPage(){
     /* assign listeners */
     mInitializeListeners()
     /* display elements */
+    hide(pageLoader)
     show(navigation)
     document.querySelectorAll('.mylife-widget')
         .forEach(widget=>{

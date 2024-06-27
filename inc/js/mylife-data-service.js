@@ -97,18 +97,37 @@ class Dataservices {
 		return this.#partitionId
 	}
 	//	public functions
+	/**
+	 * Upon MyLife account creation, generates `core` and saves to database.
+	 * @param {object} core - Data object containing member's initial core data from which avatar object will be derived.
+	 * @returns (object) - The saved avatar data object.
+	 */
+	async addAvatar(core){
+		if(!this.isMyLife)
+			throw new Error('MyLife avatar required for addAvatar()', this.mbr_id)
+		const avatar = await this.pushItem(mAvatarProperties(core, this.globals))
+		console.log('addAvatar', avatar, core)
+		return { avatar, success: typeof avatar==='object', }
+	}
+	/**
+	 * Upon MyLife account creation, generates `core` and saves to database.
+	 * @param {object} core - Data object containing member's initial core data.
+	 * @returns (object) - The core object.
+	 */
 	async addCore(core){
 		const { id, mbr_id, } = core
 		if(!id?.length || !mbr_id?.length)
 			throw new Error('`core` must be a pre-formed object with id and mbr_id')
 		const extantCore = await this.getItem(id, undefined, mbr_id)
-		if(extantCore)
+		if(extantCore){
+			console.log(`core already exists for ${mbr_id} with id ${id}`) // `core` already exists
 			return { core: extantCore, success: false, } // no alterations, failure
+		}
 		core = { // enforce core data structure
 			...core,
 			being: 'core',
 			id,
-			format: 'human',
+			form: 'human',
 			name: this.globals.createDocumentName(mbr_id, id, 'core'),
 			mbr_id,
 		}
@@ -346,17 +365,21 @@ class Dataservices {
 			'system',
 		)
 	}
+	/**
+	 * Returns the avatar associated with the member.
+	 * @returns {object} - The avatar document or `undefined` if no avatar found.
+	 */
 	async getAvatar(){
-		const _avatars = await this.getAvatars()
-		return _avatars
+		const avatar = await this.getAvatars()
+		return avatar
 	}
 	/**
 	 * Get all Member Avatars, but given 1-to-1 relationship, only returns first.
 	 * @returns {object} - The avatar document or `undefined` if no avatar found.
 	 */
 	async getAvatars(){
-		const _avatars = await this.getItems('avatar')
-		return _avatars?.[0]
+		const avatar = await this.getItems('avatar')
+		return avatar?.[0] // force reduction to single avatar
 	}
 	/**
 	 * Retrieves the first chat associated with a given parent ID.
@@ -684,12 +707,73 @@ class Dataservices {
 			throw new Error(`Registration not found: ${registrationId}`)
 		const { avatarName, id, } = registration
 		if(id?.length){
-			const tempMbr_id = this.globals.createMbr_id(avatarName, id)
-			const exists = await this.testPartitionKey(tempMbr_id)
+			registration.mbr_id = this.globals.createMbr_id(avatarName, id) // overwrites MyLife mbr_id
+			const exists = await this.testPartitionKey(registration.mbr_id)
 			if(exists)
 				throw new Error('Registrant already a member!')
+			registration.validated = true
 		}
 		return registration
+	}
+}
+/* modular functions */
+/**
+ * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
+ * @module
+ * @param {object} core - Datacore object, required properties below:
+ * @property {Guid} avatarId - Avatar id
+ * @property {Guid} id - Member core id
+ * @property {string} mbr_id - Member id
+ * @param {object} globals - Globals object
+ * @returns {object} - Avatar property data package
+ */
+function mAvatarProperties(core, globals){
+	const {
+		avatarId: id,
+		avatarName,
+		id: coreId,
+		mbr_id,
+		names=['default-name-error'],
+		...avatarProperties
+	} = core
+	const being = 'avatar'
+	const nickname = avatarName ?? globals.sysName(mbr_id) // keep first, has dependencies
+	const name = `avatar_${ nickname }_${ id }`
+	const object_id = id
+	const parent_id = object_id
+	const proxyBeing = 'human'
+	const stripProperties = [
+		'assistant',
+		'assistant_id',
+		'avatarId',
+		'avatarName',
+		'bots',
+		'command_word',
+		'conversations',
+		'form',
+		'format',
+		'messages',
+		'metadata',
+		'thread_id',
+		'validation',
+		'validations',
+	]
+	const type = 'openai_gpt'
+	stripProperties.forEach(prop=>{
+		delete avatarProperties[prop]
+	})
+	return {
+		...avatarProperties,
+		being,
+		id,
+		mbr_id,
+		name,
+		names,
+		nickname,
+		object_id,
+		parent_id,
+		proxyBeing,
+		type, // @stub - aggregator hook
 	}
 }
 /* exports */

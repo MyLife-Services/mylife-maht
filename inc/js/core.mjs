@@ -21,7 +21,6 @@ class Member extends EventEmitter {
 	 */
 	async init(){
 		this.#avatar = await this.factory.getAvatar()
-		// @todo: add consent and evolution agents for self-evolution from avatar data
 		return this
 	}
 	/**

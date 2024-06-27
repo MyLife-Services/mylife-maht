@@ -236,7 +236,8 @@ class BotFactory extends EventEmitter{
 		this.#dataservices = new Dataservices(this.mbr_id)
 		await this.#dataservices.init()
 		this.core.avatar_id = this.core.avatar_id
-			?? (await this.dataservices.getAvatar()).id
+			?? (await this.dataservices.getAvatar())?.id
+			?? (await this.getAvatar())?.id
 		return this
 	}
 	/**
@@ -614,12 +615,11 @@ class AgentFactory extends BotFactory {
 		return await mDataservices.availableExperiences()
 	}
 	/**
-	 * Retrieves avatar properties from Member factory dataservices, or inherits the core data from Member class.
+	 * Retrieves or creates avatar properties from Member factory dataservices, or inherits the core data from Member class.
 	 * @returns {object} - Avatar properties.
 	 */
 	async avatarProperties(){
 		return ( await this.dataservices.getAvatar() )
-			?? mAvatarProperties(this.core)
 	}
 	/**
 	 * Accesses MyLife Dataservices to challenge access to a member's account.
@@ -640,14 +640,14 @@ class AgentFactory extends BotFactory {
 		return response
 	}
 	async datacore(mbr_id){
-		const _core = await mDataservices.getItems(
+		const core = await mDataservices.getItems(
 			'core',
 			undefined,
 			undefined,
 			undefined,
 			mbr_id,
 		)
-		return _core?.[0]??{}
+		return core?.[0]??{}
 	}
     /**
      * Delete an item from member container.
@@ -715,7 +715,7 @@ class AgentFactory extends BotFactory {
 		return this.alerts
 	}
 	/**
-	 * Constructs and returns an Avatar instance.
+	 * Retrieves member's Avatar data and creates singleton instance.
 	 * @returns {Avatar} - The Avatar instance.
 	 */
 	async getAvatar(){
@@ -723,26 +723,37 @@ class AgentFactory extends BotFactory {
 			.init()
 		return avatar
 	}
-	async getMyLifeMember(){
-		const _r =  await ( new (mSchemas.member)(this) )
-			.init()
-		return _r
+	/**
+	 * Generates via personal intelligence, nature of consent/protection around itemId or botId.
+	 * @todo - build out consent structure
+	 * @param {Guid} id - The id of the item to generate consent for.
+	 * @param {Guid} requesting_mbr_id - The id of the member requesting consent.
+	 * @returns {object} - The consent object, with parameters or natural language guidelines.
+	 */
+	async getConsent(id, requesting_mbr_id){
+		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
+		return new (mSchemas.consent)(consent, this)
 	}
+	/**
+	 * Creates the member instance.
+	 * @returns {Member} - The member instance.
+	 */
+	async getMyLifeMember(){
+		const member =  await ( new (mSchemas.member)(this) )
+			.init()
+		return member
+	}
+	/**
+	 * Creates the session instance.
+	 * @todo - review this code and architecture.
+	 * @returns {Session} - The Session instance.
+	 */
 	async getMyLifeSession(){
 		// default is session based around default dataservices [Maht entertains guests]
-		// **note**: conseuquences from this is that I must be careful to not abuse the module space for sessions, and regard those as _untouchable_
+		// **note**: consequences from this is that I must be careful to not abuse the module space for sessions, and regard those as _untouchable_
 		return await new (mSchemas.session)(
-			( new AgentFactory(mPartitionId) ) // no need to init currently as only pertains to non-server adjustments
-			// I assume this is where the duplication is coming but no idea why
+			( new AgentFactory(mPartitionId) ) // no need to init (?)
 		).init()
-	}
-	async getConsent(_consent){
-		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
-		//	@todo: not stored in cosmos (as of yet, might be different container), so id can be redundant
-		return new (mSchemas.consent)(_consent, this)
-	}
-	async getContributionQuestions(_being, _category){
-		return await mDataservices.getContributionQuestions(_being, _category)
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
@@ -932,8 +943,7 @@ class MyLifeFactory extends AgentFactory {
 	#accountCreation
 	#dataservices = mDataservices
 	#llmServices = mLLMServices
-	#mylifeRegistrationData
-	#tempRegistrationData
+	#registrationData
 	constructor(){
 		super(mPartitionId)
 	} // no init() for MyLife server
@@ -941,18 +951,18 @@ class MyLifeFactory extends AgentFactory {
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
+	 * @param {Guid} registrationId - The registration id.
 	 * @returns {boolean} - `true` if registration confirmed.
 	 */
-	confirmRegistration(email){
-		if(!this.#tempRegistrationData)
-			throw new Error('registration not found; note that registration is set to timeout after five minutes')
-		const confirmed = typeof email==='string'
-			&& typeof this.#tempRegistrationData.email==='string' // humor me, as it error-proofs next condition
-			&& this.#tempRegistrationData.email.toLowerCase()===email.toLowerCase()
-		if(confirmed){
-			this.#mylifeRegistrationData = this.#tempRegistrationData
-			this.#tempRegistrationData = null
-		}
+	confirmRegistration(email, registrationId){
+		if(!this.#registrationData)
+			return false
+		const { email: registrationEmail, id, } = this.#registrationData
+		const confirmed = id===registrationId
+			&& typeof email==='string'
+			&& typeof registrationEmail==='string' // humor me, as it error-proofs next condition
+			&& registrationEmail.toLowerCase()===email.toLowerCase()
+		this.#registrationData.confirmed = confirmed
 		return confirmed
 	}
 	/**
@@ -963,18 +973,24 @@ class MyLifeFactory extends AgentFactory {
 	 * @returns {boolean} - `true` if successful
 	 */
 	async createAccount(birthdate, passphrase){
-		let success = false
-		try{
+		/* get registration data */
+		let avatarName,
+			memberAccount,
+			success = false
+		/* create account core */
+		try {
 			if(!this.isMyLife) // @stub
 				throw new Error('MyLife server required for this request')
 			if(!birthdate?.length || !passphrase?.length)
 				throw new Error('birthdate _**and**_ passphrase required')
-			const { avatarName, email, humanName, id, interests, } = this.#mylifeRegistrationData
-			let { updates='', } = this.#mylifeRegistrationData
+			const { avatarName: _avatarName, email, humanName, id, interests, } = this.#registrationData
+			let { updates='', } = this.#registrationData
 			if(!id)
 				throw new Error('registration not confirmed, cannot accept request')
 			if(!humanName)
 				throw new Error('member personal name required to create account')
+			const avatarId = this.newGuid
+			avatarName = _avatarName ?? `${ humanName }-AI`
 			birthdate = new Date(birthdate).toISOString()
 			if(!birthdate?.length)
 				throw new Error('birthdate format could not be parsed')
@@ -986,9 +1002,10 @@ class MyLifeFactory extends AgentFactory {
 				throw new Error('mbr_id already exists')
 			const names = [humanName] // currently array of flat strings
 			updates = (updates.length ? ' ' : '')
-				+ `${ humanName } has just joined MyLife on ${ new Date().toDateString() }!`
-			const validation = ['registration',] // list of passed validation routines
+				+ `${ humanName } joined MyLife on ${ new Date().toDateString() }`
+			const validations = ['registration',] // list of passed validation routines
 			const core = {
+				avatarId,
 				birth,
 				email,
 				id,
@@ -997,13 +1014,25 @@ class MyLifeFactory extends AgentFactory {
 				names,
 				passphrase,
 				updates,
-				validation,
+				validations,
 			}
-			const save = await this.dataservices.addCore(core)
-			this.#mylifeRegistrationData = null
-			success = save.success
-			console.log(chalk.blueBright('createAccount()'), save)
-		} catch(error){ console.log(chalk.blueBright('createAccount()::error'), chalk.bgRed(error)) }
+			memberAccount = await this.dataservices.addCore(core)
+			this.#registrationData = null
+			success = memberAccount.success
+			console.log(`MyLife Member Core created for mbr: ${ mbr_id }`, memberAccount)
+		} catch(error) { console.log(chalk.blueBright('createAccount()::createCore()::error'), chalk.bgRed(error)) }
+		/* create avatar */
+		if(success){
+			try{
+				const { avatar, success: _success, } = await this.dataservices.addAvatar(memberAccount?.core) ?? {}
+				const { mbr_id, } = avatar
+				success = _success
+				console.log(`MyLife Member Avatar created for mbr: ${ mbr_id }`) // then and only then
+			} catch(error) { 
+				success = false // may have been truthed by _previous_ success
+				console.log(chalk.blueBright('createAccount()::createAvatar()::error'), chalk.bgRed(error))
+			}
+		}
 		return success
 	}
 	createItem(){
@@ -1042,22 +1071,21 @@ class MyLifeFactory extends AgentFactory {
 			throw new Error('registration id required')
 		let registration,
 			success = false
-		this.#mylifeRegistrationData = null
 		try{
 			registration = await this.dataservices.validateRegistration(registrationId)
 			const { id, } = registration
-			if(id?.length){
+			if(id===registrationId){
 				success = true
-				this.#tempRegistrationData = registration
+				this.#registrationData = registration
 				setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
-					this.#tempRegistrationData = null
+					this.#registrationData = null
 				}, 5 * 60 * 1000)
 			}
 		} catch(error){
-			this.#tempRegistrationData = null
+			this.#registrationData = null
 			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`))
 		}
-		return this.#tempRegistrationData
+		return this.#registrationData
 	}
 	/* getters/setters */
     /**
@@ -1066,7 +1094,7 @@ class MyLifeFactory extends AgentFactory {
      * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
      */
     get isCreatingAccount(){
-        return this.#mylifeRegistrationData!=null
+        return this.#registrationData?.confirmed===true
     }
     /**
      * Test whether factory is currently `validating` a session.
@@ -1074,8 +1102,14 @@ class MyLifeFactory extends AgentFactory {
      * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
      */
     get isValidating(){
-        return this.#tempRegistrationData!=null
+		return this.#registrationData?.validated===true && !this.#registrationData?.confirmed
     }
+	get registrationData(){
+		return this.#registrationData
+	}
+	get registrationId(){
+		return this.#registrationData?.id
+	}
 }
 // private module functions
 /**
@@ -1126,48 +1160,6 @@ function assignClassPropertyValues(propertyDefinition){
 				default:
 					return null
 			}
-	}
-}
-/**
- * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
- * @module
- * @param {object} _core - Datacore object
- * @returns {object} - Avatar property data package
- */
-function mAvatarProperties(_core){
-	const {
-		mbr_id,
-		names=['default-name-error'],
-		..._avatarProperties
-	} = _core
-	[
-		"assistant",
-		"being",
-		"bots",
-		"command_word",
-		"conversations",
-		"id",
-		"mbr_id",
-		"messages",
-		"metadata",
-		"name",
-		"names",
-		"object_id",
-		"proxyBeing",
-		"type"
-	].forEach(prop=>{
-		delete _avatarProperties[prop]
-	})
-	return {
-		..._avatarProperties,
-		being: 'avatar',
-		id: mNewGuid(),
-		mbr_id: mbr_id,
-		name: `avatar_${mbr_id}`,
-		names: names,
-		nickname: _avatarProperties.nickname??names[0],
-		proxyBeing: mIsMyLife(mbr_id) ? 'MyLife' : 'human',
-		type: 'openai_assistant',
 	}
 }
 function mBytes(_object){
