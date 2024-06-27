@@ -55,6 +55,7 @@ class Avatar extends EventEmitter {
     /**
      * Initialize the Avatar class.
      * @todo - create class-extender specific to the "singleton" MyLife avatar
+     * @todo - rethink architecture on this/#factory and also evolver, as now would manifest more as vectorstore object
      * @async
      * @public
      * @returns {Promise} Promise resolves to this Avatar class instantiation
@@ -70,8 +71,9 @@ class Avatar extends EventEmitter {
                     return
                 this[key] = value
             })
-        this.nickname = this.nickname ?? this.names?.[0] ?? `${this.memberFirstName ?? 'member'}'s avatar`
-        /* create evolver (exclude MyLife) */
+        this.nickname = this.nickname
+            ?? this.names?.[0]
+            ?? `${this.memberFirstName ?? 'member'}'s avatar`
         this.#bots = await this.#factory.bots(this.id)
         let activeBot = this.avatar
         if(!this.isMyLife){
@@ -142,9 +144,9 @@ class Avatar extends EventEmitter {
             activeBotId = this.activeBot.id
             threadId = this.activeBot.thread_id
             if(this.isValidating) // trigger confirmation until session (or vld) ends
-                chatMessage = `CONFIRM REGISTRATION: ${ chatMessage }`
+                chatMessage = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ chatMessage }`
             if(this.isCreatingAccount)
-                chatMessage = `CREATE ACCOUNT: ${ chatMessage }`
+                chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
             console.log('chatRequest::MyLife', activeBotId, threadId, chatMessage)
         }
         if(!chatMessage)
@@ -1137,6 +1139,9 @@ class Avatar extends EventEmitter {
      */
     get relivingMemories(){
         return this.#relivingMemories
+    }
+    get registrationId(){
+        return this.#factory.registrationId
     }
 }
 /* module functions */

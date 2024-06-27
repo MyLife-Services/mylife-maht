@@ -8,8 +8,7 @@ const mHelpInitiatorContent = {
 }
 const mNewGuid = () => crypto.randomUUID()
 /* module variables */
-let mAboutContainer,
-    mActiveHelpType, // active help type, currently entire HTMLDivElement
+let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mHelpAwait,
     mHelpClose,
     mHelpContainer,
@@ -36,7 +35,6 @@ class Globals {
     #uuid = mNewGuid()
     constructor(){
         if(!mLoaded){
-            mAboutContainer = document.getElementById('about-container')
             mLoginButton = document.getElementById('navigation-login-logout-button')
             mLoginContainer = document.getElementById('navigation-login-logout')
             mMainContent = document.getElementById('main-content')
