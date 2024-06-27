@@ -211,7 +211,11 @@ async function mFetchStart(){
     await mSignupStatus()
     const messages = []
     let input // HTMLDivElement containing input element
+    console.log('pageType', mPageType)
     switch(mPageType){
+        case 'about':
+        case 'privacy-policy':
+            break
         case 'challenge':
         case 'select':
             const hostedMembers = await mFetchHostedMembers()
@@ -313,8 +317,8 @@ async function mLoadStart(){
     signupTeaser = document.getElementById('signup-teaser')
     signupTeaserButton = document.getElementById('signup-button-teaser')
     /* fetch the greeting messages */
-    // get query params
     mPageType = new URLSearchParams(window.location.search).get('type')
+        ?? window.location.pathname.split('/').pop()
     await mFetchStart()
 }
 /**
