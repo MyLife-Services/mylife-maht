@@ -31,6 +31,7 @@ let activeCategory,
     chatInputField,
     chatRefresh,
     memberSubmit,
+    pageLoader,
     sceneContinue,
     screen,
     spinner,
@@ -46,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     chatInputField = document.getElementById('chat-member-input')
     chatRefresh = document.getElementById('chat-refresh')
     memberSubmit = document.getElementById('chat-member-submit')
+    pageLoader = document.getElementById('page-loader')
     sceneContinue = document.getElementById('experience-continue')
     spinner = document.getElementById('agent-spinner')
     transport = document.getElementById('experience-transport')
@@ -530,6 +532,7 @@ function mStageTransitionMember(includeSidebar=true){
     memberSubmit.addEventListener('click', mAddMemberMessage)
     hide(transport)
     hide(screen)
+    hide(pageLoader)
     document.querySelectorAll('.mylife-widget')
         .forEach(widget=>{
             const loginRequired = (widget.dataset?.requireLogin ?? "false")==="true"

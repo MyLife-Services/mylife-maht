@@ -698,6 +698,28 @@ body {
 	padding: 1rem;
 	margin: 1rem;
 }
+.loader {
+	animation: spin 2s linear infinite;
+	border: 1.2rem solid indianred;
+	border-radius: 50%;
+	border-top: 1.2rem dotted #3498db;
+	height: 5rem;
+	width: 5rem;
+}
+.loader-container {
+	align-items: center;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	height: 95vh;
+	overflow: hidden;
+}
+.loader-text {
+	font-size: 3rem;
+	color: aliceblue;
+	padding: 1.5rem;
+	text-align: center;
+}
 .loading {
 	display: none;
 	font-size: 24px;

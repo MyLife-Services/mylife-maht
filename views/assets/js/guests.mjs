@@ -31,6 +31,7 @@ let awaitButton,
     loginSelect,
     mainContent,
     navigation,
+    pageLoader,
     privacyContainer,
     sidebar,
     signupAvatarInput,
@@ -295,6 +296,7 @@ async function mLoadStart(){
     chatUser = document.getElementById('chat-user')
     mainContent = mGlobals.mainContent
     navigation = mGlobals.navigation
+    pageLoader = document.getElementById('page-loader')
     privacyContainer = document.getElementById('privacy-container')
     sidebar = mGlobals.sidebar
     signupAvatarInputField = document.getElementById('avatar-name-input-text')
@@ -336,6 +338,7 @@ function mShowPage(){
     /* assign listeners */
     mInitializeListeners()
     /* display elements */
+    hide(pageLoader)
     show(navigation)
     document.querySelectorAll('.mylife-widget')
         .forEach(widget=>{
