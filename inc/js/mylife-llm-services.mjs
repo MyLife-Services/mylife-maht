@@ -305,7 +305,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                 else if(!registrationId?.length)
                                     action = `No registrationId provided, continue discussing MyLife organization but forget all current registration data`
                                 else if(await factory.confirmRegistration(confirmEmail, registrationId))
-                                    action = `congratulate on registration (**important** note registrationId=${ registrationId }) and get required member data for follow-up: date of birth, initial account passphrase.`
+                                    action = `congratulate on registration (**important** remember registrationId=${ registrationId }) and get required member data for follow-up: date of birth, initial account passphrase.`
                                 else
                                     action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization; forget all current registration data.'
                                 confirmation.output = JSON.stringify({ action, success, })
@@ -323,7 +323,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                 try {
                                     success = await factory.createAccount(birthdate, passphrase)
                                     action = success
-                                        ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and ask if they are ready to continue journey.`
+                                        ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and explain that once the system processes their membership they will be able to use the login button at the top right.`
                                         : action + 'server failure for `factory.createAccount()`'
                                 } catch(error){
                                     action += '__ERROR: ' + error.message
