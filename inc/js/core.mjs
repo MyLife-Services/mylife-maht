@@ -10,7 +10,6 @@ class Member extends EventEmitter {
 	constructor(factory){
 		super()
 		this.#factory = factory
-		this.attachListeners()
 	}
 	/**
 	 * Initializes `this.#avatar` and returns `this`. The Avatar will thence be primary point of interaction with Session and Server. Only upon dissolution of Avatar [sessionEnd] is triggered an internal `this` evolution evaluation based on upon the conduct of Avatar.
@@ -20,18 +19,9 @@ class Member extends EventEmitter {
 	 * @returns {Promise} Promise resolves to this Member class instantiation
 	 */
 	async init(avatar){
-		this.#avatar = avatar ?? await this.factory.getAvatar()
+		this.#avatar = avatar
+			?? await this.factory.getAvatar()
 		return this
-	}
-	/**
-	 * Attaches listeners to Member class instantiation
-	 * @publc must remain public in order to be overridden
-	 * @returns {void} returns nothing
-	*/
-	attachListeners(){
-		this.avatar.on('avatar-init-end', ()=>{
-			console.log(chalk.grey(`Member::init::avatar-init-end`))
-		})
 	}
 	//	getter/setter functions
 	get abilities(){
@@ -181,14 +171,6 @@ class Organization extends Member {	//	form=organization
 		if(!avatar)
 			throw new Error('avatar parameter currently required for Organization imprint')
 		return await super.init(avatar)
-	}
-	/**
-	 * `Member` Overload
-	 * @publc must remain public in order to be overridden
-	 * @returns {void} returns nothing
-	*/
-	attachListeners(){
-		// intentionally empty
 	}
 	/* getters/setters */
 	/**

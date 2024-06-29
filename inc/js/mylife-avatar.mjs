@@ -1201,7 +1201,6 @@ async function mBot(factory, avatar, bot){
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
     /* update/create */
     let originBot = bots.find(oBot=>oBot.id===botId)
-    console.log('originBot', bot)
     if(originBot){ /* update bot */
         const options = {}
         const updatedBot = Object.keys(bot)
