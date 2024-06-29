@@ -758,6 +758,9 @@ class Avatar extends EventEmitter {
     get biographer(){
         return this.#bots.find(_bot=>_bot.type==='personal-biographer')
     }
+    get biographer(){
+        return this.#bots.find(_bot=>_bot.type==='personal-biographer')
+    }
     /**
      * Get the birthdate of _member_ from `#factory`.
      * @getter
