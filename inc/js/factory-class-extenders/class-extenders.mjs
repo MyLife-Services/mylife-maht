@@ -142,8 +142,11 @@ function extendClass_conversation(originClass, referencesObject) {
             this.#factory = factory
             this.#thread = thread
             this.#botId = botId
+            this.form = this.form
+                ?? 'system'
             this.name = `conversation_${this.#factory.mbr_id}_${thread.thread_id}`
-            this.type = this.type ?? 'chat'
+            this.type = this.type
+                ?? 'chat'
         }
         /* public functions */
         /**
@@ -203,12 +206,20 @@ function extendClass_conversation(originClass, referencesObject) {
             return this
         }
         //  public getters/setters
-        get bot_id(){
+        /**
+         * Get the id {Guid} of the conversation's bot.
+         * @getter
+         * @returns {Guid} - The bot id.
+         */
+        get botId(){
             return this.#botId
         }
-        get botId(){
-            return this.bot_id
-        }
+        /**
+         * Set the id {Guid} of the conversation's bot.
+         * @setter
+         * @param {Guid} botId - The bot id.
+         * @returns {void}
+         */
         set botId(botId){
             this.#botId = botId
         }
@@ -238,10 +249,10 @@ function extendClass_conversation(originClass, referencesObject) {
             return this.#thread
         }
         get thread_id(){
-            return this.threadId
+            return this.thread.id
         }
         get threadId(){
-            return this.thread.id
+            return this.thread_id
         }
     }
     return Conversation

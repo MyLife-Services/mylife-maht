@@ -7,7 +7,7 @@ import LLMServices from './mylife-llm-services.mjs'
 const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
 const mAllowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
-const mBotIdOverride = OPENAI_MAHT_GPT_OVERRIDE
+const mBot_idOverride = OPENAI_MAHT_GPT_OVERRIDE
 /**
  * @class
  * @extends EventEmitter
@@ -36,17 +36,15 @@ class Avatar extends EventEmitter {
     #livingExperience
     #llmServices
     #mode = 'standard' // interface-mode from module `mAvailableModes`
-    #nickname // avatar nickname, need proxy here as getter is complex
-    #proxyBeing = 'human'
+    #nickname // avatar nickname, need proxy here as g/setter is "complex"
     #relivingMemories = [] // array of active reliving memories, with items, maybe conversations, included
     /**
      * @constructor
-     * @param {Object} obj - The data object from which to create the avatar
-     * @param {Factory} factory - The member factory on which avatar relies for all service interactions
+     * @param {MyLifeFactory|AgentFactory} factory - The factory on which avatar relies for all service interactions.
      * @param {LLMServices} llmServices - The LLM services object
      */
     constructor(factory, llmServices){
-        super()
+        super() // EventEmitter
         this.#factory = factory
         this.#llmServices = llmServices
         this.#assetAgent = new oAIAssetAssistant(this.#factory, this.globals, this.#llmServices)
@@ -61,62 +59,13 @@ class Avatar extends EventEmitter {
      * @returns {Promise} Promise resolves to this Avatar class instantiation
      */
     async init(){
-        const obj = await this.#factory.avatarProperties()
-        Object.entries(obj)
-            .forEach(([key, value]) => {
-                if( // exclude certain properties
-                        ['being', 'mbr_id'].includes(key)
-                    ||  ['$', '_', ' ', '@', '#',].includes(key[0])
-                )
-                    return
-                this[key] = value
-            })
-        this.nickname = this.nickname
-            ?? this.names?.[0]
-            ?? `${this.memberFirstName ?? 'member'}'s avatar`
-        this.#bots = await this.#factory.bots(this.id)
-        let activeBot = this.avatar
-        if(!this.isMyLife){
-            /* bot checks */
-            const requiredBotTypes = ['library', 'personal-avatar', 'personal-biographer',]
-            await Promise.all(
-                requiredBotTypes
-                    .map(async botType=>{
-                        if(!this.#bots.some(bot=>bot.type===botType)){
-                            const _bot = await mBot(this.#factory, this, { type: botType })
-                            this.#bots.push(_bot)
-                        }
-                }
-            ))
-            activeBot = this.avatar // second time is a charm
-            this.activeBotId = activeBot.id
-            this.#llmServices.botId = activeBot.bot_id
-            /* conversations */
-            await Promise.all(
-                this.#bots.map(async bot=>{ 
-                    const { thread_id } = bot
-                    if(thread_id && !this.getConversation(thread_id))
-                        this.#conversations.push(await this.createConversation('chat', thread_id))
-                })
-            )
-            /* experience variables */
-            this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
-            /* lived-experiences */
-            this.#livedExperiences = await this.#factory.experiencesLived(false)
-            /* evolver */
-            this.#evolver = new EvolutionAssistant(this)
-            mAssignEvolverListeners(this.#factory, this.#evolver, this)
-            /* init evolver */
-            await this.#evolver.init()
-        } else { // @stub - Q-specific, leave as `else` as is near always false
-            this.activeBotId = activeBot.id
-            activeBot.bot_id = mBotIdOverride ?? activeBot.bot_id
-            this.#llmServices.botId = activeBot.bot_id
-            const conversation = await this.createConversation()
-            activeBot.thread_id = conversation.threadId
-            this.#proxyBeing = 'MyLife'
-        }
-        this.emit('avatar-init-end', this.conversations)
+        await mInit(this.#factory, this, this.#bots) // mutates avatar and populates bots
+        /* experience variables */
+        this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
+        /* llm services */
+        this.#llmServices.botId = mBot_idOverride && this.isMyLife
+            ? mBot_idOverride
+            : this.activeBot.bot_id
         return this
     }
     /**
@@ -136,33 +85,25 @@ class Avatar extends EventEmitter {
      * @param {string} activeBotId - The active bot id.
      * @param {string} threadId - The openai thread id.
      * @param {string} chatMessage - The chat message content.
+     * @param {Conversation} conversation - The conversation object.
+     * @param {number} processStartTime - The start time of the process.
      * @returns {object} - The response(s) to the chat request.
     */
-    async chatRequest(activeBotId, threadId, chatMessage){
-        const processStartTime = Date.now()
-        if(this.isMyLife){ /* MyLife chat request hasn't supplied basics to front-end yet */
-            activeBotId = this.activeBot.id
-            threadId = this.activeBot.thread_id
-            if(this.isValidating) // trigger confirmation until session (or vld) ends
-                chatMessage = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ chatMessage }`
-            if(this.isCreatingAccount)
-                chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
-            console.log('chatRequest::MyLife', activeBotId, threadId, chatMessage)
-        }
+    async chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime=Date.now()){
         if(!chatMessage)
             throw new Error('No message provided in context')
         if(!activeBotId)
             throw new Error('Parameter `activeBotId` required.')
         const { activeBot, factory } = this
-        const { id: botId, thread_id: botThreadId, } = activeBot
+        const { id: botId, } = activeBot
         if(botId!==activeBotId)
             throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
-        if(botThreadId!==threadId)
-            throw new Error(`Invalid thread id: ${ threadId }, active thread id: ${ botThreadId }`)
-        let conversation = this.getConversation(threadId)
+        // @stub - clean up conversation alterations - Q is immune
+        conversation = conversation
+            ?? this.getConversation(threadId)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
-        conversation.botId = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
+        conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory, this)
         conversation.addMessages(messages)
         if(mAllowSave)
@@ -748,11 +689,12 @@ class Avatar extends EventEmitter {
      * Set the active bot id. If not match found in bot list, then defaults back to this.id
      * @setter
      * @requires mBotInstructions
-     * @param {string} id - The active bot id, defaults to personal-avatar.
+     * @param {string} id - The active bot id.
      * @returns {void}
      */
-    set activeBotId(id=this.avatar.id){
-        const newActiveBot = mFindBot(this, id) ?? this.avatar
+    set activeBotId(id){
+        const newActiveBot = mFindBot(this, id)
+            ?? this.avatar
         const { id: newActiveId, type, version: botVersion=1.0, } = newActiveBot
         const currentVersion = this.#factory.botInstructionsVersion(type)
         if(botVersion!==currentVersion)
@@ -810,8 +752,8 @@ class Avatar extends EventEmitter {
      * @getter
      * @returns {string} The object being the avatar is emulating.
     */
-    get being(){    //  
-        return this.#proxyBeing
+    get being(){  
+        return 'human'
     }
     get biographer(){
         return this.#bots.find(_bot=>_bot.type==='personal-biographer')
@@ -887,6 +829,13 @@ class Avatar extends EventEmitter {
     get dob(){
         return this.#factory.dob
     }
+    get evolver(){
+        return this.#evolver
+    }
+    set evolver(evolver){
+        if(!(evolver instanceof EvolutionAssistant))
+        this.#evolver = evolver
+    }
     /**
      * Get the current experience.
      * @getter
@@ -919,6 +868,17 @@ class Avatar extends EventEmitter {
      */
     get experiencesLived(){
         return this.#livedExperiences
+    }
+    /**
+     * Set the experiences lived.
+     * @setter
+     * @param {array} livedExperiences - The new experiences lived.
+     * @returns {void}
+     */
+    set experiencesLived(livedExperiences){
+        if(!Array.isArray(livedExperiences))
+            throw new Error('Experiences lived must be an array.')
+        this.#livedExperiences = livedExperiences
     }
     /**
      * Get the Avatar's Factory.
@@ -1144,18 +1104,62 @@ class Avatar extends EventEmitter {
         return this.#factory.registrationId
     }
 }
-/* module functions */
-/**
- * Assigns evolver listeners.
- * @module
- * @param {AgentFactory} factory - Agent Factory object
- * @param {EvolutionAssistant} evolver - Evolver object
- * @param {Avatar} avatar - Avatar object
- * @returns {void}
- */
-function mAssignEvolverListeners(factory, evolver, avatar){
-    /* assign evolver listeners */
+class Q extends Avatar {
+    #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
+    #llmServices // ref _could_ differ from Avatar, but for now, same
+    #mode = 'system' // @stub - experience mode for guests
+    /**
+     * @constructor
+     * @param {MyLifeFactory} factory - The factory on which MyLife relies for all service interactions.
+     * @param {LLMServices} llmServices - The LLM services object
+     */
+    constructor(factory, llmServices){
+        if(!factory.isMyLife)
+            throw new Error('factory parameter must be an instance of MyLifeFactory')
+        super(factory, llmServices)
+        this.#factory = factory
+        this.llmServices = llmServices
+    }
+    /* overloaded methods */
+    /**
+     * Processes and executes incoming chat request.
+     * @todo - cleanup/streamline frontend communication as it really gets limited to Q&A... other events would fire API calls on the same same session, so don't need to be in chat or conversation streams
+     * @public
+     * @param {string} activeBotId - The active bot id.
+     * @param {string} threadId - The openai thread id.
+     * @param {string} chatMessage - The chat message content.
+     * @param {number} processStartTime - The process start time.
+     * @returns {object} - The response(s) to the chat request.
+    */
+    async chatRequest(activeBotId=this.activeBotId, threadId, chatMessage, processStartTime=Date.now()){
+        let conversation = this.getConversation(threadId)
+        if(!conversation){ // create conversation
+            if(threadId?.length)
+                throw new Error('Conversation cannot be found')
+            this.activeBot.bot_id = mBot_idOverride
+                ?? this.activeBot.bot_id
+            conversation = await this.createConversation('system', undefined, activeBotId, true) // pushes to this.#conversations in Avatar
+            threadId = conversation.thread_id
+            console.log('chatRequest::NEW-CONVERSATION', this.conversations, threadId)
+        }
+        if(this.isValidating) // trigger confirmation until session (or vld) ends
+            chatMessage = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ chatMessage }`
+        if(this.isCreatingAccount)
+            chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
+        return super.chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime)
+    }
+    /* getters/setters */
+    /**
+     * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
+     * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
+     * @getter
+     * @returns {string} The object being the avatar is emulating.
+    */
+    get being(){  
+        return 'MyLife'
+    }
 }
+/* module functions */
 /**
  * Assigns (directly mutates) private experience variables from avatar.
  * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
@@ -1187,8 +1191,6 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
 async function mBot(factory, avatar, bot){
     /* validation */
     const { bots, id: avatarId, isMyLife, mbr_id, } = avatar
-    if(isMyLife)
-        throw new Error('MyLife system avatar may not create or alter its associated bots.')
     const { newGuid, } = factory
     const { id: botId=newGuid, object_id: objectId, type: botType, } = bot
     if(!botType?.length)
@@ -1199,6 +1201,7 @@ async function mBot(factory, avatar, bot){
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
     /* update/create */
     let originBot = bots.find(oBot=>oBot.id===botId)
+    console.log('originBot', bot)
     if(originBot){ /* update bot */
         const options = {}
         const updatedBot = Object.keys(bot)
@@ -1254,11 +1257,11 @@ async function mBot(factory, avatar, bot){
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order
  */
 async function mCallLLM(llmServices, conversation, prompt, factory, avatar){
-    const { botId, bot_id, thread_id: threadId } = conversation
-    const id = botId ?? bot_id
-    if(!threadId || !id)
+    const { bot_id, thread_id } = conversation
+    console.log('mCallLLM()', conversation.thread, prompt, conversation.inspect(true))
+    if(!thread_id || !bot_id)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
-    const messages = await llmServices.getLLMResponse(threadId, id, prompt, factory, avatar)
+    const messages = await llmServices.getLLMResponse(thread_id, bot_id, prompt, factory, avatar)
     messages.sort((mA, mB)=>{
         return mB.created_at - mA.created_at
     })
@@ -1857,6 +1860,60 @@ function mHelpIncludePreamble(type, isMyLife){
     }
 }
 /**
+ * Initializes the Avatar instance with stored data.
+ * @param {Q|Avatar} avatar - The avatar Instance (`this`).
+ * @param {MyLifeFactory|AgentFactory} factory - Member Avatar (true) or Q (false).
+ */
+async function mInit(factory, avatar, bots){
+    /* get avatar data from cosmos */
+    const obj = await factory.avatarProperties()
+    Object.entries(obj)
+        .forEach(([key, value])=>{
+            if( // exclude certain properties
+                    ['being', 'mbr_id'].includes(key)
+                ||  ['$', '_', ' ', '@', '#',].includes(key[0])
+            )
+                return
+            avatar[key] = value
+        })
+    const requiredBotTypes = ['personal-avatar',]
+    if(factory.isMyLife){ // MyLife
+        avatar.nickname = 'Q'
+    } else { // Member
+        avatar.nickname = avatar.nickname
+            ?? avatar.names?.[0]
+            ?? `${avatar.memberFirstName ?? 'member'}'s avatar`
+        /* bots */ // @stub - determine by default or activated team
+        requiredBotTypes.push('library', 'personal-biographer') // default memory team
+    }
+    bots.push(...await factory.bots(avatar.id))
+    await Promise.all(
+        requiredBotTypes
+            .map(async botType=>{
+                if(!bots.some(bot=>bot.type===botType)){ // create required bot
+                    const bot = await mBot(factory, avatar, { type: botType })
+                    bots.push(bot)
+                }
+        }
+    ))
+    avatar.activeBotId = avatar.avatar.id // initially set active bot to personal-avatar
+    /* conversations */
+    await Promise.all(
+        bots.map(async bot=>{ 
+            const { thread_id, } = bot
+            if(thread_id && !avatar.getConversation(thread_id))
+                avatar.conversations.push(await avatar.createConversation('chat', thread_id))
+        })
+    )
+    // need to create new conversation for Q variant, but also need to ensure that no thread_id is saved for Q
+    /* evolver */
+    if(!factory.isMyLife)
+        avatar.evolver = await (new EvolutionAssistant(avatar))
+            .init()
+    /* lived-experiences */
+    avatar.experiencesLived = await factory.experiencesLived(false)
+}
+/**
  * Get experience scene navigation array.
  * @getter
  * @returns {Object[]} - The scene navigation array for the experience.
@@ -2152,4 +2209,7 @@ async function mValidateRegistration(activeBot, factory, validationId){
     return { registrationData, messages, success, }
 }
 /* exports */
-export default Avatar
+export {
+	Avatar,
+	Q,
+}
