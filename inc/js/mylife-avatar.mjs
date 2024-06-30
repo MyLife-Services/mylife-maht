@@ -1260,7 +1260,6 @@ async function mBot(factory, avatar, bot){
  */
 async function mCallLLM(llmServices, conversation, prompt, factory, avatar){
     const { bot_id, thread_id } = conversation
-    console.log('mCallLLM()', conversation.thread, prompt, conversation.inspect(true))
     if(!thread_id || !bot_id)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
     const messages = await llmServices.getLLMResponse(thread_id, bot_id, prompt, factory, avatar)
@@ -2062,30 +2061,29 @@ function mPruneMessages(bot, messageArray, type='chat', processStartTime=Date.no
  */
 async function mReliveMemoryNarration(avatar, factory, llm, bot, item, memberInput='NEXT'){
     const { relivingMemories, } = avatar
-    const { bot_id, id: botId, thread_id, } = bot
+    const { bot_id, id: botId, } = bot
     const { id, } = item
     const processStartTime = Date.now()
     let message = `## relive memory itemId: ${id}\n`
     let relivingMemory = relivingMemories.find(reliving=>reliving.item.id===id)
     if(!relivingMemory){ /* create new activated reliving memory */
         const conversation = await avatar.createConversation('memory', undefined, botId, false)
-        conversation.botId = bot_id
-        const { threadId, } = conversation
+        conversation.bot_id = bot_id
+        const { thread_id, } = conversation
         relivingMemory = {
             bot,
             conversation,
             id,
             item,
-            threadId,
+            thread_id,
         }
         relivingMemories.push(relivingMemory)
-        console.log('mReliveMemoryNarration::new reliving memory created', conversation.inspect(true), conversation.bot, bot_id)
+        console.log('mReliveMemoryNarration::new reliving memory', `created for memory: ${ id }`, item, bot_id, thread_id)
     } else /* opportunity for member interrupt */
         message += `MEMBER: ${memberInput}\n`
-    const { conversation, threadId, } = relivingMemory
+    const { conversation, thread_id, } = relivingMemory
     let messages = await mCallLLM(llm, conversation, message, factory, avatar)
     conversation.addMessages(messages)
-    console.log('chatRequest::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
     /* frontend mutations */
     messages = conversation.messages
         .filter(message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
@@ -2098,7 +2096,7 @@ async function mReliveMemoryNarration(avatar, factory, llm, bot, item, memberInp
         id,
         messages,
         success: true,
-        threadId,
+        thread_id,
     }
     return memory
 }
