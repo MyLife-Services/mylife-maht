@@ -7,31 +7,21 @@ import initRouter from './routes.mjs'
 class Member extends EventEmitter {
 	#avatar
 	#factory
-	constructor(_Factory){
+	constructor(factory){
 		super()
-		this.#factory = _Factory // member will need factory after avatar is created for datacore evolutionary agent, et likely al.
-		/* assign factory/avatar listeners */
-		this.attachListeners()
+		this.#factory = factory
 	}
 	/**
 	 * Initializes `this.#avatar` and returns `this`. The Avatar will thence be primary point of interaction with Session and Server. Only upon dissolution of Avatar [sessionEnd] is triggered an internal `this` evolution evaluation based on upon the conduct of Avatar.
 	 * @async
 	 * @public
+	 * @param {Q} avatar - Avatar object to initialize, when infused from child instance
 	 * @returns {Promise} Promise resolves to this Member class instantiation
 	 */
-	async init(){
-		this.#avatar = await this.factory.getAvatar()
+	async init(avatar){
+		this.#avatar = avatar
+			?? await this.factory.getAvatar()
 		return this
-	}
-	/**
-	 * Attaches listeners to Member class instantiation
-	 * @publc must remain public in order to be overridden
-	 * @returns {void} returns nothing
-	*/
-	attachListeners(){
-		this.factory.on('avatar-init-end',(_avatar,bytes)=>{
-			console.log(chalk.grey(`Member::init::avatar-init-end|memory-size=${bytes}b`))
-		})
 	}
 	//	getter/setter functions
 	get abilities(){
@@ -177,16 +167,10 @@ class Organization extends Member {	//	form=organization
 		super(_Factory)
 	}
 	/* public functions */
-	async init(){
-		return await super.init()
-	}
-	/**
-	 * `Member` Overload
-	 * @publc must remain public in order to be overridden
-	 * @returns {void} returns nothing
-	*/
-	attachListeners(){
-		// intentionally empty
+	async init(avatar){
+		if(!avatar)
+			throw new Error('avatar parameter currently required for Organization imprint')
+		return await super.init(avatar)
 	}
 	/* getters/setters */
 	/**
@@ -245,9 +229,14 @@ class Organization extends Member {	//	form=organization
 		return this.core.vision
 	}
 }
-class MyLife extends Organization {	//	form=server
-	constructor(factory){	//	no session presumed to exist
+class MyLife extends Organization {	// form=server
+	#avatar // MyLife's private class avatar, _same_ object reference as Member Class's `#avatar`
+	constructor(factory){ // no session presumed to exist
 		super(factory)
+	}
+	async init(){
+		this.#avatar = await this.factory.getAvatar()
+		return await super.init(this.#avatar)
 	}
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).

@@ -4,7 +4,7 @@ import EventEmitter from 'events'
 import vm from 'vm'
 import util from 'util'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
-import Avatar from './mylife-avatar.mjs'
+import { Avatar, Q, } from './mylife-avatar.mjs'
 import Dataservices from './mylife-data-service.js'
 import { Member, MyLife } from './core.mjs'
 import {
@@ -1040,6 +1040,15 @@ class MyLifeFactory extends AgentFactory {
 	}
 	deleteItem(){
 		throw new Error('MyLife server cannot delete items')
+	}
+	/**
+	 * Retrieves member's Avatar data and creates singleton instance.
+	 * @returns {Avatar} - The Avatar instance.
+	 */
+	async getAvatar(){
+		const avatar = await ( new Q(this, this.#llmServices) )
+			.init()
+		return avatar
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.

@@ -87,13 +87,18 @@ async function challenge(ctx){
 		ctx.throw(400, `challenge request requires member id`)
 	ctx.body = await ctx.session.MemberSession.challengeAccess(mid, passphrase)
 }
+/**
+ * Chat with the member's avatar.
+ * @todo - deprecate threadId in favor of thread_id
+ * @param {Koa} ctx - Koa Context object
+ */
 async function chat(ctx){
-	const { botId, message, role, threadId, } = ctx.request.body
+	const { botId, message, role, threadId, thread_id, } = ctx.request.body
 		?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar, } = ctx.state
-	const response = await avatar.chatRequest(botId, threadId, message)
+	const response = await avatar.chatRequest(botId, thread_id ?? threadId, message)
 	ctx.body = response
 }
 async function collections(ctx){
