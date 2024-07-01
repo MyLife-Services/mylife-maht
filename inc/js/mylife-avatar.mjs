@@ -446,15 +446,16 @@ class Avatar extends EventEmitter {
     /**
      * Reliving a memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage they choose.
      * @param {Guid} iid - The item id.
+     * @param {string} memberInput - Any member input.
      * @returns {Object} - livingMemory engagement object (i.e., includes frontend parameters for engagement as per instructions for included `portrayMemory` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
      */
-    async reliveMemory(iid){
+    async reliveMemory(iid, memberInput){
         const item = await this.#factory.item(iid)
         const { id, } = item
         if(!id)
             throw new Error(`item does not exist in member container: ${ iid }`)
         /* develop narration */
-        const narration = await mReliveMemoryNarration(this, this.#factory, this.#llmServices, this.biographer, item)
+        const narration = await mReliveMemoryNarration(this, this.#factory, this.#llmServices, this.biographer, item, memberInput)
         return narration // include any required .map() pruning
     }
     /**
@@ -2060,11 +2061,12 @@ function mPruneMessages(bot, messageArray, type='chat', processStartTime=Date.no
  * @returns {Promise<object>} - The reliving memory object for frontend to execute.
  */
 async function mReliveMemoryNarration(avatar, factory, llm, bot, item, memberInput='NEXT'){
+    console.log('mReliveMemoryNarration::start', item.id, memberInput)
     const { relivingMemories, } = avatar
     const { bot_id, id: botId, } = bot
     const { id, } = item
     const processStartTime = Date.now()
-    let message = `## relive memory itemId: ${id}\n`
+    let message = `## relive memory itemId: ${ id }\n`
     let relivingMemory = relivingMemories.find(reliving=>reliving.item.id===id)
     if(!relivingMemory){ /* create new activated reliving memory */
         const conversation = await avatar.createConversation('memory', undefined, botId, false)
@@ -2078,10 +2080,11 @@ async function mReliveMemoryNarration(avatar, factory, llm, bot, item, memberInp
             thread_id,
         }
         relivingMemories.push(relivingMemory)
-        console.log('mReliveMemoryNarration::new reliving memory', `created for memory: ${ id }`, item, bot_id, thread_id)
+        console.log(`mReliveMemoryNarration::new reliving memory: ${ id }`)
     } else /* opportunity for member interrupt */
-        message += `MEMBER: ${memberInput}\n`
+        message += `MEMBER INPUT: ${ memberInput }\n`
     const { conversation, thread_id, } = relivingMemory
+    console.log(`mReliveMemoryNarration::reliving memory: ${ id }`, message)
     let messages = await mCallLLM(llm, conversation, message, factory, avatar)
     conversation.addMessages(messages)
     /* frontend mutations */

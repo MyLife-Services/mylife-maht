@@ -1125,24 +1125,51 @@ async function mReliveMemory(event){
     const popupClose = document.getElementById(`popup-close_${ id }`)
     if(popupClose)
         popupClose.click()
-    const { messages, success, } = await mReliveMemoryRequest(id)
+    const { command, parameters, messages, success, } = await mReliveMemoryRequest(id, inputContent)
     if(success){
         addMessages(messages)
-        // create input - create this function in member, as it will display it in chat and pipe it back here as below
-        const input = document.createElement('button')
-        input.addEventListener('click', mReliveMemory, { once: true })
-        input.dataset.id = id
-        if(inputContent?.length)
-            input.dataset.inputContent = inputContent
-        input.textContent = 'next'
+        // @todo - create this function in member, as it will display it in chat and pipe it back here as below
+        const input = document.createElement('div')
+        // id alone is not unique!; input.id = `input_${ id }`
+        input.name = `input_${ id }`
+        input.classList.add('memory-input-container')
+        const inputContent = document.createElement('textarea')
+        inputContent.classList.add('memory-input')
+        inputContent.name = `memory-input_${ id }`
+        const inputSubmit = document.createElement('button')
+        inputSubmit.classList.add('memory-input-button')
+        inputSubmit.dataset.id = id
+        input.appendChild(inputContent)
+        input.appendChild(inputSubmit)
+        inputContent.addEventListener('input', event=>{
+            const { value, } = event.target
+            inputSubmit.dataset.inputContent = value
+            inputSubmit.textContent = value.length > 2
+                ? 'update'
+                : 'next'
+        })
+        inputSubmit.addEventListener('click', mReliveMemory, { once: true })
         addInput(input)
     } else
         throw new Error(`Failed to fetch memory for relive request.`)
 }
-async function mReliveMemoryRequest(id){
+/**
+ * 
+ * @param {Guid} id - The memory collection item id.
+ * @param {string} memberInput - The member's updates to the memory.
+ * @returns 
+ */
+async function mReliveMemoryRequest(id, memberInput){
+    console.log('Relive memory:', id, memberInput)
     try {
         const url = window.location.origin + '/members/memory/relive/' + id
-        let response = await fetch(url, { method: 'PATCH' })
+        let response = await fetch(url, {
+            body: memberInput?.length ? JSON.stringify({ memberInput, }) : null,
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
         if(!response.ok)
             throw new Error(`HTTP error! Status: ${response.status}`)
         response = await response.json()
@@ -1164,11 +1191,11 @@ async function mSetBot(bot){
             ? 'PUT' // update
             : 'POST' // create
         let response = await fetch(url, {
-            method: method,
+            body: JSON.stringify(bot),
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(bot)
+            method: method,
         })
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`)
