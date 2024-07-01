@@ -423,14 +423,14 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'updatesummary':
                             case 'update_summary':
                             case 'update summary':
-                                console.log('mRunFunctions()::updatesummary::start', item, itemId, toolArguments)
+                                console.log('mRunFunctions()::updatesummary::start', itemId)
                                 const { summary: updatedSummary, } = toolArguments
                                 // remove await once confirmed updates are connected
                                 await factory.updateItem({ id: itemId, summary: updatedSummary, })
                                 action=`confirm success and present updated summary to member`
                                 success = true
                                 confirmation.output = JSON.stringify({ action, success, })
-                                console.log('mRunFunctions()::getSummary::confirmation', confirmation)
+                                console.log('mRunFunctions()::updatesummary::end', itemId, updatedSummary)
                                 return confirmation
                             default:
                                 console.log(`ERROR::mRunFunctions()::toolFunction not found: ${ name }`, toolFunction)
