@@ -211,6 +211,48 @@ body {
 .main-content h2 {
 	font-size: 20px;
 }
+/* MyLife Memories */
+.memory-input {
+	background-color: aliceblue;
+	border: 1px solid #ccc;
+	border-radius: 0.4rem;
+	color: black;
+	display: flex;
+	font-size: 0.9rem;
+	flex: 1 0 auto;
+	margin: 0.25rem;
+	overflow: hidden;
+	padding: 0.25rem;
+	resize: none;
+}
+.memory-input-container {
+	align-self: center;
+    align-content: center;
+    background-color: sienna;
+    border-radius: 0.4rem;
+    display: flex;
+    flex: 1 0 auto;
+	gap: 0.25rem;
+	justify-content: center;
+    margin: 0.25rem;
+    max-height: 5rem;
+    max-width: 90%;
+    padding: 0.25rem;
+	width: 100%;
+}
+.memory-input-button {
+	background-color: #741237;
+	border: 1px solid #ccc;
+	border-radius: 0.4rem;
+	color: #fff;
+	cursor: pointer;
+	display: flex;
+	flex: 0 1 5%;
+	justify-content: center;
+	margin: 0.5rem;
+	padding: 0.5rem;
+
+}
 /* MyLife About, Privacy Policy */
 .about-container, .privacy-container {
 	display: flex;

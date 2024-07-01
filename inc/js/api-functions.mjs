@@ -57,7 +57,8 @@ async function experience(ctx){
     mAPIKeyValidation(ctx)
     const { MemberSession, } = ctx.state
     const { eid, } = ctx.params
-    ctx.body = await MemberSession.experience(eid, ctx.request.body)
+    const { memberInput, } = ctx.request.body
+    ctx.body = await MemberSession.experience(eid, memberInput)
 }
 /**
  * Request to end an active Living-Experience for member.

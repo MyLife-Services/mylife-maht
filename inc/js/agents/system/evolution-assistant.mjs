@@ -23,12 +23,12 @@ export class EvolutionAssistant extends EventEmitter {
     #phase //  create, init, develop, mature, maintain, retire
     /**
      * Constructor Function for Evolution Assistant.
-     * @param {Avatar} _avatar
+     * @param {Avatar} avatar
     */
-    constructor(_avatar) { //  receive parent object ref
+    constructor(avatar) { //  receive parent object ref
         super()
         this.#phase = _defaultPhase //  overkill but fun
-        this.#avatar = _avatar
+        this.#avatar = avatar
         this.#advancePhase()    //  phase complete
     }
     //  public functions

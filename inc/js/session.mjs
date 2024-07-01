@@ -5,12 +5,12 @@ class MylifeMemberSession extends EventEmitter {
 	#autoplayed = false // flag for autoplayed experience, one per session
 	#consents = []	//	consents are stored in the session
 	#experienceLocked = false
-	#experiences = []	//	holds id for experiences conducted in this session
+	#experiences = [] // holds id for experiences conducted in this session
 	#factory
 	#mbr_id = false
 	#Member
 	name
-	#sessionLocked = true	//	locked by default
+	#sessionLocked = true // locked by default
 	constructor(factory){
 		super()
 		this.#factory = factory
@@ -22,14 +22,11 @@ class MylifeMemberSession extends EventEmitter {
 		)
 	}
 	async init(mbr_id=this.mbr_id){
-		if(this.locked){
-			if(this.#Member?.mbr_id??mbr_id !== mbr_id)
-				console.log(chalk.bgRed('cannot initialize, member locked'))
-		}
-		if(this.mbr_id && this.mbr_id !== mbr_id) { // unlocked, initialize member session
+		// if isMyLife, then session requires chat thread unique to guest; session has own avatar, demonstrate this is true and then create new conversation
+		if(!this.locked && this.mbr_id && this.mbr_id!==mbr_id){ // unlocked, initialize member session
 			this.#mbr_id = mbr_id
 			mAssignFactoryListeners(this.#factory)
-			await this.#factory.init(this.mbr_id, )	//	needs only `init()` with different `mbr_id` to reset
+			await this.#factory.init(this.mbr_id) // needs only `init()` with different `mbr_id` to reset
 			this.#Member = await this.factory.getMyLifeMember()
 			this.#autoplayed = false // resets autoplayed flag, although should be impossible as only other "variant" requires guest status, as one-day experiences can be run for guests also [for pay]
 			this.emit('onInit-member-initialize', this.#Member.memberName)
@@ -165,7 +162,8 @@ class MylifeMemberSession extends EventEmitter {
 	//	consent functionality
 	async requestConsent(ctx){
 		//	validate request; switch true may be required
-		if(!mValidCtxObject(ctx)) return false	//	invalid ctx object, consent request fails
+		if(!mValidCtxObject(ctx))
+			return false	//	invalid ctx object, consent request fails
 		//	check-01: url ends in valid guid /:_id
 		const _object_id = ctx.request.header?.referer?.split('/').pop()
 		//	not guid, not consent request, no blocking

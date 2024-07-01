@@ -350,7 +350,6 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'getsummary':
                             case 'get_summary':
                             case 'get summary':
-                                console.log('mRunFunctions()::getSummary::start', item)
                                 let { summary, } = item ?? {}
                                 if(!summary?.length){
                                     action = `error getting summary for itemId: ${ itemId ?? 'missing itemId' } - halt any further processing and instead ask user to paste summary into chat and you will continue from there to incorporate their message.`
@@ -360,7 +359,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     success = true
                                 }
                                 confirmation.output = JSON.stringify({ action, itemId, success, summary, })
-                                console.log('mRunFunctions()::getSummary::confirmation', confirmation)
+                                console.log('mRunFunctions()::getSummary::confirmation', itemId)
                                 return confirmation
                             case 'hijackattempt':
                             case 'hijack_attempt':
@@ -424,14 +423,14 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'updatesummary':
                             case 'update_summary':
                             case 'update summary':
-                                console.log('mRunFunctions()::updatesummary::start', item, itemId, toolArguments)
+                                console.log('mRunFunctions()::updatesummary::start', itemId)
                                 const { summary: updatedSummary, } = toolArguments
                                 // remove await once confirmed updates are connected
                                 await factory.updateItem({ id: itemId, summary: updatedSummary, })
                                 action=`confirm success and present updated summary to member`
                                 success = true
                                 confirmation.output = JSON.stringify({ action, success, })
-                                console.log('mRunFunctions()::getSummary::confirmation', confirmation)
+                                console.log('mRunFunctions()::updatesummary::end', itemId, updatedSummary)
                                 return confirmation
                             default:
                                 console.log(`ERROR::mRunFunctions()::toolFunction not found: ${ name }`, toolFunction)

@@ -718,12 +718,12 @@ function mEventInput(){
  * @returns {void}
  */
 async function mEvents(memberInput){
-    const response = await fetch(`/members/experience/${mExperience.id}`, {
+    const response = await fetch(`/members/experience/${ mExperience.id }`, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: memberInput ? JSON.stringify(memberInput) : null,
+        body: memberInput ? JSON.stringify({ memberInput, }) : null,
     })
     if(!response.ok)
         throw new Error(`HTTP error! Status: ${response.status}`)
