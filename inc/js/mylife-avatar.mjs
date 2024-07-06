@@ -63,7 +63,7 @@ class Avatar extends EventEmitter {
         /* experience variables */
         this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
         /* llm services */
-        this.#llmServices.botId = mBot_idOverride && this.isMyLife
+        this.#llmServices.bot_id = mBot_idOverride && this.isMyLife
             ? mBot_idOverride
             : this.activeBot.bot_id
         return this
@@ -540,14 +540,14 @@ class Avatar extends EventEmitter {
             throw new Error('MyLife avatar cannot summarize files.')
         if(!fileId?.length && !fileName?.length)
             throw new Error('File id or name required for summarization.')
-        const { bot_id: botId, thread_id, } = this.personalAssistant
+        const { bot_id, thread_id, } = this.personalAssistant
         const prompt = `Summarize this file document: name=${ fileName }, id=${ fileId }`
         const response = {
             messages: [],
             success: false,
         }
         try{
-            let messages = await mCallLLM(this.#llmServices, { botId, thread_id, }, prompt, this.#factory, this)
+            let messages = await mCallLLM(this.#llmServices, { bot_id, thread_id, }, prompt, this.#factory, this)
             messages = messages
                 .map(message=>mPruneMessage(this.personalAssistant, message, 'mylife-file-summary', processStartTime))
                 .filter(message=>message && message.role!=='user')
@@ -1412,8 +1412,8 @@ async function mEventDialog(llm, experience, event, iteration=0){
                 console.log('mEventDialog::bot id not found in cast', characterId, castMember, bot)
                 throw new Error('Bot id not found in cast.')
             }
-            scriptDialog.botId = bot_id ?? scriptAdvisorBotId
-            console.log('mEventDialog::bot id found in cast', characterId, castMember.inspect(true), scriptDialog.botId)
+            scriptDialog.bot_id = bot_id ?? scriptAdvisorBotId
+            console.log('mEventDialog::bot id found in cast', characterId, castMember.inspect(true), scriptDialog.bot_id)
             if(example?.length)
                 prompt = `using example: "${example}";\n` + prompt
             if(dialogVariables.length)
@@ -1502,7 +1502,7 @@ async function mEventInput(llm, experience, event, iteration=0, memberInput){
         ?? experience.cast.find(castMember=>castMember.id===characterId)?.bot?.bot_id
         ?? experience.cast[0]?.bot?.bot_id
     const scriptConsultant = scriptAdvisor ?? scriptDialog ?? dialog
-    scriptConsultant.botId = scriptAdvisorBotId
+    scriptConsultant.bot_id = scriptAdvisorBotId
     const messages = await mCallLLM(llm, scriptConsultant, prompt)
         ?? []
     if(!messages.length){
