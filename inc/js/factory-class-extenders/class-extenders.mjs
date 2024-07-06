@@ -125,7 +125,6 @@ function extendClass_contribution(originClass, referencesObject) {
  */
 function extendClass_conversation(originClass, referencesObject) {
     class Conversation extends originClass {
-        #botId
         #factory
         #messages = []
         #saved = false
@@ -135,13 +134,13 @@ function extendClass_conversation(originClass, referencesObject) {
          * @param {Object} obj - The object to construct the conversation from.
          * @param {AgentFactory} factory - The factory instance.
          * @param {Object} thread - The thread instance.
-         * @param {Guid} botId - The initial active bot id (can mutate)
+         * @param {Guid} bot_id - The initial active bot id (can mutate)
          */
-        constructor(obj, factory, thread, botId) {
+        constructor(obj, factory, thread, bot_id){
             super(obj)
             this.#factory = factory
             this.#thread = thread
-            this.#botId = botId
+            this.bot_id = bot_id
             this.form = this.form
                 ?? 'system'
             this.name = `conversation_${this.#factory.mbr_id}_${thread.thread_id}`
@@ -212,16 +211,16 @@ function extendClass_conversation(originClass, referencesObject) {
          * @returns {Guid} - The bot id.
          */
         get botId(){
-            return this.#botId
+            return this.bot_id
         }
         /**
          * Set the id {Guid} of the conversation's bot.
          * @setter
-         * @param {Guid} botId - The bot id.
+         * @param {Guid} bot_id - The bot id.
          * @returns {void}
          */
-        set botId(botId){
-            this.#botId = botId
+        set botId(bot_id){
+            this.bot_id = bot_id
         }
         get isSaved(){
             return this.#saved
