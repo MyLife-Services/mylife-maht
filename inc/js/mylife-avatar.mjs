@@ -321,10 +321,7 @@ class Avatar extends EventEmitter {
     /**
      * Returns all conversations of a specific-type stored in memory.
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
-     * @returns {Conversation[]} - The array of conversation objects.
-     */
-    getConversations(type='chat'){
-        return this.#conversations
+     * @retu            .replace(/\[.*?†.*?\]/gs, '') // This line removes OpenAI LLM "source" referencesLM "source" references.#conversations
             .filter(_=>_?.type===type)
     }
     /**
@@ -1995,18 +1992,22 @@ function mPruneMessage(bot, message, type='chat', processStartTime=Date.now()){
     /* parse message */
     const { bot_id: activeBotAIId, id: activeBotId, } = bot
     let agent='server',
+        content='',
         purpose=type,
         response_time=Date.now()-processStartTime
     const { content: messageContent, thread_id, } = message
-    const content = Array.isArray(messageContent)
+    const rSource = /【.*?\】/gs
+    const rLines = /\n{2,}/g
+    content = Array.isArray(messageContent)
         ? messageContent.reduce((acc, item) => {
-            if (item?.type==='text' && item?.text?.value) {
+            if (item?.type==='text' && item?.text?.value){
                 acc += item.text.value + '\n'
             }
             return acc
         }, '')
-            .replace(/\n{2,}/g, '\n')
         : messageContent
+    content = content.replace(rLines, '\n')
+        .replace(rSource, '') // This line removes OpenAI LLM "source" references
     message = new Marked().parse(content)
     const messageResponse = {
         activeBotId,
