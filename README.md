@@ -2,6 +2,8 @@
 
 ## Overview
 
+[![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
+
 ### MyLife: Preserving Member Stories for Posterity
 
 MyLife is a groundbreaking initiative aimed at capturing and preserving the essence of human experiences for future generations. We believe in the power of personal stories, memories, and media to shape our understanding of the human condition. Our platform provides a unique, enduring, and internet-based solution for individuals to record and showcase their life stories.
