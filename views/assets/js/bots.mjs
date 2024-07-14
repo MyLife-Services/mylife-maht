@@ -187,7 +187,7 @@ async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
         throw new Error(`No bots provided to update page.`)
     if(mBots!==bots)
         mBots = bots
-    await mUpdateTeams()
+    // await mUpdateTeams()
     await mUpdateBotContainers()
     mUpdateBotBar()
     if(includeGreeting)
