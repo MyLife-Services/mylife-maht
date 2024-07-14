@@ -1104,6 +1104,7 @@ class Avatar extends EventEmitter {
 }
 class Q extends Avatar {
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
+    #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
     #mode = 'system' // @stub - experience mode for guests
     /**
@@ -1145,6 +1146,33 @@ class Q extends Avatar {
         if(this.isCreatingAccount)
             chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
         return super.chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime)
+    }
+    /**
+     * Returns list of Q's hostedMembers, using this.#hostedMembers, created on-demand.
+     * @todo - this.#hostedMembers should contain name data (more than just id) for dropdowns
+     * @param {Guid} key - The key to handshake against provider.
+     * @returns {Object[]} - List of hosted member dropdown objects { id, name, }.
+     */
+    async hostedMembers(key){
+        if(!this.globals.isValidGuid(key) || key!==this.hosting_key)
+            throw new Error('Invalid key for hosted members.')
+        if(!this.#hostedMembers.length){ // on-demand creation
+            console.log('hostedMembers', this.#hostedMembers)
+            const hostedMembers = await this.#factory.hostedMembers()
+            if(!hostedMembers.length)
+                throw new Error('No hosted members found.')
+            this.#hostedMembers = hostedMembers
+                .map(member=>{
+                    const { mbr_id: id, } = member
+                    const name = this.globals.sysName(id) 
+                    return {
+                        id,
+                        name,
+                    }
+                })
+                .sort((a, b) => a.name.localeCompare(b.name))
+        }
+        return this.#hostedMembers
     }
     /* getters/setters */
     /**

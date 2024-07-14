@@ -20,6 +20,8 @@ const port = JSON.parse(process.env.PORT ?? '3000')
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const _Maht = await MyLife // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
+if(!process.env.MYLIFE_HOSTING_KEY || process.env.MYLIFE_HOSTING_KEY !== _Maht.avatar.hosting_key)
+	throw new Error('Invalid hosting key. Server will not start.')
 const MemoryStore = new session.MemoryStore()
 const mimeTypesToExtensions = {
 	// Text Formats
@@ -93,16 +95,6 @@ if(!fs.existsSync(uploadDir)){
 app.context.MyLife = _Maht
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
-const hostedMembers = JSON.parse(process.env?.MYLIFE_HOSTED_MBR_ID ?? '[]')
-if(!hostedMembers.length){
-	const members = ( await _Maht.hostedMembers() )
-		.map(member=>member.mbr_id)
-	hostedMembers.push(...members) // throws on empty
-}
-console.log(chalk.bgBlue('hosted-members', chalk.yellowBright(hostedMembers.join(', '))))
-app.context.hostedMembers = hostedMembers
-	.sort((a, b)=>a.localeCompare(b))
-	.map(mbr_id=>({ 'id': mbr_id, 'name': _Maht.globals.sysName(mbr_id) }))
 app.keys = [process.env.MYLIFE_SESSION_KEY ?? `mylife-session-failsafe|${_Maht.newGuid()}`]
 // Enable Koa body w/ configuration
 app.use(koaBody({
@@ -176,7 +168,6 @@ app.use(koaBody({
 		ctx.state.menu = ctx.MyLife.menu
 		if(!await ctx.state.MemberSession.requestConsent(ctx))
 			ctx.throw(404,'asset request rejected by consent')
-
 		await next()
 	})
 	.use(async(ctx,next) => { // alert check

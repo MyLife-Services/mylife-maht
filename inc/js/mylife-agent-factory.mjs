@@ -948,6 +948,11 @@ class MyLifeFactory extends AgentFactory {
 		super(mPartitionId)
 	} // no init() for MyLife server
 	/* public functions */
+	async addMember(mbr_id){
+		if(!this.globals.isValidGuid(mbr_id))
+			return
+		// Me! Q! I do it! I do it! I do it!
+	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
@@ -1019,6 +1024,7 @@ class MyLifeFactory extends AgentFactory {
 			memberAccount = await this.dataservices.addCore(core)
 			this.#registrationData = null
 			success = memberAccount.success
+			this.addMember(mbr_id) // add to hosted member list, no need await
 			console.log(`MyLife Member Core created for mbr: ${ mbr_id }`, memberAccount)
 		} catch(error) { console.log(chalk.blueBright('createAccount()::createCore()::error'), chalk.bgRed(error)) }
 		/* create avatar */

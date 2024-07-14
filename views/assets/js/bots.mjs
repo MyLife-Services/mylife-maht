@@ -189,7 +189,7 @@ async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
         mBots = bots
     // await mUpdateTeams()
     await mUpdateBotContainers()
-    mUpdateBotBar()
+    // mUpdateBotBar()
     if(includeGreeting)
         mGreeting(dynamic)
 }
