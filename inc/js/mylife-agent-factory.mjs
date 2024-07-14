@@ -952,6 +952,7 @@ class MyLifeFactory extends AgentFactory {
 		if(!this.globals.isValidGuid(mbr_id))
 			return
 		// Me! Q! I do it! I do it! I do it!
+		/* but because Q needs to do it, how do I get up one level to avatar? */
 	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
@@ -980,14 +981,9 @@ class MyLifeFactory extends AgentFactory {
 	async createAccount(birthdate, passphrase){
 		/* get registration data */
 		let avatarName,
-			memberAccount,
-			success = false
+			memberAccount = {}
 		/* create account core */
 		try {
-			if(!this.isMyLife) // @stub
-				throw new Error('MyLife server required for this request')
-			if(!birthdate?.length || !passphrase?.length)
-				throw new Error('birthdate _**and**_ passphrase required')
 			const { avatarName: _avatarName, email, humanName, id, interests, } = this.#registrationData
 			let { updates='', } = this.#registrationData
 			if(!id)
@@ -1021,25 +1017,19 @@ class MyLifeFactory extends AgentFactory {
 				updates,
 				validations,
 			}
-			memberAccount = await this.dataservices.addCore(core)
+			memberAccount = await this.dataservices.addCore(core) ?? {}
 			this.#registrationData = null
-			success = memberAccount.success
-			this.addMember(mbr_id) // add to hosted member list, no need await
-			console.log(`MyLife Member Core created for mbr: ${ mbr_id }`, memberAccount)
-		} catch(error) { console.log(chalk.blueBright('createAccount()::createCore()::error'), chalk.bgRed(error)) }
+		} catch(error) {
+			console.log(chalk.blueBright('createAccount()::createCore()::error'), chalk.bgRed(error))
+		}
 		/* create avatar */
-		if(success){
+		if(Object.keys(memberAccount)?.length){
 			try{
-				const { avatar, success: _success, } = await this.dataservices.addAvatar(memberAccount?.core) ?? {}
-				const { mbr_id, } = avatar
-				success = _success
-				console.log(`MyLife Member Avatar created for mbr: ${ mbr_id }`) // then and only then
+				return await this.dataservices.addAvatar(memberAccount?.core) ?? {}
 			} catch(error) { 
-				success = false // may have been truthed by _previous_ success
 				console.log(chalk.blueBright('createAccount()::createAvatar()::error'), chalk.bgRed(error))
 			}
 		}
-		return success
 	}
 	createItem(){
 		throw new Error('MyLife server cannot create items')

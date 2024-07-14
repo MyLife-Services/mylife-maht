@@ -1147,6 +1147,50 @@ class Q extends Avatar {
             chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
         return super.chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime)
     }
+    /* public methods */
+    /**
+     * Add a member to the hosted members list.
+     * @param {string} id - The member id (mbr_id).
+     * @returns {void}
+     */
+    async addMember(id){
+        if(!this.#hostedMembers.find(member=>member.id===id)){
+            const memberObject = {
+                mbr_id: id,
+                mbr_name: null,
+            }
+            const hostedMember = mAvatarDropdown(this.globals, memberObject)
+            if(hostedMember){
+                this.#hostedMembers.push(hostedMember)
+                this.#hostedMembers.sort((a, b) => a.name.localeCompare(b.name))
+            }
+        }
+    }
+	/**
+	 * Set MyLife core account basics. { birthdate, passphrase, }
+	 * @todo - move to mylife agent factory
+	 * @param {string} birthdate - The birthdate of the member.
+	 * @param {string} passphrase - The passphrase of the member.
+	 * @returns {boolean} - `true` if successful
+	 */
+	async createAccount(birthdate, passphrase){
+        if(!birthdate?.length || !passphrase?.length)
+            throw new Error('birthdate _**and**_ passphrase required')
+        let avatar,
+            success = false
+        avatar = await this.#factory.createAccount(birthdate, passphrase)
+        if(Object.keys(avatar).length){
+            const { mbr_id, } = avatar
+            success = true
+            this.addMember(mbr_id)
+            console.log(`member account created: ${ mbr_id }`)
+        } else
+            console.log('member account creation failed')
+        return {
+            avatar,
+            success,
+        }
+    }
     /**
      * Returns list of Q's hostedMembers, using this.#hostedMembers, created on-demand.
      * @todo - this.#hostedMembers should contain name data (more than just id) for dropdowns
@@ -1162,14 +1206,7 @@ class Q extends Avatar {
             if(!hostedMembers.length)
                 throw new Error('No hosted members found.')
             this.#hostedMembers = hostedMembers
-                .map(member=>{
-                    const { mbr_id: id, } = member
-                    const name = this.globals.sysName(id) 
-                    return {
-                        id,
-                        name,
-                    }
-                })
+                .map(avatar=>mAvatarDropdown(this.globals, avatar))
                 .sort((a, b) => a.name.localeCompare(b.name))
         }
         return this.#hostedMembers
@@ -1204,6 +1241,19 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
         nickname: avatar.memberFirstName
     }
     return {...experienceVariables, ...localOverrides}
+}
+/**
+ * 
+ * @param {Globals} globals - Globals object.
+ * @param {object} avatar - Avatar object.
+ */
+function mAvatarDropdown(globals, avatar){
+    const { mbr_id: id, mbr_name, } = avatar
+    const name = globals.sysName(id) 
+    return {
+        id,
+        name,
+    }
 }
 /**
  * Validates and cleans bot object then updates or creates bot (defaults to new personal-avatar) in Cosmos and returns successful `bot` object, complete with conversation (including thread/thread_id in avatar) and gpt-assistant intelligence.
@@ -2225,7 +2275,7 @@ async function mValidateRegistration(activeBot, factory, validationId){
         const eligible = being==='registration'
             && factory.globals.isValidEmail(registrationEmail)
         if(eligible){
-            const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nSo let me walk you through the process. In the chat below, please enter the email you registered with and hit the **submit** button!`
+            const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n<br />\n<br />Let me walk you through the process.<br />In the chat below, please enter the email you registered with and hit the <b>submit</b> button!`
             message = mCreateSystemMessage(activeBot, successMessage, factory)
             registrationData.avatarName = avatarName ?? humanName ?? 'My AI-Agent'
             registrationData.humanName = humanName
