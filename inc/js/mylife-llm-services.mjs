@@ -321,7 +321,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                 if(!passphrase)
                                     action += 'passphrase missing, elicit passphrase; '
                                 try {
-                                    success = await factory.createAccount(birthdate, passphrase)
+                                    success = await avatar.createAccount(birthdate, passphrase)
                                     action = success
                                         ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and explain that once the system processes their membership they will be able to use the login button at the top right.`
                                         : action + 'server failure for `factory.createAccount()`'

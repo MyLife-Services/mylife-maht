@@ -105,9 +105,7 @@ class Dataservices {
 	async addAvatar(core){
 		if(!this.isMyLife)
 			throw new Error('MyLife avatar required for addAvatar()', this.mbr_id)
-		const avatar = await this.pushItem(mAvatarProperties(core, this.globals))
-		console.log('addAvatar', avatar, core)
-		return { avatar, success: typeof avatar==='object', }
+		return await this.pushItem(mAvatarProperties(core, this.globals))
 	}
 	/**
 	 * Upon MyLife account creation, generates `core` and saves to database.
