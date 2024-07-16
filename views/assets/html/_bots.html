@@ -188,20 +188,12 @@
         <div class="bot-status" id="library-status" name="bot-status">
             <div class="bot-icon" id="library-icon" name="bot-icon"></div>
             <div class="bot-title" id="library-title" name="bot-title">Scrapbook</div>
-            <div class="bot-name ticker" id="library-name" name="bot-name"><span id="library-name-ticker">Librarian</span></div>
             <div class="bot-options-dropdown" id="library-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
         <div class="bot-options hidden" id="library-options" name="bot-options">
             <!-- Bot Name -->
-            <div class="input-group" id="library-bot_name">
-                <label for="library-input-bot_name">Scrapbook Name:</label>
-                <input class="bot-name" id="library-input-bot_name" maxlength="256" />
-            </div>
-            <!-- essentially spawns a natural language search based on metatagging and keywords -->
-            <div id="library-search" class="input-group search">
-                <label for="search">Search:</label>
-                <input type="text" id="library-search-input" maxlength="128" placeholder="Results appear in chat" title="Results from search will be presented in main chat window by librarian bot" />
-                <span class="fa-solid fa-search" id="library-search-submit"></span>
+            <div class="input-group" id="library-bot-description">
+                Browse through your stored library by clicking on a category below. Use the refresh button to update from the server. During our alpha pilot, this is currently required to review additional updates from the bots.
             </div>
             <div id="library-collections" class="collections"><!-- from here _could_ be dynamic, not just listing -->
                 <div id="collection-story" class="collection library-collection story-collection">

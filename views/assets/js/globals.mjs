@@ -198,6 +198,14 @@ class Globals {
             : mLogout()
     }
     /**
+     * Remove an element from the DOM.
+     * @param {HTMLElement} element - The element to remove from the DOM.
+     * @returns {void}
+     */
+    retract(element){
+        element.remove()
+    }
+    /**
      * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
      * @public
      * @param {HTMLElement} element - The element to show.
