@@ -156,7 +156,7 @@ function extendClass_conversation(originClass, referencesObject) {
          */
         addMessage(message){
             const { id, } = message
-            if(this.messages.find(message=>message.id===id))
+            if(this.#messages.find(message=>message.id===id))
                 return this.messages
             if(!(message instanceof this.#factory.message)){
                 if(typeof message!=='object')
