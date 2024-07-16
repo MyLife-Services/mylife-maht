@@ -546,9 +546,10 @@ function mStageTransitionMember(includeSidebar=true){
     show(chatContainer)
     show(systemChat)
     show(chatInput)
-    if(includeSidebar){
+    if(includeSidebar && sidebar){
         show(sidebar)
-        show(botBar)
+        if(botBar)
+            show(botBar)
     }
 }
 /**
