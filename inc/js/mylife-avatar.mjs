@@ -69,6 +69,13 @@ class Avatar extends EventEmitter {
         return this
     }
     /**
+     * Add a conversation to session memory.
+     * @param {Conversation} conversation - The conversation object.
+     */
+    addConversation(conversation){
+        this.#conversations.push(conversation)
+    }
+    /**
      * Get a bot.
      * @public
      * @async
@@ -95,14 +102,12 @@ class Avatar extends EventEmitter {
         if(!activeBotId)
             throw new Error('Parameter `activeBotId` required.')
         const { activeBot, factory } = this
-        const { id: botId, } = activeBot
+        const { id: botId, thread_id, } = activeBot
         if(botId!==activeBotId)
             throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
-        // @stub - clean up conversation alterations - Q is immune
         conversation = conversation
-            ?? this.getConversation(threadId)
-        if(!conversation)
-            throw new Error('No conversation found for thread id and could not be created.')
+            ?? this.getConversation(threadId ?? thread_id)
+            ?? await this.createConversation('chat', threadId, activeBotId)
         conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory, this)
         conversation.addMessages(messages)
@@ -186,10 +191,19 @@ class Avatar extends EventEmitter {
      * @returns {Conversation} - The conversation object.
      */
     async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
+        const bot = await this.bot(botId)
         const thread = await this.#llmServices.thread(threadId)
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
+        bot.thread_id = conversation.thread_id
+        const { bot_id, bot_name, id, thread_id, } = bot
+        const updatedBot = await this.factory.updateBot({
+            bot_id, // required?
+            bot_name, // required?
+            id,
+            thread_id,
+        })
         if(saveToConversations)
-            this.#conversations.push(conversation)
+            this.addConversation(conversation)
         return conversation
     }
     /**
@@ -1117,7 +1131,7 @@ class Q extends Avatar {
             throw new Error('factory parameter must be an instance of MyLifeFactory')
         super(factory, llmServices)
         this.#factory = factory
-        this.llmServices = llmServices
+        this.#llmServices = llmServices
     }
     /* overloaded methods */
     /**
@@ -1139,13 +1153,29 @@ class Q extends Avatar {
                 ?? this.activeBot.bot_id
             conversation = await this.createConversation('system', undefined, activeBotId, true) // pushes to this.#conversations in Avatar
             threadId = conversation.thread_id
-            console.log('chatRequest::NEW-CONVERSATION', this.conversations, threadId)
         }
         if(this.isValidating) // trigger confirmation until session (or vld) ends
             chatMessage = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ chatMessage }`
         if(this.isCreatingAccount)
             chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
         return super.chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime)
+    }
+    /**
+     * Create a new conversation.
+     * @async
+     * @public
+     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
+     * @param {string} threadId - The openai thread id.
+     * @param {string} botId - The bot id.
+     * @param {boolean} saveToConversations - Whether to save the conversation to local memory; certain system and memory actions will be saved in their own threads.
+     * @returns {Conversation} - The conversation object.
+     */
+    async createConversation(type='system', botId=this.activeBotId, saveToConversations=true){
+        const thread = await this.#llmServices.thread(undefined)
+        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
+        if(saveToConversations)
+            this.addConversation(conversation)
+        return conversation
     }
     /* public methods */
     /**
@@ -1957,29 +1987,27 @@ async function mInit(factory, avatar, bots){
         avatar.nickname = avatar.nickname
             ?? avatar.names?.[0]
             ?? `${avatar.memberFirstName ?? 'member'}'s avatar`
-        /* bots */ // @stub - determine by default or activated team
         requiredBotTypes.push('library', 'personal-biographer') // default memory team
     }
     bots.push(...await factory.bots(avatar.id))
     await Promise.all(
         requiredBotTypes
-            .map(async botType=>{
-                if(!bots.some(bot=>bot.type===botType)){ // create required bot
-                    const bot = await mBot(factory, avatar, { type: botType })
-                    bots.push(bot)
-                }
+        .map(async botType=>{
+            if(!bots.some(bot=>bot.type===botType)){ // create required bot
+                const bot = await mBot(factory, avatar, { type: botType })
+                bots.push(bot)
+            }
         }
     ))
     avatar.activeBotId = avatar.avatar.id // initially set active bot to personal-avatar
     /* conversations */
     await Promise.all(
-        bots.map(async bot=>{ 
+        bots.map(async bot=>{
             const { thread_id, } = bot
             if(thread_id && !avatar.getConversation(thread_id))
                 avatar.conversations.push(await avatar.createConversation('chat', thread_id))
         })
     )
-    // need to create new conversation for Q variant, but also need to ensure that no thread_id is saved for Q
     /* evolver */
     if(!factory.isMyLife)
         avatar.evolver = await (new EvolutionAssistant(avatar))
