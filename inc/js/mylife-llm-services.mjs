@@ -335,13 +335,8 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'entry summary':
                                 const entry = await factory.entry(toolArguments)
                                 if(entry){
-                                    action = `share summary of summary and follow-up with probing question`
+                                    action = `share brief version of entry and ask probing follow-up`
                                     success = true
-                                    confirmation = {
-                                        tool_call_id: id,
-                                        output: JSON.stringify({ success: true, action, }),
-                                    }
-                                    return confirmation
                                 } else {
                                     action = `journal entry failed to save, notify member and continue on for now`
                                 }
