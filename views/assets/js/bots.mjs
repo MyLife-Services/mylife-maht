@@ -1181,7 +1181,7 @@ async function mReliveMemoryRequest(id, memberInput){
 /**
  * Set Bot data on server.
  * @param {Object} bot - bot object
- * @returns {void}
+ * @returns {object} - response from server
  */
 async function mSetBot(bot){
     try {
@@ -1472,6 +1472,7 @@ async function mToggleBotContainers(event){
     // add turn for first time clicked on collection header it refreshes from server, then from there you need to click
     const botContainer = this
     const element = event.target
+    const { dataset, id, } = botContainer
     const itemIdSnippet = element.id.split('-').pop()
     switch(itemIdSnippet){
         case 'name':
@@ -1485,7 +1486,6 @@ async function mToggleBotContainers(event){
             break
         case 'icon':
         case 'title':
-            const { dataset, id, } = botContainer
             await setActiveBot(dataset?.id ?? id, true)
             // for moment, yes, intentional cascade to open options
         case 'status':
@@ -1494,19 +1494,14 @@ async function mToggleBotContainers(event){
             mOpenStatusDropdown(this)
             break
         case 'update':
+            const { bot_name, id, interests, type, } = dataset
             const updateBot = {
-                bot_name: this.getAttribute('data-bot_name'),
-                id: this.getAttribute('data-id'),
-                type: this.getAttribute('data-type'),
+                bot_name: bot_name,
+                id: id,
+                type: type,
             }
-            if(this.getAttribute('data-dob')?.length)
-                updateBot.dob = this.getAttribute('data-dob')
-            if(this.getAttribute('data-interests')?.length)
-                updateBot.interests = this.getAttribute('data-interests')
-            if(this.getAttribute('data-narrative')?.length)
-                updateBot.narrative = this.getAttribute('data-narrative')
-            if(this.getAttribute('data-privacy')?.length)
-                updateBot.privacy = this.getAttribute('data-privacy')
+            if(interests?.length)
+                updateBot.interests = interests
             if(!mSetBot(updateBot))
                 throw new Error(`Error updating bot.`)
             break
@@ -1767,7 +1762,7 @@ function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
     mSetAttributes(bot, botContainer) // first, assigns data attributes
     const { bot_id, interests, narrative, privacy, } = botContainer.dataset
     mSetBotIconStatus(bot)
-    mUpdateTicker(type, botContainer)
+    mUpdateTicker(botContainer)
     mUpdateInterests(type, interests, botContainer)
     mUpdateNarrativeSlider(type, narrative, botContainer)
     mUpdatePrivacySlider(type, privacy, botContainer)
@@ -1893,7 +1888,7 @@ function mUpdateInterests(type, memberInterests, botContainer){
         return
     const checkboxes = interests.querySelectorAll('input[type="checkbox"]')
     if(memberInterests?.length){
-        botContainer.setAttribute('data-interests', memberInterests)
+        botContainer.dataset.interests = memberInterests
         const interestsArray = memberInterests.split('; ')
         checkboxes.forEach(checkbox=>{
             if(interestsArray.includes(checkbox.value)){
@@ -1904,12 +1899,19 @@ function mUpdateInterests(type, memberInterests, botContainer){
     /* add listeners to checkboxes */
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
+            const { dataset, } = botContainer
             /* concatenate checked values */
             const checkedValues = Array.from(checkboxes)
                 .filter(cb => cb.checked) // Filter only checked checkboxes
                 .map(cb => cb.value) // Map to their values
                 .join('; ')
-            botContainer.setAttribute('data-interests', checkedValues)
+            dataset.interests = checkedValues
+            const { bot_name, id, interests, type, } = dataset
+            mSetBot({
+                id,
+                interests,
+                type,
+            })
         })
     })
 }
@@ -2011,17 +2013,32 @@ async function mUpdateTeams(identifier=mDefaultTeam){
  * @param {HTMLElement} botContainer - The bot container.
  * @returns {void}
  */
-function mUpdateTicker(type, botContainer){
+function mUpdateTicker(botContainer){
+    const { dataset, } = botContainer
+    const { id, type, } = dataset
+    if(!type)
+        throw new Error(`Bot type not found for ticker update.`)
     const botTicker = document.getElementById(`${ type }-name-ticker`)
     const botNameInput = document.getElementById(`${ type }-input-bot_name`)
     if(botTicker)
         mUpdateTickerValue(botTicker, botNameInput.value)
-    if(botNameInput)
+    if(botNameInput){
         botNameInput.addEventListener('input', event=>{
             const { value, } = event.target
             mUpdateTickerValue(botTicker, value)
-            botContainer.setAttribute('data-bot_name', value)
         })
+        botNameInput.addEventListener('change', event=>{
+            dataset.bot_name = botNameInput.value
+            const { bot_name, interests, } = dataset
+            const updatedBot = {
+                bot_name,
+                id,
+                type,
+            }
+            if(!mSetBot(updatedBot))
+                throw new Error(`Error updating bot.`)
+        })
+    }
 }
 /**
  * Simple proxy to update tickers innerHTML.
