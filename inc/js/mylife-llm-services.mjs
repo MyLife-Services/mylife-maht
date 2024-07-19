@@ -599,6 +599,7 @@ function mValidateAssistantData(data){
         tool_resources,
         top_p,
         response_format,
+        version,
     } = data
     const name = bot_name
         ?? gptName // bot_name internal mylife-alias for openai `name`

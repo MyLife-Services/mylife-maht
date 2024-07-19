@@ -1236,7 +1236,7 @@ async function mCreateBot(llm, factory, bot){
 		description,
 		id,
 		instructions,
-		metadata: { externalId: id, },
+		metadata: { externalId: id, version, },
 		model,
 		name,
 		object_id: avatarId,
@@ -1811,7 +1811,7 @@ function mSanitizeSchemaValue(_value) {
 async function mUpdateBot(factory, llm, bot, options={}){
 	/* constants */
 	const {
-		id, // no modifications; see below
+		id, // no modifications
 		instructions: removeInstructions,
 		tools: removeTools,
 		tool_resources: removeResources,
@@ -1828,6 +1828,7 @@ async function mUpdateBot(factory, llm, bot, options={}){
 	if(updateInstructions){
 		const { instructions, version=1.0, } = mCreateBotInstructions(factory, bot)
 		botData.instructions = instructions
+		botData.metadata.version = version.toString()
 		botData.version = version /* omitted from llm, but appears on updateBot */
 	}
 	if(updateTools){
@@ -1845,7 +1846,7 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		await llm.updateBot(botData)
 		const updatedLLMFields = Object.keys(botData)
 			.filter(key=>key!=='id' && key!=='bot_id') // strip mechanicals
-		console.log(chalk.green('mUpdateBot()::update in LLM'), bot_id, id, updatedLLMFields)
+		console.log(chalk.green('mUpdateBot()::update in OpenAI'), id, bot_id, updatedLLMFields)
 	}
 	const updatedBot = await factory.dataservices.updateBot(botData)
 	return updatedBot

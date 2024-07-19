@@ -640,11 +640,11 @@ class Avatar extends EventEmitter {
      * @returns {object} - The updated bot object.
      */
     async updateInstructions(id=this.activeBot.id, includeInstructions=true, includeModel=true, includeTools=true){
-        const { type, } = this.#bots.find(bot=>bot.id===id)
+        const { bot_id, type, } = this.#bots.find(bot=>bot.id===id)
             ?? this.activeBot
         if(!type?.length)
             return
-        const bot = { id, type, }
+        const bot = { bot_id, id, type, }
         const options = {
             instructions: includeInstructions,
             model: includeModel,
