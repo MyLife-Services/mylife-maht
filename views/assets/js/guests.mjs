@@ -149,6 +149,11 @@ function mCreateChallengeElement(){
     challengeSubmit.innerHTML = 'Enter MyLife'
     challengeInputContainer.appendChild(challengeSubmit)
     challengeInput.appendChild(challengeInputContainer)
+    /* requires challengeSubmit */
+    challengeInputText.addEventListener('keydown', event=>{
+        if(event.key==='Enter')
+            challengeSubmit.click()
+    })
     /* error message */
     challengeError = document.createElement('div')
     challengeError.className = 'challenge-error'

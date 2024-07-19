@@ -1760,10 +1760,10 @@ function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
     botContainer.addEventListener('click', mToggleBotContainers)
     /* universal logic */
     mSetAttributes(bot, botContainer) // first, assigns data attributes
-    const { bot_id, interests, narrative, privacy, } = botContainer.dataset
+    const { interests, narrative, privacy, } = botContainer.dataset
     mSetBotIconStatus(bot)
     mUpdateTicker(botContainer)
-    mUpdateInterests(type, interests, botContainer)
+    mUpdateInterests(botContainer)
     mUpdateNarrativeSlider(type, narrative, botContainer)
     mUpdatePrivacySlider(type, privacy, botContainer)
     /* type-specific logic */
@@ -1877,19 +1877,20 @@ function mUpdateCollection(type, collection, collectionList){
 }
 /**
  * Update the bot interests checkbox structure with specifics.
- * @param {string} type - The bot type.
  * @param {string} interests - The member's interests.
  * @param {HTMLElement} botContainer - The bot container.
  * @returns {void}
  */
-function mUpdateInterests(type, memberInterests, botContainer){
-    const interests = document.getElementById(`${ type }-interests`)
-    if(!interests)
+function mUpdateInterests(botContainer){
+    const { dataset, } = botContainer
+    const { id, interests, type, } = dataset
+    const interestsList = document.getElementById(`${ type }-interests`)
+    if(!interestsList)
         return
-    const checkboxes = interests.querySelectorAll('input[type="checkbox"]')
-    if(memberInterests?.length){
-        botContainer.dataset.interests = memberInterests
-        const interestsArray = memberInterests.split('; ')
+    const checkboxes = interestsList.querySelectorAll('input[type="checkbox"]')
+    if(interests?.length){
+        dataset.interests = interests
+        const interestsArray = interests.split('; ')
         checkboxes.forEach(checkbox=>{
             if(interestsArray.includes(checkbox.value)){
                 checkbox.checked = true
@@ -1906,7 +1907,7 @@ function mUpdateInterests(type, memberInterests, botContainer){
                 .map(cb => cb.value) // Map to their values
                 .join('; ')
             dataset.interests = checkedValues
-            const { bot_name, id, interests, type, } = dataset
+            const { id, interests, type, } = dataset
             mSetBot({
                 id,
                 interests,
