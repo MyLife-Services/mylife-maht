@@ -1828,6 +1828,7 @@ async function mUpdateBot(factory, llm, bot, options={}){
 	if(updateInstructions){
 		const { instructions, version=1.0, } = mCreateBotInstructions(factory, bot)
 		botData.instructions = instructions
+		botData.metadata = botData.metadata ?? {}
 		botData.metadata.version = version.toString()
 		botData.version = version /* omitted from llm, but appears on updateBot */
 	}
