@@ -38,6 +38,7 @@ class Avatar extends EventEmitter {
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as g/setter is "complex"
     #relivingMemories = [] // array of active reliving memories, with items, maybe conversations, included
+    #vectorstoreId // vectorstore id for avatar
     /**
      * @constructor
      * @param {MyLifeFactory|AgentFactory} factory - The factory on which avatar relies for all service interactions.
@@ -59,7 +60,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise} Promise resolves to this Avatar class instantiation
      */
     async init(){
-        await mInit(this.#factory, this, this.#bots) // mutates avatar and populates bots
+        await mInit(this.#factory, this.#llmServices, this, this.#bots) // mutates avatar and populates bots
         /* experience variables */
         this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
         /* llm services */
@@ -95,12 +96,12 @@ class Avatar extends EventEmitter {
         if(!activeBotId)
             throw new Error('Parameter `activeBotId` required.')
         const { activeBot, factory } = this
-        const { id: botId, } = activeBot
+        const { id: botId, thread_id, } = activeBot
         if(botId!==activeBotId)
             throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
         // @stub - clean up conversation alterations - Q is immune
         conversation = conversation
-            ?? this.getConversation(threadId)
+            ?? this.getConversation(threadId ?? thread_id)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
@@ -1101,6 +1102,29 @@ class Avatar extends EventEmitter {
     get registrationId(){
         return this.#factory.registrationId
     }
+    /**
+     * Get vectorstore id.
+     * @getter
+     * @returns {string} - The vectorstore id.
+     */
+	get vectorstore_id(){
+		return this.#vectorstoreId
+	}
+    /**
+     * Set vectorstore id, both in memory and storage.
+     * @setter
+     * @param {string} vectorstoreId - The vectorstore id.
+     * @returns {void}
+     */
+	set vectorstore_id(vectorstoreId){
+		/* validate vectorstoreId */
+		if(!vectorstoreId?.length)
+			throw new Error('vectorstoreId required')
+		/* cosmos */
+        const { id, } = this
+        this.#factory.updateItem({ id, vectorstore_id: vectorstoreId }) /* no await */
+		this.#vectorstoreId = vectorstoreId /* update local */
+	}
 }
 class Q extends Avatar {
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
@@ -1266,16 +1290,14 @@ function mAvatarDropdown(globals, avatar){
  */
 async function mBot(factory, avatar, bot){
     /* validation */
-    const { bots, id: avatarId, isMyLife, mbr_id, } = avatar
+    const { bots, id: avatarId, isMyLife, mbr_id, vectorstore_id, } = avatar
     const { newGuid, } = factory
     const { id: botId=newGuid, object_id: objectId, type: botType, } = bot
     if(!botType?.length)
         throw new Error('Bot type required to create.')
-    /* set/reset required bot super-properties */
     bot.mbr_id = mbr_id /* constant */
     bot.object_id = objectId ?? avatarId /* all your bots belong to me */
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
-    /* update/create */
     let originBot = bots.find(oBot=>oBot.id===botId)
     if(originBot){ /* update bot */
         const options = {}
@@ -1301,9 +1323,9 @@ async function mBot(factory, avatar, bot){
             updatedBot.bot_id = bot_id
             updatedBot.id = id
             updatedBot.type = type
-            const { interests, dob, privacy, } = updatedBot
+            const { interests, } = updatedBot
             /* set options */
-            if(interests?.length || dob?.length || privacy?.length){
+            if(interests?.length){
                 options.instructions = true
                 options.model = true
                 options.tools = false /* tools not updated through this mechanic */
@@ -1312,7 +1334,7 @@ async function mBot(factory, avatar, bot){
             originBot = mSanitize(updatedOriginBot)
         }
     } else { /* create assistant */
-        bot = await factory.createBot(bot)
+        bot = await factory.createBot(bot, vectorstore_id)
         avatar.bots.push(bot)
     }
     return originBot
@@ -1935,10 +1957,13 @@ function mHelpIncludePreamble(type, isMyLife){
 }
 /**
  * Initializes the Avatar instance with stored data.
- * @param {Q|Avatar} avatar - The avatar Instance (`this`).
  * @param {MyLifeFactory|AgentFactory} factory - Member Avatar (true) or Q (false).
+ * @param {LLMServices} llmServices - OpenAI object.
+ * @param {Q|Avatar} avatar - The avatar Instance (`this`).
+ * @param {array} bots - The array of bot objects from private class `this.#bots`.
+ * @returns {Promise<void>} - Return indicates successfully mutated avatar.
  */
-async function mInit(factory, avatar, bots){
+async function mInit(factory, llmServices, avatar, bots){
     /* get avatar data from cosmos */
     const obj = await factory.avatarProperties()
     Object.entries(obj)
@@ -1954,9 +1979,17 @@ async function mInit(factory, avatar, bots){
     if(factory.isMyLife){ // MyLife
         avatar.nickname = 'Q'
     } else { // Member
+        const { mbr_id, vectorstore_id, } = avatar
         avatar.nickname = avatar.nickname
             ?? avatar.names?.[0]
             ?? `${avatar.memberFirstName ?? 'member'}'s avatar`
+        /* vectorstore */
+        if(!vectorstore_id){ // run once if not erroring
+            const vectorstore = await llmServices.createVectorstore(mbr_id)
+            if(vectorstore?.id)
+                avatar.vectorstore_id = vectorstore.id // also sets vectorstore_id in Cosmos
+            console.log('avatar::init()::createVectorStore()', vectorstore?.id)
+        }
         /* bots */ // @stub - determine by default or activated team
         requiredBotTypes.push('library', 'personal-biographer') // default memory team
     }

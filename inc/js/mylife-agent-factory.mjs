@@ -318,8 +318,14 @@ class BotFactory extends EventEmitter{
 	async collections(type){
 		return await this.dataservices.collections(type)
 	}
-	async createBot(assistantData={ type: mDefaultBotType }){
-		const bot = await mCreateBot(this.#llmServices, this, assistantData)
+	/**
+	 * 
+	 * @param {object} assistantData - The assistant data.
+	 * @param {string} vectorstoreId - The vectorstore id.
+	 * @returns {object} - The created bot.
+	 */
+	async createBot(assistantData={ type: mDefaultBotType }, vectorstoreId){
+		const bot = await mCreateBot(this.#llmServices, this, assistantData, vectorstoreId)
 		if(!bot)
 			throw new Error('bot creation failed')
 		return bot
@@ -928,19 +934,8 @@ class AgentFactory extends BotFactory {
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
-	get vectorstoreId(){
-		return this.core.vectorstoreId
-	}
-	set vectorstoreId(vectorstoreId){
-		/* validate vectorstoreId */
-		if(!vectorstoreId?.length)
-			throw new Error('vectorstoreId required')
-		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
-		this.core.vectorstoreId = vectorstoreId /* update local */
-	}
 }
 class MyLifeFactory extends AgentFactory {
-	#accountCreation
 	#dataservices = mDataservices
 	#llmServices = mLLMServices
 	#registrationData
@@ -948,12 +943,6 @@ class MyLifeFactory extends AgentFactory {
 		super(mPartitionId)
 	} // no init() for MyLife server
 	/* public functions */
-	async addMember(mbr_id){
-		if(!this.globals.isValidGuid(mbr_id))
-			return
-		// Me! Q! I do it! I do it! I do it!
-		/* but because Q needs to do it, how do I get up one level to avatar? */
-	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
@@ -1088,7 +1077,7 @@ class MyLifeFactory extends AgentFactory {
 			}
 		} catch(error){
 			this.#registrationData = null
-			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`))
+			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`), error.message)
 		}
 		return this.#registrationData
 	}
@@ -1210,7 +1199,7 @@ async function mCreateBotLLM(llm, assistantData){
  * @param {object} bot - Bot object, must include `type` property.
  * @returns {object} - Bot object
 */
-async function mCreateBot(llm, factory, bot){
+async function mCreateBot(llm, factory, bot, vectorstoreId){
 	/* initial deconstructions */
 	const { bot_name: botName, description: botDescription, name: botDbName, type, } = bot
 	const { avatarId, } = factory
@@ -1228,7 +1217,7 @@ async function mCreateBot(llm, factory, bot){
 		?? 'gpt-4o'
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
-	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
+	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 	const id = factory.newGuid
 	const assistantData = {
 		being: 'bot',
@@ -1236,7 +1225,10 @@ async function mCreateBot(llm, factory, bot){
 		description,
 		id,
 		instructions,
-		metadata: { externalId: id, version, },
+		metadata: {
+			externalId: id,
+			version: version.toString(),
+		},
 		model,
 		name,
 		object_id: avatarId,
@@ -1254,7 +1246,7 @@ async function mCreateBot(llm, factory, bot){
 	/* create in MyLife datastore */
 	assistantData.bot_id = botId
 	const assistant = await factory.dataservices.createBot(assistantData)
-	console.log(chalk.green(`bot created::${ type }`), assistant)
+	console.log(chalk.green(`bot created::${ type }`), assistant.id, assistant.bot_id, assistant.bot_name, )
 	return assistant
 }
 /**
