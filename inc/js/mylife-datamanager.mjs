@@ -123,10 +123,15 @@ class Datamanager {
 		// [Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(item))
 			item = [item]
-		const { resource: update, } = await this.#containers[container_id]
-			.item(id, this.#partitionId)
-			.patch(item) //	see below for filter-patch example
-		return update
+		try{
+			const { resource: update, } = await this.#containers[container_id]
+				.item(id, this.#partitionId)
+				.patch(item) //	see below for filter-patch example
+			return update
+		} catch (error){
+			console.error('patchItem error:', error, item, id, container_id)
+			return {}
+		}
 	}
 	async pushItem(item, container_id=this.containerDefault){
 		/* validate item */
