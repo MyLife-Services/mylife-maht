@@ -498,10 +498,10 @@ class BotFactory extends EventEmitter{
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
 	 * @public
 	 * @param {object} bot - The bot data.
-	 * @param {object} options - Function options: `{ instructions: boolean, model: boolean, tools: boolean }`. Meant to express whether or not these elements should be refreshed. Useful during updates.
-	 * @returns {object} - The Cosmos bot.
+	 * @param {object} options - Function options: `{ instructions: boolean, model: boolean, tools: boolean, vectorstoreId: string, }`.
+	 * @returns {object} - The Cosmos bot version.
 	 */
-	async updateBot(bot, options){
+	async updateBot(bot, options={}){
 		return await mUpdateBot(this, this.#llmServices, bot, options)
 	}
 	/* getters/setters */
@@ -1797,7 +1797,7 @@ function mSanitizeSchemaValue(_value) {
  * @param {AgentFactory} factory - Factory object
  * @param {LLMServices} llm - LLMServices object
  * @param {object} bot - Bot object, winnow via mBot in `mylife-avatar.mjs` to only updated fields
- * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean }
+ * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean, vectorstoreId: string, }
  * @returns 
  */
 async function mUpdateBot(factory, llm, bot, options={}){
@@ -1814,6 +1814,7 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		instructions: updateInstructions=false,
 		model: updateModel=false,
 		tools: updateTools=false,
+		vectorstoreId,
 	} = options
 	if(!factory.globals.isValidGuid(id))
 		throw new Error('bot `id` required in bot argument: `{ id: guid }`')
@@ -1825,7 +1826,8 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		botData.version = version /* omitted from llm, but appears on updateBot */
 	}
 	if(updateTools){
-		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
+		console.log('mUpdateBot', vectorstoreId)
+		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 		botData.tools = tools
 		botData.tool_resources = tool_resources
 	}

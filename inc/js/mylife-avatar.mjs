@@ -630,7 +630,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The updated bot.
      */
     async updateBot(bot){
-        return await mBot(this.#factory, this, bot) // note: mBot() updates `avatar.bots`
+        return await mBot(this.#factory, this, bot) // **note**: mBot() updates `avatar.bots`
     }
     /**
      * Update core  for bot-assistant based on type. Default updates all LLM pertinent properties.
@@ -641,18 +641,24 @@ class Avatar extends EventEmitter {
      * @returns {object} - The updated bot object.
      */
     async updateInstructions(id=this.activeBot.id, includeInstructions=true, includeModel=true, includeTools=true){
-        const { bot_id, interests, type, } = this.#bots.find(bot=>bot.id===id)
+        let bot = mFindBot(this, id)
             ?? this.activeBot
+        if(!bot)
+            throw new Error(`Bot not found: ${ id }`)
+        const { bot_id, interests, type, } = bot
         if(!type?.length)
             return
-        const bot = { bot_id, id, interests, type, }
+        const _bot = { bot_id, id, interests, type, }
+        const vectorstoreId = this.#vectorstoreId
         const options = {
             instructions: includeInstructions,
             model: includeModel,
             tools: includeTools,
+            vectorstoreId,
         }
-        const response = await this.#factory.updateBot(bot, options)
-        return mPruneBot(response)
+        /* save to && refresh bot from Cosmos */
+        bot = mSanitize( await this.#factory.updateBot(_bot, options) )
+        return mPruneBot(bot)
     }
     /**
      * Validate registration id.
@@ -696,8 +702,9 @@ class Avatar extends EventEmitter {
             ?? this.avatar
         const { id: newActiveId, type, version: botVersion=1.0, } = newActiveBot
         const currentVersion = this.#factory.botInstructionsVersion(type)
-        if(botVersion!==currentVersion)
+        if(botVersion!==currentVersion){
             this.updateInstructions(newActiveId, true, false, true)
+        }
         this.#activeBotId = newActiveId
     }
     /**
@@ -1334,7 +1341,7 @@ async function mBot(factory, avatar, bot){
             originBot = mSanitize(updatedOriginBot)
         }
     } else { /* create assistant */
-        bot = await factory.createBot(bot, vectorstore_id)
+        bot = mSanitize( await factory.createBot(bot, vectorstore_id) )
         avatar.bots.push(bot)
     }
     return originBot
