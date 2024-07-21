@@ -603,28 +603,6 @@ class Avatar extends EventEmitter {
         return this.#conversations[0].threadId
     }
     /**
-     * Upload files to MyLife and/or LLM.
-     * @todo - implement MyLife file upload.
-     * @param {File[]} files - The array of files to upload.
-     * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
-     * @returns {boolean} - true if upload successful.
-     */
-    async upload(files, includeMyLife=false){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot upload files.')
-        const { vectorstoreId, } = this.#factory
-        await this.#assetAgent.init(this.#factory.vectorstoreId, includeMyLife) /* or "re-init" */
-        await this.#assetAgent.upload(files)
-        const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = this.#assetAgent
-        if(!vectorstoreId && newVectorstoreId) // ensure access for LLM
-            this.updateInstructions(this.activeBot.id, false, false, true)
-        return {
-            uploads: files,
-            files: vectorstoreFileList,
-            success: true,
-        }
-    }
-    /**
      * Update a specific bot.
      * @param {object} bot - Bot data to set.
      * @returns {object} - The updated bot.
@@ -659,6 +637,27 @@ class Avatar extends EventEmitter {
         /* save to && refresh bot from Cosmos */
         bot = mSanitize( await this.#factory.updateBot(_bot, options) )
         return mPruneBot(bot)
+    }
+    /**
+     * Upload files to MyLife and/or LLM.
+     * @todo - implement MyLife file upload.
+     * @param {File[]} files - The array of files to upload.
+     * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
+     * @returns {boolean} - true if upload successful.
+     */
+    async upload(files, includeMyLife=false){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot upload files.')
+        if(!this.#vectorstoreId)
+            throw new Error('Member vectorstore required for file upload. Please contact MyLife.')
+        await this.#assetAgent.init(includeMyLife) /* or "re-init" to refresh file list */
+        await this.#assetAgent.upload(files)
+        const { vectorstoreFileList, } = this.#assetAgent
+        return {
+            uploads: files,
+            files: vectorstoreFileList,
+            success: true,
+        }
     }
     /**
      * Validate registration id.
