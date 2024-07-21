@@ -1833,8 +1833,8 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		botData.model = factory.globals.currentOpenAIBotModel
 	botData.id = id // validated
 	/* LLM updates */
-	const { bot_id, bot_name: name, instructions, metadata, tools, } = botData
-	if(bot_id?.length && (instructions || metadata || name || tools)){
+	const { bot_id, bot_name: name, instructions, tools, } = botData
+	if(bot_id?.length && (instructions || name || tools)){
 		botData.model = factory.globals.currentOpenAIBotModel // not dynamic
 		await llm.updateBot(botData)
 		const updatedLLMFields = Object.keys(botData)
