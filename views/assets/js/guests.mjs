@@ -212,7 +212,6 @@ async function mFetchStart(){
     await mSignupStatus()
     const messages = []
     let input // HTMLDivElement containing input element
-    console.log('pageType', mPageType)
     switch(mPageType){
         case 'about':
         case 'privacy-policy':
@@ -350,7 +349,10 @@ function mShowPage(){
     chatInput.placeholder = mPlaceholder
     show(chatSystem)
     show(chatContainer)
-    show(chatUser)
+    if(mPageType!=='select')
+        show(chatUser)
+    else
+        hide(chatUser)
 }
 async function mSignupStatus(){
     const response = await fetch('/signup')
