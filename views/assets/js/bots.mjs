@@ -1196,14 +1196,12 @@ async function mSetBot(bot){
             },
             method: method,
         })
-        if (!response.ok) {
+        if(!response.ok)
             throw new Error(`HTTP error! Status: ${response.status}`)
-        }
-        response = await response.json()
-        return response
+        return true
     } catch (error) {
         console.log('Error posting bot data:', error)
-        return error
+        return false
     }
 }
 /**
@@ -1258,33 +1256,57 @@ function mSetAttributes(bot=mActiveBot, botContainer){
     })
 }
 /**
- * Sets bot status based on active bot, thread, and assistant population.
+ * Sets bot container status bar based on bot, thread, and assistant population.
  * @private
  * @requires mActiveBot - active bot object, but can be undefined without error.
  * @param {object} bot - The bot object.
- * @returns {string} - Determined status.
+ * @returns {object} - Determined status.
  */
-function mSetBotIconStatus(bot){
-    const { bot_id, id, thread_id, type, } = bot
+function mSetStatusBar(bot, botContainer){
+    const { dataset, } = botContainer
+    const { id, type, } = dataset
+    const { bot_id, bot_name, thread_id, type: botType, } = bot
+    const botStatusBar = document.getElementById(`${ type }-status`)
+    if(!type || !botType==type || !botStatusBar)
+        return
+    const response = {
+        name: bot_name,
+        status: 'unknown',
+        type: type.split('-').pop(),
+    }
+    /* status icon */
     const botIcon = document.getElementById(`${ type }-icon`)
     switch(true){
         case ( mActiveBot?.id==id ): // activated
             botIcon.classList.remove('online', 'offline', 'error')
             botIcon.classList.add('active')
-            return 'active'
-        case ( thread_id?.length>0 || false ): // online
+            response.status = 'active'
+            break
+        case ( bot_id?.length>0 ): // online
             botIcon.classList.remove('active', 'offline', 'error')
             botIcon.classList.add('online')
-            return 'online'
-        case ( bot_id?.length>0 ): // offline
-            botIcon.classList.remove('active', 'online', 'error')
-            botIcon.classList.add('offline')
-            return 'inactive'
+            response.status = 'online'
+            break
         default: // error
             botIcon.classList.remove('active', 'online', 'offline')
             botIcon.classList.add('error')
-            return 'error'
+            response.status = 'error'
+            break
     }
+    botContainer.dataset.status = response.status
+    /* title-type */
+    // const botTitle = document.getElementById(`${ type }-title`)
+    const botTitleType = document.getElementById(`${ type }-title-type`)
+    if(botTitleType){
+        response.type = response.type.charAt(0).toUpperCase()
+            + response.type.slice(1)
+        botTitleType.textContent = response.type
+    }
+    /* title-name */
+    const botTitleName = document.getElementById(`${ type }-title-name`)
+    if(botTitleName)
+        botTitleName.textContent = response.name
+    return response
 }
 /**
  * Sets collection item content.
@@ -1362,7 +1384,7 @@ function mSpotlightBotStatus(){
                 const { dataset, } = botContainer
                 if(dataset && id)
                     botContainer.dataset.active = id===mActiveBot?.id
-                mSetBotIconStatus(bot)
+                mSetStatusBar(bot, botContainer)
             }
         })
 }
@@ -1475,18 +1497,14 @@ async function mToggleBotContainers(event){
     const itemIdSnippet = element.id.split('-').pop()
     switch(itemIdSnippet){
         case 'name':
-        case 'ticker':
-            // start/stop ticker
             // @todo: double-click to edit in place
-            const _span = this.querySelector('span')
-                ? this.querySelector('span')
-                : element
-            _span.classList.toggle('no-animation')
             break
         case 'icon':
         case 'title':
-            await setActiveBot(dataset?.id ?? id, true)
-            // for moment, yes, intentional cascade to open options
+            if(dataset?.status && !(['error', 'offline', 'unknown'].includes(dataset.status)))
+                await setActiveBot(dataset?.id ?? id, true)
+            mOpenStatusDropdown(this)
+            break
         case 'status':
         case 'type':
         case 'dropdown':
@@ -1501,7 +1519,7 @@ async function mToggleBotContainers(event){
             }
             if(interests?.length)
                 updateBot.interests = interests
-            if(!mSetBot(updateBot))
+            if(!await mSetBot(updateBot))
                 throw new Error(`Error updating bot.`)
             break
         case 'upload':
@@ -1759,12 +1777,8 @@ function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
     botContainer.addEventListener('click', mToggleBotContainers)
     /* universal logic */
     mSetAttributes(bot, botContainer) // first, assigns data attributes
-    const { interests, narrative, privacy, } = botContainer.dataset
-    mSetBotIconStatus(bot)
-    mUpdateTicker(botContainer)
+    mSetStatusBar(bot, botContainer)
     mUpdateInterests(botContainer)
-    mUpdateNarrativeSlider(type, narrative, botContainer)
-    mUpdatePrivacySlider(type, privacy, botContainer)
     /* type-specific logic */
     mUpdateBotContainerAddenda(botContainer, bot)
     show(botContainer)
@@ -1772,17 +1786,38 @@ function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
 /**
  * Updates the bot container with specifics based on `type`.
  * @param {HTMLDivElement} botContainer - The bot container.
- * @param {object} bot - The bot object.
  * @returns {void}
  */
-function mUpdateBotContainerAddenda(botContainer, bot){
+function mUpdateBotContainerAddenda(botContainer){
         if(!botContainer)
             return
         /* type-specific logic */
         const { dataset, id: type } = botContainer
+        const { id, } = dataset
         const localVars = {}
-        if(dataset) // assign dataset to localVars
+        if(dataset) // assign dataset to localVars for state manipulation and rollback
             Object.keys(dataset).forEach(key=>localVars[key] = dataset[key])
+        const botNameInput = document.getElementById(`${ type }-input-bot_name`)
+        /* attach bot name listener */
+        if(botNameInput){
+            botNameInput.addEventListener('change', async event=>{
+                dataset.bot_name = botNameInput.value
+                const { bot_name, } = dataset
+                const updatedBot = {
+                    bot_name,
+                    id,
+                    type,
+                }
+                if(await mSetBot(updatedBot)){
+                    const botTitleName = document.getElementById(`${ type }-title-name`)
+                    if(botTitleName)
+                        botTitleName.textContent = bot_name
+                    localVars.bot_name = bot_name
+                } else {
+                    dataset.bot_name = localVars.bot_name
+                }
+            })
+        }
         switch(type){
             case 'diary':
             case 'journaler':
@@ -1814,40 +1849,11 @@ function mUpdateBotContainerAddenda(botContainer, bot){
             case 'personal-avatar':
                 /* attach avatar listeners */
                 /* set additional data attributes */
-                const { dob, id, } = localVars /* date of birth (dob) */
-                if(dob?.length)
-                    dataset.dob = dob.split('T')[0]
-                const memberDobInput = document.getElementById(`${ type }-input-dob`)
-                if(memberDobInput){
-                    memberDobInput.value = dataset.dob
-                    memberDobInput.addEventListener('change', event=>{
-                        if(memberDobInput.value.match(/^\d{4}-\d{2}-\d{2}$/)){
-                            dataset.dob = memberDobInput.value
-                            // @stub - update server
-                        } else
-                            throw new Error(`Invalid date format.`)
-                    })
-                }
                 mTogglePassphrase(false) /* passphrase */
                 break
             default:
                 break
         }
-}
-/**
- * Requests update of bot instructions and functions on LLM model.
- * @public
- * @async
- * @requires mActiveBot
- * @returns {void} - presumes success or failure, but beyond control of front-end.
- */
-async function updateBotInstructions(){
-    const { id, } = mActiveBot
-    const url = window.location.origin + '/members/bots/system-update/' + id
-    const method = 'PUT'
-    const response = await fetch(url, { method: method })
-    const { success, } = await response.json()
-    console.log(`Bot instructions update success: ${ success ?? false }`)
 }
 /**
  * Update the identified collection with provided specifics.
@@ -1857,7 +1863,6 @@ async function updateBotInstructions(){
  * @returns {void}
  */
 function mUpdateCollection(type, collectionList, collection){
-    console.log('mUpdateCollection:', type, collection, collectionList)
     collectionList.innerHTML = ''
     collection
         .map(item=>({
@@ -1917,7 +1922,7 @@ function mUpdateInterests(botContainer){
     })
 }
 /**
- * Update the bot labels with specifics, .
+ * Update the bot labels with specifics.
  * @param {string} activeLabel - The active label.
  * @param {Array} labels - The array of possible labels.
  * @returns {void}
@@ -1933,48 +1938,6 @@ function mUpdateLabels(activeLabelId, labels){
             label.classList.add('label-inactive')
         }
     })
-}
-/**
- * Update the bot narrative slider with specifics.
- * @param {string} type - The bot type.
- * @param {number} narrative - The narrative value.
- * @param {HTMLElement} botContainer - The bot container.
- * @returns {void}
- */
-function mUpdateNarrativeSlider(type, narrative, botContainer){
-    const narrativeSlider = document.getElementById(`${ type }-narrative`)
-    if(narrativeSlider){
-        botContainer.setAttribute('data-narrative', narrative ?? narrativeSlider.value)
-        narrativeSlider.value = botContainer.getAttribute('data-narrative')
-        narrativeSlider.addEventListener('input', event=>{
-            botContainer.setAttribute('data-narrative', narrativeSlider.value)
-        })
-    }
-}
-/**
- * Update the bot privacy slider with specifics.
- * @param {string} type - The bot type.
- * @param {number} privacy - The privacy value.
- * @param {HTMLElement} botContainer - The bot container.
- * @returns {void}
- */
-function mUpdatePrivacySlider(type, privacy, botContainer){
-    const avatarPublicity = document.getElementById(`${ type }-publicity`)
-    if(avatarPublicity){ // 0.7 version
-        const publicityContainer = document.getElementById(`${ type }-publicity-toggle`)
-        mToggleSwitchPrivacy.bind(publicityContainer)()
-        // publicityContainer.addEventListener('click', mToggleSwitchPrivacy, { once: true })
-        
-    } else { // previous versions
-        const privacySlider = document.getElementById(`${ type }-privacy`)
-        if(privacySlider){
-            botContainer.setAttribute('data-privacy', privacy ?? privacySlider.value)
-            privacySlider.value = botContainer.getAttribute('data-privacy')
-            privacySlider.addEventListener('input', event=>{
-                botContainer.setAttribute('data-privacy', privacySlider.value)
-            })
-        }
-    }
 }
 /**
  * Updates the active team to specific or default.
@@ -2007,48 +1970,6 @@ async function mUpdateTeams(identifier=mDefaultTeam){
     mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
     hide(mTeamPopup)
     show(mTeamHeader)
-}
-/**
- * Update the bot ticker with value from name input, and assert to `data-bot_name`.S
- * @param {string} type - The bot type.
- * @param {HTMLElement} botContainer - The bot container.
- * @returns {void}
- */
-function mUpdateTicker(botContainer){
-    const { dataset, } = botContainer
-    const { id, type, } = dataset
-    if(!type)
-        throw new Error(`Bot type not found for ticker update.`)
-    const botTicker = document.getElementById(`${ type }-name-ticker`)
-    const botNameInput = document.getElementById(`${ type }-input-bot_name`)
-    if(botTicker)
-        mUpdateTickerValue(botTicker, botNameInput.value)
-    if(botNameInput){
-        botNameInput.addEventListener('input', event=>{
-            const { value, } = event.target
-            mUpdateTickerValue(botTicker, value)
-        })
-        botNameInput.addEventListener('change', event=>{
-            dataset.bot_name = botNameInput.value
-            const { bot_name, interests, } = dataset
-            const updatedBot = {
-                bot_name,
-                id,
-                type,
-            }
-            if(!mSetBot(updatedBot))
-                throw new Error(`Error updating bot.`)
-        })
-    }
-}
-/**
- * Simple proxy to update tickers innerHTML.
- * @param {HTMLDivElement} ticker - The ticker element.
- * @param {string} value - The value to update.
- * @returns {void}
- */
-function mUpdateTickerValue(ticker, value){
-    ticker.innerText = value
 }
 /**
  * Upload Files to server from any .
