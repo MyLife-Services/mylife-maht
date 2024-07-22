@@ -740,6 +740,23 @@ body {
 	padding: 1rem;
 	margin: 1rem;
 }
+code,
+codeblock,
+.code { /* employed by conversion to markdown */
+	background-color: #f8f9fa;
+	border: thin solid #ccc;
+	border-radius: 0.2rem;
+	margin: 0;
+	padding: 0 0.25rem;
+	resize: none;
+}
+code,
+.code {
+	display: inline;
+}
+codeblock {
+	display: block;
+}
 .loader {
 	animation: spin 2s linear infinite;
 	border: 1.2rem solid indianred;
@@ -772,6 +789,10 @@ body {
 	align-items: flex-start;
 	display: flex;
 	width: 100%;
+}
+pre code {
+	color: rgb(100, 14, 14);
+	font-size: 0.8rem;
 }
 /* MyLife header */
 #header {
