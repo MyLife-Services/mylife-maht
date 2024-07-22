@@ -40,8 +40,18 @@ class LLMServices {
     async createBot(bot){
         const assistantData = mValidateAssistantData(bot) // throws on improper format
         const assistant = await this.openai.beta.assistants.create(assistantData)
-        console.log('LLMServices::createBot()::assistant', assistant)
         return assistant
+    }
+    /**
+     * Creates a new OpenAI Vectorstore.
+     * @param {string} mbr_id - Member ID.
+     * @returns {Promise<Object>} - OpenAI `vectorstore` object.
+     */
+    async createVectorstore(mbr_id){
+        const vectorstore = await this.openai.beta.vectorStores.create({
+            name: mbr_id,
+        })
+        return vectorstore
     }
     /**
      * Returns openAI file object.
@@ -120,18 +130,13 @@ class LLMServices {
      * @documentation [file_search Quickstart](https://platform.openai.com/docs/assistants/tools/file-search/quickstart)
      * @param {string} vectorstoreId - Vector store ID from OpenAI.
      * @param {object} files - as seems to be requested by api: { files, fileIds, }.
-     * @param {string} memberId - Member ID, will be `name` of vector-store.
-     * @returns {Promise<string>} - The vector store ID.
+     * @returns {Promise<object>} - The outcome of the upload { vectorstoreId, response, success, }.
      */
-    async upload(vectorstoreId, files, memberId){
+    async upload(vectorstoreId, files){
         if(!files?.length)
             throw new Error('No files to upload')
-        if(!vectorstoreId){ /* create vector-store */
-            const vectorstore = await this.openai.beta.vectorStores.create({
-                name: memberId,
-            })
-            vectorstoreId = vectorstore.id
-        }
+        if(!vectorstoreId?.length)
+            throw new Error('No vector store ID provided')
         let response,
             success = false
         try{
@@ -335,13 +340,8 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'entry summary':
                                 const entry = await factory.entry(toolArguments)
                                 if(entry){
-                                    action = `share summary of summary and follow-up with probing question`
+                                    action = `share brief version of entry and ask probing follow-up`
                                     success = true
-                                    confirmation = {
-                                        tool_call_id: id,
-                                        output: JSON.stringify({ success: true, action, }),
-                                    }
-                                    return confirmation
                                 } else {
                                     action = `journal entry failed to save, notify member and continue on for now`
                                 }
@@ -604,6 +604,7 @@ function mValidateAssistantData(data){
         tool_resources,
         top_p,
         response_format,
+        version,
     } = data
     const name = bot_name
         ?? gptName // bot_name internal mylife-alias for openai `name`

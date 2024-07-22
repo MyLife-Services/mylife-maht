@@ -147,7 +147,7 @@
 	border-top: none;
 	box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
 	display: none; /* Initially not displayed */
-    margin: 0em 0.5rem 1rem 1rem;
+    margin: 0em 0.5rem;
 	padding: 0.5rem;
     max-height: 50vh;
     overflow-x: hidden;
@@ -217,22 +217,27 @@
 	cursor: pointer;
 	display: flex;
 	flex-direction: row;
-	justify-content: stretch;
+	justify-content: flex-start;
 	margin: 0.2rem 0.2rem 0em 0.2rem;
-	padding: 0.2rem;
 }
 .bot-title {
 	color: aliceblue;
     display: flex;
-	flex: 0 0 auto;
-	font-size: 0.8rem;
-	font-weight: bold;
-	margin-right: 1rem;
+	flex: 1 0 auto;
+    font-size: 0.8rem;
+    font-weight: bold;
     max-height: 100%;
-    max-width: 8rem;
     overflow: hidden;
     overflow-wrap: break-word;
-    width: min-content;
+    max-width: 70%;
+}
+.bot-title-name {
+    color: aquamarine;
+    max-width: 50%;
+}
+.bot-title-type {
+    margin-right: 0.8rem;
+    max-width: 50%;
 }
 .ticker {
 	background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
@@ -579,13 +584,25 @@ input:checked + .publicity-slider:before {
 }
 /* generic bot slider */
 .input-group {
-    width: 100%;
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.6em;
+    margin-bottom: 0.6em;
     text-align: center;
-    margin-bottom: 10px;
+    width: 100%;
+}
+.input-group input {
+    display: flex;
+    flex: 1 1 auto;
+    max-width: 100%;
+    min-width: 50%;
 }
 .input-group label {
-    display: block;
-    margin-bottom: 10px;
+    display: flex;
+    flex: 1 1 auto;
+    max-width: 50%;
 }
 input[type="range"] {
     -webkit-appearance: none;
@@ -624,7 +641,6 @@ input[type="range"]::-moz-range-thumb {
     justify-content: space-between;
 	width: 100%;
 }
-
 .slider-labels span {
 	text-align: center;
 }
@@ -634,24 +650,45 @@ input[type="range"]::-moz-range-thumb {
 }
 /* interests */
 .checkbox-group {
-    display: flex; /* Use Flexbox */
-    flex-wrap: wrap; /* Allow items to wrap into new lines */
-    justify-content: flex-start; /* Align items to the left */
-    max-height: 100px; /* Adjust as needed */
-    overflow-y: auto; /* Make it scrollable */
-    font-size: 0.9rem; /* Shrink text */
+    align-content: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    flex-direction: row;
+    max-height: 25rem;
+    overflow-y: auto;
+    width: 100%;
 }
 .checkbox-group-item {
 	align-items: center;
 	display: flex;
-    flex: 0 0 48%; /* Each item takes up roughly half the container width */
+    flex: 0 0 50%;
     overflow: hidden;
+}
+.checkbox-group-item input {
+    cursor: pointer;
+    flex: 0 0 auto;
+    max-width: none;
+    min-width: auto;
+}
+.checkbox-group-item label {
+    flex: 1 0 auto;
+    margin: 0;
+    margin-left: 0.5rem;
+    max-width: none;
+    min-width: auto;
     text-overflow: ellipsis; /* Add ellipsis for overflow */
     white-space: nowrap; /* Keep text on one line */
+
 }
-.checkbox-group label {
-	padding-left: 0.5rem;
-	margin: 0;
+.interests {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+.interests-label {
+    font-weight: bold;
+    min-width: fit-content;
 }
 /* keyframes */
 @keyframes _scrollText {
