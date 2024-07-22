@@ -1115,8 +1115,7 @@ async function mRefreshCollection(type, collectionList){
     if(!mLibraries.includes(type))
         throw new Error(`Library collection not implemented.`)
     const collection = await fetchCollections(type)
-    if(collection.length)
-        mUpdateCollection(type, collection, collectionList)
+    mUpdateCollection(type, collectionList, collection)
 }
 async function mReliveMemory(event){
     event.preventDefault()
@@ -1852,12 +1851,13 @@ async function updateBotInstructions(){
 }
 /**
  * Update the identified collection with provided specifics.
- * @param {string} type - The bot type.
- * @param {Array} collection - The collection items.
+ * @param {string} type - The collection type.
  * @param {HTMLDivElement} collectionList - The collection container.
+ * @param {Array} collection - The collection items.
  * @returns {void}
  */
-function mUpdateCollection(type, collection, collectionList){
+function mUpdateCollection(type, collectionList, collection){
+    console.log('mUpdateCollection:', type, collection, collectionList)
     collectionList.innerHTML = ''
     collection
         .map(item=>({
@@ -2085,15 +2085,12 @@ async function mUploadFiles(event){
     }
 }
 async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
-    console.log('mUploadFilesInput()::clicked', fileInput, uploadButton)
-    const fileTest = document.getElementById(`file-input-library`)
-    // try adding listener to fileInput onChange now
     fileInput.addEventListener('change', async event=>{
-        const { files, } = fileInput
-        if(files?.length){
+        const { files: uploads, } = fileInput
+        if(uploads?.length){
             /* send to server */
             const formData = new FormData()
-            for(let file of files){
+            for(let file of uploads){
                 formData.append('files[]', file)
             }
             formData.append('type', mGlobals.HTMLIdToType(uploadParent.id))
@@ -2101,7 +2098,11 @@ async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
                 method: 'POST',
                 body: formData
             })
-            const result = await response.json()
+            const { files, message, success, } = await response.json()
+            const type = 'file'
+            const collectionList = document.getElementById(`collection-list-${ type }`)
+            mUpdateCollection(type, collectionList, files)
+            console.log('mUploadFilesInput()::files', files, uploads, type)
         }
     }, { once: true })
     mUploadFilesInputRemove(fileInput, uploadParent, uploadButton)
