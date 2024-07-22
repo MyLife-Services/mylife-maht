@@ -60,7 +60,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise} Promise resolves to this Avatar class instantiation
      */
     async init(){
-        await mInit(this.#factory, this.#llmServices, this, this.#bots) // mutates avatar and populates bots
+        await mInit(this.#factory, this.#llmServices, this, this.#bots, this.#assetAgent, this.#vectorstoreId) // mutates and populates
         /* experience variables */
         this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
         /* llm services */
@@ -102,6 +102,7 @@ class Avatar extends EventEmitter {
         // @stub - clean up conversation alterations - Q is immune
         conversation = conversation
             ?? this.getConversation(threadId ?? thread_id)
+            ?? await this.createConversation('chat', threadId ?? thread_id, activeBotId)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
@@ -131,7 +132,7 @@ class Avatar extends EventEmitter {
      */
     async collections(type){
         if(type==='file'){
-            await this.#assetAgent.init() // bypass factory for files
+            await this.#assetAgent.init(this.#vectorstoreId) // bypass factory for files
             return this.#assetAgent.files
         } // bypass factory for files
         const { factory, } = this
@@ -639,18 +640,11 @@ class Avatar extends EventEmitter {
         return mPruneBot(bot)
     }
     /**
-     * Upload files to MyLife and/or LLM.
-     * @todo - implement MyLife file upload.
+     * Upload files to Member Avatar.
      * @param {File[]} files - The array of files to upload.
-     * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
      * @returns {boolean} - true if upload successful.
      */
-    async upload(files, includeMyLife=false){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot upload files.')
-        if(!this.#vectorstoreId)
-            throw new Error('Member vectorstore required for file upload. Please contact MyLife.')
-        await this.#assetAgent.init(includeMyLife) /* or "re-init" to refresh file list */
+    async upload(files){
         await this.#assetAgent.upload(files)
         const { vectorstoreFileList, } = this.#assetAgent
         return {
@@ -1177,6 +1171,9 @@ class Q extends Avatar {
             chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
         return super.chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime)
     }
+    upload(){
+        throw new Error('MyLife avatar cannot upload files.')
+    }
     /* public methods */
     /**
      * Add a member to the hosted members list.
@@ -1315,11 +1312,11 @@ async function mBot(factory, avatar, bot){
             }, {})
         /* create or update bot special properties */
         const { thread_id, type, } = originBot // @stub - `bot_id` cannot be updated through this mechanic
-        if(!thread_id?.length){ // add thread_id to relevant bots
+        if(!thread_id?.length && !avatar.isMyLife){ // add thread_id to relevant bots
             const excludeTypes = ['library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
-                updatedBot.thread_id = conversation.thread_id
+                updatedBot.thread_id = conversation.thread_id // triggers `factory.updateBot()`
                 avatar.conversations.push(conversation)
             }
         }
@@ -1969,7 +1966,7 @@ function mHelpIncludePreamble(type, isMyLife){
  * @param {array} bots - The array of bot objects from private class `this.#bots`.
  * @returns {Promise<void>} - Return indicates successfully mutated avatar.
  */
-async function mInit(factory, llmServices, avatar, bots){
+async function mInit(factory, llmServices, avatar, bots, assetAgent){
     /* get avatar data from cosmos */
     const obj = await factory.avatarProperties()
     Object.entries(obj)
@@ -1992,9 +1989,11 @@ async function mInit(factory, llmServices, avatar, bots){
         /* vectorstore */
         if(!vectorstore_id){ // run once if not erroring
             const vectorstore = await llmServices.createVectorstore(mbr_id)
-            if(vectorstore?.id)
+            if(vectorstore?.id){
                 avatar.vectorstore_id = vectorstore.id // also sets vectorstore_id in Cosmos
-            console.log('avatar::init()::createVectorStore()', vectorstore?.id)
+                await assetAgent.init(avatar.vectorstore_id)
+                console.log('avatar::init()::createVectorStore()', avatar.vectorstore_id)
+            }
         }
         /* bots */ // @stub - determine by default or activated team
         requiredBotTypes.push('library', 'personal-biographer') // default memory team
@@ -2014,8 +2013,11 @@ async function mInit(factory, llmServices, avatar, bots){
     await Promise.all(
         bots.map(async bot=>{ 
             const { thread_id, } = bot
-            if(thread_id && !avatar.getConversation(thread_id))
-                avatar.conversations.push(await avatar.createConversation('chat', thread_id))
+            if(!avatar.getConversation(thread_id)){
+                const conversation = await avatar.createConversation('chat', thread_id,)
+                avatar.updateBot(bot, conversation)
+                avatar.conversations.push(conversation)
+            }
         })
     )
     // need to create new conversation for Q variant, but also need to ensure that no thread_id is saved for Q
