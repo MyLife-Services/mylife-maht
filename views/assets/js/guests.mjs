@@ -149,6 +149,11 @@ function mCreateChallengeElement(){
     challengeSubmit.innerHTML = 'Enter MyLife'
     challengeInputContainer.appendChild(challengeSubmit)
     challengeInput.appendChild(challengeInputContainer)
+    /* requires challengeSubmit */
+    challengeInputText.addEventListener('keydown', event=>{
+        if(event.key==='Enter')
+            challengeSubmit.click()
+    })
     /* error message */
     challengeError = document.createElement('div')
     challengeError.className = 'challenge-error'
@@ -207,7 +212,6 @@ async function mFetchStart(){
     await mSignupStatus()
     const messages = []
     let input // HTMLDivElement containing input element
-    console.log('pageType', mPageType)
     switch(mPageType){
         case 'about':
         case 'privacy-policy':
@@ -345,7 +349,10 @@ function mShowPage(){
     chatInput.placeholder = mPlaceholder
     show(chatSystem)
     show(chatContainer)
-    show(chatUser)
+    if(mPageType!=='select')
+        show(chatUser)
+    else
+        hide(chatUser)
 }
 async function mSignupStatus(){
     const response = await fetch('/signup')

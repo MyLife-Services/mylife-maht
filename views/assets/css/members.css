@@ -116,24 +116,3 @@
 	flex-wrap: wrap;
 	justify-content: space-around;
 }
-/* interests */
-.checkbox-group {
-    display: flex; /* Use Flexbox */
-    flex-wrap: wrap; /* Allow items to wrap into new lines */
-    justify-content: flex-start; /* Align items to the left */
-    max-height: 100px; /* Adjust as needed */
-    overflow-y: auto; /* Make it scrollable */
-    font-size: 0.9em; /* Shrink text */
-}
-.checkbox-group-item {
-	align-items: center;
-	display: flex;
-    flex: 0 0 48%; /* Each item takes up roughly half the container width */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Add ellipsis for overflow */
-    white-space: nowrap; /* Keep text on one line */
-}
-.checkbox-group label {
-	padding-left: 0.5em;
-	margin: 0;
-}

@@ -38,6 +38,7 @@ class Avatar extends EventEmitter {
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as g/setter is "complex"
     #relivingMemories = [] // array of active reliving memories, with items, maybe conversations, included
+    #vectorstoreId // vectorstore id for avatar
     /**
      * @constructor
      * @param {MyLifeFactory|AgentFactory} factory - The factory on which avatar relies for all service interactions.
@@ -59,7 +60,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise} Promise resolves to this Avatar class instantiation
      */
     async init(){
-        await mInit(this.#factory, this, this.#bots) // mutates avatar and populates bots
+        await mInit(this.#factory, this.#llmServices, this, this.#bots, this.#assetAgent, this.#vectorstoreId) // mutates and populates
         /* experience variables */
         this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
         /* llm services */
@@ -67,13 +68,6 @@ class Avatar extends EventEmitter {
             ? mBot_idOverride
             : this.activeBot.bot_id
         return this
-    }
-    /**
-     * Add a conversation to session memory.
-     * @param {Conversation} conversation - The conversation object.
-     */
-    addConversation(conversation){
-        this.#conversations.push(conversation)
     }
     /**
      * Get a bot.
@@ -105,9 +99,12 @@ class Avatar extends EventEmitter {
         const { id: botId, thread_id, } = activeBot
         if(botId!==activeBotId)
             throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
+        // @stub - clean up conversation alterations - Q is immune
         conversation = conversation
             ?? this.getConversation(threadId ?? thread_id)
-            ?? await this.createConversation('chat', threadId, activeBotId)
+            ?? await this.createConversation('chat', threadId ?? thread_id, activeBotId)
+        if(!conversation)
+            throw new Error('No conversation found for thread id and could not be created.')
         conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
         const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory, this)
         conversation.addMessages(messages)
@@ -135,7 +132,7 @@ class Avatar extends EventEmitter {
      */
     async collections(type){
         if(type==='file'){
-            await this.#assetAgent.init() // bypass factory for files
+            await this.#assetAgent.init(this.#vectorstoreId) // bypass factory for files
             return this.#assetAgent.files
         } // bypass factory for files
         const { factory, } = this
@@ -191,19 +188,12 @@ class Avatar extends EventEmitter {
      * @returns {Conversation} - The conversation object.
      */
     async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
-        const bot = await this.bot(botId)
         const thread = await this.#llmServices.thread(threadId)
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
-        bot.thread_id = conversation.thread_id
-        const { bot_id, bot_name, id, thread_id, } = bot
-        const updatedBot = await this.factory.updateBot({
-            bot_id, // required?
-            bot_name, // required?
-            id,
-            thread_id,
-        })
-        if(saveToConversations)
-            this.addConversation(conversation)
+        if(saveToConversations){
+            this.#conversations.push(conversation)
+            console.log('createConversation::save in memory', conversation.thread_id)
+        }
         return conversation
     }
     /**
@@ -616,34 +606,12 @@ class Avatar extends EventEmitter {
         return this.#conversations[0].threadId
     }
     /**
-     * Upload files to MyLife and/or LLM.
-     * @todo - implement MyLife file upload.
-     * @param {File[]} files - The array of files to upload.
-     * @param {boolean} includeMyLife - Whether to include MyLife in the upload, defaults to `false`.
-     * @returns {boolean} - true if upload successful.
-     */
-    async upload(files, includeMyLife=false){
-        if(this.isMyLife)
-            throw new Error('MyLife avatar cannot upload files.')
-        const { vectorstoreId, } = this.#factory
-        await this.#assetAgent.init(this.#factory.vectorstoreId, includeMyLife) /* or "re-init" */
-        await this.#assetAgent.upload(files)
-        const { response, vectorstoreId: newVectorstoreId, vectorstoreFileList, } = this.#assetAgent
-        if(!vectorstoreId && newVectorstoreId) // ensure access for LLM
-            this.updateInstructions(this.activeBot.id, false, false, true)
-        return {
-            uploads: files,
-            files: vectorstoreFileList,
-            success: true,
-        }
-    }
-    /**
      * Update a specific bot.
      * @param {object} bot - Bot data to set.
      * @returns {object} - The updated bot.
      */
     async updateBot(bot){
-        return await mBot(this.#factory, this, bot) // note: mBot() updates `avatar.bots`
+        return await mBot(this.#factory, this, bot) // **note**: mBot() updates `avatar.bots`
     }
     /**
      * Update core  for bot-assistant based on type. Default updates all LLM pertinent properties.
@@ -654,18 +622,38 @@ class Avatar extends EventEmitter {
      * @returns {object} - The updated bot object.
      */
     async updateInstructions(id=this.activeBot.id, includeInstructions=true, includeModel=true, includeTools=true){
-        const { type, } = this.#bots.find(bot=>bot.id===id)
+        let bot = mFindBot(this, id)
             ?? this.activeBot
+        if(!bot)
+            throw new Error(`Bot not found: ${ id }`)
+        const { bot_id, interests, type, } = bot
         if(!type?.length)
             return
-        const bot = { id, type, }
+        const _bot = { bot_id, id, interests, type, }
+        const vectorstoreId = this.#vectorstoreId
         const options = {
             instructions: includeInstructions,
             model: includeModel,
             tools: includeTools,
+            vectorstoreId,
         }
-        const response = await this.#factory.updateBot(bot, options)
-        return mPruneBot(response)
+        /* save to && refresh bot from Cosmos */
+        bot = mSanitize( await this.#factory.updateBot(_bot, options) )
+        return mPruneBot(bot)
+    }
+    /**
+     * Upload files to Member Avatar.
+     * @param {File[]} files - The array of files to upload.
+     * @returns {boolean} - true if upload successful.
+     */
+    async upload(files){
+        await this.#assetAgent.upload(files)
+        const { vectorstoreFileList, } = this.#assetAgent
+        return {
+            uploads: files,
+            files: vectorstoreFileList,
+            success: true,
+        }
     }
     /**
      * Validate registration id.
@@ -709,8 +697,9 @@ class Avatar extends EventEmitter {
             ?? this.avatar
         const { id: newActiveId, type, version: botVersion=1.0, } = newActiveBot
         const currentVersion = this.#factory.botInstructionsVersion(type)
-        if(botVersion!==currentVersion)
+        if(botVersion!==currentVersion){
             this.updateInstructions(newActiveId, true, false, true)
+        }
         this.#activeBotId = newActiveId
     }
     /**
@@ -1115,6 +1104,29 @@ class Avatar extends EventEmitter {
     get registrationId(){
         return this.#factory.registrationId
     }
+    /**
+     * Get vectorstore id.
+     * @getter
+     * @returns {string} - The vectorstore id.
+     */
+	get vectorstore_id(){
+		return this.#vectorstoreId
+	}
+    /**
+     * Set vectorstore id, both in memory and storage.
+     * @setter
+     * @param {string} vectorstoreId - The vectorstore id.
+     * @returns {void}
+     */
+	set vectorstore_id(vectorstoreId){
+		/* validate vectorstoreId */
+		if(!vectorstoreId?.length)
+			throw new Error('vectorstoreId required')
+		/* cosmos */
+        const { id, } = this
+        this.#factory.updateItem({ id, vectorstore_id: vectorstoreId }) /* no await */
+		this.#vectorstoreId = vectorstoreId /* update local */
+	}
 }
 class Q extends Avatar {
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
@@ -1131,7 +1143,7 @@ class Q extends Avatar {
             throw new Error('factory parameter must be an instance of MyLifeFactory')
         super(factory, llmServices)
         this.#factory = factory
-        this.#llmServices = llmServices
+        this.llmServices = llmServices
     }
     /* overloaded methods */
     /**
@@ -1146,36 +1158,18 @@ class Q extends Avatar {
     */
     async chatRequest(activeBotId=this.activeBotId, threadId, chatMessage, processStartTime=Date.now()){
         let conversation = this.getConversation(threadId)
-        if(!conversation){ // create conversation
-            if(threadId?.length)
-                throw new Error('Conversation cannot be found')
-            this.activeBot.bot_id = mBot_idOverride
-                ?? this.activeBot.bot_id
-            conversation = await this.createConversation('system', undefined, activeBotId, true) // pushes to this.#conversations in Avatar
-            threadId = conversation.thread_id
-        }
+        if(!conversation)
+            throw new Error('Conversation cannot be found')
+        this.activeBot.bot_id = mBot_idOverride
+            ?? this.activeBot.bot_id
         if(this.isValidating) // trigger confirmation until session (or vld) ends
             chatMessage = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ chatMessage }`
         if(this.isCreatingAccount)
             chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
         return super.chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime)
     }
-    /**
-     * Create a new conversation.
-     * @async
-     * @public
-     * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
-     * @param {string} threadId - The openai thread id.
-     * @param {string} botId - The bot id.
-     * @param {boolean} saveToConversations - Whether to save the conversation to local memory; certain system and memory actions will be saved in their own threads.
-     * @returns {Conversation} - The conversation object.
-     */
-    async createConversation(type='system', botId=this.activeBotId, saveToConversations=true){
-        const thread = await this.#llmServices.thread(undefined)
-        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
-        if(saveToConversations)
-            this.addConversation(conversation)
-        return conversation
+    upload(){
+        throw new Error('MyLife avatar cannot upload files.')
     }
     /* public methods */
     /**
@@ -1296,16 +1290,14 @@ function mAvatarDropdown(globals, avatar){
  */
 async function mBot(factory, avatar, bot){
     /* validation */
-    const { bots, id: avatarId, isMyLife, mbr_id, } = avatar
+    const { bots, id: avatarId, isMyLife, mbr_id, vectorstore_id, } = avatar
     const { newGuid, } = factory
     const { id: botId=newGuid, object_id: objectId, type: botType, } = bot
     if(!botType?.length)
         throw new Error('Bot type required to create.')
-    /* set/reset required bot super-properties */
     bot.mbr_id = mbr_id /* constant */
     bot.object_id = objectId ?? avatarId /* all your bots belong to me */
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
-    /* update/create */
     let originBot = bots.find(oBot=>oBot.id===botId)
     if(originBot){ /* update bot */
         const options = {}
@@ -1317,11 +1309,11 @@ async function mBot(factory, avatar, bot){
             }, {})
         /* create or update bot special properties */
         const { thread_id, type, } = originBot // @stub - `bot_id` cannot be updated through this mechanic
-        if(!thread_id?.length){ // add thread_id to relevant bots
+        if(!thread_id?.length && !avatar.isMyLife){ // add thread_id to relevant bots
             const excludeTypes = ['library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
-                updatedBot.thread_id = conversation.thread_id
+                updatedBot.thread_id = conversation.thread_id // triggers `factory.updateBot()`
                 avatar.conversations.push(conversation)
             }
         }
@@ -1331,9 +1323,9 @@ async function mBot(factory, avatar, bot){
             updatedBot.bot_id = bot_id
             updatedBot.id = id
             updatedBot.type = type
-            const { interests, dob, privacy, } = updatedBot
+            const { interests, } = updatedBot
             /* set options */
-            if(interests?.length || dob?.length || privacy?.length){
+            if(interests?.length){
                 options.instructions = true
                 options.model = true
                 options.tools = false /* tools not updated through this mechanic */
@@ -1342,7 +1334,7 @@ async function mBot(factory, avatar, bot){
             originBot = mSanitize(updatedOriginBot)
         }
     } else { /* create assistant */
-        bot = await factory.createBot(bot)
+        bot = mSanitize( await factory.createBot(bot, vectorstore_id) )
         avatar.bots.push(bot)
     }
     return originBot
@@ -1965,10 +1957,13 @@ function mHelpIncludePreamble(type, isMyLife){
 }
 /**
  * Initializes the Avatar instance with stored data.
- * @param {Q|Avatar} avatar - The avatar Instance (`this`).
  * @param {MyLifeFactory|AgentFactory} factory - Member Avatar (true) or Q (false).
+ * @param {LLMServices} llmServices - OpenAI object.
+ * @param {Q|Avatar} avatar - The avatar Instance (`this`).
+ * @param {array} bots - The array of bot objects from private class `this.#bots`.
+ * @returns {Promise<void>} - Return indicates successfully mutated avatar.
  */
-async function mInit(factory, avatar, bots){
+async function mInit(factory, llmServices, avatar, bots, assetAgent){
     /* get avatar data from cosmos */
     const obj = await factory.avatarProperties()
     Object.entries(obj)
@@ -1984,30 +1979,45 @@ async function mInit(factory, avatar, bots){
     if(factory.isMyLife){ // MyLife
         avatar.nickname = 'Q'
     } else { // Member
+        const { mbr_id, vectorstore_id, } = avatar
         avatar.nickname = avatar.nickname
             ?? avatar.names?.[0]
             ?? `${avatar.memberFirstName ?? 'member'}'s avatar`
+        /* vectorstore */
+        if(!vectorstore_id){ // run once if not erroring
+            const vectorstore = await llmServices.createVectorstore(mbr_id)
+            if(vectorstore?.id){
+                avatar.vectorstore_id = vectorstore.id // also sets vectorstore_id in Cosmos
+                await assetAgent.init(avatar.vectorstore_id)
+                console.log('avatar::init()::createVectorStore()', avatar.vectorstore_id)
+            }
+        }
+        /* bots */ // @stub - determine by default or activated team
         requiredBotTypes.push('library', 'personal-biographer') // default memory team
     }
     bots.push(...await factory.bots(avatar.id))
     await Promise.all(
         requiredBotTypes
-        .map(async botType=>{
-            if(!bots.some(bot=>bot.type===botType)){ // create required bot
-                const bot = await mBot(factory, avatar, { type: botType })
-                bots.push(bot)
-            }
+            .map(async botType=>{
+                if(!bots.some(bot=>bot.type===botType)){ // create required bot
+                    const bot = await mBot(factory, avatar, { type: botType })
+                    bots.push(bot)
+                }
         }
     ))
     avatar.activeBotId = avatar.avatar.id // initially set active bot to personal-avatar
     /* conversations */
     await Promise.all(
-        bots.map(async bot=>{
+        bots.map(async bot=>{ 
             const { thread_id, } = bot
-            if(thread_id && !avatar.getConversation(thread_id))
-                avatar.conversations.push(await avatar.createConversation('chat', thread_id))
+            if(!avatar.getConversation(thread_id)){
+                const conversation = await avatar.createConversation('chat', thread_id,)
+                avatar.updateBot(bot, conversation)
+                avatar.conversations.push(conversation)
+            }
         })
     )
+    // need to create new conversation for Q variant, but also need to ensure that no thread_id is saved for Q
     /* evolver */
     if(!factory.isMyLife)
         avatar.evolver = await (new EvolutionAssistant(avatar))

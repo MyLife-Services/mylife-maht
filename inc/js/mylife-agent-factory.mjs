@@ -318,8 +318,14 @@ class BotFactory extends EventEmitter{
 	async collections(type){
 		return await this.dataservices.collections(type)
 	}
-	async createBot(assistantData={ type: mDefaultBotType }){
-		const bot = await mCreateBot(this.#llmServices, this, assistantData)
+	/**
+	 * 
+	 * @param {object} assistantData - The assistant data.
+	 * @param {string} vectorstoreId - The vectorstore id.
+	 * @returns {object} - The created bot.
+	 */
+	async createBot(assistantData={ type: mDefaultBotType }, vectorstoreId){
+		const bot = await mCreateBot(this.#llmServices, this, assistantData, vectorstoreId)
 		if(!bot)
 			throw new Error('bot creation failed')
 		return bot
@@ -492,10 +498,10 @@ class BotFactory extends EventEmitter{
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
 	 * @public
 	 * @param {object} bot - The bot data.
-	 * @param {object} options - Function options: `{ instructions: boolean, model: boolean, tools: boolean }`. Meant to express whether or not these elements should be refreshed. Useful during updates.
-	 * @returns {object} - The Cosmos bot.
+	 * @param {object} options - Function options: `{ instructions: boolean, model: boolean, tools: boolean, vectorstoreId: string, }`.
+	 * @returns {object} - The Cosmos bot version.
 	 */
-	async updateBot(bot, options){
+	async updateBot(bot, options={}){
 		return await mUpdateBot(this, this.#llmServices, bot, options)
 	}
 	/* getters/setters */
@@ -928,19 +934,8 @@ class AgentFactory extends BotFactory {
 	get urlEmbeddingServer(){
 		return process.env.MYLIFE_EMBEDDING_SERVER_URL+':'+process.env.MYLIFE_EMBEDDING_SERVER_PORT
 	}
-	get vectorstoreId(){
-		return this.core.vectorstoreId
-	}
-	set vectorstoreId(vectorstoreId){
-		/* validate vectorstoreId */
-		if(!vectorstoreId?.length)
-			throw new Error('vectorstoreId required')
-		this.dataservices.patch(this.core.id, { vectorstoreId, }) /* no await */
-		this.core.vectorstoreId = vectorstoreId /* update local */
-	}
 }
 class MyLifeFactory extends AgentFactory {
-	#accountCreation
 	#dataservices = mDataservices
 	#llmServices = mLLMServices
 	#registrationData
@@ -948,12 +943,6 @@ class MyLifeFactory extends AgentFactory {
 		super(mPartitionId)
 	} // no init() for MyLife server
 	/* public functions */
-	async addMember(mbr_id){
-		if(!this.globals.isValidGuid(mbr_id))
-			return
-		// Me! Q! I do it! I do it! I do it!
-		/* but because Q needs to do it, how do I get up one level to avatar? */
-	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
@@ -1088,7 +1077,7 @@ class MyLifeFactory extends AgentFactory {
 			}
 		} catch(error){
 			this.#registrationData = null
-			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`))
+			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`), error.message)
 		}
 		return this.#registrationData
 	}
@@ -1210,7 +1199,7 @@ async function mCreateBotLLM(llm, assistantData){
  * @param {object} bot - Bot object, must include `type` property.
  * @returns {object} - Bot object
 */
-async function mCreateBot(llm, factory, bot){
+async function mCreateBot(llm, factory, bot, vectorstoreId){
 	/* initial deconstructions */
 	const { bot_name: botName, description: botDescription, name: botDbName, type, } = bot
 	const { avatarId, } = factory
@@ -1228,7 +1217,7 @@ async function mCreateBot(llm, factory, bot){
 		?? 'gpt-4o'
 	const name = botDbName
 		?? `bot_${ type }_${ avatarId }`
-	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
+	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 	const id = factory.newGuid
 	const assistantData = {
 		being: 'bot',
@@ -1236,7 +1225,10 @@ async function mCreateBot(llm, factory, bot){
 		description,
 		id,
 		instructions,
-		metadata: { externalId: id, },
+		metadata: {
+			externalId: id,
+			version: version.toString(),
+		},
 		model,
 		name,
 		object_id: avatarId,
@@ -1254,7 +1246,7 @@ async function mCreateBot(llm, factory, bot){
 	/* create in MyLife datastore */
 	assistantData.bot_id = botId
 	const assistant = await factory.dataservices.createBot(assistantData)
-	console.log(chalk.green(`bot created::${ type }`), assistant)
+	console.log(chalk.green(`bot created::${ type }`), assistant.id, assistant.bot_id, assistant.bot_name, )
 	return assistant
 }
 /**
@@ -1805,13 +1797,13 @@ function mSanitizeSchemaValue(_value) {
  * @param {AgentFactory} factory - Factory object
  * @param {LLMServices} llm - LLMServices object
  * @param {object} bot - Bot object, winnow via mBot in `mylife-avatar.mjs` to only updated fields
- * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean }
+ * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean, vectorstoreId: string, }
  * @returns 
  */
 async function mUpdateBot(factory, llm, bot, options={}){
 	/* constants */
 	const {
-		id, // no modifications; see below
+		id, // no modifications
 		instructions: removeInstructions,
 		tools: removeTools,
 		tool_resources: removeResources,
@@ -1822,16 +1814,20 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		instructions: updateInstructions=false,
 		model: updateModel=false,
 		tools: updateTools=false,
+		vectorstoreId,
 	} = options
 	if(!factory.globals.isValidGuid(id))
 		throw new Error('bot `id` required in bot argument: `{ id: guid }`')
 	if(updateInstructions){
 		const { instructions, version=1.0, } = mCreateBotInstructions(factory, bot)
 		botData.instructions = instructions
+		botData.metadata = botData.metadata ?? {}
+		botData.metadata.version = version.toString()
 		botData.version = version /* omitted from llm, but appears on updateBot */
 	}
 	if(updateTools){
-		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, factory.vectorstoreId)
+		console.log('mUpdateBot', vectorstoreId)
+		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 		botData.tools = tools
 		botData.tool_resources = tool_resources
 	}
@@ -1839,13 +1835,13 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		botData.model = factory.globals.currentOpenAIBotModel
 	botData.id = id // validated
 	/* LLM updates */
-	const { bot_id, bot_name: name, instructions, metadata, tools, } = botData
-	if(bot_id?.length && (instructions || metadata || name || tools)){
+	const { bot_id, bot_name: name, instructions, tools, } = botData
+	if(bot_id?.length && (instructions || name || tools)){
 		botData.model = factory.globals.currentOpenAIBotModel // not dynamic
 		await llm.updateBot(botData)
 		const updatedLLMFields = Object.keys(botData)
 			.filter(key=>key!=='id' && key!=='bot_id') // strip mechanicals
-		console.log(chalk.green('mUpdateBot()::update in LLM'), bot_id, id, updatedLLMFields)
+		console.log(chalk.green('mUpdateBot()::update in OpenAI'), id, bot_id, updatedLLMFields)
 	}
 	const updatedBot = await factory.dataservices.updateBot(botData)
 	return updatedBot
