@@ -190,8 +190,10 @@ class Avatar extends EventEmitter {
     async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
         const thread = await this.#llmServices.thread(threadId)
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
-        if(saveToConversations)
+        if(saveToConversations){
             this.#conversations.push(conversation)
+            console.log('createConversation::save in memory', conversation.thread_id)
+        }
         return conversation
     }
     /**
@@ -1156,15 +1158,10 @@ class Q extends Avatar {
     */
     async chatRequest(activeBotId=this.activeBotId, threadId, chatMessage, processStartTime=Date.now()){
         let conversation = this.getConversation(threadId)
-        if(!conversation){ // create conversation
-            if(threadId?.length)
-                throw new Error('Conversation cannot be found')
-            this.activeBot.bot_id = mBot_idOverride
-                ?? this.activeBot.bot_id
-            conversation = await this.createConversation('system', undefined, activeBotId, true) // pushes to this.#conversations in Avatar
-            threadId = conversation.thread_id
-            console.log('chatRequest::NEW-CONVERSATION', this.conversations, threadId)
-        }
+        if(!conversation)
+            throw new Error('Conversation cannot be found')
+        this.activeBot.bot_id = mBot_idOverride
+            ?? this.activeBot.bot_id
         if(this.isValidating) // trigger confirmation until session (or vld) ends
             chatMessage = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ chatMessage }`
         if(this.isCreatingAccount)
