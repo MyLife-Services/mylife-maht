@@ -19,6 +19,7 @@ import Globals from './globals.mjs'
 const mAvailableMimeTypes = [],
     mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
     botBar = document.getElementById('bot-bar'),
+    mDefaultReliveMemoryButtonText = 'next',
     mDefaultTeam = 'memoir',
     mGlobals = new Globals(),
     mLibraries = ['entry', 'experience', 'file', 'story'], // ['chat', 'conversation']
@@ -1054,9 +1055,7 @@ async function mReliveMemory(event){
     const { command, parameters, messages, success, } = await mReliveMemoryRequest(id, inputContent)
     if(success){
         addMessages(messages)
-        // @todo - create this function in member, as it will display it in chat and pipe it back here as below
         const input = document.createElement('div')
-        // id alone is not unique!; input.id = `input_${ id }`
         input.name = `input_${ id }`
         input.classList.add('memory-input-container')
         const inputContent = document.createElement('textarea')
@@ -1065,6 +1064,7 @@ async function mReliveMemory(event){
         const inputSubmit = document.createElement('button')
         inputSubmit.classList.add('memory-input-button')
         inputSubmit.dataset.id = id
+        inputSubmit.textContent = mDefaultReliveMemoryButtonText
         input.appendChild(inputContent)
         input.appendChild(inputSubmit)
         inputContent.addEventListener('input', event=>{
@@ -1072,7 +1072,7 @@ async function mReliveMemory(event){
             inputSubmit.dataset.inputContent = value
             inputSubmit.textContent = value.length > 2
                 ? 'update'
-                : 'next'
+                : mDefaultReliveMemoryButtonText
         })
         inputSubmit.addEventListener('click', mReliveMemory, { once: true })
         addInput(input)
