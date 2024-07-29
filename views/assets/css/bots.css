@@ -563,14 +563,26 @@ input:checked + .publicity-slider:before {
     padding: 0.5rem;
     transition: opacity 0.5s ease; /* Smooth transition for opacity */
 }
-.share-memory-container { /* panel for how others `experience` memory story */
+.relive-memory-button.button {
+    display: flex;
+    margin: 0.2rem 0;
+    padding: 0 0.2rem;
+    max-width: 80%;
+    min-width: 60%;
+}
+.relive-memory-container { /* panel for how others `experience` memory story */
+    align-items: center;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    margin: 0;
-    padding: 0;
+    margin: 0.2rem;
+    padding: 0.2rem;
 }
-.share-memory-select { /* container for share memory selection packet */
+.relive-memory-explanation {
+    display: flex;
+    padding: 0.2rem;
+}
+.relive-memory-select { /* container for share memory selection packet */
     display: flex;
     flex-direction: row;
     justify-content: space-between;
