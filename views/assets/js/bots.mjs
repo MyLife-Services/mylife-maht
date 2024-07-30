@@ -19,6 +19,7 @@ import Globals from './globals.mjs'
 const mAvailableMimeTypes = [],
     mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
     botBar = document.getElementById('bot-bar'),
+    mDefaultReliveMemoryButtonText = 'next',
     mDefaultTeam = 'memoir',
     mGlobals = new Globals(),
     mLibraries = ['entry', 'experience', 'file', 'story'], // ['chat', 'conversation']
@@ -397,7 +398,6 @@ async function mMemoryShadow(event){
             throw new Error(`Unimplemented shadow type: ${ type }`)
     }
     /* close popup */
-    // @stub - minimize to header instead?
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
@@ -526,6 +526,7 @@ function mCreateCollectionPopup(collectionItem) {
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
+    popupClose.dataset.isClose = 'true'
     popupClose.id = `popup-close_${ id }`
     popupClose.setAttribute('aria-label', 'Close')
     popupClose.addEventListener('click', mTogglePopup)
@@ -628,108 +629,35 @@ function mCreateCollectionPopup(collectionItem) {
             improveMemory.classList.add(`collection-popup-${ type }`)
             improveMemory.id = `popup-${ type }_${ id }`
             improveMemory.name = 'improve-memory-container'
-            /* shadows, share-memory panel */
+            /* shadows, relive-memory panel */
             const improveMemoryLane = document.createElement('div')
             improveMemoryLane.classList.add('improve-memory-lane')
             /* story shadows */
             if(mShadows?.length)
                 improveMemoryLane.appendChild(mCreateMemoryShadows(id))
-            /* share memory panel */
-            const shareMemory = document.createElement('div')
-            shareMemory.classList.add('share-memory-container')
-            shareMemory.id = `share-memory_${ id }`
-            shareMemory.name = 'share-memory-container'
-            const shareMemoryActorSelect = document.createElement('div')
-            shareMemoryActorSelect.classList.add('share-memory-select')
-            shareMemoryActorSelect.title = `Select the actor or narrator for the story. Who should tell your story? Or who will play "you"?`
-            /* actor */
-            const actorList = ['Biographer', 'My Avatar', 'Member avatar', 'Q', 'MyLife Professional Actor', 'Custom']
-            const actor = document.createElement('select')
-            actor.classList.add('share-memory-actor-select')
-            actor.dataset.id = id
-            actor.dataset.type = `actor`
-            actor.id = `share-memory-actor-select_${ id }`
-            actor.name = 'share-memory-actor-select'
-            /* actor/narrator label; **note**: for instance if member has tuned a specific bot of theirs to have an outgoing voice they like */
-            const actorLabel = document.createElement('label')
-            actorLabel.classList.add('share-memory-actor-select-label')
-            actorLabel.htmlFor = actor.id
-            actorLabel.id = `share-memory-actor-select-label_${ id }`
-            actorLabel.textContent = 'Actor/Narrator:'
-            shareMemoryActorSelect.appendChild(actorLabel)
-            const actorOption = document.createElement('option')
-            actorOption.disabled = true
-            actorOption.selected = true
-            actorOption.value = ''
-            actorOption.textContent = 'Select narrator...'
-            actor.appendChild(actorOption)
-            actorList.forEach(option=>{
-                const actorOption = document.createElement('option')
-                actorOption.selected = false
-                actorOption.textContent = option
-                actorOption.value = option
-                actor.appendChild(actorOption)
-            })
-            actor.addEventListener('change', mStory)
-            shareMemoryActorSelect.appendChild(actor)
-            shareMemory.appendChild(shareMemoryActorSelect)
-            /* pov */
-            const shareMemoryPovSelect = document.createElement('div')
-            shareMemoryPovSelect.classList.add('share-memory-select')
-            shareMemoryPovSelect.title = `This refers to the position of the "listener" in the story. Who is the listener? Are they referred to as the protagonist? Antagonist? A particular person or character in your story?`
-            const povList = ['Me', 'Protagonist', 'Antagonist', 'Character',]
-            const pov = document.createElement('select')
-            pov.classList.add('share-memory-pov-select')
-            pov.dataset.id = id
-            pov.dataset.type = `pov`
-            pov.id = `share-memory-pov-select_${ id }`
-            pov.name = 'share-memory-pov-select'
-            /* pov label */
-            const povLabel = document.createElement('label')
-            povLabel.classList.add('share-memory-pov-select-label')
-            povLabel.htmlFor = pov.id
-            povLabel.id = `share-memory-pov-select-label_${ id }`
-            povLabel.textContent = 'Point of View:'
-            shareMemoryPovSelect.appendChild(povLabel)
-            const povOption = document.createElement('option')
-            povOption.disabled = true
-            povOption.selected = true
-            povOption.value = ''
-            povOption.textContent = 'Select listener vantage...'
-            pov.appendChild(povOption)
-            povList.forEach(option=>{
-                const povOption = document.createElement('option')
-                povOption.value = option
-                povOption.textContent = option
-                pov.appendChild(povOption)
-            })
-            pov.addEventListener('change', mStory)
-            shareMemoryPovSelect.appendChild(pov)
-            shareMemory.appendChild(shareMemoryPovSelect)
-            /* narrative context */
-            const narrativeContext = document.createElement('textarea')
-            narrativeContext.classList.add('share-memory-context')
-            narrativeContext.dataset.id = id
-            narrativeContext.dataset.previousValue = ''
-            narrativeContext.dataset.type = `narrative`
-            narrativeContext.id = `share-memory-context_${ id }`
-            narrativeContext.name = 'share-memory-context'
-            narrativeContext.placeholder = 'How should the story be told? Should it be scary? humorous? choose your own adventure?'
-            narrativeContext.title = `How should the story be told? Should it be scary? humorous? Will it be a choose your own adventure that deviates from the reality of your memory?`
-            narrativeContext.value = narrativeContext.dataset.previousValue
-            narrativeContext.addEventListener('blur', mStoryContext)
-            shareMemory.appendChild(narrativeContext)
-            /* play memory */
-            const memoryPlay = document.createElement('button')
-            memoryPlay.classList.add('relive-memory')
-            memoryPlay.dataset.id = id
-            memoryPlay.id = `relive-memory_${ id }`
-            memoryPlay.name = 'relive-memory'
-            memoryPlay.textContent = 'Relive Memory'
-            memoryPlay.addEventListener('click', mReliveMemory, { once: true })
-            shareMemory.appendChild(memoryPlay)
-            improveMemoryLane.appendChild(shareMemory)
-            // play memory
+            /* relive memory panel */
+            const reliveMemory = document.createElement('div')
+            reliveMemory.classList.add('relive-memory-container')
+            reliveMemory.id = `relive-memory_${ id }`
+            reliveMemory.name = 'relive-memory-container'
+            /* relive memory explanation */
+            const reliveExplanation = document.createElement('div')
+            reliveExplanation.classList.add('relive-memory-explanation')
+            reliveExplanation.id = `relive-memory-explanation_${ id }`
+            reliveExplanation.name = 'relive-memory-explanation'
+            reliveExplanation.textContent = 'Relive a memory by clicking the button below. This will bring up the memory in chat, where you can add to it, or simply enjoy reliving it!'
+            /* relive memory button */
+            const reliveButton = document.createElement('button')
+            reliveButton.classList.add('relive-memory-button', 'button')
+            reliveButton.dataset.id = id /* required for triggering PATCH */
+            reliveButton.id = `relive-memory-button_${ id }`
+            reliveButton.name = 'relive-memory-button'
+            reliveButton.textContent = 'Relive Memory'
+            reliveButton.addEventListener('click', mReliveMemory, { once: true })
+            /* append elements */
+            reliveMemory.appendChild(reliveExplanation)
+            reliveMemory.appendChild(reliveButton)
+            improveMemoryLane.appendChild(reliveMemory)
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
             memoryCarousel.classList.add('memory-carousel')
@@ -1121,23 +1049,26 @@ async function mReliveMemory(event){
     event.preventDefault()
     event.stopPropagation()
     const { id, inputContent, } = this.dataset
+    const previousInstance = document.getElementById(`relive-memory-input-container_${id}`)
+    if(previousInstance)
+        previousInstance.remove()
     const popupClose = document.getElementById(`popup-close_${ id }`)
     if(popupClose)
         popupClose.click()
     const { command, parameters, messages, success, } = await mReliveMemoryRequest(id, inputContent)
     if(success){
         addMessages(messages)
-        // @todo - create this function in member, as it will display it in chat and pipe it back here as below
         const input = document.createElement('div')
-        // id alone is not unique!; input.id = `input_${ id }`
-        input.name = `input_${ id }`
         input.classList.add('memory-input-container')
+        input.id = `relive-memory-input-container_${ id }`
+        input.name = `input_${ id }`
         const inputContent = document.createElement('textarea')
         inputContent.classList.add('memory-input')
         inputContent.name = `memory-input_${ id }`
         const inputSubmit = document.createElement('button')
         inputSubmit.classList.add('memory-input-button')
         inputSubmit.dataset.id = id
+        inputSubmit.textContent = mDefaultReliveMemoryButtonText
         input.appendChild(inputContent)
         input.appendChild(inputSubmit)
         inputContent.addEventListener('input', event=>{
@@ -1145,7 +1076,7 @@ async function mReliveMemory(event){
             inputSubmit.dataset.inputContent = value
             inputSubmit.textContent = value.length > 2
                 ? 'update'
-                : 'next'
+                : mDefaultReliveMemoryButtonText
         })
         inputSubmit.addEventListener('click', mReliveMemory, { once: true })
         addInput(input)
@@ -1606,8 +1537,8 @@ function mTogglePopup(event){
     if(!popup)
         throw new Error(`Popup not found: ${ popupId }`)
     const { active, } = popup.dataset
-    if(active==='true'){ /* close */
-        console.log('mTogglePopup::closing:', popupId, popup.dataset, active)
+    const isClose = event.target?.dataset?.isClose
+    if(active=='true' || isClose){ /* close */
         popup.dataset.active = 'false'
         hide(popup)
     } else { /* open */
