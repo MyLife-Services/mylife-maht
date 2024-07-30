@@ -398,7 +398,6 @@ async function mMemoryShadow(event){
             throw new Error(`Unimplemented shadow type: ${ type }`)
     }
     /* close popup */
-    // @stub - minimize to header instead?
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
@@ -527,6 +526,7 @@ function mCreateCollectionPopup(collectionItem) {
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
+    popupClose.dataset.isClose = 'true'
     popupClose.id = `popup-close_${ id }`
     popupClose.setAttribute('aria-label', 'Close')
     popupClose.addEventListener('click', mTogglePopup)
@@ -1049,6 +1049,9 @@ async function mReliveMemory(event){
     event.preventDefault()
     event.stopPropagation()
     const { id, inputContent, } = this.dataset
+    const previousInstance = document.getElementById(`relive-memory-input-container_${id}`)
+    if(previousInstance)
+        previousInstance.remove()
     const popupClose = document.getElementById(`popup-close_${ id }`)
     if(popupClose)
         popupClose.click()
@@ -1056,8 +1059,9 @@ async function mReliveMemory(event){
     if(success){
         addMessages(messages)
         const input = document.createElement('div')
-        input.name = `input_${ id }`
         input.classList.add('memory-input-container')
+        input.id = `relive-memory-input-container_${ id }`
+        input.name = `input_${ id }`
         const inputContent = document.createElement('textarea')
         inputContent.classList.add('memory-input')
         inputContent.name = `memory-input_${ id }`
@@ -1533,8 +1537,8 @@ function mTogglePopup(event){
     if(!popup)
         throw new Error(`Popup not found: ${ popupId }`)
     const { active, } = popup.dataset
-    if(active==='true'){ /* close */
-        console.log('mTogglePopup::closing:', popupId, popup.dataset, active)
+    const isClose = event.target?.dataset?.isClose
+    if(active=='true' || isClose){ /* close */
         popup.dataset.active = 'false'
         hide(popup)
     } else { /* open */
