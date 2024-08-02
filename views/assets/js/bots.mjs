@@ -1485,28 +1485,19 @@ async function mToggleCollectionItems(event){
     const { target, } = event /* currentTarget=collection-bar, target=interior divs */
     const { dataset, id, } = this
     const type = id.split('-').pop()
+    const refreshTrigger = document.getElementById(`collection-refresh-${ type }`)
+    const isRefresh = target.id===refreshTrigger.id
     const itemList = document.getElementById(`collection-list-${ type }`)
     /* validation */
     if(!itemList)
         throw new Error(`Collection list not found for toggle.`)
     /* functionality */
-    dataset.init = dataset.init
-        ?? ( ( itemList.querySelectorAll(`.${ type }-collection-item`) )
-                .length
-            ? 'true' // externally refreshed
-            : 'false'
-        ) // force calculation
-    if(dataset.init!=='true'){ // first click
-        const refreshTrigger = document.getElementById(`collection-refresh-${ type }`)
-        if(refreshTrigger)
-            refreshTrigger.click() // retriggers this event, but will bypass this block
-        return
-    }
-    /* toggle */
-    if(target.id===`collection-refresh-${ type }`){ // refresh
-        // @stub - spin recycle symbol while servering
+    if(dataset.init!=='true' || isRefresh){ // first click or refresh
+        show(refreshTrigger)
+        refreshTrigger.classList.add('spin')
         await mRefreshCollection(type)
         dataset.init = 'true'
+        refreshTrigger.classList.remove('spin')
         show(target)
         show(itemList) // even if `none`
     } else
@@ -1784,17 +1775,14 @@ function mUpdateBotContainerAddenda(botContainer){
                     if(collectionBar){
                         const { dataset, } = collectionBar
                         const itemList = document.getElementById(`collection-list-${ id }`)
-                        dataset.init = dataset.init
-                            ?? itemList?.children?.length > 0
-                                ? 'true'
-                                : 'false' // items do not exist
+                        dataset.init = itemList.querySelectorAll(`.${ id }-collection-item`).length > 0
+                                ? 'true' // externally refreshed
+                                : dataset.init // tested empty
+                                    ?? 'false'
                         /* update collection list */
-                        if(itemList){
-                            if(true)
-                                dataset.init = 'true' // items exist
-                        }
+                        console.log('Library collection init:', dataset.init, id)
                         const refresh = document.getElementById(`collection-refresh-${ id }`)
-                        if(dataset?.init?.trim().toLowerCase()!=='true' && refresh) // first click
+                        if(dataset.init!=='true' && refresh) // first click
                             hide(refresh)
                         collectionBar.addEventListener('click', mToggleCollectionItems)
                     }

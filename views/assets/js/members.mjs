@@ -491,7 +491,7 @@ function getActiveCategory(){
  */
 async function mInitialize(){
     /* fetch primary collections */
-    refreshCollection('story') // memories
+    await refreshCollection('story') // memories required
     /* page listeners */
     mInitializePageListeners()
 }
