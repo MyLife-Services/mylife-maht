@@ -390,15 +390,53 @@ async function mAddMessage(message, options={}){
 		typeDelay=2,
 		typewrite=true,
 	} = options
+    /* message container */
+    const chatMessage = document.createElement('div')
+    chatMessage.classList.add('chat-message-container')
+    /* message bubble */
 	const chatBubble = document.createElement('div')
-    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
+    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
     mChatBubbleCount++
-	systemChat.appendChild(chatBubble)
+    /* message tab */
+    const chatMessageTab = document.createElement('div')
+    chatMessageTab.id = `chat-message-tab-${mChatBubbleCount}`
+    chatMessageTab.classList.add('chat-message-tab')
+    const chatCopy = document.createElement('i')
+    chatCopy.classList.add('fas', 'fa-copy', 'chat-copy')
+    /* attach children */
+    chatMessageTab.appendChild(chatCopy)
+    chatMessage.appendChild(chatBubble)
+    chatMessage.appendChild(chatMessageTab)
+	systemChat.appendChild(chatMessage)
+    /* assign listeners */
+    chatBubble.addEventListener('mouseover', event=>{
+        chatMessageTab.style.transform = 'translateX(-33%)'
+        chatMessageTab.style.opacity = '1'
+        chatMessageTab.style.pointerEvents = 'all'
+    })
+    chatCopy.addEventListener('click', event=>{
+        navigator.clipboard.writeText(message).then(_=>{
+            chatCopy.classList.remove('fa-copy')
+            chatCopy.classList.add('fa-check')
+            setTimeout(_=>{
+                chatCopy.classList.remove('fa-check')
+                chatCopy.classList.add('fa-copy')
+            }, 2000)
+        }).catch(err => {
+            console.error('Failed to copy: ', err)
+        })
+    })
+    chatMessage.addEventListener('mouseleave', event => {
+        chatMessageTab.style.transform = 'translateX(-100%)'
+        chatMessageTab.style.opacity = '0'
+        chatMessageTab.style.pointerEvents = 'none'
+    })
+    /* print chat message */
 	if(typewrite)
         mTypeMessage(chatBubble, message, typeDelay)
-	else {
-		chatBubble.insertAdjacentHTML('beforeend', message)
+    else {
+        chatBubble.insertAdjacentHTML('beforeend', message)
         mScrollBottom()
 	}
 }

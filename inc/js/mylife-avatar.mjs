@@ -192,7 +192,7 @@ class Avatar extends EventEmitter {
         const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
         if(saveToConversations){
             this.#conversations.push(conversation)
-            console.log('createConversation::save in memory', conversation.thread_id)
+            console.log('createConversation::saving into local memory', conversation.thread_id)
         }
         return conversation
     }
@@ -699,6 +699,8 @@ class Avatar extends EventEmitter {
         const currentVersion = this.#factory.botInstructionsVersion(type)
         if(botVersion!==currentVersion){
             this.updateInstructions(newActiveId, true, false, true)
+            /* update bot in this.#bots */
+            
         }
         this.#activeBotId = newActiveId
     }
