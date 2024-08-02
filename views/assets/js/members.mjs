@@ -96,7 +96,6 @@ function addMessages(messages, options={}){
  * @returns {HTMLDivElement} - The moderator modified element.
  */
 function assignElements(parent=chatInput, elements, clear=true){
-    console.log('assignElements()', parent, elements, clear)
     if(clear)
         while(parent.firstChild)
             parent.removeChild(parent.firstChild)
@@ -124,6 +123,14 @@ function decorateActiveBot(activeBot=activeBot()){
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
+}
+/**
+ * Deletes an element from the DOM via Avatar functionality.
+ * @param {HTMLElement} element - The element to expunge.
+ * @returns {void}
+ */
+function expunge(element){
+    return mGlobals.expunge(element)
 }
 /**
  * Fetches the summary via PA for a specified file.
@@ -715,6 +722,7 @@ export {
     clearSystemChat,
     decorateActiveBot,
     escapeHtml,
+    expunge,
     fetchSummary,
     getInputValue,
     getSystemChat,

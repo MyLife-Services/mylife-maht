@@ -5,6 +5,7 @@ import {
     addMessage,
     addMessages,
     decorateActiveBot,
+    expunge,
     fetchSummary,
     hide,
     seedInput,
@@ -1049,9 +1050,9 @@ async function mReliveMemory(event){
     event.preventDefault()
     event.stopPropagation()
     const { id, inputContent, } = this.dataset
-    const previousInstance = document.getElementById(`relive-memory-input-container_${id}`)
-    if(previousInstance)
-        previousInstance.remove()
+    const previousInput = document.getElementById(`relive-memory-input-container_${id}`)
+    if(previousInput)
+        expunge(previousInput)
     const popupClose = document.getElementById(`popup-close_${ id }`)
     if(popupClose)
         popupClose.click()
