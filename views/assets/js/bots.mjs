@@ -116,6 +116,14 @@ function getBot(type='personal-avatar', id){
     return mBot(id ?? type)
 }
 /**
+ * Refresh designated collection from server. **note**: external calls denied option to identify collectionList parameter, ergo must always be of same type.
+ * @param {string} type - The collection type.
+ * @returns {void}
+ */
+async function refreshCollection(type){
+    return await mRefreshCollection(type)
+}
+/**
  * Set active bot on server and update page bots.
  * @requires mActiveBot
  * @requires mBots
@@ -1034,15 +1042,19 @@ function mOpenStatusDropdown(element){
             dropdown.classList.toggle('open')
 }
 /**
- * Refresh collection on click.
+ * Refresh designated collection from server.
  * @this - collection-refresh
  * @param {string} type - The collection type.
- * @param {HTMLDivElement} collectionList - The collection list.
+ * @param {HTMLDivElement} collectionList - The collection list, defaults to `collection-list-${ type }`.
  * @returns {void}
  */
 async function mRefreshCollection(type, collectionList){
     if(!mLibraries.includes(type))
         throw new Error(`Library collection not implemented.`)
+    collectionList = collectionList
+        ?? document.getElementById(`collection-list-${ type }`)
+    if(!collectionList)
+        throw new Error(`No collection list found for refresh request.`)
     const collection = await fetchCollections(type)
     mUpdateCollection(type, collectionList, collection)
 }
@@ -1472,31 +1484,33 @@ async function mToggleCollectionItems(event){
     /* constants */
     const { target, } = event /* currentTarget=collection-bar, target=interior divs */
     const { dataset, id, } = this
-    const collectionType = id.split('-').pop()
-    const collectionList = document.getElementById(`collection-list-${ collectionType }`)
+    const type = id.split('-').pop()
+    const itemList = document.getElementById(`collection-list-${ type }`)
     /* validation */
-    if(!collectionList)
+    if(!itemList)
         throw new Error(`Collection list not found for toggle.`)
     /* functionality */
-    if(!dataset?.init){ // first click
-        const refreshTrigger = document.getElementById(`collection-refresh-${ collectionType }`)
-        if(!refreshTrigger)
-            throw new Error(`Collection refresh not found for toggle.`)
-        dataset.init = true
-        refreshTrigger.click() // retriggers this event, but will bypass this block
+    dataset.init = dataset.init
+        ?? ( ( itemList.querySelectorAll(`.${ type }-collection-item`) )
+                .length
+            ? 'true' // externally refreshed
+            : 'false'
+        ) // force calculation
+    if(dataset.init!=='true'){ // first click
+        const refreshTrigger = document.getElementById(`collection-refresh-${ type }`)
+        if(refreshTrigger)
+            refreshTrigger.click() // retriggers this event, but will bypass this block
         return
     }
     /* toggle */
-    if(target.id===`collection-refresh-${ collectionType }`){ // refresh
-        const collectionList = document.getElementById(`collection-list-${ collectionType }`)
-        if(!collectionList)
-            throw new Error(`associated collection list not found for refresh command`)
+    if(target.id===`collection-refresh-${ type }`){ // refresh
         // @stub - spin recycle symbol while servering
-        await mRefreshCollection(collectionType, collectionList)
+        await mRefreshCollection(type)
+        dataset.init = 'true'
         show(target)
-        show(collectionList) // even if `none`
+        show(itemList) // even if `none`
     } else
-        toggleVisibility(collectionList)
+        toggleVisibility(itemList)
 }
 /**
  * Toggles passphrase input visibility.
@@ -1769,8 +1783,18 @@ function mUpdateBotContainerAddenda(botContainer){
                     const collectionBar = document.getElementById(`collection-bar-${ id }`)
                     if(collectionBar){
                         const { dataset, } = collectionBar
+                        const itemList = document.getElementById(`collection-list-${ id }`)
+                        dataset.init = dataset.init
+                            ?? itemList?.children?.length > 0
+                                ? 'true'
+                                : 'false' // items do not exist
+                        /* update collection list */
+                        if(itemList){
+                            if(true)
+                                dataset.init = 'true' // items exist
+                        }
                         const refresh = document.getElementById(`collection-refresh-${ id }`)
-                        if(!dataset?.init && refresh) // first click
+                        if(dataset?.init?.trim().toLowerCase()!=='true' && refresh) // first click
                             hide(refresh)
                         collectionBar.addEventListener('click', mToggleCollectionItems)
                     }
@@ -1953,8 +1977,8 @@ async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
             })
             const { files, message, success, } = await response.json()
             const type = 'file'
-            const collectionList = document.getElementById(`collection-list-${ type }`)
-            mUpdateCollection(type, collectionList, files)
+            const itemList = document.getElementById(`collection-list-${ type }`)
+            mUpdateCollection(type, itemList, files)
             console.log('mUploadFilesInput()::files', files, uploads, type)
         }
     }, { once: true })
@@ -1974,6 +1998,7 @@ export {
     fetchTeam,
     fetchTeams,
     getBot,
+    refreshCollection,
     setActiveBot,
     updatePageBots,
 }

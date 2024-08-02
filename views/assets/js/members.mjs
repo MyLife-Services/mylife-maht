@@ -9,6 +9,7 @@ import {
 } from './experience.mjs'
 import {
     activeBot,
+    refreshCollection,
     setActiveBot as _setActiveBot,
 } from './bots.mjs'
 import Globals from './globals.mjs'
@@ -489,6 +490,8 @@ function getActiveCategory(){
  * @returns {Promise<boolean>} - The return is a boolean indicating success.
  */
 async function mInitialize(){
+    /* fetch primary collections */
+    refreshCollection('story') // memories
     /* page listeners */
     mInitializePageListeners()
 }
