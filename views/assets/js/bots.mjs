@@ -912,17 +912,16 @@ async function mDeleteCollectionItem(event){
     event.stopPropagation()
     const id = event.target.id.split('_').pop()
     const item = document.getElementById(`collection-item_${ id }`)
-    console.log('Delete collection item:', id, event.target, item)
-    if(!item)
-        throw new Error(`Collection item not found for deletion request.`)
-    /* talk to server */
-    const url = window.location.origin + '/members/items/' + id
-    const method = 'DELETE'
-    let response = await fetch(url, { method: method })
-    response = await response.json()
-    if(response){ // delete item from collection
-        hide(item)
-        item.remove()
+    /* confirmation dialog */
+    const userConfirmed = confirm("Are you sure you want to delete this item?")
+    if(userConfirmed){
+        /* talk to server */
+        const url = window.location.origin + '/members/items/' + id
+        const method = 'DELETE'
+        let response = await fetch(url, { method: method })
+        response = await response.json()
+        if(response) // delete item from collection
+            expunge(item)
     } else
         item.addEventListener('click', mDeleteCollectionItem, { once: true })
 }

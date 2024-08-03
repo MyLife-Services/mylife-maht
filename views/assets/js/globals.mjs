@@ -119,6 +119,7 @@ class Globals {
      * @returns {void}
      */
     expunge(element){
+        this.hide(element) /* trigger any animations */
         element.remove()
     }
     async fetchShadows(){
