@@ -1292,7 +1292,7 @@ function mAvatarDropdown(globals, avatar){
  */
 async function mBot(factory, avatar, bot){
     /* validation */
-    const { bots, id: avatarId, isMyLife, mbr_id, vectorstore_id, } = avatar
+    const { id: avatarId, mbr_id, vectorstore_id, } = avatar
     const { newGuid, } = factory
     const { id: botId=newGuid, object_id: objectId, type: botType, } = bot
     if(!botType?.length)
@@ -1300,7 +1300,7 @@ async function mBot(factory, avatar, bot){
     bot.mbr_id = mbr_id /* constant */
     bot.object_id = objectId ?? avatarId /* all your bots belong to me */
     bot.id =  botId // **note**: _this_ is a Cosmos id, not an openAI id
-    let originBot = bots.find(oBot=>oBot.id===botId)
+    let originBot = avatar.bots.find(oBot=>oBot.id===botId)
     if(originBot){ /* update bot */
         const options = {}
         const updatedBot = Object.keys(bot)
@@ -1319,8 +1319,9 @@ async function mBot(factory, avatar, bot){
                 avatar.conversations.push(conversation)
             }
         }
+        let updatedOriginBot
         if(Object.keys(updatedBot).length){
-            let updatedOriginBot = {...originBot, ...updatedBot} // consolidated update
+            updatedOriginBot = {...originBot, ...updatedBot} // consolidated update
             const { bot_id, id, } = updatedOriginBot
             updatedBot.bot_id = bot_id
             updatedBot.id = id
@@ -1333,8 +1334,9 @@ async function mBot(factory, avatar, bot){
                 options.tools = false /* tools not updated through this mechanic */
             }
             updatedOriginBot = await factory.updateBot(updatedBot, options)
-            originBot = mSanitize(updatedOriginBot)
         }
+        originBot = mSanitize(updatedOriginBot ?? originBot)
+        avatar.bots[avatar.bots.findIndex(oBot=>oBot.id===botId)] = originBot
     } else { /* create assistant */
         bot = mSanitize( await factory.createBot(bot, vectorstore_id) )
         avatar.bots.push(bot)
