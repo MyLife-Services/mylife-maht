@@ -74,7 +74,7 @@ const mAiJsFunctions = {
 		}
 	},
 	storySummary: {
-		description: 'Generate a STORY summary with keywords and other critical data elements.',
+		description: 'Generate a complete multi-paragraph STORY summary with keywords and other critical data elements.',
 		name: 'storySummary',
 		parameters: {
 			type: 'object',
@@ -119,8 +119,7 @@ const mAiJsFunctions = {
 					maxItems: 24
 				},
 				summary: {
-					description: 'Generate a STORY summary from input.',
-					maxLength: 20480,
+					description: 'A complete multi-paragraph STORY summary composed from relevant user input.',
 					type: 'string'
 				},
 				title: {
