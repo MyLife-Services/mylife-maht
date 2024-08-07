@@ -1,3 +1,7 @@
+/* css chat variables */
+:root {
+    --chat-base-z-index: calc(var(--mylife-base-z-index) + 10);
+}
 /* MyLife chat container */
 .agent-bubble {
     background-color: rgba(0, 86, 179, .85); /* A darker shade of blue for the agent */
@@ -36,7 +40,7 @@
     padding: 0.5rem 0.8rem;
     width: fit-content;
     word-wrap: break-word;
-	z-index: 20;
+	z-index: calc(var(--chat-base-z-index) + 1);
 }
 .chat-container {
 	align-items: flex-start;
@@ -123,7 +127,7 @@
     transform: translateX(-100%);
     transition: transform 0.5s, opacity 0.5s;
     width: 2.5rem;
-	z-index: 10;
+	z-index: var(--chat-base-z-index);
 }
 .chat-message-container:hover .chat-message-tab,
 .chat-message-tab:hover {
@@ -140,7 +144,7 @@
 	color: #888; /* Icon color, change as needed */
 	font-size: 24px; /* Icon size, adjust as needed */
 	cursor: pointer; /* Pointer cursor on hover */
-	z-index: 2; /* Ensure it's above other content */
+	z-index: calc(var(--chat-base-z-index) + 5);
 }
 /* chat-submit button; requires special treament to overwrite button class for now */
 button.chat-submit { /* need specificity to overwrite button class */

@@ -1545,6 +1545,7 @@ function mTogglePopup(event){
     const isClose = event.target?.dataset?.isClose
     if(active=='true' || isClose){ /* close */
         popup.dataset.active = 'false'
+        popup.style.opacity = 0
         hide(popup)
     } else { /* open */
         const { title, type, } = popup.dataset
