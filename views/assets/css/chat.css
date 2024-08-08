@@ -33,6 +33,7 @@
     border-radius: 0.8rem;
     box-shadow: 0.2rem 0.2rem 0.4rem rgba(0, 0, 0, 0.3);
 	display: flex;
+	flex-direction: column;
     font-size: 0.9em;
     margin-bottom: 0.5rem;
     max-width: 90%;
@@ -72,7 +73,6 @@
 	font-size: 0.8rem;
 	margin: 0.2rem;
 	position: absolute;
-	right: 0.2rem;
 	top: 0.2rem;
 }
 .chat-feedback {
@@ -110,30 +110,53 @@
     display: flex;
     position: relative;
 }
+.chat-message-container-agent {
+	flex-direction: row;
+}
+.chat-message-container-member {
+	flex-direction: row-reverse;
+}
 .chat-message-tab {
-    align-items: center;
-    background-color: #9f9dff; /* Lighter shade of the bubble color */
-	border: thin solid #3427ec;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0.2rem;
     border-bottom-right-radius: 0.2rem;
     border-bottom-left-radius: 0.2rem;
 	display: flex;
     flex-direction: column;
 	height: 100%;
-    justify-content: flex-end;
+	justify-content: flex-end;
     opacity: 0;
+	padding: 0.2rem;
     pointer-events: none;
-    transform: translateX(-100%);
     transition: transform 0.5s, opacity 0.5s;
     width: 2.5rem;
 	z-index: var(--chat-base-z-index);
 }
-.chat-message-container:hover .chat-message-tab,
-.chat-message-tab:hover {
+.chat-message-tab-agent {
+	align-items: flex-end;
+	background-color: #9f9dff; /* Lighter shade of the bubble color */
+	border: thin solid #3427ec;
+	border-top-left-radius: 0;
+    border-top-right-radius: 0.2rem;
+	transform: translateX(-100%);
+}
+.chat-message-tab-hover {
+	opacity: 1;
+	pointer-events: all;
+}
+.chat-message-tab-hover-agent,
+.chat-message-tab-agent:hover {
 	transform: translateX(-33%); /* accommodate for 2.5rem */
-    opacity: 1;
-    pointer-events: all;
+}
+.chat-message-tab-member {
+	align-items: flex-start;
+	background-color: #d6ffd9; /* Lighter shade of the bubble color */
+	border: thin solid #27bbec;
+	border-top-left-radius: 0.2rem;
+    border-top-right-radius: 0;
+	transform: translateX(100%);
+}
+.chat-message-tab-hover-member, /* **note**: must come after tab-member */
+.chat-message-tab-member:hover {
+	transform: translateX(33%); /* accommodate for 2.5rem */
 }
 .chat-refresh {
 	position: absolute; /* Position relative to parent */
@@ -227,8 +250,6 @@ button.chat-submit:disabled {
     background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
     color: #333333; /* Dark grey for contrast and easy reading */
 	font-size: .75em;
-    margin-left: auto;
-	margin-right: 12px;
 }
 .member-bubble a, .user-bubble a {
 	color: #333333; /* Dark grey for contrast and easy reading */

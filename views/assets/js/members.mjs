@@ -400,7 +400,7 @@ async function mAddMessage(message, options={}){
 	} = options
     /* message container */
     const chatMessage = document.createElement('div')
-    chatMessage.classList.add('chat-message-container')
+    chatMessage.classList.add('chat-message-container', `chat-message-container-${role}`)
     /* message bubble */
 	const chatBubble = document.createElement('div')
 	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
@@ -409,7 +409,7 @@ async function mAddMessage(message, options={}){
     /* message tab */
     const chatMessageTab = document.createElement('div')
     chatMessageTab.id = `chat-message-tab-${mChatBubbleCount}`
-    chatMessageTab.classList.add('chat-message-tab')
+    chatMessageTab.classList.add('chat-message-tab', `chat-message-tab-${role}`)
     const chatCopy = document.createElement('i')
     chatCopy.classList.add('fas', 'fa-copy', 'chat-copy')
     /* attach children */
@@ -419,9 +419,7 @@ async function mAddMessage(message, options={}){
 	systemChat.appendChild(chatMessage)
     /* assign listeners */
     chatBubble.addEventListener('mouseover', event=>{
-        chatMessageTab.style.transform = 'translateX(-33%)'
-        chatMessageTab.style.opacity = '1'
-        chatMessageTab.style.pointerEvents = 'all'
+        chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${role}`)
     })
     chatCopy.addEventListener('click', event=>{
         navigator.clipboard.writeText(message).then(_=>{
@@ -436,9 +434,8 @@ async function mAddMessage(message, options={}){
         })
     })
     chatMessage.addEventListener('mouseleave', event => {
-        chatMessageTab.style.transform = 'translateX(-100%)'
-        chatMessageTab.style.opacity = '0'
-        chatMessageTab.style.pointerEvents = 'none'
+        console.log('chatBubble::mouseleave', chatMessageTab.classList)
+        chatMessageTab.classList.remove('chat-message-tab-hover', `chat-message-tab-hover-${role}`)
     })
     /* print chat message */
 	if(typewrite)

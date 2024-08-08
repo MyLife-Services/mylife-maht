@@ -70,9 +70,6 @@
     display: flex;
     overflow: auto;
 }
-/* .bot-content.visible {
-    display: block;
-} */
 /* team */
 .add-team-member-icon {
     font-size: 1.5rem;
