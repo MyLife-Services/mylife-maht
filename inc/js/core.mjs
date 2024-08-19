@@ -226,7 +226,7 @@ class Organization extends Member {	//	form=organization
 		return this.core.values
 	}
 	get version(){
-		return this.core.version ?? '0.0.17'
+		return this.core.version ?? '0.0.18'
 	}
 	get vision(){
 		return this.core.vision
