@@ -3,9 +3,9 @@ import Globals from './globals.mjs'
 /* precursor constants */
 const mGlobals = new Globals()
 /* constants */
-const mAvatarName = mGlobals.getAvatar()?.name
+const mAvatarName = mGlobals.getAvatar()?.name ?? 'MyLife'
 const hide = mGlobals.hide
-const mPlaceholder = `Type a message to ${ mAvatarName }...`
+const mPlaceholder = `Type your message to ${ mAvatarName }...`
 const retract = mGlobals.retract
 const show = mGlobals.show
 /* variables */
@@ -65,11 +65,18 @@ function mAddMessage(message, options={}){
 		typeDelay=mDefaultTypeDelay,
 		typewrite=true,
 	} = options
+    const role = bubbleClass.split('-')[0]
+    /* message container */
+    const chatMessage = document.createElement('div')
+    chatMessage.classList.add('chat-message-container', `chat-message-container-${ role }`)
+    /* message bubble */
 	const chatBubble = document.createElement('div')
-	chatBubble.id = `chat-bubble-${mChatBubbleCount}`
-	chatBubble.className = `chat-bubble ${bubbleClass}`
-	mChatBubbleCount++
-	chatSystem.appendChild(chatBubble)
+	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
+    chatBubble.id = `chat-bubble-${ mChatBubbleCount }`
+    mChatBubbleCount++
+    /* append children */
+    chatMessage.appendChild(chatBubble)
+	chatSystem.appendChild(chatMessage)
 	if(typewrite)
         mTypeMessage(chatBubble, message, typeDelay, callback)
 	else {

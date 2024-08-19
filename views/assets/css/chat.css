@@ -113,7 +113,8 @@
 .chat-message-container-agent {
 	flex-direction: row;
 }
-.chat-message-container-member {
+.chat-message-container-member,
+.chat-message-container-user {
 	flex-direction: row-reverse;
 }
 .chat-message-tab {
@@ -246,12 +247,14 @@ button.chat-submit:disabled {
 	margin: 0 0.5em;
 	justify-content: flex-start;
 }
-.member-bubble, .user-bubble {
+.member-bubble,
+.user-bubble {
     background-color: rgba(225, 245, 254, 1); /* A light shade of blue for the user */
     color: #333333; /* Dark grey for contrast and easy reading */
 	font-size: .75em;
 }
-.member-bubble a, .user-bubble a {
+.member-bubble a,
+.user-bubble a {
 	color: #333333; /* Dark grey for contrast and easy reading */
 }
 .spinner-green-glow {

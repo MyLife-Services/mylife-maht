@@ -119,7 +119,7 @@ function clearSystemChat(){
  */
 function decorateActiveBot(activeBot=activeBot()){
     const { bot_name, id, purpose, type, } = activeBot
-    chatInputField.placeholder = `type your message to ${ bot_name }...`
+    chatInputField.placeholder = `Type your message to ${ bot_name }...`
     // additional func? clear chat?
 }
 function escapeHtml(text) {
@@ -378,7 +378,7 @@ async function mAddMessage(message, options={}){
 	} = options
     /* message container */
     const chatMessage = document.createElement('div')
-    chatMessage.classList.add('chat-message-container', `chat-message-container-${role}`)
+    chatMessage.classList.add('chat-message-container', `chat-message-container-${ role }`)
     /* message bubble */
 	const chatBubble = document.createElement('div')
 	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
@@ -387,7 +387,7 @@ async function mAddMessage(message, options={}){
     /* message tab */
     const chatMessageTab = document.createElement('div')
     chatMessageTab.id = `chat-message-tab-${mChatBubbleCount}`
-    chatMessageTab.classList.add('chat-message-tab', `chat-message-tab-${role}`)
+    chatMessageTab.classList.add('chat-message-tab', `chat-message-tab-${ role }`)
     const chatCopy = document.createElement('i')
     chatCopy.classList.add('fas', 'fa-copy', 'chat-copy')
     /* attach children */
@@ -397,7 +397,7 @@ async function mAddMessage(message, options={}){
 	systemChat.appendChild(chatMessage)
     /* assign listeners */
     chatBubble.addEventListener('mouseover', event=>{
-        chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${role}`)
+        chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
     })
     chatCopy.addEventListener('click', event=>{
         navigator.clipboard.writeText(message).then(_=>{
@@ -413,7 +413,7 @@ async function mAddMessage(message, options={}){
     })
     chatMessage.addEventListener('mouseleave', event => {
         console.log('chatBubble::mouseleave', chatMessageTab.classList)
-        chatMessageTab.classList.remove('chat-message-tab-hover', `chat-message-tab-hover-${role}`)
+        chatMessageTab.classList.remove('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
     })
     /* print chat message */
 	if(typewrite)
@@ -426,7 +426,7 @@ async function mAddMessage(message, options={}){
 async function mFetchExperiences(){
     let response = await fetch('/members/experiences/')
     if(!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`)
+        throw new Error(`HTTP error! Status: ${ response.status }`)
     response = await response.json()
     return response
 }
