@@ -9,6 +9,7 @@ import {
 } from './experience.mjs'
 import {
     activeBot,
+    refreshCollection,
     setActiveBot as _setActiveBot,
 } from './bots.mjs'
 import Globals from './globals.mjs'
@@ -96,7 +97,6 @@ function addMessages(messages, options={}){
  * @returns {HTMLDivElement} - The moderator modified element.
  */
 function assignElements(parent=chatInput, elements, clear=true){
-    console.log('assignElements()', parent, elements, clear)
     if(clear)
         while(parent.firstChild)
             parent.removeChild(parent.firstChild)
@@ -119,11 +119,19 @@ function clearSystemChat(){
  */
 function decorateActiveBot(activeBot=activeBot()){
     const { bot_name, id, purpose, type, } = activeBot
-    chatInputField.placeholder = `type your message to ${ bot_name }...`
+    chatInputField.placeholder = `Type your message to ${ bot_name }...`
     // additional func? clear chat?
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
+}
+/**
+ * Deletes an element from the DOM via Avatar functionality.
+ * @param {HTMLElement} element - The element to expunge.
+ * @returns {void}
+ */
+function expunge(element){
+    return mGlobals.expunge(element)
 }
 /**
  * Fetches the summary via PA for a specified file.
@@ -225,28 +233,6 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
  */
 async function setActiveBot(){
     return await _setActiveBot(...arguments)
-}
-async function setActiveCategory(category, contributionId, question) {
-    const url = '/members/category'; // Replace with your server's URL
-    const data = {
-        contributionId: contributionId,
-        category: category,
-        question: question
-    }
-    let response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    if (!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`);
-    response = await response.json()
-    activeCategory = {
-        contributionId: response.contributionId,
-        category: response.category,
-    }
 }
 /**
  * Proxy for Globals.show().
@@ -390,22 +376,57 @@ async function mAddMessage(message, options={}){
 		typeDelay=2,
 		typewrite=true,
 	} = options
+    /* message container */
+    const chatMessage = document.createElement('div')
+    chatMessage.classList.add('chat-message-container', `chat-message-container-${ role }`)
+    /* message bubble */
 	const chatBubble = document.createElement('div')
-    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
 	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
+    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
     mChatBubbleCount++
-	systemChat.appendChild(chatBubble)
+    /* message tab */
+    const chatMessageTab = document.createElement('div')
+    chatMessageTab.id = `chat-message-tab-${mChatBubbleCount}`
+    chatMessageTab.classList.add('chat-message-tab', `chat-message-tab-${ role }`)
+    const chatCopy = document.createElement('i')
+    chatCopy.classList.add('fas', 'fa-copy', 'chat-copy')
+    /* attach children */
+    chatMessageTab.appendChild(chatCopy)
+    chatMessage.appendChild(chatBubble)
+    chatMessage.appendChild(chatMessageTab)
+	systemChat.appendChild(chatMessage)
+    /* assign listeners */
+    chatBubble.addEventListener('mouseover', event=>{
+        chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
+    })
+    chatCopy.addEventListener('click', event=>{
+        navigator.clipboard.writeText(message).then(_=>{
+            chatCopy.classList.remove('fa-copy')
+            chatCopy.classList.add('fa-check')
+            setTimeout(_=>{
+                chatCopy.classList.remove('fa-check')
+                chatCopy.classList.add('fa-copy')
+            }, 2000)
+        }).catch(err => {
+            console.error('Failed to copy: ', err)
+        })
+    })
+    chatMessage.addEventListener('mouseleave', event => {
+        console.log('chatBubble::mouseleave', chatMessageTab.classList)
+        chatMessageTab.classList.remove('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
+    })
+    /* print chat message */
 	if(typewrite)
         mTypeMessage(chatBubble, message, typeDelay)
-	else {
-		chatBubble.insertAdjacentHTML('beforeend', message)
+    else {
+        chatBubble.insertAdjacentHTML('beforeend', message)
         mScrollBottom()
 	}
 }
 async function mFetchExperiences(){
     let response = await fetch('/members/experiences/')
     if(!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`)
+        throw new Error(`HTTP error! Status: ${ response.status }`)
     response = await response.json()
     return response
 }
@@ -444,6 +465,8 @@ function getActiveCategory(){
  * @returns {Promise<boolean>} - The return is a boolean indicating success.
  */
 async function mInitialize(){
+    /* fetch primary collections */
+    await refreshCollection('story') // memories required
     /* page listeners */
     mInitializePageListeners()
 }
@@ -677,6 +700,7 @@ export {
     clearSystemChat,
     decorateActiveBot,
     escapeHtml,
+    expunge,
     fetchSummary,
     getInputValue,
     getSystemChat,
@@ -688,7 +712,6 @@ export {
     sceneTransition,
     seedInput,
     setActiveBot,
-    setActiveCategory,
     show,
     showMemberChat,
     showSidebar,

@@ -146,7 +146,7 @@ function connectRoutes(_Menu){
  * @returns {function} Koa next function
  */
 async function memberValidation(ctx, next) {
-    if(ctx.state.locked)
+    if(ctx.state?.locked ?? true)
         ctx.redirect(`/?type=select`) // Redirect to /members if not authorized
     await next() // Proceed to the next middleware if authorized
 }
