@@ -15,8 +15,6 @@ import {
     toggleVisibility,
 } from './members.mjs'
 import Globals from './globals.mjs'
-/* constants; DOM exists? */
-// @todo - placeholder, get from server
 const mAvailableMimeTypes = [],
     mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
     botBar = document.getElementById('bot-bar'),
@@ -155,7 +153,7 @@ async function setActiveBot(event, dynamic=false){
             }
         })
         .then(response => {
-            if (!response.ok) {
+            if(!response.ok){
                 throw new Error(`HTTP error! Status: ${response.status}`)
             }
             return response.json()
@@ -165,6 +163,7 @@ async function setActiveBot(event, dynamic=false){
         })
         .catch(error => {
             console.log('Error:', error)
+            alert('Server error setting active bot.')
             return
         })
     /* update active bot */
@@ -1144,6 +1143,7 @@ async function mSetBot(bot){
         return true
     } catch (error) {
         console.log('Error posting bot data:', error)
+        alert('Error posting bot data:', error.message)
         return false
     }
 }
@@ -1454,17 +1454,6 @@ async function mToggleBotContainers(event){
             mOpenStatusDropdown(this)
             break
         case 'update':
-            const { bot_name, id, interests, type, } = dataset
-            const updateBot = {
-                bot_name: bot_name,
-                id: id,
-                type: type,
-            }
-            if(interests?.length)
-                updateBot.interests = interests
-            if(!await mSetBot(updateBot))
-                throw new Error(`Error updating bot.`)
-            break
         case 'upload':
         default:
             break
@@ -1750,6 +1739,9 @@ function mUpdateBotContainerAddenda(botContainer){
                     if(botTitleName)
                         botTitleName.textContent = bot_name
                     localVars.bot_name = bot_name
+                    /* update mBot */
+                    const bot = mBot(id)
+                    bot.bot_name = bot_name
                 } else {
                     dataset.bot_name = localVars.bot_name
                 }

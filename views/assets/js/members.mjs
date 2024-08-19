@@ -234,28 +234,6 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 async function setActiveBot(){
     return await _setActiveBot(...arguments)
 }
-async function setActiveCategory(category, contributionId, question) {
-    const url = '/members/category'; // Replace with your server's URL
-    const data = {
-        contributionId: contributionId,
-        category: category,
-        question: question
-    }
-    let response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    if (!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`);
-    response = await response.json()
-    activeCategory = {
-        contributionId: response.contributionId,
-        category: response.category,
-    }
-}
 /**
  * Proxy for Globals.show().
  * @public
@@ -734,7 +712,6 @@ export {
     sceneTransition,
     seedInput,
     setActiveBot,
-    setActiveCategory,
     show,
     showMemberChat,
     showSidebar,
