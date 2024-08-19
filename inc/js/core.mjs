@@ -1,6 +1,5 @@
 //	imports
 import EventEmitter from 'events'
-import chalk from 'chalk'
 //	server-specific imports
 import initRouter from './routes.mjs'
 //	define export Classes for Members and MyLife
