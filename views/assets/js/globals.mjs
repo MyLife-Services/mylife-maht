@@ -112,6 +112,16 @@ class Globals {
 		const escapedText = text.replace(/[&<>"']/g, m=>(map[m]) )
 		return escapedText
 	}
+    /**
+     * Deletes an element from the DOM via Avatar functionality.
+     * @todo - build out cases so that intelligence can be employed when removing elements from DOM
+     * @param {HTMLElement} element - The element to expunge.
+     * @returns {void}
+     */
+    expunge(element){
+        this.hide(element) /* trigger any animations */
+        element.remove()
+    }
     async fetchShadows(){
         return await mFetchShadows()
     }

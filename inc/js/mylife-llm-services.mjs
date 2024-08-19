@@ -392,25 +392,20 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'story summary':
                                 const story = await factory.story(toolArguments)
                                 if(story){
-                                    const { keywords, phaseOfLife='unknown', } = story
+                                    const { keywords, phaseOfLife, } = story
                                     let { interests, updates, } = factory.core
                                     if(typeof interests=='array')
                                         interests = interests.join(', ')
                                     if(typeof updates=='array')
                                         updates = updates.join(', ')
-                                    // @stub - action integrates with story and interests/phase
                                     switch(true){
+                                        case phaseOfLife?.length:
+                                            action = `ask about another encounter during member's ${ phaseOfLife }`
+                                            console.log('mRunFunctions()::story-summary::phaseOfLife', phaseOfLife)
+                                            break
                                         case interests?.length:
                                             action = `ask about a different interest from: ${ interests }`
                                             console.log('mRunFunctions()::story-summary::interests', interests)
-                                            break
-                                        case phaseOfLife!=='unknown':
-                                            action = `ask about another encounter during this phase of life: ${ phaseOfLife }`
-                                            console.log('mRunFunctions()::story-summary::phaseOfLife', phaseOfLife)
-                                            break
-                                        case updates?.length:
-                                            action = `ask about current events related to or beyond: ${ updates }`
-                                            console.log('mRunFunctions()::story-summary::updates', updates)
                                             break
                                         default:
                                             action = 'ask about another event in member\'s life'

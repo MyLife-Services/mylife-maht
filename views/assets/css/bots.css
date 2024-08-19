@@ -1,6 +1,7 @@
 /* document vars */
 :root {
     --border-radius: 0.22rem;
+    --collection-item-popup-z-index: calc(var(--mylife-sidebar-z-index)+50);
     --slider-height: 1rem;
     --slider-margin: 0.1rem;
     --slider-width: 2rem;
@@ -32,11 +33,9 @@
     height: 2.5rem;
     margin: 0 0.1rem; /* Default margin */
     transition: transform 0.3s ease, margin 0.3s ease;
-    z-index: 1;
 }
 .bot-thumb:hover {
     transform: scale(1.5);
-    z-index: 2;
     margin: 0 1rem; /* Increase margin on hover in em */
 }
 .bot-thumb-container {
@@ -50,7 +49,6 @@
 .bot-thumb-active {
     background-image: radial-gradient(circle at center, rgba(255, 255, 0, 0.75) 0%, transparent 100%);
     cursor: not-allowed;
-    z-index: 3;
 }
 /* bot widget */
 .bot { /* along with widget */
@@ -71,10 +69,6 @@
     /* Hidden by default */
     display: flex;
     overflow: auto;
-}
-.bot-content.visible {
-    /* Show content when active */
-    display: block;
 }
 /* team */
 .add-team-member-icon {
@@ -100,7 +94,6 @@
     flex-direction: column;
     justify-content: flex-start;
     position: absolute;
-    z-index: 50;
 }
 .team-popup-content {
     background-color: #333; /* Change as needed */
@@ -358,11 +351,14 @@
     left: auto;
     margin: 0;
     overflow: auto;
+	opacity: 0; /* Start with hidden popup */
+    /* transition: opacity 0.3s; /* Smooth transition */
     padding: 0;
     position: absolute;
     right: 110vw;
     top: 0;
     width: 40em;
+    z-index: var(--collection-item-popup-z-index); /* above sidebar and other popups */
 }
 .collection-popup-body {
     display: flex;

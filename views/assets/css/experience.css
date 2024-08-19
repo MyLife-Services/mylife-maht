@@ -2,6 +2,7 @@
 /* css experience variables */
 :root {
     --dialog-final-opacity: 0.5;
+    --experience-base-z-index: calc(var(--mylife-base-z-index) + 100);
 }
 /* modal experience screen */
 .modal-screen {
@@ -18,7 +19,7 @@
     position: fixed;
     top: -100vh; /* Start above the screen */
     width: 100vw;
-    z-index: 10;
+    z-index: var(--experience-base-z-index);
 }
 /* experience transport */
 #experience-breadcrumb {
@@ -41,7 +42,7 @@
     display: none; /* Hide transport controls by default */
     justify-content: space-between;
     padding: 1.2em;
-    z-index: 100; /* highest z-index */
+    z-index: calc(var(--experience-base-z-index) + 10); /* always on top */
 }
 .experience-transport-item {
     display: flex;
@@ -93,7 +94,7 @@
     position: absolute;
     top: 0;
     width: 100%;
-    z-index: 15; /* Ensure it's behind the mainstage */
+    z-index: var(--experience-base-z-index); /* root experience level */
 }
 .experience-explanation, .experience-title, .experience-description {
     text-align: center; /* Center text for direct children */
@@ -192,7 +193,7 @@
     top: 50%; /* Center vertically */
     transform: translate(-50%, -50%); /* Adjust the position to truly center the element */
     width: 100vw; /* Auto width based on content */
-    z-index: 1000; /* Ensure it's above all other items */
+    z-index: calc(var(--experience-base-z-index)+10); /* Ensure it's above all other items */
 }
 .experience-continue-text, .experience-continue-click-text {
     text-align: center; /* Center the text inside the divs */
@@ -217,7 +218,7 @@
     top: 0;
     /* transition: all 0.3s ease-in-out; /* Smooth transition for any changes */
     width: 100%; /* Fill the width of its parent container */
-    z-index: 20; /* Ensure it's above the backstage */
+    z-index: calc(var(--experience-base-z-index) + 5); /* between backstage and transport */
 }
 .experience-scenestage {
     display: flex; /* Use flexbox instead of grid */
@@ -500,10 +501,6 @@
 .flip {
     animation: flipAnimation 0.6s ease-in-out forwards;
 }
-.hide {
-    animation: none !important;
-    display: none !important;
-}
 .loading-text {
     color: yellowgreen;
     font-size: 1.1em;
@@ -512,9 +509,6 @@
 }
 .pulse {
     animation: blink 1.5s infinite;
-}
-.show {
-    display: flex !important;
 }
 .slide, .slide-right, .slide-in {
     animation: slideInFromLeft 2s ease-in-out forwards;

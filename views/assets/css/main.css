@@ -3,6 +3,12 @@
 @import url('chat.css');
 @import url('experience.css');
 @import url('members.css');
+/* css main variables */
+:root {
+    --mylife-base-z-index: 1;
+	--mylife-help-z-index: 5;
+	--mylife-sidebar-z-index: 20;
+}
 /* MyLife layout */
 body {
 	background-color: #000000;
@@ -50,7 +56,8 @@ body {
 .navigation-help,
 .navigation-login-logout,
 .navigation-nav,
-.navigation-padding {
+.navigation-padding,
+.navigation-version {
 	align-items: center;
 	display: flex;
 	flex: none; /* Prevents items from growing */
@@ -70,6 +77,15 @@ body {
 }
 .navigation-help:hover {
 	color: purple; /* Your existing styles for active link */
+}
+.navigation-link {
+	margin: 0em .8em;
+	text-decoration: none;
+}
+.navigation-link.active {
+    color: #007bff; /* Your existing styles for active link */
+    font-weight: bold;
+    cursor: pointer; /* Set cursor to default */
 }
 .navigation-login-logout {
 	align-self: flex-end;
@@ -95,14 +111,12 @@ body {
 .navigation-padding {
 	flex: 1; /* Prevents the brand from growing */
 }
-.navigation-link {
-	margin: 0em .8em;
-	text-decoration: none;
-}
-.navigation-link.active {
-    color: #007bff; /* Your existing styles for active link */
-    font-weight: bold;
-    cursor: pointer; /* Set cursor to default */
+.navigation-version {
+    color: rebeccapurple;
+	font-size: 0.8rem;
+	font-style: italic;
+	font-weight: bold;
+	padding: 0 2rem;
 }
 /* MyLife system alerts */
 .alert-container{
@@ -346,8 +360,16 @@ body {
 	opacity: 0;
 	display: none; /* Initially not displayed */
 }
+.hide {
+    animation: none !important;
+    display: none !important;
+}
 .ital {
 	font-style: italic;
+}
+.show {
+    display: flex !important;
+	opacity: 1 !important;
 }
 .signup {
 	display: flex;
@@ -448,7 +470,7 @@ body {
 	padding: 0;
     position: absolute;
     width: 45%; /* default width */
-    z-index: 100;
+    z-index: calc(var(--mylife-sidebar-z-index)+10);
 }
 .popup-content {
 	color: navy;
@@ -584,7 +606,7 @@ body {
     right: 1em;
     top: 2.2em; /* Position it right below the parent */
     width: 63%;
-    z-index: 100; /* Make sure it's above other elements */
+    z-index: var(--mylife-help-z-index); /* Make sure it's above other elements */
 }
 .help-header {
 	font-size: 1.5rem;
@@ -684,14 +706,11 @@ body {
     flex: 1 1 auto; /* Allows growth and shrinkage */
     font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
     font-size: 0.8em;
+    height: auto; /* Ensure it adjusts based on content */
     max-height: 100vh; /* Prevents exceeding the viewport height */
     max-width: 35%;
     padding: 0px;
-    height: auto; /* Ensure it adjusts based on content */
-}
-.visible {
-	opacity: 1;
-	display: block;
+	z-index: var(--mylife-sidebar-z-index);
 }
 .widget {
     align-items: center; /* rows get left-aligned */
