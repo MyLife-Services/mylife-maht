@@ -81,17 +81,18 @@ class Avatar extends EventEmitter {
     }
     /**
      * Processes and executes incoming chat request.
-     * @todo - cleanup/streamline frontend communication as it really gets limited to Q&A... other events would fire API calls on the same same session, so don't need to be in chat or conversation streams
      * @public
+     * @param {string} message - The chat message content.
      * @param {string} activeBotId - The active bot id.
      * @param {string} threadId - The openai thread id.
-     * @param {string} chatMessage - The chat message content.
+     * @param {Guid} itemId - The active collection-item id (optional).
+     * @param {Guid} shadowId - The active Shadow Id (optional).
      * @param {Conversation} conversation - The conversation object.
      * @param {number} processStartTime - The start time of the process.
      * @returns {object} - The response(s) to the chat request.
     */
-    async chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime=Date.now()){
-        if(!chatMessage)
+    async chatRequest(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
+        if(!message)
             throw new Error('No message provided in context')
         if(!activeBotId)
             throw new Error('Parameter `activeBotId` required.')
@@ -99,14 +100,21 @@ class Avatar extends EventEmitter {
         const { id: botId, thread_id, } = activeBot
         if(botId!==activeBotId)
             throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
-        // @stub - clean up conversation alterations - Q is immune
         conversation = conversation
             ?? this.getConversation(threadId ?? thread_id)
             ?? await this.createConversation('chat', threadId ?? thread_id, activeBotId)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        const messages = await mCallLLM(this.#llmServices, conversation, chatMessage, factory, this)
+        let messages
+        if(shadowId)
+            messages = await this.shadow(shadowId, itemId, message)
+        else {
+            // @stub - one weakness in teh chain might also be the fact that I am not including in instructions how to create integrated summary and left it primarily to the JSON description of function
+            if(itemId)
+                message = `update-memory-request: itemId=${ itemId }\n` + message
+            messages = await mCallLLM(this.#llmServices, conversation, message, factory, this)
+        }
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
@@ -116,12 +124,12 @@ class Avatar extends EventEmitter {
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
         const chat = conversation.messages
-            .filter(message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
-                return messages.find(_message=>_message.id===message.id)
-                    && message.type==='chat'
-                    && message.role!=='user'
+            .filter(_message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
+                return messages.find(__message=>__message.id===_message.id)
+                    && _message.type==='chat'
+                    && _message.role!=='user'
             })
-            .map(message=>mPruneMessage(bot, message, 'chat', processStartTime))
+            .map(_message=>mPruneMessage(bot, _message, 'chat', processStartTime))
         return chat
     }
     /**
@@ -472,14 +480,13 @@ class Avatar extends EventEmitter {
         return await this.#factory.resetPassphrase(passphrase)
     }
     /**
-     * Takes a shadow message and sends it to the appropriate bot for response.
+     * Takes a shadow message and sends it to the appropriate bot for response, returning the standard array of bot responses.
      * @param {Guid} shadowId - The shadow id.
      * @param {Guid} itemId - The item id.
-     * @param {string} title - The title of the original summary.
      * @param {string} message - The member (interacting with shadow) message content.
-     * @returns {Object} - The response object { error, itemId, messages, processingBotId, success, }
+     * @returns {Object[]} - The array of bot responses.
      */
-    async shadow(shadowId, itemId, title, message){
+    async shadow(shadowId, itemId, message){
         const processingStartTime = Date.now()
         const shadows = await this.shadows()
         const shadow = shadows.find(shadow=>shadow.id===shadowId)
@@ -515,12 +522,7 @@ class Avatar extends EventEmitter {
         messages = messages.map(message=>mPruneMessage(bot, message, 'shadow', processingStartTime))
         if(tailgate?.length)
             messages.push(mPruneMessage(bot, tailgate, 'system'))
-        return {
-            itemId,
-            messages,
-            processingBotId: bot.id,
-            success: true,
-        }
+        return messages
     }
     /**
      * Gets the list of shadows.
@@ -1150,25 +1152,28 @@ class Q extends Avatar {
     /* overloaded methods */
     /**
      * Processes and executes incoming chat request.
-     * @todo - cleanup/streamline frontend communication as it really gets limited to Q&A... other events would fire API calls on the same same session, so don't need to be in chat or conversation streams
      * @public
+     * @param {string} message - The chat message content.
      * @param {string} activeBotId - The active bot id.
      * @param {string} threadId - The openai thread id.
-     * @param {string} chatMessage - The chat message content.
-     * @param {number} processStartTime - The process start time.
+     * @param {Guid} itemId - The active collection-item id (optional).
+     * @param {Guid} shadowId - The active Shadow Id (optional).
+     * @param {Conversation} conversation - The conversation object.
+     * @param {number} processStartTime - The start time of the process.
      * @returns {object} - The response(s) to the chat request.
     */
-    async chatRequest(activeBotId=this.activeBotId, threadId, chatMessage, processStartTime=Date.now()){
-        let conversation = this.getConversation(threadId)
+    async chatRequest(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
+        conversation = conversation
+            ?? this.getConversation(threadId)
         if(!conversation)
             throw new Error('Conversation cannot be found')
         this.activeBot.bot_id = mBot_idOverride
             ?? this.activeBot.bot_id
         if(this.isValidating) // trigger confirmation until session (or vld) ends
-            chatMessage = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ chatMessage }`
+            message = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ message }`
         if(this.isCreatingAccount)
-            chatMessage = `CREATE ACCOUNT PHASE: ${ chatMessage }`
-        return super.chatRequest(activeBotId, threadId, chatMessage, conversation, processStartTime)
+            message = `CREATE ACCOUNT PHASE: ${ message }`
+        return super.chatRequest(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime)
     }
     upload(){
         throw new Error('MyLife avatar cannot upload files.')

@@ -93,18 +93,17 @@ async function challenge(ctx){
  * @param {Koa} ctx - Koa Context object
  */
 async function chat(ctx){
-	const { botId, itemId, message, role, shadowId, title, } = ctx.request.body ?? {} /* body nodes sent by fe */
+	const { botId, itemId, message, shadowId, } = ctx.request.body ?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar, MemberSession, } = ctx.state
 	const { isMyLife, thread_id, } = MemberSession
+	let conversation
 	if(isMyLife && !thread_id?.length){
-		const conversation = await avatar.createConversation('system', undefined, botId, true) // pushes to this.#conversations in Avatar
+		conversation = await avatar.createConversation('system', undefined, botId, true) // pushes to this.#conversations in Avatar
 		MemberSession.thread_id = conversation.thread_id
 	}
-	const response = (shadowId?.length && itemId?.length)
-		? await avatar.shadow(shadowId, itemId, title, message)
-		: await avatar.chatRequest(botId, MemberSession.thread_id, message)
+	const response = await avatar.chatRequest(message, botId, MemberSession.thread_id, itemId, shadowId, conversation)
 	ctx.body = response
 }
 async function collections(ctx){
