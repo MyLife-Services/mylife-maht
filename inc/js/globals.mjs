@@ -244,6 +244,10 @@ class Globals extends EventEmitter {
 	isValidGuid(text){
 		return typeof text === 'string' && mGuidRegex.test(text)
 	}
+	isValidVersion(version) {
+		const regex = /^\d+\.\d+\.\d+$/
+		return typeof version === 'string' && regex.test(version)
+	}
 	stripCosmosFields(object){
 		return Object.fromEntries(Object.entries(object).filter(([k, v]) => !k.startsWith('_')))
 	}

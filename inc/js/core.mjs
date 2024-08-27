@@ -1,6 +1,5 @@
 //	imports
 import EventEmitter from 'events'
-import chalk from 'chalk'
 //	server-specific imports
 import initRouter from './routes.mjs'
 //	define export Classes for Members and MyLife
@@ -225,15 +224,13 @@ class Organization extends Member {	//	form=organization
 	get values(){
 		return this.core.values
 	}
-	get version(){
-		return this.core.version ?? '0.0.17'
-	}
 	get vision(){
 		return this.core.vision
 	}
 }
 class MyLife extends Organization {	// form=server
 	#avatar // MyLife's private class avatar, _same_ object reference as Member Class's `#avatar`
+	#version = '0.0.0' // indicates error
 	constructor(factory){ // no session presumed to exist
 		super(factory)
 	}
@@ -364,6 +361,14 @@ class MyLife extends Organization {	// form=server
 	*/
 	get being(){
 		return 'MyLife'
+	}
+	get version(){
+		return this.#version
+	}
+	set version(_version){
+		if(!this.globals.isValidVersion(_version))
+			throw new Error('Invalid version number')
+		this.#version = _version
 	}
 }
 /* exports */
