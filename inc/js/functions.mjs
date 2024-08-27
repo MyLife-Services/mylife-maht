@@ -93,8 +93,7 @@ async function challenge(ctx){
  * @param {Koa} ctx - Koa Context object
  */
 async function chat(ctx){
-	const { botId, message, role, } = ctx.request.body
-		?? {} /* body nodes sent by fe */
+	const { action, botId, itemId, message, role, shadowId, title, } = ctx.request.body ?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar, MemberSession, } = ctx.state
@@ -103,7 +102,9 @@ async function chat(ctx){
 		const conversation = await avatar.createConversation('system', undefined, botId, true) // pushes to this.#conversations in Avatar
 		MemberSession.thread_id = conversation.thread_id
 	}
-	const response = await avatar.chatRequest(botId, MemberSession.thread_id, message)
+	const response = (shadowId?.length && itemId?.length)
+		? await avatar.shadow(shadowId, itemId, title, message)
+		: await avatar.chatRequest(botId, MemberSession.thread_id, message)
 	ctx.body = response
 }
 async function collections(ctx){
@@ -234,15 +235,6 @@ async function privacyPolicy(ctx){
 	ctx.state.subtitle = `Effective Date: 2024-01-01`
 	await ctx.render('privacy-policy')	//	privacy-policy
 }
-async function shadow(ctx){
-	const { avatar, } = ctx.state
-	const { active=true, botId, itemId, message, role, threadId, shadowId, title, } = ctx.request.body // necessary to flip active bot, or just presume to use the creator of the shadow?
-	if(!itemId?.length)
-		ctx.throw(400, `missing item id`)
-	if(!active) // @stub - redirect to normal chat?
-		ctx.throw(400, `shadow must be active`)
-	ctx.body = await avatar.shadow(shadowId, itemId, title, message)
-}
 /**
  * Gets the list of shadows.
  * @returns {Object[]} - Array of shadow objects.
@@ -370,7 +362,6 @@ export {
 	members,
 	passphraseReset,
 	privacyPolicy,
-	shadow,
 	shadows,
 	signup,
 	summarize,

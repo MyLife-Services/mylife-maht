@@ -264,6 +264,9 @@ async function setActiveBot(){
  */
 function setActiveItem(item){
     const { id, popup, title, type, } = item
+    const itemId = id?.split('_')?.pop()
+    if(!itemId)
+        throw new Error('setActiveItem::Error()::valid `id` is required')
     const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
     const chatActiveItemClose = document.getElementById('chat-active-item-close')
     if(chatActiveItemTitleText){
@@ -276,6 +279,7 @@ function setActiveItem(item){
     if(chatActiveItemClose)
         chatActiveItemClose.addEventListener('click', unsetActiveItem, { once: true })
     chatActiveItem.dataset.id = id
+    chatActiveItem.dataset.itemId = itemId
     show(chatActiveItem)
 }
 /**
@@ -342,6 +346,7 @@ function unsetActiveItem(){
         chatActiveItemTitleText.removeEventListener('click', mToggleItemPopup)
     }
     chatActiveItem.dataset.id = null
+    chatActiveItem.dataset.itemId = null
     hide(chatActiveItem)
 }
 /**
@@ -380,14 +385,9 @@ async function mAddMemberMessage(event){
         role: 'member',
         typeDelay: 7,
     })
-    const itemId = getActiveItemId()
-    const proxyInfo = {
-        action: itemId ? 'update' : 'chat',
-        itemId,
-    }
     /* server request */
     let messages,
-        response = await submit(memberMessage, proxyInfo)
+        response = await submit(memberMessage)
     /* special processing cases */
     // @stub - special processing cases remove
     if(!Array.isArray(response)){
@@ -560,22 +560,21 @@ function mInitializePageListeners(){
 }
 /**
  * Primitive step to set a "modality" or intercession for the member chat. Currently will key off dataset in `chatInputField`.
- * @todo - mature this architecture
- * @param {string} proxy - The proxy endpoint for this chat exchange.
- * @param {string} action - The action to take on the proxy endpoint.
- * @param {Guid} itemId - The item ID as context for chat exchange.
- * @param {Guid} shadowId - The shadow ID as context for chat exchange.
- * @param {string} value - The value to seed the input with.
- * @param {string} placeholder - The placeholder to seed the input with.
+ * @public
+ * @requires chatActiveItem
+ * @requires chatInputField
+ * @param {string} action - The action to take; enum: ['update', 'relive']
+ * @param {Guid} itemId - The Active Item ID
+ * @param {Guid} shadowId - The shadow ID
+ * @param {string} value - The value to seed the input with
+ * @param {string} placeholder - The placeholder to seed the input with (optional)
  */
-function seedInput(proxy, action, itemId, shadowId, value, placeholder){
-    chatInputField.dataset.action = action
-    chatInputField.dataset.active = 'true'
-    chatInputField.dataset.itemId = itemId
-    chatInputField.dataset.proxy = proxy
-    chatInputField.dataset.shadowId = shadowId
+function seedInput(action, itemId, shadowId, value, placeholder){
+    chatActiveItem.dataset.action = action
+    chatActiveItem.dataset.itemId = itemId
+    chatActiveItem.dataset.shadowId = shadowId
     chatInputField.value = value
-    chatInputField.placeholder = placeholder
+    chatInputField.placeholder = placeholder ?? chatInputField.placeholder
     chatInputField.focus()
 }
 /**
@@ -644,28 +643,24 @@ function mStageTransitionMember(includeSidebar=true){
 }
 /**
  * Submits a message to MyLife Member Services chat.
+ * @requires chatActiveItem
  * @param {string} message - The message to submit.
- * @param {object} proxyInfo - The proxy information { itemId, proxy, shadowId }.
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`.
  * @returns 
  */
-async function submit(message, proxyInfo, hideMemberChat=true){
+async function submit(message, hideMemberChat=true){
 	if(!message?.length)
 		throw new Error('submit(): `message` argument is required')
-    const { action, active, itemId, proxy='', shadowId, } = proxyInfo
-        ?? chatInputField.dataset
-	const url = window.location.origin + '/members' + proxy
-    const { id: botId, thread_id: threadId, } = activeBot()
-    console.log('submit::proxyInfo', itemId, shadowId, getActiveItemId())
+    const { action, itemId, shadowId, } = chatActiveItem.dataset
+	const url = window.location.origin + '/members'
+    const { id: botId, } = activeBot()
 	const request = {
             action,
-            active,
 			botId,
             itemId,
 			message,
 			role: 'member',
             shadowId,
-            threadId,
 		}
 	const options = {
 		method: 'POST',
@@ -677,10 +672,8 @@ async function submit(message, proxyInfo, hideMemberChat=true){
     if(hideMemberChat)
         toggleMemberInput(false)
 	const chatResponse = await submitChat(url, options)
-    /* clear dataset, proxy only request level */
-    for(let key in chatInputField.dataset){ // nuclear erasure
-        delete chatInputField.dataset[key]
-    }
+    /* clear dataset */
+    delete chatActiveItem.dataset.shadowId // shadow one-run only
     if(hideMemberChat)
         toggleMemberInput(true)
     return chatResponse

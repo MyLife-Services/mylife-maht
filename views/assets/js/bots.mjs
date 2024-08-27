@@ -394,15 +394,15 @@ function mCreateCollectionItemSummarize(type, id, name){
  */
 async function mMemoryShadow(event){
     event.stopPropagation()
-    const { itemId, lastResponse, shadowId, } = this.dataset // type enum: [agent, member]
+    const { itemId, lastResponse, shadowId, } = this.dataset
     const shadow = mShadows.find(shadow=>shadow.id===shadowId)
     if(!shadow)
         return
-    const { categories, id, proxy='/shadow', text, type, } = shadow
+    const { categories, id, text, type, } = shadow // type enum: [agent, member]
     switch(type){
         case 'agent': /* agent shadows go directly to server for answer */
             addMessage(text, { role: 'member', })
-            const response = await submit(text, { itemId, proxy, shadowId, }) /* proxy submission, use endpoint: /shadow */
+            const response = await submit(text, { itemId, shadowId, }) /* proxy submission, use endpoint: /shadow */
             const { error, errors: _errors, itemId: responseItemId, messages, processingBotId, success=false, } = response
             const errors = error?.length ? [error] : _errors
             if(!success || !messages?.length)
@@ -416,9 +416,9 @@ async function mMemoryShadow(event){
             addMessages(messages) // print to screen
             break
         case 'member': /* member shadows populate main chat input */
-            const action = `update-memory`
+            const action = `update`
             const seedText = text.replace(/(\.\.\.|…)\s*$/, '').trim() + ' '
-            seedInput(proxy, action, itemId, shadowId, seedText, text)
+            seedInput(action, itemId, shadowId, seedText, text)
             break
         default:
             throw new Error(`Unimplemented shadow type: ${ type }`)
