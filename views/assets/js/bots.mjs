@@ -9,6 +9,7 @@ import {
     fetchSummary,
     hide,
     seedInput,
+    setActiveItem,
     show,
     submit,
     toggleMemberInput,
@@ -47,7 +48,6 @@ document.addEventListener('DOMContentLoaded', async event=>{
         throw new Error(`ERROR: No bots returned from server`)
     updatePageBots(bots) // includes p-a
     await setActiveBot(id, true)
-    console.log('bots.mjs::DOMContentLoaded()::mBots', mBots, mShadows)
 })
 /* public functions */
 /**
@@ -112,6 +112,14 @@ async function fetchTeams(){
  */
 function getBot(type='personal-avatar', id){
     return mBot(id ?? type)
+}
+/**
+ * Get collection item by id.
+ * @param {Guid} id - The collection item id.
+ * @returns {object} - The collection item object.
+ */
+function getItem(id){
+    /* return collection item by id */
 }
 /**
  * Refresh designated collection from server. **note**: external calls denied option to identify collectionList parameter, ergo must always be of same type.
@@ -182,6 +190,16 @@ async function setActiveBot(event, dynamic=false){
     mSpotlightBotStatus()
     mGreeting(dynamic)
     decorateActiveBot(mActiveBot)
+}
+/**
+ * Exposed method to allow externalities to toggle a specific item popup.
+ * @param {string} id - Id for HTML div element to toggle.
+ */
+function togglePopup(id, bForceState=null){
+    const popup = document.getElementById(id)
+    if(!popup)
+        throw new Error(`No popup found for id: ${ id }`)
+    toggleVisibility(popup, bForceState)
 }
 /**
  * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
@@ -1564,7 +1582,15 @@ function mTogglePopup(event){
         popup.style.right = 'auto'
         popup.style.top = offsetY
         show(popup)
-        popup.dataset.active = 'true'
+        if(setActiveItem({
+            id,
+            popup,
+            title,
+            type,
+        })){
+            // @todo - deactivate any other popups
+            popup.dataset.active = 'true'
+        }
     }
 }
 /**
@@ -1772,7 +1798,6 @@ function mUpdateBotContainerAddenda(botContainer){
                                 : dataset.init // tested empty
                                     ?? 'false'
                         /* update collection list */
-                        console.log('Library collection init:', dataset.init, id)
                         const refresh = document.getElementById(`collection-refresh-${ id }`)
                         if(dataset.init!=='true' && refresh) // first click
                             hide(refresh)
@@ -1978,7 +2003,9 @@ export {
     fetchTeam,
     fetchTeams,
     getBot,
+    getItem,
     refreshCollection,
     setActiveBot,
+    togglePopup,
     updatePageBots,
 }

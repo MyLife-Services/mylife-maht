@@ -28,6 +28,43 @@
 .await-button-spinner {
 	margin-right: 0.5em;
 }
+.chat-active-items {
+	align-items: center;
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+	padding-left: 3rem;
+	margin-bottom: 0.5rem;
+	max-width: 100%;
+}
+.chat-active-item {
+	background-color: #007BFF;
+	border: solid thin aliceblue;
+	border-radius: 0.6rem;
+	display: none;
+	flex: 1 0 auto;
+    flex-direction: row;
+    padding: 0.3rem;
+    width: 100%;
+}
+.chat-active-item-close {
+	align-self: top;
+	color: maroon;
+	cursor: pointer;
+	font-size: 1.25rem;
+	margin-left: 2rem;
+}
+.chat-active-item-icon {
+	color: #e9eb5c;
+	font-size: 1.25rem;
+	margin-right: 0.5em;
+}
+.chat-active-item-text {
+    color: aliceblue;
+    display: flex;
+    flex: 1 0 auto;
+    max-width: 80%;
+}
 .chat-bubble {
     background-color: #3427ec; /* Assuming a dark bubble color */
     border-radius: 0.8rem;
@@ -97,13 +134,19 @@
 }
 .chat-member,
 .chat-user {
-	align-items: center;
+	align-items: flex-start;
 	display: flex;
 	flex: 1 1 auto;
-	flex-direction: row;
+	flex-direction: column;
 	flex-wrap: wrap;
 	margin: 0.5em 0;
 	max-height: 60%;
+	width: 100%;
+}
+.chat-member-container,
+.chat-user-container {
+	display: flex;
+	flex-direction: row;
 	width: 100%;
 }
 .chat-message-container {

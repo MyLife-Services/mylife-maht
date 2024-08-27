@@ -9,8 +9,10 @@ import {
 } from './experience.mjs'
 import {
     activeBot,
+    getItem,
     refreshCollection,
     setActiveBot as _setActiveBot,
+    togglePopup,
 } from './bots.mjs'
 import Globals from './globals.mjs'
 /* variables */
@@ -27,6 +29,7 @@ let mAutoplay=false,
 let activeCategory,
     awaitButton,
     botBar,
+    chatActiveItem,
     chatContainer,
     chatInput,
     chatInputField,
@@ -43,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     /* post-DOM population constants */
     awaitButton = document.getElementById('await-button')
     botBar = document.getElementById('bot-bar')
+    chatActiveItem = document.getElementById('chat-active-item')
     chatContainer = document.getElementById('chat-container')
     chatInput = document.getElementById('chat-member')
     chatInputField = document.getElementById('chat-member-input')
@@ -145,6 +149,18 @@ async function fetchSummary(fileId, fileName){
         throw new Error('fetchSummary::Error()::`fileId` or `fileName` is required')
     return await mFetchSummary(fileId, fileName)
 }
+function getActiveItem(){
+
+}
+/**
+ * Gets the active chat item id to send to server.
+ * @requires chatActiveItem
+ * @returns {Guid} - The return is the active item ID.
+ */
+function getActiveItemId(){
+    const id = chatActiveItem.dataset?.id?.split('_')?.pop()
+    return id
+}
 function getInputValue(){
     return chatInputField.value.trim()
 }
@@ -235,6 +251,34 @@ async function setActiveBot(){
     return await _setActiveBot(...arguments)
 }
 /**
+ * Sets the active item, ex. `memory`, `entry`, `story` in the chat system for member operation(s).
+ * @public
+ * @todo - edit title with double-click
+ * @requires chatActiveItem
+ * @param {object} item - The item to set as active.
+ * @property {string} item.id - The item id.
+ * @property {HTMLDivElement} item.popup - The associated popup HTML object.
+ * @property {string} item.title - The item title.
+ * @property {string} item.type - The item type.
+ * @returns {void}
+ */
+function setActiveItem(item){
+    const { id, popup, title, type, } = item
+    const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
+    const chatActiveItemClose = document.getElementById('chat-active-item-close')
+    if(chatActiveItemTitleText){
+        chatActiveItemTitleText.innerHTML = `<b>Active</b>: ${ title }`
+        chatActiveItemTitleText.dataset.popupId = popup.id
+        chatActiveItemTitleText.dataset.title = title
+        chatActiveItemTitleText.addEventListener('click', mToggleItemPopup)
+        // @stub - edit title with double-click?
+    }
+    if(chatActiveItemClose)
+        chatActiveItemClose.addEventListener('click', unsetActiveItem, { once: true })
+    chatActiveItem.dataset.id = id
+    show(chatActiveItem)
+}
+/**
  * Proxy for Globals.show().
  * @public
  * @param {HTMLElement} element - The element to show.
@@ -283,6 +327,24 @@ function toggleVisibility(){
     mGlobals.toggleVisibility(...arguments)
 }
 /**
+ * Unsets the active item in the chat system.
+ * @public
+ * @requires chatActiveItem
+ * @returns {void}
+ */
+function unsetActiveItem(){
+    const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
+    const chatActiveItemClose = document.getElementById('chat-active-item-close')
+    if(chatActiveItemTitleText){
+        chatActiveItemTitleText.innerHTML = ''
+        chatActiveItemTitleText.dataset.popupId = null
+        chatActiveItemTitleText.dataset.title = null
+        chatActiveItemTitleText.removeEventListener('click', mToggleItemPopup)
+    }
+    chatActiveItem.dataset.id = null
+    hide(chatActiveItem)
+}
+/**
  * Waits for user action.
  * @public
  * @returns {Promise<void>} - The return is its own success.
@@ -318,9 +380,14 @@ async function mAddMemberMessage(event){
         role: 'member',
         typeDelay: 7,
     })
+    const itemId = getActiveItemId()
+    const proxyInfo = {
+        action: itemId ? 'update' : 'chat',
+        itemId,
+    }
     /* server request */
     let messages,
-        response = await submit(memberMessage)
+        response = await submit(memberMessage, proxyInfo)
     /* special processing cases */
     // @stub - special processing cases remove
     if(!Array.isArray(response)){
@@ -351,7 +418,7 @@ async function mAddMemberMessage(event){
                 typeDelay: 1,
             })
         })
-    toggleMemberInput(true)/* show */
+    toggleMemberInput(true) /* show */
 }
 /**
  * Adds specified string message to interface.
@@ -589,6 +656,7 @@ async function submit(message, proxyInfo, hideMemberChat=true){
         ?? chatInputField.dataset
 	const url = window.location.origin + '/members' + proxy
     const { id: botId, thread_id: threadId, } = activeBot()
+    console.log('submit::proxyInfo', itemId, shadowId, getActiveItemId())
 	const request = {
             action,
             active,
@@ -665,6 +733,11 @@ function toggleInputTextarea(event){
     chatInputField.style.height = chatInputField.scrollHeight + 'px' // Set height based on content
 	toggleSubmitButtonState()
 }
+function mToggleItemPopup(event){
+    event.stopPropagation()
+    event.preventDefault()
+    togglePopup(event.target.dataset.popupId, true)
+}
 function toggleSubmitButtonState() {
 	memberSubmit.disabled = !(chatInputField.value?.trim()?.length ?? true)
 }
@@ -702,6 +775,7 @@ export {
     escapeHtml,
     expunge,
     fetchSummary,
+    getActiveItemId,
     getInputValue,
     getSystemChat,
     mGlobals as globals,
@@ -712,6 +786,7 @@ export {
     sceneTransition,
     seedInput,
     setActiveBot,
+    setActiveItem,
     show,
     showMemberChat,
     showSidebar,

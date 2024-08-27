@@ -226,13 +226,18 @@ class Globals {
         mShow(element, listenerFunction)
     }
     /**
-     * Toggles the visibility of an element.
+     * Toggles the visibility of an element with option to force state.
      * @param {HTMLElement} element - The element to toggle.
+     * @param {boolean} bForceState - The state to force the element to, defaults to `null`.
      * @returns {void}
      */
-    toggleVisibility(element){
-        const { classList, } = element
-        mIsVisible(classList) ? mHide(element) : mShow(element)
+    toggleVisibility(element, bForceState=null){
+        if(bForceState!=null){ /* loose type equivalence intentional */
+            bForceState ? mShow(element) : mHide(element)
+        } else {
+            const { classList, } = element
+            mIsVisible(classList) ? mHide(element) : mShow(element)
+        }
     }
     /**
      * Returns the URL parameters as an object.
