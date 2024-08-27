@@ -1173,6 +1173,7 @@ class Q extends Avatar {
             message = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ message }`
         if(this.isCreatingAccount)
             message = `CREATE ACCOUNT PHASE: ${ message }`
+        activeBotId = this.activeBotId
         return super.chatRequest(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime)
     }
     upload(){
