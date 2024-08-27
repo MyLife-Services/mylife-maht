@@ -93,7 +93,7 @@ async function challenge(ctx){
  * @param {Koa} ctx - Koa Context object
  */
 async function chat(ctx){
-	const { action, botId, itemId, message, role, shadowId, title, } = ctx.request.body ?? {} /* body nodes sent by fe */
+	const { botId, itemId, message, role, shadowId, title, } = ctx.request.body ?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar, MemberSession, } = ctx.state

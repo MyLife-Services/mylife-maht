@@ -416,9 +416,8 @@ async function mMemoryShadow(event){
             addMessages(messages) // print to screen
             break
         case 'member': /* member shadows populate main chat input */
-            const action = `update`
             const seedText = text.replace(/(\.\.\.|…)\s*$/, '').trim() + ' '
-            seedInput(action, itemId, shadowId, seedText, text)
+            seedInput(itemId, shadowId, seedText, text)
             break
         default:
             throw new Error(`Unimplemented shadow type: ${ type }`)

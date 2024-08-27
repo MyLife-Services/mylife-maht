@@ -345,8 +345,8 @@ function unsetActiveItem(){
         chatActiveItemTitleText.dataset.title = null
         chatActiveItemTitleText.removeEventListener('click', mToggleItemPopup)
     }
-    chatActiveItem.dataset.id = null
-    chatActiveItem.dataset.itemId = null
+    delete chatActiveItem.dataset.id
+    delete chatActiveItem.dataset.itemId
     hide(chatActiveItem)
 }
 /**
@@ -563,14 +563,12 @@ function mInitializePageListeners(){
  * @public
  * @requires chatActiveItem
  * @requires chatInputField
- * @param {string} action - The action to take; enum: ['update', 'relive']
  * @param {Guid} itemId - The Active Item ID
  * @param {Guid} shadowId - The shadow ID
  * @param {string} value - The value to seed the input with
  * @param {string} placeholder - The placeholder to seed the input with (optional)
  */
-function seedInput(action, itemId, shadowId, value, placeholder){
-    chatActiveItem.dataset.action = action
+function seedInput(itemId, shadowId, value, placeholder){
     chatActiveItem.dataset.itemId = itemId
     chatActiveItem.dataset.shadowId = shadowId
     chatInputField.value = value
