@@ -9,8 +9,10 @@ import {
 } from './experience.mjs'
 import {
     activeBot,
+    getItem,
     refreshCollection,
     setActiveBot as _setActiveBot,
+    togglePopup,
 } from './bots.mjs'
 import Globals from './globals.mjs'
 /* variables */
@@ -27,6 +29,7 @@ let mAutoplay=false,
 let activeCategory,
     awaitButton,
     botBar,
+    chatActiveItem,
     chatContainer,
     chatInput,
     chatInputField,
@@ -43,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     /* post-DOM population constants */
     awaitButton = document.getElementById('await-button')
     botBar = document.getElementById('bot-bar')
+    chatActiveItem = document.getElementById('chat-active-item')
     chatContainer = document.getElementById('chat-container')
     chatInput = document.getElementById('chat-member')
     chatInputField = document.getElementById('chat-member-input')
@@ -145,6 +149,18 @@ async function fetchSummary(fileId, fileName){
         throw new Error('fetchSummary::Error()::`fileId` or `fileName` is required')
     return await mFetchSummary(fileId, fileName)
 }
+function getActiveItem(){
+
+}
+/**
+ * Gets the active chat item id to send to server.
+ * @requires chatActiveItem
+ * @returns {Guid} - The return is the active item ID.
+ */
+function getActiveItemId(){
+    const id = chatActiveItem.dataset?.id?.split('_')?.pop()
+    return id
+}
 function getInputValue(){
     return chatInputField.value.trim()
 }
@@ -235,6 +251,38 @@ async function setActiveBot(){
     return await _setActiveBot(...arguments)
 }
 /**
+ * Sets the active item, ex. `memory`, `entry`, `story` in the chat system for member operation(s).
+ * @public
+ * @todo - edit title with double-click
+ * @requires chatActiveItem
+ * @param {object} item - The item to set as active.
+ * @property {string} item.id - The item id.
+ * @property {HTMLDivElement} item.popup - The associated popup HTML object.
+ * @property {string} item.title - The item title.
+ * @property {string} item.type - The item type.
+ * @returns {void}
+ */
+function setActiveItem(item){
+    const { id, popup, title, type, } = item
+    const itemId = id?.split('_')?.pop()
+    if(!itemId)
+        throw new Error('setActiveItem::Error()::valid `id` is required')
+    const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
+    const chatActiveItemClose = document.getElementById('chat-active-item-close')
+    if(chatActiveItemTitleText){
+        chatActiveItemTitleText.innerHTML = `<b>Active</b>: ${ title }`
+        chatActiveItemTitleText.dataset.popupId = popup.id
+        chatActiveItemTitleText.dataset.title = title
+        chatActiveItemTitleText.addEventListener('click', mToggleItemPopup)
+        // @stub - edit title with double-click?
+    }
+    if(chatActiveItemClose)
+        chatActiveItemClose.addEventListener('click', unsetActiveItem, { once: true })
+    chatActiveItem.dataset.id = id
+    chatActiveItem.dataset.itemId = itemId
+    show(chatActiveItem)
+}
+/**
  * Proxy for Globals.show().
  * @public
  * @param {HTMLElement} element - The element to show.
@@ -281,6 +329,25 @@ function stageTransition(experienceId){
  */
 function toggleVisibility(){
     mGlobals.toggleVisibility(...arguments)
+}
+/**
+ * Unsets the active item in the chat system.
+ * @public
+ * @requires chatActiveItem
+ * @returns {void}
+ */
+function unsetActiveItem(){
+    const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
+    const chatActiveItemClose = document.getElementById('chat-active-item-close')
+    if(chatActiveItemTitleText){
+        chatActiveItemTitleText.innerHTML = ''
+        chatActiveItemTitleText.dataset.popupId = null
+        chatActiveItemTitleText.dataset.title = null
+        chatActiveItemTitleText.removeEventListener('click', mToggleItemPopup)
+    }
+    delete chatActiveItem.dataset.id
+    delete chatActiveItem.dataset.itemId
+    hide(chatActiveItem)
 }
 /**
  * Waits for user action.
@@ -351,7 +418,7 @@ async function mAddMemberMessage(event){
                 typeDelay: 1,
             })
         })
-    toggleMemberInput(true)/* show */
+    toggleMemberInput(true) /* show */
 }
 /**
  * Adds specified string message to interface.
@@ -493,22 +560,19 @@ function mInitializePageListeners(){
 }
 /**
  * Primitive step to set a "modality" or intercession for the member chat. Currently will key off dataset in `chatInputField`.
- * @todo - mature this architecture
- * @param {string} proxy - The proxy endpoint for this chat exchange.
- * @param {string} action - The action to take on the proxy endpoint.
- * @param {Guid} itemId - The item ID as context for chat exchange.
- * @param {Guid} shadowId - The shadow ID as context for chat exchange.
- * @param {string} value - The value to seed the input with.
- * @param {string} placeholder - The placeholder to seed the input with.
+ * @public
+ * @requires chatActiveItem
+ * @requires chatInputField
+ * @param {Guid} itemId - The Active Item ID
+ * @param {Guid} shadowId - The shadow ID
+ * @param {string} value - The value to seed the input with
+ * @param {string} placeholder - The placeholder to seed the input with (optional)
  */
-function seedInput(proxy, action, itemId, shadowId, value, placeholder){
-    chatInputField.dataset.action = action
-    chatInputField.dataset.active = 'true'
-    chatInputField.dataset.itemId = itemId
-    chatInputField.dataset.proxy = proxy
-    chatInputField.dataset.shadowId = shadowId
+function seedInput(itemId, shadowId, value, placeholder){
+    chatActiveItem.dataset.itemId = itemId
+    chatActiveItem.dataset.shadowId = shadowId
     chatInputField.value = value
-    chatInputField.placeholder = placeholder
+    chatInputField.placeholder = placeholder ?? chatInputField.placeholder
     chatInputField.focus()
 }
 /**
@@ -577,27 +641,24 @@ function mStageTransitionMember(includeSidebar=true){
 }
 /**
  * Submits a message to MyLife Member Services chat.
+ * @requires chatActiveItem
  * @param {string} message - The message to submit.
- * @param {object} proxyInfo - The proxy information { itemId, proxy, shadowId }.
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`.
  * @returns 
  */
-async function submit(message, proxyInfo, hideMemberChat=true){
+async function submit(message, hideMemberChat=true){
 	if(!message?.length)
 		throw new Error('submit(): `message` argument is required')
-    const { action, active, itemId, proxy='', shadowId, } = proxyInfo
-        ?? chatInputField.dataset
-	const url = window.location.origin + '/members' + proxy
-    const { id: botId, thread_id: threadId, } = activeBot()
+    const { action, itemId, shadowId, } = chatActiveItem.dataset
+	const url = window.location.origin + '/members'
+    const { id: botId, } = activeBot()
 	const request = {
             action,
-            active,
 			botId,
             itemId,
 			message,
 			role: 'member',
             shadowId,
-            threadId,
 		}
 	const options = {
 		method: 'POST',
@@ -609,10 +670,8 @@ async function submit(message, proxyInfo, hideMemberChat=true){
     if(hideMemberChat)
         toggleMemberInput(false)
 	const chatResponse = await submitChat(url, options)
-    /* clear dataset, proxy only request level */
-    for(let key in chatInputField.dataset){ // nuclear erasure
-        delete chatInputField.dataset[key]
-    }
+    /* clear dataset */
+    delete chatActiveItem.dataset.shadowId // shadow one-run only
     if(hideMemberChat)
         toggleMemberInput(true)
     return chatResponse
@@ -665,6 +724,11 @@ function toggleInputTextarea(event){
     chatInputField.style.height = chatInputField.scrollHeight + 'px' // Set height based on content
 	toggleSubmitButtonState()
 }
+function mToggleItemPopup(event){
+    event.stopPropagation()
+    event.preventDefault()
+    togglePopup(event.target.dataset.popupId, true)
+}
 function toggleSubmitButtonState() {
 	memberSubmit.disabled = !(chatInputField.value?.trim()?.length ?? true)
 }
@@ -702,6 +766,7 @@ export {
     escapeHtml,
     expunge,
     fetchSummary,
+    getActiveItemId,
     getInputValue,
     getSystemChat,
     mGlobals as globals,
@@ -712,6 +777,7 @@ export {
     sceneTransition,
     seedInput,
     setActiveBot,
+    setActiveItem,
     show,
     showMemberChat,
     showSidebar,

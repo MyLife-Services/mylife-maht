@@ -21,7 +21,6 @@ import {
     members,
     passphraseReset,
     privacyPolicy,
-    shadow,
     shadows,
     signup,
     summarize,
@@ -120,7 +119,6 @@ _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
-_memberRouter.post('/shadow', shadow)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)
