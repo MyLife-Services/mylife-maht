@@ -45,11 +45,9 @@ import {
     experiences,
     experiencesLived,
     keyValidation,
-    library,
     logout as apiLogout,
     register,
     story,
-    storyLibrary,
     tokenValidation,
 } from './api-functions.mjs'
 // variables
@@ -87,9 +85,7 @@ _apiRouter.patch('/experiences/:mid/experience/:eid/navigation', experienceNavig
 _apiRouter.patch('/experiences/:mid/experience/:eid', experience) // **note**: This line should be the last one alphabetically due to the wildcard.
 _apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
-_apiRouter.post('/library/:mid', library)
 _apiRouter.post('/register', register)
-_apiRouter.post('/story/library/:mid', storyLibrary) /* ordered first for path rendering */
 _apiRouter.post('/story/:mid', story)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)

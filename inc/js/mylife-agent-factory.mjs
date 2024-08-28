@@ -45,8 +45,8 @@ const mMyLifeTeams = [
 	{
 		active: true,
 		allowCustom: true,
-		allowedTypes: ['artworks', 'editor', 'idea', 'library', 'marketing'],
-		defaultTypes: ['artworks', 'idea', 'library',],
+		allowedTypes: ['artworks', 'editor', 'idea', 'marketing'],
+		defaultTypes: ['artworks', 'idea',],
 		description: 'The Creative Team is dedicated to help you experience productive creativity sessions.',
 		id: '84aa50ca-fb64-43d8-b140-31d2373f3cd2',
 		name: 'creative',
@@ -65,8 +65,8 @@ const mMyLifeTeams = [
 	{
 		active: true,
 		allowCustom: true,
-		allowedTypes: ['diary', 'journaler', 'library', 'personal-biographer',],
-		defaultTypes: ['personal-biographer', 'library',],
+		allowedTypes: ['diary', 'journaler', 'personal-biographer',],
+		defaultTypes: ['personal-biographer',],
 		description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
 		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
 		name: 'memoir',
@@ -95,8 +95,8 @@ const mMyLifeTeams = [
 	{
 		active: false,
 		allowCustom: true,
-		allowedTypes: ['library', 'note', 'poem', 'quote', 'religion',],
-		defaultTypes: ['library', 'quote', 'religion',],
+		allowedTypes: ['note', 'poem', 'quote', 'religion',],
+		defaultTypes: ['quote', 'religion',],
 		description: 'The Spirituality Team is dedicated to help you creatively explore your spiritual side.',
 		id: 'bea7bb4a-a339-4026-ad1c-75f604dc3349',
 		name: 'sprituality',
@@ -105,8 +105,8 @@ const mMyLifeTeams = [
 	{
 		active: true,
 		allowCustom: true,
-		allowedTypes: ['data-ownership', 'investment', 'library', 'ubi',],
-		defaultTypes: ['library', 'ubi'],
+		allowedTypes: ['data-ownership', 'investment', 'ubi',],
+		defaultTypes: ['ubi'],
 		description: 'The Universal Basic Income (UBI) Team is dedicated to helping you tailor your MyLife revenue streams based upon consensual access to your personal MyLife data.',
 		id: '8a4d7340-ac62-40f1-8c77-f17c68797925',
 		name: 'ubi',
@@ -398,54 +398,6 @@ class BotFactory extends EventEmitter{
 	async help(thread_id, bot_id, helpRequest, avatar){
 		return await mHelp(thread_id, bot_id, helpRequest, this, avatar)
 	}
-	/**
-	 * Gets, creates or updates Library in Cosmos.
-	 * @todo - institute bot for library mechanics.
-	 * @public
-	 * @param {Object} _library - The library object, including items to be added to/updated in member's library.
-	 * @returns {object} - The library.
-	 */
-	async library(_library){
-		const updatedLibrary = await mLibrary(this, _library)
-		// test the type/form of Library
-		switch(updatedLibrary.type){
-			case 'story':
-				if(updatedLibrary.form==='biographer'){
-					// inflate and update library with stories
-					const stories = ( await this.stories(updatedLibrary.form) )
-						.filter(story=>!this.globals.isValidGuid(story?.library_id))
-						.map(story=>{
-							const { mbr_name, newGuid } = this
-							const { author=mbr_name, id=newGuid, title=mbr_name, } = story
-							story = {
-								...story,
-								author,
-								id,
-								title,
-							}
-							return mInflateLibraryItem(story, updatedLibrary.id, mbr_id)
-						})
-					updatedLibrary.items = [
-						...updatedLibrary.items,
-						...stories,
-					]
-					/* update stories (no await) */
-					stories.forEach(story=>this.dataservices.patch(
-						story.id,
-						{ library_id: updatedLibrary.id },
-					))
-					/* update library (no await) */
-					this.dataservices.patch(
-						updatedLibrary.id,
-						{ items: updatedLibrary.items },
-					)
-				}
-				break
-			default:
-				break
-		}
-		return updatedLibrary
-	}
     /**
      * Allows member to reset passphrase.
      * @param {string} passphrase 
@@ -468,7 +420,6 @@ class BotFactory extends EventEmitter{
 	}
 	/**
 	 * Gets a collection of stories of a certain format.
-	 * @todo - currently disconnected from a library, but no decisive mechanic for incorporating library shell.
 	 * @param {string} form - The form of the stories to retrieve.
 	 * @returns {object[]} - The stories.
 	 */
@@ -769,21 +720,6 @@ class AgentFactory extends BotFactory {
 	}
 	isSession(_session){	//	when unavailable from general schemas
 		return (_session instanceof mSchemas.session)
-	}
-	/**
-	 * Adds or updates a library with items outlined in request `library.items` array. Note: currently the override for `botFactory` function .library which returns a library item from the database.
-	 * @todo: finalize mechanic for overrides
-	 * @param {Object} _library - The library object, including items to be added to member's library.
-	 * @returns {Object} - The complete library object from Cosmos.
-	 */
-	async library(_library){
-		/* hydrate library micro-bot */
-		const { bot_id, mbr_id } = _library
-		const _microBot = await this.libraryBot(bot_id, mbr_id)
-		return await _microBot.library(_library)
-	}
-	async libraryBot(id){
-		return await this.bot(id, 'library')
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.
@@ -1529,118 +1465,6 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
 async function mHelp(thread_id, bot_id, helpRequest, factory, avatar){
 	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory, avatar)
 	return response
-}
-/**
- * Inflates library item with required values and structure. Object structure expected from API, librayItemItem in JSON.
- * root\inc\json-schemas\bots\library-bot.json
- * @param {object} _item - Library item (API) object. { author: string, enjoymentLevel: number, format: string, insights: string, personalImpact: string, title: string, whenRead: string }
- * @param {string} _library_id - Library id
- * @param {string} _mbr_id - Member id
- * @returns {object} - Library-item object. { assistantType: string, author_match: array, being: string, date: string, format: string, id: string, item: object, library_id: string, object_id: string, title_match: string
- */
-function mInflateLibraryItem(_item, _library_id, _mbr_id){
-	const _id = _item.id??mNewGuid()
-	return {
-		assistantType: _item.assistantType??'mylife-library',
-		author_match: (_item.author??'unknown-author')
-			.trim()
-			.toLowerCase()
-			.split(' '),
-		being: 'library-item',
-		date: _item.date??new Date().toISOString(),
-		format: _item.format??_item.form??_item.type??'book',
-		id: _id,
-		item: {..._item, id: _id },
-		library_id: _library_id,
-		object_id: _library_id,
-		title_match: (_item.title??'untitled')
-			.trim()
-			.toLowerCase(),
-	}
-}
-/**
- * Hydrates library and returns library object.
- * @module
- * @private
- * @param {BotFactory} factory - BotFactory object
- * @param {object} _library - Library object
- * @returns {object} - Library object
- */
-async function mLibrary(factory, _library){
-	// @todo: micro-avatar for representation of bot(s)
-	// @todo: Bot class with extension for things like handling libraries
-	// @todo: bot-extenders so that I can get this functionality into that object context
-	/* constants */
-	const { assistantType, form='collection', id, items: _libraryItems=[], mbr_id, type } = _library
-	const _avatar_id = factory.avatarId
-	// add/get correct library; default to core (object_id=avatar_id && type)
-	/* parse and cast _libraryItems */
-	let _libraryCosmos = await factory.dataservices.library(id, _avatar_id, type, form)
-	// @dodo: currently only book/story library items are supported
-	if(!_libraryCosmos){ // create when undefined
-		// @todo: microbot should have a method for these
-		const _library_id = factory.newGuid
-		_libraryCosmos = {
-			being: `library`,
-			form: form,
-			id: _library_id,
-			items: _libraryItems.map(_item=>mInflateLibraryItem(_item, _library_id, mbr_id)),
-			mbr_id: mbr_id,
-			name: ['library',type,form,_avatar_id].join('_'),
-			object_id: _avatar_id,
-			type: type,
-		}
-		factory.dataservices.pushItem(_libraryCosmos) // push to Cosmos
-	} else {
-		// @todo: manage multiple libraries
-		const { id: _library_id, items: _storedLibraryItems } = _libraryCosmos
-		_libraryItems.forEach(_item => {
-			_item = mInflateLibraryItem(_item,_library_id, mbr_id)
-			const matchIndex = _storedLibraryItems.findIndex(storedItem => { // Find the index of the item in the stored library items that matches the criteria
-				if(storedItem.id===_item.id || storedItem.title_match===_item.title_match)
-				return true
-			const storedAuthorWords = storedItem.author_match
-			const incomingAuthorWords = _item.author_match
-			const authorMatches = (() => {
-				if (storedAuthorWords.length === 1 || incomingAuthorWords.length === 1) { // If either author array has a length of 1, check for any matching word
-					return storedAuthorWords.some(word => incomingAuthorWords.includes(word))
-				} else { // If both have 2+ lengths, ensure at least 2 items match
-					const matches = storedAuthorWords.filter(word => incomingAuthorWords.includes(word))
-					return matches.length >= 2
-					}
-				})()
-				if (authorMatches && matchIndex !== -1) { // Mutate the author to the one with more details if needed
-					if (incomingAuthorWords.length > storedAuthorWords.length) {
-						_storedLibraryItems[matchIndex].author_match = incomingAuthorWords // Update to more detailed author
-					}
-				}
-				return authorMatches
-			})
-			if (matchIndex!== -1) { // If a match is found, update the entry
-				_storedLibraryItems[matchIndex] = {
-					..._storedLibraryItems[matchIndex],  // Keep existing properties
-					..._item,  // Overwrite and add new properties from _item
-					id: _storedLibraryItems[matchIndex].id
-						?? factory.newGuid, // if for some reason object hasn't id
-					object_id: _library_id,
-					type: _item.type
-						?? 'book',
-				}
-			} else {
-				_storedLibraryItems.push({ // If no match is found, add the item to the library
-					..._item,
-					id: _item.id??factory.newGuid, // Ensure each item has a unique ID
-					mbr_id: factory.mbr_id,
-					object_id: _library_id,
-					type: _item.type??'book',
-				})
-			}
-		})
-		// save library to Cosmos @todo: microbot should have a method for this
-		_libraryCosmos.items = _storedLibraryItems
-		factory.dataservices.patch(_library_id, {items: _libraryCosmos.items})
-	}
-	return _libraryCosmos
 }
 /**
  * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.

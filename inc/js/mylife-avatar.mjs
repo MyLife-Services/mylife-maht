@@ -1318,7 +1318,7 @@ async function mBot(factory, avatar, bot){
         /* create or update bot special properties */
         const { thread_id, type, } = originBot // @stub - `bot_id` cannot be updated through this mechanic
         if(!thread_id?.length && !avatar.isMyLife){ // add thread_id to relevant bots
-            const excludeTypes = ['library', 'custom'] // @stub - custom mechanic?
+            const excludeTypes = ['collection', 'library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
                 const conversation = await avatar.createConversation()
                 updatedBot.thread_id = conversation.thread_id // triggers `factory.updateBot()`
@@ -2003,7 +2003,7 @@ async function mInit(factory, llmServices, avatar, bots, assetAgent){
             }
         }
         /* bots */ // @stub - determine by default or activated team
-        requiredBotTypes.push('library', 'personal-biographer') // default memory team
+        requiredBotTypes.push('personal-biographer') // default memory team
     }
     bots.push(...await factory.bots(avatar.id))
     await Promise.all(

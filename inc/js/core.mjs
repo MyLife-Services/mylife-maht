@@ -280,28 +280,6 @@ class MyLife extends Organization {	// form=server
 		return await this.factory.hostedMembers(validations)
 	}
 	/**
-	 * Submits a request for a library item from MyLife via API.
-	 * @public
-	 * @param {string} mbr_id - Requesting Member id.
-	 * @param {string} assistantType - String name of assistant type.
-	 * @param {string} library - Library entry with or without `items`.
-	 * @returns {object} - The library document from Cosmos.
-	 */
-	async library(mbr_id, assistantType='personal-avatar', library){
-		const { id, type, } = library
-		library.assistantType = assistantType
-		library.id = this.globals.isValidGuid(id)
-			? id
-			: this.globals.newGuid
-		library.mbr_id = mbr_id
-		library.type = type
-			?? assistantType
-		const _library = this.globals.stripCosmosFields(
-			await this.factory.library(library)
-		)
-		return _library
-	}
-	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
 	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
