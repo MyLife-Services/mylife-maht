@@ -685,10 +685,10 @@ async function submitChat(url, options) {
  * @public
  * @param {boolean} display - Whether to show/hide (T/F), default `true`.
  * @param {boolean} hidden - Whether to force-hide (T/F), default `false`. **Note**: used in `experience.mjs`
- * @param {boolean} bConnectingText - The server-connecting text, default: `Connecting with `.
+ * @param {boolean} connectingText - The server-connecting text, default: `Connecting with `.
  * @returns {void}
  */
-function toggleMemberInput(display=true, hidden=false, bConnectingText='Connecting with '){
+function toggleMemberInput(display=true, hidden=false, connectingText='Connecting with '){
     const { bot_name, id, mbr_id, provider, purpose, type, } = activeBot()
     if(display){
         hide(awaitButton)
@@ -703,7 +703,7 @@ function toggleMemberInput(display=true, hidden=false, bConnectingText='Connecti
         chatInput.classList.remove('fade-in')
         chatInput.classList.remove('slide-up')
         awaitButton.classList.add('slide-up')
-        awaitButton.innerHTML = bConnectingText + bot_name + '...'
+        awaitButton.innerHTML = connectingText + bot_name + '...'
         show(awaitButton)
     }
     if(hidden){
