@@ -15,7 +15,7 @@ class Dataservices {
 	 * Identifies currently available selection sub-types (i.e., `being`=@var) for the data service.
 	 * @private
 	 */
-	#collectionTypes = ['chat', 'conversation', 'entry', 'lived-experience', 'file', 'library', 'story']
+	#collectionTypes = ['chat', 'conversation', 'entry', 'lived-experience', 'file', 'story']
     /**
      * Represents the core functionality of the data service. This property
      * objectifies core data to make it more manageable and structured,
@@ -232,14 +232,6 @@ class Dataservices {
 	 */
 	async collectionFiles(){
 		return await this.getItems('file')
-	}
-	/**
-	 * Proxy to retrieve library items.
-	 * @param {string} form - The form of the library items (such as: personal, album,).
-	 * @returns {array} - The library items.
-	 */
-	async collectionLibraries(form){
-		return await this.getItems('library')
 	}
 	/**
 	 * Proxy to retrieve biographical story items.
@@ -546,29 +538,6 @@ class Dataservices {
 	 */
 	async hostedMembers(validations){
 		return await this.datamanager.hostedMembers(validations)
-	}
-	/**
-	 * Gets library from database.
-	 * @async
-	 * @public
-	 * @param {string} _library_id - The unique identifier for the library.
-	 * @param {string} _object_id - The unique identifier for the underlying avatar.
-	 * @param {string} _type - The type of the library.
-	 * @param {string} _form - The form of the library.
-	 * @returns {Array} - array of library items added to member's library.
-	 */
-	async library(_library_id, _object_id, _type, _form){
-		return ( await this.getItem(_library_id) )
-			?? ( await this.getItemByFields(
-				'library',
-				[
-					{ name: '@object_id', value: _object_id },
-					{ name: '@type', value: _type },
-					{ name: '@form', value: _form },
-				].filter(_=>_?.value!==undefined),
-				undefined,
-				this.mbr_id,
-			) )
 	}
 	/**
 	 * Patches an item by its ID with the provided data.
