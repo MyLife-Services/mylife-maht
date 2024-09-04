@@ -14,6 +14,7 @@ import {
     submit,
     toggleMemberInput,
     toggleVisibility,
+    unsetActiveItem,
 } from './members.mjs'
 import Globals from './globals.mjs'
 const mAvailableCollections = ['entry', 'experience', 'file', 'story'], // ['chat', 'conversation'],
@@ -1078,19 +1079,26 @@ async function mReliveMemory(event){
     event.preventDefault()
     event.stopPropagation()
     const { id, inputContent, } = this.dataset
+    /* destroy previous instantiation, if any */
     const previousInput = document.getElementById(`relive-memory-input-container_${id}`)
     if(previousInput)
         expunge(previousInput)
+    /* close popup */
     const popupClose = document.getElementById(`popup-close_${ id }`)
     if(popupClose)
         popupClose.click()
+    toggleMemberInput(false, false, `Reliving memory with `)
+    unsetActiveItem()
     const { command, parameters, messages, success, } = await mReliveMemoryRequest(id, inputContent)
     if(success){
-        addMessages(messages)
+        toggleMemberInput(false, true)
+        addMessages(messages, { bubbleClass: 'relive-bubble' })
         const input = document.createElement('div')
         input.classList.add('memory-input-container')
         input.id = `relive-memory-input-container_${ id }`
         input.name = `input_${ id }`
+        const inputClose = document.createElement('div')
+        inputClose.classList.add('fas', 'fa-close', 'relive-memory-input-close')
         const inputContent = document.createElement('textarea')
         inputContent.classList.add('memory-input')
         inputContent.name = `memory-input_${ id }`
@@ -1098,8 +1106,14 @@ async function mReliveMemory(event){
         inputSubmit.classList.add('memory-input-button')
         inputSubmit.dataset.id = id
         inputSubmit.textContent = mDefaultReliveMemoryButtonText
+        input.appendChild(inputClose)
         input.appendChild(inputContent)
         input.appendChild(inputSubmit)
+        inputClose.addEventListener('click', event=>{
+            event.preventDefault()
+            event.stopPropagation()
+            mStopRelivingMemory(id)
+        }, { once: true })
         inputContent.addEventListener('input', event=>{
             const { value, } = event.target
             inputSubmit.dataset.inputContent = value
@@ -1109,8 +1123,10 @@ async function mReliveMemory(event){
         })
         inputSubmit.addEventListener('click', mReliveMemory, { once: true })
         addInput(input)
-    } else
+    } else {
+        toggleMemberInput(true)
         throw new Error(`Failed to fetch memory for relive request.`)
+    }
 }
 /**
  * 
@@ -1135,6 +1151,21 @@ async function mReliveMemoryRequest(id, memberInput){
         return response
     } catch (error) {
         console.log('Error fetching memory for relive:', error)
+    }
+}
+async function mReliveMemoryRequestStop(id){
+    console.log('Stop reliving memory:', id)
+    try {
+        const url = window.location.origin + '/members/memory/end/' + id
+        let response = await fetch(url, {
+            method: 'PATCH',
+        })
+        if(!response.ok)
+            throw new Error(`HTTP error! Status: ${response.status}`)
+        response = await response.json()
+        return response
+    } catch (error) {
+        console.log('Error stopping relive memory:', error)
     }
 }
 /**
@@ -1347,6 +1378,14 @@ function mSpotlightBotStatus(){
                 mSetStatusBar(bot, botContainer)
             }
         })
+}
+async function mStopRelivingMemory(id){
+    const input = document.getElementById(`relive-memory-input-container_${ id }`)
+    if(input)
+        expunge(input)
+    await mReliveMemoryRequestStop(id)
+    unsetActiveItem()
+    toggleMemberInput(true)
 }
 /**
  * Submit updated `story` data. No need to return unless an error, which is currently thrown.

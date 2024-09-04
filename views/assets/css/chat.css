@@ -297,8 +297,13 @@ button.chat-submit:disabled {
 	font-size: .75em;
 }
 .member-bubble a,
+.relive-bubble a,
 .user-bubble a {
 	color: #333333; /* Dark grey for contrast and easy reading */
+}
+.relive-bubble {
+	background-color: rgba(255, 173, 122, 0.85); /* A darker shade of blue for the agent */
+	color: black;
 }
 .spinner-green-glow {
 	background-image: radial-gradient(circle, #4b94a1, #d2f35e);
