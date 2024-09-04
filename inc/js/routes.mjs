@@ -31,6 +31,7 @@ import {
 } from './functions.mjs'
 import {
     collectMemory,
+    endMemory,
     improveMemory,
     reliveMemory,
     livingMemory,
@@ -107,6 +108,7 @@ _memberRouter.patch('/experience/:eid', experience)
 _memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
 _memberRouter.patch('/memory/relive/:iid', reliveMemory)
+_memberRouter.patch('/memory/end/:iid', endMemory)
 _memberRouter.patch('/memory/living/:iid', livingMemory)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)

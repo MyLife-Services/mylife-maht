@@ -216,9 +216,24 @@ class Avatar extends EventEmitter {
             throw new Error('MyLife avatar cannot delete items.')
         return await this.#factory.deleteItem(id)
     }
+    /**
+     * End a memory.
+     * @async
+     * @public
+     * @todo - save conversation fragments
+     * @param {Guid} id - The id of the memory to end.
+     * @returns {boolean} - true if memory ended successfully.
+     */
     async endMemory(id){
-        const item = this.relivingMemories.find(item=>item.id===id)
-        /* save conversation fragments */
+        // @stub - save conversation fragments */
+        const { relivingMemories, } = this
+        const index = relivingMemories.findIndex(item=>item.id===id)
+        if(index>=0){
+            const removedMemory = relivingMemories.splice(index, 1)
+            if(!removedMemory.length)
+                return false
+            console.log('item removed', removedMemory?.[0] ?? `index: ${ index } failed`)
+        }
         return true
     }
     /**

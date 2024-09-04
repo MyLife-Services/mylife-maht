@@ -437,23 +437,18 @@ async function mAddMessage(message, options={}){
     }
     if(typeof message!=='string' || !message.length)
         throw new Error('mAddMessage::Error()::`message` string is required')
-    const {
-		bubbleClass,
-        role='agent',
-		typeDelay=2,
-		typewrite=true,
-	} = options
+    const { bubbleClass, role='agent', typeDelay=2, typewrite=true, } = options
     /* message container */
     const chatMessage = document.createElement('div')
     chatMessage.classList.add('chat-message-container', `chat-message-container-${ role }`)
     /* message bubble */
 	const chatBubble = document.createElement('div')
-	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
-    chatBubble.id = `chat-bubble-${mChatBubbleCount}`
+	chatBubble.classList.add('chat-bubble', ( bubbleClass ?? role+'-bubble' ))
+    chatBubble.id = `chat-bubble-${ mChatBubbleCount }`
     mChatBubbleCount++
     /* message tab */
     const chatMessageTab = document.createElement('div')
-    chatMessageTab.id = `chat-message-tab-${mChatBubbleCount}`
+    chatMessageTab.id = `chat-message-tab-${ mChatBubbleCount }`
     chatMessageTab.classList.add('chat-message-tab', `chat-message-tab-${ role }`)
     const chatCopy = document.createElement('i')
     chatCopy.classList.add('fas', 'fa-copy', 'chat-copy')
@@ -479,7 +474,6 @@ async function mAddMessage(message, options={}){
         })
     })
     chatMessage.addEventListener('mouseleave', event => {
-        console.log('chatBubble::mouseleave', chatMessageTab.classList)
         chatMessageTab.classList.remove('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
     })
     /* print chat message */
@@ -691,11 +685,12 @@ async function submitChat(url, options) {
  * @public
  * @param {boolean} display - Whether to show/hide (T/F), default `true`.
  * @param {boolean} hidden - Whether to force-hide (T/F), default `false`. **Note**: used in `experience.mjs`
+ * @param {boolean} bConnectingText - The server-connecting text, default: `Connecting with `.
  * @returns {void}
  */
-function toggleMemberInput(display=true, hidden=false){
+function toggleMemberInput(display=true, hidden=false, bConnectingText='Connecting with '){
+    const { bot_name, id, mbr_id, provider, purpose, type, } = activeBot()
     if(display){
-        const { bot_name, id, mbr_id, provider, purpose, type, } = activeBot()
         hide(awaitButton)
         awaitButton.classList.remove('slide-up')
         chatInput.classList.add('slide-up')
@@ -708,11 +703,13 @@ function toggleMemberInput(display=true, hidden=false){
         chatInput.classList.remove('fade-in')
         chatInput.classList.remove('slide-up')
         awaitButton.classList.add('slide-up')
-        awaitButton.innerHTML = `Connecting with ${ activeBot().bot_name }...`
+        awaitButton.innerHTML = bConnectingText + bot_name + '...'
         show(awaitButton)
     }
-    if(hidden)
+    if(hidden){
         hide(chatInput)
+        hide(awaitButton)
+    }
 }
 /**
  * Toggles the input textarea.
@@ -786,5 +783,6 @@ export {
     toggleMemberInput,
     toggleInputTextarea,
     toggleVisibility,
+    unsetActiveItem,
     waitForUserAction,
 }
