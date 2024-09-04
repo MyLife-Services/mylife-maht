@@ -8,6 +8,14 @@ import {
 async function collectMemory(ctx){
 	// @todo - implement memory collection
 }
+async function endMemory(ctx){
+	const { iid, } = ctx.params
+	const { Globals, MyLife, } = ctx
+	if(!Globals.isValidGuid(iid))
+		return ctx.throw(400, 'Invalid Item ID')
+	const { avatar, } = ctx.state
+	ctx.body = await avatar.endMemory(iid)
+}
 async function improveMemory(ctx){
 	const { iid, } = ctx.params
 	const { Globals, MyLife, } = ctx
@@ -48,6 +56,7 @@ async function livingMemory(ctx){
 export {
     collectMemory,
     improveMemory,
+	endMemory,
     reliveMemory,
     livingMemory,
 }

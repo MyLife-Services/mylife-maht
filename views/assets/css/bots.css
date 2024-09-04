@@ -54,7 +54,8 @@
 .bot { /* along with widget */
 	align-items: stretch;
 }
-.bot-container {
+.bot-container,
+.collections-container {
     cursor: pointer;
     display: flex;
     flex: 1 1 auto; /* Allow it to grow and shrink */
@@ -104,17 +105,20 @@
     padding: 0.8rem;
 }
 /* bot */
-.bot-icon {
-    background-image: radial-gradient(circle at 0.1rem 0.1rem, #eaedff 0%, #1e3b4e 40%, rgb(60 162 213) 80%, #404553 100%);
-	border: rgba(0, 0, 0, 0.7) 0.12rem solid !important;
-	border-radius: 50%;
-	box-shadow: 0.6px 2px 3px rgba(0, 0, 0, 0.6);
+.bot-icon,
+.collections-spacer {
     display: flex;
 	flex: 0 0 auto;
 	height: 1.5rem;
 	margin: .4rem;
 	position: relative;
 	width: 1.5rem;
+}
+.bot-icon {
+    background-image: radial-gradient(circle at 0.1rem 0.1rem, #eaedff 0%, #1e3b4e 40%, rgb(60 162 213) 80%, #404553 100%);
+	border: rgba(0, 0, 0, 0.7) 0.12rem solid !important;
+	border-radius: 50%;
+	box-shadow: 0.6px 2px 3px rgba(0, 0, 0, 0.6);
 }
 .bot-icon.active {
 	animation: _statusBlink 6s ease-in-out infinite;
@@ -200,7 +204,8 @@
 .bot-passphrase {
     width: 100%;
 }
-.bot-status {
+.bot-status,
+.collections-titlebar {
 	align-items: center;
 	background-color: #007BFF;
 	border: rgba(0, 0, 0, 0.1) 0.12rem solid;
@@ -213,7 +218,8 @@
 	justify-content: flex-start;
 	margin: 0.2rem 0.2rem 0em 0.2rem;
 }
-.bot-title {
+.bot-title,
+.collections-title {
 	color: aliceblue;
     display: flex;
 	flex: 1 0 auto;

@@ -145,30 +145,6 @@ async function keyValidation(ctx){ // from openAI
     }
 }
 /**
- * All functionality related to a library. Note: Had to be consolidated, as openai GPT would only POST.
- * @module
- * @public
- * @param {Koa} ctx - Koa Context object
- * @returns {Koa} Koa Context object
- */
-async function library(ctx){
-    await mAPIKeyValidation(ctx)
-    const {
-        assistantType,
-        mbr_id,
-        library = ctx.request?.body?.library
-            ?? ctx.request?.body
-            ?? {}
-    } = ctx.state
-    const _library = await ctx.MyLife.library(mbr_id, assistantType, library)
-    ctx.status = 200 // OK
-    ctx.body = {
-        library: _library,
-        message: `library function(s) completed successfully.`,
-        success: true,
-    }
-}
-/**
  * Logout function for member.
  * @param {Koa} ctx - Koa Context object
  * @returns 
@@ -235,21 +211,6 @@ async function story(ctx){
         success: true,
         message: 'Story submitted successfully.',
     }
-}
-/**
- * Management of Member Story Libraries. Note: Key validation is performed in library(). Story library may have additional functionality inside of core/MyLife
- * @param {Koa} ctx - Koa Context object
- * @returns {Koa} Koa Context object. Body = { data: library, success: boolean, message: string }
- */
-async function storyLibrary(ctx){
-    const { id, form='biographer' } = ctx.request?.body??{}
-    const type = 'story' // force constant
-    ctx.state.library = {
-        id,
-        type,
-        form,
-    }
-    const _library = await library(ctx) // returns ctx.body
 }
 /**
  * Validates api token
@@ -361,11 +322,9 @@ export {
     experiences,
     experiencesLived,
     keyValidation,
-    library,
     logout,
     register,
     story,
-    storyLibrary,
     tokenValidation,
     upload,
 }

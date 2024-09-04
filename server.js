@@ -15,7 +15,7 @@ import chalk from 'chalk'
 import MyLife from './inc/js/mylife-agent-factory.mjs'
 //	constants/variables
 // @todo - parse environment variables in Globals and then have them available via as values
-const version = '0.0.18'
+const version = '0.0.19'
 const app = new Koa()
 const port = JSON.parse(process.env.PORT ?? '3000')
 const __filename = fileURLToPath(import.meta.url)

@@ -14,17 +14,19 @@ import {
     submit,
     toggleMemberInput,
     toggleVisibility,
+    unsetActiveItem,
 } from './members.mjs'
 import Globals from './globals.mjs'
-const mAvailableMimeTypes = [],
-    mAvailableUploaderTypes = ['library', 'personal-avatar', 'personal-biographer', 'resume',],
+const mAvailableCollections = ['entry', 'experience', 'file', 'story'], // ['chat', 'conversation'],
+    mAvailableMimeTypes = [],
+    mAvailableUploaderTypes = ['library', 'personal-avatar'],
     botBar = document.getElementById('bot-bar'),
+    mCollections = document.getElementById('collections-collections'),
+    mCollectionsContainer = document.getElementById('collections-container'),
+    mCollectionsUpload = document.getElementById('collections-upload'),
     mDefaultReliveMemoryButtonText = 'next',
     mDefaultTeam = 'memoir',
     mGlobals = new Globals(),
-    mLibraries = ['entry', 'experience', 'file', 'story'], // ['chat', 'conversation']
-    mLibraryCollections = document.getElementById('library-collections'),
-    mLibraryUpload = document.getElementById('library-upload'),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
     passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`),
@@ -1038,7 +1040,7 @@ function mIsInputCheckbox(element){
  * @returns {void}
  */
 function mOpenStatusDropdown(element){
-    document.querySelectorAll('.bot-container')
+    document.querySelectorAll('.bot-container, .collections-container')
         .forEach(otherContainer=>{
             if(otherContainer!==element){
                 const otherContent = otherContainer.querySelector('.bot-options')
@@ -1049,7 +1051,7 @@ function mOpenStatusDropdown(element){
                     otherDropdown.classList.remove('open')
             }
         })
-        var content = element.querySelector('.bot-options')
+        var content = element.querySelector('.bot-options') // even collections use bot-options
         if(content)
             content.classList.toggle('open')
         var dropdown = element.querySelector('.bot-options-dropdown')
@@ -1064,7 +1066,7 @@ function mOpenStatusDropdown(element){
  * @returns {void}
  */
 async function mRefreshCollection(type, collectionList){
-    if(!mLibraries.includes(type))
+    if(!mAvailableCollections.includes(type))
         throw new Error(`Library collection not implemented.`)
     collectionList = collectionList
         ?? document.getElementById(`collection-list-${ type }`)
@@ -1077,19 +1079,26 @@ async function mReliveMemory(event){
     event.preventDefault()
     event.stopPropagation()
     const { id, inputContent, } = this.dataset
+    /* destroy previous instantiation, if any */
     const previousInput = document.getElementById(`relive-memory-input-container_${id}`)
     if(previousInput)
         expunge(previousInput)
+    /* close popup */
     const popupClose = document.getElementById(`popup-close_${ id }`)
     if(popupClose)
         popupClose.click()
+    toggleMemberInput(false, false, `Reliving memory with `)
+    unsetActiveItem()
     const { command, parameters, messages, success, } = await mReliveMemoryRequest(id, inputContent)
     if(success){
-        addMessages(messages)
+        toggleMemberInput(false, true)
+        addMessages(messages, { bubbleClass: 'relive-bubble' })
         const input = document.createElement('div')
         input.classList.add('memory-input-container')
         input.id = `relive-memory-input-container_${ id }`
         input.name = `input_${ id }`
+        const inputClose = document.createElement('div')
+        inputClose.classList.add('fas', 'fa-close', 'relive-memory-input-close')
         const inputContent = document.createElement('textarea')
         inputContent.classList.add('memory-input')
         inputContent.name = `memory-input_${ id }`
@@ -1097,8 +1106,14 @@ async function mReliveMemory(event){
         inputSubmit.classList.add('memory-input-button')
         inputSubmit.dataset.id = id
         inputSubmit.textContent = mDefaultReliveMemoryButtonText
+        input.appendChild(inputClose)
         input.appendChild(inputContent)
         input.appendChild(inputSubmit)
+        inputClose.addEventListener('click', event=>{
+            event.preventDefault()
+            event.stopPropagation()
+            mStopRelivingMemory(id)
+        }, { once: true })
         inputContent.addEventListener('input', event=>{
             const { value, } = event.target
             inputSubmit.dataset.inputContent = value
@@ -1108,8 +1123,10 @@ async function mReliveMemory(event){
         })
         inputSubmit.addEventListener('click', mReliveMemory, { once: true })
         addInput(input)
-    } else
+    } else {
+        toggleMemberInput(true)
         throw new Error(`Failed to fetch memory for relive request.`)
+    }
 }
 /**
  * 
@@ -1134,6 +1151,21 @@ async function mReliveMemoryRequest(id, memberInput){
         return response
     } catch (error) {
         console.log('Error fetching memory for relive:', error)
+    }
+}
+async function mReliveMemoryRequestStop(id){
+    console.log('Stop reliving memory:', id)
+    try {
+        const url = window.location.origin + '/members/memory/end/' + id
+        let response = await fetch(url, {
+            method: 'PATCH',
+        })
+        if(!response.ok)
+            throw new Error(`HTTP error! Status: ${response.status}`)
+        response = await response.json()
+        return response
+    } catch (error) {
+        console.log('Error stopping relive memory:', error)
     }
 }
 /**
@@ -1255,7 +1287,6 @@ function mSetStatusBar(bot, botContainer){
     }
     botContainer.dataset.status = response.status
     /* title-type */
-    // const botTitle = document.getElementById(`${ type }-title`)
     const botTitleType = document.getElementById(`${ type }-title-type`)
     if(botTitleType){
         response.type = response.type.charAt(0).toUpperCase()
@@ -1347,6 +1378,14 @@ function mSpotlightBotStatus(){
                 mSetStatusBar(bot, botContainer)
             }
         })
+}
+async function mStopRelivingMemory(id){
+    const input = document.getElementById(`relive-memory-input-container_${ id }`)
+    if(input)
+        expunge(input)
+    await mReliveMemoryRequestStop(id)
+    unsetActiveItem()
+    toggleMemberInput(true)
 }
 /**
  * Submit updated `story` data. No need to return unless an error, which is currently thrown.
@@ -1707,6 +1746,38 @@ async function mUpdateBotContainers(includePersonalAvatar=true){
         throw new Error(`No bot containers found on page`)
     botContainers
         .forEach(async botContainer=>mUpdateBotContainer(botContainer, includePersonalAvatar))
+    /* library container */
+    /* attach library collection listeners */
+    // get collections
+    console.log('collections:', mCollections)
+    if(!mCollections || !mCollections.children.length)
+        return
+    for(let collection of mCollections.children){
+        let { id, } = collection
+        id = id.split('-').pop()
+        if(!mAvailableCollections.includes(id)){
+            console.log('Library collection not found.', id)
+            continue
+        }
+        const collectionBar = document.getElementById(`collection-bar-${ id }`)
+        if(collectionBar){
+            const { dataset, } = collectionBar
+            const itemList = document.getElementById(`collection-list-${ id }`)
+            dataset.init = itemList.querySelectorAll(`.${ id }-collection-item`).length > 0
+                    ? 'true' // externally refreshed
+                    : dataset.init // tested empty
+                        ?? 'false'
+            /* update collection list */
+            const refresh = document.getElementById(`collection-refresh-${ id }`)
+            if(dataset.init!=='true' && refresh) // first click
+                hide(refresh)
+            collectionBar.addEventListener('click', mToggleCollectionItems)
+        }
+    }
+    mCollectionsContainer.addEventListener('click', mToggleBotContainers)
+    if(mCollectionsUpload)
+        mCollectionsUpload.addEventListener('click', mUploadFiles)
+
 }
 /**
  * Updates the bot container with specifics.
@@ -1776,35 +1847,6 @@ function mUpdateBotContainerAddenda(botContainer){
             case 'diary':
             case 'journaler':
             case 'personal-biographer':
-                break
-            case 'library':
-                /* attach library collection listeners */
-                if(!mLibraryCollections || !mLibraryCollections.children.length)
-                    return
-                for(let collection of mLibraryCollections.children){
-                    let { id, } = collection
-                    id = id.split('-').pop()
-                    if(!mLibraries.includes(id)){
-                        console.log('Library collection not found.', id)
-                        continue
-                    }
-                    const collectionBar = document.getElementById(`collection-bar-${ id }`)
-                    if(collectionBar){
-                        const { dataset, } = collectionBar
-                        const itemList = document.getElementById(`collection-list-${ id }`)
-                        dataset.init = itemList.querySelectorAll(`.${ id }-collection-item`).length > 0
-                                ? 'true' // externally refreshed
-                                : dataset.init // tested empty
-                                    ?? 'false'
-                        /* update collection list */
-                        const refresh = document.getElementById(`collection-refresh-${ id }`)
-                        if(dataset.init!=='true' && refresh) // first click
-                            hide(refresh)
-                        collectionBar.addEventListener('click', mToggleCollectionItems)
-                    }
-                }
-                if(mLibraryUpload)
-                    mLibraryUpload.addEventListener('click', mUploadFiles)
                 break
             case 'personal-avatar':
                 /* attach avatar listeners */
@@ -1937,7 +1979,7 @@ async function mUpdateTeams(identifier=mDefaultTeam){
  * @requires mAvailableMimeTypes
  * @requires mAvailableUploaderTypes
  * @requires mGlobals
- * @requires mLibraryUpload
+ * @requires mCollectionsUpload
  * @param {Event} event - The event object.
  */
 async function mUploadFiles(event){
@@ -1948,7 +1990,7 @@ async function mUploadFiles(event){
     let fileInput
     try{
         console.log('mUploadFiles()::uploader', document.activeElement)
-        mLibraryUpload.disabled = true
+        mCollectionsUpload.disabled = true
         fileInput = document.createElement('input')
         fileInput.id = `file-input-${ type }`
         fileInput.multiple = true
@@ -1958,10 +2000,10 @@ async function mUploadFiles(event){
         hide(fileInput)
         fileInput.click()
         window.addEventListener('focus', async event=>{
-            await mUploadFilesInput(fileInput, uploadParent, mLibraryUpload)
+            await mUploadFilesInput(fileInput, uploadParent, mCollectionsUpload)
         }, { once: true })
     } catch(error) {
-        mUploadFilesInputRemove(fileInput, uploadParent, mLibraryUpload)
+        mUploadFilesInputRemove(fileInput, uploadParent, mCollectionsUpload)
         console.log('mUploadFiles()::ERROR uploading files:', error)
     }
 }

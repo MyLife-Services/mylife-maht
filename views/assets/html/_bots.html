@@ -205,19 +205,19 @@
             </div>
         </div>
     </div>
-    <div class="bot-container" id="library">
-        <div class="bot-status" id="library-status" name="bot-status">
-            <div class="bot-icon" id="library-icon" name="bot-icon"></div>
-            <div class="bot-title" id="library-title" name="bot-title">Scrapbook</div>
-            <div class="bot-options-dropdown" id="library-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
+    <div class="collections-container" id="collections-container">
+        <div class="collections-titlebar" id="collections-titlebar" name="collections-titlebar">
+            <div class="collections-spacer" id="collections-titlebar-spacer"></div>
+            <div class="collections-title" id="collections-title" name="collections-title">Scrapbook</div>
+            <div class="bot-options-dropdown" id="collections-options-dropdown"></div><!-- drop-down caret to trigger slide-down of container below -->
         </div>
-        <div class="bot-options hidden" id="library-options" name="bot-options">
+        <div class="bot-options hidden" id="collections-options" name="collections-options">
             <!-- Bot Name -->
-            <div class="input-group" id="library-bot-description">
-                Click a category to browse your library.
+            <div class="input-group" id="collections-description">
+                Click a category to browse your scrapbook items.
             </div>
-            <div id="library-collections" class="collections"><!-- from here _could_ be dynamic, not just listing -->
-                <div id="collection-story" class="collection library-collection story-collection">
+            <div id="collections-collections" class="collections"><!-- from here _could_ be dynamic, not just listing -->
+                <div id="collection-story" class="collection story-collection">
                     <div id="collection-bar-story" class="collection-bar">
                         <div id="collection-icon-story" class="collection-icon collection-icon story-icon"></div>
                         <div id="collection-title-story" class="collection-title collection-title story-title">Memories</div>
@@ -228,7 +228,7 @@
                         <div class="collection-item story-item">None</div>
                     </div>
                 </div>
-                <div id="collection-file" class="collection library-collection file-collection">
+                <div id="collection-file" class="collection file-collection">
                     <div id="collection-bar-file" class="collection-bar">
                         <div id="collection-icon-file" class="collection-icon collection-icon"></div>
                         <div id="collection-title-file" class="collection-title collection-title">Files</div>
@@ -241,7 +241,7 @@
                 </div>
             </div>
             <!-- bot buttons -->
-            <button id="library-upload" class="button upload library-upload" name="bot-upload">Upload</button>
+            <button id="collections-upload" class="button upload collections-upload" name="bot-upload">Upload</button>
         </div>
     </div>
 </div>
