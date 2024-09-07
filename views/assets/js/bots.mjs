@@ -6,7 +6,6 @@ import {
     addMessages,
     decorateActiveBot,
     expunge,
-    expunge,
     fetchSummary,
     hide,
     seedInput,
