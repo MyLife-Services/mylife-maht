@@ -199,6 +199,8 @@ async function item(ctx){
 	const { globals, } = avatar
 	const { method, } = ctx.request
 	const item = ctx.request.body
+	if(!item || typeof item !== 'object' || !Object.keys(item).length)
+		ctx.throw(400, `missing item data`)
 	item.id = id
 	ctx.body = await avatar.item(item, method)
 }
