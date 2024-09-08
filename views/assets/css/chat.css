@@ -60,10 +60,24 @@
 	margin-right: 0.5em;
 }
 .chat-active-item-text {
+	align-items: center;
     color: aliceblue;
     display: flex;
     flex: 1 0 auto;
+	max-height: 1.2rem;
     max-width: 80%;
+}
+.chat-active-item-text-active {
+	color: #e9eb5c;
+	font-weight: bold;
+	margin-right: 0.9rem;
+}
+.chat-active-item-text-title {
+	align-self: self-start;
+	color: gainsboro;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .chat-bubble {
     background-color: #3427ec; /* Assuming a dark bubble color */

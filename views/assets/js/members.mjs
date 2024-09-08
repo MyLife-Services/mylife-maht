@@ -270,7 +270,19 @@ function setActiveItem(item){
     const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
     const chatActiveItemClose = document.getElementById('chat-active-item-close')
     if(chatActiveItemTitleText){
-        chatActiveItemTitleText.innerHTML = `<b>Active</b>: ${ title }`
+        chatActiveItemTitleText.innerHTML = ''
+        const activeActive = document.createElement('div')
+        activeActive.classList.add('chat-active-item-text-active')
+        activeActive.id = `chat-active-item-text-active`
+        activeActive.innerHTML = `Active:`
+        const activeTitle = document.createElement('div')
+        activeTitle.classList.add('chat-active-item-text-title')
+        activeTitle.id = `chat-active-item-text-title`
+        activeTitle.innerHTML = title
+        /* append children */
+        chatActiveItemTitleText.appendChild(activeActive)
+        chatActiveItemTitleText.appendChild(activeTitle)
+        chatActiveItemTitleText.dataset.itemId = itemId
         chatActiveItemTitleText.dataset.popupId = popup.id
         chatActiveItemTitleText.dataset.title = title
         chatActiveItemTitleText.addEventListener('click', mToggleItemPopup)
@@ -281,6 +293,25 @@ function setActiveItem(item){
     chatActiveItem.dataset.id = id
     chatActiveItem.dataset.itemId = itemId
     show(chatActiveItem)
+}
+/**
+ * Sets the active item title in the chat system, display-only.
+ * @public
+ * @param {string} title - The title to set.
+ * @param {Guid} itemId - The item ID.
+ * @returns {void}
+ */
+function setActiveItemTitle(title, itemId){
+    const chatActiveItemText = document.getElementById('chat-active-item-text')
+    if(!chatActiveItemText)
+        throw new Error('setActiveItemTitle::Error()::`chatActiveItemText` is required')
+    const chatActiveItemTitle = document.getElementById('chat-active-item-text-title')
+    if(!chatActiveItemTitle)
+        throw new Error('setActiveItemTitle::Error()::`chatActiveItemTitle` is required')
+    const { itemId: id, } = chatActiveItemText.dataset
+    if(id!==itemId)
+        throw new Error('setActiveItemTitle::Error()::`itemId`\'s do not match')
+    chatActiveItemTitle.innerHTML = title
 }
 /**
  * Proxy for Globals.show().
@@ -775,6 +806,7 @@ export {
     seedInput,
     setActiveBot,
     setActiveItem,
+    setActiveItemTitle,
     show,
     showMemberChat,
     showSidebar,

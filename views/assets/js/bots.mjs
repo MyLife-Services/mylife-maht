@@ -10,6 +10,7 @@ import {
     hide,
     seedInput,
     setActiveItem,
+    setActiveItemTitle,
     show,
     submit,
     toggleMemberInput,
@@ -352,12 +353,13 @@ function mCreateCollectionItem(collectionItem){
     /* popup */
     switch(type){
         case 'file':
-            /* file-summary button */
+            /* file-summary popup */
             break
         default:
             const itemPopup = mCreateCollectionPopup(collectionItem)
             item.appendChild(itemPopup)
             item.addEventListener('click', mTogglePopup)
+            item.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
             break
     }
     return item
@@ -586,7 +588,7 @@ function mCreateCollectionPopup(collectionItem) {
     popupSave.id = `popup-save_${ id }`
     popupSave.dataset.id = id
     popupSave.dataset.contentId = popupContent.id
-    popupSave.addEventListener('click', mSetCollectionItem)
+    popupSave.addEventListener('click', mUpdateCollectionItem)
     /* toggle-edit listeners */
     popupEdit.addEventListener('click', (event)=>{
         const { target: editIcon,} = event
@@ -1300,34 +1302,13 @@ function mSetStatusBar(bot, botContainer){
     return response
 }
 /**
- * Sets collection item content.
- * @private
- * @async
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function mSetCollectionItem(event){
-    event.stopPropagation()
-    const { contentId, id, } = this.dataset
-    const contentElement = document.getElementById(contentId)
-    if(!contentElement)
-        throw new Error(`No content found for collection item update.`)
-    const { dataset, } = contentElement
-    const { emoticons=[], lastUpdatedContent, } = dataset
-    const { value: content, } = contentElement
-    if(content!=lastUpdatedContent && await mSetCollectionItemOnServer(id, content, emoticons))
-        contentElement.dataset.lastUpdatedContent = content
-    else
-        contentElement.value = lastUpdatedContent
-}
-/**
  * Sets collection item content on server.
  * @private
  * @async
  * @param {Event} event - The event object.
  * @returns {void}
  */
-async function mSetCollectionItemOnServer(id, content, emoticons){
+async function mSetCollectionItem(id, content, emoticons){
     const summary = content
     const url = window.location.origin + '/members/item/' + id
     const method = 'PUT'
@@ -1343,6 +1324,32 @@ async function mSetCollectionItemOnServer(id, content, emoticons){
     response = await response.json()
     return response?.success
         ?? false
+}
+/**
+ * Sets collection item title on server.
+ * @param {Guid} id - The collection item id.
+ * @param {string} title - The title to set.
+ * @returns {boolean} - Whether or not the title was set.
+ */
+async function mSetCollectionItemTitle(id, title){
+    if(!title?.length)
+        throw new Error(`No title provided for title update`)
+    const url = window.location.origin + '/members/item/' + id
+    const method = 'PUT'
+    let response = await fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, title, })
+    })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    response = await response.json()
+    if(!response.success || response.item?.title!==title)
+        throw new Error(`Title "${ title }" not accepted.`)
+    console.log('Set collection item title response:', title, response.item)
+    return true
 }
 /**
  * Highlights bot bar icon of active bot.
@@ -1747,9 +1754,6 @@ async function mUpdateBotContainers(includePersonalAvatar=true){
     botContainers
         .forEach(async botContainer=>mUpdateBotContainer(botContainer, includePersonalAvatar))
     /* library container */
-    /* attach library collection listeners */
-    // get collections
-    console.log('collections:', mCollections)
     if(!mCollections || !mCollections.children.length)
         return
     for(let collection of mCollections.children){
@@ -1881,6 +1885,73 @@ function mUpdateCollection(type, collectionList, collection){
         .forEach(item=>{
             collectionList.appendChild(mCreateCollectionItem(item))
         })
+}
+
+/**
+ * Sets collection item content.
+ * @private
+ * @async
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+async function mUpdateCollectionItem(event){
+    event.stopPropagation()
+    const { contentId, id, } = this.dataset
+    const contentElement = document.getElementById(contentId)
+    if(!contentElement)
+        throw new Error(`No content found for collection item update.`)
+    const { dataset, } = contentElement
+    const { emoticons=[], lastUpdatedContent, } = dataset
+    const { value: content, } = contentElement
+    if(content!=lastUpdatedContent && await mSetCollectionItem(id, content, emoticons))
+        contentElement.dataset.lastUpdatedContent = content
+    else
+        contentElement.value = lastUpdatedContent
+}
+function mUpdateCollectionItemTitle(event){
+    event.stopPropagation()
+    const span = event.target
+    const { id, } = span
+    const itemId = id.split('_').pop()
+    /* make title editable */
+    // @stub - check for other active inputs and trigger them closed without save
+    /* create input */
+    const input = document.createElement('input')
+    input.id = `collection-item-title-input_${ itemId }`
+    input.name = 'collection-item-title-input'
+    input.type = 'text'
+    input.value = span.textContent
+    input.className = span.className
+    /* replace span with input */
+    span.replaceWith(input)
+    /* add listeners */
+    input.addEventListener('keydown', (event)=>{
+        if(event.key==='Enter')
+            input.blur()
+        else if(event.key==='Escape'){
+            input.value = span.textContent
+            input.blur()
+        }
+    })
+    input.addEventListener('blur', async event=>{
+        if(input.value.length && input.value!==span.textContent){
+            /* update server */
+            console.log('Update title:', itemId, input.value)
+            if(await mSetCollectionItemTitle(itemId, input.value)){
+                const title = input.value
+                // if successful update title in all sub-locations (including activeItem in members)
+                span.textContent = title
+                setActiveItemTitle(title, itemId)
+                const popupHeader = document.getElementById(`popup-header_${ itemId }`)
+                if(popupHeader)
+                    popupHeader.textContent = title
+            }
+        }
+        input.replaceWith(span)
+        input.remove()
+        span.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
+    }, { once: true })
+    input.focus()
 }
 /**
  * Update the bot interests checkbox structure with specifics.

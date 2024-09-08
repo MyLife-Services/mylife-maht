@@ -199,9 +199,16 @@ async function item(ctx){
 	const { globals, } = avatar
 	const { method, } = ctx.request
 	const item = ctx.request.body
+	/* validate payload */
+	if(!id?.length)
+		ctx.throw(400, `missing item id`)
 	if(!item || typeof item !== 'object' || !Object.keys(item).length)
 		ctx.throw(400, `missing item data`)
-	item.id = id
+	const { id: itemId, } = item
+	if(itemId && itemId!==id) // ensure item.id is set to id
+		throw new Error(`item.id must match /:iid`)
+	else if(!itemId)
+		item.id = id
 	ctx.body = await avatar.item(item, method)
 }
 async function logout(ctx){
