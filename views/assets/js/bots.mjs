@@ -406,7 +406,7 @@ async function mMemoryShadow(event){
     switch(type){
         case 'agent': /* agent shadows go directly to server for answer */
             addMessage(text, { role: 'member', })
-            const response = await submit(text, { itemId, shadowId, }) /* proxy submission, use endpoint: /shadow */
+            const response = await submit(text) /* proxy submission, use endpoint: /shadow */
             const { error, errors: _errors, itemId: responseItemId, messages, processingBotId, success=false, } = response
             const errors = error?.length ? [error] : _errors
             if(!success || !messages?.length)

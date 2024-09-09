@@ -299,6 +299,26 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                         if(itemId)
                             item = await factory.item(itemId)
                         switch(name.toLowerCase()){
+                            case 'changetitle':
+                            case 'change_title':
+                            case 'change title':
+                                console.log('mRunFunctions()::changeTitle', toolArguments)
+                                const { itemId: titleItemId, title, } = toolArguments
+                                if(!itemId?.length || !title?.length || itemId!==titleItemId)
+                                    action = 'apologize for lack of clarity - member should click on the collection item (like a memory, story, etc) to make it active so I can use the `changeTitle` tool'
+                                else {
+                                    let item = { id: titleItemId, title, }
+                                    await avatar.item(item, 'put')
+                                    action = `Relay that title change to "${ title }" was successful`
+                                    avatar.frontendInstruction = {
+                                        command: 'updateItemTitle',
+                                        itemId: titleItemId,
+                                        title,
+                                    }
+                                    success = true
+                                }
+                                confirmation.output = JSON.stringify({ action, success, })
+                                return confirmation
                             case 'confirmregistration':
                             case 'confirm_registration':
                             case 'confirm registration':
@@ -309,9 +329,10 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
                                 else if(!registrationId?.length)
                                     action = `No registrationId provided, continue discussing MyLife organization but forget all current registration data`
-                                else if(await factory.confirmRegistration(confirmEmail, registrationId))
+                                else if(await factory.confirmRegistration(confirmEmail, registrationId)){
                                     action = `congratulate on registration (**important** remember registrationId=${ registrationId }) and get required member data for follow-up: date of birth, initial account passphrase.`
-                                else
+                                    success = true
+                                } else
                                     action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization; forget all current registration data.'
                                 confirmation.output = JSON.stringify({ action, success, })
                                 return confirmation
