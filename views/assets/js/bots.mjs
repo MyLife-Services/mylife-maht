@@ -7,6 +7,7 @@ import {
     decorateActiveBot,
     expunge,
     fetchSummary,
+    getActiveItemId,
     hide,
     seedInput,
     setActiveItem,
@@ -940,8 +941,11 @@ async function mDeleteCollectionItem(event){
         const method = 'DELETE'
         let response = await fetch(url, { method: method })
         response = await response.json()
-        if(response) // delete item from collection
+        if(response){
             expunge(item)
+            if(getActiveItemId()===id)
+                unsetActiveItem()
+        }
     } else
         item.addEventListener('click', mDeleteCollectionItem, { once: true })
 }
