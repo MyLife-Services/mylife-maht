@@ -15,9 +15,9 @@ import chalk from 'chalk'
 import MyLife from './inc/js/mylife-agent-factory.mjs'
 //	constants/variables
 // @todo - parse environment variables in Globals and then have them available via as values
-const version = '0.0.20'
+const version = '0.0.21'
 const app = new Koa()
-const port = JSON.parse(process.env.PORT ?? '3000')
+const port = process.env.PORT ?? '3000'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const _Maht = await MyLife // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
