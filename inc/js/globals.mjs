@@ -3,6 +3,29 @@ import EventEmitter from 'events'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 /* constants */
 const mAiJsFunctions = {
+	changeTitle: {
+		description: 'Change the title of a memory summary in the database for an itemId',
+		name: 'changeTitle',
+		parameters: {
+			type: 'object',
+			properties: {
+				itemId: {
+					description: 'itemId of memory item to update',
+					format: 'uuid',
+					type: 'string'
+				},
+				title: {
+					description: 'The new title for the summary',
+					maxLength: 256,
+					type: 'string'
+				}
+			},
+			required: [
+				'itemId',
+				'title'
+			]
+		}
+	},
 	entrySummary: {
 		description: 'Generate a JOURNAL ENTRY `entry` summary with keywords and other critical data elements.',
 		name: 'entrySummary',

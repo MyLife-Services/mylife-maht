@@ -270,7 +270,19 @@ function setActiveItem(item){
     const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
     const chatActiveItemClose = document.getElementById('chat-active-item-close')
     if(chatActiveItemTitleText){
-        chatActiveItemTitleText.innerHTML = `<b>Active</b>: ${ title }`
+        chatActiveItemTitleText.innerHTML = ''
+        const activeActive = document.createElement('div')
+        activeActive.classList.add('chat-active-item-text-active')
+        activeActive.id = `chat-active-item-text-active`
+        activeActive.innerHTML = `Active:`
+        const activeTitle = document.createElement('div')
+        activeTitle.classList.add('chat-active-item-text-title')
+        activeTitle.id = `chat-active-item-text-title`
+        activeTitle.innerHTML = title
+        /* append children */
+        chatActiveItemTitleText.appendChild(activeActive)
+        chatActiveItemTitleText.appendChild(activeTitle)
+        chatActiveItemTitleText.dataset.itemId = itemId
         chatActiveItemTitleText.dataset.popupId = popup.id
         chatActiveItemTitleText.dataset.title = title
         chatActiveItemTitleText.addEventListener('click', mToggleItemPopup)
@@ -281,6 +293,25 @@ function setActiveItem(item){
     chatActiveItem.dataset.id = id
     chatActiveItem.dataset.itemId = itemId
     show(chatActiveItem)
+}
+/**
+ * Sets the active item title in the chat system, display-only.
+ * @public
+ * @param {string} title - The title to set.
+ * @param {Guid} itemId - The item ID.
+ * @returns {void}
+ */
+function setActiveItemTitle(title, itemId){
+    const chatActiveItemText = document.getElementById('chat-active-item-text')
+    if(!chatActiveItemText)
+        throw new Error('setActiveItemTitle::Error()::`chatActiveItemText` is required')
+    const chatActiveItemTitle = document.getElementById('chat-active-item-text-title')
+    if(!chatActiveItemTitle)
+        throw new Error('setActiveItemTitle::Error()::`chatActiveItemTitle` is required')
+    const { itemId: id, } = chatActiveItemText.dataset
+    if(id!==itemId)
+        throw new Error('setActiveItemTitle::Error()::`itemId`\'s do not match')
+    chatActiveItemTitle.innerHTML = title
 }
 /**
  * Proxy for Globals.show().
@@ -369,6 +400,7 @@ function waitForUserAction(){
  * @todo - normalize return from backend so no need for special processing.
  * @private
  * @async
+ * @requires chatInputField
  * @param {Event} event - The event object.
  * @returns {Promise<void>}
  */
@@ -386,31 +418,27 @@ async function mAddMemberMessage(event){
         typeDelay: 7,
     })
     /* server request */
-    let messages,
-        response = await submit(memberMessage)
-    /* special processing cases */
-    // @stub - special processing cases remove
-    if(!Array.isArray(response)){
-        switch(typeof response){
-            case 'object':
-                const { itemId, messages: responseMessages, processingBotId, success, } = response
-                if(processingBotId?.length && processingBotId!=activeBot().id)
-                    setActiveBot(processingBotId)
-                messages = responseMessages
+    const response = await submit(memberMessage)
+    let { instruction, responses, success, } = response
+    /* process instructions */
+    if(instruction?.command?.length){
+        switch(instruction.command){
+            case 'updateItemTitle':
+                const { title, itemId, } = instruction
+                if(title?.length && itemId?.length){
+                    setActiveItemTitle(title, itemId)
+                    refreshCollection('story') // force-refresh memories; could be more savvy
+                }
                 break
-            case 'boolean': // pass-through intentional
-            case 'number':
-                response = response.toString()
-            case 'string':
-                messages = [{ message: response }]
+            case 'experience':
                 break
             default:
-                throw new Error('mAddMemberMessage::Error()::`response` is indecipherable')
+                refreshCollection('story') // refresh memories
+                break
         }
-    } else
-        messages = response
+    }
     /* process response */
-	messages
+	responses
         .forEach(message => {
             mAddMessage(message.message ?? message.content, {
                 bubbleClass: 'agent-bubble',
@@ -643,6 +671,22 @@ function mStageTransitionMember(includeSidebar=true){
 async function submit(message, hideMemberChat=true){
 	if(!message?.length)
 		throw new Error('submit(): `message` argument is required')
+    if(hideMemberChat)
+        toggleMemberInput(false)
+	const chatResponse = await mSubmitChat(message)
+    if(hideMemberChat)
+        toggleMemberInput(true)
+    return chatResponse
+}
+/**
+ * Submits message to chat service.
+ * @private
+ * @async
+ * @requires chatActiveItem
+ * @param {string} message - The message to submit to the server.
+ * @returns {void}
+ */
+async function mSubmitChat(message) {
     const { action, itemId, shadowId, } = chatActiveItem.dataset
 	const url = window.location.origin + '/members'
     const { id: botId, } = activeBot()
@@ -654,30 +698,33 @@ async function submit(message, hideMemberChat=true){
 			role: 'member',
             shadowId,
 		}
-	const options = {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify(request),
-	}
-    if(hideMemberChat)
-        toggleMemberInput(false)
-	const chatResponse = await submitChat(url, options)
-    /* clear dataset */
-    delete chatActiveItem.dataset.shadowId // shadow one-run only
-    if(hideMemberChat)
-        toggleMemberInput(true)
-    return chatResponse
-}
-async function submitChat(url, options) {
+    const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+    }
+    let response
 	try {
-		const response = await fetch(url, options)
-		const jsonResponse = await response.json()
-		return jsonResponse
-	} catch(error) {
-		console.log('fatal error', error)
-		return alert(`Error: ${error.message}`)
+		response = await fetch(url, options)
+        if(!response.ok)
+            throw new Error('Network response was not ok')
+		response = await response.json()
+        /* validate response */
+        if(typeof response!=='object' || !response?.success){
+            console.log('Chat Request Failed', response)
+            throw new Error('Chat Request Failed on Server')
+        }
+        if(!response?.responses?.length){
+            console.log('No Responses from Server', response)
+            /* add error default message */
+            response.responses = [{ message: 'I\'m sorry, Something happened with my server connection, please type `try again` to try again.', role: 'agent' }]
+        }
+		return response
+	} catch (err) {
+		console.log('fatal error', err, response)
+		return alert(`Error: ${ err.message }`)
 	}
 }
 /**
@@ -775,6 +822,7 @@ export {
     seedInput,
     setActiveBot,
     setActiveItem,
+    setActiveItemTitle,
     show,
     showMemberChat,
     showSidebar,

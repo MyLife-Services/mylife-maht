@@ -14,8 +14,7 @@ let mAvatarNameEdited = false,
     mChatBubbleCount = 0,
     mDefaultTypeDelay = 7,
     mPageType = null,
-    mSignupType = 'newsletter',
-    threadId = null
+    mSignupType = 'newsletter'
 /* page div variables */
 let awaitButton,
     agentSpinner,
@@ -411,6 +410,45 @@ async function mSubmitChallenge(event){
     }
 }
 /**
+ * Submits message to chat service.
+ * @param {string} message - The message to submit to the server.
+ * @returns {void}
+ */
+async function mSubmitChat(message) {
+    const url = window.location.origin
+    const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message,
+            role: 'user',
+        }),
+    }
+    let response
+	try {
+		response = await fetch(url, options)
+        if(!response.ok)
+            throw new Error('Network response was not ok')
+		response = await response.json()
+        /* validate response */
+        if(typeof response!=='object' || !response?.success){
+            console.log('Chat Request Failed', response)
+            throw new Error('Chat Request Failed on Server')
+        }
+        if(!response?.responses?.length){
+            console.log('No Responses from Server', response)
+            /* add error default message */
+            response.responses = [{ message: 'I\'m sorry, Something happened with my server connection, please type `try again` to try again.', role: 'agent' }]
+        }
+		return response
+	} catch (err) {
+		console.log('fatal error', err, response)
+		return alert(`Error: ${ err.message }`)
+	}
+}
+/**
  * Submits a passphrase to the server.
  * @param {string} url - The url to submit the passphrase to.
  * @param {object} options - The options for the fetch request.
@@ -434,26 +472,12 @@ async function mSubmitPassphrase(url, options) {
 async function mSubmitInput(event, message){
     if(!message)
         return
+    event.stopPropagation()
 	event.preventDefault()
-	const url = window.location.origin
-    const thread_id = threadId ?? null
-	const options = {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-            message,
-            role: 'user',
-            thread_id,
-        }),
-	}
     hide(chatUser)
     show(awaitButton)
-	const _gptChat = await submitChat(url, options)
-	// now returns array of messages
-	_gptChat.forEach(gptMessage=>{
-		threadId = gptMessage.thread_id
+	const response = await mSubmitChat(message)
+	response.responses.forEach(gptMessage=>{
 		mAddMessage(gptMessage.message)
 	})
     hide(awaitButton)
@@ -461,16 +485,6 @@ async function mSubmitInput(event, message){
     chatInput.placeholder = mPlaceholder
     mToggleInputTextarea()
     show(chatUser)
-}
-async function submitChat(url, options) {
-	try {
-		const response = await fetch(url, options)
-		const jsonResponse = await response.json()
-		return jsonResponse
-	} catch (err) {
-		console.log('fatal error', err)
-		return alert(`Error: ${err.message}`)
-	}
 }
 /**
  * Submits the signup form to the server.

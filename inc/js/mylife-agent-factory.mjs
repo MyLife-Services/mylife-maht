@@ -1408,7 +1408,10 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 	switch(type){
 		case 'diary':
 		case 'journaler':
-			tools.push(globals.getGPTJavascriptFunction('entrySummary'))
+			tools.push(
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('entrySummary'),
+			)
 			includeSearch = true
 			break
 		case 'personal-assistant':
@@ -1417,9 +1420,10 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 			break
 		case 'personal-biographer':
 			tools.push(
-				globals.getGPTJavascriptFunction('storySummary'),
+				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
-				globals.getGPTJavascriptFunction('updateSummary')
+				globals.getGPTJavascriptFunction('updateSummary'),
+				globals.getGPTJavascriptFunction('storySummary'),
 			)
 			includeSearch = true
 			break
@@ -1650,10 +1654,10 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		botData.version = version /* omitted from llm, but appears on updateBot */
 	}
 	if(updateTools){
-		console.log('mUpdateBot', vectorstoreId)
 		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 		botData.tools = tools
 		botData.tool_resources = tool_resources
+		console.log('mUpdateBot', botData.tools, botData.tool_resources, vectorstoreId)
 	}
 	if(updateModel)
 		botData.model = factory.globals.currentOpenAIBotModel
