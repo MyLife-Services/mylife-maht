@@ -1,20 +1,18 @@
-//	*imports
+/** imports **/
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-//	server
+/* server imports */
 import Koa from 'koa'
 import { koaBody } from 'koa-body'
 import render from 'koa-ejs'
 import session from 'koa-generic-session'
 import serve from 'koa-static'
-//	import Router from 'koa-router'
-//	misc
+/* misc imports */
 import chalk from 'chalk'
-//	local services
+/* local service imports */
 import MyLife from './inc/js/mylife-agent-factory.mjs'
-//	constants/variables
-// @todo - parse environment variables in Globals and then have them available via as values
+/** variables **/
 const version = '0.0.21'
 const app = new Koa()
 const port = process.env.PORT ?? '3000'
@@ -27,7 +25,7 @@ _Maht.version = version
 console.log(chalk.bgBlue('created-core-entity:'), _Maht.version)
 const MemoryStore = new session.MemoryStore()
 const mimeTypesToExtensions = {
-	// Text Formats
+	/* text formats */
 	'text/plain': ['.txt', '.markdown', '.md', '.csv', '.log',], // Including Markdown (.md) as plain text
 	'text/html': ['.html', '.htm'],
 	'text/css': ['.css'],
@@ -36,7 +34,7 @@ const mimeTypesToExtensions = {
 	'application/json': ['.json'],
 	'application/javascript': ['.js'],
 	'application/xml': ['.xml'],
-    // Image Formats
+    /* image formats */
     'image/jpeg': ['.jpg', '.jpeg'],
     'image/png': ['.png'],
     'image/gif': ['.gif'],
@@ -45,7 +43,7 @@ const mimeTypesToExtensions = {
     'image/tiff': ['.tiff', '.tif'],
     'image/bmp': ['.bmp'],
     'image/x-icon': ['.ico'],
-    // Document Formats
+    /* document formats */
     'application/pdf': ['.pdf'],
     'application/msword': ['.doc'],
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
@@ -57,14 +55,14 @@ const mimeTypesToExtensions = {
     'application/vnd.oasis.opendocument.text': ['.odt'],
     'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
     'application/vnd.oasis.opendocument.presentation': ['.odp'],
-	// Audio Formats
+	/* audio formats */
 	'audio/mpeg': ['.mp3'],
 	'audio/vorbis': ['.ogg'], // Commonly .ogg can also be used for video
 	'audio/x-wav': ['.wav'],
 	'audio/webm': ['.weba'],
 	'audio/aac': ['.aac'],
 	'audio/flac': ['.flac'],
-    // Video Formats
+    /* video formats */
     'video/mp4': ['.mp4'],
     'video/x-msvideo': ['.avi'],
     'video/x-ms-wmv': ['.wmv'],
@@ -73,12 +71,11 @@ const mimeTypesToExtensions = {
     'video/ogg': ['.ogv'],
     'video/x-flv': ['.flv'],
     'video/quicktime': ['.mov'],
-    // Add more MIME categories, types, and extensions as needed
 }
 const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT')))
-//	test harness region
-//	koa-ejs
+/** RESERVED: test harness **/
+/** application startup **/
 render(app, {
 	root: path.join(__dirname, 'views'),
 	layout: 'layout',
@@ -86,20 +83,16 @@ render(app, {
 	cache: false,
 	debug: false,
 })
-// Set an interval to check for alerts every minute (60000 milliseconds)
 setInterval(checkForLiveAlerts, JSON.parse(process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL ?? '60000'))
-//	app bootup
 /* upload directory */
 const uploadDir = path.join(__dirname, '.tmp')
 if(!fs.existsSync(uploadDir)){
 	fs.mkdirSync(uploadDir, { recursive: true })
 }
-//	app context (ctx) modification
 app.context.MyLife = _Maht
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
 app.keys = [process.env.MYLIFE_SESSION_KEY ?? `mylife-session-failsafe|${_Maht.newGuid()}`]
-// Enable Koa body w/ configuration
 app.use(koaBody({
     multipart: true,
     formidable: {
@@ -184,7 +177,7 @@ app.use(koaBody({
 	.listen(port, () => {	//	start the server
 		console.log(chalk.bgGreenBright('server available')+chalk.yellow(`\nlistening on port ${port}`))
 	})
-// Example of a periodic alert check function
+/** server functions **/
 function checkForLiveAlerts() {
     console.log("Checking for live alerts...")
 	_Maht.getAlerts()	
