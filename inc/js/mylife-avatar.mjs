@@ -91,7 +91,7 @@ class Avatar extends EventEmitter {
      * @param {number} processStartTime - The start time of the process.
      * @returns {object} - The response(s) to the chat request.
     */
-    async chatRequest(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
+    async chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
         if(!message)
             throw new Error('No message provided in context')
         if(!activeBotId)
@@ -119,18 +119,24 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
+            console.log('chat::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
         /* frontend mutations */
         const { activeBot: bot } = this
         // current fe will loop through messages in reverse chronological order
-        const chat = conversation.messages
+        const responses = conversation.messages
             .filter(_message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
                 return messages.find(__message=>__message.id===_message.id)
                     && _message.type==='chat'
                     && _message.role!=='user'
             })
             .map(_message=>mPruneMessage(bot, _message, 'chat', processStartTime))
-        return chat
+        const response = {
+            instruction: this.frontendInstruction,
+            responses,
+            success: true,
+        }
+        delete this.frontendInstruction
+        return response
     }
     /**
      * Get member collection items.
@@ -381,7 +387,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('chatRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('help::BYPASS-SAVE', conversation.message.content)
         const response = mPruneMessages(this.activeBot, helpResponseArray, 'help', processStartTime)
         return response
     }
@@ -1177,7 +1183,7 @@ class Q extends Avatar {
      * @param {number} processStartTime - The start time of the process.
      * @returns {object} - The response(s) to the chat request.
     */
-    async chatRequest(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
+    async chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
         conversation = conversation
             ?? this.getConversation(threadId)
         if(!conversation)
@@ -1189,7 +1195,7 @@ class Q extends Avatar {
         if(this.isCreatingAccount)
             message = `CREATE ACCOUNT PHASE: ${ message }`
         activeBotId = this.activeBotId
-        return super.chatRequest(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime)
+        return super.chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime)
     }
     upload(){
         throw new Error('MyLife avatar cannot upload files.')

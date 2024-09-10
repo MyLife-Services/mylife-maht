@@ -91,6 +91,9 @@ async function challenge(ctx){
  * Chat with the member's avatar.
  * @todo - deprecate threadId in favor of thread_id
  * @param {Koa} ctx - Koa Context object
+ * @returns {object} - The response from the chat in `ctx.body`
+ * @property {object} instruction - Instructionset for the frontend to execute (optional)
+ * @property {Object[]} responses - Response messages from Avatar intelligence
  */
 async function chat(ctx){
 	const { botId, itemId, message, shadowId, } = ctx.request.body ?? {} /* body nodes sent by fe */
@@ -103,7 +106,7 @@ async function chat(ctx){
 		conversation = await avatar.createConversation('system', undefined, botId, true) // pushes to this.#conversations in Avatar
 		MemberSession.thread_id = conversation.thread_id
 	}
-	const response = await avatar.chatRequest(message, botId, MemberSession.thread_id, itemId, shadowId, conversation)
+	const response = await avatar.chat(message, botId, MemberSession.thread_id, itemId, shadowId, conversation)
 	ctx.body = response
 }
 async function collections(ctx){
@@ -199,7 +202,16 @@ async function item(ctx){
 	const { globals, } = avatar
 	const { method, } = ctx.request
 	const item = ctx.request.body
-	item.id = id
+	/* validate payload */
+	if(!id?.length)
+		ctx.throw(400, `missing item id`)
+	if(!item || typeof item !== 'object' || !Object.keys(item).length)
+		ctx.throw(400, `missing item data`)
+	const { id: itemId, } = item
+	if(itemId && itemId!==id) // ensure item.id is set to id
+		throw new Error(`item.id must match /:iid`)
+	else if(!itemId)
+		item.id = id
 	ctx.body = await avatar.item(item, method)
 }
 async function logout(ctx){
