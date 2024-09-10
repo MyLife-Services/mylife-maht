@@ -21,6 +21,8 @@ import {
     members,
     passphraseReset,
     privacyPolicy,
+    retireBot,
+    retireChat,
     shadows,
     signup,
     summarize,
@@ -117,6 +119,8 @@ _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
+_memberRouter.post('/retire/bot/:bid', retireBot)
+_memberRouter.post('/retire/chat/:tid', retireChat)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)
@@ -141,10 +145,12 @@ function connectRoutes(_Menu){
  * @param {function} next Koa next function
  * @returns {function} Koa next function
  */
-async function memberValidation(ctx, next) {
-    if(ctx.state?.locked ?? true)
+async function memberValidation(ctx, next){
+    const { locked=true, } = ctx.state
+    if(locked)
         ctx.redirect(`/?type=select`) // Redirect to /members if not authorized
-    await next() // Proceed to the next middleware if authorized
+    else
+        await next() // Proceed to the next middleware if authorized
 }
 /**
  * Returns the member session logged in status

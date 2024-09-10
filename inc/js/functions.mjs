@@ -241,10 +241,38 @@ async function passphraseReset(ctx){
 		ctx.throw(400, `passphrase required for reset`)
 	ctx.body = await avatar.resetPassphrase(passphrase)
 }
+/**
+ * Display the privacy policy page - ensure it can work in member view.
+ * @param {Koa} ctx - Koa Context object
+ */
 async function privacyPolicy(ctx){
 	ctx.state.title = `MyLife Privacy Policy`
 	ctx.state.subtitle = `Effective Date: 2024-01-01`
 	await ctx.render('privacy-policy')	//	privacy-policy
+}
+/**
+ * Direct request from member to retire a bot.
+ * @param {Koa} ctx - Koa Context object
+ */
+async function retireBot(ctx){
+	const { avatar, } = ctx.state
+	const { bid, } = ctx.params // bot id
+	if(!ctx.Globals.isValidGuid(bid))
+		ctx.throw(400, `missing bot id`)
+	response = await avatar.retireBot(bid)
+	ctx.body = response
+}
+/**
+ * Direct request from member to retire a conversation/chat/thread.
+ * @param {Koa} ctx - Koa Context object
+ */
+async function retireChat(ctx){
+	const { avatar, } = ctx.state
+	const { tid, } = ctx.params // thread_id
+	if(!tid?.length)
+		ctx.throw(400, `missing thread id`)
+	response = await avatar.retireChat(tid)
+	ctx.body = response
 }
 /**
  * Gets the list of shadows.
@@ -373,6 +401,8 @@ export {
 	members,
 	passphraseReset,
 	privacyPolicy,
+	retireBot,
+	retireChat,
 	shadows,
 	signup,
 	summarize,
