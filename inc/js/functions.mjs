@@ -259,7 +259,7 @@ async function retireBot(ctx){
 	const { bid, } = ctx.params // bot id
 	if(!ctx.Globals.isValidGuid(bid))
 		ctx.throw(400, `missing bot id`)
-	response = await avatar.retireBot(bid)
+	const response = await avatar.retireBot(bid)
 	ctx.body = response
 }
 /**
@@ -271,7 +271,7 @@ async function retireChat(ctx){
 	const { tid, } = ctx.params // thread_id
 	if(!tid?.length)
 		ctx.throw(400, `missing thread id`)
-	response = await avatar.retireChat(tid)
+	const response = await avatar.retireChat(tid)
 	ctx.body = response
 }
 /**
