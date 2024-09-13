@@ -586,12 +586,12 @@ async function mRunTrigger(openai, botId, threadId, factory, avatar){
  * @todo - create case for failure in thread creation/retrieval
  * @module
  * @param {OpenAI} openai - openai object
- * @param {string} threadId - thread id
+ * @param {string} thread_id - thread id
  * @returns {Promise<Object>} - openai thread object
  */
-async function mThread(openai, threadId){
-    if(threadId?.length)
-        return await openai.beta.threads.retrieve(threadId)
+async function mThread(openai, thread_id){
+    if(thread_id?.length)
+        return await openai.beta.threads.retrieve(thread_id)
     else
         return await openai.beta.threads.create()
 }

@@ -297,19 +297,23 @@ class Dataservices {
      * @async
      * @public
      * @param {Guid} id - The id of the item to delete.
+	 * @param {boolean} bSuppressError - Suppress error, default: `true`
      * @returns {boolean} - true if item deleted successfully.
      */
-	async deleteItem(id){
-		return await this.datamanager.deleteItem(id)
-	}
-	/**
-	 * Submits an entry to MyLife. Currently via API, but could be also work internally.
-	 * @param {object} entry - Entry object.
-	 * @returns {object} - The entry document from Cosmos.
-	 */
-	async entry(entry){
-		const entryItem = await this.datamanager.pushItem(entry)
-		return entryItem
+	async deleteItem(id, bSuppressError=true){
+		if(!id?.length)
+			throw new Error('ERROR::deleteItem::Item `id` required')
+		let success=false
+		if(bSuppressError){
+			try{
+				// const response = await this.datamanager.deleteItem(id)
+				console.log('no error thrown')
+			} catch(err){
+				console.log('nothing deleted yet')
+			}
+		} else
+			await this.datamanager.deleteItem(id)
+		return success
 	}
 	async findRegistrationIdByEmail(_email){
 		/* pull record for email, returning id or new guid */
@@ -629,15 +633,6 @@ class Dataservices {
 	async saveExperience(experience){
 		const savedExperience = await this.pushItem(experience)
 		return savedExperience
-	}
-	/**
-	 * Submits a story to MyLife. Currently via API, but could be also work internally.
-	 * @param {object} story - Story object.
-	 * @returns {object} - The story document from Cosmos.
-	 */
-	async story(story){
-		const storyItem = await this.datamanager.pushItem(story)
-		return storyItem
 	}
 	/**
 	 * Tests partition key for member

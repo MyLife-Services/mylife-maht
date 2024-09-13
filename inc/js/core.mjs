@@ -241,6 +241,7 @@ class MyLife extends Organization {	// form=server
 		this.#avatar = await this.factory.getAvatar()
 		return await super.init(this.#avatar)
 	}
+	/* public functions */
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
 	 * @returns {Object[]} - An array of the currently available public experiences.
@@ -262,7 +263,22 @@ class MyLife extends Organization {	// form=server
 		if(!_mbr_id || _mbr_id===this.mbr_id) throw new Error('datacore cannot be accessed')
 		return await this.factory.datacore(_mbr_id)
 	}
-	/* public functions */
+	/**
+	 * Submits and returns the journal or diary entry to MyLife via API.
+	 * @public
+	 * @todo - consent check-in with spawned Member Avatar
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async entry(summary){
+		if(!summary.mbr_id?.length)
+			throw new Error('entry `mbr_id` required')
+		if(!summary.summary?.length)
+			throw new Error('entry `summary` required')
+		summary.being = 'entry'
+		summary.form = summary.form ?? 'journal'
+		return await this.summary(summary)
+	}
 	/**
 	 * Server MyLife _Maht instantiation uses this function to populate the most current alerts in the modular factory memoryspace. Currently only applicable to system types, but since this is implemented at the `core.mjs` scope, we can account
 	 * @public
@@ -274,6 +290,10 @@ class MyLife extends Organization {	// form=server
 	async getMyLifeSession(){
 		return await this.factory.getMyLifeSession()
 	}
+	async hostedMemberList(){
+		let members = await this.hostedMembers()
+		return members.map(member=>member.mbr_id)
+	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.
 	 * @param {Array} validations - Array of validation strings to filter membership.
@@ -281,6 +301,20 @@ class MyLife extends Organization {	// form=server
 	 */
 	async hostedMembers(validations){
 		return await this.factory.hostedMembers(validations)
+	}
+	/**
+	 * Returns whether a specified member id is hosted on this instance.
+	 * @param {string} memberId - Member id
+	 * @returns {boolean} - Returns true if member is hosted
+	 */
+	async isMemberHosted(memberId){
+		const hostedMembers = await this.hostedMemberList()
+		const isHosted = hostedMembers.includes(memberId)
+		let isValidated = false
+        if(isHosted)
+            isValidated = await this.testPartitionKey(memberId)
+		console.log('isMemberHosted:', isHosted, isValidated, memberId)
+		return isValidated
 	}
 	/**
 	 * Registers a new candidate to MyLife membership
@@ -291,26 +325,44 @@ class MyLife extends Organization {	// form=server
 		return await this.factory.registerCandidate(candidate)
 	}
 	/**
-	 * Submits a story to MyLife via API. Unclear if can be dual-purposed for internal, or if internal still instantiates API context.
+	 * Submits and returns the memory to MyLife via API.
 	 * @public
-	 * @param {string} _mbr_id - Member id
-	 * @param {string} _assistantType - String name of assistant type
-	 * @param {string} _summary - String summary of story
+	 * @todo - consent check-in with spawned Member Avatar
+	 * @param {object} summary - Object with story summary and metadata
 	 * @returns {object} - The story document from Cosmos.
 	 */
-	async story(_mbr_id, _assistantType, storySummary){
-		const id = this.globals.newGuid
-		const _story = {
-			assistantType: _assistantType,
-			being: 'story',
-			form: _assistantType,
+	async memory(summary){
+		if(!summary.mbr_id?.length)
+			throw new Error('story `mbr_id` required')
+		if(!summary.summary?.length)
+			throw new Error('story `summary` required')
+		summary.being = 'story'
+		summary.form = 'memory'
+		return await this.summary(summary) // @todo - convert modular
+	}
+	/**
+	 * Submits and returns a summary to MyLife via API.
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async summary(summary){
+		const {
+			being='story',
+			form='story',
+			id=this.globals.newGuid,
+			mbr_id,
+			title=`untitled ${ form }`,
+		} = summary
+		const story = {
+			...summary,
+			being,
+			form,
 			id,
-			mbr_id: _mbr_id,
-			name: `story_${_assistantType}_${_mbr_id}`,
-			summary: storySummary,
+			mbr_id,
+			name: `${ being }_${ title.substring(0,64) }_${ mbr_id }`,
 		}
-		const _storyCosmos = await this.factory.story(_story)
-		return this.globals.stripCosmosFields(_storyCosmos)
+		const savedStory = this.globals.stripCosmosFields(await this.factory.summary(story))
+		return savedStory
 	}
 	/**
 	 * Tests partition key for member

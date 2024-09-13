@@ -40,6 +40,7 @@ import {
 } from './memory-functions.mjs'
 import {
     availableExperiences,
+    entry,
     experience,
     experienceCast,
     experienceEnd,
@@ -49,8 +50,8 @@ import {
     experiencesLived,
     keyValidation,
     logout as apiLogout,
+    memory,
     register,
-    story,
     tokenValidation,
 } from './api-functions.mjs'
 // variables
@@ -87,9 +88,10 @@ _apiRouter.patch('/experiences/:mid/experience/:eid/manifest', experienceManifes
 _apiRouter.patch('/experiences/:mid/experience/:eid/navigation', experienceNavigation)
 _apiRouter.patch('/experiences/:mid/experience/:eid', experience) // **note**: This line should be the last one alphabetically due to the wildcard.
 _apiRouter.post('/challenge/:mid', challenge)
+_apiRouter.post('/entry/:mid', entry)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
+_apiRouter.post('/memory/:mid', memory)
 _apiRouter.post('/register', register)
-_apiRouter.post('/story/:mid', story)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
 /* member routes */
