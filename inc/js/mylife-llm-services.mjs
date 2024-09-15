@@ -54,6 +54,22 @@ class LLMServices {
         return vectorstore
     }
     /**
+     * Deletes an assistant from OpenAI.
+     * @param {string} botId - GPT-Assistant external ID
+     * @returns 
+     */
+    async deleteBot(botId){
+        try {
+            const deletedBot = await this.openai.beta.assistants.del(botId)
+            return deletedBot
+        } catch (error) {
+            if(error.name==='PermissionDeniedError')
+                console.error(`Permission denied to delete assistant: ${ botId }`)
+            else
+                console.error(`ERROR trying to delete assistant: ${ botId }`, error.name, error.message)
+        }
+    }
+    /**
      * Deletes a thread from OpenAI.
      * @param {string} thread_id - Thread id.
      * @returns 
@@ -66,7 +82,7 @@ class LLMServices {
             if(error.name==='PermissionDeniedError')
                 console.error(`Permission denied to delete thread: ${ thread_id }`)
             else
-                console.error(`ERROR trying to delete thread: ${ thread_id }`, error.message, error.name)
+                console.error(`ERROR trying to delete thread: ${ thread_id }`,  error.name, error.message)
         }
     }
     /**

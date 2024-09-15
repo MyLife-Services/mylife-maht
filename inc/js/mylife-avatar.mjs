@@ -475,6 +475,14 @@ class Avatar extends EventEmitter {
         return await this.#factory.resetPassphrase(passphrase)
     }
     async retireBot(botId){
+        const bot = this.getBot(botId)
+        if(!bot)
+            throw new Error(`Bot not found with id: ${ botId }`)
+        const { id, } = bot
+        if(botId!==id)
+            throw new Error(`Bot id mismatch: ${ botId }!=${ id }`)
+        mDeleteBot(bot, this.#bots, this.#llmServices)
+        return bot
     }
     /**
      * Member-request to retire a chat conversation.
@@ -1459,6 +1467,23 @@ function mCreateSystemMessage(activeBot, message, factory){
     message = mPruneMessage(activeBot, message, 'system')
     return message
 }
+async function mDeleteBot(bot, bots, llm){
+    const cannotRetire = ['actor', 'system', 'personal-avatar']
+    const { bot_id, id, type, } = bot
+    if(cannotRetire.includes(type))
+        throw new Error(`Cannot retire bot type: ${ type }`)
+    /* delete from memory */
+    const botId = bots.findIndex(_bot=>_bot.id===id)
+    if(botId<0)
+        throw new Error('Bot not found in bots.')
+    bots.splice(botId, 1)
+    /* delete bot from Cosmos */
+    const deletedBot = await factory.deleteItem(id)
+    /* delete bot from OpenAI */
+    const deletedLLMBot = await factory.deleteBot(bot_id)
+    console.log('mDeleteBot', deletedBot, deletedLLMBot)
+    return true
+}
 /**
  * Deletes conversation and updates 
  * @param {Conversation} conversation - The conversation object
@@ -1483,8 +1508,6 @@ async function mDeleteConversation(conversation, conversations, bot, factory, ll
         thread_id,
     })
     /* delete conversation from Cosmos */
-    console.log('mDeleteConversation', conversation.id)
-    // **note** bot id/id might be off here on conversation?
     const deletedConversation = await factory.deleteItem(conversation.id)
     /* delete thread from LLM */
     const deletedThread = await llm.deleteThread(thread_id)
