@@ -306,13 +306,16 @@ class Dataservices {
 		let success=false
 		if(bSuppressError){
 			try{
-				// const response = await this.datamanager.deleteItem(id)
-				console.log('no error thrown')
+				const response = await this.datamanager.deleteItem(id)
+				console.log('mylife-data-service::deleteItem() response', response)
+				success = response?.id===id
 			} catch(err){
-				console.log('nothing deleted yet')
+				console.log('mylife-data-service::deleteItem() ERROR', err.code) // NotFound
 			}
-		} else
+		} else {
 			await this.datamanager.deleteItem(id)
+			success = true
+		}
 		return success
 	}
 	async findRegistrationIdByEmail(_email){

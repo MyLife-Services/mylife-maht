@@ -135,8 +135,15 @@ async function experiencesLived(ctx){
     const { MemberSession, } = ctx.state
     ctx.body = MemberSession.experiencesLived
 }
-async function keyValidation(ctx){ // from openAI
-    console.log(chalk.yellowBright('keyValidation()'), ctx.request.body)
+/**
+ * Validates member key and returns member data. Leverages the key validation structure to ensure payload is liegimate. Currently in use by OpenAI GPT and local Postman instance.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - Object with following properties.
+ * @property {boolean} success - Success status.
+ * @property {string} message - Message to querying intelligence.
+ * @property {object} data - Consented Member data.
+ */
+async function keyValidation(ctx){
     await mAPIKeyValidation(ctx)
     ctx.status = 200 // OK
     if(ctx.method === 'HEAD') return
@@ -159,10 +166,10 @@ async function keyValidation(ctx){ // from openAI
             ?? names?.[0].split(' ')[0]
             ?? '',
     }
-    console.log(chalk.yellowBright(`keyValidation():${memberCoreData.mbr_id}`), memberCoreData.fullName)
+    console.log(chalk.yellowBright(`keyValidation()::`), chalk.redBright(`success::`), chalk.redBright(memberCoreData.mbr_id))
     ctx.body = {
         success: true,
-        message: 'Valid member.',
+        message: 'Valid Member',
         data: memberCoreData,
     }
 }

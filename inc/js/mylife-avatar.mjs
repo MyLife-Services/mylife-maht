@@ -476,18 +476,22 @@ class Avatar extends EventEmitter {
     }
     async retireBot(botId){
     }
+    /**
+     * Member-request to retire a chat conversation.
+     * @param {string} thread_id - Conversation thread id in OpenAI
+     * @returns {Conversation} - The retired conversation object.
+     */
     async retireChat(thread_id){
         const conversation = this.getConversation(thread_id)
-        if(!conversation){
-            console.log('retireChat::conversation not found', thread_id, this.getConversations())
+        if(!conversation)
             throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
-        }
-        const { bot_id, id: conversation_id, thread_id: cid, } = conversation
-        const { id: botId, thread_id: tid, } = this.getBot(bot_id)
-        console.log('retireChat::conversation found', conversation_id, thread_id, botId, tid)
-        if(botId!=bot_id || tid!=thread_id || cid!=thread_id)
-            throw new Error(`Conversation and bot id mismatch: ${ botId }!=${ bot_id } || ${ tid }!=${ thread_id } || ${ cid }!=${ thread_id }`)
-        const bot = this.getBot(bot_id)
+        const { botId, thread_id: cid, } = conversation
+        const bot = this.getBot(botId)
+        const { id: _botId, thread_id: tid, } = bot
+        if(botId!=_botId)
+            throw new Error(`Bot id mismatch: ${ botId }!=${ bot_id }`)
+        if(tid!=thread_id || cid!=thread_id)
+            throw new Error(`Conversation mismatch: ${ tid }!=${ thread_id } || ${ cid }!=${ thread_id }`)
         mDeleteConversation(conversation, this.conversations, bot, this.#factory, this.#llmServices)
         return conversation
     }
@@ -1334,11 +1338,10 @@ async function mBot(factory, avatar, bot){
         if(!thread_id?.length && !avatar.isMyLife){
             const excludeTypes = ['collection', 'library', 'custom'] // @stub - custom mechanic?
             if(!excludeTypes.includes(type)){
-                const conversation = avatar.getConversation()
-                    ?? await avatar.createConversation()
+                const conversation = avatar.getConversation(null, botId)
+                    ?? await avatar.createConversation('chat', null, botId)
                 updatedBot.thread_id = conversation.thread_id // triggers `factory.updateBot()`
                 console.log('Avatar::mBot::conversation created given NO thread_id', updatedBot.thread_id, avatar.getConversation(updatedBot.thread_id))
-                // avatar.conversations.push(conversation) // should have been pushed by createConversation()
             }
         }
         let updatedOriginBot
@@ -1463,6 +1466,7 @@ function mCreateSystemMessage(activeBot, message, factory){
  * @param {Object} bot - The bot involved in the conversation
  * @param {AgentFactory} factory - Agent Factory object
  * @param {LLMServices} llm - OpenAI object
+ * @returns {Promise<boolean>} - `true` if successful
  */
 async function mDeleteConversation(conversation, conversations, bot, factory, llm){
     const { id, } = conversation
@@ -1479,11 +1483,12 @@ async function mDeleteConversation(conversation, conversations, bot, factory, ll
         thread_id,
     })
     /* delete conversation from Cosmos */
+    console.log('mDeleteConversation', conversation.id)
     // **note** bot id/id might be off here on conversation?
-    // const deletedConversation = await factory.deleteItem(id)
-    console.log('mDeleteConversation', id, conversation.id, bot)
+    const deletedConversation = await factory.deleteItem(conversation.id)
     /* delete thread from LLM */
-    // return await llm.beta.threads.delete(threadId)
+    const deletedThread = await llm.deleteThread(thread_id)
+    console.log('mDeleteConversation', conversation.id, deletedConversation, thread_id, deletedThread)
     return true
 }
 /**

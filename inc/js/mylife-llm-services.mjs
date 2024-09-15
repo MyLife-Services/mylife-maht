@@ -54,6 +54,22 @@ class LLMServices {
         return vectorstore
     }
     /**
+     * Deletes a thread from OpenAI.
+     * @param {string} thread_id - Thread id.
+     * @returns 
+     */
+    async deleteThread(thread_id){
+        try {
+            const deletedThread = await this.openai.beta.threads.del(thread_id)
+            return deletedThread
+        } catch (error) {
+            if(error.name==='PermissionDeniedError')
+                console.error(`Permission denied to delete thread: ${ thread_id }`)
+            else
+                console.error(`ERROR trying to delete thread: ${ thread_id }`, error.message, error.name)
+        }
+    }
+    /**
      * Returns openAI file object.
      * @param {string} fileId - OpenAI file ID.
      * @returns - OpenAI `file` object.
