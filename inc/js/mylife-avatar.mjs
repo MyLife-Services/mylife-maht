@@ -454,15 +454,16 @@ class Avatar extends EventEmitter {
     /**
      * Migrates a chat conversation from an old thread to a newly created (or identified) destination thread.
      * @param {string} thread_id - Conversation thread id in OpenAI
-     * @param {string} newThread_id - New Conversation thread id from OpenAI (optional, created)
      * @returns {Conversation} - The migrated conversation object
      */
-    async migrateChat(thread_id, newThread_id){
+    async migrateChat(thread_id){
+        /* MyLife conversation re-assignment */
         const conversation = this.getConversation(thread_id)
+        console.log('migrateChat::conversation', conversation.thread)
         if(!conversation)
             throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
-        /* get all messages from llm */
         const messages = (await this.#llmServices.messages(thread_id))
+            .slice(0, 12)
             .map(message=>{
                 const { content: contentArray, id, metadata, role, } = message
                 const content = contentArray
@@ -471,14 +472,30 @@ class Avatar extends EventEmitter {
                     ?.[0]
                 return { content, id, metadata, role, }
             })
+        messages.push({
+            content: `# MEMORY COLLECTION LIST\n`, // insert actual memory list with titles here for intelligence to reference
+            metadata: {
+                collectionIds: [],
+            },
+            role: 'system',
+        }) // add summary of Memories (etc. due to type) for intelligence to reference, also could add attachment file
+        const metadata = {
+            bot_id: conversation.botId,
+            conversation_id: conversation.id,
+        }
+        console.log('migrateChat::newThread', conversation.thread, newThread, messages, metadata)
+        return conversation
+        const newThread = await this.#llmServices.thread(null, messages, metadata)
+        conversation.setThread(newThread)
+        /* get all messages from llm */
+        // get last 12 messages and put them up in "order"
+        // create conversation input that lists ALL memory summaries for bot
         /* add to new conversation */
         const newConversation = await this.createConversation(conversation.type, newThread_id, conversation.bot_id)
         const newMessages = newConversation.addMessages(messages)
         // not adding to actual openai messages
         // built such that it would never need to per se, they would all be fished through chat() requests
         // so this gives me room to design what I need, maybe clean up some of the mess?
-
-
 
 
 

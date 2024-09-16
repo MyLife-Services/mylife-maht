@@ -129,6 +129,7 @@ function extendClass_conversation(originClass, referencesObject) {
         #messages = []
         #saved = false
         #thread
+        #threads = new Set()
         /**
          * 
          * @param {Object} obj - The object to construct the conversation from.
@@ -143,7 +144,7 @@ function extendClass_conversation(originClass, referencesObject) {
             this.bot_id = bot_id
             this.form = this.form
                 ?? 'system'
-            this.name = `conversation_${this.#factory.mbr_id}_${thread.thread_id}`
+            this.name = `conversation_${this.#factory.mbr_id}`
             this.type = this.type
                 ?? 'chat'
         }
@@ -179,6 +180,14 @@ function extendClass_conversation(originClass, referencesObject) {
             return this.messages
         }
         /**
+         * Adds a thread id to the conversation archive
+         * @param {string} thread_id - The thread id to add
+         * @returns {void}
+         */
+        addThread(thread_id){
+            this.#threads.add(thread_id)
+        }
+        /**
          * Get the message by id, or defaults to last message added.
          * @public
          * @param {Guid} messageId - The message id.
@@ -189,18 +198,31 @@ function extendClass_conversation(originClass, referencesObject) {
                 ? this.messages.find(message=>message.id===messageId)
                 : this.message
         }
+        /**
+         * Removes a thread id from the conversation archive
+         * @param {string} thread_id - The thread id to remove
+         * @returns {void}
+         */
+        removeThread(thread_id){
+            this.#threads.delete(thread_id)
+        }
+        setThread(thread){
+            const { id: thread_id, } = thread
+            if(thread_id?.length && thread_id!=this.thread_id){
+                this.#threads.add(this.thread_id)
+                this.#thread = thread
+            }
+        }
         async save(){
-            // also if this not saved yet, save to cosmos
             if(!this.isSaved){
                 await mSaveConversation(this.#factory, this)
             }
-            //  save messages to cosmos
             // @todo: no need to await
-            await this.#factory.dataservices.patch(
+            const dataUpdate = await this.#factory.dataservices.patch(
                 this.id,
                 { messages: this.messages.map(_msg=>_msg.micro), }
             )
-            // flag as saved
+            console.log('Conversation::save::dataUpdate', dataUpdate)
             this.#saved = true
             return this
         }
@@ -247,11 +269,17 @@ function extendClass_conversation(originClass, referencesObject) {
         get thread(){
             return this.#thread
         }
+        set thread(thread){
+            this.setThread(thread)
+        }
         get thread_id(){
             return this.thread.id
         }
         get threadId(){
             return this.thread_id
+        }
+        get threads(){
+            return this.#threads
         }
     }
     return Conversation

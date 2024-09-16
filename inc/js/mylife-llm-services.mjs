@@ -146,10 +146,13 @@ class LLMServices {
     /**
      * Create a new OpenAI thread.
      * @param {string} thread_id - thread id
+     * @param {Message[]} messages - array of messages (optional)
+     * @param {object} metadata - metadata object (optional)
      * @returns {Promise<Object>} - openai thread object
      */
-    async thread(thread_id){
-        return await mThread(this.openai, thread_id)
+    async thread(thread_id, messages=[], metadata){
+        const thread = await mThread(this.openai, thread_id, messages, metadata)
+        return thread
     }
     /**
      * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
@@ -627,13 +630,19 @@ async function mRunTrigger(openai, botId, threadId, factory, avatar){
  * @module
  * @param {OpenAI} openai - openai object
  * @param {string} thread_id - thread id
+ * @param {Message[]} messages - array of messages (optional)
+ * @param {object} metadata - metadata object (optional)
  * @returns {Promise<Object>} - openai thread object
  */
-async function mThread(openai, thread_id){
+async function mThread(openai, thread_id, messages=[], metadata){
     if(thread_id?.length)
         return await openai.beta.threads.retrieve(thread_id)
     else
-        return await openai.beta.threads.create()
+        return mThreadCreate(openai, messages, metadata)
+}
+async function mThreadCreate(openai){
+    const thread = await openai.beta.threads.create()
+    return thread
 }
 /**
  * Validates assistant data before sending to OpenAI.
