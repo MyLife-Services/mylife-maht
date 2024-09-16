@@ -1007,7 +1007,7 @@ class MyLifeFactory extends AgentFactory {
 		return await this.#dataservices.registerCandidate(candidate)
 	}
 	updateItem(){
-		throw new Error('MyLife server cannot update items')
+		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))
 	}
     /**
      * Validate registration id.
