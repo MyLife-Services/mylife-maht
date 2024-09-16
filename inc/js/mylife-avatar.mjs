@@ -341,7 +341,8 @@ class Avatar extends EventEmitter {
         )
     }
     getBot(id){
-        return this.bots.find(bot=>bot.id===id)
+        const bot = this.bots.find(bot=>bot.id===id)
+        return bot
             ?? this.activeBot
     }
     /**
@@ -437,6 +438,64 @@ class Avatar extends EventEmitter {
         }
     }
     /**
+     * Migrates a bot to a new, presumed combined (with internal or external) bot.
+     * @param {Guid} botId - The bot id.
+     * @returns 
+     */
+    async migrateBot(botId){
+        const bot = this.getBot(botId)
+        if(!bot)
+            throw new Error(`Bot not found with id: ${ botId }`)
+        const { id, } = bot
+        if(botId!==id)
+            throw new Error(`Bot id mismatch: ${ botId }!=${ id }`)
+        return bot
+    }
+    /**
+     * Migrates a chat conversation from an old thread to a newly created (or identified) destination thread.
+     * @param {string} thread_id - Conversation thread id in OpenAI
+     * @param {string} newThread_id - New Conversation thread id from OpenAI (optional, created)
+     * @returns {Conversation} - The migrated conversation object
+     */
+    async migrateChat(thread_id, newThread_id){
+        const conversation = this.getConversation(thread_id)
+        if(!conversation)
+            throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
+        /* get all messages from llm */
+        const messages = (await this.#llmServices.messages(thread_id))
+            .map(message=>{
+                const { content: contentArray, id, metadata, role, } = message
+                const content = contentArray
+                    .filter(_content=>_content.type==='text')
+                    .map(_content=>_content.text?.value)
+                    ?.[0]
+                return { content, id, metadata, role, }
+            })
+        /* add to new conversation */
+        const newConversation = await this.createConversation(conversation.type, newThread_id, conversation.bot_id)
+        const newMessages = newConversation.addMessages(messages)
+        // not adding to actual openai messages
+        // built such that it would never need to per se, they would all be fished through chat() requests
+        // so this gives me room to design what I need, maybe clean up some of the mess?
+
+
+
+
+
+        /* replace in memory */
+        const index = this.conversations.findIndex(_conversation=>_conversation.thread_id===thread_id)
+        if(index>=0)
+            this.conversations.splice(index, 1, newConversation)
+        /* update bot thread_id in memory and db */
+        const bot = this.getBot(newConversation.bot_id)
+        bot.thread_id = newConversation.thread_id
+        const newBot = await this.updateBot(bot)
+        const botIndex = this.bots.findIndex(_bot=>_bot.id===bot.id)
+        if(botIndex>=0)
+            this.bots.splice(botIndex, 1, newBot)
+        return newConversation
+    }
+    /**
      * Register a candidate in database.
      * @param {object} candidate - The candidate data object.
      * @returns {object} - The registration object.
@@ -474,6 +533,11 @@ class Avatar extends EventEmitter {
             throw new Error('Passphrase required for reset.')
         return await this.#factory.resetPassphrase(passphrase)
     }
+    /**
+     * Member request to retire a bot.
+     * @param {Guid} botId - The bot id.
+     * @returns {object} - The retired bot object.
+     */
     async retireBot(botId){
         const bot = this.getBot(botId)
         if(!bot)

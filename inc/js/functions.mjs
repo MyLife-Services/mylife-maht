@@ -232,6 +232,21 @@ async function loginSelect(ctx){
 async function members(ctx){ // members home
 	await ctx.render('members')
 }
+async function migrateBot(ctx){
+	const { bid, } = ctx.params
+	const { avatar, } = ctx.state
+	ctx.body = await avatar.migrateBot(bid)
+}
+async function migrateChat(ctx){
+	const { tid, } = ctx.params
+	const { avatar, } = ctx.state
+	ctx.body = await avatar.migrateChat(tid)
+}
+/**
+ * Reset the passphrase for the member's avatar.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {boolean} - Whether or not passpharase successfully reset
+ */
 async function passphraseReset(ctx){
 	const { avatar, } = ctx.state
 	if(avatar?.isMyLife ?? true)
@@ -399,6 +414,8 @@ export {
 	logout,
 	loginSelect,
 	members,
+    migrateBot,
+    migrateChat,
 	passphraseReset,
 	privacyPolicy,
 	retireBot,

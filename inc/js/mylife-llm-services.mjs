@@ -117,31 +117,39 @@ class LLMServices {
         await mAssignRequestToThread(this.openai, threadId, prompt)
         const run = await mRunTrigger(this.openai, botId, threadId, factory, avatar)
         const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run
-        const llmMessageObject = await mMessages(this.provider, threadId)
-        const { data: llmMessages} = llmMessageObject
+        const llmMessages = await this.messages(threadId)
         return llmMessages
             .filter(message=>message.role=='assistant' && message.run_id==run_id)
     }
     /**
      * Given member request for help, get response from specified bot assistant.
-     * @param {string} threadId - Thread id.
+     * @param {string} thread_id - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} helpRequest - Member input.
      * @param {AgentFactory} factory - Avatar Factory object to process request.
      * @param {Avatar} avatar - Avatar object.
      * @returns {Promise<Object>} - openai `message` objects.
      */
-    async help(threadId, botId, helpRequest, factory, avatar){
-        const helpResponse = await this.getLLMResponse(threadId, botId, helpRequest, factory, avatar)
+    async help(thread_id, botId, helpRequest, factory, avatar){
+        const helpResponse = await this.getLLMResponse(thread_id, botId, helpRequest, factory, avatar)
         return helpResponse
     }
     /**
+     * Returns messages associated with specified thread.
+     * @param {string} thread_id - Thread id
+     * @returns {Promise<Object[]>} - Array of openai `message` objects.
+     */
+    async messages(thread_id){
+        const { data: messages } = await mMessages(this.provider, thread_id)
+        return messages
+    }
+    /**
      * Create a new OpenAI thread.
-     * @param {string} threadId - thread id
+     * @param {string} thread_id - thread id
      * @returns {Promise<Object>} - openai thread object
      */
-    async thread(threadId){
-        return await mThread(this.openai, threadId)
+    async thread(thread_id){
+        return await mThread(this.openai, thread_id)
     }
     /**
      * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
