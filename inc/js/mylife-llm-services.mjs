@@ -54,6 +54,38 @@ class LLMServices {
         return vectorstore
     }
     /**
+     * Deletes an assistant from OpenAI.
+     * @param {string} botId - GPT-Assistant external ID
+     * @returns 
+     */
+    async deleteBot(botId){
+        try {
+            const deletedBot = await this.openai.beta.assistants.del(botId)
+            return deletedBot
+        } catch (error) {
+            if(error.name==='PermissionDeniedError')
+                console.error(`Permission denied to delete assistant: ${ botId }`)
+            else
+                console.error(`ERROR trying to delete assistant: ${ botId }`, error.name, error.message)
+        }
+    }
+    /**
+     * Deletes a thread from OpenAI.
+     * @param {string} thread_id - Thread id.
+     * @returns 
+     */
+    async deleteThread(thread_id){
+        try {
+            const deletedThread = await this.openai.beta.threads.del(thread_id)
+            return deletedThread
+        } catch (error) {
+            if(error.name==='PermissionDeniedError')
+                console.error(`Permission denied to delete thread: ${ thread_id }`)
+            else
+                console.error(`ERROR trying to delete thread: ${ thread_id }`,  error.name, error.message)
+        }
+    }
+    /**
      * Returns openAI file object.
      * @param {string} fileId - OpenAI file ID.
      * @returns - OpenAI `file` object.
@@ -85,31 +117,42 @@ class LLMServices {
         await mAssignRequestToThread(this.openai, threadId, prompt)
         const run = await mRunTrigger(this.openai, botId, threadId, factory, avatar)
         const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run
-        const llmMessageObject = await mMessages(this.provider, threadId)
-        const { data: llmMessages} = llmMessageObject
+        const llmMessages = await this.messages(threadId)
         return llmMessages
             .filter(message=>message.role=='assistant' && message.run_id==run_id)
     }
     /**
      * Given member request for help, get response from specified bot assistant.
-     * @param {string} threadId - Thread id.
+     * @param {string} thread_id - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} helpRequest - Member input.
      * @param {AgentFactory} factory - Avatar Factory object to process request.
      * @param {Avatar} avatar - Avatar object.
      * @returns {Promise<Object>} - openai `message` objects.
      */
-    async help(threadId, botId, helpRequest, factory, avatar){
-        const helpResponse = await this.getLLMResponse(threadId, botId, helpRequest, factory, avatar)
+    async help(thread_id, botId, helpRequest, factory, avatar){
+        const helpResponse = await this.getLLMResponse(thread_id, botId, helpRequest, factory, avatar)
         return helpResponse
     }
     /**
+     * Returns messages associated with specified thread.
+     * @param {string} thread_id - Thread id
+     * @returns {Promise<Object[]>} - Array of openai `message` objects.
+     */
+    async messages(thread_id){
+        const { data: messages } = await mMessages(this.provider, thread_id)
+        return messages
+    }
+    /**
      * Create a new OpenAI thread.
-     * @param {string} threadId - thread id
+     * @param {string} thread_id - thread id
+     * @param {Message[]} messages - array of messages (optional)
+     * @param {object} metadata - metadata object (optional)
      * @returns {Promise<Object>} - openai thread object
      */
-    async thread(threadId){
-        return await mThread(this.openai, threadId)
+    async thread(thread_id, messages=[], metadata){
+        const thread = await mThread(this.openai, thread_id, messages, metadata)
+        return thread
     }
     /**
      * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
@@ -586,14 +629,33 @@ async function mRunTrigger(openai, botId, threadId, factory, avatar){
  * @todo - create case for failure in thread creation/retrieval
  * @module
  * @param {OpenAI} openai - openai object
- * @param {string} threadId - thread id
+ * @param {string} thread_id - thread id
+ * @param {Message[]} messages - array of messages (optional)
+ * @param {object} metadata - metadata object (optional)
  * @returns {Promise<Object>} - openai thread object
  */
-async function mThread(openai, threadId){
-    if(threadId?.length)
-        return await openai.beta.threads.retrieve(threadId)
+async function mThread(openai, thread_id, messages=[], metadata){
+    if(thread_id?.length)
+        return await openai.beta.threads.retrieve(thread_id)
     else
-        return await openai.beta.threads.create()
+        return mThreadCreate(openai, messages, metadata)
+}
+/**
+ * Create an OpenAI thread.
+ * @module
+ * @async
+ * @param {OpenAI} openai - openai object
+ * @param {Message[]} messages - array of messages (optional)
+ * @param {object} metadata - metadata object (optional)
+ * @returns {object} - openai `thread` object
+ */
+async function mThreadCreate(openai, messages, metadata){
+    const thread = await openai.beta.threads.create({
+        messages,
+        metadata,
+        tool_resources: {},
+    })
+    return thread
 }
 /**
  * Validates assistant data before sending to OpenAI.

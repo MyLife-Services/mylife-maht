@@ -20,10 +20,31 @@ async function availableExperiences(ctx){
         mbr_id,
     }
 }
+async function entry(ctx){
+    await mAPIKeyValidation(ctx)
+    const { assistantType, mbr_id } = ctx.state
+    if(!ctx.request.body?.summary?.length)
+        throw new Error('No entry summary provided. Use `summary` field.')
+    console.log(chalk.yellowBright('entry()::entry attempted:'), ctx.request.body)
+    const summary = {
+        ...ctx.request.body,
+        assistantType,
+        mbr_id,
+    }
+    const entry = await ctx.MyLife.entry(summary)
+    console.log(chalk.yellowBright('entry()::entry submitted:'), entry, summary)
+    ctx.status = 200
+    ctx.body = {
+        id: entry.id,
+        message: 'entry submitted successfully.',
+        success: true,
+    }
+
+}
 // @todo implement builder functionality, allowing for interface creation of experiences by members
 // @todo implement access to exposed member experiences using `mbr_key` as parameter to `factory.getItem()`
 async function experienceBuilder(ctx){
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     const { assistantType, mbr_id } = ctx.state
     const { eid, sid } = ctx.params
     const { experience } = ctx.request.body?.experience
@@ -54,7 +75,7 @@ async function experienceCast(ctx){
  * @property {object} scene - Scene data, regardless if "current" or new.
  */
 async function experience(ctx){
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     const { MemberSession, } = ctx.state
     const { eid, } = ctx.params
     const { memberInput, } = ctx.request.body
@@ -66,8 +87,8 @@ async function experience(ctx){
  * @returns {Object} - Represents `ctx.body` object with following `experience` properties.
  * @property {boolean} success - Success status, true/false.
  */
-function experienceEnd(ctx){
-    mAPIKeyValidation(ctx)
+async function experienceEnd(ctx){
+    await mAPIKeyValidation(ctx)
     const { MemberSession, } = ctx.state
     const { eid, } = ctx.params
     ctx.body = MemberSession.experienceEnd(eid)
@@ -80,8 +101,8 @@ function experienceEnd(ctx){
  * @property {Array} cast - Experience cast array.
  * @property {Object} navigation - Navigation object (optional - for interactive display purposes only).
  */
-function experienceManifest(ctx){
-    mAPIKeyValidation(ctx)
+async function experienceManifest(ctx){
+    await mAPIKeyValidation(ctx)
     const { avatar, } = ctx.state
     ctx.body = avatar.manifest
     return
@@ -89,8 +110,8 @@ function experienceManifest(ctx){
 /**
  * Navigation array of scenes for experience.
  */
-function experienceNavigation(ctx){
-    mAPIKeyValidation(ctx)
+async function experienceNavigation(ctx){
+    await mAPIKeyValidation(ctx)
     const { avatar, } = ctx.state
     ctx.body = avatar.navigation
     return
@@ -103,18 +124,26 @@ function experienceNavigation(ctx){
  * @property {array} experiences - Array of Experience shorthand objects.
  */
 async function experiences(ctx){
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     const { MemberSession, } = ctx.state
     // limit one mandatory experience (others could be highlighted in alerts) per session
     const experiencesObject = await MemberSession.experiences()
     ctx.body = experiencesObject
 }
 async function experiencesLived(ctx){
-    mAPIKeyValidation(ctx)
+    await mAPIKeyValidation(ctx)
     const { MemberSession, } = ctx.state
     ctx.body = MemberSession.experiencesLived
 }
-async function keyValidation(ctx){ // from openAI
+/**
+ * Validates member key and returns member data. Leverages the key validation structure to ensure payload is liegimate. Currently in use by OpenAI GPT and local Postman instance.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - Object with following properties.
+ * @property {boolean} success - Success status.
+ * @property {string} message - Message to querying intelligence.
+ * @property {object} data - Consented Member data.
+ */
+async function keyValidation(ctx){
     await mAPIKeyValidation(ctx)
     ctx.status = 200 // OK
     if(ctx.method === 'HEAD') return
@@ -137,10 +166,10 @@ async function keyValidation(ctx){ // from openAI
             ?? names?.[0].split(' ')[0]
             ?? '',
     }
-    console.log(chalk.yellowBright(`keyValidation():${memberCoreData.mbr_id}`), memberCoreData.fullName)
+    console.log(chalk.yellowBright(`keyValidation()::`), chalk.redBright(`success::`), chalk.redBright(memberCoreData.mbr_id))
     ctx.body = {
         success: true,
-        message: 'Valid member.',
+        message: 'Valid Member',
         data: memberCoreData,
     }
 }
@@ -195,21 +224,25 @@ async function register(ctx){
 /**
  * Functionality around story contributions.
  * @param {Koa} ctx - Koa Context object
- * @returns {Koa} Koa Context object
  */
-async function story(ctx){
+async function memory(ctx){
     await mAPIKeyValidation(ctx) // sets ctx.state.mbr_id and more
     const { assistantType, mbr_id } = ctx.state
-    const { storySummary } = ctx.request?.body??{}
-    if(!storySummary?.length)
-        ctx.throw(400, 'No story summary provided. Use `storySummary` field.')
-    // write to cosmos db
-    const _story = await ctx.MyLife.story(mbr_id, assistantType, storySummary) // @todo: remove await
-    console.log(chalk.yellowBright('story submitted:'), _story)
-    ctx.status = 200 // OK
+    if(!ctx.request.body?.summary?.length)
+        throw new Error('No memory summary provided. Use `summary` field.')
+    console.log(chalk.yellowBright('memory()::memory attempted:'), ctx.request.body)
+    const summary = {
+        ...ctx.request.body,
+        assistantType,
+        mbr_id,
+    }
+    const memory = await ctx.MyLife.memory(summary)
+    console.log(chalk.yellowBright('memory()::memory submitted:'), memory, summary)
+    ctx.status = 200
     ctx.body = {
+        id: memory.id,
+        message: 'memory submitted successfully.',
         success: true,
-        message: 'Story submitted successfully.',
     }
 }
 /**
@@ -220,7 +253,7 @@ async function story(ctx){
  * @param {function} next Koa next function
  * @returns {function} Koa next function
  */
-async function tokenValidation(ctx, next) {
+async function tokenValidation(ctx, next){
     try {
         const authHeader = ctx.request.headers['authorization']
         if(!authHeader){
@@ -228,13 +261,13 @@ async function tokenValidation(ctx, next) {
             ctx.body = { error: 'Authorization header is missing' }
             return
         }
-        const _token = authHeader.split(' ')[1] // Bearer TOKEN_VALUE
-        if(!mTokenValidation(_token)){
+        const token = authHeader.split(' ')[1] // Bearer TOKEN_VALUE
+        if(!mTokenValidation(token)){
             ctx.status = 401
             ctx.body = { error: 'Authorization token failure' }
             return
         }
-        ctx.state.token = _token // **note:** keep first, as it is used in mTokenType()
+        ctx.state.token = token // **note:** keep first, as it is used in mTokenType()
         ctx.state.assistantType = mTokenType(ctx)
         await next()
     }  catch (error) {
@@ -283,19 +316,11 @@ async function mAPIKeyValidation(ctx){ // transforms ctx.state
             ctx.throw(400, 'Missing member key.')
         else // unlocked, providing passphrase
             return
-    let isValidated
-    if(!ctx.state.locked || ctx.session?.isAPIValidated){
-        isValidated = true
-    } else {
-        const serverHostedMembers = JSON.parse(process.env.MYLIFE_HOSTED_MBR_ID ?? '[]')
-        const localHostedMembers = [
-            'system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df',
-        ].filter(member=>serverHostedMembers.includes(member)) // none currently
-        serverHostedMembers.push(...localHostedMembers)
-        if(serverHostedMembers.includes(memberId))
-            isValidated = await ctx.MyLife.testPartitionKey(memberId)
-    }
-    if(isValidated){
+    if( // validated
+            !ctx.state.locked
+        ||  ( ctx.session.isAPIValidated ?? false )
+        ||  await ctx.MyLife.isMemberHosted(memberId)
+    ){
         ctx.state.isValidated = true
         ctx.state.mbr_id = memberId
         ctx.state.assistantType = mTokenType(ctx)
@@ -308,12 +333,13 @@ function mTokenType(ctx){
     const assistantType = mBotSecrets?.[token] ?? 'personal-avatar'
     return assistantType
 }
-function mTokenValidation(_token){
-    return mBotSecrets?.[_token]?.length??false
+function mTokenValidation(token){
+    return mBotSecrets?.[token]?.length??false
 }
 /* exports */
 export {
     availableExperiences,
+    entry,
     experience,
     experienceCast,
     experienceEnd,
@@ -323,8 +349,8 @@ export {
     experiencesLived,
     keyValidation,
     logout,
+    memory,
     register,
-    story,
     tokenValidation,
     upload,
 }
