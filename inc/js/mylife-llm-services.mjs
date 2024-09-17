@@ -486,6 +486,11 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                 const { summary: updatedSummary, } = toolArguments
                                 // remove await once confirmed updates are connected
                                 await factory.updateItem({ id: itemId, summary: updatedSummary, })
+                                avatar.frontendInstruction = {
+                                    command: 'updateItemSummary',
+                                    itemId,
+                                    summary: updatedSummary,
+                                }
                                 action=`confirm success and present updated summary to member`
                                 success = true
                                 confirmation.output = JSON.stringify({ action, success, })
