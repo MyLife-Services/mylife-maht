@@ -25,3 +25,7 @@ The folder structure is as follows:
 ## Versioning
 
 Currently schemas are using `openapi v.3.0.0`, and each `.yaml` will be individually versioned, actual changes maintained in git repository.
+
+## References and Links
+
+- [OpenAI specification page](https://spec.openapis.org/oas/v3.1.0#server-object-example) with a direct anchor to multiple server listing

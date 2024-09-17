@@ -623,25 +623,29 @@ class AgentFactory extends BotFactory {
 		return await this.dataservices.getItem(id)
 	}
 	async entry(entry){
-		const {
+		const defaultType = 'entry'
+		const { 
 			assistantType='journaler',
-			being='entry',
+			being=defaultType,
 			form='journal',
+			id=this.newGuid,
 			keywords=[],
+			mbr_id=(!this.isMyLife ? this.mbr_id : undefined),
 			summary,
-			thread_id,
-			title='New Journal Entry',
+			title=`New ${ defaultType }`,
 		} = entry
+		if(!mbr_id) // only triggered if not MyLife server
+			throw new Error('mbr_id required for entry summary')
+		let { name, } = entry
+		name = name ?? `${ defaultType }_${ form }_${ title.substring(0,64) }_${ mbr_id }`
 		if(!summary?.length)
 			throw new Error('entry summary required')
-		const { mbr_id, newGuid: id, } = this
-		const name = `entry_${ title.substring(0,64) }_${ mbr_id }_${ id }`
 		/* assign default keywords */
-		if(!keywords.includes('memory'))
-			keywords.push('memory')
-		if(!keywords.includes('biographer'))
-			keywords.push('biographer')
-		const completeEntry = {
+		if(!keywords.includes('entry'))
+			keywords.push('entry')
+		if(!keywords.includes('journal'))
+			keywords.push('journal')
+		const _entry = {
 			...entry,
 			...{
 			assistantType,
@@ -652,10 +656,9 @@ class AgentFactory extends BotFactory {
 			mbr_id,
 			name,
 			summary,
-			thread_id,
 			title,
 		}}
-		return await this.dataservices.entry(completeEntry)
+		return await this.dataservices.pushItem(_entry)
 	}
 	async getAlert(_alert_id){
 		const _alert = mAlerts.system.find(alert => alert.id === _alert_id)
@@ -763,31 +766,35 @@ class AgentFactory extends BotFactory {
 		return savedExperience
 	}
 	/**
-	 * Submits a story to MyLife. Currently via API, but could be also work internally.
-	 * @param {object} story - Story object.
-	 * @returns {object} - The story document from Cosmos.
+	 * Submits a story to MyLife. Currently called both from API _and_ LLM function.
+	 * @param {object} story - Story object
+	 * @returns {object} - The story document from Cosmos
 	 */
 	async story(story){
+		const defaultType = 'story'
 		const { 
-			assistantType='biographer-bot',
-			being='story',
-			form='biographer',
+			assistantType='biographer',
+			being=defaultType,
+			form=defaultType,
+			id=this.newGuid,
 			keywords=[],
+			mbr_id=(!this.isMyLife ? this.mbr_id : undefined),
 			phaseOfLife='unknown',
 			summary,
-			thread_id,
-			title='New Memory Entry',
+			title=`New ${ defaultType }`,
 		} = story
+		if(!mbr_id) // only triggered if not MyLife server
+			throw new Error('mbr_id required for story summary')
+		let { name, } = story
+		name = name ?? `${ defaultType }_${ form }_${ title.substring(0,64) }_${ mbr_id }`
 		if(!summary?.length)
 			throw new Error('story summary required')
-		const { mbr_id, newGuid: id, } = this
-		const name = `story_${ title.substring(0,64) }_${ mbr_id }_${ id }`
 		/* assign default keywords */
 		if(!keywords.includes('memory'))
 			keywords.push('memory')
 		if(!keywords.includes('biographer'))
 			keywords.push('biographer')
-		const validatedStory = {
+		const _story = { // add validated fields back into `story` object
 			...story,
 			...{
 				assistantType,
@@ -799,10 +806,21 @@ class AgentFactory extends BotFactory {
 				name,
 				phaseOfLife,
 				summary,
-				thread_id,
 				title,
 			}}
-		return await this.dataservices.story(validatedStory)
+		return await this.dataservices.pushItem(_story)
+	}
+	async summary(summary){
+		const { being='story', } = summary
+		switch(being){
+			case 'entry':
+				return await this.entry(summary)
+			case 'memory':
+			case 'story':
+				return await this.story(summary)
+			default:
+				throw new Error('summary being not recognized')
+		}
 	}
 	/**
 	 * Tests partition key for member

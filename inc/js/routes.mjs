@@ -19,8 +19,12 @@ import {
     logout,
     loginSelect,
     members,
+    migrateBot,
+    migrateChat,
     passphraseReset,
     privacyPolicy,
+    retireBot,
+    retireChat,
     shadows,
     signup,
     summarize,
@@ -38,6 +42,7 @@ import {
 } from './memory-functions.mjs'
 import {
     availableExperiences,
+    entry,
     experience,
     experienceCast,
     experienceEnd,
@@ -47,8 +52,8 @@ import {
     experiencesLived,
     keyValidation,
     logout as apiLogout,
+    memory,
     register,
-    story,
     tokenValidation,
 } from './api-functions.mjs'
 // variables
@@ -85,9 +90,10 @@ _apiRouter.patch('/experiences/:mid/experience/:eid/manifest', experienceManifes
 _apiRouter.patch('/experiences/:mid/experience/:eid/navigation', experienceNavigation)
 _apiRouter.patch('/experiences/:mid/experience/:eid', experience) // **note**: This line should be the last one alphabetically due to the wildcard.
 _apiRouter.post('/challenge/:mid', challenge)
+_apiRouter.post('/entry/:mid', entry)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
+_apiRouter.post('/memory/:mid', memory)
 _apiRouter.post('/register', register)
-_apiRouter.post('/story/:mid', story)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
 /* member routes */
@@ -115,8 +121,12 @@ _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/create', createBot)
 _memberRouter.post('/bots/activate/:bid', activateBot)
 _memberRouter.post('/category', category)
+_memberRouter.post('/migrate/bot/:bid', migrateBot)
+_memberRouter.post('/migrate/chat/:tid', migrateChat)
 _memberRouter.post('/mode', interfaceMode)
 _memberRouter.post('/passphrase', passphraseReset)
+_memberRouter.post('/retire/bot/:bid', retireBot)
+_memberRouter.post('/retire/chat/:tid', retireChat)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)
@@ -141,10 +151,12 @@ function connectRoutes(_Menu){
  * @param {function} next Koa next function
  * @returns {function} Koa next function
  */
-async function memberValidation(ctx, next) {
-    if(ctx.state?.locked ?? true)
+async function memberValidation(ctx, next){
+    const { locked=true, } = ctx.state
+    if(locked)
         ctx.redirect(`/?type=select`) // Redirect to /members if not authorized
-    await next() // Proceed to the next middleware if authorized
+    else
+        await next() // Proceed to the next middleware if authorized
 }
 /**
  * Returns the member session logged in status
