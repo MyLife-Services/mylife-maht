@@ -214,15 +214,14 @@ function extendClass_conversation(originClass, referencesObject) {
             }
         }
         async save(){
-            if(!this.isSaved){
+            if(!this.isSaved) // create new MyLife conversation
                 await mSaveConversation(this.#factory, this)
-            }
             // @todo: no need to await
+            const messages = this.messages.map(_msg=>_msg.micro)
             const dataUpdate = await this.#factory.dataservices.patch(
                 this.id,
-                { messages: this.messages.map(_msg=>_msg.micro), }
+                { messages, }
             )
-            console.log('Conversation::save::dataUpdate', dataUpdate)
             this.#saved = true
             return this
         }

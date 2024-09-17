@@ -640,8 +640,21 @@ async function mThread(openai, thread_id, messages=[], metadata){
     else
         return mThreadCreate(openai, messages, metadata)
 }
-async function mThreadCreate(openai){
-    const thread = await openai.beta.threads.create()
+/**
+ * Create an OpenAI thread.
+ * @module
+ * @async
+ * @param {OpenAI} openai - openai object
+ * @param {Message[]} messages - array of messages (optional)
+ * @param {object} metadata - metadata object (optional)
+ * @returns {object} - openai `thread` object
+ */
+async function mThreadCreate(openai, messages, metadata){
+    const thread = await openai.beta.threads.create({
+        messages,
+        metadata,
+        tool_resources: {},
+    })
     return thread
 }
 /**

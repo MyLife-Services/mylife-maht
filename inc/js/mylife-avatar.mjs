@@ -459,7 +459,6 @@ class Avatar extends EventEmitter {
     async migrateChat(thread_id){
         /* MyLife conversation re-assignment */
         const conversation = this.getConversation(thread_id)
-        console.log('migrateChat::conversation', conversation.thread)
         if(!conversation)
             throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
         const messages = (await this.#llmServices.messages(thread_id))
@@ -470,47 +469,46 @@ class Avatar extends EventEmitter {
                     .filter(_content=>_content.type==='text')
                     .map(_content=>_content.text?.value)
                     ?.[0]
-                return { content, id, metadata, role, }
+                return { content, metadata, role, }
             })
+        const { botId, } = conversation
+        const bot = this.getBot(botId)
+        // @todo - switch modular function by bot type, therefore conversation collection-type
+        const memories = ( await this.collections('story') )
+            .sort((a, b)=>a._ts-b._ts)
+            .slice(0, 12)
+        const memoryList = memories
+            .map(memory=>`- itemId: ${ memory.id } :: ${ memory.title }`)
+            .join('\n')
+        const memoryCollectionList = memories
+            .map(memory=>memory.id)
+            .join(',')
+            .slice(0, 512)
         messages.push({
-            content: `# MEMORY COLLECTION LIST\n`, // insert actual memory list with titles here for intelligence to reference
+            content: `## MEMORY COLLECTION LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
             metadata: {
-                collectionIds: [],
+                collectionList: memoryCollectionList,
+                collectiontypes: 'memory,story,narrative',
             },
-            role: 'system',
+            role: 'assistant',
         }) // add summary of Memories (etc. due to type) for intelligence to reference, also could add attachment file
         const metadata = {
-            bot_id: conversation.botId,
+            bot_id: botId,
             conversation_id: conversation.id,
         }
-        console.log('migrateChat::newThread', conversation.thread, newThread, messages, metadata)
-        return conversation
-        const newThread = await this.#llmServices.thread(null, messages, metadata)
+        const newThread = await this.#llmServices.thread(null, messages.reverse(), metadata)
         conversation.setThread(newThread)
-        /* get all messages from llm */
-        // get last 12 messages and put them up in "order"
-        // create conversation input that lists ALL memory summaries for bot
-        /* add to new conversation */
-        const newConversation = await this.createConversation(conversation.type, newThread_id, conversation.bot_id)
-        const newMessages = newConversation.addMessages(messages)
-        // not adding to actual openai messages
-        // built such that it would never need to per se, they would all be fished through chat() requests
-        // so this gives me room to design what I need, maybe clean up some of the mess?
-
-
-
-        /* replace in memory */
-        const index = this.conversations.findIndex(_conversation=>_conversation.thread_id===thread_id)
-        if(index>=0)
-            this.conversations.splice(index, 1, newConversation)
-        /* update bot thread_id in memory and db */
-        const bot = this.getBot(newConversation.bot_id)
-        bot.thread_id = newConversation.thread_id
-        const newBot = await this.updateBot(bot)
-        const botIndex = this.bots.findIndex(_bot=>_bot.id===bot.id)
-        if(botIndex>=0)
-            this.bots.splice(botIndex, 1, newBot)
-        return newConversation
+        bot.thread_id = conversation.thread_id
+        const _bot = {
+            id: bot.id,
+            thread_id: bot.thread_id,
+        }
+        await this.#factory.updateBot(_bot)
+        if(mAllowSave)
+            conversation.save()
+        else
+            console.log('migrateChat::BYPASS-SAVE', conversation.thread_id)
+        return conversation
     }
     /**
      * Register a candidate in database.
