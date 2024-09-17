@@ -13,7 +13,7 @@ import chalk from 'chalk'
 /* local service imports */
 import MyLife from './inc/js/mylife-agent-factory.mjs'
 /** variables **/
-const version = '0.0.21'
+const version = '0.0.22'
 const app = new Koa()
 const port = process.env.PORT ?? '3000'
 const __filename = fileURLToPath(import.meta.url)
