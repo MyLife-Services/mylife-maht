@@ -13,6 +13,7 @@ import {
     refreshCollection,
     setActiveBot as _setActiveBot,
     togglePopup,
+    updateItem,
 } from './bots.mjs'
 import Globals from './globals.mjs'
 /* variables */
@@ -421,13 +422,17 @@ async function mAddMemberMessage(event){
     const response = await submit(memberMessage)
     let { instruction, responses, success, } = response
     /* process instructions */
+    const { itemId, summary, title, } = instruction
     if(instruction?.command?.length){
         switch(instruction.command){
+            case 'updateItemSummary':
+                if(itemId?.length && summary?.length)
+                    updateItem({ itemId, summary, })
+                break
             case 'updateItemTitle':
-                const { title, itemId, } = instruction
                 if(title?.length && itemId?.length){
                     setActiveItemTitle(title, itemId)
-                    refreshCollection('story') // force-refresh memories; could be more savvy
+                    updateItem({ itemId, title, })
                 }
                 break
             case 'experience':

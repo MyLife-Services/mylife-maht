@@ -123,7 +123,8 @@ function getBot(type='personal-avatar', id){
  * @returns {object} - The collection item object.
  */
 function getItem(id){
-    /* return collection item by id */
+    /* return collection elements by id */
+
 }
 /**
  * Refresh designated collection from server. **note**: external calls denied option to identify collectionList parameter, ergo must always be of same type.
@@ -204,6 +205,19 @@ function togglePopup(id, bForceState=null){
     if(!popup)
         throw new Error(`No popup found for id: ${ id }`)
     toggleVisibility(popup, bForceState)
+}
+/**
+ * Update collection item title.
+ * @todo - Only update local memory and data(sets), not full local refresh
+ * @param {object} item - The collection item fields to update, requires `{ itemId, }`
+ * @returns {void}
+ */
+function updateItem(item){
+    if(!item?.itemId)
+        throw new Error(`No item provided to update.`)
+    /* update collection elements indicated as object keys with this itemId */
+    // @stub - force-refresh memories; could be more savvy
+    refreshCollection('story')
 }
 /**
  * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
@@ -317,7 +331,7 @@ function mBotIcon(type){
  */
 function mCreateCollectionItem(collectionItem){
     /* collection item container */
-    const { assistantType, filename, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
+    const { assistantType, filename, form, id, keywords, name, summary, title, type, } = collectionItem
     const item = document.createElement('div')
     item.id = `collection-item_${ id }`
     item.name = `collection-item-${ type }`
@@ -2123,5 +2137,6 @@ export {
     refreshCollection,
     setActiveBot,
     togglePopup,
+    updateItem,
     updatePageBots,
 }
