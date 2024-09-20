@@ -1215,17 +1215,33 @@ function mCreateBotInstructions(factory, bot){
 	if(typeof bot!=='object' || !bot.type?.length)
 		throw new Error('bot object required, and  requires `type` property')
 	const { type=mDefaultBotType, } = bot
-    let { instructions, version, } = factory.botInstructions(type)
+    let {
+		instructions,
+		limit=8000,
+		version,
+	} = factory.botInstructions(type)
     if(!instructions) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
-    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructions
+    let {
+		general,
+		purpose='',
+		preamble='',
+		prefix='',
+		references=[],
+		replacements=[],
+		suffix='', // example: data privacy info
+		voice='',
+	} = instructions
     /* compile instructions */
     switch(type){
 		case 'diary':
 		case 'journaler':
             instructions = purpose
+				+ preamble
 				+ prefix
                 + general
+				+ suffix
+				+ voice
 			break
         case 'personal-avatar':
             instructions = preamble
@@ -1285,6 +1301,8 @@ function mCreateBotInstructions(factory, bot){
                 break
         }
     })
+	/* assess and validate limit */
+	console.log(chalk.blueBright('instructions length'), instructions.length, instructions)
     return { instructions, version, }
 }
 function mExposedSchemas(factoryBlockedSchemas){

@@ -96,6 +96,28 @@ const mAiJsFunctions = {
 			]
 		}
 	},
+	obscure: {
+		description: "Obscures a summary so that no human names are present",
+		name: "obscure",
+		parameters: {
+			type: "object",
+			properties: {
+				itemId: {
+					description: "Id of summary to obscure",
+					format: "uuid",
+					type: "string"
+				},
+				summary: {
+					description: "The new obscured summary",
+					type: "string"
+				}
+			},
+			required: [
+				"itemId",
+				"summary"
+			]
+		}
+	},
 	storySummary: {
 		description: 'Generate a complete multi-paragraph STORY summary with keywords and other critical data elements.',
 		name: 'storySummary',
@@ -177,7 +199,7 @@ const mAiJsFunctions = {
 			},
 			required: [
 				"itemId",
-				"title"
+				"summary"
 			]
 		}
 	},
