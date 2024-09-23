@@ -410,11 +410,12 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     action = `journal entry failed to save, notify member and continue on for now`
                                 }
                                 confirmation.output = JSON.stringify({ action, success, })
+                                console.log('mRunFunctions()::entrySummary', toolArguments, confirmation.output)
                                 return confirmation
                             case 'getsummary':
                             case 'get_summary':
                             case 'get summary':
-                                let { summary, } = item ?? {}
+                                let { summary, title: _getSummaryTitle, } = item ?? {}
                                 if(!summary?.length){
                                     action = `error getting summary for itemId: ${ itemId ?? 'missing itemId' } - halt any further processing and instead ask user to paste summary into chat and you will continue from there to incorporate their message.`
                                     summary = 'no summary found for itemId'
@@ -423,16 +424,16 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     success = true
                                 }
                                 confirmation.output = JSON.stringify({ action, itemId, success, summary, })
-                                console.log('mRunFunctions()::getSummary::confirmation', itemId)
+                                console.log('mRunFunctions()::getsummary', itemId, _getSummaryTitle)
                                 return confirmation
                             case 'hijackattempt':
                             case 'hijack_attempt':
                             case 'hijack-attempt':
                             case 'hijack attempt':
-                                console.log('mRunFunctions()::hijack_attempt', toolArguments)
                                 action = 'attempt noted in system and user ejected; greet per normal as first time new user'
                                 success = true
                                 confirmation.output = JSON.stringify({ action, success, })
+                                console.log('mRunFunctions()::hijack_attempt', toolArguments)
                                 return confirmation
                             case 'registercandidate':
                             case 'register_candidate':
@@ -454,6 +455,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'story-summary':
                             case 'story_summary':
                             case 'story summary':
+                                console.log('mRunFunctions()::storySummary', toolArguments)
                                 const story = await factory.story(toolArguments)
                                 if(story){
                                     const { keywords, phaseOfLife, } = story
@@ -465,11 +467,9 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     switch(true){
                                         case phaseOfLife?.length:
                                             action = `ask about another encounter during member's ${ phaseOfLife }`
-                                            console.log('mRunFunctions()::story-summary::phaseOfLife', phaseOfLife)
                                             break
                                         case interests?.length:
                                             action = `ask about a different interest from: ${ interests }`
-                                            console.log('mRunFunctions()::story-summary::interests', interests)
                                             break
                                         default:
                                             action = 'ask about another event in member\'s life'
@@ -478,6 +478,7 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     success = true
                                 } // error cascades
                                 confirmation.output = JSON.stringify({ action, success, })
+                                console.log('mRunFunctions()::storySummary()::end', story.id)
                                 return confirmation
                             case 'updatesummary':
                             case 'update_summary':
