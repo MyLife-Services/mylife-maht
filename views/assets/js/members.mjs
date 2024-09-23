@@ -420,7 +420,9 @@ async function mAddMemberMessage(event){
     })
     /* server request */
     const response = await submit(memberMessage)
-    let { instruction, responses, success, } = response
+    let { instruction={}, responses=[], success=false, } = response
+    if(!success)
+        mAddMessage('I\'m sorry, I didn\'t understand that, something went wrong on the server. Please try again.')
     /* process instructions */
     const { itemId, summary, title, } = instruction
     if(instruction?.command?.length){
@@ -444,7 +446,8 @@ async function mAddMemberMessage(event){
     }
     /* process response */
 	responses
-        .forEach(message => {
+        .forEach(message=>{
+            console.log('mAddMemberMessage::responses', message)
             mAddMessage(message.message ?? message.content, {
                 bubbleClass: 'agent-bubble',
                 role: 'agent',
