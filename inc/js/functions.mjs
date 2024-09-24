@@ -6,7 +6,7 @@ import {
 /* module export functions */
 async function about(ctx){
 	ctx.state.title = `About MyLife`
-	await ctx.render('about') // about
+	await ctx.render('about')
 }
 /**
  * Activate a bot for the member

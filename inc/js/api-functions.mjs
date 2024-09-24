@@ -246,7 +246,16 @@ async function memory(ctx){
     }
 }
 /**
- * Validates api token
+ * Given an itemId, obscures aspects of contents of the data record.
+ * @param {Koa} ctx - Koa Context object
+ */
+async function obscure(ctx){
+    const { iid } = ctx.params
+    await mAPIKeyValidation(ctx)
+    ctx.body = await ctx.MyLife.obscure(iid, ctx.request?.body)
+}
+/**
+ * Validates api token.
  * @module
  * @public
  * @param {object} ctx Koa context object
@@ -350,6 +359,7 @@ export {
     keyValidation,
     logout,
     memory,
+    obscure,
     register,
     tokenValidation,
     upload,
