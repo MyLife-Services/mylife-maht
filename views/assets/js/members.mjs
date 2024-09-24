@@ -2,7 +2,7 @@
 import {
     experienceEnd,
     experiencePlay,
-    experiences,
+    experiences as _experiences,
     experienceSkip,
     experienceStart,
     submitInput,
@@ -13,6 +13,7 @@ import {
     refreshCollection,
     setActiveBot as _setActiveBot,
     togglePopup,
+    updateItem,
 } from './bots.mjs'
 import Globals from './globals.mjs'
 /* variables */
@@ -128,6 +129,9 @@ function decorateActiveBot(activeBot=activeBot()){
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
+}
+function experiences(){
+    return _experiences()
 }
 /**
  * Deletes an element from the DOM via Avatar functionality.
@@ -355,6 +359,15 @@ function stageTransition(experienceId){
         mStageTransitionMember()
 }
 /**
+ * Start experience onscreen, displaying welcome ande loading remaining data. Passthrough to `experience.mjs::experienceStart()`.
+ * @public
+ * @param {Guid} experienceId - The Experience id
+ * @returns {void}
+ */
+async function startExperience(experienceId){
+    await experienceStart(experienceId)
+}
+/**
  * Toggle visibility functionality.
  * @returns {void}
  */
@@ -419,15 +432,21 @@ async function mAddMemberMessage(event){
     })
     /* server request */
     const response = await submit(memberMessage)
-    let { instruction, responses, success, } = response
+    let { instruction={}, responses=[], success=false, } = response
+    if(!success)
+        mAddMessage('I\'m sorry, I didn\'t understand that, something went wrong on the server. Please try again.')
     /* process instructions */
+    const { itemId, summary, title, } = instruction
     if(instruction?.command?.length){
         switch(instruction.command){
+            case 'updateItemSummary':
+                if(itemId?.length && summary?.length)
+                    updateItem({ itemId, summary, })
+                break
             case 'updateItemTitle':
-                const { title, itemId, } = instruction
                 if(title?.length && itemId?.length){
                     setActiveItemTitle(title, itemId)
-                    refreshCollection('story') // force-refresh memories; could be more savvy
+                    updateItem({ itemId, title, })
                 }
                 break
             case 'experience':
@@ -439,7 +458,8 @@ async function mAddMemberMessage(event){
     }
     /* process response */
 	responses
-        .forEach(message => {
+        .forEach(message=>{
+            console.log('mAddMemberMessage::responses', message)
             mAddMessage(message.message ?? message.content, {
                 bubbleClass: 'agent-bubble',
                 role: 'agent',
@@ -511,13 +531,6 @@ async function mAddMessage(message, options={}){
         chatBubble.insertAdjacentHTML('beforeend', message)
         mScrollBottom()
 	}
-}
-async function mFetchExperiences(){
-    let response = await fetch('/members/experiences/')
-    if(!response.ok)
-        throw new Error(`HTTP error! Status: ${ response.status }`)
-    response = await response.json()
-    return response
 }
 /**
  * Fetches the summary via PA for a specified file.
@@ -808,6 +821,7 @@ export {
     clearSystemChat,
     decorateActiveBot,
     escapeHtml,
+    experiences,
     expunge,
     fetchSummary,
     getActiveItemId,
@@ -827,6 +841,7 @@ export {
     showMemberChat,
     showSidebar,
     stageTransition,
+    startExperience,
     submit,
     toggleMemberInput,
     toggleInputTextarea,

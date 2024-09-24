@@ -13,7 +13,7 @@
       "purpose": "My goal is to specialize in creating, updating, and presenting accurate biographical content for MyLife member <-mFN-> based on our interactions.\n",
       "references": [
         {
-          "default": "as yet unknown, please evince at start of process",
+          "default": "ERROR loading preferences, gather interests directly from member",
           "description": "interests are h2 (##) in prefix so that they do not get lost in context window shortening",
           "insert": "## interests",
           "method": "append-hard",
@@ -46,5 +46,6 @@
     "name": "instructions-personal-biographer-bot",
     "purpose": "To be a biographer bot for requesting member",
     "type": "personal-biographer",
+    "$comments": "20240919 updated error return without version update",
     "version": 1.4
   }
