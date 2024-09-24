@@ -1712,6 +1712,7 @@ function mToggleSwitchPrivacy(event){
     let { id, } = this
     id = id.replace('-toggle', '') // remove toggle
     const type = mGlobals.HTMLIdToType(id)
+    console.log('mToggleSwitchPrivacy', type)
     const publicityCheckbox = document.getElementById(`${ type }-publicity-input`)
     const viewIcon = document.getElementById(`${ type }-publicity-toggle-view-icon`)
     const { checked=false, } = publicityCheckbox
@@ -1864,6 +1865,21 @@ function mUpdateBotContainerAddenda(botContainer){
                     dataset.bot_name = localVars.bot_name
                 }
             })
+        }
+        /* publicity */
+        const publicityToggle = document.getElementById(`${ type }-publicity-toggle`)
+        if(publicityToggle){
+            publicityToggle.addEventListener('click', mToggleSwitchPrivacy)
+            const publicityToggleView = document.getElementById(`${ type }-publicity-toggle-view-icon`)
+            if(publicityToggleView){
+                const { checked=false, } = document.getElementById(`${ type }-publicity-input`) ?? {}
+                mToggleClass(publicityToggleView, !checked ? ['fa-eye-slash'] : ['fa-eye'], checked ? ['fa-eye'] : ['fa-eye-slash'])
+                publicityToggleView.addEventListener('click', event=>{
+                    // @note - shouldn't be required, but container masters the switch
+                    event.stopImmediatePropagation()
+                    event.stopPropagation()
+                })
+            }
         }
         switch(type){
             case 'diary':
