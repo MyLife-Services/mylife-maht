@@ -2,7 +2,7 @@
 import {
     experienceEnd,
     experiencePlay,
-    experiences,
+    experiences as _experiences,
     experienceSkip,
     experienceStart,
     submitInput,
@@ -129,6 +129,9 @@ function decorateActiveBot(activeBot=activeBot()){
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
+}
+function experiences(){
+    return _experiences()
 }
 /**
  * Deletes an element from the DOM via Avatar functionality.
@@ -356,6 +359,15 @@ function stageTransition(experienceId){
         mStageTransitionMember()
 }
 /**
+ * Start experience onscreen, displaying welcome ande loading remaining data. Passthrough to `experience.mjs::experienceStart()`.
+ * @public
+ * @param {Guid} experienceId - The Experience id
+ * @returns {void}
+ */
+async function startExperience(experienceId){
+    await experienceStart(experienceId)
+}
+/**
  * Toggle visibility functionality.
  * @returns {void}
  */
@@ -519,13 +531,6 @@ async function mAddMessage(message, options={}){
         chatBubble.insertAdjacentHTML('beforeend', message)
         mScrollBottom()
 	}
-}
-async function mFetchExperiences(){
-    let response = await fetch('/members/experiences/')
-    if(!response.ok)
-        throw new Error(`HTTP error! Status: ${ response.status }`)
-    response = await response.json()
-    return response
 }
 /**
  * Fetches the summary via PA for a specified file.
@@ -816,6 +821,7 @@ export {
     clearSystemChat,
     decorateActiveBot,
     escapeHtml,
+    experiences,
     expunge,
     fetchSummary,
     getActiveItemId,
@@ -835,6 +841,7 @@ export {
     showMemberChat,
     showSidebar,
     stageTransition,
+    startExperience,
     submit,
     toggleMemberInput,
     toggleInputTextarea,

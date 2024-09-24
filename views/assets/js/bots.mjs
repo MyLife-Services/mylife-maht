@@ -5,6 +5,7 @@ import {
     addMessage,
     addMessages,
     decorateActiveBot,
+    experiences,
     expunge,
     fetchSummary,
     getActiveItemId,
@@ -13,6 +14,7 @@ import {
     setActiveItem,
     setActiveItemTitle,
     show,
+    startExperience,
     submit,
     toggleMemberInput,
     toggleVisibility,
@@ -1890,6 +1892,18 @@ function mUpdateBotContainerAddenda(botContainer){
                 /* attach avatar listeners */
                 /* set additional data attributes */
                 mTogglePassphrase(false) /* passphrase */
+                const tutorialButton = document.getElementById('personal-avatar-tutorial')
+                if(tutorialButton){
+                    if(experiences().length){
+                        show(tutorialButton)
+                        tutorialButton.addEventListener('click', async event=>{
+                            hide(tutorialButton)
+                            const tutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
+                            startExperience(tutorialId) // no await
+                        }, { once: true })
+                    } else
+                        hide(tutorialButton)
+                }
                 break
             default:
                 break

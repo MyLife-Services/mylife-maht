@@ -440,7 +440,8 @@
     justify-content: space-between;
     width: 100%;
 }
-.passphrase-reset {
+.passphrase-reset,
+.tutorial-button {
     width: 100%;
 }
 /* publicity sliders */

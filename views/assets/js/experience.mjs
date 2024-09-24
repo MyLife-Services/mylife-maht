@@ -170,12 +170,9 @@ async function experiencePlay(memberInput){
  * Retrieve full or scoped list of experiences from server.
  * @todo - more robust logic underpinning selection of experiences, currently only system-controlled exist.
  * @requires mExperiences
- * @param {string} scope - The scope of the experiences to retrieve.
- * @returns {Promise<Experience[]>} - The return is an array of Experience objects.
+ * @returns {Experience[]} - The return is an array of Experience objects.
  */
-async function experiences(scope){
-    if(!mExperiences.length)
-        mExperiences.push(...await mGetExperiences(scope))
+function experiences(scope){
     return mExperiences
 }
 /**
@@ -196,8 +193,8 @@ function experienceSkip(sceneId){
 /**
  * Start experience onscreen, displaying welcome ande loading remaining data.
  * @public
- * @param {Guid} experienceId - The Experience object.
- * @returns {Promise<void>} - The return is its own success.
+ * @param {Guid} experienceId - The Experience id
+ * @returns {Promise<void>}
  */
 async function experienceStart(experienceId){
     if(!globals.isGuid(experienceId))
