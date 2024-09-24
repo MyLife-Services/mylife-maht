@@ -5,6 +5,7 @@ import {
     addMessage,
     addMessages,
     decorateActiveBot,
+    experiences,
     expunge,
     fetchSummary,
     getActiveItemId,
@@ -13,6 +14,7 @@ import {
     setActiveItem,
     setActiveItemTitle,
     show,
+    startExperience,
     submit,
     toggleMemberInput,
     toggleVisibility,
@@ -123,7 +125,8 @@ function getBot(type='personal-avatar', id){
  * @returns {object} - The collection item object.
  */
 function getItem(id){
-    /* return collection item by id */
+    /* return collection elements by id */
+
 }
 /**
  * Refresh designated collection from server. **note**: external calls denied option to identify collectionList parameter, ergo must always be of same type.
@@ -204,6 +207,19 @@ function togglePopup(id, bForceState=null){
     if(!popup)
         throw new Error(`No popup found for id: ${ id }`)
     toggleVisibility(popup, bForceState)
+}
+/**
+ * Update collection item title.
+ * @todo - Only update local memory and data(sets), not full local refresh
+ * @param {object} item - The collection item fields to update, requires `{ itemId, }`
+ * @returns {void}
+ */
+function updateItem(item){
+    if(!item?.itemId)
+        throw new Error(`No item provided to update.`)
+    /* update collection elements indicated as object keys with this itemId */
+    // @stub - force-refresh memories; could be more savvy
+    refreshCollection('story')
 }
 /**
  * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
@@ -317,7 +333,7 @@ function mBotIcon(type){
  */
 function mCreateCollectionItem(collectionItem){
     /* collection item container */
-    const { assistantType, filename, form, id, keywords, library_id, name, summary, title, type, } = collectionItem
+    const { assistantType, filename, form, id, keywords, name, summary, title, type, } = collectionItem
     const item = document.createElement('div')
     item.id = `collection-item_${ id }`
     item.name = `collection-item-${ type }`
@@ -1698,6 +1714,7 @@ function mToggleSwitchPrivacy(event){
     let { id, } = this
     id = id.replace('-toggle', '') // remove toggle
     const type = mGlobals.HTMLIdToType(id)
+    console.log('mToggleSwitchPrivacy', type)
     const publicityCheckbox = document.getElementById(`${ type }-publicity-input`)
     const viewIcon = document.getElementById(`${ type }-publicity-toggle-view-icon`)
     const { checked=false, } = publicityCheckbox
@@ -1851,6 +1868,21 @@ function mUpdateBotContainerAddenda(botContainer){
                 }
             })
         }
+        /* publicity */
+        const publicityToggle = document.getElementById(`${ type }-publicity-toggle`)
+        if(publicityToggle){
+            publicityToggle.addEventListener('click', mToggleSwitchPrivacy)
+            const publicityToggleView = document.getElementById(`${ type }-publicity-toggle-view-icon`)
+            if(publicityToggleView){
+                const { checked=false, } = document.getElementById(`${ type }-publicity-input`) ?? {}
+                mToggleClass(publicityToggleView, !checked ? ['fa-eye-slash'] : ['fa-eye'], checked ? ['fa-eye'] : ['fa-eye-slash'])
+                publicityToggleView.addEventListener('click', event=>{
+                    // @note - shouldn't be required, but container masters the switch
+                    event.stopImmediatePropagation()
+                    event.stopPropagation()
+                })
+            }
+        }
         switch(type){
             case 'diary':
             case 'journaler':
@@ -1860,6 +1892,18 @@ function mUpdateBotContainerAddenda(botContainer){
                 /* attach avatar listeners */
                 /* set additional data attributes */
                 mTogglePassphrase(false) /* passphrase */
+                const tutorialButton = document.getElementById('personal-avatar-tutorial')
+                if(tutorialButton){
+                    if(experiences().length){
+                        show(tutorialButton)
+                        tutorialButton.addEventListener('click', async event=>{
+                            hide(tutorialButton)
+                            const tutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
+                            startExperience(tutorialId) // no await
+                        }, { once: true })
+                    } else
+                        hide(tutorialButton)
+                }
                 break
             default:
                 break
@@ -2123,5 +2167,6 @@ export {
     refreshCollection,
     setActiveBot,
     togglePopup,
+    updateItem,
     updatePageBots,
 }
