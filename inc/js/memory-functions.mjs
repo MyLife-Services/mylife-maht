@@ -49,7 +49,8 @@ async function livingMemory(ctx){
 	const { Globals, MyLife, } = ctx
 	const { avatar, } = ctx.state
 	if(!Globals.isValidGuid(iid))
-		return ctx.throw(400, 'Invalid Item ID')
+		ctx.throw(400, 'Invalid Item ID')
+	ctx.throw(501, 'Not Implemented')
 	ctx.body = await avatar.livingMemory(iid)
 }
 /* exports */
@@ -58,5 +59,4 @@ export {
     improveMemory,
 	endMemory,
     reliveMemory,
-    livingMemory,
 }

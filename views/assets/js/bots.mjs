@@ -5,6 +5,7 @@ import {
     addMessage,
     addMessages,
     decorateActiveBot,
+    experiences,
     expunge,
     fetchSummary,
     getActiveItemId,
@@ -13,6 +14,7 @@ import {
     setActiveItem,
     setActiveItemTitle,
     show,
+    startExperience,
     submit,
     toggleMemberInput,
     toggleVisibility,
@@ -1712,6 +1714,7 @@ function mToggleSwitchPrivacy(event){
     let { id, } = this
     id = id.replace('-toggle', '') // remove toggle
     const type = mGlobals.HTMLIdToType(id)
+    console.log('mToggleSwitchPrivacy', type)
     const publicityCheckbox = document.getElementById(`${ type }-publicity-input`)
     const viewIcon = document.getElementById(`${ type }-publicity-toggle-view-icon`)
     const { checked=false, } = publicityCheckbox
@@ -1865,6 +1868,21 @@ function mUpdateBotContainerAddenda(botContainer){
                 }
             })
         }
+        /* publicity */
+        const publicityToggle = document.getElementById(`${ type }-publicity-toggle`)
+        if(publicityToggle){
+            publicityToggle.addEventListener('click', mToggleSwitchPrivacy)
+            const publicityToggleView = document.getElementById(`${ type }-publicity-toggle-view-icon`)
+            if(publicityToggleView){
+                const { checked=false, } = document.getElementById(`${ type }-publicity-input`) ?? {}
+                mToggleClass(publicityToggleView, !checked ? ['fa-eye-slash'] : ['fa-eye'], checked ? ['fa-eye'] : ['fa-eye-slash'])
+                publicityToggleView.addEventListener('click', event=>{
+                    // @note - shouldn't be required, but container masters the switch
+                    event.stopImmediatePropagation()
+                    event.stopPropagation()
+                })
+            }
+        }
         switch(type){
             case 'diary':
             case 'journaler':
@@ -1874,6 +1892,18 @@ function mUpdateBotContainerAddenda(botContainer){
                 /* attach avatar listeners */
                 /* set additional data attributes */
                 mTogglePassphrase(false) /* passphrase */
+                const tutorialButton = document.getElementById('personal-avatar-tutorial')
+                if(tutorialButton){
+                    if(experiences().length){
+                        show(tutorialButton)
+                        tutorialButton.addEventListener('click', async event=>{
+                            hide(tutorialButton)
+                            const tutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
+                            startExperience(tutorialId) // no await
+                        }, { once: true })
+                    } else
+                        hide(tutorialButton)
+                }
                 break
             default:
                 break
