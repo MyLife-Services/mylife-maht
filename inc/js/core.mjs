@@ -317,6 +317,16 @@ class MyLife extends Organization {	// form=server
 		return isValidated
 	}
 	/**
+	 * Obscures the summary for a given itemId belonging to member.
+	 * @param {string} mbr_id - valid member id
+	 * @param {string} itemId - valid item id belonging to member
+	 * @returns {object} - returns the obscured item
+	 */
+	async obscure(mbr_id, itemId){
+		console.log('core::obscure()::from api-functions', mbr_id, itemId)
+		return { itemId, mbr_id, obscured: true }
+	}
+	/**
 	 * Registers a new candidate to MyLife membership
 	 * @public
 	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }

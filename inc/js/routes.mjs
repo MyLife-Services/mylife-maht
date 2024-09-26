@@ -21,6 +21,7 @@ import {
     members,
     migrateBot,
     migrateChat,
+    obscure,
     passphraseReset,
     privacyPolicy,
     retireBot,
@@ -52,7 +53,7 @@ import {
     keyValidation,
     logout as apiLogout,
     memory,
-    obscure,
+    obscure as apiObscure,
     register,
     tokenValidation,
 } from './api-functions.mjs'
@@ -93,7 +94,7 @@ _apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/entry/:mid', entry)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/memory/:mid', memory)
-_apiRouter.post('/obscure/:iid', obscure)
+_apiRouter.post('/obscure/:mid', apiObscure)
 _apiRouter.post('/register', register)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)

@@ -243,6 +243,16 @@ async function migrateChat(ctx){
 	ctx.body = await avatar.migrateChat(tid)
 }
 /**
+ * Given an itemId, obscures aspects of contents of the data record.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - The item obscured
+ */
+async function obscure(ctx){
+	const { iid, } = ctx.params
+	const { avatar, } = ctx.state
+	ctx.body = await avatar.obscure(iid)
+}
+/**
  * Reset the passphrase for the member's avatar.
  * @param {Koa} ctx - Koa Context object
  * @returns {boolean} - Whether or not passpharase successfully reset
@@ -416,6 +426,7 @@ export {
 	members,
     migrateBot,
     migrateChat,
+	obscure,
 	passphraseReset,
 	privacyPolicy,
 	retireBot,

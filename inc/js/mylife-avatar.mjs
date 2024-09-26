@@ -511,6 +511,27 @@ class Avatar extends EventEmitter {
         return conversation
     }
     /**
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
+     * @param {Guid} iid - The item id
+     * @returns {Object} - The obscured item object
+     */
+    async obscure(iid){
+        const updatedSummary = await this.#factory.obscure(iid)
+        this.frontendInstruction = {
+            command: 'updateItemSummary',
+            itemId: iid,
+            summary: updatedSummary,
+        }
+        return {
+            instruction: this.frontendInstruction,
+            responses: [{
+                agent: 'server',
+                message: `I have successfully obscured your content.`,
+            }],
+            success: true,
+        }
+    }
+    /**
      * Register a candidate in database.
      * @param {object} candidate - The candidate data object.
      * @returns {object} - The registration object.
@@ -1280,6 +1301,14 @@ class Q extends Avatar {
         activeBotId = this.activeBotId
         return super.chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime)
     }
+    /**
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
+     * @param {Guid} iid - The item id
+     * @returns {Object} - The obscured item object
+     */
+   async obscure(iid){
+       return await this.#factory.obscure(iid)
+   }
     upload(){
         throw new Error('MyLife avatar cannot upload files.')
     }

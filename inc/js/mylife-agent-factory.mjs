@@ -40,6 +40,7 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
+const mGeneralBotId = 'asst_piDEJKYjqvAZbLstjd6u0ZMb'
 const mLLMServices = new LLMServices()
 const mMyLifeTeams = [
 	{
@@ -387,6 +388,14 @@ class BotFactory extends EventEmitter{
 		return await mDataservices.getItem(_experience_id, 'system')
 	}
 	/**
+	 * Retrieves a collection item by Id.
+	 * @param {Guid} id - The id of the collection item to retrieve.
+	 * @returns {object} - The item.
+	 */
+	async item(id){
+		return await this.dataservices.getItem(id)
+	}
+	/**
 	 * Proxy for modular mHelp() function.
 	 * @public
      * @param {string} thread_id - The thread id.
@@ -397,6 +406,23 @@ class BotFactory extends EventEmitter{
 	 */
 	async help(thread_id, bot_id, helpRequest, avatar){
 		return await mHelp(thread_id, bot_id, helpRequest, this, avatar)
+	}
+    /**
+     * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
+     * @param {Guid} itemId - Id of the item to obscure
+     * @returns {string} - The obscured content
+     */
+	async obscure(itemId){
+		const { id, summary, relationships, } = await this.item(itemId)
+			?? {}
+		if(!id)
+			throw new Error('Item not found')
+		if(!summary?.length)
+			throw new Error('No summary found to obscure')
+		const obscuredSummary = await mObscure(this, summary)
+		if(obscuredSummary?.length) /* save response */
+			this.dataservices.patch(id, { summary: obscuredSummary }) // no need await
+		return obscuredSummary
 	}
     /**
      * Allows member to reset passphrase.
@@ -614,14 +640,6 @@ class AgentFactory extends BotFactory {
 	async deleteItem(id){
 		return await this.dataservices.deleteItem(id)
 	}
-	/**
-	 * Retrieves a collection item by Id.
-	 * @param {Guid} id - The id of the collection item to retrieve.
-	 * @returns {object} - The item.
-	 */
-	async item(id){
-		return await this.dataservices.getItem(id)
-	}
 	async entry(entry){
 		const defaultType = 'entry'
 		const { 
@@ -835,12 +853,14 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Updates a collection item.
-	 * @param {object} item - The item to update.
-	 * @returns {Promise<object>} - The updated item.
+	 * @param {object} item - The item to update
+	 * @property {Guid} item.id - The item id
+	 * @returns {Promise<object>} - The updated item
 	 */
 	async updateItem(item){
-		const { id, ..._item } = item
-		const response = await this.dataservices.patch(id, _item)
+		if(!this.globals.isValidGuid(item?.id))
+			throw new Error('item id required for update')
+		const response = await this.dataservices.patch(item.id, item)
 		return response
 	}
 	/* getters/setters */
@@ -1542,6 +1562,31 @@ async function mLoadSchemas(){
 	} catch(err){
 		console.log(err)
 	}
+}
+/**
+ * Given an itemId, obscures aspects of contents of the data record.
+ * @param {AgentFactory} factory - The factory object
+ * @param {Guid} iid - The item id
+ * @returns {Object} - The obscured item object
+ */
+async function mObscure(factory, summary) {
+    const { mbr_id } = factory
+	let obscuredSummary
+    // @stub - if greater than limit, turn into text file and add
+    const prompt = `OBSCURE:\n${summary}`
+    const messageArray = await mLLMServices.getLLMResponse(null, mGeneralBotId, prompt)
+	const { content: contentArray=[], } = messageArray?.[0] ?? {}
+	const { value, } = contentArray
+		.filter(message=>message.type==='text')
+		?.[0]
+		?.text
+			?? {}
+    try {
+		let parsedSummary = JSON.parse(value)
+        if(typeof parsedSummary==='object' && parsedSummary!==null)
+            obscuredSummary = parsedSummary.obscuredSummary
+    } catch(e) {} // obscuredSummary is just a string; use as-is or null
+	return obscuredSummary
 }
 async function mPopulateBotInstructions(){
 	const instructionSets = await mDataservices.botInstructions()
