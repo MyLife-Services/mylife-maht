@@ -138,7 +138,7 @@ _memberRouter.put('/item/:iid', item)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
-/* mondular functions */
+/* modular functions */
 /**
  * Connects the routes to the router
  * @param {object} _Menu Menu object
