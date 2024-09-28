@@ -294,9 +294,9 @@ class BotFactory extends EventEmitter{
 	 * Gets a member's bots.
 	 * @todo - develop bot class and implement hydrated instance
 	 * @public
-	 * @param {string} object_id - The object_id guid of avatar.
-	 * @param {string} botType - The bot type.
-	 * @returns {array} - The member's hydrated bots.
+	 * @param {string} object_id - The object_id guid of avatar
+	 * @param {string} botType - The bot type
+	 * @returns {array} - The member's hydrated bots
 	 */
 	async bots(object_id, botType){
 		const _params = object_id?.length
@@ -917,6 +917,16 @@ class MyLifeFactory extends AgentFactory {
 		super(mPartitionId)
 	} // no init() for MyLife server
 	/* public functions */
+	/**
+	 * Overload for MyLifeFactory::bot() - Q is able to hydrate a bot instance on behalf of members.
+	 * @param {string} mbr_id - The member id
+	 * @returns {object} - The hydrated bot instance
+	 */
+	async bot(mbr_id){
+		const bot = await new BotFactory(mbr_id)
+			.init()
+		return bot
+	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.

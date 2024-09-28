@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: MyLife Diary Bot API
-  description: This API is for receiving webhooks from [MyLife's public Diary Bot instance](https://chatgpt.com/g/g-rSCnLVUKd-mylife-diary-bot-prototype). All diary submissions are referred to as `entry` within this API.
-  version: 1.0.0
+  description: This API is for receiving webhooks from [MyLife's public Diary Bot instance](https://chatgpt.com/g/g-rSCnLVUKd-mylife-diary-bot-prototype). All diary submissions are referred to as `entry` within this API. 20240927 update @mookse added `obscure` pathway
+  version: 1.0.1
 servers:
   - url: https://mylife.ngrok.app/api/v1
     description: Local development endpoint using ngrok for testing the MyLife Diary Bot GPT.
@@ -148,6 +148,71 @@ paths:
                     example: Entry submitted successfully.
         "400":
           description: No entry summary provided. Use the `summary` field.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: false
+                    example: false
+                  message:
+                    type: string
+                    example: No entry summary provided. Use the `summary` field.
+  /obscure/{mid}:
+    post:
+      x-openai-isConsequential: false
+      operationId: MyLifeObscureEntry
+      summary: MyLife Diary Bot will access this endpoint to have the MyLife system obscure an `entry` summary on behalf of member.
+      description: Endpoint for handling incoming request to obscure an entry summary from the MyLife GPT service.
+      parameters:
+        - name: mid
+          in: path
+          required: true
+          description: The `memberKey` data to be sent by MyLife Biographer Bot. Visitor enters memberKey and it is kept in GPT memory and sent with each request so that MyLife knows partition. Is **not** just a guid/uuid.
+          example: memberHandle|ae3a090d-1089-4110-8575-eecd119f9d8e
+          schema:
+            maxLength: 256
+            minLength: 40
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: The itemId identified for the `entry` to obscure.
+              type: object
+              required:
+                - itemid
+              properties:
+                itemid:
+                  description: The raw content of the `entry` as submitted by the user, concatenated from multiple exchanges when appropriate.
+                  maxLength: 20480
+                  type: string
+      responses:
+        "200":
+          description: Entry obscured successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - action
+                properties:
+                  action:
+                    type: string
+                    example: Action to take given that the obscure command was successful.
+                  obscuredSummary:
+                    type: string
+                    example: The newly-created obscured content.
+                  success:
+                    type: boolean
+                    const: true
+                    example: true
+        "400":
+          description: System encountered an error while obscuring the member `entry`.
           content:
             application/json:
               schema:

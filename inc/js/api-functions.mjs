@@ -252,11 +252,11 @@ async function memory(ctx){
  */
 async function obscure(ctx){
     await mAPIKeyValidation(ctx)
-    const { itemId: iid, } = ctx.request?.body
+    const { itemId: iid, } = ctx.request?.body ?? {}
     if(!ctx.Globals.isValidGuid(iid))
         ctx.throw(400, 'Improper `itemId` provided in request')
-    const { mbr_id } = ctx.state
-    ctx.body = await ctx.MyLife.obscure(mbr_id, iid)
+    const { avatar, mbr_id, } = ctx.state
+    ctx.body = await avatar.obscure(mbr_id, iid)
 }
 /**
  * Validates api token.

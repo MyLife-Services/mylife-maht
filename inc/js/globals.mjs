@@ -97,7 +97,7 @@ const mAiJsFunctions = {
 		}
 	},
 	obscure: {
-		description: "Obscures a summary so that no human names are present",
+		description: "Obscures a summary so that no human names are present.",
 		name: "obscure",
 		parameters: {
 			type: "object",
@@ -106,15 +106,10 @@ const mAiJsFunctions = {
 					description: "Id of summary to obscure",
 					format: "uuid",
 					type: "string"
-				},
-				summary: {
-					description: "The new obscured summary",
-					type: "string"
 				}
 			},
 			required: [
-				"itemId",
-				"summary"
+				"itemId"
 			]
 		}
 	},

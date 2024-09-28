@@ -1276,6 +1276,17 @@ class Q extends Avatar {
     }
     /* overloaded methods */
     /**
+     * Get a bot's properties from Cosmos (or type in .bots).
+     * @public
+     * @async
+     * @param {string} mbr_id - The bot id
+     * @returns {object} - The hydrated member avatar bot
+     */
+    async bot(mbr_id){
+        const bot = await this.#factory.bot(mbr_id)
+        return bot
+    }
+    /**
      * Processes and executes incoming chat request.
      * @public
      * @param {string} message - The chat message content.
@@ -1302,13 +1313,17 @@ class Q extends Avatar {
         return super.chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime)
     }
     /**
-     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. In this overload, we invoke a micro-avatar for the member to handle the request on their behalf, with charge-backs going to MyLife as the sharing and api is a service.
+     * @public
+     * @param {string} mbr_id - The member id
      * @param {Guid} iid - The item id
      * @returns {Object} - The obscured item object
      */
-   async obscure(iid){
-       return await this.#factory.obscure(iid)
-   }
+    async obscure(mbr_id, iid){
+        const botFactory = await this.bot(mbr_id)
+        const updatedSummary = await botFactory.obscure(iid)
+        return updatedSummary
+    }
     upload(){
         throw new Error('MyLife avatar cannot upload files.')
     }

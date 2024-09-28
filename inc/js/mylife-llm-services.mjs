@@ -435,6 +435,14 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                 confirmation.output = JSON.stringify({ action, success, })
                                 console.log('mRunFunctions()::hijack_attempt', toolArguments)
                                 return confirmation
+                            case 'obscure':
+                                console.log('mRunFunctions()::obscure', toolArguments)
+                                const obscuredSummary = factory.obscure(itemId)
+                                action = 'confirm obscure was successful and present updated obscured text to member'
+                                success = true
+                                confirmation.output = JSON.stringify({ action, obscuredSummary, success, })
+                                console.log('mRunFunctions()::obscure', confirmation.output)
+                                return confirmation
                             case 'registercandidate':
                             case 'register_candidate':
                             case 'register candidate':
