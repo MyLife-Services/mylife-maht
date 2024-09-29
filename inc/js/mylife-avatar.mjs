@@ -110,7 +110,7 @@ class Avatar extends EventEmitter {
         if(shadowId)
             messages = await this.shadow(shadowId, itemId, message)
         else {
-            // @stub - one weakness in teh chain might also be the fact that I am not including in instructions how to create integrated summary and left it primarily to the JSON description of function
+            // @stub - one weakness in the chain might also be the fact that I am not including in instructions how to create integrated summary and left it primarily to the JSON description of function
             if(itemId)
                 message = `update-memory-request: itemId=${ itemId }\n` + message
             messages = await mCallLLM(this.#llmServices, conversation, message, factory, this)
@@ -122,9 +122,8 @@ class Avatar extends EventEmitter {
             console.log('chat::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
         /* frontend mutations */
         const { activeBot: bot } = this
-        // current fe will loop through messages in reverse chronological order
         const responses = conversation.messages
-            .filter(_message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
+            .filter(_message=>{
                 return messages.find(__message=>__message.id===_message.id)
                     && _message.type==='chat'
                     && _message.role!=='user'
