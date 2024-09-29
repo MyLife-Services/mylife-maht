@@ -281,7 +281,7 @@ async function mRunCancel(openai, threadId, runId){
  */
 async function mRunFinish(llmServices, run, factory, avatar){
     return new Promise((resolve, reject) => {
-        const checkInterval = setInterval(async () => {
+        const checkInterval = setInterval(async ()=>{
             try {
                 const functionRun = await mRunStatus(llmServices, run, factory, avatar)
                 console.log('mRunFinish::functionRun()', functionRun?.status)
