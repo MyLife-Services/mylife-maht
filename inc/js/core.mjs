@@ -259,9 +259,25 @@ class MyLife extends Organization {	// form=server
 			})
 		return experiences
 	}
-	async datacore(_mbr_id){
-		if(!_mbr_id || _mbr_id===this.mbr_id) throw new Error('datacore cannot be accessed')
-		return await this.factory.datacore(_mbr_id)
+	/**
+	 * Challenges and logs in member.
+	 * @param {string} memberId - Member id to challenge.
+	 * @param {string} passphrase - Passphrase response to challenge.
+	 * @returns {boolean} - Whether or not member is logged in successfully.
+	 */
+	async challengeAccess(memberId, passphrase){
+		const challengeSuccessful = await this.factory.challengeAccess(memberId, passphrase)
+		return challengeSuccessful
+	}
+	/**
+	 * Returns the datacore object for the specified member id.
+	 * @param {string} mbr_id - The Member id to access datacore
+	 * @returns {Promise<object>} - Datacore object for member id
+	 */
+	async datacore(mbr_id){
+		if(!mbr_id || mbr_id===this.mbr_id)
+			throw new Error('datacore cannot be accessed')
+		return await this.factory.datacore(mbr_id)
 	}
 	/**
 	 * Submits and returns the journal or diary entry to MyLife via API.

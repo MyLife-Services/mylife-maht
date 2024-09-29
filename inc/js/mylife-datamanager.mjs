@@ -48,13 +48,18 @@ class Datamanager {
 		return this
 	}
 	/* public functions */
-	async challengeAccess(mbr_id, passphrase){
-		//	in order to obscure passphrase, have db make comparison (could include flag for case insensitivity)
-		// Execute the stored procedure
+	/**
+	 * Runs challenge Access routine for login and authentications
+	 * @param {string} mbr_id - The member id to challenge
+	 * @param {string} passphrase - The passphrase to resolve challenge
+	 * @param {boolean} caseInsensitive - Whether to ignore case in passphrase, defaults to `false`
+	 * @returns {Promise<boolean>} - `true` if challenge is successful
+	 */
+	async challengeAccess(mbr_id, passphrase, caseInsensitive=false){
 		const { resource: result } = await this.#containers['members']
 			.scripts
 			.storedProcedure('checkMemberPassphrase')
-			.execute(mbr_id, passphrase, true)	//	first parameter is partition key, second is passphrase, third is case sensitivity
+			.execute(mbr_id, passphrase, caseInsensitive)
 		return result
 	}
 	/**

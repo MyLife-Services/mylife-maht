@@ -85,7 +85,13 @@ async function challenge(ctx){
 	const { mid, } = ctx.params
 	if(!mid?.length)
 		ctx.throw(400, `challenge request requires member id`)
-	ctx.body = await ctx.session.MemberSession.challengeAccess(mid, passphrase)
+	if(!ctx.state.MemberSession.locked)
+		return true
+	const challengeSuccessful = await ctx.MyLife.challengeAccess(mid, passphrase)
+	const { MemberSession, } = ctx.session
+	MemberSession.challengeOutcome = challengeSuccessful
+	await MemberSession.init(mid)
+	ctx.body = !MemberSession.locked
 }
 /**
  * Chat with the member's avatar.

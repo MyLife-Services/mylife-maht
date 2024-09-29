@@ -255,8 +255,8 @@ class BotFactory extends EventEmitter{
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
 			if(!mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
-			const botFactory = new BotFactory(mbr_id)
-			await botFactory.init()
+			const botFactory = await new BotFactory(mbr_id)
+				.init()
 			botFactory.bot = await botFactory.bot(id, type, mbr_id)
 			if(!botFactory?.bot) // create bot on member behalf
 				botFactory.bot = await botFactory.createBot({ type: type })
@@ -310,6 +310,18 @@ class BotFactory extends EventEmitter{
 			_params,
 		)
 		return bots
+	}
+	/**
+	 * Accesses Dataservices to challenge access to a member's account.
+	 * @param {string} passphrase - The passphrase to challenge
+	 * @param {boolean} caseInsensitive - Whether requestor suggests to ignore case in passphrase, defaults to `false`
+	 * @returns {Promise<boolean>} - `true` if challenge successful
+	 */
+	async challengeAccess(passphrase, caseInsensitive=false){
+		caseInsensitive = this.core.caseInsensitive
+			?? caseInsensitive
+		const challengeSuccessful = await mDataservices.challengeAccess(this.mbr_id, passphrase, caseInsensitive)
+		return challengeSuccessful
 	}
     /**
      * Get member collection items.
@@ -551,6 +563,7 @@ class BotFactory extends EventEmitter{
 	}
 	get mbr_id(){
 		return this.#mbr_id
+			?? this.core.mbr_id
 	}
 	get mbr_id_id(){
 		return this.globals.sysId(this.mbr_id)
@@ -603,15 +616,6 @@ class AgentFactory extends BotFactory {
 	 */
 	async avatarProperties(){
 		return ( await this.dataservices.getAvatar() )
-	}
-	/**
-	 * Accesses MyLife Dataservices to challenge access to a member's account.
-	 * @param {string} mbr_id 
-	 * @param {string} passphrase 
-	 * @returns {object} - Returns passphrase document if access is granted.
-	 */
-	async challengeAccess(mbr_id, passphrase){
-		return await mDataservices.challengeAccess(mbr_id, passphrase)
 	}
 	/**
 	 * Creates a new collection item in the member's container.
@@ -919,6 +923,7 @@ class MyLifeFactory extends AgentFactory {
 	/* public functions */
 	/**
 	 * Overload for MyLifeFactory::bot() - Q is able to hydrate a bot instance on behalf of members.
+	 * @public
 	 * @param {string} mbr_id - The member id
 	 * @returns {object} - The hydrated bot instance
 	 */
@@ -926,6 +931,19 @@ class MyLifeFactory extends AgentFactory {
 		const bot = await new BotFactory(mbr_id)
 			.init()
 		return bot
+	}
+	/**
+	 * Accesses Dataservices to challenge access to a member's account.
+	 * @public
+	 * @param {string} mbr_id - The member id
+	 * @param {string} passphrase - The passphrase to challenge
+	 * @returns {object} - Returns passphrase document if access is granted.
+	 */
+	async challengeAccess(mbr_id, passphrase){
+		const caseInsensitive = true // MyLife server defaults to case-insensitive
+		const avatarProxy = await this.bot(mbr_id)
+		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase, caseInsensitive)
+		return challengeSuccessful
 	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
