@@ -121,20 +121,29 @@ class Avatar extends EventEmitter {
         else
             console.log('chat::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
         /* frontend mutations */
+        let responses
         const { activeBot: bot } = this
-        const responses = conversation.messages
+        responses = conversation.messages
             .filter(_message=>{
                 return messages.find(__message=>__message.id===_message.id)
                     && _message.type==='chat'
                     && _message.role!=='user'
             })
             .map(_message=>mPruneMessage(bot, _message, 'chat', processStartTime))
+        if(!responses?.length){ // last failsafe
+            responses = [this.backupResponse
+                ?? {
+                        message: 'I am sorry, the entire chat line went dark for a moment, please try again.',
+                        type: 'system',
+                    }]
+        }
         const response = {
             instruction: this.frontendInstruction,
             responses,
             success: true,
         }
         delete this.frontendInstruction
+        delete this.backupResponse
         return response
     }
     /**

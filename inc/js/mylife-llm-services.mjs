@@ -295,7 +295,6 @@ async function mRunFinish(llmServices, run, factory, avatar){
                 reject(error)
             }
         }, mPingIntervalMs)
-        // Set a timeout to resolve the promise after 55 seconds
         setTimeout(() => {
             clearInterval(checkInterval)
             resolve('Run completed (timeout)')
@@ -415,16 +414,23 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'getsummary':
                             case 'get_summary':
                             case 'get summary':
+                                avatar.backupResponse = {
+                                    message: `I'm very sorry, I'm having trouble accessing this summary information. Please try again shortly as the problem is likely temporary.`,
+                                    type: 'system',
+                                }
                                 let { summary, title: _getSummaryTitle, } = item ?? {}
                                 if(!summary?.length){
                                     action = `error getting summary for itemId: ${ itemId ?? 'missing itemId' } - halt any further processing and instead ask user to paste summary into chat and you will continue from there to incorporate their message.`
                                     summary = 'no summary found for itemId'
                                 } else {
-                                    action = `continue with initial instructions`
+                                    avatar.backupResponse = {
+                                        message: `I was able to retrieve the summary indicated.`,
+                                        type: 'system',
+                                    }
+                                    action = `with the summary in this JSON payload, incorporate the most recent member request into a new summary and run the \`updateSummary\` function and follow its action`
                                     success = true
                                 }
                                 confirmation.output = JSON.stringify({ action, itemId, success, summary, })
-                                console.log('mRunFunctions()::getsummary', itemId, _getSummaryTitle)
                                 return confirmation
                             case 'hijackattempt':
                             case 'hijack_attempt':
@@ -491,16 +497,22 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'updatesummary':
                             case 'update_summary':
                             case 'update summary':
-                                console.log('mRunFunctions()::updatesummary::start', itemId)
+                                avatar.backupResponse = {
+                                    message: `I'm very sorry, an error occured before we could update your summary. Please try again as the problem is likely temporary.`,
+                                    type: 'system',
+                                }
                                 const { summary: updatedSummary, } = toolArguments
-                                // remove await once confirmed updates are connected
                                 await factory.updateItem({ id: itemId, summary: updatedSummary, })
                                 avatar.frontendInstruction = {
                                     command: 'updateItemSummary',
                                     itemId,
                                     summary: updatedSummary,
                                 }
-                                action=`confirm success and present updated summary to member`
+                                avatar.backupResponse = {
+                                    message: 'Your summary has been updated, please review and let me know if you would like to make any changes.',
+                                    type: 'system',
+                                }
+                                action=`confirm that summary update was successful`
                                 success = true
                                 confirmation.output = JSON.stringify({ action, success, })
                                 console.log('mRunFunctions()::updatesummary::end', itemId, updatedSummary)
@@ -556,6 +568,7 @@ async function mRunStatus(openai, run, factory, avatar){
         )
     switch(run.status){
         case 'requires_action':
+            console.log('mRunStatus::requires_action', run.required_action?.submit_tool_outputs?.tool_calls)
             const completedRun = await mRunFunctions(openai, run, factory, avatar)
             return completedRun /* if undefined, will ping again */
         case 'completed':
@@ -632,7 +645,6 @@ async function mRunTrigger(openai, botId, threadId, factory, avatar){
     const run = await mRunStart(openai, botId, threadId)
     if(!run)
         throw new Error('Run failed to start')
-    // ping status; returns `completed` run
     const finishRun = await mRunFinish(openai, run, factory, avatar)
         .then(response=>response)
         .catch(err=>err)
