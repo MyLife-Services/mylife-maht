@@ -40,6 +40,7 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
+const mGeneralBotId = 'asst_piDEJKYjqvAZbLstjd6u0ZMb'
 const mLLMServices = new LLMServices()
 const mMyLifeTeams = [
 	{
@@ -254,8 +255,8 @@ class BotFactory extends EventEmitter{
 		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
 			if(!mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
-			const botFactory = new BotFactory(mbr_id)
-			await botFactory.init()
+			const botFactory = await new BotFactory(mbr_id)
+				.init()
 			botFactory.bot = await botFactory.bot(id, type, mbr_id)
 			if(!botFactory?.bot) // create bot on member behalf
 				botFactory.bot = await botFactory.createBot({ type: type })
@@ -293,9 +294,9 @@ class BotFactory extends EventEmitter{
 	 * Gets a member's bots.
 	 * @todo - develop bot class and implement hydrated instance
 	 * @public
-	 * @param {string} object_id - The object_id guid of avatar.
-	 * @param {string} botType - The bot type.
-	 * @returns {array} - The member's hydrated bots.
+	 * @param {string} object_id - The object_id guid of avatar
+	 * @param {string} botType - The bot type
+	 * @returns {array} - The member's hydrated bots
 	 */
 	async bots(object_id, botType){
 		const _params = object_id?.length
@@ -309,6 +310,18 @@ class BotFactory extends EventEmitter{
 			_params,
 		)
 		return bots
+	}
+	/**
+	 * Accesses Dataservices to challenge access to a member's account.
+	 * @param {string} passphrase - The passphrase to challenge
+	 * @param {boolean} caseInsensitive - Whether requestor suggests to ignore case in passphrase, defaults to `false`
+	 * @returns {Promise<boolean>} - `true` if challenge successful
+	 */
+	async challengeAccess(passphrase, caseInsensitive=false){
+		caseInsensitive = this.core.caseInsensitive
+			?? caseInsensitive
+		const challengeSuccessful = await mDataservices.challengeAccess(this.mbr_id, passphrase, caseInsensitive)
+		return challengeSuccessful
 	}
     /**
      * Get member collection items.
@@ -387,6 +400,14 @@ class BotFactory extends EventEmitter{
 		return await mDataservices.getItem(_experience_id, 'system')
 	}
 	/**
+	 * Retrieves a collection item by Id.
+	 * @param {Guid} id - The id of the collection item to retrieve.
+	 * @returns {object} - The item.
+	 */
+	async item(id){
+		return await this.dataservices.getItem(id)
+	}
+	/**
 	 * Proxy for modular mHelp() function.
 	 * @public
      * @param {string} thread_id - The thread id.
@@ -397,6 +418,23 @@ class BotFactory extends EventEmitter{
 	 */
 	async help(thread_id, bot_id, helpRequest, avatar){
 		return await mHelp(thread_id, bot_id, helpRequest, this, avatar)
+	}
+    /**
+     * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
+     * @param {Guid} itemId - Id of the item to obscure
+     * @returns {string} - The obscured content
+     */
+	async obscure(itemId){
+		const { id, summary, relationships, } = await this.item(itemId)
+			?? {}
+		if(!id)
+			throw new Error('Item not found')
+		if(!summary?.length)
+			throw new Error('No summary found to obscure')
+		const obscuredSummary = await mObscure(this, summary)
+		if(obscuredSummary?.length) /* save response */
+			this.dataservices.patch(id, { summary: obscuredSummary }) // no need await
+		return obscuredSummary
 	}
     /**
      * Allows member to reset passphrase.
@@ -525,6 +563,7 @@ class BotFactory extends EventEmitter{
 	}
 	get mbr_id(){
 		return this.#mbr_id
+			?? this.core.mbr_id
 	}
 	get mbr_id_id(){
 		return this.globals.sysId(this.mbr_id)
@@ -579,15 +618,6 @@ class AgentFactory extends BotFactory {
 		return ( await this.dataservices.getAvatar() )
 	}
 	/**
-	 * Accesses MyLife Dataservices to challenge access to a member's account.
-	 * @param {string} mbr_id 
-	 * @param {string} passphrase 
-	 * @returns {object} - Returns passphrase document if access is granted.
-	 */
-	async challengeAccess(mbr_id, passphrase){
-		return await mDataservices.challengeAccess(mbr_id, passphrase)
-	}
-	/**
 	 * Creates a new collection item in the member's container.
 	 * @param {object} item - The item to create.
 	 * @returns {object} - The created item.
@@ -613,14 +643,6 @@ class AgentFactory extends BotFactory {
      */
 	async deleteItem(id){
 		return await this.dataservices.deleteItem(id)
-	}
-	/**
-	 * Retrieves a collection item by Id.
-	 * @param {Guid} id - The id of the collection item to retrieve.
-	 * @returns {object} - The item.
-	 */
-	async item(id){
-		return await this.dataservices.getItem(id)
 	}
 	async entry(entry){
 		const defaultType = 'entry'
@@ -835,12 +857,14 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Updates a collection item.
-	 * @param {object} item - The item to update.
-	 * @returns {Promise<object>} - The updated item.
+	 * @param {object} item - The item to update
+	 * @property {Guid} item.id - The item id
+	 * @returns {Promise<object>} - The updated item
 	 */
 	async updateItem(item){
-		const { id, ..._item } = item
-		const response = await this.dataservices.patch(id, _item)
+		if(!this.globals.isValidGuid(item?.id))
+			throw new Error('item id required for update')
+		const response = await this.dataservices.patch(item.id, item)
 		return response
 	}
 	/* getters/setters */
@@ -897,6 +921,30 @@ class MyLifeFactory extends AgentFactory {
 		super(mPartitionId)
 	} // no init() for MyLife server
 	/* public functions */
+	/**
+	 * Overload for MyLifeFactory::bot() - Q is able to hydrate a bot instance on behalf of members.
+	 * @public
+	 * @param {string} mbr_id - The member id
+	 * @returns {object} - The hydrated bot instance
+	 */
+	async bot(mbr_id){
+		const bot = await new BotFactory(mbr_id)
+			.init()
+		return bot
+	}
+	/**
+	 * Accesses Dataservices to challenge access to a member's account.
+	 * @public
+	 * @param {string} mbr_id - The member id
+	 * @param {string} passphrase - The passphrase to challenge
+	 * @returns {object} - Returns passphrase document if access is granted.
+	 */
+	async challengeAccess(mbr_id, passphrase){
+		const caseInsensitive = true // MyLife server defaults to case-insensitive
+		const avatarProxy = await this.bot(mbr_id)
+		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase, caseInsensitive)
+		return challengeSuccessful
+	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
@@ -1215,17 +1263,33 @@ function mCreateBotInstructions(factory, bot){
 	if(typeof bot!=='object' || !bot.type?.length)
 		throw new Error('bot object required, and  requires `type` property')
 	const { type=mDefaultBotType, } = bot
-    let { instructions, version, } = factory.botInstructions(type)
+    let {
+		instructions,
+		limit=8000,
+		version,
+	} = factory.botInstructions(type)
     if(!instructions) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
-    let { general, purpose, preamble, prefix, references=[], replacements=[], } = instructions
+    let {
+		general,
+		purpose='',
+		preamble='',
+		prefix='',
+		references=[],
+		replacements=[],
+		suffix='', // example: data privacy info
+		voice='',
+	} = instructions
     /* compile instructions */
     switch(type){
 		case 'diary':
 		case 'journaler':
             instructions = purpose
+				+ preamble
 				+ prefix
                 + general
+				+ suffix
+				+ voice
 			break
         case 'personal-avatar':
             instructions = preamble
@@ -1285,6 +1349,8 @@ function mCreateBotInstructions(factory, bot){
                 break
         }
     })
+	/* assess and validate limit */
+	console.log(chalk.blueBright('instructions length'), instructions.length, instructions)
     return { instructions, version, }
 }
 function mExposedSchemas(factoryBlockedSchemas){
@@ -1524,6 +1590,31 @@ async function mLoadSchemas(){
 	} catch(err){
 		console.log(err)
 	}
+}
+/**
+ * Given an itemId, obscures aspects of contents of the data record.
+ * @param {AgentFactory} factory - The factory object
+ * @param {Guid} iid - The item id
+ * @returns {Object} - The obscured item object
+ */
+async function mObscure(factory, summary) {
+    const { mbr_id } = factory
+	let obscuredSummary
+    // @stub - if greater than limit, turn into text file and add
+    const prompt = `OBSCURE:\n${summary}`
+    const messageArray = await mLLMServices.getLLMResponse(null, mGeneralBotId, prompt)
+	const { content: contentArray=[], } = messageArray?.[0] ?? {}
+	const { value, } = contentArray
+		.filter(message=>message.type==='text')
+		?.[0]
+		?.text
+			?? {}
+    try {
+		let parsedSummary = JSON.parse(value)
+        if(typeof parsedSummary==='object' && parsedSummary!==null)
+            obscuredSummary = parsedSummary.obscuredSummary
+    } catch(e) {} // obscuredSummary is just a string; use as-is or null
+	return obscuredSummary
 }
 async function mPopulateBotInstructions(){
 	const instructionSets = await mDataservices.botInstructions()

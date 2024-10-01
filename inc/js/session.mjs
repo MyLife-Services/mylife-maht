@@ -53,22 +53,6 @@ class MylifeMemberSession extends EventEmitter {
 		return currentAlerts
 	}
 	/**
-	 * Challenges and logs in member.
-	 * @param {string} memberId - Member id to challenge.
-	 * @param {string} passphrase - Passphrase response to challenge.
-	 * @returns {boolean} - Whether or not member is logged in successfully.
-	 */
-	async challengeAccess(memberId, passphrase){
-		if(this.locked){
-			if(!await this.factory.challengeAccess(memberId, passphrase))
-				return false // invalid passphrase, no access [converted in this build to local factory as it now has access to global datamanager to which it can pass the challenge request]
-			this.#sessionLocked = false
-			this.emit('member-unlocked', memberId)
-			await this.init(memberId)
-		}
-		return !this.locked
-	}
-	/**
 	 * Conducts an experience for the member session. If the experience is not already in progress, it will be started. If the experience is in progress, it will be played. If the experience ends, it will be ended. The experience will be returned to the member session, and the session will be unlocked for further experiences, and be the prime tally-keeper (understandably) of what member has undergone.
 	 * @todo - send events in initial start package, currently frontend has to ask twice on NON-autoplay entities, which will be vast majority
 	 * @param {Guid} experienceId - Experience id to conduct.
@@ -202,6 +186,14 @@ class MylifeMemberSession extends EventEmitter {
 	/* getters and setters */
 	get avatar(){
 		return this.#Member.avatar
+	}
+	/**
+	 * @param {boolean} outcome - The challenge outcome; `true` was successful
+	 */
+	set challengeOutcome(outcome){
+		console.log('challengeOutcome', outcome)
+		if(outcome)
+			this.#sessionLocked = false
 	}
 	get consent(){
 		return this.factory.consent	//	**caution**: returns <<PROMISE>>

@@ -21,6 +21,7 @@ import {
     members,
     migrateBot,
     migrateChat,
+    obscure,
     passphraseReset,
     privacyPolicy,
     retireBot,
@@ -38,7 +39,6 @@ import {
     endMemory,
     improveMemory,
     reliveMemory,
-    livingMemory,
 } from './memory-functions.mjs'
 import {
     availableExperiences,
@@ -53,6 +53,7 @@ import {
     keyValidation,
     logout as apiLogout,
     memory,
+    obscure as apiObscure,
     register,
     tokenValidation,
 } from './api-functions.mjs'
@@ -93,6 +94,7 @@ _apiRouter.post('/challenge/:mid', challenge)
 _apiRouter.post('/entry/:mid', entry)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/memory/:mid', memory)
+_apiRouter.post('/obscure/:mid', apiObscure)
 _apiRouter.post('/register', register)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
@@ -115,7 +117,6 @@ _memberRouter.patch('/experience/:eid/end', experienceEnd)
 _memberRouter.patch('/experience/:eid/manifest', experienceManifest)
 _memberRouter.patch('/memory/relive/:iid', reliveMemory)
 _memberRouter.patch('/memory/end/:iid', endMemory)
-_memberRouter.patch('/memory/living/:iid', livingMemory)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/create', createBot)
@@ -124,6 +125,7 @@ _memberRouter.post('/category', category)
 _memberRouter.post('/migrate/bot/:bid', migrateBot)
 _memberRouter.post('/migrate/chat/:tid', migrateChat)
 _memberRouter.post('/mode', interfaceMode)
+_memberRouter.post('/obscure/:iid', obscure)
 _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/bot/:bid', retireBot)
 _memberRouter.post('/retire/chat/:tid', retireChat)
@@ -136,7 +138,7 @@ _memberRouter.put('/item/:iid', item)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
-/* mondular functions */
+/* modular functions */
 /**
  * Connects the routes to the router
  * @param {object} _Menu Menu object

@@ -90,7 +90,6 @@ async function experienceEnd(){
     mExperience = null
     /* remove listeners */
     closeButton.removeEventListener('click', experienceEnd)
-    skip.removeEventListener('click', experienceSkip)
     startButton.removeEventListener('click', experiencePlay)
     /* end experience onscreen */
     sceneStage.innerHTML = '' // clear full-screen character-lanes
@@ -843,7 +842,6 @@ function mImageSource(icon, type){
 function mInitListeners(skippable=true){
     if(skippable)
         closeButton.addEventListener('click', experienceEnd)
-    skip.addEventListener('click', experienceSkip)
 }
 /**
  * Whether the character is the personal-avatar.
