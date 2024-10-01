@@ -110,7 +110,7 @@ class Avatar extends EventEmitter {
         if(shadowId)
             messages = await this.shadow(shadowId, itemId, message)
         else {
-            // @stub - one weakness in teh chain might also be the fact that I am not including in instructions how to create integrated summary and left it primarily to the JSON description of function
+            // @stub - one weakness in the chain might also be the fact that I am not including in instructions how to create integrated summary and left it primarily to the JSON description of function
             if(itemId)
                 message = `update-memory-request: itemId=${ itemId }\n` + message
             messages = await mCallLLM(this.#llmServices, conversation, message, factory, this)
@@ -121,21 +121,29 @@ class Avatar extends EventEmitter {
         else
             console.log('chat::BYPASS-SAVE', conversation.message?.content?.substring(0,64))
         /* frontend mutations */
+        let responses
         const { activeBot: bot } = this
-        // current fe will loop through messages in reverse chronological order
-        const responses = conversation.messages
-            .filter(_message=>{ // limit to current chat response(s); usually one, perhaps faithfully in future [or could be managed in LLM]
+        responses = conversation.messages
+            .filter(_message=>{
                 return messages.find(__message=>__message.id===_message.id)
                     && _message.type==='chat'
                     && _message.role!=='user'
             })
             .map(_message=>mPruneMessage(bot, _message, 'chat', processStartTime))
+        if(!responses?.length){ // last failsafe
+            responses = [this.backupResponse
+                ?? {
+                        message: 'I am sorry, the entire chat line went dark for a moment, please try again.',
+                        type: 'system',
+                    }]
+        }
         const response = {
             instruction: this.frontendInstruction,
             responses,
             success: true,
         }
         delete this.frontendInstruction
+        delete this.backupResponse
         return response
     }
     /**
@@ -509,6 +517,27 @@ class Avatar extends EventEmitter {
         else
             console.log('migrateChat::BYPASS-SAVE', conversation.thread_id)
         return conversation
+    }
+    /**
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
+     * @param {Guid} iid - The item id
+     * @returns {Object} - The obscured item object
+     */
+    async obscure(iid){
+        const updatedSummary = await this.#factory.obscure(iid)
+        this.frontendInstruction = {
+            command: 'updateItemSummary',
+            itemId: iid,
+            summary: updatedSummary,
+        }
+        return {
+            instruction: this.frontendInstruction,
+            responses: [{
+                agent: 'server',
+                message: `I have successfully obscured your content.`,
+            }],
+            success: true,
+        }
     }
     /**
      * Register a candidate in database.
@@ -1255,6 +1284,17 @@ class Q extends Avatar {
     }
     /* overloaded methods */
     /**
+     * Get a bot's properties from Cosmos (or type in .bots).
+     * @public
+     * @async
+     * @param {string} mbr_id - The bot id
+     * @returns {object} - The hydrated member avatar bot
+     */
+    async bot(mbr_id){
+        const bot = await this.#factory.bot(mbr_id)
+        return bot
+    }
+    /**
      * Processes and executes incoming chat request.
      * @public
      * @param {string} message - The chat message content.
@@ -1279,6 +1319,18 @@ class Q extends Avatar {
             message = `CREATE ACCOUNT PHASE: ${ message }`
         activeBotId = this.activeBotId
         return super.chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime)
+    }
+    /**
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. In this overload, we invoke a micro-avatar for the member to handle the request on their behalf, with charge-backs going to MyLife as the sharing and api is a service.
+     * @public
+     * @param {string} mbr_id - The member id
+     * @param {Guid} iid - The item id
+     * @returns {Object} - The obscured item object
+     */
+    async obscure(mbr_id, iid){
+        const botFactory = await this.bot(mbr_id)
+        const updatedSummary = await botFactory.obscure(iid)
+        return updatedSummary
     }
     upload(){
         throw new Error('MyLife avatar cannot upload files.')

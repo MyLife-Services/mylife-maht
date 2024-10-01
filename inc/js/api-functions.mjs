@@ -246,7 +246,20 @@ async function memory(ctx){
     }
 }
 /**
- * Validates api token
+ * Given an itemId, obscures aspects of contents of the data record.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Promise<object>} - Promise object representing obscured item
+ */
+async function obscure(ctx){
+    await mAPIKeyValidation(ctx)
+    const { itemId: iid, } = ctx.request?.body ?? {}
+    if(!ctx.Globals.isValidGuid(iid))
+        ctx.throw(400, 'Improper `itemId` provided in request')
+    const { avatar, mbr_id, } = ctx.state
+    ctx.body = await avatar.obscure(mbr_id, iid)
+}
+/**
+ * Validates api token.
  * @module
  * @public
  * @param {object} ctx Koa context object
@@ -309,6 +322,7 @@ async function mAPIKeyValidation(ctx){ // transforms ctx.state
     if(ctx.params.mid === ':mid')
         ctx.params.mid = undefined
     const memberId = ctx.params?.mid
+        ??  ctx.request.body?.mbr_id
         ??  ctx.request.body?.memberKey
         ??  ctx.session?.APIMemberKey
     if(!memberId?.length)
@@ -350,6 +364,7 @@ export {
     keyValidation,
     logout,
     memory,
+    obscure,
     register,
     tokenValidation,
     upload,
