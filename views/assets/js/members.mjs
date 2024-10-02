@@ -679,7 +679,7 @@ function mStageTransitionMember(includeSidebar=true){
  * @requires chatActiveItem
  * @param {string} message - The message to submit.
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`.
- * @returns 
+ * @returns {Promise<object>} - The return is the chat response object.
  */
 async function submit(message, hideMemberChat=true){
 	if(!message?.length)

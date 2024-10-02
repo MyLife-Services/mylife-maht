@@ -1406,6 +1406,24 @@ function mSpotlightBotStatus(){
             }
         })
 }
+/**
+ * Click event to trigger server explanation of how to begin a diary.
+ * @param {Event} event - The event object
+ * @returns {void}
+ */
+async function mStartDiary(event){
+    event.preventDefault()
+    event.stopPropagation()
+    const submitButton = event.target
+    const diaryBot = getBot('diary')
+    if(!diaryBot)
+        return
+    hide(submitButton)
+    unsetActiveItem()
+    await setActiveBot(diaryBot.id)
+    const response = await submit(`How do I get started?`, true)
+    addMessages(response.responses)
+}
 async function mStopRelivingMemory(id){
     const input = document.getElementById(`relive-memory-input-container_${ id }`)
     if(input)
@@ -1885,6 +1903,11 @@ function mUpdateBotContainerAddenda(botContainer){
         }
         switch(type){
             case 'diary':
+                // add listener on `diary-start` button
+                const diaryStart = document.getElementById('diary-start')
+                if(diaryStart)
+                    diaryStart.addEventListener('click', mStartDiary)
+                break
             case 'journaler':
             case 'personal-biographer':
                 break
