@@ -10,6 +10,7 @@ import {
     fetchSummary,
     getActiveItemId,
     hide,
+    obscure,
     seedInput,
     setActiveItem,
     setActiveItemTitle,
@@ -529,7 +530,7 @@ function mCreateBotThumb(bot=getBot()){
  * @param {object} collectionItem - The collection item object.
  * @returns {HTMLDivElement} - The collection popup.
  */
-function mCreateCollectionPopup(collectionItem) {
+function mCreateCollectionPopup(collectionItem){
     const { form, id, name, summary, title, type } = collectionItem
     const collectionPopup = document.createElement('div')
     collectionPopup.classList.add('collection-popup', 'popup-container')
@@ -682,12 +683,11 @@ function mCreateCollectionPopup(collectionItem) {
             /* obscure entry */
             const obscureEntry = document.createElement('button')
             obscureEntry.classList.add('obscure-button', 'button')
+            obscureEntry.dataset.id = id /* required for mObscureEntry */
             obscureEntry.id = `button-obscure-${ entryType }_${ id }`
             obscureEntry.name = 'obscure-button'
             obscureEntry.textContent = 'Obscure Entry'
-            obscureEntry.addEventListener('click', _=>{
-                alert('Obscure Entry: Coming soon')
-            })
+            obscureEntry.addEventListener('click', mObscureEntry, { once: true })
             /* experience entry panel */
             const experienceEntry = document.createElement('div')
             experienceEntry.classList.add('experience-entry-container')
@@ -1113,6 +1113,22 @@ function mIsInputCheckbox(element){
     const { tagName, type, } = element
     const outcome = tagName.toLowerCase()==='input' && type.toLowerCase()==='checkbox'
     return outcome
+}
+async function mObscureEntry(event){
+    event.preventDefault()
+    event.stopPropagation()
+    /* set active item */
+    const { id: itemId, } = this.dataset
+    if(itemId)
+        setActiveItem(itemId)
+    toggleMemberInput(false, false)
+    const popupClose = document.getElementById(`popup-close_${ itemId }`)
+    if(popupClose)
+        popupClose.click()
+    const { responses, success, } = await obscure(itemId)
+    if(responses?.length)
+        addMessages(responses)
+    toggleMemberInput(true)
 }
 /**
  * Open bot container for passed element, closes all the rest.
@@ -1696,7 +1712,6 @@ function mTogglePopup(event){
         popup.style.opacity = 0
         hide(popup)
     } else { /* open */
-        const { title, type, } = popup.dataset
         let { offsetX, offsetY, } = popup.dataset
         if(!offsetX || !offsetY){ // initial placement onscreen
             const item = popup.parentElement // collection-item
@@ -1723,12 +1738,7 @@ function mTogglePopup(event){
         popup.style.right = 'auto'
         popup.style.top = offsetY
         show(popup)
-        if(setActiveItem({
-            id,
-            popup,
-            title,
-            type,
-        })){
+        if(setActiveItem(popupId)){
             // @todo - deactivate any other popups
             popup.dataset.active = 'true'
         }

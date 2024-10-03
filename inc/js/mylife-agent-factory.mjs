@@ -40,7 +40,7 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
-const mGeneralBotId = 'asst_piDEJKYjqvAZbLstjd6u0ZMb'
+const mGeneralBotId = 'asst_yhX5mohHmZTXNIH55FX2BR1m'
 const mLLMServices = new LLMServices()
 const mMyLifeTeams = [
 	{
