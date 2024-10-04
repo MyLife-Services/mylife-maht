@@ -668,7 +668,6 @@ function mCreateCollectionPopup(collectionItem){
     let typePopup
     switch (type) {
         case 'entry':
-            console.log('entry', form, type, id)
             // @stub - could switch on `form`
             const entryType = form
                 ?? type
