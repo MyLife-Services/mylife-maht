@@ -636,6 +636,7 @@ class Avatar extends EventEmitter {
                 message = `update-memory-request: itemId=${ itemId }\n` + message
                 break
             case 'agent':
+                /*
                 // @stub - develop additional form types, entry or idea for instance
                 const dob = new Date(this.#factory.dob)
                 const diff_ms = Date.now() - dob.getTime()
@@ -647,6 +648,7 @@ class Avatar extends EventEmitter {
                     thread_id: bot.thread_id,
                 }
                 break
+                */
             default:
                 break
         }
