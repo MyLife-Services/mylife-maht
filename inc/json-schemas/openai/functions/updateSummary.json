@@ -1,12 +1,12 @@
 {
-    "description": "Updates a story summary (in total) as referenced by itemId",
     "name": "updateSummary",
+    "description": "Updates (overwrites) the summary referenced by itemId",
+    "strict": true,
     "parameters": {
         "type": "object",
         "properties": {
             "itemId": {
                 "description": "Id of summary to update",
-                "format": "uuid",
                 "type": "string"
             },
             "summary": {
@@ -14,9 +14,10 @@
                 "type": "string"
             }
         },
+        "additionalProperties": false,
         "required": [
             "itemId",
-            "title"
+            "summary"
         ]
     }
 }

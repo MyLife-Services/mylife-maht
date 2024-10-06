@@ -1,51 +1,49 @@
 {
-    "description": "Generate a JOURNAL ENTRY `entry` summary with keywords and other critical data elements.",
+    "description": "Generate `entry` summary with keywords and other critical data elements.",
     "name": "entrySummary",
+    "strict": true,
     "parameters": {
         "type": "object",
         "properties": {
             "content": {
-                "description": "concatenated raw text content of member input for JOURNAL ENTRY."
+                "description": "complete concatenated raw text content of member input(s) for this `entry`",
+                "type": "string"
             },
             "keywords": {
-                "description": "Keywords most relevant to JOURNAL ENTRY.",
+                "description": "Keywords most relevant to `entry`.",
                 "items": {
-                    "description": "Keyword (single word or short phrase) to be used in JOURNAL ENTRY summary.",
-                    "maxLength": 64,
+                    "description": "Keyword (single word or short phrase) to be used in `entry` summary",
                     "type": "string"
                 },
-                "maxItems": 12,
-                "minItems": 3,
                 "type": "array"
             },
             "mood": {
-                "description": "Record member mood for day (or entry) in brief as ascertained from content of JOURNAL ENTRY.",
-                "maxLength": 256,
+                "description": "Record member mood for day (or entry) in brief as ascertained from content of `entry`",
                 "type": "string"
             },
             "relationships": {
-                "description": "Record individuals (or pets) mentioned in this `entry`.",
+                "description": "Record individuals (or pets) mentioned in this `entry`",
                 "type": "array",
                 "items": {
-                    "description": "A name of relational individual/pet to the `entry` content.",
+                    "description": "A name of relational individual/pet to the `entry` content",
                     "type": "string"
-                },
-                "maxItems": 24
+                }
             },
             "summary": {
-                "description": "Generate a JOURNAL ENTRY summary from input.",
-                "maxLength": 20480,
+                "description": "Generate `entry` summary from member input",
                 "type": "string"
             },
             "title": {
-                "description": "Generate display Title of the JOURNAL ENTRY.",
-                "maxLength": 256,
+                "description": "Generate display Title of the `entry`",
                 "type": "string"
             }
         },
+        "additionalProperties": false,
         "required": [
             "content",
             "keywords",
+            "mood",
+            "relationships",
             "summary",
             "title"
         ]

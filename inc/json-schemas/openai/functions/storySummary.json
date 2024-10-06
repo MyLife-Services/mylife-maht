@@ -1,22 +1,20 @@
 {
-    "description": "Generate a complete multi-paragraph STORY summary with keywords and other critical data elements.",
+    "description": "Generate a complete `story` summary with metadata elements",
     "name": "storySummary",
+    "strict": true,
     "parameters": {
         "type": "object",
         "properties": {
             "keywords": {
-                "description": "Keywords most relevant to STORY.",
+                "description": "Keywords most relevant to `story`",
                 "items": {
-                    "description": "Keyword (single word or short phrase) to be used in STORY summary.",
-                    "maxLength": 64,
+                    "description": "Keyword to be used in `story` summary",
                     "type": "string"
                 },
-                "maxItems": 12,
-                "minItems": 3,
                 "type": "array"
             },
             "phaseOfLife": {
-                "description": "Phase of life indicated in STORY.",
+                "description": "Phase of life indicated in `story`",
                 "enum": [
                     "birth",
                     "childhood",
@@ -31,31 +29,30 @@
                     "unknown",
                     "other"
                 ],
-                "maxLength": 64,
                 "type": "string"
             },
             "relationships": {
-                "description": "MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`.",
+                "description": "MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`",
                 "type": "array",
                 "items": {
-                    "description": "A name of relational individual/pet to the `story` content.",
+                    "description": "A name of relational individual/pet to the `story` content",
                     "type": "string"
-                },
-                "maxItems": 24
+                }
             },
             "summary": {
-                "description": "A complete multi-paragraph STORY summary composed from relevant user input.",
+                "description": "A complete `story` summary composed of all salient points from member input",
                 "type": "string"
             },
             "title": {
-                "description": "Generate display Title of the STORY.",
-                "maxLength": 256,
+                "description": "Generate display Title of the `story`",
                 "type": "string"
             }
         },
+        "additionalProperties": false,
         "required": [
             "keywords",
             "phaseOfLife",
+            "relationships",
             "summary",
             "title"
         ]

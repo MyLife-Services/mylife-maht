@@ -1,0 +1,23 @@
+{
+    "name": "changeTitle",
+    "description": "Change the title of a summary in the database for an itemId",
+    "strict": true,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "itemId": {
+          "description": "itemId to update",
+          "type": "string"
+        },
+        "title": {
+          "description": "The new title for the summary",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "itemId",
+        "title"
+      ]
+    }
+  }

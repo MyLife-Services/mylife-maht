@@ -5,7 +5,7 @@
         "type": "object",
         "properties": {
             "itemId": {
-                "description": "Id of summary to update",
+                "description": "Id of summary to get",
                 "format": "uuid",
                 "type": "string"
             }
