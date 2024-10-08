@@ -40,7 +40,7 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
-const mGeneralBotId = 'asst_piDEJKYjqvAZbLstjd6u0ZMb'
+const mGeneralBotId = 'asst_yhX5mohHmZTXNIH55FX2BR1m'
 const mLLMServices = new LLMServices()
 const mMyLifeTeams = [
 	{
@@ -121,17 +121,7 @@ const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue'
 const mShadows = [
 	{
 		being: 'shadow',
-		categories: ['world events'],
-		form: 'story',
-		id: 'e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
-		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
-		proxy: '/shadow',
-		text: `What was happening in the world at the time?`,
-		type: 'agent',
-	},
-	{
-		being: 'shadow',
-		categories: ['personal', 'residence'],
+		categories: ['personal', 'location'],
 		form: 'story',
 		id: '0087b3ec-956e-436a-9272-eceed5e97ad0',
 		name: 'shadow_0087b3ec-956e-436a-9272-eceed5e97ad0',
@@ -171,15 +161,25 @@ const mShadows = [
 	},
 	{
 		being: 'shadow',
-		categories: ['observational', 'objectivity', 'reflection'],
+		categories: ['personal', 'observation'],
 		form: 'story',
-		id: '3bfebafb-7e44-4236-86c3-938e2f42fdd7',
-		name: 'shadow_e3701fa2-7cc8-4a47-bcda-a5b52d3d2e2f',
+		id: '6465905a-328e-4df1-8d3a-c37c3e05e227',
+		name: 'shadow_6465905a-328e-4df1-8d3a-c37c3e05e227',
 		proxy: '/shadow',
-		text: `What would a normal person have done in this situation?`,
-		type: 'agent',
+		text: `The mood of the scene was...`,
+		type: 'member',
 	},
-] // **note**: members use shadows to help them add content to the summaries of their experiences, whereas agents return the requested content
+	{
+		being: 'shadow',
+		categories: ['personal', 'reflection', 'observation'],
+		form: 'story',
+		id: 'e61616c7-00f9-4c23-9394-3df7e98f71e0',
+		name: 'shadow_e61616c7-00f9-4c23-9394-3df7e98f71e0',
+		proxy: '/shadow',
+		text: `This was connected to larger themes in my life by ...`,
+		type: 'member',
+	},
+]
 const vmClassGenerator = vm.createContext({
 	exports: {},
 	console: console,
@@ -793,11 +793,12 @@ class AgentFactory extends BotFactory {
 	 * @returns {object} - The story document from Cosmos
 	 */
 	async story(story){
+		const defaultForm = 'memory'
 		const defaultType = 'story'
-		const { 
+		const {
 			assistantType='biographer',
 			being=defaultType,
-			form=defaultType,
+			form=defaultForm,
 			id=this.newGuid,
 			keywords=[],
 			mbr_id=(!this.isMyLife ? this.mbr_id : undefined),
@@ -807,8 +808,7 @@ class AgentFactory extends BotFactory {
 		} = story
 		if(!mbr_id) // only triggered if not MyLife server
 			throw new Error('mbr_id required for story summary')
-		let { name, } = story
-		name = name ?? `${ defaultType }_${ form }_${ title.substring(0,64) }_${ mbr_id }`
+		const { name=`${ being }_${ form }_${ title.substring(0,64) }_${ mbr_id }`, } = story
 		if(!summary?.length)
 			throw new Error('story summary required')
 		/* assign default keywords */
@@ -1283,7 +1283,6 @@ function mCreateBotInstructions(factory, bot){
     /* compile instructions */
     switch(type){
 		case 'diary':
-		case 'journaler':
             instructions = purpose
 				+ preamble
 				+ prefix
@@ -1295,7 +1294,8 @@ function mCreateBotInstructions(factory, bot){
             instructions = preamble
                 + general
             break
-        case 'personal-biographer':
+        case 'journaler':
+		case 'personal-biographer':
             instructions = preamble
                 + purpose
                 + prefix

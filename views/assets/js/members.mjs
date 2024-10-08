@@ -259,18 +259,16 @@ async function setActiveBot(){
  * @public
  * @todo - edit title with double-click
  * @requires chatActiveItem
- * @param {object} item - The item to set as active.
- * @property {string} item.id - The item id.
- * @property {HTMLDivElement} item.popup - The associated popup HTML object.
- * @property {string} item.title - The item title.
- * @property {string} item.type - The item type.
+ * @param {Guid} itemId - The item id to set as active.
  * @returns {void}
  */
-function setActiveItem(item){
-    const { id, popup, title, type, } = item
-    const itemId = id?.split('_')?.pop()
-    if(!itemId)
+function setActiveItem(itemId){
+    itemId = itemId?.split('_')?.pop()
+    const id = `popup-container_${ itemId }`
+    const popup = document.getElementById(id)
+    if(!itemId || !popup)
         throw new Error('setActiveItem::Error()::valid `id` is required')
+    const { title, type, } = popup.dataset
     const chatActiveItemTitleText = document.getElementById('chat-active-item-text')
     const chatActiveItemClose = document.getElementById('chat-active-item-close')
     if(chatActiveItemTitleText){
@@ -594,6 +592,23 @@ function mInitializePageListeners(){
     })
 }
 /**
+ * MyLife function to obscure an item summary
+ * @param {Guid} itemId - The item ID
+ * @returns 
+ */
+async function obscure(itemId){
+    const url = '/members/obscure/' + itemId
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    return await response.json()
+}
+/**
  * Primitive step to set a "modality" or intercession for the member chat. Currently will key off dataset in `chatInputField`.
  * @public
  * @requires chatActiveItem
@@ -679,7 +694,7 @@ function mStageTransitionMember(includeSidebar=true){
  * @requires chatActiveItem
  * @param {string} message - The message to submit.
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`.
- * @returns 
+ * @returns {Promise<object>} - The return is the chat response object.
  */
 async function submit(message, hideMemberChat=true){
 	if(!message?.length)
@@ -831,6 +846,7 @@ export {
     hide,
     hideMemberChat,
     inExperience,
+    obscure,
     replaceElement,
     sceneTransition,
     seedInput,
