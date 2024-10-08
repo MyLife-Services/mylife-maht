@@ -1,5 +1,4 @@
 // imports
-import { strict } from 'assert'
 import EventEmitter from 'events'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 /* constants */
