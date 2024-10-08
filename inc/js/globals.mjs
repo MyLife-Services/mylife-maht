@@ -1,25 +1,26 @@
 // imports
+import { strict } from 'assert'
 import EventEmitter from 'events'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 /* constants */
 const mAiJsFunctions = {
 	changeTitle: {
-		description: 'Change the title of a memory summary in the database for an itemId',
 		name: 'changeTitle',
+		description: 'Change the title of a summary in the database for an itemId',
+		strict: true,
 		parameters: {
 			type: 'object',
 			properties: {
 				itemId: {
-					description: 'itemId of memory item to update',
-					format: 'uuid',
+					description: 'itemId to update',
 					type: 'string'
 				},
 				title: {
 					description: 'The new title for the summary',
-					maxLength: 256,
 					type: 'string'
 				}
 			},
+			additionalProperties: false,
 			required: [
 				'itemId',
 				'title'
@@ -27,61 +28,60 @@ const mAiJsFunctions = {
 		}
 	},
 	entrySummary: {
-		description: 'Generate a JOURNAL ENTRY `entry` summary with keywords and other critical data elements.',
+		description: 'Generate `entry` summary with keywords and other critical data elements.',
 		name: 'entrySummary',
+		strict: true,
 		parameters: {
 			type: 'object',
 			properties: {
 				content: {
-					description: 'concatenated raw text content of member input for JOURNAL ENTRY.',
+					description: 'complete concatenated raw text content of member input(s) for this `entry`',
+					type: 'string'
 				},
 				keywords: {
-					description: 'Keywords most relevant to JOURNAL ENTRY.',
+					description: 'Keywords most relevant to `entry`.',
 					items: {
-						description: 'Keyword (single word or short phrase) to be used in JOURNAL ENTRY summary.',
-						maxLength: 64,
+						description: 'Keyword (single word or short phrase) to be used in `entry` summary',
 						type: 'string'
 					},
-					maxItems: 12,
-					minItems: 3,
 					type: 'array'
 				},
 				mood: {
-					description: 'Record member mood for day (or entry) in brief as ascertained from content of JOURNAL ENTRY.',
-					maxLength: 256,
+					description: 'Record member mood for day (or entry) in brief as ascertained from content of `entry`',
 					type: 'string'
 				},
 				relationships: {
-					description: 'Record individuals (or pets) mentioned in this `entry`.',
+					description: 'Record individuals (or pets) mentioned in this `entry`',
 					type: 'array',
 					items: {
-						description: 'A name of relational individual/pet to the `entry` content.',
+						description: 'A name of relational individual/pet to the `entry` content',
 						type: 'string'
-					},
-					maxItems: 24
+					}
 				},
 				summary: {
-					description: 'Generate a JOURNAL ENTRY summary from input.',
-					maxLength: 20480,
+					description: 'Generate `entry` summary from member input',
 					type: 'string'
 				},
 				title: {
-					description: 'Generate display Title of the JOURNAL ENTRY.',
-					maxLength: 256,
+					description: 'Generate display Title of the `entry`',
 					type: 'string'
 				}
 			},
+			additionalProperties: false,
 			required: [
-				'content',
-				'keywords',
-				'summary',
-				'title'
+			'content',
+			'keywords',
+			'mood',
+			'relationships',
+			'summary',
+			'title'
 			]
 		}
 	},
 	getSummary: {
 		description: "Gets a story summary by itemId",
 		name: "getSummary",
+		strict: true,
 		parameters: {
 			type: "object",
 			properties: {
@@ -91,47 +91,47 @@ const mAiJsFunctions = {
 					type: "string"
 				}
 			},
+			additionalProperties: false,
 			required: [
 				"itemId"
 			]
 		}
 	},
 	obscure: {
-		description: "Obscures a summary so that no human names are present.",
+		description: "Obscures a summary so that no human names are present",
 		name: "obscure",
+		strict: true,
 		parameters: {
 			type: "object",
 			properties: {
 				itemId: {
 					description: "Id of summary to obscure",
-					format: "uuid",
 					type: "string"
 				}
 			},
+			additionalProperties: false,
 			required: [
 				"itemId"
 			]
 		}
 	},
 	storySummary: {
-		description: 'Generate a complete multi-paragraph STORY summary with keywords and other critical data elements.',
+		description: 'Generate a complete `story` summary with metadata elements',
 		name: 'storySummary',
+		strict: true,
 		parameters: {
 			type: 'object',
 			properties: {
 				keywords: {
-					description: 'Keywords most relevant to STORY.',
+					description: 'Keywords most relevant to `story`',
 					items: {
-						description: 'Keyword (single word or short phrase) to be used in STORY summary.',
-						maxLength: 64,
+						description: 'Keyword from `story` summary',
 						type: 'string'
 					},
-					maxItems: 12,
-					minItems: 3,
 					type: 'array'
 				},
 				phaseOfLife: {
-					description: 'Phase of life indicated in STORY.',
+					description: 'Phase of life indicated in `story`',
 					enum: [
 						'birth',
 						'childhood',
@@ -146,39 +146,39 @@ const mAiJsFunctions = {
 						'unknown',
 						'other'
 					],
-					maxLength: 64,
 					type: 'string'
 				},
 				relationships: {
-					description: 'MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`.',
+					description: 'Individuals (or pets) mentioned in `story`',
 					type: 'array',
 					items: {
-						description: 'A name of relational individual/pet to the `story` content.',
+						description: 'Name of individual or pet in `story`',
 						type: 'string'
-					},
-					maxItems: 24
+					}
 				},
 				summary: {
-					description: 'A complete multi-paragraph STORY summary composed from relevant user input.',
+					description: 'A complete `story` summary composed of all salient points from member input',
 					type: 'string'
 				},
 				title: {
-					description: 'Generate display Title of the STORY.',
-					maxLength: 256,
+					description: 'Generate display Title for `story`',
 					type: 'string'
 				}
 			},
+			additionalProperties: false,
 			required: [
 				'keywords',
 				'phaseOfLife',
+				"relationships",
 				'summary',
 				'title'
 			]
 		}
 	},
 	updateSummary: {
-		description: "Updates a story summary (in total) as referenced by itemId",
+		description: "Updates (overwrites) the summary referenced by itemId",
 		name: "updateSummary",
+		strict: true,
 		parameters: {
 			type: "object",
 			properties: {
@@ -192,6 +192,7 @@ const mAiJsFunctions = {
 					type: "string"
 				}
 			},
+			additionalProperties: false,
 			required: [
 				"itemId",
 				"summary"

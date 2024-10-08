@@ -8,7 +8,7 @@
             "keywords": {
                 "description": "Keywords most relevant to `story`",
                 "items": {
-                    "description": "Keyword to be used in `story` summary",
+                    "description": "Keyword from `story` summary",
                     "type": "string"
                 },
                 "type": "array"
@@ -32,10 +32,10 @@
                 "type": "string"
             },
             "relationships": {
-                "description": "MyLife Biographer Bot does its best to record individuals (or pets) mentioned in this `story`",
+                "description": "Individuals (or pets) mentioned in `story`",
                 "type": "array",
                 "items": {
-                    "description": "A name of relational individual/pet to the `story` content",
+                    "description": "Name of individual or pet in `story`",
                     "type": "string"
                 }
             },
@@ -44,7 +44,7 @@
                 "type": "string"
             },
             "title": {
-                "description": "Generate display Title of the `story`",
+                "description": "Generate display Title for `story`",
                 "type": "string"
             }
         },
