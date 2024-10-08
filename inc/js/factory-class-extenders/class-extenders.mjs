@@ -156,6 +156,7 @@ function extendClass_conversation(originClass, referencesObject) {
          * @returns {Object[]} - The updated messages array.
          */
         addMessage(message){
+            console.log('class-extenders::addMessage', message)
             const { id, } = message
             if(this.#messages.find(message=>message.id===id))
                 return this.messages
@@ -174,8 +175,9 @@ function extendClass_conversation(originClass, referencesObject) {
          * @returns {Object[]} - The updated messages array.
          */
         addMessages(messages){
+            const now = Date.now()
             messages
-                .sort((mA, mB) => mA.created_at - mB.created_at)
+                .sort((mA, mB) => ( mA.created_at ?? now ) - ( mB.created_at ?? now ))
                 .forEach(message => this.addMessage(message))
             return this.messages
         }
@@ -213,17 +215,13 @@ function extendClass_conversation(originClass, referencesObject) {
                 this.#thread = thread
             }
         }
+        /**
+         * Saves the conversation to the MyLife Database.
+         * @async
+         * @returns {void}
+         */
         async save(){
-            if(!this.isSaved) // create new MyLife conversation
-                await mSaveConversation(this.#factory, this)
-            // @todo: no need to await
-            const messages = this.messages.map(_msg=>_msg.micro)
-            const dataUpdate = await this.#factory.dataservices.patch(
-                this.id,
-                { messages, }
-            )
-            this.#saved = true
-            return this
+            this.#saved = await mSaveConversation(this.#factory, this)
         }
         //  public getters/setters
         /**
@@ -462,8 +460,19 @@ function extendClass_message(originClass, referencesObject) {
         get message(){
             return this
         }
+        /**
+         * Get the message in micro format for storage.
+         * @returns {object} - The message in micro format
+         */
         get micro(){
-            return { content: this.content, role: this.role ?? 'user' }
+            return {
+                content: this.content,
+                created_at: this.created_at
+                    ?? Date.now(),
+                id: this.id,
+                role: this.role
+                    ?? 'system'
+            }
         }
     }
     return Message

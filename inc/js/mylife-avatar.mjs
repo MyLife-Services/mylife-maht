@@ -4,10 +4,12 @@ import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 /* module constants */
-const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
-const mAllowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
+const mAllowSave = JSON.parse(
+    process.env.MYLIFE_DB_ALLOW_SAVE
+        ?? false
+)
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
-const mBot_idOverride = OPENAI_MAHT_GPT_OVERRIDE
+const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
 /**
  * @class
  * @extends EventEmitter
@@ -106,23 +108,29 @@ class Avatar extends EventEmitter {
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        let messages
+        let _message = message,
+            messages = []
         if(shadowId)
-            messages = await this.shadow(shadowId, itemId, message)
+            messages = await this.shadow(shadowId, itemId, _message)
         else {
             if(itemId){
                 // @todo - check if item exists in memory, fewer pings and inclusions overall
                 const { summary, } = await factory.item(itemId)
                 if(summary?.length){
-                    message = `possible **update-summary-request**: itemId=${ itemId }\n`
+                    _message = `possible **update-summary-request**: itemId=${ itemId }\n`
                     + `**member-update-request**:\n`
                     + message
                     + `\n**current-summary-in-database**:\n`
                     + summary
                 }
             }
-            messages = await mCallLLM(this.#llmServices, conversation, message, factory, this)
+            messages = await mCallLLM(this.#llmServices, conversation, _message, factory, this)
         }
+        conversation.addMessage({
+            content: message,
+            created_at: Date.now(),
+            role: 'user',
+        })
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
