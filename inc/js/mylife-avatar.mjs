@@ -110,9 +110,17 @@ class Avatar extends EventEmitter {
         if(shadowId)
             messages = await this.shadow(shadowId, itemId, message)
         else {
-            // @stub - one weakness in the chain might also be the fact that I am not including in instructions how to create integrated summary and left it primarily to the JSON description of function
-            if(itemId)
-                message = `update-memory-request: itemId=${ itemId }\n` + message
+            if(itemId){
+                // @todo - check if item exists in memory, fewer pings and inclusions overall
+                const { summary, } = await factory.item(itemId)
+                if(summary?.length){
+                    message = `possible **update-summary-request**: itemId=${ itemId }\n`
+                    + `**member-update-request**:\n`
+                    + message
+                    + `\n**current-summary-in-database**:\n`
+                    + summary
+                }
+            }
             messages = await mCallLLM(this.#llmServices, conversation, message, factory, this)
         }
         conversation.addMessages(messages)
@@ -636,6 +644,7 @@ class Avatar extends EventEmitter {
                 message = `update-memory-request: itemId=${ itemId }\n` + message
                 break
             case 'agent':
+                /*
                 // @stub - develop additional form types, entry or idea for instance
                 const dob = new Date(this.#factory.dob)
                 const diff_ms = Date.now() - dob.getTime()
@@ -647,6 +656,7 @@ class Avatar extends EventEmitter {
                     thread_id: bot.thread_id,
                 }
                 break
+                */
             default:
                 break
         }

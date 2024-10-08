@@ -10,6 +10,7 @@ import {
     fetchSummary,
     getActiveItemId,
     hide,
+    obscure,
     seedInput,
     setActiveItem,
     setActiveItemTitle,
@@ -529,8 +530,8 @@ function mCreateBotThumb(bot=getBot()){
  * @param {object} collectionItem - The collection item object.
  * @returns {HTMLDivElement} - The collection popup.
  */
-function mCreateCollectionPopup(collectionItem) {
-    const { id, name, summary, title, type } = collectionItem
+function mCreateCollectionPopup(collectionItem){
+    const { form, id, name, summary, title, type } = collectionItem
     const collectionPopup = document.createElement('div')
     collectionPopup.classList.add('collection-popup', 'popup-container')
     collectionPopup.dataset.active = 'false'
@@ -667,8 +668,64 @@ function mCreateCollectionPopup(collectionItem) {
     let typePopup
     switch (type) {
         case 'entry':
+            // @stub - could switch on `form`
+            const entryType = form
+                ?? type
+            /* improve entry container */
+            const improveEntry = document.createElement('div')
+            improveEntry.classList.add(`collection-popup-${ type }`)
+            improveEntry.id = `popup-${ entryType }_${ id }`
+            improveEntry.name = 'improve-entry-container'
+            /* improve entry lane */
+            const improveEntryLane = document.createElement('div')
+            improveEntryLane.classList.add('improve-entry-lane')
+            /* obscure entry */
+            const obscureEntry = document.createElement('button')
+            obscureEntry.classList.add('obscure-button', 'button')
+            obscureEntry.dataset.id = id /* required for mObscureEntry */
+            obscureEntry.id = `button-obscure-${ entryType }_${ id }`
+            obscureEntry.name = 'obscure-button'
+            obscureEntry.textContent = 'Obscure Entry'
+            obscureEntry.addEventListener('click', mObscureEntry, { once: true })
+            /* experience entry panel */
+            const experienceEntry = document.createElement('div')
+            experienceEntry.classList.add('experience-entry-container')
+            experienceEntry.id = `experience_${ id }`
+            experienceEntry.name = 'experience-entry-container'
+            /* experience entry explanation */
+            const experienceExplanation = document.createElement('div')
+            experienceExplanation.classList.add('experience-entry-explanation')
+            experienceExplanation.id = `experience-explanation_${ id }`
+            experienceExplanation.name = 'experience-entry-explanation'
+            experienceExplanation.textContent = 'Experience an entry by clicking the button below. Eventually, you will be able to experience the entry from multiple perspectives.'
+            /* experience entry button */
+            const experienceButton = document.createElement('button')
+            experienceButton.classList.add('experience-entry-button', 'button')
+            experienceButton.dataset.id = id /* required for triggering PATCH */
+            experienceButton.id = `experience-entry-button_${ id }`
+            experienceButton.name = 'experience-entry-button'
+            experienceButton.textContent = 'Experience Entry'
+            experienceButton.addEventListener('click', _=>{
+                alert('Experience Entry: Coming soon')
+            }, { once: true })
+            /* memory media-carousel */
+            const entryCarousel = document.createElement('div')
+            entryCarousel.classList.add('media-carousel')
+            entryCarousel.id = `media-carousel_${ id }`
+            entryCarousel.name = 'media-carousel'
+            entryCarousel.textContent = 'Coming soon: media file uploads to Enhance and Improve entries'
+            /* append elements */
+            experienceEntry.appendChild(experienceExplanation)
+            experienceEntry.appendChild(experienceButton)
+            improveEntryLane.appendChild(obscureEntry)
+            improveEntryLane.appendChild(experienceEntry)
+            improveEntry.appendChild(improveEntryLane)
+            improveEntry.appendChild(entryCarousel)
+            typePopup = improveEntry
+            break
         case 'experience':
         case 'file':
+            break
         case 'story': // memory
             /* improve memory container */
             const improveMemory = document.createElement('div')
@@ -706,9 +763,9 @@ function mCreateCollectionPopup(collectionItem) {
             improveMemoryLane.appendChild(reliveMemory)
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
-            memoryCarousel.classList.add('memory-carousel')
-            memoryCarousel.id = `memory-carousel_${ id }`
-            memoryCarousel.name = 'memory-carousel'
+            memoryCarousel.classList.add('media-carousel')
+            memoryCarousel.id = `media-carousel_${ id }`
+            memoryCarousel.name = 'media-carousel'
             memoryCarousel.textContent = 'Coming soon: media file uploads to Enhance and Improve memories'
             /* append elements */
             improveMemory.appendChild(improveMemoryLane)
@@ -1055,6 +1112,22 @@ function mIsInputCheckbox(element){
     const { tagName, type, } = element
     const outcome = tagName.toLowerCase()==='input' && type.toLowerCase()==='checkbox'
     return outcome
+}
+async function mObscureEntry(event){
+    event.preventDefault()
+    event.stopPropagation()
+    /* set active item */
+    const { id: itemId, } = this.dataset
+    if(itemId)
+        setActiveItem(itemId)
+    toggleMemberInput(false, false)
+    const popupClose = document.getElementById(`popup-close_${ itemId }`)
+    if(popupClose)
+        popupClose.click()
+    const { responses, success, } = await obscure(itemId)
+    if(responses?.length)
+        addMessages(responses)
+    toggleMemberInput(true)
 }
 /**
  * Open bot container for passed element, closes all the rest.
@@ -1406,6 +1479,24 @@ function mSpotlightBotStatus(){
             }
         })
 }
+/**
+ * Click event to trigger server explanation of how to begin a diary.
+ * @param {Event} event - The event object
+ * @returns {void}
+ */
+async function mStartDiary(event){
+    event.preventDefault()
+    event.stopPropagation()
+    const submitButton = event.target
+    const diaryBot = getBot('diary')
+    if(!diaryBot)
+        return
+    hide(submitButton)
+    unsetActiveItem()
+    await setActiveBot(diaryBot.id)
+    const response = await submit(`How do I get started?`, true)
+    addMessages(response.responses)
+}
 async function mStopRelivingMemory(id){
     const input = document.getElementById(`relive-memory-input-container_${ id }`)
     if(input)
@@ -1620,7 +1711,6 @@ function mTogglePopup(event){
         popup.style.opacity = 0
         hide(popup)
     } else { /* open */
-        const { title, type, } = popup.dataset
         let { offsetX, offsetY, } = popup.dataset
         if(!offsetX || !offsetY){ // initial placement onscreen
             const item = popup.parentElement // collection-item
@@ -1647,12 +1737,7 @@ function mTogglePopup(event){
         popup.style.right = 'auto'
         popup.style.top = offsetY
         show(popup)
-        if(setActiveItem({
-            id,
-            popup,
-            title,
-            type,
-        })){
+        if(setActiveItem(popupId)){
             // @todo - deactivate any other popups
             popup.dataset.active = 'true'
         }
@@ -1885,6 +1970,11 @@ function mUpdateBotContainerAddenda(botContainer){
         }
         switch(type){
             case 'diary':
+                // add listener on `diary-start` button
+                const diaryStart = document.getElementById('diary-start')
+                if(diaryStart)
+                    diaryStart.addEventListener('click', mStartDiary)
+                break
             case 'journaler':
             case 'personal-biographer':
                 break
