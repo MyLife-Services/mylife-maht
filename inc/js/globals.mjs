@@ -87,7 +87,6 @@ const mAiJsFunctions = {
 			properties: {
 				itemId: {
 					description: "Id of summary to retrieve",
-					format: "uuid",
 					type: "string"
 				}
 			},
@@ -184,7 +183,6 @@ const mAiJsFunctions = {
 			properties: {
 				itemId: {
 					description: "Id of summary to update",
-					format: "uuid",
 					type: "string"
 				},
 				summary: {
