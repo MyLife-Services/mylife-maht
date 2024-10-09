@@ -1479,35 +1479,43 @@ function mGenerateClassFromSchema(_schema) {
 }
 /**
  * Retrieves any functions that need to be attached to the specific bot-type.
- * @todo - move to llmServices
+ * @todo - Move to llmServices and improve
  * @param {string} type - Type of bot.
  * @param {object} globals - Global functions for bot.
  * @param {string} vectorstoreId - Vectorstore id.
- * @returns {object} - OpenAi-ready object for functions { tools, tool_resources, }.
+ * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }.
  */
 function mGetAIFunctions(type, globals, vectorstoreId){
 	let includeSearch=false,
 		tool_resources,
 		tools = []
 	switch(type){
-		case 'diary':
-		case 'journaler':
-			tools.push(
-				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('entrySummary'),
-			)
-			includeSearch = true
-			break
+		case 'assistant':
+		case 'avatar':
 		case 'personal-assistant':
 		case 'personal-avatar':
 			includeSearch = true
 			break
+		case 'biographer':
 		case 'personal-biographer':
 			tools.push(
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
-				globals.getGPTJavascriptFunction('updateSummary'),
 				globals.getGPTJavascriptFunction('storySummary'),
+				globals.getGPTJavascriptFunction('updateSummary'),
+			)
+			includeSearch = true
+			break
+		case 'custom':
+			includeSearch = true
+			break
+		case 'diary':
+		case 'journaler':
+			tools.push(
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('getSummary'),
+				globals.getGPTJavascriptFunction('entrySummary'),
+				globals.getGPTJavascriptFunction('updateSummary'),
 			)
 			includeSearch = true
 			break
