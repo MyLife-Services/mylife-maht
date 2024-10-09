@@ -208,6 +208,11 @@ function extendClass_conversation(originClass, referencesObject) {
         removeThread(thread_id){
             this.#threads.delete(thread_id)
         }
+        /**
+         * Sets the thread instance for the conversation.
+         * @param {object} thread - The thread instance
+         * @returns {void}
+         */
         setThread(thread){
             const { id: thread_id, } = thread
             if(thread_id?.length && thread_id!=this.thread_id){

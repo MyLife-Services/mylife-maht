@@ -227,11 +227,15 @@ class Avatar extends EventEmitter {
      */
     async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
         const thread = await this.#llmServices.thread(threadId)
-        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
-        if(saveToConversations){
+        const form = this.activeBot.type.split('-').pop()
+        const conversation = new (this.#factory.conversation)(
+            { form, mbr_id: this.mbr_id, type, },
+            this.#factory,
+            thread,
+            botId
+        )
+        if(saveToConversations)
             this.#conversations.push(conversation)
-            console.log(`Avatar::createConversation::saving into local memory, thread: ${ threadId }; bot.id: ${ botId }`)
-        }
         return conversation
     }
     /**
@@ -485,8 +489,9 @@ class Avatar extends EventEmitter {
         const conversation = this.getConversation(thread_id)
         if(!conversation)
             throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
-        const messages = (await this.#llmServices.messages(thread_id))
-            .slice(0, 12)
+        let messages = await this.#llmServices.messages(thread_id)
+        messages = messages
+            .slice(0, 25)
             .map(message=>{
                 const { content: contentArray, id, metadata, role, } = message
                 const content = contentArray
@@ -497,25 +502,54 @@ class Avatar extends EventEmitter {
             })
         const { botId, } = conversation
         const bot = this.getBot(botId)
-        // @todo - switch modular function by bot type, therefore conversation collection-type
-        const memories = ( await this.collections('story') )
-            .sort((a, b)=>a._ts-b._ts)
-            .slice(0, 12)
-        const memoryList = memories
-            .map(memory=>`- itemId: ${ memory.id } :: ${ memory.title }`)
-            .join('\n')
-        const memoryCollectionList = memories
-            .map(memory=>memory.id)
-            .join(',')
-            .slice(0, 512)
-        messages.push({
-            content: `## MEMORY COLLECTION LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
-            metadata: {
-                collectionList: memoryCollectionList,
-                collectiontypes: 'memory,story,narrative',
-            },
-            role: 'assistant',
-        }) // add summary of Memories (etc. due to type) for intelligence to reference, also could add attachment file
+        switch(bot.type){
+            case 'biographer':
+            case 'personal-biographer':
+                const memories = ( await this.collections('story') )
+                    .sort((a, b)=>a._ts-b._ts)
+                    .slice(0, 12)
+                const memoryList = memories
+                    .map(memory=>`- itemId: ${ memory.id } :: ${ memory.title }`)
+                    .join('\n')
+                const memoryCollectionList = memories
+                    .map(memory=>memory.id)
+                    .join(',')
+                    .slice(0, 512)
+                messages.push({
+                    content: `## MEMORY COLLECTION LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
+                    metadata: {
+                        collectionList: memoryCollectionList,
+                        collectiontypes: 'memory,story,narrative',
+                    },
+                    role: 'assistant',
+                }) // add summary of Memories (etc. due to type) for intelligence to reference, also could add attachment file
+                break
+            case 'diary':
+            case 'journal':
+            case 'journaler':
+                const _type = 'entry'
+                const entries = ( await this.collections(_type) )
+                    .sort((a, b)=>a._ts-b._ts)
+                    .slice(0, 128)
+                const entryList = entries
+                    .map(entry=>`- itemId: ${ entry.id } :: ${ entry.title }`)
+                    .join('\n')
+                const entryCollectionList = entries
+                    .map(entry=>entry.id)
+                    .join(',')
+                    .slice(0, 512)
+                messages.push({
+                    content: `## ${ _type.toUpperCase() } List:\n${ entryList }`,
+                    metadata: {
+                        collectionList: entryCollectionList,
+                        collectiontypes: _type,
+                    },
+                    role: 'assistant',
+                }) // add summary of Entries
+                break
+            default:
+                break
+        }
         const metadata = {
             bot_id: botId,
             conversation_id: conversation.id,
