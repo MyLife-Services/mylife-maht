@@ -68,10 +68,10 @@ const mMyLifeTeams = [
 		allowCustom: true,
 		allowedTypes: ['diary', 'journaler', 'personal-biographer',],
 		defaultTypes: ['personal-biographer',],
-		description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
+		description: 'The Memory Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
 		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
-		name: 'memoir',
-		title: 'Memoir',
+		name: 'memory',
+		title: 'Memory',
 	},
 	{
 		active: false,
