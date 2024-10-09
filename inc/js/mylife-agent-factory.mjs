@@ -481,7 +481,8 @@ class BotFactory extends EventEmitter{
 	 * @returns {object[]} - The array of MyLife Teams.
 	 */
 	teams(){
-		return mMyLifeTeams.filter(team=>team.active ?? false)
+		return mMyLifeTeams
+			.filter(team=>team.active ?? false)
 	}
 	/**
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
