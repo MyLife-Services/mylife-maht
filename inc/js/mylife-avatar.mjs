@@ -91,7 +91,7 @@ class Avatar extends EventEmitter {
      * @param {Guid} shadowId - The active Shadow Id (optional).
      * @param {Conversation} conversation - The conversation object.
      * @param {number} processStartTime - The start time of the process.
-     * @returns {object} - The response(s) to the chat request.
+     * @returns {object} - The response object { instruction, responses, success, }
     */
     async chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
         if(!message)
@@ -632,34 +632,63 @@ class Avatar extends EventEmitter {
      * @param {Guid} botId - The bot id.
      * @returns {object} - The retired bot object.
      */
-    async retireBot(botId){
+    retireBot(botId){
+        /* reset active bot, if required */
+        if(this.activeBotId===botId)
+            this.activeBotId = null
         const bot = this.getBot(botId)
         if(!bot)
             throw new Error(`Bot not found with id: ${ botId }`)
         const { id, } = bot
         if(botId!==id)
             throw new Error(`Bot id mismatch: ${ botId }!=${ id }`)
-        mDeleteBot(bot, this.#bots, this.#llmServices)
-        return bot
+        mDeleteBot(bot, this.#bots, this.#llmServices, this.#factory)
+        const response = {
+            instruction: {
+                command: 'removeBot',
+                botId,
+            },
+            responses: [{
+                agent: 'server',
+                message: `I have removed this bot from the team.`,
+                purpose: 'system',
+                type: 'chat',
+            }],
+            success: true,
+        }
+        return response
     }
     /**
-     * Member-request to retire a chat conversation.
+     * Member-request to retire a chat conversation thread and begin a new one with the same intelligence.
      * @param {string} thread_id - Conversation thread id in OpenAI
-     * @returns {Conversation} - The retired conversation object.
+     * @returns {object} - The response object { instruction, responses, success, }
      */
-    async retireChat(thread_id){
-        const conversation = this.getConversation(thread_id)
-        if(!conversation)
-            throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
-        const { botId, thread_id: cid, } = conversation
+    async retireChat(botId){
+        const retiredConversation = this.getConversation(null, botId)
+        console.log('retireChat::conversations', this.conversations.map(c=>(
+            { botId, _botId: c.botId, bot_id: c.bot_id, thread_id: c.thread_id, }
+        )))
+        if(!retiredConversation)
+            throw new Error(`Conversation not found with bot id: ${ botId }`)
+        const { thread_id: cid, } = retiredConversation
         const bot = this.getBot(botId)
         const { id: _botId, thread_id: tid, } = bot
         if(botId!=_botId)
             throw new Error(`Bot id mismatch: ${ botId }!=${ bot_id }`)
-        if(tid!=thread_id || cid!=thread_id)
-            throw new Error(`Conversation mismatch: ${ tid }!=${ thread_id } || ${ cid }!=${ thread_id }`)
-        mDeleteConversation(conversation, this.conversations, bot, this.#factory, this.#llmServices)
-        return conversation
+        if(tid!=cid)
+            throw new Error(`Conversation mismatch: ${ tid }!=${ cid }`)
+        const conversation = await this.migrateChat(tid)
+        console.log('retireChat::conversation', conversation)
+        const response = {
+            responses: [{
+                agent: 'server',
+                message: `I have successfully retired this conversation thread and started a new one.`,
+                purpose: 'system',
+                type: 'chat',
+            }],
+            success: true,
+        }
+        return response
     }
     /**
      * Takes a shadow message and sends it to the appropriate bot for response, returning the standard array of bot responses.
@@ -1650,9 +1679,16 @@ function mCreateSystemMessage(activeBot, message, factory){
     message = mPruneMessage(activeBot, message, 'system')
     return message
 }
-async function mDeleteBot(bot, bots, llm){
+/**
+ * Deletes the bot requested from avatar memory and from all long-term storage.
+ * @param {object} bot - The bot object to delete
+ * @param {Object[]} bots - The bots array
+ * @param {*} llm - OpenAI object
+ * @param {*} factory - Agent Factory object
+ */
+function mDeleteBot(bot, bots, llm, factory){
     const cannotRetire = ['actor', 'system', 'personal-avatar']
-    const { bot_id, id, type, } = bot
+    const { bot_id, id, thread_id, type, } = bot
     if(cannotRetire.includes(type))
         throw new Error(`Cannot retire bot type: ${ type }`)
     /* delete from memory */
@@ -1661,11 +1697,10 @@ async function mDeleteBot(bot, bots, llm){
         throw new Error('Bot not found in bots.')
     bots.splice(botId, 1)
     /* delete bot from Cosmos */
-    const deletedBot = await factory.deleteItem(id)
-    /* delete bot from OpenAI */
-    const deletedLLMBot = await factory.deleteBot(bot_id)
-    console.log('mDeleteBot', deletedBot, deletedLLMBot)
-    return true
+    factory.deleteItem(id)
+    /* delete thread and bot from OpenAI */
+    llm.deleteBot(bot_id)
+    llm.deleteThread(thread_id)
 }
 /**
  * Deletes conversation and updates 

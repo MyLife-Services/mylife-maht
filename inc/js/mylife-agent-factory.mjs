@@ -68,10 +68,10 @@ const mMyLifeTeams = [
 		allowCustom: true,
 		allowedTypes: ['diary', 'journaler', 'personal-biographer',],
 		defaultTypes: ['personal-biographer',],
-		description: 'The Memoir Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
+		description: 'The Memory Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
 		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
-		name: 'memoir',
-		title: 'Memoir',
+		name: 'memory',
+		title: 'Memory',
 	},
 	{
 		active: false,
@@ -481,7 +481,8 @@ class BotFactory extends EventEmitter{
 	 * @returns {object[]} - The array of MyLife Teams.
 	 */
 	teams(){
-		return mMyLifeTeams.filter(team=>team.active ?? false)
+		return mMyLifeTeams
+			.filter(team=>team.active ?? false)
 	}
 	/**
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
@@ -1267,7 +1268,7 @@ function mCreateBotInstructions(factory, bot){
 		instructions,
 		limit=8000,
 		version,
-	} = factory.botInstructions(type)
+	} = factory.botInstructions(type) ?? {}
     if(!instructions) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
     let {
@@ -1322,7 +1323,7 @@ function mCreateBotInstructions(factory, bot){
             ?? eval(`bot?.${_reference.value}`)
             ?? _reference.default
             ?? '`unknown-value`'
-        switch(_reference.method??'replace'){
+        switch(_reference.method ?? 'replace'){
             case 'append-hard':
                 const _indexHard = instructions.indexOf(_referenceText)
                 if (_indexHard !== -1) {
@@ -1479,35 +1480,44 @@ function mGenerateClassFromSchema(_schema) {
 }
 /**
  * Retrieves any functions that need to be attached to the specific bot-type.
- * @todo - move to llmServices
+ * @todo - Move to llmServices and improve
  * @param {string} type - Type of bot.
  * @param {object} globals - Global functions for bot.
  * @param {string} vectorstoreId - Vectorstore id.
- * @returns {object} - OpenAi-ready object for functions { tools, tool_resources, }.
+ * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }.
  */
 function mGetAIFunctions(type, globals, vectorstoreId){
 	let includeSearch=false,
 		tool_resources,
 		tools = []
 	switch(type){
+		case 'assistant':
+		case 'avatar':
+		case 'personal-assistant':
+		case 'personal-avatar':
+			includeSearch = true
+			break
+		case 'biographer':
+		case 'personal-biographer':
+			tools.push(
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('getSummary'),
+				globals.getGPTJavascriptFunction('storySummary'),
+				globals.getGPTJavascriptFunction('updateSummary'),
+			)
+			includeSearch = true
+			break
+		case 'custom':
+			includeSearch = true
+			break
 		case 'diary':
 		case 'journaler':
 			tools.push(
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('entrySummary'),
-			)
-			includeSearch = true
-			break
-		case 'personal-assistant':
-		case 'personal-avatar':
-			includeSearch = true
-			break
-		case 'personal-biographer':
-			tools.push(
-				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
+				globals.getGPTJavascriptFunction('obscure'),
 				globals.getGPTJavascriptFunction('updateSummary'),
-				globals.getGPTJavascriptFunction('storySummary'),
 			)
 			includeSearch = true
 			break

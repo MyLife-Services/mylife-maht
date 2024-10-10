@@ -294,15 +294,15 @@ async function retireBot(ctx){
 	ctx.body = response
 }
 /**
- * Direct request from member to retire a conversation/chat/thread.
+ * Direct request from member to retire a chat (via bot).
  * @param {Koa} ctx - Koa Context object
  */
 async function retireChat(ctx){
 	const { avatar, } = ctx.state
-	const { tid, } = ctx.params // thread_id
-	if(!tid?.length)
-		ctx.throw(400, `missing thread id`)
-	const response = await avatar.retireChat(tid)
+	const { bid, } = ctx.params
+	if(!bid?.length)
+		ctx.throw(400, `missing bot id`)
+	const response = await avatar.retireChat(bid)
 	ctx.body = response
 }
 /**
