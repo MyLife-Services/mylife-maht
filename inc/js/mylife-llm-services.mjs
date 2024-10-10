@@ -344,8 +344,12 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'changetitle':
                             case 'change_title':
                             case 'change title':
-                                console.log('mRunFunctions()::changeTitle', toolArguments)
                                 const { itemId: titleItemId, title, } = toolArguments
+                                console.log('mRunFunctions()::changeTitle::begin', itemId, titleItemId, title)
+                                avatar.backupResponse = {
+                                    message: `I was unable to retrieve the item indicated.`,
+                                    type: 'system',
+                                }
                                 if(!itemId?.length || !title?.length || itemId!==titleItemId)
                                     action = 'apologize for lack of clarity - member should click on the collection item (like a memory, story, etc) to make it active so I can use the `changeTitle` tool'
                                 else {
@@ -358,8 +362,13 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                         title,
                                     }
                                     success = true
+                                    avatar.backupResponse = {
+                                        message: `I was able to retrieve change the title to: "${ title }"`,
+                                        type: 'system',
+                                    }
                                 }
                                 confirmation.output = JSON.stringify({ action, success, })
+                                console.log('mRunFunctions()::changeTitle::end', success, item)
                                 return confirmation
                             case 'confirmregistration':
                             case 'confirm_registration':
@@ -401,27 +410,41 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'entrysummary': // entrySummary in Globals
                             case 'entry_summary':
                             case 'entry summary':
-                                const entry = await factory.entry(toolArguments)
-                                if(entry){
-                                    action = `share brief version of entry and ask probing follow-up`
-                                    success = true
-                                } else {
-                                    action = `journal entry failed to save, notify member and continue on for now`
+                                console.log('mRunFunctions()::entrySummary::begin', toolArguments)
+                                avatar.backupResponse = {
+                                    message: `I'm sorry, I couldn't save this entry. I believe the issue might have been temporary. Would you like me to try again?`,
+                                    type: 'system',
                                 }
-                                confirmation.output = JSON.stringify({ action, success, })
-                                console.log('mRunFunctions()::entrySummary', toolArguments, confirmation.output)
+                                const { id: entryItemId, summary: _entrySummary, } = await factory.entry(toolArguments)
+                                if(_entrySummary?.length){
+                                    action = 'confirm entry has been saved and based on the mood of the entry, ask more about _this_ entry or move on to another event'
+                                    success = true
+                                    avatar.backupResponse = {
+                                        message: `I can confirm that your story has been saved. Would you like to add more details or begin another memory?`,
+                                        type: 'system',
+                                    }
+                                }
+                                confirmation.output = JSON.stringify({
+                                    action,
+                                    itemId: entryItemId,
+                                    success,
+                                    summary: _entrySummary,
+                                })
+                                console.log('mRunFunctions()::entrySummary::end', success, entryItemId, _entrySummary)
                                 return confirmation
                             case 'getsummary':
                             case 'get_summary':
                             case 'get summary':
+                                console.log('mRunFunctions()::getSummary::begin', itemId)
                                 avatar.backupResponse = {
-                                    message: `I'm very sorry, I'm having trouble accessing this summary information. Please try again shortly as the problem is likely temporary.`,
+                                    message: `I'm sorry, I couldn't finding this summary. I believe the issue might have been temporary. Would you like me to try again?`,
                                     type: 'system',
                                 }
-                                let { summary, title: _getSummaryTitle, } = item ?? {}
-                                if(!summary?.length){
+                                let { summary: _getSummary, title: _getSummaryTitle, } = item
+                                    ?? {}
+                                if(!_getSummary?.length){
                                     action = `error getting summary for itemId: ${ itemId ?? 'missing itemId' } - halt any further processing and instead ask user to paste summary into chat and you will continue from there to incorporate their message.`
-                                    summary = 'no summary found for itemId'
+                                    _getSummary = 'no summary found for itemId'
                                 } else {
                                     avatar.backupResponse = {
                                         message: `I was able to retrieve the summary indicated.`,
@@ -430,7 +453,8 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     action = `with the summary in this JSON payload, incorporate the most recent member request into a new summary and run the \`updateSummary\` function and follow its action`
                                     success = true
                                 }
-                                confirmation.output = JSON.stringify({ action, itemId, success, summary, })
+                                confirmation.output = JSON.stringify({ action, itemId, success, summary: _getSummary, })
+                                console.log('mRunFunctions()::getSummary::end', success, _getSummary)
                                 return confirmation
                             case 'hijackattempt':
                             case 'hijack_attempt':
@@ -470,17 +494,21 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                             case 'story_summary':
                             case 'story summary':
                                 console.log('mRunFunctions()::storySummary', toolArguments)
-                                const story = await factory.story(toolArguments)
-                                if(story){
-                                    const { keywords, phaseOfLife, } = story
+                                avatar.backupResponse = {
+                                    message: `I'm very sorry, an error occured before I could create your summary. Would you like me to try again?`,
+                                    type: 'system',
+                                }
+                                const { id: storyItemId, phaseOfLife, summary: _storySummary, } = await factory.story(toolArguments)
+                                if(_storySummary?.length){
                                     let { interests, updates, } = factory.core
                                     if(typeof interests=='array')
                                         interests = interests.join(', ')
                                     if(typeof updates=='array')
                                         updates = updates.join(', ')
+                                    action = 'confirm memory has been saved and '
                                     switch(true){
                                         case phaseOfLife?.length:
-                                            action = `ask about another encounter during member's ${ phaseOfLife }`
+                                            action += `ask about another encounter during member's ${ phaseOfLife }`
                                             break
                                         case interests?.length:
                                             action = `ask about a different interest from: ${ interests }`
@@ -490,13 +518,23 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                             break
                                     }
                                     success = true
-                                } // error cascades
-                                confirmation.output = JSON.stringify({ action, success, })
-                                console.log('mRunFunctions()::storySummary()::end', story.id)
+                                }
+                                confirmation.output = JSON.stringify({
+                                    action,
+                                    itemId: storyItemId,
+                                    success,
+                                    summary: _storySummary,
+                                })
+                                avatar.backupResponse = {
+                                    message: `I can confirm that your story has been saved. Would you like to add more details or begin another memory?`,
+                                    type: 'system',
+                                }
+                                console.log('mRunFunctions()::storySummary()::end', success, storyItemId, _storySummary)
                                 return confirmation
                             case 'updatesummary':
                             case 'update_summary':
                             case 'update summary':
+                                console.log('mRunFunctions()::updatesummary::begin', itemId)
                                 avatar.backupResponse = {
                                     message: `I'm very sorry, an error occured before we could update your summary. Please try again as the problem is likely temporary.`,
                                     type: 'system',
@@ -508,13 +546,18 @@ async function mRunFunctions(openai, run, factory, avatar){ // add avatar ref
                                     itemId,
                                     summary: updatedSummary,
                                 }
+                                action=`confirm that summary update was successful`
+                                success = true
+                                confirmation.output = JSON.stringify({
+                                    action,
+                                    itemId,
+                                    success,
+                                    summary: updatedSummary,
+                                })
                                 avatar.backupResponse = {
                                     message: 'Your summary has been updated, please review and let me know if you would like to make any changes.',
                                     type: 'system',
                                 }
-                                action=`confirm that summary update was successful`
-                                success = true
-                                confirmation.output = JSON.stringify({ action, success, })
                                 console.log('mRunFunctions()::updatesummary::end', itemId, updatedSummary)
                                 return confirmation
                             default:

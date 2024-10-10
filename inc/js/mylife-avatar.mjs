@@ -4,10 +4,12 @@ import oAIAssetAssistant from './agents/system/asset-assistant.mjs'
 import { EvolutionAssistant } from './agents/system/evolution-assistant.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 /* module constants */
-const { MYLIFE_DB_ALLOW_SAVE, OPENAI_MAHT_GPT_OVERRIDE, } = process.env
-const mAllowSave = JSON.parse(MYLIFE_DB_ALLOW_SAVE ?? 'false')
+const mAllowSave = JSON.parse(
+    process.env.MYLIFE_DB_ALLOW_SAVE
+        ?? false
+)
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
-const mBot_idOverride = OPENAI_MAHT_GPT_OVERRIDE
+const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
 /**
  * @class
  * @extends EventEmitter
@@ -106,15 +108,29 @@ class Avatar extends EventEmitter {
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
         conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
-        let messages
+        let _message = message,
+            messages = []
         if(shadowId)
-            messages = await this.shadow(shadowId, itemId, message)
+            messages = await this.shadow(shadowId, itemId, _message)
         else {
-            // @stub - one weakness in the chain might also be the fact that I am not including in instructions how to create integrated summary and left it primarily to the JSON description of function
-            if(itemId)
-                message = `update-memory-request: itemId=${ itemId }\n` + message
-            messages = await mCallLLM(this.#llmServices, conversation, message, factory, this)
+            if(itemId){
+                // @todo - check if item exists in memory, fewer pings and inclusions overall
+                const { summary, } = await factory.item(itemId)
+                if(summary?.length){
+                    _message = `possible **update-summary-request**: itemId=${ itemId }\n`
+                    + `**member-update-request**:\n`
+                    + message
+                    + `\n**current-summary-in-database**:\n`
+                    + summary
+                }
+            }
+            messages = await mCallLLM(this.#llmServices, conversation, _message, factory, this)
         }
+        conversation.addMessage({
+            content: message,
+            created_at: Date.now(),
+            role: 'user',
+        })
         conversation.addMessages(messages)
         if(mAllowSave)
             conversation.save()
@@ -211,11 +227,15 @@ class Avatar extends EventEmitter {
      */
     async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
         const thread = await this.#llmServices.thread(threadId)
-        const conversation = new (this.#factory.conversation)({ mbr_id: this.mbr_id, type, }, this.#factory, thread, botId)
-        if(saveToConversations){
+        const form = this.activeBot.type.split('-').pop()
+        const conversation = new (this.#factory.conversation)(
+            { form, mbr_id: this.mbr_id, type, },
+            this.#factory,
+            thread,
+            botId
+        )
+        if(saveToConversations)
             this.#conversations.push(conversation)
-            console.log(`Avatar::createConversation::saving into local memory, thread: ${ threadId }; bot.id: ${ botId }`)
-        }
         return conversation
     }
     /**
@@ -469,8 +489,9 @@ class Avatar extends EventEmitter {
         const conversation = this.getConversation(thread_id)
         if(!conversation)
             throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
-        const messages = (await this.#llmServices.messages(thread_id))
-            .slice(0, 12)
+        let messages = await this.#llmServices.messages(thread_id)
+        messages = messages
+            .slice(0, 25)
             .map(message=>{
                 const { content: contentArray, id, metadata, role, } = message
                 const content = contentArray
@@ -481,25 +502,54 @@ class Avatar extends EventEmitter {
             })
         const { botId, } = conversation
         const bot = this.getBot(botId)
-        // @todo - switch modular function by bot type, therefore conversation collection-type
-        const memories = ( await this.collections('story') )
-            .sort((a, b)=>a._ts-b._ts)
-            .slice(0, 12)
-        const memoryList = memories
-            .map(memory=>`- itemId: ${ memory.id } :: ${ memory.title }`)
-            .join('\n')
-        const memoryCollectionList = memories
-            .map(memory=>memory.id)
-            .join(',')
-            .slice(0, 512)
-        messages.push({
-            content: `## MEMORY COLLECTION LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
-            metadata: {
-                collectionList: memoryCollectionList,
-                collectiontypes: 'memory,story,narrative',
-            },
-            role: 'assistant',
-        }) // add summary of Memories (etc. due to type) for intelligence to reference, also could add attachment file
+        switch(bot.type){
+            case 'biographer':
+            case 'personal-biographer':
+                const memories = ( await this.collections('story') )
+                    .sort((a, b)=>a._ts-b._ts)
+                    .slice(0, 12)
+                const memoryList = memories
+                    .map(memory=>`- itemId: ${ memory.id } :: ${ memory.title }`)
+                    .join('\n')
+                const memoryCollectionList = memories
+                    .map(memory=>memory.id)
+                    .join(',')
+                    .slice(0, 512)
+                messages.push({
+                    content: `## MEMORY COLLECTION LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
+                    metadata: {
+                        collectionList: memoryCollectionList,
+                        collectiontypes: 'memory,story,narrative',
+                    },
+                    role: 'assistant',
+                }) // add summary of Memories (etc. due to type) for intelligence to reference, also could add attachment file
+                break
+            case 'diary':
+            case 'journal':
+            case 'journaler':
+                const _type = 'entry'
+                const entries = ( await this.collections(_type) )
+                    .sort((a, b)=>a._ts-b._ts)
+                    .slice(0, 128)
+                const entryList = entries
+                    .map(entry=>`- itemId: ${ entry.id } :: ${ entry.title }`)
+                    .join('\n')
+                const entryCollectionList = entries
+                    .map(entry=>entry.id)
+                    .join(',')
+                    .slice(0, 512)
+                messages.push({
+                    content: `## ${ _type.toUpperCase() } List:\n${ entryList }`,
+                    metadata: {
+                        collectionList: entryCollectionList,
+                        collectiontypes: _type,
+                    },
+                    role: 'assistant',
+                }) // add summary of Entries
+                break
+            default:
+                break
+        }
         const metadata = {
             bot_id: botId,
             conversation_id: conversation.id,

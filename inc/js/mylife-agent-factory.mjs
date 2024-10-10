@@ -794,11 +794,12 @@ class AgentFactory extends BotFactory {
 	 * @returns {object} - The story document from Cosmos
 	 */
 	async story(story){
+		const defaultForm = 'memory'
 		const defaultType = 'story'
-		const { 
+		const {
 			assistantType='biographer',
 			being=defaultType,
-			form=defaultType,
+			form=defaultForm,
 			id=this.newGuid,
 			keywords=[],
 			mbr_id=(!this.isMyLife ? this.mbr_id : undefined),
@@ -808,8 +809,7 @@ class AgentFactory extends BotFactory {
 		} = story
 		if(!mbr_id) // only triggered if not MyLife server
 			throw new Error('mbr_id required for story summary')
-		let { name, } = story
-		name = name ?? `${ defaultType }_${ form }_${ title.substring(0,64) }_${ mbr_id }`
+		const { name=`${ being }_${ form }_${ title.substring(0,64) }_${ mbr_id }`, } = story
 		if(!summary?.length)
 			throw new Error('story summary required')
 		/* assign default keywords */
@@ -1284,7 +1284,6 @@ function mCreateBotInstructions(factory, bot){
     /* compile instructions */
     switch(type){
 		case 'diary':
-		case 'journaler':
             instructions = purpose
 				+ preamble
 				+ prefix
@@ -1296,7 +1295,8 @@ function mCreateBotInstructions(factory, bot){
             instructions = preamble
                 + general
             break
-        case 'personal-biographer':
+        case 'journaler':
+		case 'personal-biographer':
             instructions = preamble
                 + purpose
                 + prefix

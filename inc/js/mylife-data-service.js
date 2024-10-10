@@ -580,7 +580,7 @@ class Dataservices {
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
 	async patchItem(id, data){ // path Embedded in data
-		return await this.datamanager.patchItem(id , data)
+		return await this.datamanager.patchItem(id, data)
 	}
     /**
      * Pushes a new item to the data manager
