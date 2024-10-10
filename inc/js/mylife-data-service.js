@@ -306,9 +306,7 @@ class Dataservices {
 		let success=false
 		if(bSuppressError){
 			try{
-				const response = await this.datamanager.deleteItem(id)
-				console.log('mylife-data-service::deleteItem() response', response)
-				success = response?.id===id
+				success = await this.datamanager.deleteItem(id)
 			} catch(err){
 				console.log('mylife-data-service::deleteItem() ERROR', err.code) // NotFound
 			}

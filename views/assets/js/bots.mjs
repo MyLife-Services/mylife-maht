@@ -1263,6 +1263,60 @@ async function mReliveMemoryRequestStop(id){
         console.log('Error stopping relive memory:', error)
     }
 }
+async function mRetireBot(event){
+    event.preventDefault()
+    event.stopPropagation()
+    try {
+        const { dataset, id, } = event.target
+        const { botId, type, } = dataset
+        /* reset active bot */
+        if(mActiveBot.id===botId)
+            setActiveBot()
+        /* retire bot */
+        const url = window.location.origin + '/members/retire/bot/' + botId
+        let response = await fetch(url, {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            method: 'POST',
+        })
+        if(!response.ok)
+            throw new Error(`HTTP error! Status: ${response.status}`)
+        response = await response.json()
+        addMessages(response.responses)
+    } catch(err) {
+        console.log('Error posting bot data:', err)
+        addMessage(`Error posting bot data: ${err.message}`)
+    }
+
+}
+/**
+ * Retires chat thread on server and readies for a clean one.
+ * @param {Event} event - The event object
+ * @returns {void}
+ */
+async function mRetireChat(event){
+    event.preventDefault()
+    event.stopPropagation()
+    try {
+        const { dataset, id, } = event.target
+        const { botId, type, } = dataset
+        const url = window.location.origin + '/members/retire/chat/' + botId
+        let response = await fetch(url, {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            method: 'POST',
+        })
+        if(!response.ok)
+            throw new Error(`HTTP error! Status: ${response.status}`)
+        response = await response.json()
+        addMessages(response.responses)
+    } catch(err) {
+        console.log('Error posting bot data:', err)
+        addMessage(`Error posting bot data: ${err.message}`)
+    }
+}
 /**
  * Set Bot data on server.
  * @param {Object} bot - bot object
@@ -1968,16 +2022,21 @@ function mUpdateBotContainerAddenda(botContainer){
                 })
             }
         }
+        /* retirements */
+        const retireChatButton = document.getElementById(`${ type }-retire-chat`)
+        if(retireChatButton){
+            retireChatButton.dataset.botId = id
+            retireChatButton.dataset.type = type
+            retireChatButton.addEventListener('click', mRetireChat)
+        }
+        const retireBotButton = document.getElementById(`${ type }-retire-bot`)
+        if(retireBotButton){
+            retireBotButton.dataset.botId = id
+            retireBotButton.dataset.type = type
+            retireBotButton.addEventListener('click', mRetireBot)
+        }
         switch(type){
-            case 'diary':
-                // add listener on `diary-start` button
-                const diaryStart = document.getElementById('diary-start')
-                if(diaryStart)
-                    diaryStart.addEventListener('click', mStartDiary)
-                break
-            case 'journaler':
-            case 'personal-biographer':
-                break
+            case 'avatar':
             case 'personal-avatar':
                 /* attach avatar listeners */
                 /* set additional data attributes */
@@ -1994,6 +2053,16 @@ function mUpdateBotContainerAddenda(botContainer){
                     } else
                         hide(tutorialButton)
                 }
+                break
+            case 'biographer':
+            case 'journaler':
+            case 'personal-biographer':
+                break
+            case 'diary':
+                // add listener on `diary-start` button
+                const diaryStart = document.getElementById('diary-start')
+                if(diaryStart)
+                    diaryStart.addEventListener('click', mStartDiary)
                 break
             default:
                 break
