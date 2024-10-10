@@ -30,7 +30,7 @@ const mAvailableCollections = ['entry', 'experience', 'file', 'story'], // ['cha
     mCollectionsContainer = document.getElementById('collections-container'),
     mCollectionsUpload = document.getElementById('collections-upload'),
     mDefaultReliveMemoryButtonText = 'next',
-    mDefaultTeam = 'memoir',
+    mDefaultTeam = 'memory',
     mGlobals = new Globals(),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
@@ -235,7 +235,7 @@ async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
         throw new Error(`No bots provided to update page.`)
     if(mBots!==bots)
         mBots = bots
-    // await mUpdateTeams()
+    await mUpdateTeams()
     await mUpdateBotContainers()
     // mUpdateBotBar()
     if(includeGreeting)
@@ -2177,7 +2177,7 @@ async function mUpdateTeams(identifier=mDefaultTeam){
     mTeamName.dataset.description = description
     mTeamName.innerText = `${ title ?? name } Team`
     mTeamName.title = description
-    mTeamName.addEventListener('click', mCreateTeamSelect)
+    // @stub mTeamName.addEventListener('click', mCreateTeamSelect)
     mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
     hide(mTeamPopup)
     show(mTeamHeader)

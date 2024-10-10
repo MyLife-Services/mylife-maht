@@ -1268,7 +1268,7 @@ function mCreateBotInstructions(factory, bot){
 		instructions,
 		limit=8000,
 		version,
-	} = factory.botInstructions(type)
+	} = factory.botInstructions(type) ?? {}
     if(!instructions) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
     let {
@@ -1323,7 +1323,7 @@ function mCreateBotInstructions(factory, bot){
             ?? eval(`bot?.${_reference.value}`)
             ?? _reference.default
             ?? '`unknown-value`'
-        switch(_reference.method??'replace'){
+        switch(_reference.method ?? 'replace'){
             case 'append-hard':
                 const _indexHard = instructions.indexOf(_referenceText)
                 if (_indexHard !== -1) {
@@ -1514,8 +1514,9 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'journaler':
 			tools.push(
 				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('getSummary'),
 				globals.getGPTJavascriptFunction('entrySummary'),
+				globals.getGPTJavascriptFunction('getSummary'),
+				globals.getGPTJavascriptFunction('obscure'),
 				globals.getGPTJavascriptFunction('updateSummary'),
 			)
 			includeSearch = true
