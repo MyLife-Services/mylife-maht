@@ -208,12 +208,11 @@
             </div>
             <!-- bot buttons -->
             <button class="button bot-start" id="diary-start">Let's get started!</button>
-            <!--
-            <div id="diary-retire" class="retire">
-                Retire this:
-                <span id="diary-retire-icon" class="fas fa-retire retire-icon">CHAT</span>
-                <span id="diary-retire-text" class="retire-text">BOT</span>
-            </div>-->
+            <div id="diary-retire-container" class="retire-container">
+                <div id="diary-retire-text" class="retire-text">Retire this:</div>
+                <span id="diary-retire-chat" class="fas fa-comment-slash retire-icon retire-chat" title="Retire this Chat. Begins new chat."></span>
+                <span id="diary-retire-bot" class="fas fa-user-large-slash retire-icon retire-bot" title="Relieves this bot, cannot be returned."></span>
+            </div>
         </div>
     </div>
     <div class="bot-container" id="journaler">
@@ -268,6 +267,13 @@
                         <label for="journaler-spirituality">Spirituality</label>
                     </div>
                 </div>
+            </div>
+            <!-- bot buttons -->
+            <!--<button class="button bot-start" id="journaler-start">Let's get started!</button>-->
+            <div id="journaler-retire-container" class="retire-container">
+                <div id="journaler-retire-text" class="retire-text">Retire this:</div>
+                <span id="journaler-retire-chat" class="fas fa-comment-slash retire-icon retire-chat" title="Retires CHAT. Begins new chat."></span>
+                <span id="journaler-retire-bot" class="fas fa-user-large-slash retire-icon retire-bot" title="Retires BOT, cannot be returned."></span>
             </div>
         </div>
     </div>

@@ -243,6 +243,30 @@
     cursor: default;
     font-size: 1.25rem;
 }
+.retire-container {
+    align-items: center;
+    color: gray;
+    cursor: pointer;
+    display: flex;
+    font-size: 1.25rem;
+    justify-content: flex-end;
+    width: 100%;
+}
+.retire-icon {
+    display: flex;
+    margin: 0.1rem 0.3rem;
+}
+.retire-icon:hover {
+    color: red;
+    display: flex;
+    font-size: 1.6rem;
+    margin: 0 0.4rem;
+}
+.retire-text {
+    display: flex;
+    font-size: 1.1rem;
+    padding: 0;
+}
 .ticker {
 	background: radial-gradient(at top left, darkgray, black); /* Radial gradient background */
     border: thin solid rgba(255, 255, 255, 0.5); /* Thin white border with 50% opacity */
