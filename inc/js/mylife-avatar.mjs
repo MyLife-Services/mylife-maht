@@ -205,7 +205,7 @@ class Avatar extends EventEmitter {
     async createBot(bot){
         const { type, } = bot
         if(!type)
-            throw new Error('Bot type required to create.')
+            throw new Error('Bot type required to create')
         const singletonBotExists = this.bots
             .filter(_bot=>_bot.type===type && !_bot.allowMultiple) // same type, self-declared singleton
             .filter(_bot=>_bot.allowedBeings?.includes('avatar')) // avatar allowed to create
@@ -1683,8 +1683,8 @@ function mCreateSystemMessage(activeBot, message, factory){
  * Deletes the bot requested from avatar memory and from all long-term storage.
  * @param {object} bot - The bot object to delete
  * @param {Object[]} bots - The bots array
- * @param {*} llm - OpenAI object
- * @param {*} factory - Agent Factory object
+ * @param {LLMServices} llm - OpenAI object
+ * @param {AgentFactory} factory - Agent Factory object
  */
 function mDeleteBot(bot, bots, llm, factory){
     const cannotRetire = ['actor', 'system', 'personal-avatar']
@@ -2194,12 +2194,12 @@ function mFindBot(avatar, id){
             ?.[0]
 }
 /**
- * Returns set of Greeting messages, dynamic or static.
- * @param {object} bot - The bot object.
- * @param {boolean} dynamic - Whether to use dynamic greetings.
- * @param {*} llm - The LLM object.
- * @param {*} factory - The AgentFactory object.
- * @returns {Promise<Message[]>} - The array of messages to respond with.
+ * Returns set of Greeting messages, dynamic or static
+ * @param {object} bot - The bot object
+ * @param {boolean} dynamic - Whether to use dynamic greetings
+ * @param {LLMServices} llm - OpenAI object
+ * @param {AgentFactory} factory - Agent Factory object
+ * @returns {Promise<Message[]>} - The array of messages to respond with
  */
 async function mGreeting(bot, dynamic=false, llm, factory){
     const processStartTime = Date.now()

@@ -1263,6 +1263,11 @@ async function mReliveMemoryRequestStop(id){
         console.log('Error stopping relive memory:', error)
     }
 }
+/**
+ * Request to retire an identified bot.
+ * @param {Event} event - The event object
+ * @returns {void}
+ */
 async function mRetireBot(event){
     event.preventDefault()
     event.stopPropagation()
@@ -1288,7 +1293,6 @@ async function mRetireBot(event){
         console.log('Error posting bot data:', err)
         addMessage(`Error posting bot data: ${err.message}`)
     }
-
 }
 /**
  * Retires chat thread on server and readies for a clean one.
