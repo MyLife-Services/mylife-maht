@@ -1675,20 +1675,20 @@ function mTeamSelect(event){
  */
 async function mToggleBotContainers(event){
     event.stopPropagation()
-    // add turn for first time clicked on collection header it refreshes from server, then from there you need to click
     const botContainer = this
     const element = event.target
     const { dataset, id, } = botContainer
     const itemIdSnippet = element.id.split('-').pop()
     switch(itemIdSnippet){
         case 'name':
-            // @todo: double-click to edit in place
+        case 'title':
+        case 'titlebar':
+            mOpenStatusDropdown(this)
             break
         case 'icon':
-        case 'title':
+        case 'type':
             if(dataset?.status && !(['error', 'offline', 'unknown'].includes(dataset.status)))
                 await setActiveBot(dataset?.id ?? id, true)
-            mOpenStatusDropdown(this)
             break
         case 'status':
         case 'type':
@@ -1697,6 +1697,10 @@ async function mToggleBotContainers(event){
             break
         case 'update':
         case 'upload':
+            break
+        case 'version':
+            console.log('Version:', dataset.version, 'check version against server', mTeams)
+            break
         default:
             break
     }
