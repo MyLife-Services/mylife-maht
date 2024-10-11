@@ -158,9 +158,9 @@ async function setActiveBot(event, dynamic=false){
         throw new Error(`ERROR: failure to set active bot.`)
     if(initialActiveBot===mActiveBot)
         return // no change, no problem
-    const { id, } = mActiveBot
+    const { id, type, } = mActiveBot
     /* confirm via server request: set active bot */
-    const serverActiveId = await fetch(
+    const serverResponse = await fetch(
         '/members/bots/activate/' + id,
         {
             method: 'POST',
@@ -168,24 +168,21 @@ async function setActiveBot(event, dynamic=false){
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => {
+        .then(response=>{
             if(!response.ok){
                 throw new Error(`HTTP error! Status: ${response.status}`)
             }
             return response.json()
         })
-        .then(response => {
-            return response.activeBotId
-        })
-        .catch(error => {
-            console.log('Error:', error)
-            alert('Server error setting active bot.')
+        .catch(error=>{
+            addMessage(`Server error setting active bot: ${ error.message }`)
             return
         })
     /* update active bot */
-    if(serverActiveId!==id){
+    const { activeBotId, activeBotVersion, version, } = serverResponse
+    if(activeBotId!==id){
         mActiveBot = initialActiveBot
-        throw new Error(`ERROR: server failed to set active bot.`)
+        addMessage('Server error setting active bot.')
     }
     /* update page bot data */
     const { activated=[], activatedFirst=Date.now(), } = mActiveBot
@@ -193,6 +190,17 @@ async function setActiveBot(event, dynamic=false){
     activated.push(Date.now()) // newest date is last to .pop()
     // dynamic = (Date.now()-activated.pop()) > (20*60*1000)
     mActiveBot.activated = activated
+    if(activeBotVersion!==version){
+        const botVersion = document.getElementById(`${ type }-title-version`)
+        if(botVersion){
+            botVersion.classList.add('update-available')
+            botVersion.dataset.botId = activeBotId
+            botVersion.dataset.currentVersion = activeBotVersion
+            botVersion.dataset.type = type
+            botVersion.dataset.updateVersion = version
+            botVersion.addEventListener('click', mUpdateBotVersion, { once: true })
+        }
+    }
     /* update page */
     mSpotlightBotBar()
     mSpotlightBotStatus()
@@ -260,6 +268,19 @@ function mBot(type){
 function mBotActive(id){
     return id===mActiveBot?.id
         ?? false
+}
+/**
+ * Request version update to bot.
+ * @param {Guid} botId - The bot id to update
+ * @returns {object} - Response from server { bot, success, }
+ */
+async function mBotVersionUpdate(botId){
+    const url = window.location.origin + '/members/bots/version/' + botId
+    const method = 'PUT'
+    const response = await fetch(url, { method, })
+    if(!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    return await response.json()
 }
 /**
  * Request bot be created on server.
@@ -1362,12 +1383,13 @@ function mSetAttributes(bot=mActiveBot, botContainer){
     const {
         activated=[],
         activeFirst,
-        bot_id: botId,
         bot_name='Anonymous',
         dob,
-        id,
+        flags,
+        id: bot_id,
         interests,
         mbr_id,
+        name,
         narrative,
         privacy,
         type,
@@ -1377,11 +1399,11 @@ function mSetAttributes(bot=mActiveBot, botContainer){
     /* attributes */
     const attributes = [
         { name: 'activated', value: activated },
-        { name: 'active', value: mBotActive(id) },
+        { name: 'active', value: mBotActive(bot_id) },
         { name: 'activeFirst', value: activeFirst },
-        { name: 'bot_id', value: botId },
-        { name: 'bot_name', value: bot_name },
-        { name: 'id', value: id },
+        { name: 'bot_id', value: bot_id },
+        { name: 'bot_name', value: name ?? bot_name },
+        { name: 'id', value: bot_id },
         { name: 'initialized', value: Date.now() },
         { name: 'mbr_id', value: mbr_id },
         { name: 'type', value: type },
@@ -1389,6 +1411,8 @@ function mSetAttributes(bot=mActiveBot, botContainer){
     ]
     if(dob)
         attributes.push({ name: 'dob', value: dob })
+    if(flags)
+        attributes.push({ name: 'flags', value: flags })
     if(interests)
         attributes.push({ name: 'interests', value: interests })
     if(narrative)
@@ -1418,7 +1442,7 @@ function mSetAttributes(bot=mActiveBot, botContainer){
 function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
     const { id, type, version, } = dataset
-    const { bot_id, bot_name, thread_id, type: botType, version: botVersion, } = bot
+    const { bot_id, bot_name, type: botType, version: botVersion, } = bot
     const botStatusBar = document.getElementById(`${ type }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
@@ -1461,7 +1485,8 @@ function mSetStatusBar(bot, botContainer){
     /* version */
     const botVersionElement = document.getElementById(`${ type }-title-version`)
     if(botVersionElement)
-        botVersionElement.textContent = `v.${ version?.includes('.') ? version : `${ version }.0` ?? '1.0' }` }
+        botVersionElement.textContent = mVersion(version)
+}
 /**
  * Sets collection item content on server.
  * @private
@@ -2087,6 +2112,25 @@ function mUpdateBotContainerAddenda(botContainer){
         }
 }
 /**
+ * Updates bot version on server.
+ * @param {Event} event - The event object
+ * @returns {void}
+ */
+async function mUpdateBotVersion(event){
+    event.stopPropagation()
+    const { classList, dataset,} = event.target
+    const { botId, currentVersion, updateVersion, } = dataset
+    if(currentVersion==updateVersion)
+        return
+    const updatedVersion = await mBotVersionUpdate(botId)
+    if(updatedVersion?.success){
+        const { version, } = updatedVersion.bot
+        dataset.currentVersion = version
+        event.target.textContent = mVersion(version)
+        classList.remove('update-available')
+    }
+}
+/**
  * Update the identified collection with provided specifics.
  * @param {string} type - The collection type.
  * @param {HTMLDivElement} collectionList - The collection container.
@@ -2330,6 +2374,16 @@ function mUploadFilesInputRemove(fileInput, uploadParent, uploadButton){
     if(fileInput && uploadParent.contains(fileInput))
         uploadParent.removeChild(fileInput)
     uploadButton.disabled = false
+}
+/**
+ * Versions per frontend.
+ * @param {string} version - The version to format
+ * @returns {string} - The formatted version
+ */
+function mVersion(version){
+    version = version.toString()
+    version = `v.${ version?.includes('.') ? version : `${ version }.0` ?? '1.0' }`
+    return version
 }
 /* exports */
 // @todo - export combine of fetchBots and updatePageBots

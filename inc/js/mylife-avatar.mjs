@@ -500,11 +500,13 @@ class Avatar extends EventEmitter {
                     ?.[0]
                 return { content, metadata, role, }
             })
+            .filter(message=>!/^## [^\n]* LIST\n/.test(message.content))
         const { botId, } = conversation
         const bot = this.getBot(botId)
         switch(bot.type){
             case 'biographer':
             case 'personal-biographer':
+                const type = 'memory'
                 const memories = ( await this.collections('story') )
                     .sort((a, b)=>a._ts-b._ts)
                     .slice(0, 12)
@@ -516,7 +518,7 @@ class Avatar extends EventEmitter {
                     .join(',')
                     .slice(0, 512)
                 messages.push({
-                    content: `## MEMORY COLLECTION LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
+                    content: `## ${ type } LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
                     metadata: {
                         collectionList: memoryCollectionList,
                         collectiontypes: 'memory,story,narrative',
@@ -530,7 +532,7 @@ class Avatar extends EventEmitter {
                 const _type = 'entry'
                 const entries = ( await this.collections(_type) )
                     .sort((a, b)=>a._ts-b._ts)
-                    .slice(0, 128)
+                    .slice(0, 25)
                 const entryList = entries
                     .map(entry=>`- itemId: ${ entry.id } :: ${ entry.title }`)
                     .join('\n')
@@ -539,7 +541,7 @@ class Avatar extends EventEmitter {
                     .join(',')
                     .slice(0, 512)
                 messages.push({
-                    content: `## ${ _type.toUpperCase() } List:\n${ entryList }`,
+                    content: `## ${ _type.toUpperCase() } LIST\n${ entryList }`,
                     metadata: {
                         collectionList: entryCollectionList,
                         collectiontypes: _type,
@@ -824,6 +826,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Update a specific bot.
+     * @async
      * @param {object} bot - Bot data to set.
      * @returns {object} - The updated bot.
      */
@@ -832,6 +835,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Update instructions for bot-assistant based on type. Default updates all LLM pertinent properties.
+     * @async
      * @param {string} id - The id of bot to update
      * @param {boolean} migrateThread - Whether to migrate the thread to the new bot, defaults to `true`
      * @returns {object} - The updated bot object
@@ -841,7 +845,7 @@ class Avatar extends EventEmitter {
             ?? this.activeBot
         if(!bot)
             throw new Error(`Bot not found: ${ id }`)
-        const { bot_id, flags, interests, thread_id, type, version=1.0, } = bot
+        const { bot_id, flags='', interests='', thread_id, type, version=1.0, } = bot
         /* check version */
         const newestVersion = this.#factory.botInstructionsVersion(type)
         if(newestVersion!=version){ // intentional loose match (string vs. number)
@@ -2376,20 +2380,20 @@ function mNavigation(scenes){
  */
 function mPruneBot(bot){
     const {
-        bot_id,
         bot_name: name,
         description,
         id,
         purpose,
         type,
+        version,
     } = bot
     return {
-        bot_id,
-        name,
         description,
         id,
+        name,
         purpose,
         type,
+        version,
     }
 }
 function mPruneConversation(conversation){

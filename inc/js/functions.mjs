@@ -394,9 +394,11 @@ function teams(ctx){
 	ctx.body = avatar.teams()
 }
 async function updateBotInstructions(ctx){
-	const { botId, } = ctx.request.body
+	const { bid, } = ctx.params
+	if(!bid?.length)
+		ctx.throw(400, `missing bot id`)
 	const { avatar, } = ctx.state
-	const bot = await avatar.updateBotInstructions(botId)
+	const bot = await avatar.updateBotInstructions(bid)
 	ctx.body = {
 		bot,
 		success: !!bot,
