@@ -812,7 +812,8 @@ class Avatar extends EventEmitter {
      * @returns {Object[]} - List of team objects.
      */
     teams(){
-        return this.#factory.teams()
+        const teams = this.#factory.teams()
+        return teams
     }
     async thread_id(){
         if(!this.conversations.length){

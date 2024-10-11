@@ -44,7 +44,7 @@ const mGeneralBotId = 'asst_yhX5mohHmZTXNIH55FX2BR1m'
 const mLLMServices = new LLMServices()
 const mMyLifeTeams = [
 	{
-		active: true,
+		active: false,
 		allowCustom: true,
 		allowedTypes: ['artworks', 'editor', 'idea', 'marketing'],
 		defaultTypes: ['artworks', 'idea',],
@@ -104,7 +104,7 @@ const mMyLifeTeams = [
 		title: 'Spirituality',
 	},
 	{
-		active: true,
+		active: false,
 		allowCustom: true,
 		allowedTypes: ['data-ownership', 'investment', 'ubi',],
 		defaultTypes: ['ubi'],
@@ -458,8 +458,8 @@ class BotFactory extends EventEmitter{
 	}
 	/**
 	 * Gets a collection of stories of a certain format.
-	 * @param {string} form - The form of the stories to retrieve.
-	 * @returns {object[]} - The stories.
+	 * @param {string} form - The form of the stories to retrieve
+	 * @returns {object[]} - The stories
 	 */
 	async stories(form){
 		return await this.dataservices.getItemsByFields(
@@ -469,20 +469,24 @@ class BotFactory extends EventEmitter{
 	}
 	/**
 	 * Gets a MyLife Team by id.
-	 * @param {Guid} teamId - The Team id.
-	 * @returns {object} - The Team.
+	 * @param {Guid} teamId - The Team id
+	 * @returns {object} - The Team
 	 */
 	team(teamId){
-		return mMyLifeTeams
+		let team = mMyLifeTeams
 			.find(team=>team.id===teamId)
+		team = mTeam(team)
+		return team
 	}
 	/**
 	 * Retrieves list of MyLife Teams.
-	 * @returns {object[]} - The array of MyLife Teams.
+	 * @returns {object[]} - The array of MyLife Teams
 	 */
 	teams(){
-		return mMyLifeTeams
+		const teams = mMyLifeTeams
 			.filter(team=>team.active ?? false)
+			.map(team=>mTeam(team))
+		return teams
 	}
 	/**
 	 * Adds or updates a bot data in MyLife database. Note that when creating, pre-fill id.
@@ -1738,6 +1742,31 @@ function mSanitizeSchemaValue(_value) {
     trimmedStr = trimmedStr.replace(/(?<!\\)[`\\$'"]/g, "\\$&")
 
     return wasTrimmed ? _value[0] + trimmedStr + _value[0] : trimmedStr
+}
+/**
+ * Decouples team from modular reference.
+ * @param {object} team - Team object from modular codespace
+ * @returns {object} - Returns sanitized team object
+ */
+function mTeam(team){
+    const {
+        allowCustom,
+        allowedTypes,
+        defaultTypes,
+        description,
+        id,
+        name,
+        title,
+    } = team
+    return {
+        allowCustom,
+        allowedTypes: [...allowedTypes],
+        defaultTypes: [...defaultTypes],
+        description,
+        id,
+        name,
+        title,
+    }
 }
 /**
  * Updates bot in Cosmos, and if necessary, in LLM.
