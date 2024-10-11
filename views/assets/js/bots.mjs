@@ -1359,12 +1359,21 @@ async function mSetBot(bot){
  * @returns {void}
  */
 function mSetAttributes(bot=mActiveBot, botContainer){
-    const { activated=[], activeFirst, bot_id: botId, bot_name: botName, dob, id, interests, mbr_id, narrative, privacy, provider, purpose, thread_id: threadId, type, updates, } = bot
-    const memberHandle = mGlobals.getHandle(mbr_id)
-    const bot_name = botName
-        ?? `${ memberHandle + '_' + type }`
-    const thread_id = threadId
-        ?? ''
+    const {
+        activated=[],
+        activeFirst,
+        bot_id: botId,
+        bot_name='Anonymous',
+        dob,
+        id,
+        interests,
+        mbr_id,
+        narrative,
+        privacy,
+        type,
+        updates,
+        version
+    } = bot
     /* attributes */
     const attributes = [
         { name: 'activated', value: activated },
@@ -1374,10 +1383,9 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         { name: 'bot_name', value: bot_name },
         { name: 'id', value: id },
         { name: 'initialized', value: Date.now() },
-        { name: 'mbr_handle', value: memberHandle },
         { name: 'mbr_id', value: mbr_id },
-        { name: 'thread_id', value: thread_id },
         { name: 'type', value: type },
+        { name: 'version', value: version },
     ]
     if(dob)
         attributes.push({ name: 'dob', value: dob })
@@ -1405,12 +1413,12 @@ function mSetAttributes(bot=mActiveBot, botContainer){
  * @private
  * @requires mActiveBot - active bot object, but can be undefined without error.
  * @param {object} bot - The bot object.
- * @returns {object} - Determined status.
+ * @returns {void}
  */
 function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
-    const { id, type, } = dataset
-    const { bot_id, bot_name, thread_id, type: botType, } = bot
+    const { id, type, version, } = dataset
+    const { bot_id, bot_name, thread_id, type: botType, version: botVersion, } = bot
     const botStatusBar = document.getElementById(`${ type }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
@@ -1450,8 +1458,10 @@ function mSetStatusBar(bot, botContainer){
     const botTitleName = document.getElementById(`${ type }-title-name`)
     if(botTitleName)
         botTitleName.textContent = response.name
-    return response
-}
+    /* version */
+    const botVersionElement = document.getElementById(`${ type }-title-version`)
+    if(botVersionElement)
+        botVersionElement.textContent = `v.${ version?.includes('.') ? version : `${ version }.0` ?? '1.0' }` }
 /**
  * Sets collection item content on server.
  * @private
