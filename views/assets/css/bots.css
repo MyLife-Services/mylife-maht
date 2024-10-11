@@ -216,23 +216,30 @@
 }
 .bot-title,
 .collections-title {
+    align-items: center;
 	color: aliceblue;
     display: flex;
-	flex: 1 0 auto;
+    flex: 0 0 70%;
     font-size: 0.8rem;
     font-weight: bold;
     max-height: 100%;
     overflow: hidden;
     overflow-wrap: break-word;
-    max-width: 70%;
+}
+.bot-title-name,
+.bot-title-type {
+    flex: 0 1 auto;
+    margin-right: 0.4rem;
 }
 .bot-title-name {
     color: aquamarine;
-    max-width: 50%;
+    flex-grow: 1;
 }
-.bot-title-type {
-    margin-right: 0.8rem;
-    max-width: 50%;
+.bot-title-version {
+    color: lightblue;
+    flex: 0 0 auto;
+    font-size: 0.6rem;
+    margin-left: auto; /* Pushes the version div to the right end */
 }
 .mylife-widget.bots {
 	flex-direction: column;
