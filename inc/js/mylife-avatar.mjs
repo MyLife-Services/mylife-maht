@@ -212,8 +212,8 @@ class Avatar extends EventEmitter {
             .length
         if(singletonBotExists)
             throw new Error(`Bot type "${type}" already exists and bot-multiples disallowed.`)
-        const assistant = await mBot(this.#factory, this, bot)
-        return mPruneBot(assistant)
+        bot = await mBot(this.#factory, this, bot)
+        return mPruneBot(bot)
     }
     /**
      * Create a new conversation.
@@ -831,31 +831,33 @@ class Avatar extends EventEmitter {
         return await mBot(this.#factory, this, bot) // **note**: mBot() updates `avatar.bots`
     }
     /**
-     * Update core  for bot-assistant based on type. Default updates all LLM pertinent properties.
-     * @param {string} id - The id of bot to update.
-     * @param {boolean} includeInstructions - Whether to include instructions in the update.
-     * @param {boolean} includeModel - Whether to include model in the update.
-     * @param {boolean} includeTools - Whether to include tools in the update.
-     * @returns {object} - The updated bot object.
+     * Update instructions for bot-assistant based on type. Default updates all LLM pertinent properties.
+     * @param {string} id - The id of bot to update
+     * @param {boolean} migrateThread - Whether to migrate the thread to the new bot, defaults to `true`
+     * @returns {object} - The updated bot object
      */
-    async updateInstructions(id=this.activeBot.id, includeInstructions=true, includeModel=true, includeTools=true){
+    async updateBotInstructions(id=this.activeBot.id, migrateThread=true){
         let bot = mFindBot(this, id)
             ?? this.activeBot
         if(!bot)
             throw new Error(`Bot not found: ${ id }`)
-        const { bot_id, interests, type, } = bot
-        if(!type?.length)
-            return
-        const _bot = { bot_id, id, interests, type, }
-        const vectorstoreId = this.#vectorstoreId
-        const options = {
-            instructions: includeInstructions,
-            model: includeModel,
-            tools: includeTools,
-            vectorstoreId,
+        const { bot_id, flags, interests, thread_id, type, version=1.0, } = bot
+        /* check version */
+        const newestVersion = this.#factory.botInstructionsVersion(type)
+        if(newestVersion!=version){ // intentional loose match (string vs. number)
+            const _bot = { bot_id, flags, id, interests, type, }
+            const vectorstoreId = this.#vectorstoreId
+            const options = {
+                instructions: true,
+                model: true,
+                tools: true,
+                vectorstoreId,
+            }
+            /* save to && refresh bot from Cosmos */
+            bot = mSanitize( await this.#factory.updateBot(_bot, options) )
+            if(migrateThread && thread_id?.length)
+                await this.migrateChat(thread_id)
         }
-        /* save to && refresh bot from Cosmos */
-        bot = mSanitize( await this.#factory.updateBot(_bot, options) )
         return mPruneBot(bot)
     }
     /**
@@ -903,23 +905,26 @@ class Avatar extends EventEmitter {
         return this.#activeBotId
     }
     /**
-     * Set the active bot id. If not match found in bot list, then defaults back to this.id
+     * Set the active bot id. If not match found in bot list, then defaults back to this.id (avatar).
      * @setter
      * @requires mBotInstructions
-     * @param {string} id - The active bot id.
+     * @param {string} botId - The requested bot id
      * @returns {void}
      */
-    set activeBotId(id){
-        const newActiveBot = mFindBot(this, id)
+    set activeBotId(botId){
+        const newActiveBot = mFindBot(this, botId)
             ?? this.avatar
-        const { id: newActiveId, type, version: botVersion=1.0, } = newActiveBot
-        const currentVersion = this.#factory.botInstructionsVersion(type)
-        if(botVersion!==currentVersion){
-            this.updateInstructions(newActiveId, true, false, true)
-            /* update bot in this.#bots */
-            
-        }
-        this.#activeBotId = newActiveId
+        const { id, } = newActiveBot
+        this.#activeBotId = id
+    }
+    get activeBotNewestVersion(){
+        const { type, } = this.activeBot
+        const newestVersion = this.#factory.botInstructionsVersion(type)
+        return newestVersion
+    }
+    get activeBotVersion(){
+        const { version=1.0, } = this.activeBot
+        return version
     }
     /**
      * Get actor or default avatar bot.
@@ -2366,11 +2371,18 @@ function mNavigation(scenes){
 }
 /**
  * Returns a frontend-ready bot object.
- * @param {object} assistantData - The assistant data object.
+ * @param {object} bot - The bot object.
  * @returns {object} - The pruned bot object.
  */
-function mPruneBot(assistantData){
-    const { bot_id, bot_name: name, description, id, purpose, type, } = assistantData
+function mPruneBot(bot){
+    const {
+        bot_id,
+        bot_name: name,
+        description,
+        id,
+        purpose,
+        type,
+    } = bot
     return {
         bot_id,
         name,

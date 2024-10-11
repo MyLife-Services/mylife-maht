@@ -133,7 +133,7 @@ _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
-_memberRouter.put('/bots/system-update/:bid', updateBotInstructions)
+_memberRouter.put('/bots/version/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())

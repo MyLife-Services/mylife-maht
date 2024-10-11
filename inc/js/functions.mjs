@@ -19,7 +19,12 @@ async function about(ctx){
 function activateBot(ctx){
 	const { avatar, } = ctx.state
 	avatar.activeBotId = ctx.params.bid
-	ctx.body = { activeBotId: avatar.activeBotId }
+	const { activeBotId, activeBotVersion, activeBotNewestVersion, } = avatar
+	ctx.body = {
+		activeBotId,
+		activeBotVersion,
+		version: activeBotNewestVersion,
+	}
 }
 async function alerts(ctx){
 	// @todo: put into ctx the _type_ of alert to return, system use dataservices, member use personal
@@ -391,11 +396,11 @@ function teams(ctx){
 async function updateBotInstructions(ctx){
 	const { botId, } = ctx.request.body
 	const { avatar, } = ctx.state
-	let success = false
-	const bot = await avatar.updateBot(botId, { instructions: true, model: true, tools: true, })
-	if(bot)
-		success = true
-	ctx.body = { bot, success, }
+	const bot = await avatar.updateBotInstructions(botId)
+	ctx.body = {
+		bot,
+		success: !!bot,
+	}
 }
 /**
  * Proxy for uploading files to the API.
