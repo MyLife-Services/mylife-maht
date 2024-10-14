@@ -528,12 +528,12 @@ function mCloseTeamPopup(event){
  * @returns {HTMLDivElement} - The bot thumb container.
  */
 function mCreateBotThumb(bot=getBot()){
-    const { bot_name, id, type, } = bot
+    const { id, name, type, } = bot
     /* bot-thumb container */
     const botThumbContainer = document.createElement('div')
     botThumbContainer.id = `bot-bar-container_${ id }`
     botThumbContainer.name = `bot-bar-container-${ type }`
-    botThumbContainer.title = bot_name
+    botThumbContainer.title = name
     botThumbContainer.addEventListener('click', setActiveBot)
     botThumbContainer.classList.add('bot-thumb-container')
     /* bot-thumb */
@@ -1442,14 +1442,12 @@ function mSetAttributes(bot=mActiveBot, botContainer){
 function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
     const { id, type, version, } = dataset
-    const { bot_name, name, type: botType, version: botVersion, } = bot
+    const { id: botId, name, type: botType, version: botVersion, } = bot
     const botStatusBar = document.getElementById(`${ type }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
-    const botName = name
-        ?? bot_name
     const response = {
-        name: botName,
+        name,
         status: 'unknown',
         type: type.split('-').pop(),
     }
@@ -1461,7 +1459,7 @@ function mSetStatusBar(bot, botContainer){
             botIcon.classList.add('active')
             response.status = 'active'
             break
-        case ( botName?.length>0 ): // online
+        case ( name?.length>0 ): // online
             botIcon.classList.remove('active', 'offline', 'error')
             botIcon.classList.add('online')
             response.status = 'online'
@@ -2047,6 +2045,7 @@ function mUpdateBotContainerAddenda(botContainer){
                     /* update mBot */
                     const bot = mBot(id)
                     bot.bot_name = bot_name
+                    bot.name = bot_name
                 } else {
                     dataset.bot_name = localVars.bot_name
                 }
