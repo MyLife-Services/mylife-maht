@@ -1396,12 +1396,14 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         version
     } = bot
     /* attributes */
+    const botName = name
+        ?? bot_name
     const attributes = [
         { name: 'activated', value: activated },
         { name: 'active', value: mBotActive(bot_id) },
         { name: 'activeFirst', value: activeFirst },
         { name: 'bot_id', value: bot_id },
-        { name: 'bot_name', value: name ?? bot_name },
+        { name: 'bot_name', value: botName },
         { name: 'id', value: bot_id },
         { name: 'initialized', value: Date.now() },
         { name: 'type', value: type },
