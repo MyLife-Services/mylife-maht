@@ -249,12 +249,15 @@ class Dataservices {
      * @returns {array} - The collection items with no wrapper.
      */
 	async collections(type){
-		if(type==='experience') // corrections
+		/* validate request */
+		if(type==='experience')
 			type = 'lived-experience'
-		if(type?.length && this.#collectionTypes.includes(type))
-			return await this.getItems(type)
-		else
-			return Promise.all([
+		if(type==='memory')
+			type = 'story'
+		/* execute request */
+		const response = type?.length && this.#collectionTypes.includes(type)
+			? await this.getItems(type)
+			: await Promise.all([
 				this.collectionConversations(),
 				this.collectionEntries(),
 				this.collectionLivedExperiences(),
@@ -272,6 +275,8 @@ class Dataservices {
 					console.log('mylife-data-service::collections() error', err)
 					return []
 				})
+		/* respond request */
+		return response
 	}
 	/**
 	 * Creates a new bot in the database.

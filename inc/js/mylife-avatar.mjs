@@ -99,7 +99,7 @@ class Avatar extends EventEmitter {
         if(!activeBotId)
             throw new Error('Parameter `activeBotId` required.')
         const { activeBot, factory } = this
-        const { id: botId, thread_id, } = activeBot
+        const { bot_id, id: botId, thread_id, } = activeBot
         if(botId!==activeBotId)
             throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
         conversation = conversation
@@ -107,7 +107,8 @@ class Avatar extends EventEmitter {
             ?? await this.createConversation('chat', threadId ?? thread_id, activeBotId)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
-        conversation.bot_id = activeBot.bot_id // pass in via quickly mutating conversation (or independently if preferred in end), versus llmServices which are global
+        conversation.bot_id = botId
+        conversation.llm_id = bot_id
         let _message = message,
             messages = []
         if(shadowId)
@@ -115,9 +116,9 @@ class Avatar extends EventEmitter {
         else {
             if(itemId){
                 // @todo - check if item exists in memory, fewer pings and inclusions overall
-                const { summary, } = await factory.item(itemId)
+                let { summary, } = await factory.item(itemId)
                 if(summary?.length){
-                    _message = `possible **update-summary-request**: itemId=${ itemId }\n`
+                    summary = `possible **update-summary-request**: itemId=${ itemId }\n`
                     + `**member-update-request**:\n`
                     + message
                     + `\n**current-summary-in-database**:\n`
@@ -485,90 +486,14 @@ class Avatar extends EventEmitter {
      * @returns {Conversation} - The migrated conversation object
      */
     async migrateChat(thread_id){
-        /* MyLife conversation re-assignment */
+        /* validate request */
         const conversation = this.getConversation(thread_id)
         if(!conversation)
-            throw new Error(`Conversation not found with thread_id: ${ thread_id }`)
-        let messages = await this.#llmServices.messages(thread_id)
-        messages = messages
-            .slice(0, 25)
-            .map(message=>{
-                const { content: contentArray, id, metadata, role, } = message
-                const content = contentArray
-                    .filter(_content=>_content.type==='text')
-                    .map(_content=>_content.text?.value)
-                    ?.[0]
-                return { content, metadata, role, }
-            })
-            .filter(message=>!/^## [^\n]* LIST\n/.test(message.content))
-        const { botId, } = conversation
-        const bot = this.getBot(botId)
-        switch(bot.type){
-            case 'biographer':
-            case 'personal-biographer':
-                const type = 'memory'
-                const memories = ( await this.collections('story') )
-                    .sort((a, b)=>a._ts-b._ts)
-                    .slice(0, 12)
-                const memoryList = memories
-                    .map(memory=>`- itemId: ${ memory.id } :: ${ memory.title }`)
-                    .join('\n')
-                const memoryCollectionList = memories
-                    .map(memory=>memory.id)
-                    .join(',')
-                    .slice(0, 512)
-                messages.push({
-                    content: `## ${ type } LIST\n${ memoryList }`, // insert actual memory list with titles here for intelligence to reference
-                    metadata: {
-                        collectionList: memoryCollectionList,
-                        collectiontypes: 'memory,story,narrative',
-                    },
-                    role: 'assistant',
-                }) // add summary of Memories (etc. due to type) for intelligence to reference, also could add attachment file
-                break
-            case 'diary':
-            case 'journal':
-            case 'journaler':
-                const _type = 'entry'
-                const entries = ( await this.collections(_type) )
-                    .sort((a, b)=>a._ts-b._ts)
-                    .slice(0, 25)
-                const entryList = entries
-                    .map(entry=>`- itemId: ${ entry.id } :: ${ entry.title }`)
-                    .join('\n')
-                const entryCollectionList = entries
-                    .map(entry=>entry.id)
-                    .join(',')
-                    .slice(0, 512)
-                messages.push({
-                    content: `## ${ _type.toUpperCase() } LIST\n${ entryList }`,
-                    metadata: {
-                        collectionList: entryCollectionList,
-                        collectiontypes: _type,
-                    },
-                    role: 'assistant',
-                }) // add summary of Entries
-                break
-            default:
-                break
-        }
-        const metadata = {
-            bot_id: botId,
-            conversation_id: conversation.id,
-        }
-        const newThread = await this.#llmServices.thread(null, messages.reverse(), metadata)
-        conversation.setThread(newThread)
-        bot.thread_id = conversation.thread_id
-        const _bot = {
-            id: bot.id,
-            thread_id: bot.thread_id,
-        }
-        await this.#factory.updateBot(_bot)
-        if(mAllowSave)
-            conversation.save()
-        else
-            console.log('migrateChat::BYPASS-SAVE', conversation.thread_id)
-        return conversation
+            throw new Error(`Conversation thread_id not found: ${ thread_id }`)
+        /* execute request */
+        const updatedConversation = await mMigrateChat(this, this.#factory, this.#llmServices, conversation)
+        /* respond request */
+        return updatedConversation
     }
     /**
      * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
@@ -666,30 +591,42 @@ class Avatar extends EventEmitter {
      * @returns {object} - The response object { instruction, responses, success, }
      */
     async retireChat(botId){
-        const retiredConversation = this.getConversation(null, botId)
-        console.log('retireChat::conversations', this.conversations.map(c=>(
-            { botId, _botId: c.botId, bot_id: c.bot_id, thread_id: c.thread_id, }
-        )))
-        if(!retiredConversation)
+        /* validate request */
+        const conversation = this.getConversation(null, botId)
+        if(!conversation){
             throw new Error(`Conversation not found with bot id: ${ botId }`)
-        const { thread_id: cid, } = retiredConversation
+        }
+        const { thread_id: cid, } = conversation
         const bot = this.getBot(botId)
         const { id: _botId, thread_id: tid, } = bot
         if(botId!=_botId)
             throw new Error(`Bot id mismatch: ${ botId }!=${ bot_id }`)
         if(tid!=cid)
             throw new Error(`Conversation mismatch: ${ tid }!=${ cid }`)
-        const conversation = await this.migrateChat(tid)
-        console.log('retireChat::conversation', conversation)
-        const response = {
-            responses: [{
-                agent: 'server',
-                message: `I have successfully retired this conversation thread and started a new one.`,
-                purpose: 'system',
-                type: 'chat',
-            }],
-            success: true,
-        }
+        /* execute request */
+        const updatedConversation = await mMigrateChat(this, this.#factory, this.#llmServices, conversation)
+        /* respond request */
+        const response = !!updatedConversation
+            ? { /* @todo - add frontend instructions to remove migrateChat button */
+                instruction: null,
+                responses: [{
+                    agent: 'server',
+                    message: `I have successfully retired this conversation thread and started a new one.`,
+                    purpose: 'system',
+                    type: 'chat',
+                }],
+                success: true,
+            }
+            : {
+                instruction: null,
+                responses: [{
+                    agent: 'server',
+                    message: `I'm sorry - I encountered an error while trying to retire this conversation; please try again.`,
+                    purpose: 'system',
+                    type: 'chat',
+                }],
+                success: false,
+            }
         return response
     }
     /**
@@ -1613,10 +1550,12 @@ async function mBot(factory, avatar, bot){
  * @returns {Promise<Object[]>} - Array of Message instances in descending chronological order
  */
 async function mCallLLM(llmServices, conversation, prompt, factory, avatar){
-    const { bot_id, thread_id } = conversation
-    if(!thread_id || !bot_id)
+    const { bot_id, llm_id, thread_id } = conversation
+    const botId = llm_id
+        ?? bot_id
+    if(!thread_id || !botId)
         throw new Error('Both `thread_id` and `bot_id` required for LLM call.')
-    const messages = await llmServices.getLLMResponse(thread_id, bot_id, prompt, factory, avatar)
+    const messages = await llmServices.getLLMResponse(thread_id, botId, prompt, factory, avatar)
     messages.sort((mA, mB)=>{
         return mB.created_at - mA.created_at
     })
@@ -2343,6 +2282,118 @@ async function mInit(factory, llmServices, avatar, bots, assetAgent){
     avatar.experiencesLived = await factory.experiencesLived(false)
 }
 /**
+ * Migrates specified conversation (by thread_id) and returns conversation with new thread processed and saved to bot, both as a document and in avatar memory.
+ * @param {Avatar} avatar - Avatar object
+ * @param {AgentFactory} factory - AgentFactory object
+ * @param {LLMServices} llm - OpenAI object
+ * @param {string} thread_id - The thread_id of the conversation
+ * @returns 
+ */
+async function mMigrateChat(avatar, factory, llm, conversation){
+    /* constants and variables */
+    const { thread_id, } = conversation
+    const chatLimit=25
+    let messages = await llm.messages(thread_id) // @todo - limit to 25 messages or modify request
+    if(!messages?.length)
+        return conversation
+    const { botId, } = conversation
+    const bot = avatar.getBot(botId)
+    const botType = bot.type
+    let disclaimer=`INFORMATIONAL ONLY **DO NOT PROCESS**\n`,
+        itemCollectionTypes='item',
+        itemLimit=1000,
+        type='item'
+    switch(botType){
+        case 'biographer':
+        case 'personal-biographer':
+            type = 'memory'
+            itemCollectionTypes = `memory,story,narrative`
+            break
+        case 'diary':
+        case 'journal':
+        case 'journaler':
+            type = 'entry'
+            const itemType = botType==='journaler'
+                ? 'journal'
+                : botType
+            itemCollectionTypes = `${ itemType },entry,`
+            break
+        default:
+            break
+    }
+    const chatSummary=`## ${ type.toUpperCase() } CHAT SUMMARY\n`,
+        chatSummaryRegex = /^## [^\n]* CHAT SUMMARY\n/,
+        itemSummary=`## ${ type.toUpperCase() } LIST\n`,
+        itemSummaryRegex = /^## [^\n]* LIST\n/
+    const items = ( await avatar.collections(type) )
+        .sort((a, b)=>a._ts-b._ts)
+        .slice(0, itemLimit)
+    const itemList = items
+        .map(item=>`- itemId: ${ item.id } :: ${ item.title }`)
+        .join('\n')
+    const itemCollectionList = items
+        .map(item=>item.id)
+        .join(',')
+        .slice(0, 512) // limit for metadata string field
+    const metadata = {
+        bot_id: botId,
+        conversation_id: conversation.id,
+    }
+    /* prune messages source material */
+    messages = messages
+        .slice(0, chatLimit)
+        .map(message=>{
+            const { content: contentArray, id, metadata, role, } = message
+            const content = contentArray
+                .filter(_content=>_content.type==='text')
+                .map(_content=>_content.text?.value)
+                ?.[0]
+            return { content, id, metadata, role, }
+        })
+        .filter(message=>!itemSummaryRegex.test(message.content))
+    const summaryMessage = messages
+        .filter(message=>!chatSummaryRegex.test(message.content))
+        .map(message=>message.content)
+        .join('\n')
+    /* contextualize previous content */
+    const summaryMessages = []
+    /* summary of items */
+    if(items.length)
+        summaryMessages.push({
+            content: itemSummary + disclaimer + itemList,
+            metadata: {
+                collectionList: itemCollectionList,
+                collectiontypes: itemCollectionTypes,
+            },
+            role: 'assistant',
+        })
+    /* summary of messages */
+    if(summaryMessage.length)
+        summaryMessages.push({
+            content: chatSummary + disclaimer + summaryMessage,
+            metadata: {
+                collectiontypes: itemCollectionTypes,
+            },
+            role: 'assistant',
+        })
+    if(!summaryMessages.length)
+        return conversation
+    /* add messages to new thread */
+    const newThread = await llm.thread(null, summaryMessages.reverse(), metadata)
+    conversation.setThread(newThread)
+    bot.thread_id = conversation.thread_id
+    const _bot = {
+        id: bot.id,
+        thread_id: conversation.thread_id,
+    }
+    factory.updateBot(_bot) // removed await
+    if(mAllowSave)
+        conversation.save()
+    else
+        console.log('migrateChat::BYPASS-SAVE', conversation.thread_id)
+    return conversation
+}
+/**
  * Get experience scene navigation array.
  * @getter
  * @returns {Object[]} - The scene navigation array for the experience.
@@ -2519,7 +2570,7 @@ async function mReliveMemoryNarration(avatar, factory, llm, bot, item, memberInp
     let relivingMemory = relivingMemories.find(reliving=>reliving.item.id===id)
     if(!relivingMemory){ /* create new activated reliving memory */
         const conversation = await avatar.createConversation('memory', undefined, botId, false)
-        conversation.bot_id = bot_id
+        conversation.llm_id = bot_id
         const { thread_id, } = conversation
         relivingMemory = {
             bot,

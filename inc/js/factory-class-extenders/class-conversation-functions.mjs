@@ -32,7 +32,6 @@ async function mSaveConversation(factory, conversation){
             type,
         }
         const newConversation = await factory.dataservices.pushItem(_newConversation)
-        console.log('mSaveConversation::newConversation::created', id, newConversation?.id)
         return !!newConversation
     }
     const updatedConversation = await factory.dataservices.patch(

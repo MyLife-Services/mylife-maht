@@ -125,6 +125,7 @@ function extendClass_contribution(originClass, referencesObject) {
  */
 function extendClass_conversation(originClass, referencesObject) {
     class Conversation extends originClass {
+        #bot_id
         #factory
         #messages = []
         #saved = false
@@ -141,7 +142,8 @@ function extendClass_conversation(originClass, referencesObject) {
             super(obj)
             this.#factory = factory
             this.#thread = thread
-            this.bot_id = bot_id
+            if(factory.globals.isValidGuid(bot_id))
+                this.#bot_id = bot_id
             this.form = this.form
                 ?? 'system'
             this.name = `conversation_${this.#factory.mbr_id}`
@@ -235,7 +237,10 @@ function extendClass_conversation(originClass, referencesObject) {
          * @returns {Guid} - The bot id.
          */
         get botId(){
-            return this.bot_id
+            return this.#bot_id
+        }
+        get bot_id(){
+            return this.#bot_id
         }
         /**
          * Set the id {Guid} of the conversation's bot.
@@ -244,7 +249,14 @@ function extendClass_conversation(originClass, referencesObject) {
          * @returns {void}
          */
         set botId(bot_id){
-            this.bot_id = bot_id
+            if(!this.#factory.globals.isValidGuid(bot_id))
+                throw new Error(`Invalid bot_id: ${ bot_id }`)
+            this.#bot_id = bot_id
+        }
+        set bot_id(bot_id){
+            if(!this.#factory.globals.isValidGuid(bot_id))
+                throw new Error(`Invalid bot_id: ${ bot_id }`)
+            this.#bot_id = bot_id
         }
         get isSaved(){
             return this.#saved
