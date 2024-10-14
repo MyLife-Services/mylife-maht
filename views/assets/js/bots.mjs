@@ -1388,7 +1388,6 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         flags,
         id: bot_id,
         interests,
-        mbr_id,
         name,
         narrative,
         privacy,
@@ -1405,7 +1404,6 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         { name: 'bot_name', value: name ?? bot_name },
         { name: 'id', value: bot_id },
         { name: 'initialized', value: Date.now() },
-        { name: 'mbr_id', value: mbr_id },
         { name: 'type', value: type },
         { name: 'version', value: version },
     ]
@@ -1442,12 +1440,14 @@ function mSetAttributes(bot=mActiveBot, botContainer){
 function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
     const { id, type, version, } = dataset
-    const { bot_id, bot_name, type: botType, version: botVersion, } = bot
+    const { bot_name, name, type: botType, version: botVersion, } = bot
     const botStatusBar = document.getElementById(`${ type }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
+    const botName = name
+        ?? bot_name
     const response = {
-        name: bot_name,
+        name: botName,
         status: 'unknown',
         type: type.split('-').pop(),
     }
@@ -1459,7 +1459,7 @@ function mSetStatusBar(bot, botContainer){
             botIcon.classList.add('active')
             response.status = 'active'
             break
-        case ( bot_id?.length>0 ): // online
+        case ( botName?.length>0 ): // online
             botIcon.classList.remove('active', 'offline', 'error')
             botIcon.classList.add('online')
             response.status = 'online'

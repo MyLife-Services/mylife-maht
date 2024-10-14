@@ -54,14 +54,12 @@ async function bots(ctx){
 			} else {
 				const {
 					activeBotId,
-					bots: awaitBots,  // **note**: bots needs await
+					prunedBots: bots,
 					mbr_id,
 				} = avatar
-				const bots = await awaitBots
 				ctx.body = { // wrap bots
 					activeBotId,
 					bots,
-					mbr_id,
 				}
 			}
 			break

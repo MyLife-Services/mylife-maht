@@ -1259,6 +1259,16 @@ class Avatar extends EventEmitter {
         return this.avatar
     }
     /**
+     * Get a list of available bots (pruned) for the member.
+     * @getter
+     * @returns {Object[]} - Array of pruned bot objects
+     */
+    get prunedBots(){
+        const bots = this.#bots
+            .map(bot=>mPruneBot(bot))
+        return bots
+    }
+    /**
      * Get the `active` reliving memories.
      * @getter
      * @returns {object[]} - The active reliving memories.
