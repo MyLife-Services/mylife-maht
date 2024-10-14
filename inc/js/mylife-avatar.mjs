@@ -228,9 +228,14 @@ class Avatar extends EventEmitter {
      */
     async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
         const thread = await this.#llmServices.thread(threadId)
-        const form = this.activeBot.type.split('-').pop()
+        const { mbr_id, type: botType, } =  this.getBot(botId)
+        const form = botType.split('-').pop()
         const conversation = new (this.#factory.conversation)(
-            { form, mbr_id: this.mbr_id, type, },
+            {
+                form,
+                mbr_id,
+                type,
+            },
             this.#factory,
             thread,
             botId

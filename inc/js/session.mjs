@@ -29,6 +29,7 @@ class MylifeMemberSession extends EventEmitter {
 			await this.#factory.init(this.mbr_id) // needs only `init()` with different `mbr_id` to reset
 			this.#Member = await this.factory.getMyLifeMember()
 			this.#autoplayed = false // resets autoplayed flag, although should be impossible as only other "variant" requires guest status, as one-day experiences can be run for guests also [for pay]
+			this.thread_id = null // reset thread_id from Q-session
 			this.emit('onInit-member-initialize', this.#Member.memberName)
 			console.log(
 				chalk.bgBlue('created-member:'),

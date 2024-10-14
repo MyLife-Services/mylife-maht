@@ -356,6 +356,9 @@ function mBotIcon(type){
 function mCreateCollectionItem(collectionItem){
     /* collection item container */
     const { assistantType, filename, form, id, keywords, name, summary, title, type, } = collectionItem
+    const iconType = assistantType
+        ?? form
+        ?? type
     const item = document.createElement('div')
     item.id = `collection-item_${ id }`
     item.name = `collection-item-${ type }`
@@ -365,7 +368,7 @@ function mCreateCollectionItem(collectionItem){
     itemIcon.id = `collection-item-icon_${ id }`
     itemIcon.name = `collection-item-icon-${ type }`
     itemIcon.classList.add('collection-item-icon', `${ type }-collection-item-icon`)
-    itemIcon.src = mBotIcon(assistantType)
+    itemIcon.src = mBotIcon(iconType)
     item.appendChild(itemIcon)
     /* name */
     const itemName = document.createElement('span')
