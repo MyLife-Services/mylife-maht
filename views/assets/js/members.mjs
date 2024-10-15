@@ -122,8 +122,8 @@ function clearSystemChat(){
  * @param {object} activeBot - The active bot.
  * @returns {void}
  */
-function decorateActiveBot(activeBot=activeBot()){
-    const { id, name, } = activeBot
+function decorateActiveBot(){
+    const { id, name, } = activeBot()
     chatInputField.placeholder = `Type your message to ${ name }...`
     // additional func? clear chat?
 }
@@ -764,7 +764,7 @@ async function mSubmitChat(message) {
  * @returns {void}
  */
 function toggleMemberInput(display=true, hidden=false, connectingText='Connecting with '){
-    const { id, name, } = activeBot
+    const { id, name, } = activeBot()
     if(display){
         hide(awaitButton)
         awaitButton.classList.remove('slide-up')

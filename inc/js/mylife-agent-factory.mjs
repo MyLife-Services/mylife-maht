@@ -333,12 +333,12 @@ class BotFactory extends EventEmitter{
 	}
 	/**
 	 * 
-	 * @param {object} assistantData - The assistant data.
+	 * @param {object} botData - The assistant data.
 	 * @param {string} vectorstoreId - The vectorstore id.
 	 * @returns {object} - The created bot.
 	 */
-	async createBot(assistantData={ type: mDefaultBotType }, vectorstoreId){
-		const bot = await mCreateBot(this.#llmServices, this, assistantData, vectorstoreId)
+	async createBot(botData={ type: mDefaultBotType }, vectorstoreId){
+		const bot = await mCreateBot(this.#llmServices, this, botData, vectorstoreId)
 		if(!bot)
 			throw new Error('bot creation failed')
 		return bot
@@ -650,21 +650,22 @@ class AgentFactory extends BotFactory {
 		return await this.dataservices.deleteItem(id)
 	}
 	async entry(entry){
+		const defaultForm = 'journal'
 		const defaultType = 'entry'
-		const { 
-			assistantType='journaler',
+		const {
 			being=defaultType,
-			form='journal',
+			form=defaultForm,
 			id=this.newGuid,
 			keywords=[],
-			mbr_id=(!this.isMyLife ? this.mbr_id : undefined),
+			mbr_id=this.mbr_id,
 			summary,
-			title=`New ${ defaultType }`,
+			title=`Untitled ${ defaultForm } ${ defaultType }`,
 		} = entry
-		if(!mbr_id) // only triggered if not MyLife server
-			throw new Error('mbr_id required for entry summary')
+		if(this.isMyLife)
+			throw new Error('System cannot store entries of its own')
 		let { name, } = entry
-		name = name ?? `${ defaultType }_${ form }_${ title.substring(0,64) }_${ mbr_id }`
+		name = name
+			?? `${ defaultType }_${ form }_${ title.substring(0,64) }_${ mbr_id }`
 		if(!summary?.length)
 			throw new Error('entry summary required')
 		/* assign default keywords */
@@ -675,7 +676,6 @@ class AgentFactory extends BotFactory {
 		const _entry = {
 			...entry,
 			...{
-			assistantType,
 			being,
 			form,
 			id,
@@ -801,7 +801,6 @@ class AgentFactory extends BotFactory {
 		const defaultForm = 'memory'
 		const defaultType = 'story'
 		const {
-			assistantType='biographer',
 			being=defaultType,
 			form=defaultForm,
 			id=this.newGuid,
@@ -809,7 +808,7 @@ class AgentFactory extends BotFactory {
 			mbr_id=(!this.isMyLife ? this.mbr_id : undefined),
 			phaseOfLife='unknown',
 			summary,
-			title=`New ${ defaultType }`,
+			title=`Untitled ${ defaultForm } ${ defaultType }`,
 		} = story
 		if(!mbr_id) // only triggered if not MyLife server
 			throw new Error('mbr_id required for story summary')
@@ -824,7 +823,6 @@ class AgentFactory extends BotFactory {
 		const _story = { // add validated fields back into `story` object
 			...story,
 			...{
-				assistantType,
 				being,
 				form,
 				id,
@@ -1187,17 +1185,17 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
  * @private
  * @param {LLMServices} llm - OpenAI object
  * @param {AgentFactory} factory - Agent Factory object
- * @param {object} assistantData - Bot object
+ * @param {object} botData - Bot object
  * @param {string} avatarId - Avatar id
  * @returns {string} - Bot assistant id in openAI
 */
-async function mCreateBotLLM(llm, assistantData){
-    const llmResponse = await mAI_openai(llm, assistantData)
+async function mCreateBotLLM(llm, botData){
+    const llmResponse = await mAI_openai(llm, botData)
     return llmResponse.id
 }
 /**
  * Creates bot and returns associated `bot` object.
- * @todo - assistantData.name = botDbName should not be required, push logic to `llm-services`
+ * @todo - botData.name = botDbName should not be required, push logic to `llm-services`
  * @module
  * @async
  * @private
@@ -1226,7 +1224,7 @@ async function mCreateBot(llm, factory, bot, vectorstoreId){
 		?? `bot_${ type }_${ avatarId }`
 	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 	const id = factory.newGuid
-	const assistantData = {
+	const botData = {
 		being: 'bot',
 		bot_name,
 		description,
@@ -1247,13 +1245,13 @@ async function mCreateBot(llm, factory, bot, vectorstoreId){
 		version,
 	}
 	/* create in LLM */
-	const botId = await mCreateBotLLM(llm, assistantData) // create after as require model
+	const botId = await mCreateBotLLM(llm, botData) // create after as require model
 	if(!botId)
 		throw new Error('bot creation failed')
 	/* create in MyLife datastore */
-	assistantData.bot_id = botId
-	const assistant = await factory.dataservices.createBot(assistantData)
-	console.log(chalk.green(`bot created::${ type }`), assistant.id, assistant.bot_id, assistant.bot_name, )
+	botData.bot_id = botId
+	const assistant = await factory.dataservices.createBot(botData)
+	console.log(chalk.green(`bot created::${ type }`), assistant.id, assistant.bot_id, assistant.bot_name, bot.thread_id )
 	return assistant
 }
 /**

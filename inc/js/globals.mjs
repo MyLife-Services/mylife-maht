@@ -37,6 +37,14 @@ const mAiJsFunctions = {
 					description: 'complete concatenated raw text content of member input(s) for this `entry`',
 					type: 'string'
 				},
+				form: {
+					description: 'Form of `entry` content, determine context from internal instructions',
+					enum: [
+						'diary',
+						'journal',
+					],
+					type: 'string'
+				},
 				keywords: {
 					description: 'Keywords most relevant to `entry`.',
 					items: {
@@ -69,6 +77,7 @@ const mAiJsFunctions = {
 			additionalProperties: false,
 			required: [
 			'content',
+			'form',
 			'keywords',
 			'mood',
 			'relationships',

@@ -350,12 +350,13 @@ function mBotIcon(type){
 }
 /**
  * Create a functional collection item HTML div for the specified collection type.
+ * @example - collectionItem: { assistantType, filename, form, id, keywords, name, summary, title, type, }
  * @param {object} collectionItem - The collection item object, requires type.
  * @returns {HTMLDivElement} - The collection item.
  */
 function mCreateCollectionItem(collectionItem){
     /* collection item container */
-    const { assistantType, filename, form, id, keywords, name, summary, title, type, } = collectionItem
+    const { assistantType, filename, form, id, name, title, type, } = collectionItem
     const iconType = assistantType
         ?? form
         ?? type
