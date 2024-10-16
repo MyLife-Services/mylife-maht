@@ -49,6 +49,12 @@
           "description": "member full name",
           "name": "<-mFN->",
           "replacement": "memberName"
+        },
+        {
+          "default": "{unknown, find out}",
+          "description": "member birthdate",
+          "name": "<-db->",
+          "replacement": "dob"
         }
       ]
     },

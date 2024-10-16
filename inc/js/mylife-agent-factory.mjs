@@ -252,7 +252,7 @@ class BotFactory extends EventEmitter{
 	 * @returns {object} - The bot.
 	 */
 	async bot(id, type=mDefaultBotType, mbr_id){
-		if(this.isMyLife){ // MyLife server has no bots of its own, system agents perhaps (file, connector, etc) but no bots yet, so this is a micro-hydration
+		if(this.isMyLife){
 			if(!mbr_id)
 				throw new Error('mbr_id required for BotFactory hydration')
 			const botFactory = await new BotFactory(mbr_id)
@@ -1115,14 +1115,15 @@ class MyLifeFactory extends AgentFactory {
  * Initializes openAI assistant and returns associated `assistant` object.
  * @module
  * @param {LLMServices} llmServices - OpenAI object
- * @param {object} bot - The assistand data object
+ * @param {object} botData - The bot data object
  * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
  */
-async function mAI_openai(llmServices, bot){
-    const { bot_name, type, } = bot
-	bot.name = bot_name
-		?? `My ${ type }`
-    return await llmServices.createBot(bot)
+async function mAI_openai(llmServices, botData){
+    const { bot_name, type, } = botData
+	botData.name = bot_name
+		?? `_member_${ type }`
+    const bot = await llmServices.createBot(botData)
+	return bot
 }
 function assignClassPropertyValues(propertyDefinition){
 	switch (true) {
@@ -1190,8 +1191,11 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
  * @returns {string} - Bot assistant id in openAI
 */
 async function mCreateBotLLM(llm, botData){
-    const llmResponse = await mAI_openai(llm, botData)
-    return llmResponse.id
+    const { id, thread_id, } = await mAI_openai(llm, botData)
+    return {
+		id,
+		thread_id,
+	}
 }
 /**
  * Creates bot and returns associated `bot` object.
@@ -1206,7 +1210,12 @@ async function mCreateBotLLM(llm, botData){
 */
 async function mCreateBot(llm, factory, bot, vectorstoreId){
 	/* initial deconstructions */
-	const { bot_name: botName, description: botDescription, name: botDbName, type, } = bot
+	const { 
+		bot_name: botName,
+		description: botDescription,
+		name: botDbName,
+		type,
+	} = bot
 	const { avatarId, } = factory
 	/* validation */
 	if(!avatarId)
@@ -1245,13 +1254,14 @@ async function mCreateBot(llm, factory, bot, vectorstoreId){
 		version,
 	}
 	/* create in LLM */
-	const botId = await mCreateBotLLM(llm, botData) // create after as require model
+	const { id: botId, thread_id, } = await mCreateBotLLM(llm, botData) // create after as require model
 	if(!botId)
 		throw new Error('bot creation failed')
 	/* create in MyLife datastore */
 	botData.bot_id = botId
+	botData.thread_id = thread_id
 	const assistant = await factory.dataservices.createBot(botData)
-	console.log(chalk.green(`bot created::${ type }`), assistant.id, assistant.bot_id, assistant.bot_name, bot.thread_id )
+	console.log(chalk.green(`bot created::${ type }`), assistant.thread_id, assistant.id, assistant.bot_id, assistant.bot_name )
 	return assistant
 }
 /**
@@ -1353,7 +1363,6 @@ function mCreateBotInstructions(factory, bot){
         }
     })
 	/* assess and validate limit */
-	console.log(chalk.blueBright('instructions length'), instructions.length, instructions)
     return { instructions, version, }
 }
 function mExposedSchemas(factoryBlockedSchemas){
@@ -1431,7 +1440,6 @@ constructor(obj){
 				eval(\`this.\#\${_key}=obj[_key]\`)
 			} catch(err){
 				eval(\`this.\${_key}=obj[_key]\`)
-				console.log(\`could not privatize \${_key}, public node created\`)
 			}
 		}
 		console.log('vm ${ _className } class constructed')
@@ -1803,7 +1811,6 @@ async function mUpdateBot(factory, llm, bot, options={}){
 		const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 		botData.tools = tools
 		botData.tool_resources = tool_resources
-		console.log('mUpdateBot', botData.tools, botData.tool_resources, vectorstoreId)
 	}
 	if(updateModel)
 		botData.model = factory.globals.currentOpenAIBotModel

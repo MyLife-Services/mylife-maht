@@ -34,13 +34,15 @@ class LLMServices {
     /* public methods */
     /**
      * Creates openAI GPT API assistant.
-     * @param {object} bot - The bot object
+     * @param {object} bot - The bot data
      * @returns {Promise<object>} - openai assistant object
      */
     async createBot(bot){
-        const assistantData = mValidateAssistantData(bot) // throws on improper format
-        const assistant = await this.openai.beta.assistants.create(assistantData)
-        return assistant
+        bot = mValidateAssistantData(bot) // throws on improper format
+        bot = await this.openai.beta.assistants.create(bot)
+        const thread = await mThread(this.openai)
+        bot.thread_id = thread.id
+        return bot
     }
     /**
      * Creates a new OpenAI Vectorstore.
@@ -103,23 +105,24 @@ class LLMServices {
     }
     /**
      * Given member input, get a response from the specified LLM service.
+     * @example - `run` object: { assistant_id, id, model, provider, required_action, status, usage }
      * @todo - confirm that reason for **factory** is to run functions as responses from LLM; ergo in any case, find better way to stash/cache factory so it does not need to be passed through every such function
-     * @param {string} threadId - Thread id.
+     * @param {string} thread_id - Thread id.
      * @param {string} botId - GPT-Assistant/Bot id.
      * @param {string} prompt - Member input.
      * @param {AgentFactory} factory - Avatar Factory object to process request.
      * @param {Avatar} avatar - Avatar object.
      * @returns {Promise<Object[]>} - Array of openai `message` objects.
      */
-    async getLLMResponse(threadId, botId, prompt, factory, avatar){
-        if(!threadId?.length)
-            threadId = ( await mThread(this.openai) ).id
-        await mAssignRequestToThread(this.openai, threadId, prompt)
-        const run = await mRunTrigger(this.openai, botId, threadId, factory, avatar)
-        const { assistant_id, id: run_id, model, provider='openai', required_action, status, usage } = run
-        const llmMessages = await this.messages(threadId)
-        return llmMessages
+    async getLLMResponse(thread_id, botId, prompt, factory, avatar){
+        if(!thread_id?.length)
+            thread_id = ( await mThread(this.openai) ).id
+        await mAssignRequestToThread(this.openai, thread_id, prompt)
+        const run = await mRunTrigger(this.openai, botId, thread_id, factory, avatar)
+        const { id: run_id, } = run
+        const llmMessages = ( await this.messages(thread_id) )
             .filter(message=>message.role=='assistant' && message.run_id==run_id)
+        return llmMessages
     }
     /**
      * Given member request for help, get response from specified bot assistant.

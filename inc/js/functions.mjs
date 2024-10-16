@@ -50,7 +50,7 @@ async function bots(ctx){
 		case 'GET':
 		default:
 			if(bid?.length){ // specific bot
-				ctx.body = await avatar.bot(ctx.params.bid)
+				ctx.body = await avatar.getBot(ctx.params.bid)
 			} else {
 				const {
 					activeBotId,

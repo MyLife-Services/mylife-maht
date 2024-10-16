@@ -75,11 +75,13 @@ class Avatar extends EventEmitter {
      * Get a bot's properties from Cosmos (or type in .bots).
      * @public
      * @async
-     * @param {Guid} id - The bot id.
-     * @returns {object} - The bot.
+     * @param {Guid} id - The bot id
+     * @returns {Promise<object>} - The bot object from memory
      */
     async bot(id){
-        return await this.#factory.bot(id)
+        const bot = this.bots.find(bot=>bot.id===id)
+            ?? await this.#factory.bot(id)
+        return bot
     }
     /**
      * Processes and executes incoming chat request.
@@ -94,6 +96,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The response object { instruction, responses, success, }
     */
     async chat(message, activeBotId, threadId, itemId, shadowId, conversation, processStartTime=Date.now()){
+        console.log('chat::activeBotId', activeBotId, threadId)
         if(!message)
             throw new Error('No message provided in context')
         if(!activeBotId)
@@ -103,7 +106,7 @@ class Avatar extends EventEmitter {
         if(botId!==activeBotId)
             throw new Error(`Invalid bot id: ${ activeBotId }, active bot id: ${ botId }`)
         conversation = conversation
-            ?? this.getConversation(threadId ?? thread_id)
+            ?? this.getConversation(threadId ?? thread_id, null)
             ?? await this.createConversation('chat', threadId ?? thread_id, activeBotId)
         if(!conversation)
             throw new Error('No conversation found for thread id and could not be created.')
@@ -204,6 +207,7 @@ class Avatar extends EventEmitter {
      * @returns {object} - The new bot.
      */
     async createBot(bot){
+        /* validate request */
         const { type, } = bot
         if(!type)
             throw new Error('Bot type required to create')
@@ -213,8 +217,11 @@ class Avatar extends EventEmitter {
             .length
         if(singletonBotExists)
             throw new Error(`Bot type "${type}" already exists and bot-multiples disallowed.`)
+        /* execute request */
         bot = await mBot(this.#factory, this, bot)
-        return mPruneBot(bot)
+        /* respond request */
+        const response =  mPruneBot(bot)
+        return response
     }
     /**
      * Create a new conversation.
@@ -227,9 +234,13 @@ class Avatar extends EventEmitter {
      * @returns {Conversation} - The conversation object.
      */
     async createConversation(type='chat', threadId, botId=this.activeBotId, saveToConversations=true){
+        const mbr_id = this.mbr_id
         const thread = await this.#llmServices.thread(threadId)
-        const { mbr_id, type: botType, } =  this.getBot(botId)
-        const form = botType.split('-').pop()
+        const { type: botType, } = this.isMyLife
+            ? this.activeBot
+            : await this.bot(botId)
+        const form = botType?.split('-').pop()
+            ?? 'system'
         const conversation = new (this.#factory.conversation)(
             {
                 form,
@@ -374,10 +385,14 @@ class Avatar extends EventEmitter {
             this.#experienceGenericVariables
         )
     }
+    /**
+     * Specified by id, returns the pruned bot from memory.
+     * @param {Guid} id - The id of the item to get
+     * @returns {object} - The pruned bot object
+     */
     getBot(id){
-        const bot = this.bots.find(bot=>bot.id===id)
+        const bot = mPruneBot(this.bots.find(bot=>bot.id===id))
         return bot
-            ?? this.activeBot
     }
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
@@ -477,7 +492,7 @@ class Avatar extends EventEmitter {
      * @returns 
      */
     async migrateBot(botId){
-        const bot = this.getBot(botId)
+        const bot = await this.bot(botId)
         if(!bot)
             throw new Error(`Bot not found with id: ${ botId }`)
         const { id, } = bot
@@ -564,11 +579,11 @@ class Avatar extends EventEmitter {
      * @param {Guid} botId - The bot id.
      * @returns {object} - The retired bot object.
      */
-    retireBot(botId){
+    async retireBot(botId){
         /* reset active bot, if required */
         if(this.activeBotId===botId)
             this.activeBotId = null
-        const bot = this.getBot(botId)
+        const bot = await this.bot(botId)
         if(!bot)
             throw new Error(`Bot not found with id: ${ botId }`)
         const { id, } = bot
@@ -602,7 +617,7 @@ class Avatar extends EventEmitter {
             throw new Error(`Conversation not found with bot id: ${ botId }`)
         }
         const { thread_id: cid, } = conversation
-        const bot = this.getBot(botId)
+        const bot = await this.bot(botId)
         const { id: _botId, thread_id: tid, } = bot
         if(botId!=_botId)
             throw new Error(`Bot id mismatch: ${ botId }!=${ bot_id }`)
@@ -2271,15 +2286,15 @@ async function mInit(factory, llmServices, avatar, bots, assetAgent){
         }
     ))
     avatar.activeBotId = avatar.avatar.id // initially set active bot to personal-avatar
+    if(factory.isMyLife) // as far as init goes for MyLife Avatar
+        return
     /* conversations */
     await Promise.all(
-        bots.map(async bot=>{ 
+        bots.map(async bot=>{
             const { id: botId, thread_id, type, } = bot
             /* exempt certain types */
             const excludedMemberTypes = ['library', 'ubi']
-            if(factory.isMyLife && type!=='personal-avatar')
-                return
-            else if(excludedMemberTypes.includes(type))
+            if(excludedMemberTypes.includes(type))
                 return
             if(!avatar.getConversation(thread_id, botId)){
                 const conversation = await avatar.createConversation('chat', thread_id, botId)
@@ -2290,9 +2305,8 @@ async function mInit(factory, llmServices, avatar, bots, assetAgent){
         })
     )
     /* evolver */
-    if(!factory.isMyLife)
-        avatar.evolver = await (new EvolutionAssistant(avatar))
-            .init()
+    avatar.evolver = await (new EvolutionAssistant(avatar))
+        .init()
     /* lived-experiences */
     avatar.experiencesLived = await factory.experiencesLived(false)
 }
@@ -2312,7 +2326,7 @@ async function mMigrateChat(avatar, factory, llm, conversation){
     if(!messages?.length)
         return conversation
     const { botId, } = conversation
-    const bot = avatar.getBot(botId)
+    const bot = await avatar.bot(botId)
     const botType = bot.type
     let disclaimer=`INFORMATIONAL ONLY **DO NOT PROCESS**\n`,
         itemCollectionTypes='item',
