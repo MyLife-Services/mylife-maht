@@ -155,6 +155,7 @@ function connectRoutes(_Menu){
  */
 async function memberValidation(ctx, next){
     const { locked=true, } = ctx.state
+    ctx.state.dateNow = Date.now()
     if(locked)
         ctx.redirect(`/?type=select`) // Redirect to /members if not authorized
     else

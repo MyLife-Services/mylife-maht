@@ -97,8 +97,7 @@ async function challenge(ctx){
 	ctx.body = !MemberSession.locked
 }
 /**
- * Chat with the member's avatar.
- * @todo - deprecate threadId in favor of thread_id
+ * Chat with the Member or System Avatar's intelligence.
  * @param {Koa} ctx - Koa Context object
  * @returns {object} - The response from the chat in `ctx.body`
  * @property {object} instruction - Instructionset for the frontend to execute (optional)
@@ -108,14 +107,11 @@ async function chat(ctx){
 	const { botId, itemId, message, shadowId, } = ctx.request.body ?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
-	const { avatar, MemberSession, } = ctx.state
-	const { isMyLife, thread_id, } = MemberSession
-	let conversation
-	if(isMyLife && !thread_id?.length){
-		conversation = await avatar.createConversation('system', undefined, botId, true) // pushes to this.#conversations in Avatar
-		MemberSession.thread_id = conversation.thread_id
-	}
-	const response = await avatar.chat(message, botId, MemberSession.thread_id, itemId, shadowId, conversation)
+	const { avatar, dateNow=Date.now(), } = ctx.state
+	const { MemberSession, } = ctx.session
+	if(botId?.length && botId!==avatar.activeBotId)
+		throw new Error(`Bot ${ botId } not currently active; chat() requires active bot`)
+	const response = await avatar.chat(message, itemId, shadowId, dateNow, MemberSession)
 	ctx.body = response
 }
 async function collections(ctx){
