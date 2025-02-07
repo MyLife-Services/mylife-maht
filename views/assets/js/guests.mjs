@@ -16,17 +16,21 @@ let mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultTypeDelay = 7,
     mPageType = null,
-    mSignupType = 'newsletter'
+    mRecognition,
+    mRecognizingSpeech = false,
+    mSignupType = 'newsletter',
+    mTranscript = '',
+    ignore_onend = true,
+    start_timestamp
 /* page div variables */
 let awaitButton,
-    agentSpinner,
+    audioIcon,
     challengeError,
     challengeInput,
     challengeInputText,
     challengeSubmit,
     chatContainer,
     chatInput,
-    chatLabel,
     chatSubmit,
     chatSystem,
     chatUser,
@@ -200,6 +204,7 @@ function mCreateChallengeElement(){
  * @returns {Object} - Fetch response object: { input, messages, }
  */
 async function mFetchStart(){
+    mInitializeSpeechRecognition()
     const isSignedUp = await mGlobals.datamanager.signupStatus()
     !isSignedUp
         ? retract(signupSuccess)
@@ -235,6 +240,7 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
+    audioIcon.addEventListener('click', mSpeechRecognition)
     signupButton.addEventListener('click', mSubmitSignup)
     signupEmailInputField.addEventListener('input', mUpdateFormState)
     signupHumanNameInput.addEventListener('input', mUpdateFormState)
@@ -242,6 +248,49 @@ function mInitializeListeners(){
         chatInput.addEventListener('input', mToggleInputTextarea)
     if(chatSubmit)
         chatSubmit.addEventListener('click', mAddUserMessage)
+}
+function mInitializeSpeechRecognition(){
+    if(!('webkitSpeechRecognition' in window))
+        alert('Please use a browser that supports Webkit Speech Recognition API')
+    else {
+        mRecognition = new webkitSpeechRecognition()
+        mRecognition.continuous = true
+        mRecognition.interimResults = true
+        mRecognition.onstart = ()=>mRecognizingSpeech = true
+        mRecognition.onerror = (event)=>{
+            ignore_onend = true
+            // if(event.error=='audio-capture')
+            // if(event.error=='no-speech')
+            // if(event.error=='not-allowed')
+        }
+        mRecognition.onend = ()=>{
+          mRecognizingSpeech = false
+          if(ignore_onend){
+            return
+          }
+          // start_img.src = 'mic.gif'
+          if(!mTranscript){
+            // showInfo('info_start')
+            return
+          }
+          // showInfo('')
+        }
+        mRecognition.onresult = function(event) {
+          let interim_transcript = ''
+          for(let i = event.resultIndex; i < event.results.length; ++i){
+            if (event.results[i].isFinal) {
+              mTranscript += event.results[i][0].transcript
+            } else {
+              interim_transcript += event.results[i][0].transcript
+            }
+          }
+          // mTranscript = capitalize(mTranscript)
+          // final_span.innerHTML = linebreak(mTranscript)
+          chatInput.value = interim_transcript
+          if(mTranscript || interim_transcript)
+            return
+        }
+    }
 }
 /**
  * Determines page type and loads data.
@@ -251,9 +300,8 @@ function mInitializeListeners(){
 async function mLoadStart(){
     /* assign page div variables */
     awaitButton = document.getElementById('await-button')
-    agentSpinner = document.getElementById('agent-spinner')
+    audioIcon = document.getElementById('chat-audio-icon')
     chatContainer = document.getElementById('chat-container')
-    chatLabel = document.getElementById('user-chat-label')
     chatInput = document.getElementById('chat-user-message')
     chatSubmit = document.getElementById('chat-user-submit')
     chatSystem = document.getElementById('chat-system')
@@ -348,6 +396,18 @@ function mSignupSuccess(){
     retract(signupTeaser)
     show(signupSuccess)
     signupHeader.innerHTML = `Thank you for joining our pilot!`
+}
+function mSpeechRecognition(){
+    if(mRecognizingSpeech)
+        mRecognition.stop()
+    else {
+        mTranscript = ''
+        mRecognition.lang = 'en-US'
+        mRecognition.start()
+        ignore_onend = false
+        chatInput.innerHTML = ''
+        start_timestamp = Date.now()
+    }
 }
 /**
  * Submits a challenge response to the server.
