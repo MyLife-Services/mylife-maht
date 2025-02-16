@@ -3,6 +3,8 @@ import Globals from './globals.mjs'
 /* precursor constants */
 const mGlobals = new Globals()
 /* constants */
+const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
+const mAudioRecording = `<div><b>MyLife is listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
 const mAvatarName = mGlobals.getAvatar()?.name
     ?? 'MyLife'
 const hide = mGlobals.hide
@@ -241,11 +243,29 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
+    let iconHover = false
     signupButton.addEventListener('click', mSubmitSignup)
     signupEmailInputField.addEventListener('input', mUpdateFormState)
     signupHumanNameInput.addEventListener('input', mUpdateFormState)
-    if(audioIcon)
+    if(audioIcon){
         audioIcon.addEventListener('click', mSpeechRecognition)
+        audioIcon.addEventListener('touchend', mSpeechRecognition)
+        if(audioPopup){
+            audioIcon.addEventListener('mouseover', ()=>{
+                if(!mRecognizingSpeech){
+                    iconHover = true
+                    show(audioPopup)
+                }
+            })
+            audioIcon.addEventListener('mouseout', ()=>{
+                if(iconHover && !mRecognizingSpeech){
+                    iconHover = false
+                    hide(audioPopup)
+                }
+            })
+            audioPopup.addEventListener('click', ()=>hide(audioPopup))
+        }
+    }
     if(chatInput)
         chatInput.addEventListener('input', mToggleInputTextarea)
     if(chatSubmit)
@@ -258,6 +278,7 @@ function mInitializeSpeech(){
         return
     }
     /* speech recognition */
+    audioPopup.innerHTML = mAudioNotRecording
     let ignoreEnd = false
     mRecognition = new webkitSpeechRecognition()
     mRecognition.continuous = true
@@ -279,7 +300,9 @@ function mInitializeSpeech(){
         audioIcon.classList.remove('listening-mic')
         chatInput.classList.remove('listening')
         chatInput.placeholder = mPlaceholder
-        mToggleSubmitButton() // no content does not trigger submit button
+        audioPopup.innerHTML = mAudioNotRecording
+        hide(audioPopup)
+        mToggleSubmitButton() // no content keeps button disabled
         if(mRecognition?.trigger){
             chatSubmit.click()
             mRecognition.trigger = false
@@ -318,6 +341,9 @@ function mInitializeSpeech(){
     }
     mRecognition.onstart = ()=>{
         mTranscript = ''
+        // transform popup content
+        audioPopup.innerHTML = mAudioRecording
+        show(audioPopup)
         chatInput.innerHTML = mTranscript
         audioIcon.classList.add('listening-mic')
         chatInput.classList.add('listening')

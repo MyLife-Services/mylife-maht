@@ -737,7 +737,6 @@ body {
     text-align: center; /* Center the text */
     border-radius: 12px 12px 0 0; /* Rounded top corners, flat bottom */
     margin: 0; /* No margin to ensure it meets the container's edges */
-	margin-top: 1em;
     width: 100%; /* Full width of the container */
 }
 /* MyLife error handling */
@@ -831,19 +830,21 @@ pre code {
 }
 /* MyLife general */
 #audio-popup {
-	position: absolute;
-	bottom: 70px;  /* Positions it directly above the container */
-	background-color: rgba(0, 0, 0, 0.8);
-	color: #fff;
-	display: flex;
-	padding: 10px 20px;
-	border-radius: 5px;
-	font-size: 1rem;
-	pointer-events: none; /* So it won't block clicks on underlying elements */
-	z-index: calc(var(--mylife-sidebar-z-index) + 1);
-	opacity: 1;
-	/* Fade out animation: waits 5 seconds then fades out over 1 second */
 	animation: fadeOut 1s 5s forwards;
+	border-color: #666;
+	border-radius: 5px;
+	bottom: 70px;  /* Positions it directly above the container */
+	background-color: rgba(240, 248, 255, 1);
+	color: #666;
+	display: flex;
+	font-size: 1rem;
+	margin: 0px;
+	max-width: 80%;
+	opacity: 1;
+	padding: 10px 10px;
+	position: absolute;
+	width: auto;
+	z-index: calc(var(--mylife-sidebar-z-index) + 1);
   }
 .caret {
 	border-style: solid;
