@@ -3,6 +3,8 @@ import Globals from './globals.mjs'
 /* precursor constants */
 const mGlobals = new Globals()
 /* constants */
+const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
+const mAudioRecording = `<div><b>MyLife is listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
 const mAvatarName = mGlobals.getAvatar()?.name
     ?? 'MyLife'
 const hide = mGlobals.hide
@@ -16,17 +18,22 @@ let mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultTypeDelay = 7,
     mPageType = null,
-    mSignupType = 'newsletter'
+    mRecognition,
+    mRecognizingSpeech = false,
+    mSignupType = 'newsletter',
+    mSynthesis,
+    mTranscript = '',
+    mIgnoreEnd = true
 /* page div variables */
 let awaitButton,
-    agentSpinner,
+    audioIcon,
+    audioPopup,
     challengeError,
     challengeInput,
     challengeInputText,
     challengeSubmit,
     chatContainer,
     chatInput,
-    chatLabel,
     chatSubmit,
     chatSystem,
     chatUser,
@@ -200,6 +207,7 @@ function mCreateChallengeElement(){
  * @returns {Object} - Fetch response object: { input, messages, }
  */
 async function mFetchStart(){
+    mInitializeSpeech()
     const isSignedUp = await mGlobals.datamanager.signupStatus()
     !isSignedUp
         ? retract(signupSuccess)
@@ -235,13 +243,125 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
+    let iconHover = false
     signupButton.addEventListener('click', mSubmitSignup)
     signupEmailInputField.addEventListener('input', mUpdateFormState)
     signupHumanNameInput.addEventListener('input', mUpdateFormState)
+    if(audioIcon){
+        audioIcon.addEventListener('click', mSpeechRecognition)
+        audioIcon.addEventListener('touchend', mSpeechRecognition)
+        if(audioPopup){
+            audioIcon.addEventListener('mouseover', ()=>{
+                if(!mRecognizingSpeech){
+                    iconHover = true
+                    show(audioPopup)
+                }
+            })
+            audioIcon.addEventListener('mouseout', ()=>{
+                if(iconHover && !mRecognizingSpeech){
+                    iconHover = false
+                    hide(audioPopup)
+                }
+            })
+            audioPopup.addEventListener('click', ()=>hide(audioPopup))
+        }
+    }
     if(chatInput)
         chatInput.addEventListener('input', mToggleInputTextarea)
     if(chatSubmit)
         chatSubmit.addEventListener('click', mAddUserMessage)
+}
+function mInitializeSpeech(){
+    if(!('webkitSpeechRecognition' in window)){
+        alert('MyLife requires a browser that supports Speech Recognition. Please use Google Chrome or Microsoft Edge.')
+        audioIcon.style.display = 'none'
+        return
+    }
+    /* speech recognition */
+    audioPopup.innerHTML = mAudioNotRecording
+    let ignoreEnd = false
+    mRecognition = new webkitSpeechRecognition()
+    mRecognition.continuous = true
+    mRecognition.interimResults = true
+    mRecognition.lang = 'en-US'
+    mRecognition.SpeechRecognitionMode = 'ondevice-only'
+    /* speech grammar */
+    try{
+        const grammar =
+        '#JSGF V1.0; grammar core; public <core> = MyLife | Q | humanism | humanist ;'
+          const speechRecognitionList = new webkitSpeechGrammarList()
+          speechRecognitionList.addFromString(grammar, 1)
+          mRecognition.grammar = speechRecognitionList
+    } catch(e){
+        console.error('Error loading grammar', e)
+    }
+    mRecognition.onend = ()=>{
+        mRecognizingSpeech = false
+        audioIcon.classList.remove('listening-mic')
+        chatInput.classList.remove('listening')
+        chatInput.placeholder = mPlaceholder
+        audioPopup.innerHTML = mAudioNotRecording
+        hide(audioPopup)
+        mToggleSubmitButton() // no content keeps button disabled
+        if(mRecognition?.trigger){
+            chatSubmit.click()
+            mRecognition.trigger = false
+        }
+    }
+    mRecognition.onerror = (event)=>{
+        ignoreEnd = true
+        if(event.error=='audio-capture')
+            alert('No microphone was found. Ensure that a microphone is installed and that microphone settings are configured correctly.')
+        if(event.error=='no-speech')
+            alert('No speech was detected. Please try again.')
+        // if(event.error=='not-allowed')
+    }
+    mRecognition.onresult = event=>{
+        let interim_transcript = ''
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if(event.results[i].isFinal){
+                console.log(`Final result length`, event.results[i].length, event.results)
+                let finalPhrase = event.results[i][0].transcript.trim().toLowerCase()
+                finalPhrase = finalPhrase.replace(/[.,!?]$/, '') // Remove trailing punctuation
+                const triggerWords = ['complete', 'done', 'end', 'finish', 'finished', 'send', 'stop', 'submit'] // trigger words
+                if(triggerWords.some(word=>finalPhrase==word)){
+                    mTranscript += finalPhrase.split(' ').slice(0, -1).join(' ') // remove trigger words
+                    chatInput.value = mTranscript
+                    if(finalPhrase.endsWith('send') || finalPhrase.endsWith('submit'))
+                        mRecognition.trigger = true // request to submit input
+                    mRecognition.stop() // Stop recognition
+                } else {
+                    mTranscript += finalPhrase + " "
+                }
+            } else {
+                interim_transcript += event.results[i][0].transcript
+            }
+        }
+        chatInput.value = mTranscript + interim_transcript
+    }
+    mRecognition.onstart = ()=>{
+        mTranscript = ''
+        // transform popup content
+        audioPopup.innerHTML = mAudioRecording
+        show(audioPopup)
+        chatInput.innerHTML = mTranscript
+        audioIcon.classList.add('listening-mic')
+        chatInput.classList.add('listening')
+        chatInput.placeholder = 'Speak aloud to capture your voice...'
+        mRecognizingSpeech = true
+    }
+    /* speech synthesis */
+    if(!('speechSynthesis' in window)){
+        audioIcon.style.display = 'none'
+        alert('MyLife requires a browser that supports Speech Synthesis. Please use Google Chrome or Microsoft Edge.')
+        return
+    }
+    mSynthesis = window.speechSynthesis
+    const langRegex = /^en(-[a-z]{2})?$/i
+    const voices = mSynthesis
+        .getVoices()
+    //    .filter((voice)=>langRegex.test(voice.lang))
+    // @todo - no voices found?
 }
 /**
  * Determines page type and loads data.
@@ -251,9 +371,9 @@ function mInitializeListeners(){
 async function mLoadStart(){
     /* assign page div variables */
     awaitButton = document.getElementById('await-button')
-    agentSpinner = document.getElementById('agent-spinner')
+    audioIcon = document.getElementById('chat-audio-icon')
+    audioPopup = document.getElementById('audio-popup')
     chatContainer = document.getElementById('chat-container')
-    chatLabel = document.getElementById('user-chat-label')
     chatInput = document.getElementById('chat-user-message')
     chatSubmit = document.getElementById('chat-user-submit')
     chatSystem = document.getElementById('chat-system')
@@ -348,6 +468,20 @@ function mSignupSuccess(){
     retract(signupTeaser)
     show(signupSuccess)
     signupHeader.innerHTML = `Thank you for joining our pilot!`
+}
+/**
+ * Speech recognition start/stop handler.
+ * @requires mRecognition
+ * @requires mRecognizingSpeech
+ * @returns {void}
+ */
+function mSpeechRecognition(){
+    if(!mRecognition)
+        return
+    if(mRecognizingSpeech)
+        mRecognition.stop()
+    else
+        mRecognition.start()
 }
 /**
  * Submits a challenge response to the server.
