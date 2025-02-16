@@ -349,7 +349,6 @@ function mInitializeSpeech(){
         chatInput.classList.add('listening')
         chatInput.placeholder = 'Speak aloud to capture your voice...'
         mRecognizingSpeech = true
-        console.log("Speech recognition has started.")
     }
     /* speech synthesis */
     if(!('speechSynthesis' in window)){
@@ -363,7 +362,6 @@ function mInitializeSpeech(){
         .getVoices()
     //    .filter((voice)=>langRegex.test(voice.lang))
     // @todo - no voices found?
-    console.log('Speech Synthesis', mSynthesis.getVoices(), langRegex)
 }
 /**
  * Determines page type and loads data.
