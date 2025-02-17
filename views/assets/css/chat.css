@@ -146,7 +146,7 @@
     border-radius: 22px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 	box-sizing: border-box;
-    display: none;
+    display: flex;
 	flex: 1 0 auto;
     flex-direction: column;
 	height: auto;
@@ -186,8 +186,7 @@
     padding: 0.3em; /* Padding for space inside the container */
     resize: none; /* Allows vertical resizing, none to disable */
 }
-.chat-member,
-.chat-user {
+.chat-member {
 	align-items: flex-start;
 	display: flex;
 	flex: 1 1 auto;
@@ -197,9 +196,7 @@
 	max-height: 60%;
 	width: 100%;
 }
-.chat-member-container,
-.chat-user-container {
-	align-items: center;
+.chat-member-container {
 	display: flex;
 	flex-direction: row;
 	width: 100%;
@@ -276,7 +273,7 @@ button.chat-submit { /* need specificity to overwrite button class */
 	flex: 0 0 auto;
 	color: rgba(65, 84, 104, 0.85);
 	background-color: rgba(183, 203, 225, 0.85);
-	margin: 0 0.5em;
+	margin: 0 0.5em 0 0;
 	white-space: nowrap; /* Prevents text wrapping in the button */
 }
 button.chat-submit:hover {

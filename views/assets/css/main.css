@@ -829,6 +829,10 @@ pre code {
     font-weight: bold;
 }
 /* MyLife general */
+#audio-icon {
+	cursor: pointer;
+	margin: 0.5rem 0rem 0rem 0.5rem;
+}
 #audio-popup {
 	animation: fadeOut 1s 5s forwards;
 	border-color: #666;

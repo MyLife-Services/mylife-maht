@@ -1,4 +1,6 @@
 /* module constants */
+const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
+const mAudioRecording = `<div><b>MyLife is listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
 const mDefaultHelpPlaceholderText = 'Help me, Q-bi Wan, Help me!'
 const mHelpInitiatorContent = {
     experiences: `I'll do my best to assist with an "experiences" request. Please type in your question or issue below and click "Send" to get started.`,
@@ -9,6 +11,13 @@ const mHelpInitiatorContent = {
 const mNewGuid = ()=>crypto.randomUUID()
 /* module variables */
 let mActiveHelpType, // active help type, currently entire HTMLDivElement
+    mAudioIcon,
+    mAudioPopup,
+    mAvatarName,
+    mChatInput,
+    mChatMember,
+    mChatSubmit,
+    mChatSystem,
     mDatamanager,
     mHelpAwait,
     mHelpClose,
@@ -30,7 +39,11 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mNavigation,
     mNavigationHelp,
     mNavigationHelpIcon,
-    mSidebar
+    mPlaceholder,
+    mRecognition,
+    mRecognizingSpeech = false,
+    mSidebar,
+    mSynthesis
 /* class definitions */
 class Datamanager {
     #url
@@ -557,10 +570,18 @@ class Globals {
     #uuid = mNewGuid()
     constructor(){
         if(!mLoaded){
+            /* constants */
+            mAvatarName = this.getAvatar()?.name
+                ?? 'MyLife'
+            mPlaceholder = `Type your message to ${ mAvatarName }...`
+            /* elements */
+            mAudioIcon = document.getElementById('audio-icon')
+            mAudioPopup = document.getElementById('audio-popup')
+            mChatInput = document.getElementById('chat-message')
+            mChatSubmit = document.getElementById('chat-submit')
+            mChatSystem = document.getElementById('chat-system')
+            mChatMember = document.getElementById('chat-member')
             mDatamanager = new Datamanager()
-            mLoginButton = document.getElementById('navigation-login-logout-button')
-            mLoginContainer = document.getElementById('navigation-login-logout')
-            mMainContent = document.getElementById('main-content')
             mHelpAwait = document.getElementById('help-await')
             mHelpClose = document.getElementById('help-close')
             mHelpContainer = document.getElementById('help-container')
@@ -574,18 +595,29 @@ class Globals {
             mHelpRefresh = document.getElementById('help-chat-refresh')
             mHelpSystemChat = document.getElementById('help-chat') /* container for help system chat */
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
+            mLoginButton = document.getElementById('navigation-login-logout-button')
+            mLoginContainer = document.getElementById('navigation-login-logout')
+            mMainContent = document.getElementById('main-content')
             mNavigation = document.getElementById('navigation-container')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
             mSidebar = document.getElementById('sidebar')
+            /* element initialization */
+            if(mChatInput){
+                this.chatInput = null
+                mChatInput.placeholder = mPlaceholder
+            }
+            mSpeechInitialization()
             this.init()
-            mLoaded = true
         }
     }
+    /* public functions */
     async init(){
         /* global visibility settings */
         this.hide(mHelpContainer)
         /* assign event listeners */
+        if(mChatInput)
+            mChatInput.addEventListener('input', mToggleChatInput)
         if(mNavigationHelp){
             mHelpClose.addEventListener('click', mToggleHelp)
             mHelpInputSubmit.addEventListener('click', mSubmitHelp)
@@ -596,11 +628,40 @@ class Globals {
             Array.from(mHelpType.children)?.[0]?.click() // default to first type
             mToggleHelpSubmit()
         }
+        if(mAudioIcon){
+            let iconHover = false
+            mAudioIcon.addEventListener('click', mSpeechRecognition)
+            mAudioIcon.addEventListener('touchend', mSpeechRecognition)
+            if(mAudioPopup){
+                mAudioIcon.addEventListener('mouseover', ()=>{
+                    if(!mRecognizingSpeech){
+                        iconHover = true
+                        this.show(mAudioPopup)
+                    }
+                })
+                mAudioIcon.addEventListener('mouseout', ()=>{
+                    if(iconHover && !mRecognizingSpeech){
+                        iconHover = false
+                        this.hide(mAudioPopup)
+                    }
+                })
+                mAudioPopup.addEventListener('click', ()=>hide(mAudioPopup))
+            }
+        }
         mLoginButton.addEventListener('click', this.loginLogout, { once: true })
         /* fetch data */
         await this.datamanager.alerts()
+        /* page loaded */
+        mLoaded = true
     }
     /* public functions */
+    /**
+     * Adds an element to the chat system container
+     * @param {HTMLElement} element - The element to add to the chat system
+     */
+    addChatElement(element){
+        mChatSystem.appendChild(element)
+    }
 	/**
 	 * Clears a const array with nod to garbage collection.
 	 * @param {Array} a - the array to clear.
@@ -851,6 +912,14 @@ class Globals {
         element.remove()
     }
     /**
+     * Scroll an element to the bottom.
+     * @param {HTMLElement} element - The element to scroll to the bottom of; defaults to `mChatSystem`
+     * @returns {void}
+     */
+    scrollBottom(element=mChatSystem){
+        mScrollBottom(element)
+    }
+    /**
      * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
      * @public
      * @param {HTMLElement} element - The element to show.
@@ -859,6 +928,13 @@ class Globals {
      */
     show(element, listenerFunction){
         mShow(element, listenerFunction)
+    }
+    /**
+     * Toggles the chat input field.
+     * @returns {void}
+     */
+    toggleChatInput(){
+        mToggleChatInput()
     }
     /**
      * Toggles the visibility of an element with option to force state.
@@ -897,11 +973,20 @@ class Globals {
         return undashedString.replace(/ /g, '-').toLowerCase()
     }
     /* getters/setters */
+    get chatInput(){
+        return mChatInput.value.trim()
+    }
+    set chatInput(value){
+        mChatInput.value = value
+    }
     get datamanager(){
         return mDatamanager
     }
     get mainContent(){
         return mMainContent
+    }
+    get MemberChat(){ // return member chat container HTMLElement
+        return mChatMember
     }
     get navigation(){
         return mNavigation
@@ -937,6 +1022,118 @@ function mAddDialogBubble(chatContainer, text, type='agent', subType){
     if(subType)
         bubble.classList.add(`${ subType }-bubble`)
     chatContainer.appendChild(bubble)
+}
+/**
+ * Initializes the speech recognition object, when available
+ * @returns {void}
+ */
+function mSpeechInitialization(){
+    /* speech recognition */
+    if(!('webkitSpeechRecognition' in window)){
+        alert('MyLife requires a browser that supports Speech Recognition. Please use Google Chrome or Microsoft Edge.')
+        mAudioIcon.style.display = 'none'
+        return
+    }
+    mAudioPopup.innerHTML = mAudioNotRecording
+    let finalTranscript='',
+        ignoreEnd = false
+    mRecognition = new webkitSpeechRecognition()
+    mRecognition.continuous = true
+    mRecognition.interimResults = true
+    mRecognition.lang = 'en-US'
+    mRecognition.SpeechRecognitionMode = 'ondevice-only'
+    /* speech grammar */
+    try{
+        const grammar =
+        '#JSGF V1.0; grammar core; public <core> = MyLife | Q | humanism | humanist ;'
+          const speechRecognitionList = new webkitSpeechGrammarList()
+          speechRecognitionList.addFromString(grammar, 1)
+          mRecognition.grammar = speechRecognitionList
+    } catch(e){
+        console.error('Error loading grammar', e)
+    }
+    mRecognition.onend = ()=>{
+        mRecognizingSpeech = false
+        mAudioIcon.classList.remove('listening-mic')
+        mChatInput.classList.remove('listening')
+        mChatInput.placeholder = mPlaceholder
+        mAudioPopup.innerHTML = mAudioNotRecording
+        mHide(mAudioPopup)
+        mToggleSubmitButton() // no content keeps button disabled
+        if(mRecognition?.trigger){
+            mChatSubmit.click()
+            mRecognition.trigger = false
+        }
+    }
+    mRecognition.onerror = (event)=>{
+        ignoreEnd = true
+        if(event.error=='audio-capture')
+            alert('No microphone was found. Ensure that a microphone is installed and that microphone settings are configured correctly.')
+        if(event.error=='no-speech')
+            alert('No speech was detected. Please try again.')
+        // if(event.error=='not-allowed') // @todo - not allowed fix? download?
+    }
+    mRecognition.onresult = event=>{
+        let interimTranscript = ''
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if(event.results[i].isFinal){
+                console.log(`Final result length`, event.results[i].length, event.results)
+                let finalPhrase = event.results[i][0].transcript.trim().toLowerCase()
+                finalPhrase = finalPhrase.replace(/[.,!?]$/, '') // Remove trailing punctuation
+                const triggerWords = ['complete', 'done', 'end', 'finish', 'finished', 'send', 'stop', 'submit'] // trigger words
+                if(triggerWords.some(word=>finalPhrase==word)){
+                    finalTranscript += finalPhrase.split(' ').slice(0, -1).join(' ') // remove trigger words
+                    mChatInput.value = finalTranscript
+                    if(finalPhrase.endsWith('send') || finalPhrase.endsWith('submit'))
+                        mRecognition.trigger = true // request to submit input
+                    mRecognition.stop() // Stop recognition
+                } else {
+                    finalTranscript += finalPhrase + " "
+                }
+            } else {
+                interimTranscript += event.results[i][0].transcript
+            }
+        }
+        mChatInput.value = finalTranscript + interimTranscript
+        mToggleChatInput()
+    }
+    mRecognition.onstart = ()=>{
+        finalTranscript = ''
+        // transform popup content
+        mAudioPopup.innerHTML = mAudioRecording
+        mShow(mAudioPopup)
+        mChatInput.innerHTML = finalTranscript
+        mAudioIcon.classList.add('listening-mic')
+        mChatInput.classList.add('listening')
+        mChatInput.placeholder = 'Speak aloud to capture your voice...'
+        mRecognizingSpeech = true
+    }
+    /* speech synthesis */
+    if(!('speechSynthesis' in window)){
+        mAudioIcon.style.display = 'none'
+        alert('MyLife requires a browser that supports Speech Synthesis. Please use Google Chrome or Microsoft Edge.')
+        return
+    }
+    mSynthesis = window.speechSynthesis
+    const langRegex = /^en(-[a-z]{2})?$/i
+    const voices = mSynthesis
+        .getVoices()
+    //    .filter((voice)=>langRegex.test(voice.lang))
+    // @todo - no voices found?
+}
+/**
+ * Speech recognition start/stop handler.
+ * @requires mRecognition
+ * @requires mRecognizingSpeech
+ * @returns {void}
+ */
+function mSpeechRecognition(){
+    if(!mRecognition)
+        return
+    if(mRecognizingSpeech)
+        mRecognition.stop()
+    else
+        mRecognition.start()
 }
 /**
  * Adds a popup dialog to the chat container.
@@ -1194,6 +1391,14 @@ async function mLogout(){
         console.error('mLogout::failure', response)
 }
 /**
+ * Scrolls overflow of passed element to bottom.
+ * @param {HTMLElement} element - The element to scroll to the bottom
+ * @returns {void}
+ */
+function mScrollBottom(element){
+    element.scrollTop = element.scrollHeight
+}
+/**
  * Sets the type of help required by member.
  * @todo - incorporate multiple help strata before llm access; here local
  * @param {Event} event - The event object.
@@ -1298,23 +1503,6 @@ async function mSubmitHelpToServer(helpRequest, type='general', mbr_id){
     return response
 }
 /**
- * Toggles the visibility of the challenge submit button based on `input` event.
- * @requires mChallengeSubmit
- * @param {Event} event - The event object.
- * @returns {void}
- */
-function mToggleChallengeSubmit(event){
-    const { value, } = event.target
-    if(value.trim().length){
-        mChallengeSubmit.disabled = false
-        mChallengeSubmit.style.cursor = 'pointer'
-        mShow(mChallengeSubmit)
-    } else {
-        mChallengeSubmit.disabled = true
-        mChallengeSubmit.style.cursor = 'not-allowed'
-    }
-}
-/**
  * Toggles the visibility of the help container based on `click` event.
  * @requires mHelpContainer
  * @param {Event} event - The event object.
@@ -1339,6 +1527,21 @@ function mToggleHelpSubmit(event){
         mHide(mHelpInputSubmit)
     else
         mShow(mHelpInputSubmit)
+}
+function mToggleChatInput() {
+    mChatInput.style.height = 'auto' // Reset height to shrink if text is removed
+    mChatInput.style.height = mChatInput.scrollHeight + 'px' // Set height based on content
+	mToggleSubmitButton()
+}
+/**
+ * Toggles the disabled state of a button based on the input element value.
+ * @private
+ * @returns {void}
+ */
+function mToggleSubmitButton(){
+    const hasInput = mChatInput.value.trim().length ?? false
+    mChatSubmit.disabled = !hasInput
+    mChatSubmit.style.cursor = hasInput ? 'pointer' : 'not-allowed'
 }
 /* exports */
 export default Globals

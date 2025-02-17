@@ -3,12 +3,7 @@ import Globals from './globals.mjs'
 /* precursor constants */
 const mGlobals = new Globals()
 /* constants */
-const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
-const mAudioRecording = `<div><b>MyLife is listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
-const mAvatarName = mGlobals.getAvatar()?.name
-    ?? 'MyLife'
 const hide = mGlobals.hide
-const mPlaceholder = `Type your message to ${ mAvatarName }...`
 const retract = mGlobals.retract
 const show = mGlobals.show
 window.about = about
@@ -21,22 +16,13 @@ let mChallengeMemberId,
     mRecognition,
     mRecognizingSpeech = false,
     mSignupType = 'newsletter',
-    mSynthesis,
-    mTranscript = '',
     mIgnoreEnd = true
 /* page div variables */
 let awaitButton,
-    audioIcon,
-    audioPopup,
     challengeError,
     challengeInput,
     challengeInputText,
     challengeSubmit,
-    chatContainer,
-    chatInput,
-    chatSubmit,
-    chatSystem,
-    chatUser,
     loginSelect,
     mainContent,
     navigation,
@@ -64,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
             typewrite: true,
         })
     if(input)
-        chatSystem.appendChild(input)
+        mGlobals.addChatElement(input)
 })
 /* public functions */
 function about(){
@@ -110,14 +96,14 @@ function mAddMessage(message, options={}){
     mChatBubbleCount++
     chatMessage.appendChild(chatBubble)
     /* append chat message */
-	chatSystem.appendChild(chatMessage)
+    mGlobals.addChatElement(chatMessage)
     if(!message.startsWith('<section>'))
         message = `<section>${message}</section>`
 	if(typewrite)
         mTypeMessage(chatBubble, message, typeDelay, callback)
 	else {
 		chatBubble.insertAdjacentHTML('beforeend', message)
-        mScrollBottom()
+        mGlobals.scrollBottom()
         callback()
 	}
 }
@@ -142,7 +128,7 @@ async function mAddMessages(messages, options={}){
 function mAddUserMessage(event){
     event.preventDefault()
     // Dynamically get the current message element (input or textarea)
-    const userMessage = chatInput.value.trim()
+    const userMessage = mGlobals.chatInput
     if(!userMessage.length)
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
@@ -207,7 +193,6 @@ function mCreateChallengeElement(){
  * @returns {Object} - Fetch response object: { input, messages, }
  */
 async function mFetchStart(){
-    mInitializeSpeech()
     const isSignedUp = await mGlobals.datamanager.signupStatus()
     !isSignedUp
         ? retract(signupSuccess)
@@ -223,8 +208,8 @@ async function mFetchStart(){
         case 'select':
             if(mChallengeMemberId){
                 await mAddMessage(`Please enter the passphrase for your account to continue...`, { typeDelay: 6, })
-                chatSystem.appendChild(mCreateChallengeElement())
-                mScrollBottom()
+                mGlobals.addChatElement(mCreateChallengeElement())
+                mGlobals.scrollBottom()
             } else
                 messages.push(`I'm sorry, I can't find the member you're looking for...`)
             break
@@ -243,125 +228,12 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
-    let iconHover = false
+    const chatSubmit = document.getElementById('chat-submit')
+    if(chatSubmit)
+        chatSubmit.addEventListener('click', mAddUserMessage)
     signupButton.addEventListener('click', mSubmitSignup)
     signupEmailInputField.addEventListener('input', mUpdateFormState)
     signupHumanNameInput.addEventListener('input', mUpdateFormState)
-    if(audioIcon){
-        audioIcon.addEventListener('click', mSpeechRecognition)
-        audioIcon.addEventListener('touchend', mSpeechRecognition)
-        if(audioPopup){
-            audioIcon.addEventListener('mouseover', ()=>{
-                if(!mRecognizingSpeech){
-                    iconHover = true
-                    show(audioPopup)
-                }
-            })
-            audioIcon.addEventListener('mouseout', ()=>{
-                if(iconHover && !mRecognizingSpeech){
-                    iconHover = false
-                    hide(audioPopup)
-                }
-            })
-            audioPopup.addEventListener('click', ()=>hide(audioPopup))
-        }
-    }
-    if(chatInput)
-        chatInput.addEventListener('input', mToggleInputTextarea)
-    if(chatSubmit)
-        chatSubmit.addEventListener('click', mAddUserMessage)
-}
-function mInitializeSpeech(){
-    if(!('webkitSpeechRecognition' in window)){
-        alert('MyLife requires a browser that supports Speech Recognition. Please use Google Chrome or Microsoft Edge.')
-        audioIcon.style.display = 'none'
-        return
-    }
-    /* speech recognition */
-    audioPopup.innerHTML = mAudioNotRecording
-    let ignoreEnd = false
-    mRecognition = new webkitSpeechRecognition()
-    mRecognition.continuous = true
-    mRecognition.interimResults = true
-    mRecognition.lang = 'en-US'
-    mRecognition.SpeechRecognitionMode = 'ondevice-only'
-    /* speech grammar */
-    try{
-        const grammar =
-        '#JSGF V1.0; grammar core; public <core> = MyLife | Q | humanism | humanist ;'
-          const speechRecognitionList = new webkitSpeechGrammarList()
-          speechRecognitionList.addFromString(grammar, 1)
-          mRecognition.grammar = speechRecognitionList
-    } catch(e){
-        console.error('Error loading grammar', e)
-    }
-    mRecognition.onend = ()=>{
-        mRecognizingSpeech = false
-        audioIcon.classList.remove('listening-mic')
-        chatInput.classList.remove('listening')
-        chatInput.placeholder = mPlaceholder
-        audioPopup.innerHTML = mAudioNotRecording
-        hide(audioPopup)
-        mToggleSubmitButton() // no content keeps button disabled
-        if(mRecognition?.trigger){
-            chatSubmit.click()
-            mRecognition.trigger = false
-        }
-    }
-    mRecognition.onerror = (event)=>{
-        ignoreEnd = true
-        if(event.error=='audio-capture')
-            alert('No microphone was found. Ensure that a microphone is installed and that microphone settings are configured correctly.')
-        if(event.error=='no-speech')
-            alert('No speech was detected. Please try again.')
-        // if(event.error=='not-allowed')
-    }
-    mRecognition.onresult = event=>{
-        let interim_transcript = ''
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if(event.results[i].isFinal){
-                console.log(`Final result length`, event.results[i].length, event.results)
-                let finalPhrase = event.results[i][0].transcript.trim().toLowerCase()
-                finalPhrase = finalPhrase.replace(/[.,!?]$/, '') // Remove trailing punctuation
-                const triggerWords = ['complete', 'done', 'end', 'finish', 'finished', 'send', 'stop', 'submit'] // trigger words
-                if(triggerWords.some(word=>finalPhrase==word)){
-                    mTranscript += finalPhrase.split(' ').slice(0, -1).join(' ') // remove trigger words
-                    chatInput.value = mTranscript
-                    if(finalPhrase.endsWith('send') || finalPhrase.endsWith('submit'))
-                        mRecognition.trigger = true // request to submit input
-                    mRecognition.stop() // Stop recognition
-                } else {
-                    mTranscript += finalPhrase + " "
-                }
-            } else {
-                interim_transcript += event.results[i][0].transcript
-            }
-        }
-        chatInput.value = mTranscript + interim_transcript
-    }
-    mRecognition.onstart = ()=>{
-        mTranscript = ''
-        // transform popup content
-        audioPopup.innerHTML = mAudioRecording
-        show(audioPopup)
-        chatInput.innerHTML = mTranscript
-        audioIcon.classList.add('listening-mic')
-        chatInput.classList.add('listening')
-        chatInput.placeholder = 'Speak aloud to capture your voice...'
-        mRecognizingSpeech = true
-    }
-    /* speech synthesis */
-    if(!('speechSynthesis' in window)){
-        audioIcon.style.display = 'none'
-        alert('MyLife requires a browser that supports Speech Synthesis. Please use Google Chrome or Microsoft Edge.')
-        return
-    }
-    mSynthesis = window.speechSynthesis
-    const langRegex = /^en(-[a-z]{2})?$/i
-    const voices = mSynthesis
-        .getVoices()
-    //    .filter((voice)=>langRegex.test(voice.lang))
-    // @todo - no voices found?
 }
 /**
  * Determines page type and loads data.
@@ -371,13 +243,6 @@ function mInitializeSpeech(){
 async function mLoadStart(){
     /* assign page div variables */
     awaitButton = document.getElementById('await-button')
-    audioIcon = document.getElementById('chat-audio-icon')
-    audioPopup = document.getElementById('audio-popup')
-    chatContainer = document.getElementById('chat-container')
-    chatInput = document.getElementById('chat-user-message')
-    chatSubmit = document.getElementById('chat-user-submit')
-    chatSystem = document.getElementById('chat-system')
-    chatUser = document.getElementById('chat-user')
     mainContent = mGlobals.mainContent
     navigation = mGlobals.navigation
     pageLoader = document.getElementById('page-loader')
@@ -420,13 +285,6 @@ async function mRoutine(routineName){
         mAddMessage(error.message, { bubbleClass: 'system-bubble', typeDelay: 1, typewrite: true, })
 }
 /**
- * Scrolls overflow of system chat to bottom.
- * @returns {void}
- */
-function mScrollBottom(){
-    chatSystem.scrollTop = chatSystem.scrollHeight
-}
-/**
  * Display the entire page.
  * @todo - refactor for special pages
  * @private
@@ -451,37 +309,14 @@ function mShowPage(){
         })
     show(sidebar)
     show(mainContent)
-    if(!chatInput)
-        return
-    chatInput.value = null
-    chatInput.placeholder = mPlaceholder
-    show(chatSystem)
-    show(chatContainer)
-    if(mPageType!=='select')
-        show(chatUser)
-    else
-        hide(chatUser)
-    console.log('guests::mShowPage::shown')
+    if(mPageType==='select')
+        hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){
     retract(signupForm)
     retract(signupTeaser)
     show(signupSuccess)
     signupHeader.innerHTML = `Thank you for joining our pilot!`
-}
-/**
- * Speech recognition start/stop handler.
- * @requires mRecognition
- * @requires mRecognizingSpeech
- * @returns {void}
- */
-function mSpeechRecognition(){
-    if(!mRecognition)
-        return
-    if(mRecognizingSpeech)
-        mRecognition.stop()
-    else
-        mRecognition.start()
 }
 /**
  * Submits a challenge response to the server.
@@ -519,7 +354,7 @@ async function mSubmitInput(event, message){
         return
     event.stopPropagation()
 	event.preventDefault()
-    hide(chatUser)
+    hide(mGlobals.MemberChat)
     show(awaitButton)
     const chatData = {
         message,
@@ -530,10 +365,9 @@ async function mSubmitInput(event, message){
 		mAddMessage(gptMessage.message)
 	})
     hide(awaitButton)
-    chatInput.value = null
-    chatInput.placeholder = mPlaceholder
-    mToggleInputTextarea()
-    show(chatUser)
+    mGlobals.chatInput = null
+    mGlobals.toggleChatInput()
+    show(mGlobals.MemberChat)
 }
 /**
  * Submits the signup form to the server.
@@ -585,21 +419,6 @@ function mToggleChallengeSubmitButton(event){
         hide(challengeSubmit)
     }
 }
-function mToggleInputTextarea() {
-    chatInput.style.height = 'auto' // Reset height to shrink if text is removed
-    chatInput.style.height = chatInput.scrollHeight + 'px' // Set height based on content
-	mToggleSubmitButton()
-}
-/**
- * Toggles the disabled state of a button based on the input element value.
- * @private
- * @returns {void}
- */
-function mToggleSubmitButton(){
-    const hasInput = chatInput.value.trim().length ?? false
-    chatSubmit.disabled = !hasInput
-    chatSubmit.style.cursor = hasInput ? 'pointer' : 'not-allowed'
-}
 /**
  * Types a message in the chat bubble.
  * @param {HTMLDivElement} chatBubble - The chat bubble element.
@@ -621,7 +440,7 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay, callback
             chatBubble.setAttribute('status', 'done')
             callback()
         }
-        mScrollBottom()
+        mGlobals.scrollBottom()
     }
     _typewrite()
 }
