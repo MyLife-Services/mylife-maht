@@ -14,8 +14,10 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mAudioIcon,
     mAudioPopup,
     mAvatarName,
+    mChatContainer,
     mChatInput,
     mChatMember,
+    mChatMemberContainer,
     mChatSubmit,
     mChatSystem,
     mDatamanager,
@@ -577,10 +579,12 @@ class Globals {
             /* elements */
             mAudioIcon = document.getElementById('audio-icon')
             mAudioPopup = document.getElementById('audio-popup')
+            mChatContainer = document.getElementById('chat-container')
             mChatInput = document.getElementById('chat-message')
+            mChatMember = document.getElementById('chat-member')
+            mChatMemberContainer = document.getElementById('chat-member-container')
             mChatSubmit = document.getElementById('chat-submit')
             mChatSystem = document.getElementById('chat-system')
-            mChatMember = document.getElementById('chat-member')
             mDatamanager = new Datamanager()
             mHelpAwait = document.getElementById('help-await')
             mHelpClose = document.getElementById('help-close')
@@ -607,7 +611,7 @@ class Globals {
                 this.chatInput = null
                 mChatInput.placeholder = mPlaceholder
             }
-            mSpeechInitialization()
+            mSpeechInitialization(this.checkChatInput)
             this.init()
         }
     }
@@ -617,12 +621,12 @@ class Globals {
         this.hide(mHelpContainer)
         /* assign event listeners */
         if(mChatInput)
-            mChatInput.addEventListener('input', mToggleChatInput)
+            mChatInput.addEventListener('input', this.checkChatInput)
         if(mNavigationHelp){
             mHelpClose.addEventListener('click', mToggleHelp)
             mHelpInputSubmit.addEventListener('click', mSubmitHelp)
             mHelpInputText.addEventListener('input', mToggleHelpSubmit)
-            mHelpRefresh.addEventListener('click', mChatRefresh)
+            mHelpRefresh.addEventListener('click', mRefreshHelpChat)
             mHelpType.addEventListener('click', mSetHelpType)
             mNavigationHelpIcon.addEventListener('click', mToggleHelp)
             Array.from(mHelpType.children)?.[0]?.click() // default to first type
@@ -645,7 +649,7 @@ class Globals {
                         this.hide(mAudioPopup)
                     }
                 })
-                mAudioPopup.addEventListener('click', ()=>hide(mAudioPopup))
+                mAudioPopup.addEventListener('click', ()=>this.hide(mAudioPopup))
             }
         }
         mLoginButton.addEventListener('click', this.loginLogout, { once: true })
@@ -661,6 +665,9 @@ class Globals {
      */
     addChatElement(element){
         mChatSystem.appendChild(element)
+    }
+    checkChatInput(){
+        mCheckChatInput()
     }
 	/**
 	 * Clears a const array with nod to garbage collection.
@@ -693,7 +700,7 @@ class Globals {
      * @param {HTMLElement} element - The element to clear.
      * @returns {void}
      */
-    clearElement(element){
+    clearElement(element=mChatSystem){
         mClearElement(element)
     }
     /**
@@ -920,6 +927,17 @@ class Globals {
         mScrollBottom(element)
     }
     /**
+     * Sets the chat input value and placeholder text.
+     * @param {String} value - The value to seed the chat input with.
+     * @param {String} placeholder - The placeholder to seed the chat input with
+     */
+    seedInput(value, placeholder){
+        this.chatInput = value
+        if(placeholder?.length)
+            this.chatInputPlaceholder = placeholder
+        mChatInput.focus()
+    }
+    /**
      * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
      * @public
      * @param {HTMLElement} element - The element to show.
@@ -931,10 +949,12 @@ class Globals {
     }
     /**
      * Toggles the chat input field.
+     * @param {boolean} display - Whether or not to display the chat input field, defaults to `true`
+     * @param {DOMTokenList} classList - Class list of the chat input field to add or remove
      * @returns {void}
      */
-    toggleChatInput(){
-        mToggleChatInput()
+    toggleChatInput(display=true, classList){
+        mToggleChatInput(display, classList)
     }
     /**
      * Toggles the visibility of an element with option to force state.
@@ -973,11 +993,26 @@ class Globals {
         return undashedString.replace(/ /g, '-').toLowerCase()
     }
     /* getters/setters */
+    get ChatContainer(){
+        return mChatContainer
+    }
     get chatInput(){
         return mChatInput.value.trim()
     }
     set chatInput(value){
         mChatInput.value = value
+    }
+    get chatInputPlaceholder(){
+        return mChatInput.placeholder
+    }
+    set chatInputPlaceholder(value){
+        mChatInput.placeholder = value
+    }
+    get ChatInput(){
+        return mChatInput
+    }
+    get ChatSubmit(){
+        return mChatSubmit
     }
     get datamanager(){
         return mDatamanager
@@ -1024,10 +1059,39 @@ function mAddDialogBubble(chatContainer, text, type='agent', subType){
     chatContainer.appendChild(bubble)
 }
 /**
+ * Adds a popup dialog to the chat container.
+ * @private
+ * @param {HTMLElement} popupChat - The chat element to attach dialog to.
+ * @param {string} content - The content to populate the dialog with.
+ * @param {string} type - The type of dialog to create.
+ * @returns {void}
+ */
+function mAddPopupDialog(popupChat, content, type){
+    const dialog = mCreatePopupDialog(popupChat, content, type)
+    mShow(dialog)
+}
+/**
+ * Callback function for ending an animation. Currently only stops propagation.
+ * @private
+ * @param {Animation} animation - The animation object.
+ * @param {function} callbackFunction - The listener function, defaults to `mAnimationEnd`.
+ * @returns {void}
+ */
+function mAnimationEnd(animation, callbackFunction){
+    animation.stopPropagation()
+    if(callbackFunction)
+        callbackFunction(animation)
+}
+function mCheckChatInput(){
+    mChatInput.style.height = 'auto' // Reset height to shrink if text is removed
+    mChatInput.style.height = mChatInput.scrollHeight + 'px' // Set height based on content
+    mToggleSubmitButton()
+}
+/**
  * Initializes the speech recognition object, when available
  * @returns {void}
  */
-function mSpeechInitialization(){
+function mSpeechInitialization(inputCheckCallback){
     /* speech recognition */
     if(!('webkitSpeechRecognition' in window)){
         alert('MyLife requires a browser that supports Speech Recognition. Please use Google Chrome or Microsoft Edge.')
@@ -1050,7 +1114,7 @@ function mSpeechInitialization(){
           speechRecognitionList.addFromString(grammar, 1)
           mRecognition.grammar = speechRecognitionList
     } catch(e){
-        console.error('Error loading grammar', e)
+        console.log('Error loading grammar', e)
     }
     mRecognition.onend = ()=>{
         mRecognizingSpeech = false
@@ -1095,7 +1159,7 @@ function mSpeechInitialization(){
             }
         }
         mChatInput.value = finalTranscript + interimTranscript
-        mToggleChatInput()
+        mCheckChatInput() // adjust input box height
     }
     mRecognition.onstart = ()=>{
         finalTranscript = ''
@@ -1136,36 +1200,12 @@ function mSpeechRecognition(){
         mRecognition.start()
 }
 /**
- * Adds a popup dialog to the chat container.
- * @private
- * @param {HTMLElement} popupChat - The chat element to attach dialog to.
- * @param {string} content - The content to populate the dialog with.
- * @param {string} type - The type of dialog to create.
- * @returns {void}
- */
-function mAddPopupDialog(popupChat, content, type){
-    const dialog = mCreatePopupDialog(popupChat, content, type)
-    mShow(dialog)
-}
-/**
- * Callback function for ending an animation. Currently only stops propagation.
- * @private
- * @param {Animation} animation - The animation object.
- * @param {function} callbackFunction - The listener function, defaults to `mAnimationEnd`.
- * @returns {void}
- */
-function mAnimationEnd(animation, callbackFunction){
-    animation.stopPropagation()
-    if(callbackFunction)
-        callbackFunction(animation)
-}
-/**
  * Refreshes Help Chat.
  * @todo - remove hack
  * @param {Event} event - The event object.
  * @returns {void}
  */
-function mChatRefresh(event){
+function mRefreshHelpChat(event){
     const reattachRefresh = mHelpRefresh // @stub - hack
     mClearElement(mHelpSystemChat)
     mHelpSystemChat.appendChild(reattachRefresh)
@@ -1528,10 +1568,26 @@ function mToggleHelpSubmit(event){
     else
         mShow(mHelpInputSubmit)
 }
-function mToggleChatInput() {
-    mChatInput.style.height = 'auto' // Reset height to shrink if text is removed
-    mChatInput.style.height = mChatInput.scrollHeight + 'px' // Set height based on content
-	mToggleSubmitButton()
+/**
+ * Toggles the chat input container based on `input` or other request.
+ * @param {Boolean} display - Whether to display the chat input container
+ * @param {DOMTokenList} classList - Class list to add or remove from the chat input container
+ * @returns {void}
+ */
+function mToggleChatInput(display, classList){
+    if(display){
+        mShow(mChatMemberContainer)
+        mChatInput.focus()
+        if(classList)
+            mChatInput.classList.add(classList)
+        mChatInput.value = null
+    } else {
+        mHide(mChatMemberContainer)
+        mChatInput.classList.remove('fade-in')
+        if(classList)
+            mChatInput.classList.remove(classList)
+    }
+    mToggleSubmitButton()
 }
 /**
  * Toggles the disabled state of a button based on the input element value.

@@ -274,6 +274,7 @@ button.chat-submit { /* need specificity to overwrite button class */
 	color: rgba(65, 84, 104, 0.85);
 	background-color: rgba(183, 203, 225, 0.85);
 	margin: 0 0.5em 0 0;
+	max-height: fit-content;
 	white-space: nowrap; /* Prevents text wrapping in the button */
 }
 button.chat-submit:hover {

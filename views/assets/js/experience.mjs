@@ -1,11 +1,8 @@
 /* imports */
 import {
     addMessage,
-    assignElements,
     clearSystemChat,
     escapeHtml,
-    getInputValue,
-    getSystemChat,
     globals,
     hide,
     replaceElement,
@@ -325,7 +322,7 @@ function submitInput(event){
     const { inputVariableName, variable, } = mEvent.input
     const value = mBackdrop==='full'
         ? inputElement.value.trim()
-        : getInputValue()
+        : globals.chatInput
     if(value?.length){
         const memberInput = { [inputVariableName ?? variable ?? 'input']: value }
         experiencePlay(memberInput)
@@ -334,7 +331,7 @@ function submitInput(event){
 /* private functions */
 /**
  * Adds or Moves a character lane to a specific chat/dialog div
- * @param {HTMLDivElement} dialogDiv - The chat div to append the character lane to.
+ * @param {HTMLDivElement} dialogDiv - The chat div to append the character lane to, if null, uses system chat
  * @param {object} character - The character object.
  * @param {boolean} clearDialog - Whether to clear any existing dialog.
  */
@@ -345,7 +342,10 @@ function mAddCharacterLane(dialogDiv, character, clearDialog=false){
     if(!characterLane)
         throw new Error(`Character lane not found and unable to be created! ${characterId}`)
     hide(characterLane)
-    dialogDiv.appendChild(characterLane) /* appendChild will **move** the element */
+    if(!dialogDiv)
+        globals.addChatElement(characterLane)
+    else
+        dialogDiv.appendChild(characterLane) /* appendChild will **move** the element */
     if(clearDialog){
         /* remove previous char-lane dialog elements */
         const characterDialog = document.getElementById(`char-dialog-${characterId}`)
@@ -944,7 +944,7 @@ function mSceneTransition(){
                 })
                 .forEach(character=>{
                     /* create/move character lane */
-                    mAddCharacterLane(getSystemChat(), character, true)
+                    mAddCharacterLane(null, character, true)
                 })
             mUpdateModerator(true) // clear moderator
             memberSceneTransition()
@@ -984,10 +984,7 @@ function mShowTransport(){
     const { name, skippable=true, } = mExperience
     mInitListeners(skippable)
     breadcrumb.innerHTML = `Experience: ${name}`
-/*
-    if(mBackdrop==='interface')
-        hideMemberChat()
-*/    show(transport)
+    show(transport)
 }
 /**
  * Introduces the concept of an Experience to the member.
