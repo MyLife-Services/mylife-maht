@@ -2,16 +2,12 @@
 	<div id="chat-system" class="chat-system">
 		<!-- Agent and User messages will be added via innerHTML here -->
 	</div>
-	<div id="chat-user" class="chat-user">
-		<div id="chat-user-container" class="chat-user-container">
-			<div class="label-spinner-container">
-				<div id="agent-spinner" class="label-spinner spinner-grow spinner-green-glow" role="status">
-					<span class="visually-hidden"></span>
-				</div>
-				<label class="label" for="chat-user-message" id="user-chat-label">chat</label>
-			</div>
-			<textarea id="chat-user-message" class="chat-input"></textarea>
-			<button id="chat-user-submit" class="button chat-submit" type="button" disabled>Submit</button>
+	<div id="chat-member" class="chat-member">
+		<div id="chat-member-container" class="chat-member-container">
+			<div id="audio-popup" class="popup"></div>
+			<div id="audio-icon" class="label fas fa-microphone-lines"></div>
+			<textarea id="chat-message" class="chat-input"></textarea>
+			<button id="chat-submit" class="button chat-submit" type="button" disabled>Submit</button>
 		</div>
 	</div>
 	<button id="await-button" class="await-button" type="button" disabled>

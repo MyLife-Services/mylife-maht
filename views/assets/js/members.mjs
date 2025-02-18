@@ -42,16 +42,11 @@ let activeCategory,
     botBar,
     chatActiveItem,
     chatActiveThumb,
-    chatContainer,
-    chatInput,
-    chatInputField,
-    chatRefresh,
-    memberSubmit,
+    mChatRefresh,
     pageLoader,
     sceneContinue,
     screen,
     spinner,
-    systemChat,
     transport
 /* page load listener */
 document.addEventListener('DOMContentLoaded', async event=>{
@@ -60,17 +55,12 @@ document.addEventListener('DOMContentLoaded', async event=>{
     botBar = document.getElementById('bot-bar')
     chatActiveItem = document.getElementById('chat-active-item')
     chatActiveThumb = document.getElementById('chat-active-item-thumb')
-    chatContainer = document.getElementById('chat-container')
-    chatInput = document.getElementById('chat-member')
-    chatInputField = document.getElementById('chat-member-input')
-    chatRefresh = document.getElementById('chat-refresh')
-    memberSubmit = document.getElementById('chat-member-submit')
+    mChatRefresh = document.getElementById('chat-refresh')
     pageLoader = document.getElementById('page-loader')
     sceneContinue = document.getElementById('experience-continue')
     spinner = document.getElementById('agent-spinner')
     transport = document.getElementById('experience-transport')
     screen = document.getElementById('experience-modal')
-    systemChat = document.getElementById('chat-system')
     /* determine mode, default = member bot interface */
     await mInitialize() // throws if error
     stageTransition()
@@ -85,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
  * @returns {void}
  */
 function about(){
-    mRoutine('about')
+    routine('about')
 }
 /**
  * Adds an input element (button, input, textarea,) to the system chat column.
@@ -93,7 +83,7 @@ function about(){
  * @returns {void}
  */
 function addInput(HTMLElement){
-    systemChat.appendChild(HTMLElement)
+    mGlobals.addChatElement(HTMLElement)
 }
 /**
  * Pushes message content to the chat column.
@@ -120,27 +110,13 @@ function addMessages(messages, options={}) {
             mAddMessage(messages[i], options)
 }
 /**
- * Removes and attaches all payload elements to element.
- * @public
- * @param {HTMLDivElement} parent - The moderator element.
- * @param {object[]} elements - The elements to append to moderator.
- * @param {boolean} clear - The clear flag to remove previous children, default=`true`.
- * @returns {HTMLDivElement} - The moderator modified element.
- */
-function assignElements(parent=chatInput, elements, clear=true){
-    if(clear)
-        while(parent.firstChild)
-            parent.removeChild(parent.firstChild)
-    elements.forEach(element=>parent.appendChild(element))
-}
-/**
- * Clears the system chat by removing all chat bubbles instances.
+ * Clears the system chat column.
  * @public
  * @returns {void}
  */
 function clearSystemChat(){
     activeBot().interactionCount = 0
-    mGlobals.clearElement(systemChat)
+    mGlobals.clearElement()
 }
 /**
  * Called from setActiveBot, triggers any main interface changes as a result of new selection.
@@ -150,8 +126,7 @@ function clearSystemChat(){
  */
 function decorateActiveBot(){
     const { id, name, } = activeBot()
-    chatInputField.placeholder = `Type your message to ${ name }...`
-    // additional func? clear chat?
+    mGlobals.chatInputPlaceholder = `Type your message to ${ name }...`
 }
 function escapeHtml(text) {
     return mGlobals.escapeHtml(text)
@@ -176,16 +151,6 @@ function getActiveItemId(){
     const id = chatActiveItem.dataset?.id?.split('_')?.pop()
     return id
 }
-function getInputValue(){
-    return chatInputField.value.trim()
-}
-/**
- * Gets the member chat system DOM element.
- * @returns {HTMLDivElement} - The member chat system element.
- */
-function getSystemChat(){
-    return systemChat
-}
 /**
  * Proxy for Globals.hide().
  * @param {HTMLElement} element - The element to hide.
@@ -194,11 +159,6 @@ function getSystemChat(){
  */
 function hide(){
     mGlobals.hide(...arguments)
-}
-function hideMemberChat(){
-    hide(navigation)
-    hide(chatInput)
-    hide(sidebar)
 }
 /**
  * Determines whether an experience is in progress.
@@ -214,7 +174,7 @@ function inExperience(){
  */
 function introduction(){
     clearSystemChat()
-    mRoutine('introduction')
+    routine('introduction')
 }
 /**
  * Consumes instruction object and performs the requested actions.
@@ -241,7 +201,7 @@ function enactInstruction(instruction, interfaceLocation='chat', additionalFunct
  * @returns {void}
  */
 function privacyPolicy(){
-    mRoutine('privacy')
+    routine('privacy')
 }
 /**
  * Replaces an element (input/textarea) with a specified type.
@@ -458,14 +418,13 @@ function show(){
     mGlobals.show(...arguments)
 }
 /**
- * Shows the member chat system.
+ * Shows the member system.
  * @public
  * @returns {void}
  */
-function showMemberChat(){
+function showMemberInterface(){
     hide(screen)
     show(mainContent)
-    show(chatContainer)
     show(systemChat)
 }
 /**
@@ -531,28 +490,13 @@ async function submit(message, hideMemberChat=true){
  * @param {boolean} connectingText - The server-connecting text, default: `Connecting with `.
  * @returns {void}
  */
-function toggleMemberInput(display=true, hidden=false, connectingText='Connecting with '){
+function toggleMemberInput(display=true, hidden=false, connectingText){
     const { id, name, } = activeBot()
-    if(display){
-        hide(awaitButton)
-        awaitButton.classList.remove('slide-up')
-        chatInput.classList.add('slide-up')
-        chatInputField.style.height = 'auto'
-        chatInputField.placeholder = `type your message to ${ name }...`
-        chatInputField.value = null
-        show(chatInput)
-    } else {
-        hide(chatInput)
-        chatInput.classList.remove('fade-in')
-        chatInput.classList.remove('slide-up')
-        awaitButton.classList.add('slide-up')
-        awaitButton.innerHTML = connectingText + name + '...'
-        show(awaitButton)
-    }
-    if(hidden){
-        hide(chatInput)
-        hide(awaitButton)
-    }
+    decorateActiveBot()
+    connectingText = connectingText
+        ?? `Connecting with ${ name }...`
+    mGlobals.toggleChatInput(display, 'slide-up')
+    mToggleMemberInput(display, hidden, connectingText)
 }
 /**
  * Toggles the visibility of an element with option to force state.
@@ -620,7 +564,6 @@ function waitForUserAction(){
  * @todo - normalize return from backend so no need for special processing.
  * @private
  * @async
- * @requires chatInputField
  * @param {Event} event - The event object.
  * @returns {Promise<void>}
  */
@@ -628,7 +571,7 @@ async function mAddMemberMessage(event){
     event.stopPropagation()
 	event.preventDefault()
     const Bot = activeBot() // lock in here `await`
-    let memberMessage = chatInputField.value.trim()
+    let memberMessage = mGlobals.chatInput
     if (!memberMessage.length)
         return
     /* prepare request */
@@ -749,7 +692,7 @@ async function mAddMessage(message, options={}){
     }
     chatMessage.appendChild(chatBubble)
     chatMessage.appendChild(chatMessageTab)
-	systemChat.appendChild(chatMessage)
+	mGlobals.addChatElement(chatMessage)
     /* assign listeners */
     chatBubble.addEventListener('mouseover', event=>{
         chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
@@ -835,7 +778,7 @@ async function mAddMessage(message, options={}){
         mTypeMessage(chatBubble, message, typeDelay)
     else {
         chatBubble.insertAdjacentHTML('beforeend', message)
-        mScrollBottom()
+        mGlobals.scrollBottom()
 	}
 }
 /**
@@ -857,9 +800,8 @@ async function mInitialize(){
  */
 function mInitializePageListeners(){
     /* page listeners */
-    chatInputField.addEventListener('input', mToggleInputTextarea)
-    memberSubmit.addEventListener('click', mAddMemberMessage) /* note default listener */
-    chatRefresh.addEventListener('click', clearSystemChat)
+    mGlobals.ChatSubmit.addEventListener('click', mAddMemberMessage) /* note default listener */
+    mChatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
     navigationLinks.forEach(link=>{
@@ -872,24 +814,9 @@ function mInitializePageListeners(){
     })
 }
 /**
- * Retrieves and runs the requested routine.
- * @param {string} routineName - The routine name to execute
- * @returns {Promise<void>}
- */
-async function mRoutine(routineName){
-    const { error, responses=[], routine: routineScript, success, } = await mGlobals.datamanager.routine(routineName)
-    if(success && routineScript)
-        routine(routineScript)
-    else if(responses?.length)
-        addMessages(responses, { responseDelay: 4, typeDelay: 1, typewrite: true, })
-    else if(error.message)
-        addMessage(error.message, { bubbleClass: 'system-bubble', typeDelay: 1, typewrite: true, })
-}
-/**
- * Primitive step to set a "modality" or intercession for the member chat. Currently will key off dataset in `chatInputField`.
+ * Primitive step to set a "modality" or intercession for the member chat.
  * @public
  * @requires chatActiveItem
- * @requires chatInputField
  * @param {Guid} itemId - The Active Item ID
  * @param {Guid} shadowId - The shadow ID
  * @param {string} value - The value to seed the input with
@@ -898,10 +825,7 @@ async function mRoutine(routineName){
 function seedInput(itemId, shadowId, value, placeholder){
     chatActiveItem.dataset.itemId = itemId
     chatActiveItem.dataset.shadowId = shadowId
-    chatInputField.value = value
-    chatInputField.placeholder = placeholder
-        ?? chatInputField.placeholder
-    chatInputField.focus()
+    mGlobals.seedInput(value, placeholder)
 }
 /**
  * Transitions and sets the stage to experience version of member screen indicated.
@@ -911,12 +835,12 @@ function seedInput(itemId, shadowId, value, placeholder){
  */
 function sceneTransition(type='interface'){
     /* assign listeners */
-    memberSubmit.removeEventListener('click', mAddMemberMessage)
-    memberSubmit.addEventListener('click', submitInput)
+    mGlobals.ChatSubmit.removeEventListener('click', mAddMemberMessage)
+    mGlobals.ChatSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
     hide(navigation)
     hide(botBar)
-    hide(chatInput)
+    mGlobals.toggleChatInput(false)
     /* type specifics */
     switch(type){
         case 'chat':
@@ -928,14 +852,7 @@ function sceneTransition(type='interface'){
             break
     }
     /* show member chat */
-    showMemberChat()
-}
-/**
- * Scrolls overflow of system chat to bottom.
- * @returns {void}
- */
-function mScrollBottom(){
-    systemChat.scrollTop = systemChat.scrollHeight
+    showMemberInterface()
 }
 /**
  * Transitions the stage to active member version.
@@ -943,8 +860,8 @@ function mScrollBottom(){
  * @returns {void}
  */
 function mStageTransitionMember(includeSidebar=true){
-    memberSubmit.removeEventListener('click', submitInput)
-    memberSubmit.addEventListener('click', mAddMemberMessage)
+    mGlobals.ChatSubmit.removeEventListener('click', submitInput)
+    mGlobals.ChatSubmit.addEventListener('click', mAddMemberMessage)
     hide(transport)
     hide(screen)
     hide(pageLoader)
@@ -958,35 +875,12 @@ function mStageTransitionMember(includeSidebar=true){
         })
     show(mainContent)
     show(navigation)
-    show(chatContainer)
-    show(systemChat)
-    show(chatInput)
+    show(mGlobals.ChatContainer)
     if(includeSidebar && sidebar){
         show(sidebar)
         if(botBar)
             show(botBar)
     }
-}
-/**
- * Toggles the input textarea, currently triggered with `event`.
- * @public
- * @requires chatActiveItem
- * @requires chatActiveThumb
- * @requires chatInputField
- * @returns {void}
- */
-function mToggleInputTextarea(){
-    chatInputField.style.height = 'auto' // Reset height to shrink if text is removed
-    chatInputField.style.height = chatInputField.scrollHeight + 'px' // Set height based on content
-	mToggleSubmitButtonState()
-    if(chatActiveItem.dataset.inAction==='true')
-        if(!chatInputField.value.length){
-            show(chatActiveItem)
-            show(chatActiveThumb)
-        } else {
-            hide(chatActiveItem)
-            hide(chatActiveThumb)
-        }
 }
 function mToggleItemPopup(event){
     event.stopPropagation()
@@ -994,8 +888,17 @@ function mToggleItemPopup(event){
     const { itemId, } = event.target.dataset
     togglePopup(itemId, true)
 }
-function mToggleSubmitButtonState() {
-	memberSubmit.disabled = !(chatInputField.value?.trim()?.length ?? true)
+function mToggleMemberInput(display, hidden, connectingText){
+    if(display){
+        mGlobals.hide(awaitButton)
+        awaitButton.classList.remove('slide-up')
+    } else {
+        awaitButton.classList.add('slide-up')
+        awaitButton.innerHTML = connectingText
+        mGlobals.show(awaitButton)
+    }
+    if(hidden)
+        mGlobals.hide(awaitButton)
 }
 /**
  * Typewrites a message to a chat bubble.
@@ -1016,7 +919,7 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
             setTimeout(_typewrite, typeDelay) // Adjust the typing speed here (50ms)
         } else
             chatBubble.setAttribute('status', 'done')
-        mScrollBottom()
+        mGlobals.scrollBottom()
     }
     _typewrite()
 }
@@ -1025,18 +928,14 @@ export {
     addInput,
     addMessage,
     addMessages,
-    assignElements,
     clearSystemChat,
     decorateActiveBot,
     escapeHtml,
     experiences,
     expunge,
     getActiveItemId,
-    getInputValue,
-    getSystemChat,
     mGlobals as globals,
     hide,
-    hideMemberChat,
     inExperience,
     introduction,
     enactInstruction,
@@ -1049,7 +948,7 @@ export {
     setActiveBot,
     setActiveItem,
     show,
-    showMemberChat,
+    showMemberInterface,
     showSidebar,
     stageTransition,
     startExperience,

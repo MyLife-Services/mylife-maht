@@ -3,10 +3,7 @@ import Globals from './globals.mjs'
 /* precursor constants */
 const mGlobals = new Globals()
 /* constants */
-const mAvatarName = mGlobals.getAvatar()?.name
-    ?? 'MyLife'
 const hide = mGlobals.hide
-const mPlaceholder = `Type your message to ${ mAvatarName }...`
 const retract = mGlobals.retract
 const show = mGlobals.show
 window.about = about
@@ -16,20 +13,16 @@ let mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultTypeDelay = 7,
     mPageType = null,
-    mSignupType = 'newsletter'
+    mRecognition,
+    mRecognizingSpeech = false,
+    mSignupType = 'newsletter',
+    mIgnoreEnd = true
 /* page div variables */
 let awaitButton,
-    agentSpinner,
     challengeError,
     challengeInput,
     challengeInputText,
     challengeSubmit,
-    chatContainer,
-    chatInput,
-    chatLabel,
-    chatSubmit,
-    chatSystem,
-    chatUser,
     loginSelect,
     mainContent,
     navigation,
@@ -57,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
             typewrite: true,
         })
     if(input)
-        chatSystem.appendChild(input)
+        mGlobals.addChatElement(input)
 })
 /* public functions */
 function about(){
@@ -103,14 +96,14 @@ function mAddMessage(message, options={}){
     mChatBubbleCount++
     chatMessage.appendChild(chatBubble)
     /* append chat message */
-	chatSystem.appendChild(chatMessage)
+    mGlobals.addChatElement(chatMessage)
     if(!message.startsWith('<section>'))
         message = `<section>${message}</section>`
 	if(typewrite)
         mTypeMessage(chatBubble, message, typeDelay, callback)
 	else {
 		chatBubble.insertAdjacentHTML('beforeend', message)
-        mScrollBottom()
+        mGlobals.scrollBottom()
         callback()
 	}
 }
@@ -135,7 +128,7 @@ async function mAddMessages(messages, options={}){
 function mAddUserMessage(event){
     event.preventDefault()
     // Dynamically get the current message element (input or textarea)
-    const userMessage = chatInput.value.trim()
+    const userMessage = mGlobals.chatInput
     if(!userMessage.length)
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
@@ -215,8 +208,8 @@ async function mFetchStart(){
         case 'select':
             if(mChallengeMemberId){
                 await mAddMessage(`Please enter the passphrase for your account to continue...`, { typeDelay: 6, })
-                chatSystem.appendChild(mCreateChallengeElement())
-                mScrollBottom()
+                mGlobals.addChatElement(mCreateChallengeElement())
+                mGlobals.scrollBottom()
             } else
                 messages.push(`I'm sorry, I can't find the member you're looking for...`)
             break
@@ -235,13 +228,12 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
+    const chatSubmit = document.getElementById('chat-submit')
+    if(chatSubmit)
+        chatSubmit.addEventListener('click', mAddUserMessage)
     signupButton.addEventListener('click', mSubmitSignup)
     signupEmailInputField.addEventListener('input', mUpdateFormState)
     signupHumanNameInput.addEventListener('input', mUpdateFormState)
-    if(chatInput)
-        chatInput.addEventListener('input', mToggleInputTextarea)
-    if(chatSubmit)
-        chatSubmit.addEventListener('click', mAddUserMessage)
 }
 /**
  * Determines page type and loads data.
@@ -251,13 +243,6 @@ function mInitializeListeners(){
 async function mLoadStart(){
     /* assign page div variables */
     awaitButton = document.getElementById('await-button')
-    agentSpinner = document.getElementById('agent-spinner')
-    chatContainer = document.getElementById('chat-container')
-    chatLabel = document.getElementById('user-chat-label')
-    chatInput = document.getElementById('chat-user-message')
-    chatSubmit = document.getElementById('chat-user-submit')
-    chatSystem = document.getElementById('chat-system')
-    chatUser = document.getElementById('chat-user')
     mainContent = mGlobals.mainContent
     navigation = mGlobals.navigation
     pageLoader = document.getElementById('page-loader')
@@ -300,13 +285,6 @@ async function mRoutine(routineName){
         mAddMessage(error.message, { bubbleClass: 'system-bubble', typeDelay: 1, typewrite: true, })
 }
 /**
- * Scrolls overflow of system chat to bottom.
- * @returns {void}
- */
-function mScrollBottom(){
-    chatSystem.scrollTop = chatSystem.scrollHeight
-}
-/**
  * Display the entire page.
  * @todo - refactor for special pages
  * @private
@@ -331,17 +309,8 @@ function mShowPage(){
         })
     show(sidebar)
     show(mainContent)
-    if(!chatInput)
-        return
-    chatInput.value = null
-    chatInput.placeholder = mPlaceholder
-    show(chatSystem)
-    show(chatContainer)
-    if(mPageType!=='select')
-        show(chatUser)
-    else
-        hide(chatUser)
-    console.log('guests::mShowPage::shown')
+    if(mPageType==='select')
+        hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){
     retract(signupForm)
@@ -385,7 +354,7 @@ async function mSubmitInput(event, message){
         return
     event.stopPropagation()
 	event.preventDefault()
-    hide(chatUser)
+    hide(mGlobals.MemberChat)
     show(awaitButton)
     const chatData = {
         message,
@@ -396,10 +365,9 @@ async function mSubmitInput(event, message){
 		mAddMessage(gptMessage.message)
 	})
     hide(awaitButton)
-    chatInput.value = null
-    chatInput.placeholder = mPlaceholder
-    mToggleInputTextarea()
-    show(chatUser)
+    mGlobals.chatInput = null
+    mGlobals.toggleChatInput()
+    show(mGlobals.MemberChat)
 }
 /**
  * Submits the signup form to the server.
@@ -451,21 +419,6 @@ function mToggleChallengeSubmitButton(event){
         hide(challengeSubmit)
     }
 }
-function mToggleInputTextarea() {
-    chatInput.style.height = 'auto' // Reset height to shrink if text is removed
-    chatInput.style.height = chatInput.scrollHeight + 'px' // Set height based on content
-	mToggleSubmitButton()
-}
-/**
- * Toggles the disabled state of a button based on the input element value.
- * @private
- * @returns {void}
- */
-function mToggleSubmitButton(){
-    const hasInput = chatInput.value.trim().length ?? false
-    chatSubmit.disabled = !hasInput
-    chatSubmit.style.cursor = hasInput ? 'pointer' : 'not-allowed'
-}
 /**
  * Types a message in the chat bubble.
  * @param {HTMLDivElement} chatBubble - The chat bubble element.
@@ -487,7 +440,7 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay, callback
             chatBubble.setAttribute('status', 'done')
             callback()
         }
-        mScrollBottom()
+        mGlobals.scrollBottom()
     }
     _typewrite()
 }
