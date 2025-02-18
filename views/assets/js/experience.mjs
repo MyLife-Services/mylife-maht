@@ -1,11 +1,8 @@
 /* imports */
 import {
     addMessage,
-    assignElements,
     clearSystemChat,
     escapeHtml,
-    getInputValue,
-    getSystemChat,
     globals,
     hide,
     replaceElement,
@@ -76,16 +73,17 @@ let inputElement = document.getElementById(`experience-input`) /* unique as is s
 /* event listeners */
 document.addEventListener('DOMContentLoaded', async event=>{
     mExperiences.push(...await mGetExperiences()) // stock all experiences internally
-    /* document listeners for experience launch */
-    window.addEventListener('launchExperience', async event=>{
-        const { detail: experienceId } = event
-        if(!globals.isGuid(experienceId))
-            throw new Error('mInitializePageListeners::launchExperience::Error()::`detail` is required')
-        mExperience = mExperiences.find(experience=>experience.id===experienceId)
-        if(!mExperience)
-            throw new Error('mInitializePageListeners()::launchExperience::no experience found in `mExperiences`')
-        stageTransition(experienceId, false)
-    })
+    /* document listener for experience launch */
+    if(mExperiences.length)
+        window.addEventListener('launchExperience', async event=>{
+            const { detail: experienceId } = event
+            if(!globals.isGuid(experienceId))
+                throw new Error('mInitializePageListeners::launchExperience::Error()::`detail` is required')
+            mExperience = mExperiences.find(experience=>experience.id===experienceId)
+            if(!mExperience)
+                throw new Error('mInitializePageListeners()::launchExperience::no experience found in `mExperiences`')
+            stageTransition(experienceId, false)
+        })
     console.log('experience.mjs::DOMContentLoaded()::mExperiences', mExperiences)
 })
 /* public functions */
@@ -177,11 +175,10 @@ async function experiencePlay(memberInput){
 }
 /**
  * Retrieve full or scoped list of experiences from server.
- * @todo - more robust logic underpinning selection of experiences, currently only system-controlled exist.
  * @requires mExperiences
- * @returns {Experience[]} - The return is an array of Experience objects.
+ * @returns {Object[]} - Array of shorthand `experience` payloads
  */
-function experiences(scope){
+function experiences(){
     return mExperiences
 }
 /**
@@ -200,24 +197,25 @@ function experienceSkip(sceneId){
         throw new Error("Scene not found!")
 }
 /**
- * Start experience onscreen, displaying welcome ande loading remaining data.
+ * Start experience onscreen, displaying welcome and loading remaining data.
  * @public
  * @param {Guid} experienceId - The Experience id
  * @returns {Promise<void>}
  */
 async function experienceStart(experienceId){
     if(!globals.isGuid(experienceId))
-        throw new Error('experienceStart::Error()::valid `experienceId` is required')
+        return
     mExperience = mExperiences.find(experience=>experience.id===experienceId)
     if(!mExperience)
-        throw new Error('experienceStart::Error()::no experience found in `mExperiences` to match `experienceId`: ' + experienceId)
+        return
     /* present stage */
     mStageWelcome()
-    const { description, events, id, name, purpose, title, skippable=false } = mExperience
+    const { events, id, } = mExperience
     if(!events?.length)
         mExperience.events = await mEvents()
     /* experience manifest */
-    const manifest = await mManifest(id)
+    const manifest = await globals.datamanager.experienceManifest(id)
+    console.log('experienceStart::manifest', manifest)
     if(!manifest)
         throw new Error("Experience not found")
     if(!Array.isArray(manifest.cast)) // cast required, navigation not required
@@ -233,7 +231,7 @@ async function experienceStart(experienceId){
  * @property {object[]} events - The events of the routine { character, dialog, }; dialog: { message, options, }
  * @returns {void}
  */
-async function routine(script) {
+async function routine(script){
     /* validate request */
     if(typeof script==='string'){
         const response = await globals.datamanager.routine(script)
@@ -324,17 +322,16 @@ function submitInput(event){
     const { inputVariableName, variable, } = mEvent.input
     const value = mBackdrop==='full'
         ? inputElement.value.trim()
-        : getInputValue()
+        : globals.chatInput
     if(value?.length){
         const memberInput = { [inputVariableName ?? variable ?? 'input']: value }
         experiencePlay(memberInput)
-            .catch(error=>console.log('submitInput::experiencePlay independent fire ERROR', error.message, memberInput))
     }
 }
 /* private functions */
 /**
  * Adds or Moves a character lane to a specific chat/dialog div
- * @param {HTMLDivElement} dialogDiv - The chat div to append the character lane to.
+ * @param {HTMLDivElement} dialogDiv - The chat div to append the character lane to, if null, uses system chat
  * @param {object} character - The character object.
  * @param {boolean} clearDialog - Whether to clear any existing dialog.
  */
@@ -345,7 +342,10 @@ function mAddCharacterLane(dialogDiv, character, clearDialog=false){
     if(!characterLane)
         throw new Error(`Character lane not found and unable to be created! ${characterId}`)
     hide(characterLane)
-    dialogDiv.appendChild(characterLane) /* appendChild will **move** the element */
+    if(!dialogDiv)
+        globals.addChatElement(characterLane)
+    else
+        dialogDiv.appendChild(characterLane) /* appendChild will **move** the element */
     if(clearDialog){
         /* remove previous char-lane dialog elements */
         const characterDialog = document.getElementById(`char-dialog-${characterId}`)
@@ -786,16 +786,16 @@ function mEventInput(){
  * @async
  * @requires mExperience
  * @param {object} memberInput - Member input in form of object
+ * @param {Guid} xid - The experience id
  * @returns {Object[]} - Array of event objects
  */
-async function mEvents(memberInput){
-    const experienceId = mExperience?.id
-    if(!experienceId?.length)
-        throw new Error(`Experience id not found: ${ experienceId }`)
-    let { autoplay, events, id, location, name, purpose, skippable, } = await globals.datamanager.experienceEvents(experienceId, memberInput)
-    if(!events?.length) // @todo - deprecate, could infinity loop
-        events = await mEvents()
+async function mEvents(memberInput, xid=mExperience.id){
+    const { instruction, experience, success, } = await globals.datamanager.experience(xid, memberInput)
+    if(!success)
+        throw new Error(`Experience failed! ${ xid }`)
+    const { autoplay, description, events, id, location, purpose, skippable, title, } = experience
     mExperience.location = location
+    console.log('mEvents::response', experience, mExperience)
     return events
 }
 /**
@@ -806,7 +806,7 @@ async function mEvents(memberInput){
  * @returns {Object[]} - Array of animation objects.
  */
 function mEventStage(){
-    const { action, sceneId, stage, } = mEvent
+    const { action, sid: sceneId, stage, } = mEvent
     const animationSequence = []
     if(stage && Object.keys(stage).length){
         const { backdrop=mBackdropDefault, click, type } = stage
@@ -839,13 +839,11 @@ function mEventStage(){
  * @param {string} scope - The scope of the experiences to retrieve; undefined=all.
  * @returns {Promise<Experience[]>} - The return is an array of Experience objects.
  */
-async function mGetExperiences(scope){
+async function mGetExperiences(scope='system'){
     const experiences = []
-    // @stub - member experience fetch goes here
     /* system experiences */
-    if((scope ?? 'system')==='system'){
+    if(scope==='system'){
         let systemExperiences = await globals.datamanager.experiences()
-        // mGetExperiencesFromServer(`/experiences`)
         systemExperiences = systemExperiences?.experiences
             ?? systemExperiences
             ?? experiences
@@ -859,13 +857,13 @@ async function mGetExperiences(scope){
 /**
  * Get scene data from navigation.
  * @private
- * @requires mExperience - The Experience object.
- * @param {Guid} sceneId 
- * @returns 
+ * @requires mExperience - The Experience object
+ * @param {Guid} sid - The scene id 
+ * @returns {Object} - The scene object
  */
-function mGetScene(sceneId){
+function mGetScene(sid){
     const { navigation, } = mExperience
-    return navigation.find(nav=>nav.id===sceneId)
+    return navigation.find(nav=>nav.sid===sid)
 }
 /**
  * Returns the presumed source of an image based on type and icon data.
@@ -923,8 +921,9 @@ function mIsMember(type){
  */
 function mSceneTransition(){
     const { cast, location, } = mExperience
-    const { sceneId: upcomingSceneId, } = location
-    const { currentScene: currentSceneId=upcomingSceneId, skippable=true, } = mExperience
+    const { sid: upcomingSceneId, } = location
+    const { sid: currentSceneId=upcomingSceneId, skippable=true, } = mExperience
+    console.log('mSceneTransition::currentSceneId', currentSceneId, upcomingSceneId, mExperience)
     const upcomingScene = mGetScene(upcomingSceneId)
     if(!upcomingScene)
         throw new Error(`Scene not found! ${currentSceneId}`)
@@ -945,7 +944,7 @@ function mSceneTransition(){
                 })
                 .forEach(character=>{
                     /* create/move character lane */
-                    mAddCharacterLane(getSystemChat(), character, true)
+                    mAddCharacterLane(null, character, true)
                 })
             mUpdateModerator(true) // clear moderator
             memberSceneTransition()
@@ -985,10 +984,7 @@ function mShowTransport(){
     const { name, skippable=true, } = mExperience
     mInitListeners(skippable)
     breadcrumb.innerHTML = `Experience: ${name}`
-/*
-    if(mBackdrop==='interface')
-        hideMemberChat()
-*/    show(transport)
+    show(transport)
 }
 /**
  * Introduces the concept of an Experience to the member.
@@ -997,8 +993,9 @@ function mShowTransport(){
  * @returns {void}
  */
 function mStageWelcome(){
-    const { description: experienceDescription, name: experienceName, title: experienceTitle, } = mExperience
-    title.textContent = experienceTitle ?? experienceName ?? `Untitled Production`
+    const { description: experienceDescription, title: experienceTitle, } = mExperience
+    title.textContent = experienceTitle
+        ?? `Untitled Production`
     if(experienceDescription?.length)
         description.textContent = experienceDescription
     mShowTransport()

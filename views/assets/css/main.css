@@ -737,7 +737,6 @@ body {
     text-align: center; /* Center the text */
     border-radius: 12px 12px 0 0; /* Rounded top corners, flat bottom */
     margin: 0; /* No margin to ensure it meets the container's edges */
-	margin-top: 1em;
     width: 100%; /* Full width of the container */
 }
 /* MyLife error handling */
@@ -830,6 +829,27 @@ pre code {
     font-weight: bold;
 }
 /* MyLife general */
+#audio-icon {
+	cursor: pointer;
+	margin: 0.5rem 0rem 0rem 0.5rem;
+}
+#audio-popup {
+	animation: fadeOut 1s 5s forwards;
+	border-color: #666;
+	border-radius: 5px;
+	bottom: 70px;  /* Positions it directly above the container */
+	background-color: rgba(240, 248, 255, 1);
+	color: #666;
+	display: flex;
+	font-size: 1rem;
+	margin: 0px;
+	max-width: 80%;
+	opacity: 1;
+	padding: 10px 10px;
+	position: absolute;
+	width: auto;
+	z-index: calc(var(--mylife-sidebar-z-index) + 1);
+  }
 .caret {
 	border-style: solid;
     cursor: pointer;
@@ -861,6 +881,15 @@ pre code {
 	cursor: pointer;
 	font-weight: normal;
 }
+.listening {
+	background-color: lightcoral;
+	color: indianred;
+	font-weight: bold;
+}
+.listening-mic {
+	animation: pulse 3s infinite;
+	color: red;
+}
 .offscreen {
 	position: absolute;
 	left: 110vw;
@@ -875,6 +904,11 @@ pre code {
 	0% { opacity: 0; }
 	100% { opacity: 1; }
 } /* reverse for fade out */
+@keyframes pulse {
+	0% { transform: scale(1); color: lightcoral; }
+	50% { transform: scale(1.3); color: red; }
+	100% { transform: scale(1); color: lightcoral; }
+}
 @keyframes rainbow {
     0% { color: red; }
     14% { color: orange; }
