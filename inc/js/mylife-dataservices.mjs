@@ -641,6 +641,10 @@ class Dataservices {
 		const savedExperience = await this.pushItem(experience)
 		return savedExperience
 	}
+	async share(sid){
+		const shared = await this.datamanager.share(sid)
+		return shared
+	}
 	/**
 	 * Tests partition key for member
 	 * @public

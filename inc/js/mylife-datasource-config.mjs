@@ -19,6 +19,13 @@ class Config{
 				partitionId: _mbr_id,
 			}
 		}
+		this.shares={
+			id: process.env.MYLIFE_DB_NAME,
+			container: {
+				id: process.env.MYLIFE_SHARES_DB_CONTAINER_NAME,
+				partitionId: 'shareType',
+			}
+		}
 		this.system={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {

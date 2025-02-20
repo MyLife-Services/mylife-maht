@@ -1,7 +1,6 @@
 /* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
-import chalk from 'chalk'
 import Config from './mylife-datasource-config.mjs'
 import Globals from './globals.mjs'
 /* module constants */
@@ -28,6 +27,7 @@ class Datamanager {
 		this.#containers = {
 			members: this.database.container(_config.members.container.id),
 			registration: this.database.container(_config.registration.container.id),
+			shares: this.database.container(_config.shares.container.id),
 			system: this.database.container(_config.system.container.id),
 		}
 		this.requestOptions = {
@@ -150,6 +150,17 @@ class Datamanager {
 			.items
 			.upsert(item)
 		return doc
+	}
+	/**
+	 * Retrieves a share by its id.
+	 * @param {Guid} sid - The share id to retrieve
+	 * @returns {object} - The raw share item
+	 */
+	async share(sid){
+		const { resource: shareItem } = await this.#containers['shares']
+			.item(sid, 'item')
+			.read()
+		return shareItem
 	}
 	/**
 	 * Registers a new candidate to MyLife membership

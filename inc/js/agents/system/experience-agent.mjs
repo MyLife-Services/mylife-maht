@@ -272,7 +272,6 @@ class ExperienceAgent {
             Experience = mExperience(experienceData, this.#botAgent, this.#llm, this.#factory, this.#variables)
             this.#experiences.push(Experience)
         }
-        console.log()
         await Experience.run(memberInput)
         return Experience
     }
@@ -307,6 +306,16 @@ class ExperienceAgent {
     }
     findExperience(xid){
         return this.#experiences.find(experience=>experience.id===xid)
+    }
+    /**
+     * Get the raw `share` item before it is processed by member's avatar.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<object>} - The raw share item
+     */
+    async share(sid){
+        // check if in memory, if so, play otherwise init
+        const share = this.#factory.getShare(sid)
+        return share
     }
     /* getters/setters */
 	get actor(){

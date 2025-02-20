@@ -588,6 +588,17 @@ class AgentFactory extends BotFactory {
 			( new AgentFactory(mPartitionId) ) // no need to init (?)
 		).init()
 	}
+	/**
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @returns {object} - The share object from database with Item in-built
+	 */
+	async getShare(sid){
+		if(!this.globals.isValidGuid(sid))
+			return
+		const share = await this.dataservices.share(sid) // pull from system database
+		return share
+	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
 	}

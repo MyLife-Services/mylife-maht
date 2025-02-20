@@ -3,6 +3,7 @@ import { EventEmitter } from 'events'
 /* module constants */
 const mAvailableForms = ['entry', 'memory'],
     mBeing = `story`,
+    mShareScopes = ['group', 'members', 'private', 'public'],
     mVersion = 1.00
 /**
  * @class - Item
@@ -195,9 +196,112 @@ class Memory extends Item {
         super(item, avatar, llmServices)
     }
 }
+/**
+ * @class - Share
+ * @extends EventEmitter
+ * @description A `Share` is a class that represents a shared item in the datacore. This class represents the sharing of an `Item` within a given scope enum: [Group, Members, Private, Public].
+ */
+class Share extends EventEmitter {
+    #anonymous
+    #being='share'
+    #characters
+    #conversation
+    #group
+    #guessable
+    #id
+    #itemId
+    #mbr_id
+    #phaseOfLife
+    #pov // point-of-view; enum: [1,2,3,4] **note** 4=first-person plural (we); first could reference personal pronouns
+    #restrictions // NL requirements for viewing
+    #scenes // array of scenes
+    #scope // enum: [group, members, private, public]
+    #summary // filled out in init()
+    #title
+    #variables // array of variables relevant to memory share
+    /**
+     * @constructor
+     * @param {object} share - Data object
+     * @param {Item} item - The Item instance
+     */
+    constructor(share, conversation){
+        if(!experienceAgent)
+            throw new Error('Experience agent required')
+        super()
+        const { anonymous=true, group, guessable, id, itemId, mbr_id, scope='private', restrictions, } = share
+        if(!mbr_id || !id || !itemId)
+            throw new Error('Member and item id required')
+        this.#anonymous = anonymous
+        this.#conversation = conversation
+        this.#group = group
+        this.#id = id
+        this.#itemId = itemId
+        this.#mbr_id = mbr_id
+        this.#scope = scope
+        this.#restrictions = restrictions
+    }
+    /* public functions */
+    /**
+     * Initialize the share with the Item instance. This is the sanitized version of the Item.
+     * @param {Item} Item - The Item instance
+     */
+    async init(Item){
+        this.#summary = Item.summary
+
+    }
+    async create(){
+        
+    }
+    /**
+     * Save the share to the datacore.
+     * @param {object} data - Data object describing fields to be saved (optional), defaults to allowable fields
+     * @returns {Promise<void>}
+     */
+    async save(data=this.share){
+        // **NOTE** item itself never gets stored, only the share
+        // await this.#item.avatar.shareUpdate(data)
+    }
+    /**
+     * Update the share with valid new data.
+     * @param {object} data - Data object to update instance
+     * @param {Boolean} save - Save the share after update, default: `true`
+     * @returns {Promise<void>}
+     */
+    async update(data, save=true){
+        delete data.shareId
+        // this.#item.avatar.populateObject(this, data)
+        if(save)
+            await this.save(data)
+    }
+    /* getters/setters */
+    get id(){
+        return this.#id
+    }
+    get itemId(){
+        return this.#itemId
+    }
+    get mbr_id(){
+        return this.#mbr_id
+    }
+    get share(){
+        return {
+            id: this.id,
+            scope: this.scope,
+            type: this.type,
+        }
+    }
+    get scope(){
+        return this.#scope
+    }
+    set scope(value){
+        if(mShareScopes.indexOf(value)!==-1)
+            this.#scope = value
+    }
+}
 /* module functions */
 /* exports */
 export {
     Entry,
 	Memory,
+    Share,
 }
