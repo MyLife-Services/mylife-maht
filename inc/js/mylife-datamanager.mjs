@@ -152,9 +152,9 @@ class Datamanager {
 		return doc
 	}
 	/**
-	 * Retrieves a share by its id.
-	 * @param {Guid} sid - The share id to retrieve
-	 * @returns {object} - The raw share item
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @returns {object} - The share object from database with Item in-built
 	 */
 	async share(sid){
 		const { resource: shareItem } = await this.#containers['shares']

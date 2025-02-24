@@ -9,7 +9,7 @@ import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
 import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
-import ExperienceAgent from './agents/system/experience-agent.mjs'
+import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 /* module constants */
 // file services
@@ -1296,6 +1296,7 @@ class Q extends Avatar {
     #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
     #mode = 'system' // @stub - experience mode for guests
+    #ShareAgent
     /**
      * @constructor
      * @param {MyLifeFactory} factory - The factory on which MyLife relies for all service interactions.
@@ -1306,7 +1307,8 @@ class Q extends Avatar {
             throw new Error('factory parameter must be an instance of MyLifeFactory')
         super(factory, llmServices)
         this.#factory = factory
-        this.llmServices = llmServices
+        this.#llmServices = llmServices
+        this.#ShareAgent = new ShareAgent({ instanceStartTime: Date.now() }, this, this.#factory, this.#llmServices)
     }
     /* overloaded methods */
     /**
@@ -1378,7 +1380,6 @@ class Q extends Avatar {
         const updatedSummary = await botFactory.obscure(iid)
         return updatedSummary
     }
-    
     /* overload rejections */
     /**
      * OVERLOADED: Q refuses to execute.
@@ -1471,6 +1472,13 @@ class Q extends Avatar {
         }
         return this.#hostedMembers
     }
+	/**
+	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
+	 * @param {guid} sid - Share id
+	 */
+	async shareMemory(sid){
+        return await this.#ShareAgent.shareMemory(sid)
+	}
     /**
      * Validate registration id.
      * @param {Guid} validationId - The registration id

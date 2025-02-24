@@ -1,5 +1,5 @@
-import LLMServices from "../../mylife-llm-services.mjs"
 import BotAgent from "./bot-agent.mjs"
+import { Share, } from '../../mylife-models.mjs'
 import { Marked } from 'marked'
 /* module constants */
 const mAvailableEventActionMap = {
@@ -307,16 +307,6 @@ class ExperienceAgent {
     findExperience(xid){
         return this.#experiences.find(experience=>experience.id===xid)
     }
-    /**
-     * Get the raw `share` item before it is processed by member's avatar.
-     * @param {Guid} sid - The share id
-     * @returns {Promise<object>} - The raw share item
-     */
-    async share(sid){
-        // check if in memory, if so, play otherwise init
-        const share = this.#factory.getShare(sid)
-        return share
-    }
     /* getters/setters */
 	get actor(){
 		return this.#factory.actor
@@ -383,6 +373,57 @@ class ExperienceEvent {
     }
     set portrayed(portrayed){
         this.#portrayed = !!portrayed
+    }
+}
+/* ShareAgent class */
+/**
+ * @class ShareAgent
+ * Handles the `sharing` process for Mylife currently only via System Avatar.
+ */
+class ShareAgent {
+    /* private properties */
+    #avatar
+    #botAgent // @todo - unclear if necessary
+    #factory
+    #llm
+    #shares=[] // current-list of active shares
+    constructor(obj={}, avatar, factory, llm){
+        this.#avatar = avatar
+        this.#factory = factory
+        this.#llm = llm
+        obj = this.#factory.globals.sanitize(obj)
+        Object.assign(this, obj)
+    }
+    /* public functions */
+    async share(instanceId){
+        // pass in the instanceId after initiating
+        const Share = this.#shares.find(share=>share.instanceId===instanceId)
+        const { id, summary, type, } = Share
+        return Share.share
+    }
+    async shareMemory(sid){
+        if(!this.#shares.find(share=>share.instanceId===sid)){
+            console.log('ShareAgent::shareMemory', sid, this.#shares)
+            const share = await this.#factory.getShare(sid)
+            const Conversation = await this.#avatar.conversationStart('share', 'share-agent')
+            share.instanceId = this.#factory.newGuid
+            const _Share = new Share(share, Conversation)
+            if(!_Share.mbr_id)
+                throw new Error('Invalid Share, no Member associated')
+            let MemberAvatar = await this.#factory.avatarProxy(_Share.mbr_id)
+            const cleanedShareData = await MemberAvatar.cleanShare(_Share) // operates directly upon Shared Memory _Share
+            console.log('ShareAgent::shareMemory', cleanedShareData)
+            MemberAvatar = null
+            // create scenes for share
+            await _Share.init(cleanedShareData)
+            this.#shares.push(_Share)
+            sid = _Share.instanceId
+            console.log('ShareAgent::shareMemory', sid)
+            setTimeout(_=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
+                this.#shares = this.#shares.filter(share=>share.instanceId!==_Share.instanceId)
+            }, 5 * 60 * 1000)
+        }
+		return await this.share(sid) // share in progress
     }
 }
 /* module functions */
@@ -978,4 +1019,7 @@ function mReplaceVariables(prompt, variableList, variableValues){
     return prompt
 }
 /* exports */
-export default ExperienceAgent
+export {
+    ExperienceAgent,
+    ShareAgent,
+}

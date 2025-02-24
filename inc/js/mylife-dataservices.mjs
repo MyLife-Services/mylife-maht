@@ -641,8 +641,14 @@ class Dataservices {
 		const savedExperience = await this.pushItem(experience)
 		return savedExperience
 	}
-	async share(sid){
-		const shared = await this.datamanager.share(sid)
+	/**
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @param {string} type - The share type
+	 * @returns {object} - The share object from database with Item in-built
+	 */
+	async share(sid, type){
+		const shared = await this.datamanager.share(sid, type)
 		return shared
 	}
 	/**

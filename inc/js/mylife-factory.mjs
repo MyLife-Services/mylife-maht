@@ -1,5 +1,6 @@
 /* imports */
 import { promises as fs } from 'fs'
+import chalk from 'chalk'
 import EventEmitter from 'events'
 import vm from 'vm'
 import util from 'util'
@@ -16,7 +17,7 @@ import {
 import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
-import chalk from 'chalk'
+import { type } from 'os'
 /* module constants */
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
@@ -233,6 +234,51 @@ class BotFactory extends EventEmitter{
 			?? caseInsensitive
 		const challengeSuccessful = await mDataservices.challengeAccess(this.mbr_id, passphrase, caseInsensitive)
 		return challengeSuccessful
+	}
+	/**
+	 * 
+	 * @param {Share} Share - The Share instance
+	 * @returns {Share} - The cleaned Share instance
+	 */
+	async cleanShare(Share){
+		let prompt = '# CLEAN\n## Variables:\n'
+		const { anonymous, guessable, itemId, pov=1, restrictions, } = Share
+		const { name, names, } = this.core
+		const memberName = names?.[0] ?? name
+		const item = await this.item(itemId)
+		const { phaseOfLife, summary, } = item
+		let shareData = {
+			phaseOfLife,
+			summary,
+		}
+		if(!anonymous || guessable)
+			Share.addVariable({ 'memberName': memberName })
+		if(anonymous)
+			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
+		prompt += `- pov=${ pov }\n- summary: ${ summary }`
+		const messages = await this.#llmServices.getLLMResponse(null, mGeneralBotId, prompt)
+		if(messages?.[0]){
+			const { content, thread_id, } = messages[0]
+			const message = content
+				.filter(_content=>_content.type==='text')
+				?.[0]
+				?.text
+				?.value
+			if(message?.length){
+				try {
+					shareData = {
+						...shareData,
+						...JSON.parse(message),
+					}
+					console.log(chalk.blueBright('cleanShare()::cleanSummary'), shareData)
+				} catch (error) {
+					console.log('Error parsing context.text:', error)
+				}
+			}
+			if(thread_id?.length)
+				this.#llmServices.deleteThread(thread_id) // no await
+		}
+		return await Share.init(shareData)
 	}
     /**
      * Get member collection items.
@@ -588,17 +634,6 @@ class AgentFactory extends BotFactory {
 			( new AgentFactory(mPartitionId) ) // no need to init (?)
 		).init()
 	}
-	/**
-	 * Retrieves a share object and its associated item from the database.
-	 * @param {Guid} sid - The share id
-	 * @returns {object} - The share object from database with Item in-built
-	 */
-	async getShare(sid){
-		if(!this.globals.isValidGuid(sid))
-			return
-		const share = await this.dataservices.share(sid) // pull from system database
-		return share
-	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
 	}
@@ -870,6 +905,17 @@ class MyLifeFactory extends AgentFactory {
 	 */
 	async registerCandidate(candidate){
 		return await this.#dataservices.registerCandidate(candidate)
+	}
+	/**
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @returns {object} - The share object from database with Item in-built
+	 */
+	async getShare(sid, type){
+		if(!this.globals.isValidGuid(sid))
+			return
+		const share = await this.dataservices.share(sid) // pull from system database
+		return share
 	}
 	updateItem(){
 		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))

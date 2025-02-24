@@ -39,6 +39,7 @@ import {
     endMemory,
     improveMemory,
     reliveMemory,
+    shareMemory,
 } from './memory-functions.mjs'
 import {
     availableExperiences,
@@ -76,6 +77,7 @@ _Router.get('/routine', routine)
 _Router.get('/routine/:rid', routine)
 _Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
+_Router.patch('/memory/share/:sid', shareMemory)
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)

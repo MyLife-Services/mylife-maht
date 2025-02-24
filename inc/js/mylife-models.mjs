@@ -209,6 +209,7 @@ class Share extends EventEmitter {
     #group
     #guessable
     #id
+    #instanceId
     #itemId
     #mbr_id
     #phaseOfLife
@@ -218,36 +219,61 @@ class Share extends EventEmitter {
     #scope // enum: [group, members, private, public]
     #summary // filled out in init()
     #title
-    #variables // array of variables relevant to memory share
+    #type // enum: [entry, memory]
+    #warnings
+    #variables={} // variables (key/value) relevant to memory share
     /**
      * @constructor
-     * @param {object} share - Data object
+     * @param {object} share - The Share data core object
      * @param {Item} item - The Item instance
+     * @returns {Promise<Share>}
      */
-    constructor(share, conversation){
-        if(!experienceAgent)
-            throw new Error('Experience agent required')
-        super()
-        const { anonymous=true, group, guessable, id, itemId, mbr_id, scope='private', restrictions, } = share
+    constructor(share, Conversation){
+        const { anonymous=true, group, guessable=false, id, instanceId=this.id & Date.now().toString(), itemId, mbr_id, pov, restrictions, scope='private', title, type='memory', } = share
         if(!mbr_id || !id || !itemId)
             throw new Error('Member and item id required')
+        super()
         this.#anonymous = anonymous
-        this.#conversation = conversation
+        this.#conversation = Conversation
+        this.#guessable = guessable
         this.#group = group
         this.#id = id
         this.#itemId = itemId
         this.#mbr_id = mbr_id
+        this.#pov = pov
+        this.#restrictions = restrictions
         this.#scope = scope
         this.#restrictions = restrictions
+        this.#title = title
+        this.#type = type
+        return this
     }
     /* public functions */
     /**
-     * Initialize the share with the Item instance. This is the sanitized version of the Item.
-     * @param {Item} Item - The Item instance
+     * Initialize the share with the filled Share instance. This is the sanitized version of the Item.
+     * @param {object} shareData - The secondary share data
+     * @param {Conversation} Conversation - The Conversation instance
+     * @returns {Promise<Share>}
      */
-    async init(Item){
-        this.#summary = Item.summary
-
+    init(shareData){
+        const { characters, scenes, summary, warnings, } = shareData
+        this.#characters = characters
+        this.#scenes = scenes
+        this.#summary = summary
+        this.#warnings = warnings
+        return this
+    }
+    /**
+     * Add a variable to the share.
+     * @param {object} obj - Key/Value pair of variables to add to the share
+     * @returns {void}
+     */
+    addVariable(obj){
+        this.#variables = {
+            ...this.#variables,
+            ...obj,
+        }
+        console.log(this.#variables)
     }
     async create(){
         
@@ -274,8 +300,20 @@ class Share extends EventEmitter {
             await this.save(data)
     }
     /* getters/setters */
+    get anonymous(){
+        return this.#anonymous
+    }
+    get conversation(){
+        return this.#conversation
+    }
+    get guessable(){
+        return this.#guessable
+    }
     get id(){
         return this.#id
+    }
+    get instanceId(){
+        return this.#instanceId
     }
     get itemId(){
         return this.#itemId
@@ -283,11 +321,27 @@ class Share extends EventEmitter {
     get mbr_id(){
         return this.#mbr_id
     }
+    get pov(){
+        return this.#pov
+    }
+    get restrictions(){
+        return this.#restrictions
+    }
+    get scenes(){
+        return this.#scenes
+    }
     get share(){
         return {
+            anonymous: this.anonymous,
+            guessable: this.guessable,
             id: this.id,
+            itemId: this.itemId,
+            pov: this.pov,
             scope: this.scope,
+            summary: this.summary,
+            title: this.title,
             type: this.type,
+            warnings: this.warnings,
         }
     }
     get scope(){
@@ -296,6 +350,18 @@ class Share extends EventEmitter {
     set scope(value){
         if(mShareScopes.indexOf(value)!==-1)
             this.#scope = value
+    }
+    get summary(){
+        return this.#summary
+    }
+    get title(){
+        return this.#title
+    }
+    get type(){
+        return this.#type
+    }
+    get warnings(){
+        return this.#warnings
     }
 }
 /* module functions */
