@@ -1397,6 +1397,16 @@ class Q extends Avatar {
     }
     /* public methods */
     /**
+     * Accepts share warnings and plays the shared memory.
+     * @param {Guid} instanceId - The share instance id
+     * @returns {Boolean} - Whether or not warnings were accepted
+     */
+    acceptShareWarnings(instanceId){
+        const response = this.#ShareAgent.acceptWarnings(instanceId)
+        console.log('Q::acceptShareWarnings()', instanceId, response)
+        return response
+    }
+    /**
      * Add a member to the hosted members list.
      * @param {string} id - The member id (mbr_id).
      * @returns {void}

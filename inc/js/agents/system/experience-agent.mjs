@@ -395,15 +395,38 @@ class ShareAgent {
         Object.assign(this, obj)
     }
     /* public functions */
-    async share(instanceId){
-        // pass in the instanceId after initiating
+    /**
+     * Accepts the warnings for a share.
+     * @param {Guid} instanceId - The Share instance id
+     * @returns {Boolean} - The Share acceptance status
+     */
+    acceptWarnings(instanceId){
         const Share = this.#shares.find(share=>share.instanceId===instanceId)
-        const { id, summary, type, } = Share
-        return Share.share
+        if(!!Share)
+            return Share.acceptWarnings()
+        else
+            throw new Error('Share not found')
     }
+    /**
+     * Plays a public share.
+     * @param {Guid} instanceId - The instance id
+     * @param {object} input - The recipient input
+     * @returns {object} - The next message(s) in the share experience
+     */
+    play(instanceId, input){
+        const Share = this.#shares.find(share=>share.instanceId===instanceId)
+        if(!!Share)
+            return Share.play(input)
+        else
+            throw new Error('Share not found')
+    }
+    /**
+     * Initializes and/or continues a share experience.
+     * @param {Guid} sid - The share id
+     * @returns {object} - The next message(s) in the share experience
+     */
     async shareMemory(sid){
         if(!this.#shares.find(share=>share.instanceId===sid)){
-            console.log('ShareAgent::shareMemory', sid, this.#shares)
             const share = await this.#factory.getShare(sid)
             const Conversation = await this.#avatar.conversationStart('share', 'share-agent')
             share.instanceId = this.#factory.newGuid
@@ -411,19 +434,49 @@ class ShareAgent {
             if(!_Share.mbr_id)
                 throw new Error('Invalid Share, no Member associated')
             let MemberAvatar = await this.#factory.avatarProxy(_Share.mbr_id)
-            const cleanedShareData = await MemberAvatar.cleanShare(_Share) // operates directly upon Shared Memory _Share
-            console.log('ShareAgent::shareMemory', cleanedShareData)
+            await MemberAvatar.cleanShare(_Share) // operates directly upon Shared Memory _Share
             MemberAvatar = null
-            // create scenes for share
-            await _Share.init(cleanedShareData)
+            /* scene creation */
+            let prompt = `# Scenes\n`
+            if(_Share.conclusion?.length)
+                prompt += `- conclusion: ${ _Share.conclusion }\n`
+            if(_Share.voice?.length)
+                prompt += `- voice: ${ _Share.voice }\n`
+            prompt += `- summary: ${ _Share.summary }`
+            const messages = await this.#llm.getLLMResponse(null, mDefaultScriptAdvisorLLMId, prompt)
+            if(messages?.[0]){
+                const { content, thread_id, } = messages[0]
+                const message = content
+                    .filter(_content=>_content.type==='text')
+                    ?.[0]
+                    ?.text
+                    ?.value
+                if(message?.length){
+                    try {
+                        const scenes = JSON.parse(message).scenes
+                        if(scenes.length===1)
+                            scenes = scenes.first()
+                                .split(/(?=(scene\s*\d+:?\n?))/i)
+                                .filter(item =>item.trim()!=='')
+                        const lastItem = scenes[scenes.length - 1].trim()
+                        // @todo - Conclusion
+                        console.log('ShareAgent::shareMemory::lastItem', scenes.length)
+                        _Share.scenes = scenes
+                    } catch (error) {
+                        console.log('Error parsing context.text:', message)
+                    }
+                }
+                if(thread_id?.length)
+                    this.#llm.deleteThread(thread_id) // no await
+            }
             this.#shares.push(_Share)
             sid = _Share.instanceId
-            console.log('ShareAgent::shareMemory', sid)
-            setTimeout(_=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
-                this.#shares = this.#shares.filter(share=>share.instanceId!==_Share.instanceId)
-            }, 5 * 60 * 1000)
+            setTimeout(_=>{ // @todo - incorporate lock
+                if(this.#shares.find(share=>share.instanceId===_Share.instanceId))
+                    this.#shares = this.#shares.filter(share=>share.instanceId!==_Share.instanceId)
+            }, 10 * 60 * 1000)
         }
-		return await this.share(sid) // share in progress
+		return this.play(sid) // share in progress
     }
 }
 /* module functions */

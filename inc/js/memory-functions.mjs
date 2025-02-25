@@ -4,6 +4,13 @@ import {
 	upload,
 } from './functions.mjs'
 /* module export functions */
+function acceptShareWarnings(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(!Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife memory')
+	ctx.body = Avatar.acceptShareWarnings(sid)
+}
 async function collectMemory(ctx){
 	// @todo - implement memory collection
 }
@@ -69,6 +76,7 @@ async function livingMemory(ctx){
 }
 /* exports */
 export {
+	acceptShareWarnings,
     collectMemory,
     improveMemory,
 	endMemory,

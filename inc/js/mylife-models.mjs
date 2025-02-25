@@ -3,6 +3,7 @@ import { EventEmitter } from 'events'
 /* module constants */
 const mAvailableForms = ['entry', 'memory'],
     mBeing = `story`,
+    mShareGratitude = `Thank you for letting us share this narrative with you! I hope you enjoyed it as much as I did.`,
     mShareScopes = ['group', 'members', 'private', 'public'],
     mVersion = 1.00
 /**
@@ -202,12 +203,16 @@ class Memory extends Item {
  * @description A `Share` is a class that represents a shared item in the datacore. This class represents the sharing of an `Item` within a given scope enum: [Group, Members, Private, Public].
  */
 class Share extends EventEmitter {
+    #acceptWarnings=false
     #anonymous
     #being='share'
     #characters
+    #conclusion
     #conversation
+    #currentScene // index of current scene in `scenes` array
     #group
     #guessable
+    #guesses=0
     #id
     #instanceId
     #itemId
@@ -222,6 +227,7 @@ class Share extends EventEmitter {
     #type // enum: [entry, memory]
     #warnings
     #variables={} // variables (key/value) relevant to memory share
+    #voice
     /**
      * @constructor
      * @param {object} share - The Share data core object
@@ -229,15 +235,17 @@ class Share extends EventEmitter {
      * @returns {Promise<Share>}
      */
     constructor(share, Conversation){
-        const { anonymous=true, group, guessable=false, id, instanceId=this.id & Date.now().toString(), itemId, mbr_id, pov, restrictions, scope='private', title, type='memory', } = share
+        const { anonymous=true, conclusion, group, guessable=false, id, instanceId=this.id & Date.now().toString(), itemId, mbr_id, pov, restrictions, scope='private', title, type='memory', voice, } = share
         if(!mbr_id || !id || !itemId)
             throw new Error('Member and item id required')
         super()
         this.#anonymous = anonymous
+        this.#conclusion = conclusion
         this.#conversation = Conversation
         this.#guessable = guessable
         this.#group = group
         this.#id = id
+        this.#instanceId = instanceId
         this.#itemId = itemId
         this.#mbr_id = mbr_id
         this.#pov = pov
@@ -246,6 +254,7 @@ class Share extends EventEmitter {
         this.#restrictions = restrictions
         this.#title = title
         this.#type = type
+        this.#voice = voice
         return this
     }
     /* public functions */
@@ -256,12 +265,20 @@ class Share extends EventEmitter {
      * @returns {Promise<Share>}
      */
     init(shareData){
-        const { characters, scenes, summary, warnings, } = shareData
-        this.#characters = characters
-        this.#scenes = scenes
+        const { summary, warnings, } = shareData
+        this.#currentScene = 0
         this.#summary = summary
         this.#warnings = warnings
         return this
+    }
+    /**
+     * Accept the warnings for the share.
+     * @param {Boolean} acceptance - Acceptance of warnings
+     * @returns {void}
+     */
+    acceptWarnings(){
+        this.#acceptWarnings = true
+        return this.#acceptWarnings
     }
     /**
      * Add a variable to the share.
@@ -273,19 +290,70 @@ class Share extends EventEmitter {
             ...this.#variables,
             ...obj,
         }
-        console.log(this.#variables)
     }
     async create(){
         
+    }
+    /**
+     * Validate guess of Member name based on the input.
+     * @param {String} input - The input to validate against the Member name
+     * @returns {Boolean}
+     */
+    guessMember(input){
+        this.#guesses++
+        if(this.#guessable && this.#guesses<=3)
+            return mValidateGuess(this.#variables.memberName, input)
+        return false
+    }
+    async play(input){
+        const output = {
+            anonymous: this.anonymous,
+            guessable: this.guessable,
+            id: this.instanceId,
+            title: this.title,
+            type: this.type,
+        }
+        if(this.warnings?.length && !this.#acceptWarnings)
+            return {
+                ...output,
+                warnings: this.triggerWarnings(),
+            }
+        if(!this.scenes[this.#currentScene])
+            return {
+                ...output,
+                scene: this.stop()
+            }
+        const scene = this.scenes[this.#currentScene]
+        console.log('Share::play()::scene', scene)
+        this.#currentScene++
+        return {
+            ...output,
+            scene,
+        }
     }
     /**
      * Save the share to the datacore.
      * @param {object} data - Data object describing fields to be saved (optional), defaults to allowable fields
      * @returns {Promise<void>}
      */
-    async save(data=this.share){
+    async save(){
+        // save Conversation
+        // this.#conversation.save() // no await
         // **NOTE** item itself never gets stored, only the share
-        // await this.#item.avatar.shareUpdate(data)
+    }
+    /**
+     * Stop the share, ending the conversation, save if complete.
+     * @returns {void}
+     */
+    stop(){
+        if(this.#currentScene>=this.scenes.length)
+            this.save()
+        // end gracefully
+        this.#currentScene = 0
+        return mShareGratitude
+    }
+    triggerWarnings(){
+        return this.#warnings
     }
     /**
      * Update the share with valid new data.
@@ -302,6 +370,9 @@ class Share extends EventEmitter {
     /* getters/setters */
     get anonymous(){
         return this.#anonymous
+    }
+    get conclusion(){
+        return this.#conclusion
     }
     get conversation(){
         return this.#conversation
@@ -330,17 +401,24 @@ class Share extends EventEmitter {
     get scenes(){
         return this.#scenes
     }
+    set scenes(value){
+        if(Array.isArray(value))
+            this.#scenes = value
+    }
     get share(){
         return {
             anonymous: this.anonymous,
+            conclusion: this.conclusion,
             guessable: this.guessable,
             id: this.id,
             itemId: this.itemId,
             pov: this.pov,
             scope: this.scope,
+            scenes: this.scenes,
             summary: this.summary,
             title: this.title,
             type: this.type,
+            voice: this.voice,
             warnings: this.warnings,
         }
     }
@@ -360,11 +438,30 @@ class Share extends EventEmitter {
     get type(){
         return this.#type
     }
+    get voice(){
+        return this.#voice
+    }
     get warnings(){
         return this.#warnings
     }
 }
 /* module functions */
+/**
+ * Validate a guess against a Member name.
+ * @param {String} memberName - The Member name to validate
+ * @param {String} input - The input to validate against Member name
+ * @returns {Boolean}
+ */
+function mValidateGuess(memberName, input){
+    const nameWords = memberName.trim().toLowerCase().split(/\s+/)
+    const inputWords = input.trim().toLowerCase().split(/\s+/)
+    if(inputWords.length===1)
+        return nameWords.includes(inputWords[0])
+    else if(nameWords.length===1)
+        return inputWords.includes(nameWords[0])
+    else
+        return inputWords.every(word =>nameWords.includes(word))
+}
 /* exports */
 export {
     Entry,

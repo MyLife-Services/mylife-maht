@@ -236,7 +236,7 @@ class BotFactory extends EventEmitter{
 		return challengeSuccessful
 	}
 	/**
-	 * 
+	 * Uses proxy of Member Avatar to manage alteration for a given share. **Note:** currently leveraging MyLife General Functioneer, but could be migrated to Personal Avatar instructions after testing.
 	 * @param {Share} Share - The Share instance
 	 * @returns {Share} - The cleaned Share instance
 	 */
@@ -270,7 +270,6 @@ class BotFactory extends EventEmitter{
 						...shareData,
 						...JSON.parse(message),
 					}
-					console.log(chalk.blueBright('cleanShare()::cleanSummary'), shareData)
 				} catch (error) {
 					console.log('Error parsing context.text:', error)
 				}
@@ -278,7 +277,7 @@ class BotFactory extends EventEmitter{
 			if(thread_id?.length)
 				this.#llmServices.deleteThread(thread_id) // no await
 		}
-		return await Share.init(shareData)
+		await Share.init(shareData)
 	}
     /**
      * Get member collection items.

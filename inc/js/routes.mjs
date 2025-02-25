@@ -35,6 +35,7 @@ import {
     upload,
 } from './functions.mjs'
 import {
+    acceptShareWarnings,
     collectMemory,
     endMemory,
     improveMemory,
@@ -78,6 +79,7 @@ _Router.get('/routine/:rid', routine)
 _Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
 _Router.patch('/memory/share/:sid', shareMemory)
+_Router.patch('/memory/share/accept/:sid', acceptShareWarnings)
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
