@@ -90,6 +90,14 @@ class Datamanager {
         return response
     }
     /* public functions */
+    async acceptShareWarnings(shareId){
+        const url = `/share/accept/${ shareId }`
+        const options = {
+            method: 'PATCH',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
     async alerts(){
         const url = `alerts`
         const responses = await this.#fetch(url)
@@ -305,6 +313,13 @@ class Datamanager {
         const response = await this.#fetch(url, options)
         return response
     }
+    /**
+     * Fetches the greetings from the server.
+     * @param {Boolean} dynamic - Whether or not to use dynamic greetings
+     * @returns {Promise<object>} - The server response object
+     * @property {Array} response - Array of greeting message objects { agent, message, response_time, type, }
+     * @property {Boolean} success - Whether or not the request was successful
+     */
     async greetings(dynamic=false){
         dynamic = '?dyn=' + dynamic
         let validation = new URLSearchParams(window.location.search).get('vld')
@@ -467,6 +482,25 @@ class Datamanager {
         const response = await this.#fetch(url)
         return response
     }
+    /**
+     * Conducts a share of a memory with recipient guest.
+     * @param {Guid} shareId - The share ID
+     * @param {String} input - Whether or not to use dynamic greetings
+     * @returns {Promise<object>} - The server response object
+     * @property {Array} response - Array of greeting message objects { agent, message, response_time, type, }
+     * @property {Boolean} success - Whether or not the request was successful
+     */
+    async share(shareId, input){
+        const url = `/share/${ shareId }`
+        const options = { method: 'PATCH', }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async shareHeader(shareId){
+        const url = `/share/header/${ shareId }`
+        const response = await this.#fetch(url)
+        return response
+    }
     async signupStatus(){
         const response = await this.#fetch('signup')
         return response
@@ -565,7 +599,10 @@ class Datamanager {
         }
         const response = await this.#fetch(url, options)
         return response
-
+    }
+    async validateShare(shareId){
+        const { instanceId, } = await this.#fetch(`/share/${ shareId }`)
+        return instanceId
     }
 }
 class Globals {

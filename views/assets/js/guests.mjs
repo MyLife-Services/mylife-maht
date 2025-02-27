@@ -40,17 +40,101 @@ let awaitButton,
 /* page load */
 document.addEventListener('DOMContentLoaded', async event=>{
     /* load data */
-    const { input, messages, } = await mLoadStart()
+    let activeShare=false,
+        activeShareId=new URLSearchParams(window.location.search).get('sid'),
+        hideChat=false
+    let { input, messages, } = await mLoadStart()
     /* display page */
-    mShowPage()
+    if(mGlobals.isGuid(activeShareId)){
+        activeShareId = await mGlobals.datamanager.validateShare(activeShareId) // set with instanceId as opposed to share document id
+        console.log(`activeShareId: ${ activeShareId }`)
+        if(mGlobals.isGuid(activeShareId))
+            activeShare = true
+    }
+    if(mPageType==='select' || activeShare)
+        hideChat = true
+    mShowPage(hideChat)
     if(messages.length)
-        await mAddMessages(messages, {
+        mAddMessages(messages, { // no await necessary
             bubbleClass: 'agent-bubble',
             typeDelay: 10,
             typewrite: true,
         })
-    if(input)
-        mGlobals.addChatElement(input)
+        if(input)
+            mGlobals.addChatElement(input)
+    /* execute Share */
+    if(activeShare){
+        const shareWelcome = mAddMessage('Congratulations! A <i>MyLife</i> Member has shared a memory with you!<br />Please wait while I load and interpret the memory', { // no await necessary
+            bubbleClass: 'system-bubble',
+            typeDelay: 10,
+            typewrite: true,
+        })
+        show(awaitButton)
+        const shareHeader = await mGlobals.datamanager.shareHeader(activeShareId)
+        shareWelcome.remove()
+        const title = `<i>Prepare to experience</i>:<br />&mdash; <b>${ shareHeader.title ?? 'A MyLife Shared Memory' }</b>`
+        hide(awaitButton)
+        const shareTitle = await mAddMessage(title, { // no await necessary
+            bubbleClass: 'share-bubble',
+            typeDelay: 10,
+            typewrite: true,
+        })
+        if(shareHeader.warnings?.length){
+            const shareWarning = `Before we proceed, <i>MyLife</i> needs to notify you that the shared content contains the following warnings: <b>${ shareHeader.warnings }</b><br />&mdash; Please confirm that you are willing to continue, or cancel out now.`
+            const triggerWarningBubble = await mAddMessage(shareWarning, { bubbleClass: 'warning-bubble', typeDelay: 4, typewrite: true, })
+            /* trigger warnings */
+            // @todo - move to response `input` node
+            const triggerWarning = document.createElement('div')
+            triggerWarning.className = 'warning-input'
+            triggerWarning.id = 'warning-input'
+            /* cancel button */
+            const triggerWarningCancel = document.createElement('button')
+            triggerWarningCancel.className = 'warning-cancel'
+            triggerWarningCancel.id = 'warning-cancel'
+            triggerWarningCancel.innerHTML = 'Cancel'
+            triggerWarningCancel.addEventListener('click', cancelWarning, { once: true })
+            triggerWarningCancel.addEventListener('keydown', event=>{
+                if(event.key==='Escape')
+                    triggerWarningCancel.click()
+            })
+            triggerWarning.appendChild(triggerWarningCancel)
+            /* continue button */
+            const triggerWarningContinue = document.createElement('button')
+            triggerWarningContinue.className = 'warning-continue'
+            triggerWarningContinue.id = 'warning-continue'
+            triggerWarningContinue.innerHTML = 'Continue'
+            triggerWarningContinue.addEventListener('click', continueWarning, { once: true })
+            triggerWarningContinue.addEventListener('keydown', event=>{
+                if(event.key==='Escape')
+                    triggerWarningCancel.click()
+            })
+            triggerWarning.appendChild(triggerWarningContinue)
+            mGlobals.addChatElement(triggerWarning)
+            /* trigger warning inline functions */
+            async function cancelWarning(){
+                removeShareContent()
+                await mAddMessage(`I'm sorry about that! I'm still happy to share information about MyLife... just ask!`, {
+                    bubbleClass: 'system-bubble',
+                    typeDelay: 10,
+                    typewrite: true,
+                })
+                show(mGlobals.MemberChat)
+            }
+            async function continueWarning(){
+                removeShareContent(true)
+                if(await mGlobals.datamanager.acceptShareWarnings(activeShareId))
+                    mShare(activeShareId)
+            }
+            function removeShareContent(warningOnly=false){
+                triggerWarningBubble.remove()
+                triggerWarning.remove()
+                if(warningOnly)
+                    return
+                shareWelcome.remove()
+                shareTitle.remove()
+            }
+        }
+    }
 })
 /* public functions */
 function about(){
@@ -63,9 +147,9 @@ function privacyPolicy(){
 /**
  * Adds a message to the chat column.
  * @private
- * @param {string} message - The message to add to the chat column.
- * @param {object} options - The options for the chat bubble.
- * @returns`{void}
+ * @param {string} message - The message to add to the chat column
+ * @param {object} options - The options for the chat bubble
+ * @returns {chatBubble} - The chat bubble element
  */
 function mAddMessage(message, options={}){
     const {
@@ -106,6 +190,7 @@ function mAddMessage(message, options={}){
         mGlobals.scrollBottom()
         callback()
 	}
+    return chatMessage
 }
 /**
  * Adds multiple messages to the chat column.
@@ -284,13 +369,39 @@ async function mRoutine(routineName){
     else if(error.message)
         mAddMessage(error.message, { bubbleClass: 'system-bubble', typeDelay: 1, typewrite: true, })
 }
+async function mShare(shareId){
+    show(awaitButton)
+    const { scene, } = await mGlobals.datamanager.share(shareId)
+    if(scene?.length){
+        await mAddMessage(scene, { bubbleClass: 'share-bubble', typeDelay: 4, typewrite: true, })
+        mShareProgress(shareId)
+        mGlobals.scrollBottom()
+    }
+    hide(awaitButton)
+}
+function mShareProgress(shareId){
+    const shareProgress = document.createElement('div')
+    shareProgress.className = 'share-progress'
+    shareProgress.id = 'share-progress'
+    const shareProgressNext = document.createElement('button')
+    shareProgressNext.className = 'share-next'
+    shareProgressNext.id = 'share-next'
+    shareProgressNext.innerHTML = 'Next'
+    shareProgressNext.addEventListener('click', mShareNext)
+    shareProgress.appendChild(shareProgressNext)
+    mGlobals.addChatElement(shareProgress)
+    function mShareNext(){
+        shareProgress.remove()
+        mShare(shareId)
+    }
+}
 /**
  * Display the entire page.
  * @todo - refactor for special pages
  * @private
  * @returns {void}
  */
-function mShowPage(){
+function mShowPage(hideChat=false){
     /* DOM elements */
     signupEmailInputField.tabIndex = 1
     signupHumanNameInput.tabIndex = 2
@@ -309,7 +420,7 @@ function mShowPage(){
         })
     show(sidebar)
     show(mainContent)
-    if(mPageType==='select')
+    if(hideChat)
         hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){

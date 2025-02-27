@@ -21,7 +21,8 @@
     min-width: 75%;
     padding: 0.8rem;
 }
-.challenge-input {
+.challenge-input,
+.warning-input {
     align-items: center;
     display: flex;
     flex-direction: column;
@@ -42,7 +43,10 @@
     padding: 0.2rem;
     width: 100%;
 }
-.challenge-submit {
+.challenge-submit,
+.share-next,
+.warning-cancel,
+.warning-continue {
     align-items: center;
     background-color: teal; /* Bootstrap primary blue */
     border: none;
@@ -58,7 +62,10 @@
     max-width: 30%;
     transition: background-color 0.3s ease; /* Smooth transition for hover */
 }
-.challenge-submit:hover {
+.challenge-submit:hover,
+.share-next:hover,
+.warning-cancel:hover,
+.warning-continue:hover {
     background-color: #003a77; /* Darker blue on hover */
 }
 .member-select {

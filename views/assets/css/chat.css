@@ -18,10 +18,18 @@
 	background-color: rgb(46 15 91 / 75%); /* A darker shade of blue for the agent */
 	color: #ffffff; /* White text for better readability */
 }
+.share-bubble {
+	background-color: rgba(110, 179, 0, 0.203); /* A darker shade of blue for the agent */
+	color: #000; /* White text for better readability */
+}
 .system-bubble {
 	background-color: rgba(24, 34, 100, 0.85); /* A darker shade of blue for the agent */
 	color: #ffffff; /* White text for better readability */
 	margin-left: 0;
+}
+.warning-bubble {
+	background-color: rgb(150, 0, 0); /* A darker shade of blue for the agent */
+	color: #ffffff; /* White text for better readability */
 }
 .await-button {
 	align-self: center;
