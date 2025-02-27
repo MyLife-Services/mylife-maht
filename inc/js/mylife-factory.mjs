@@ -252,7 +252,7 @@ class BotFactory extends EventEmitter{
 			summary,
 		}
 		if(!anonymous || guessable)
-			Share.addVariable({ 'memberName': memberName })
+			shareData.variables = { 'memberName': memberName }
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
@@ -277,7 +277,7 @@ class BotFactory extends EventEmitter{
 			if(thread_id?.length)
 				this.#llmServices.deleteThread(thread_id) // no await
 		}
-		await Share.init(shareData)
+		return shareData
 	}
     /**
      * Get member collection items.

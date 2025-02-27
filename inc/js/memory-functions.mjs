@@ -45,6 +45,13 @@ async function reliveMemory(ctx){
 	const { memberInput, } = ctx.request.body
 	ctx.body = await avatar.reliveMemory(iid, memberInput)
 }
+async function shareHeader(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(!Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife share header')
+	ctx.body = await Avatar.shareHeader(sid)
+}
 /**
  * Execute a memory `Share`; currently only shared publicly with non-MyLife members.
  * @param {Koa} ctx - Koa context object
@@ -74,6 +81,13 @@ async function livingMemory(ctx){
 	ctx.throw(501, 'Not Implemented')
 	ctx.body = await avatar.livingMemory(iid)
 }
+async function validateShare(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(!Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife share')
+	ctx.body = await Avatar.validateShare(sid)
+}
 /* exports */
 export {
 	acceptShareWarnings,
@@ -81,5 +95,7 @@ export {
     improveMemory,
 	endMemory,
     reliveMemory,
+	shareHeader,
 	shareMemory,
+	validateShare,
 }

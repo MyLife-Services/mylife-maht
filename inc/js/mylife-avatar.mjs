@@ -1482,12 +1482,17 @@ class Q extends Avatar {
         }
         return this.#hostedMembers
     }
+    async shareHeader(sid){
+        const header = await this.#ShareAgent.shareHeader(sid)
+        return header
+    }
 	/**
 	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
 	 * @param {guid} sid - Share id
+     * @returns {Promise<Object>} - The Share response object { error, instruction, responses, success, warnings, }
 	 */
 	async shareMemory(sid){
-        return await this.#ShareAgent.shareMemory(sid)
+        return await this.#ShareAgent.play(sid)
 	}
     /**
      * Validate registration id.
@@ -1497,6 +1502,12 @@ class Q extends Avatar {
     async validateRegistration(validationId){
         const response = await mValidateRegistration(this.activeBotId, this.#factory, validationId)
         return response
+    }
+    async validateShare(shareId){
+        const instanceId = await this.#ShareAgent.validateShare(shareId)
+        return {
+            instanceId,
+        }
     }
     /* getters/setters */
     /**

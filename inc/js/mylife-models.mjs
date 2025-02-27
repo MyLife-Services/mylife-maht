@@ -213,7 +213,9 @@ class Share extends EventEmitter {
     #group
     #guessable
     #guesses=0
+    #header=false
     #id
+    #initialized=false
     #instanceId
     #itemId
     #mbr_id
@@ -231,17 +233,15 @@ class Share extends EventEmitter {
     /**
      * @constructor
      * @param {object} share - The Share data core object
-     * @param {Item} item - The Item instance
-     * @returns {Promise<Share>}
+     * @returns {Share}
      */
-    constructor(share, Conversation){
+    constructor(share){
         const { anonymous=true, conclusion, group, guessable=false, id, instanceId=this.id & Date.now().toString(), itemId, mbr_id, pov, restrictions, scope='private', title, type='memory', voice, } = share
         if(!mbr_id || !id || !itemId)
             throw new Error('Member and item id required')
         super()
         this.#anonymous = anonymous
         this.#conclusion = conclusion
-        this.#conversation = Conversation
         this.#guessable = guessable
         this.#group = group
         this.#id = id
@@ -261,14 +261,19 @@ class Share extends EventEmitter {
     /**
      * Initialize the share with the filled Share instance. This is the sanitized version of the Item.
      * @param {object} shareData - The secondary share data
-     * @param {Conversation} Conversation - The Conversation instance
      * @returns {Promise<Share>}
      */
     init(shareData){
-        const { summary, warnings, } = shareData
+        if(!this.#header)
+            return
+        const { characters, Conversation, scenes, } = shareData
+        if(!Array.isArray(scenes) || !scenes?.length)
+            throw new Error('Scenes required')
+        this.#characters = characters
+        this.#conversation = Conversation
+        this.#scenes = scenes
         this.#currentScene = 0
-        this.#summary = summary
-        this.#warnings = warnings
+        this.#initialized = true
         return this
     }
     /**
@@ -306,28 +311,18 @@ class Share extends EventEmitter {
         return false
     }
     async play(input){
-        const output = {
-            anonymous: this.anonymous,
-            guessable: this.guessable,
-            id: this.instanceId,
-            title: this.title,
-            type: this.type,
-        }
-        if(this.warnings?.length && !this.#acceptWarnings)
-            return {
-                ...output,
-                warnings: this.triggerWarnings(),
-            }
+        if(!this.warningsAccepted)
+            return this.share
         if(!this.scenes[this.#currentScene])
             return {
-                ...output,
+                ...this.share,
                 scene: this.stop()
             }
         const scene = this.scenes[this.#currentScene]
         console.log('Share::play()::scene', scene)
         this.#currentScene++
         return {
-            ...output,
+            ...this.share,
             scene,
         }
     }
@@ -377,11 +372,31 @@ class Share extends EventEmitter {
     get conversation(){
         return this.#conversation
     }
+    set conversation(Conversation){
+        this.#conversation = Conversation
+    }
     get guessable(){
         return this.#guessable
     }
+    get header(){
+        if(this.#header)
+            return this.share
+    }
+    set header(headerData){
+        const { summary, warnings, variables, } = headerData
+        if(!summary?.length)
+            return
+        this.#summary = summary
+        this.#warnings = warnings
+        if(variables && typeof variables==='object' && !Array.isArray(variables))
+            this.addVariable(variables)
+        this.#header = true
+    }
     get id(){
         return this.#id
+    }
+    get initialized(){
+        return this.#initialized
     }
     get instanceId(){
         return this.#instanceId
@@ -406,21 +421,18 @@ class Share extends EventEmitter {
             this.#scenes = value
     }
     get share(){
-        return {
+        const response = {
             anonymous: this.anonymous,
-            conclusion: this.conclusion,
             guessable: this.guessable,
-            id: this.id,
-            itemId: this.itemId,
-            pov: this.pov,
+            id: this.instanceId,
             scope: this.scope,
-            scenes: this.scenes,
-            summary: this.summary,
             title: this.title,
             type: this.type,
-            voice: this.voice,
             warnings: this.warnings,
         }
+        if(!this.#anonymous)
+            response.variables = this.#variables
+        return response
     }
     get scope(){
         return this.#scope
@@ -443,6 +455,14 @@ class Share extends EventEmitter {
     }
     get warnings(){
         return this.#warnings
+    }
+    get warningsAccepted(){
+        if(!this.header) // warnings not yet created
+            return false
+        else if(!this.#warnings?.length)
+            return true
+        else
+            return this.#acceptWarnings
     }
 }
 /* module functions */
