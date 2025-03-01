@@ -457,7 +457,7 @@ class ShareAgent {
         if(Share.voice?.length)
             prompt += `- voice: ${ Share.voice }\n`
         prompt += `- summary: ${ Share.summary }`
-        const messages = await this.#llm.getLLMResponse(null, mDefaultScriptAdvisorLLMId, prompt)
+        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMId, prompt)
         if(messages?.[0]){
             const { content, thread_id, } = messages[0]
             const message = content
@@ -486,6 +486,11 @@ class ShareAgent {
                 Share.stop()
         }, 10 * 60 * 1000)
     }
+    /**
+     * Stops a share experience.
+     * @param {Guid} instanceId - The Share instance id
+     * @returns {Promise<object>} - The share stop object
+     */
     async stop(instanceId){
         const Share = this.share(instanceId)
         if(Share){
@@ -536,7 +541,7 @@ function mCast(cast, botAgent, Factory){
             case 'member':
             case 'member-bot':
             default:
-                Bot = botAgent.bot(null, form)
+                Bot = botAgent.bot(undefined, form)
                 break
             }
         const Actor = new CastMember(castMember, Bot, Factory)
@@ -1055,7 +1060,7 @@ function mLocation(Experience, eid){
     eid = eid
         ?? scriptEvents[0].id
     const iteration = 0
-    const sid = Experience.scene(null, eid).id
+    const sid = Experience.scene(undefined, eid).id
     return { xid, eid, iteration, sid, }
 }
 /**

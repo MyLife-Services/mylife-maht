@@ -123,17 +123,17 @@ class Datamanager {
 			throw new Error('No hosted members found')
 		return documents
 	}
-	async patchItem(id, item, container_id=this.containerDefault){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+	async patchItem(id, item, container_id=this.containerDefault, partitionId=this.#partitionId){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		// [Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(item))
 			item = [item]
 		try{
 			const { resource: update, } = await this.#containers[container_id]
-				.item(id, this.#partitionId)
+				.item(id, partitionId)
 				.patch(item) //	see below for filter-patch example
 			return update
 		} catch (error){
-			console.error('patchItem error:', error, item, id, container_id)
+			console.log('Datamanager::patchItem::error', error, item, id, container_id, partitionId)
 			return {}
 		}
 	}

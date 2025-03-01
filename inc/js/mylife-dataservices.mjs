@@ -290,7 +290,7 @@ class Dataservices {
 						...memories,
 					])
 					.catch(err=>{
-						console.log('mylife-data-service::collections() error', err)
+						console.log('Dataservices::collections()::error', err)
 						return []
 					})
 		}
@@ -441,7 +441,7 @@ class Dataservices {
 			)
 		}
 		catch(error){
-			console.log('mylife-data-service::getItem() error', error, id, mbr_id, container_id,)
+			console.log('Dataservices::getItem()::error', error, id, mbr_id, container_id,)
 			return null
 		}
 	}
@@ -519,7 +519,7 @@ class Dataservices {
 				},
 			)
 		} catch(_error){
-			console.log('mylife-data-service::getItems() error', _error, being, query, paramsArray, container_id,)
+			console.log('Dataservices::getItems()::error', _error, being, query, paramsArray, container_id,)
 		}
 	}
 	/**
@@ -560,7 +560,7 @@ class Dataservices {
 	 */
 	async patch(id, data, path = '/') {
 		const patchOperations = Object.keys(data)
-			.filter(key => !['id', 'being', 'mbr_id'].includes(key)) // keys which must not be included in patch
+			.filter(key => !['id', 'being', 'mbr_id'].includes(key))
 			.map(key => {
 				return { op: 'add', path: path + key, value: data[key] }
 			})
@@ -572,7 +572,7 @@ class Dataservices {
 		// Perform the patch operation(s) for each batch
 		let endResult
 		for(const batch of patchBatches){
-			endResult = await this.patchItem(id, batch)
+			endResult = await this.patchItem(id, batch, data?.mbr_id)
 		}
 		return endResult
 	}
@@ -583,8 +583,8 @@ class Dataservices {
 	 * @param {Array<Object>} data - The data for patching, including the path and operation.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(id, data){ // path Embedded in data
-		return await this.datamanager.patchItem(id, data)
+	async patchItem(id, data, mbr_id){ // path Embedded in data
+		return await this.datamanager.patchItem(id, data, undefined, mbr_id)
 	}
     /**
      * Pushes a new item to the data manager
@@ -633,7 +633,7 @@ class Dataservices {
 			const response = await this.datamanager.patchItem(this.core.id, [{ op: 'add', path: '/passphrase', value: passphrase }])
 			return response?.passphrase===passphrase
 		} catch(err){
-			console.log('mylife-data-service::resetPassphrase() error', err)
+			console.log('Dataservices::resetPassphrase()::error', err)
 			return false
 		}
     }

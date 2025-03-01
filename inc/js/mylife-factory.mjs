@@ -256,7 +256,7 @@ class BotFactory extends EventEmitter{
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		const messages = await this.#llmServices.getLLMResponse(null, mGeneralBotId, prompt)
+		const messages = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt)
 		if(messages?.[0]){
 			const { content, thread_id, } = messages[0]
 			const message = content
@@ -851,7 +851,7 @@ class MyLifeFactory extends AgentFactory {
 			memberAccount = await this.dataservices.addCore(core) ?? {}
 			this.#registrationData = null
 		} catch(error) {
-			console.log(chalk.blueBright('createAccount()::createCore()::error'), chalk.bgRed(error))
+			console.log(chalk.blueBright('Factory::createAccount()::account core error'), chalk.bgRed(error))
 		}
 		/* create avatar */
 		if(Object.keys(memberAccount)?.length){
@@ -859,7 +859,7 @@ class MyLifeFactory extends AgentFactory {
 				const avatarData = await this.dataservices.addAvatar(memberAccount?.core)
 				return avatarData
 			} catch(error) { 
-				console.log(chalk.blueBright('createAccount()::createAvatar()::error'), chalk.bgRed(error))
+				console.log(chalk.blueBright('Factory::createAccount()::create Avatar error'), chalk.bgRed(error))
 			}
 		}
 	}
@@ -872,7 +872,7 @@ class MyLifeFactory extends AgentFactory {
 	 * @returns {object} - The member's core data
 	 */
 	async datacore(mbr_id){
-		const core = ( await mDataservices.getItems('core', null, null, null, mbr_id) )
+		const core = ( await mDataservices.getItems('core', undefined, undefined, undefined, mbr_id) )
 			?.[0]
 		return core
 	}
@@ -1031,7 +1031,7 @@ async function mEvaluateItem(summary, llm_id=mGeneralBotId){
 		success: false,
 	}
     const prompt = `Evaluate the included summary for clarity, dramatics, aesthetics, and completeness. Give top 2 recommendations to improve the summary. Do not repeat summary in response.\nSUMMARY:\n${summary}`
-    let responses = await mLLMServices.getLLMResponse(null, llm_id, prompt)
+    let responses = await mLLMServices.getLLMResponse(undefined, llm_id, prompt)
 	responses = mLLMServices.extractResponses(responses)
 	evaluation.success = responses.length
 	if(evaluation.success)
@@ -1122,7 +1122,6 @@ constructor(obj){
 		console.log('vm ${ _className } class constructed')
 	} catch(err) {
 		console.log(\`FATAL ERROR CREATING \${obj.being}\`, err)
-		rethrow
 	}
 }
 // if id changes are necessary, then use set .id() to trigger the change
@@ -1225,7 +1224,7 @@ async function mObscure(summary) {
 	let obscuredSummary
     // @stub - if greater than limit, turn into text file and add
     const prompt = `OBSCURE:\n${summary}`
-    const messageArray = await mLLMServices.getLLMResponse(null, mGeneralBotId, prompt)
+    const messageArray = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt)
 	const { content: contentArray=[], } = messageArray?.[0] ?? {}
 	const { value, } = contentArray
 		.filter(message=>message.type==='text')

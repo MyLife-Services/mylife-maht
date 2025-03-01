@@ -12,6 +12,7 @@ async function mSaveConversation(Conversation, factory){
         form,
         id,
         isSaved=false,
+        mbr_id,
         name,
         thread,
         type,
@@ -26,6 +27,7 @@ async function mSaveConversation(Conversation, factory){
             form,
             id,
             messages,
+            mbr_id,
             name,
             thread,
             type,
@@ -35,7 +37,7 @@ async function mSaveConversation(Conversation, factory){
     }
     const updatedConversation = await factory.dataservices.patch(
         id,
-        { messages, }
+        { mbr_id, messages, }
     )
     return !!updatedConversation
 }

@@ -257,6 +257,10 @@ class Share extends EventEmitter {
         this.#voice = voice
         return this
     }
+    /* private functions */
+    #sceneExists(){
+        return this.#currentScene < this.scenes.length
+    }
     /* public functions */
     /**
      * Initialize the share with the filled Share instance. This is the sanitized version of the Item.
@@ -313,17 +317,18 @@ class Share extends EventEmitter {
     async play(input){
         if(!this.warningsAccepted)
             return this.share
-        if(!this.scenes[this.#currentScene])
-            return {
-                ...this.share,
-                scene: this.stop()
-            }
         if(input?.length)
             this.#conversation.addMessage({
                 content: input,
                 created_at: Date.now(),
                 role: 'member',
             })
+        if(!this.#sceneExists())
+            return {
+                ...this.share,
+                instructions: `stopShare`,
+                scene: this.stop()
+            }
         const scene = this.scenes[this.#currentScene]
         this.#conversation.addMessage({
             content: scene,
@@ -350,7 +355,7 @@ class Share extends EventEmitter {
      * @returns {void}
      */
     stop(){
-        if(this.#currentScene>=this.scenes.length)
+        if(!this.#sceneExists())
             this.save()
         if(this.#conversation)
             this.#conversation.removeThread(this.#conversation.thread_id)

@@ -103,7 +103,7 @@ async function experienceEnd(){
     /* end experience onscreen */
     sceneStage.innerHTML = '' // clear full-screen character-lanes
     clearSystemChat() // clear member chat lanes
-    stageTransition(null, true) // request force-clear of member experience
+    stageTransition(undefined, true) // request force-clear of member experience
 }
 /**
  * Play experience onscreen, mutates `mExperience` object.
@@ -944,7 +944,7 @@ function mSceneTransition(){
                 })
                 .forEach(character=>{
                     /* create/move character lane */
-                    mAddCharacterLane(null, character, true)
+                    mAddCharacterLane(undefined, character, true)
                 })
             mUpdateModerator(true) // clear moderator
             memberSceneTransition()

@@ -308,7 +308,21 @@ async function mShare(activeShareId){
     awaitButton.textContent = 'Retrieving scene from server...'
     show(awaitButton)
     const inputText = document.getElementById('share-input')?.value
-    const { scene, } = await mGlobals.datamanager.share(activeShareId, inputText)
+    const { instructions, scene, } = await mGlobals.datamanager.share(activeShareId, inputText)
+    if(instructions?.length){
+        switch(instructions){
+            case 'stopShare':
+                const shareCancel = document.getElementById('share-cancel')
+                console.log('stopShare', shareCancel)
+                if(shareCancel)
+                    shareCancel.click()
+                else
+                    mShareStop()
+                return
+            default:
+                return
+        }
+    }
     if(scene?.length){
         await mAddMessage(scene, { bubbleClass: 'share-bubble', typeDelay: 4, typewrite: true, })
         mShareProgress(activeShareId)
@@ -351,6 +365,7 @@ function mShareProgress(activeShareId){
     /* share progress inline functions */
     function _cancel(){
         shareProgress.remove()
+        console.log('_cancel', activeShareId)
         mShareStop(activeShareId)
     } 
     function _next(){
@@ -435,9 +450,17 @@ async function mShareStart(activeShareId){
     } else
         mShare(activeShareId)
 }
+/**
+ * Stops a shared memory. Upon local stop, the server is told to cease.
+ * @param {Guid} activeShareId - The share id to process (optional)
+ * @returns {void}
+ */
 function mShareStop(activeShareId){
-    mGlobals.datamanager.shareStop(activeShareId)
-    // return to normal interface
+    if(activeShareId)
+        mGlobals.datamanager.shareStop(activeShareId)
+    hide(awaitButton)
+    console.log('mShareStop', activeShareId)
+    show(mGlobals.MemberChat)
 }
 /**
  * Display the entire page.

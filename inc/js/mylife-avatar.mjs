@@ -258,7 +258,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise<Conversation>} - The Conversation instance
      */
 	async conversationStart(type='chat', form='member-avatar', mbr_id){
-        const Conversation = await this.#botAgent.conversationStart(type, form, null, null, mbr_id)
+        const Conversation = await this.#botAgent.conversationStart(type, form, undefined, undefined, mbr_id)
         return Conversation
     }
     /**
@@ -339,7 +339,6 @@ class Avatar extends EventEmitter {
      * @returns {object} - The frontend response object: { error, experience, instruction, success, }
      */
     async experience(xid, memberInput){
-        console.log('experience', xid, memberInput)
         const Experience = await this.#experienceAgent.experience(xid, memberInput)
         const experience = mPruneExperience(Experience)
         // add frontend instructions here
@@ -461,7 +460,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('helpRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('MemberAvatar::help()::BYPASS-SAVE', conversation.message.content)
         const response = mPruneMessages(this.activeBotId, helpResponseArray, 'help', processStartTime)
         return response
     }
@@ -1359,7 +1358,7 @@ class Q extends Avatar {
         const { routine, success, } = greeting
         let { responses, } = greeting
         responses = responses.map(response=>{
-            response = mPruneMessage(null, response, 'greeting')
+            response = mPruneMessage(undefined, response, 'greeting')
             delete response.activeBotId
             return response
         })
@@ -1404,7 +1403,6 @@ class Q extends Avatar {
      */
     acceptShareWarnings(instanceId){
         const response = this.#ShareAgent.acceptWarnings(instanceId)
-        console.log('Q::acceptShareWarnings()', instanceId, response)
         return response
     }
     /**
@@ -1456,9 +1454,9 @@ class Q extends Avatar {
             const { mbr_id, } = avatar
             success = true
             this.addMember(mbr_id)
-            console.log(`member account created: ${ mbr_id }`)
+            console.log(`SystemAvatar::createAccount::mbr_id: ${ mbr_id }`)
         } else
-            console.log('member account creation failed')
+            console.log('SystemAvatar::createAccount::error: failed')
         return {
             avatar,
             success,
@@ -1743,7 +1741,7 @@ function mItem(item, avatar, llmServices){
                 break
         }
     } catch(error){
-        console.log('item()::error', error)
+        console.log('mIitem()::error', error)
     }
     return Item
 }
@@ -1965,7 +1963,7 @@ function mRoutine(script, Avatar, BotAgent){
                 if(event.character)
                     activeCastMember = cast.find(castMember=>castMember.id===event.character)
                         ?? activeCastMember
-                const Bot = BotAgent.bot(null, activeCastMember.type)
+                const Bot = BotAgent.bot(undefined, activeCastMember.type)
                 if(!!Bot){
                     const replacement = Bot[variableReplacement]?.toString()
                         ?? Avatar[variableReplacement]?.toString()
