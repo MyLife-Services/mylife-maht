@@ -45,12 +45,27 @@ async function reliveMemory(ctx){
 	const { memberInput, } = ctx.request.body
 	ctx.body = await avatar.reliveMemory(iid, memberInput)
 }
+/**
+ * Share a memory `Header` with frontend to determine warnings or restrictions.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object>} - shareHeader object
+ */
 async function shareHeader(ctx){
 	const { sid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
 	if(!Avatar.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife share header')
 	ctx.body = await Avatar.shareHeader(sid)
+}
+/**
+ * Submit memory `Feedback`.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object>} - shareFeedback object
+ */
+async function shareFeedback(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	ctx.throw(501, 'Not Implemented')
 }
 /**
  * Execute a memory `Share`; currently only shared publicly with non-MyLife members.
@@ -65,21 +80,20 @@ async function shareMemory(ctx){
 		return ctx.throw(400, 'Invalid Item ID')
 	if(!Avatar.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife memory')
-	ctx.body = await Avatar.shareMemory(sid)
+	const { input, } = ctx.request.body
+	ctx.body = await Avatar.shareMemory(sid, input)
 }
 /**
- * Living a shared memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage the "author/narrator" chooses. In fact, much of the triggers and dials on how to present the experience of a shared memory is available and controlled by the member, and contained and executed by the biographer bot for the moment through this func6ion. Ultimately the default bot could be switched, in which case, information retrieval may need ways to contextualize pushbacks (floabt, meaning people asking questions about the memory that are not answerable by the summar itself, and 1) _may_ be answerable by another bot, such as biogbot, or 2) is positioned as a piece of data to "improve" or flesh out memories... Remember on this day in 2011, what did you have to eat on the boardwalk? Enquiring minds want to know!)
- * @param {Koa} ctx - Koa context object.
- * @returns {Promise<object>} - livingMemory object.
+ * Stop sharing a memory.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object>} - shareStop object
  */
-async function livingMemory(ctx){
-	const { iid } = ctx.params
-	const { Globals, MyLife, } = ctx
-	const { avatar, } = ctx.state
-	if(!Globals.isValidGuid(iid))
-		ctx.throw(400, 'Invalid Item ID')
-	ctx.throw(501, 'Not Implemented')
-	ctx.body = await avatar.livingMemory(iid)
+async function shareStop(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(!Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife share')
+	ctx.body = await Avatar.shareStop(sid)
 }
 async function validateShare(ctx){
 	const { sid, } = ctx.params
@@ -96,6 +110,8 @@ export {
 	endMemory,
     reliveMemory,
 	shareHeader,
+	shareFeedback,
 	shareMemory,
+	shareStop,
 	validateShare,
 }

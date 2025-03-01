@@ -401,11 +401,25 @@ class ShareAgent {
      * @returns {Boolean} - The Share acceptance status
      */
     acceptWarnings(instanceId){
-        const Share = this.#shares.find(share=>share.instanceId===instanceId)
+        const Share = this.share(instanceId)
         if(!!Share)
             return Share.acceptWarnings()
         else
             throw new Error('Share not found')
+    }
+    /**
+     * Get a memory `Header`.
+	 * @param {guid} instanceId - Share instanceId
+     * @returns {Promise<object>} - shareHeader object
+     */
+    async header(instanceId){
+        const Share = this.share(instanceId)
+        if(Share && !Share.header){
+            let MemberAvatar = await this.#factory.avatarProxy(Share.mbr_id)
+            const shareData = await MemberAvatar.cleanShare(Share) // operates directly upon Shared Memory Share
+            Share.header = shareData
+        }
+        return Share?.header
     }
     /**
      * Plays a public share.
@@ -414,7 +428,7 @@ class ShareAgent {
      * @returns {object} - The next message(s) in the share experience
      */
     async play(instanceId, input){
-        const Share = this.#shares.find(share=>share.instanceId===instanceId)
+        const Share = this.share(instanceId)
         if(!Share)
             throw new Error('Share not found')
         else if(!Share.header || !Share.warningsAccepted)
@@ -426,15 +440,6 @@ class ShareAgent {
     share(instanceId){
         const Share = this.#shares.find(share=>share.instanceId===instanceId)
         return Share
-    }
-    async shareHeader(instanceId){
-        const Share = this.share(instanceId)
-        if(Share && !Share.header){
-            let MemberAvatar = await this.#factory.avatarProxy(Share.mbr_id)
-            const shareData = await MemberAvatar.cleanShare(Share) // operates directly upon Shared Memory Share
-            Share.header = shareData
-        }
-        return Share?.header
     }
     /**
      * Initializes a share experience.
@@ -473,16 +478,26 @@ class ShareAgent {
                 this.#llm.deleteThread(thread_id) // no await
         }
         /* set Conversation */
-        // Conversation = await this.#avatar.conversationStart('share', 'share-agent')
-        console.log('ShareAgent::shareInit::shareData', shareData)
+        shareData.Conversation = await this.#avatar.conversationStart('share', 'share-agent', Share.mbr_id)
         Share.init(shareData)
         setTimeout(_=>{ // @todo - incorporate lock
-            if(this.#shares.find(share=>share.instanceId===Share.instanceId))
+            if(this.share(instanceId))
                 this.#shares = this.#shares.filter(share=>share.instanceId!==Share.instanceId)
+                Share.stop()
         }, 10 * 60 * 1000)
     }
+    async stop(instanceId){
+        const Share = this.share(instanceId)
+        if(Share){
+            this.#shares = this.#shares.filter(share=>share.instanceId!==Share.instanceId)
+            return {
+                responses: Share.stop(),
+                success: true
+            }
+        }
+    }
     async validateShare(shareId){
-        if(!this.#shares.find(share=>share.instanceId===shareId)){
+        if(!this.share(shareId)){ // protect in case instanceId sent
             const share = await this.#factory.getShare(shareId)
             share.instanceId = this.#factory.newGuid
             const _Share = new Share(share)

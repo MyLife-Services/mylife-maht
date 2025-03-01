@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', async event=>{
     /* display page */
     if(mGlobals.isGuid(activeShareId)){
         activeShareId = await mGlobals.datamanager.validateShare(activeShareId) // set with instanceId as opposed to share document id
-        console.log(`activeShareId: ${ activeShareId }`)
         if(mGlobals.isGuid(activeShareId))
             activeShare = true
     }
@@ -63,78 +62,8 @@ document.addEventListener('DOMContentLoaded', async event=>{
         if(input)
             mGlobals.addChatElement(input)
     /* execute Share */
-    if(activeShare){
-        const shareWelcome = mAddMessage('Congratulations! A <i>MyLife</i> Member has shared a memory with you!<br />Please wait while I load and interpret the memory', { // no await necessary
-            bubbleClass: 'system-bubble',
-            typeDelay: 10,
-            typewrite: true,
-        })
-        show(awaitButton)
-        const shareHeader = await mGlobals.datamanager.shareHeader(activeShareId)
-        shareWelcome.remove()
-        const title = `<i>Prepare to experience</i>:<br />&mdash; <b>${ shareHeader.title ?? 'A MyLife Shared Memory' }</b>`
-        hide(awaitButton)
-        const shareTitle = await mAddMessage(title, { // no await necessary
-            bubbleClass: 'share-bubble',
-            typeDelay: 10,
-            typewrite: true,
-        })
-        if(shareHeader.warnings?.length){
-            const shareWarning = `Before we proceed, <i>MyLife</i> needs to notify you that the shared content contains the following warnings: <b>${ shareHeader.warnings }</b><br />&mdash; Please confirm that you are willing to continue, or cancel out now.`
-            const triggerWarningBubble = await mAddMessage(shareWarning, { bubbleClass: 'warning-bubble', typeDelay: 4, typewrite: true, })
-            /* trigger warnings */
-            // @todo - move to response `input` node
-            const triggerWarning = document.createElement('div')
-            triggerWarning.className = 'warning-input'
-            triggerWarning.id = 'warning-input'
-            /* cancel button */
-            const triggerWarningCancel = document.createElement('button')
-            triggerWarningCancel.className = 'warning-cancel'
-            triggerWarningCancel.id = 'warning-cancel'
-            triggerWarningCancel.innerHTML = 'Cancel'
-            triggerWarningCancel.addEventListener('click', cancelWarning, { once: true })
-            triggerWarningCancel.addEventListener('keydown', event=>{
-                if(event.key==='Escape')
-                    triggerWarningCancel.click()
-            })
-            triggerWarning.appendChild(triggerWarningCancel)
-            /* continue button */
-            const triggerWarningContinue = document.createElement('button')
-            triggerWarningContinue.className = 'warning-continue'
-            triggerWarningContinue.id = 'warning-continue'
-            triggerWarningContinue.innerHTML = 'Continue'
-            triggerWarningContinue.addEventListener('click', continueWarning, { once: true })
-            triggerWarningContinue.addEventListener('keydown', event=>{
-                if(event.key==='Escape')
-                    triggerWarningCancel.click()
-            })
-            triggerWarning.appendChild(triggerWarningContinue)
-            mGlobals.addChatElement(triggerWarning)
-            /* trigger warning inline functions */
-            async function cancelWarning(){
-                removeShareContent()
-                await mAddMessage(`I'm sorry about that! I'm still happy to share information about MyLife... just ask!`, {
-                    bubbleClass: 'system-bubble',
-                    typeDelay: 10,
-                    typewrite: true,
-                })
-                show(mGlobals.MemberChat)
-            }
-            async function continueWarning(){
-                removeShareContent(true)
-                if(await mGlobals.datamanager.acceptShareWarnings(activeShareId))
-                    mShare(activeShareId)
-            }
-            function removeShareContent(warningOnly=false){
-                triggerWarningBubble.remove()
-                triggerWarning.remove()
-                if(warningOnly)
-                    return
-                shareWelcome.remove()
-                shareTitle.remove()
-            }
-        }
-    }
+    if(activeShare)
+        mShareStart(activeShareId)
 })
 /* public functions */
 function about(){
@@ -369,31 +298,146 @@ async function mRoutine(routineName){
     else if(error.message)
         mAddMessage(error.message, { bubbleClass: 'system-bubble', typeDelay: 1, typewrite: true, })
 }
-async function mShare(shareId){
+/**
+ * Leads interface through a shared memory.
+ * @param {Guid} activeShareId - The share id to process
+ * @returns {void}
+ */
+async function mShare(activeShareId){
+    const awaitOriginalContent = awaitButton.textContent.trim()
+    awaitButton.textContent = 'Retrieving scene from server...'
     show(awaitButton)
-    const { scene, } = await mGlobals.datamanager.share(shareId)
+    const inputText = document.getElementById('share-input')?.value
+    const { scene, } = await mGlobals.datamanager.share(activeShareId, inputText)
     if(scene?.length){
         await mAddMessage(scene, { bubbleClass: 'share-bubble', typeDelay: 4, typewrite: true, })
-        mShareProgress(shareId)
+        mShareProgress(activeShareId)
         mGlobals.scrollBottom()
     }
     hide(awaitButton)
+    awaitButton.textContent = awaitOriginalContent
 }
-function mShareProgress(shareId){
+function mShareProgress(activeShareId){
+    /* share progress container */
     const shareProgress = document.createElement('div')
     shareProgress.className = 'share-progress'
     shareProgress.id = 'share-progress'
+    /* share cancel */
+    const shareProgressCancel = document.createElement('button')
+    shareProgressCancel.className = 'share-cancel'
+    shareProgressCancel.id = 'share-cancel'
+    shareProgressCancel.innerHTML = 'Stop Memory'
+    shareProgressCancel.addEventListener('click', _cancel)
+    shareProgress.appendChild(shareProgressCancel)
+    /* share input */
+    const shareProgressText = document.createElement('textarea')
+    shareProgressText.className = 'share-input'
+    shareProgressText.id = 'share-input'
+    shareProgressText.placeholder = 'Share thoughts or personal updates regarding this memory here...'
+    shareProgressText.addEventListener('input', _=>{
+        shareProgressText.style.height = 'auto'; // Reset height to calculate the new height
+        shareProgressText.style.height = `${Math.min(shareProgressText.scrollHeight, 128)}px`; // 128px = 8rem
+    })
+    shareProgress.appendChild(shareProgressText)
+    /* share next */
     const shareProgressNext = document.createElement('button')
     shareProgressNext.className = 'share-next'
     shareProgressNext.id = 'share-next'
     shareProgressNext.innerHTML = 'Next'
-    shareProgressNext.addEventListener('click', mShareNext)
+    shareProgressNext.addEventListener('click', _next)
     shareProgress.appendChild(shareProgressNext)
     mGlobals.addChatElement(shareProgress)
-    function mShareNext(){
+    shareProgressText.focus()
+    /* share progress inline functions */
+    function _cancel(){
         shareProgress.remove()
-        mShare(shareId)
+        mShareStop(activeShareId)
+    } 
+    function _next(){
+        hide(shareProgress)
+        mShare(activeShareId)
+        shareProgress.remove()
     }
+}
+async function mShareStart(activeShareId){
+    const shareWelcome = mAddMessage('Congratulations! A <i>MyLife</i> Member has shared a memory with you!<br />Please wait while I load and interpret the memory', { // no await necessary
+        bubbleClass: 'system-bubble',
+        typeDelay: 10,
+        typewrite: true,
+    })
+    const awaitOriginalContent = awaitButton.textContent.trim()
+    awaitButton.textContent = 'Connecting with Member Avatar to retrieve memory...'
+    show(awaitButton)
+    const shareHeader = await mGlobals.datamanager.shareHeader(activeShareId)
+    shareWelcome.remove()
+    const title = `<i>Prepare to experience</i>:<br />&mdash; <b>${ shareHeader.title ?? 'A MyLife Shared Memory' }</b>`
+    hide(awaitButton)
+    awaitButton.textContent = awaitOriginalContent
+    const shareTitle = await mAddMessage(title, { // no await necessary
+        bubbleClass: 'share-bubble',
+        typeDelay: 10,
+        typewrite: true,
+    })
+    if(shareHeader.warnings?.length){
+        const shareWarning = `Before we proceed, <i>MyLife</i> needs to notify you that the shared content contains the following warnings: <b>${ shareHeader.warnings }</b><br />&mdash; Please confirm that you are willing to continue, or cancel out now.`
+        const triggerWarningBubble = await mAddMessage(shareWarning, { bubbleClass: 'warning-bubble', typeDelay: 4, typewrite: true, })
+        /* trigger warnings */
+        // @todo - move to response `input` node
+        const triggerWarning = document.createElement('div')
+        triggerWarning.className = 'warning-input'
+        triggerWarning.id = 'warning-input'
+        /* cancel button */
+        const triggerWarningCancel = document.createElement('button')
+        triggerWarningCancel.className = 'warning-cancel'
+        triggerWarningCancel.id = 'warning-cancel'
+        triggerWarningCancel.innerHTML = 'Cancel'
+        triggerWarningCancel.addEventListener('click', _warningCancel, { once: true })
+        triggerWarningCancel.addEventListener('keydown', event=>{
+            if(event.key==='Escape')
+                triggerWarningCancel.click()
+        })
+        triggerWarning.appendChild(triggerWarningCancel)
+        /* continue button */
+        const triggerWarningContinue = document.createElement('button')
+        triggerWarningContinue.className = 'warning-continue'
+        triggerWarningContinue.id = 'warning-continue'
+        triggerWarningContinue.innerHTML = 'Continue'
+        triggerWarningContinue.addEventListener('click', _warningContinue, { once: true })
+        triggerWarningContinue.addEventListener('keydown', event=>{
+            if(event.key==='Escape')
+                triggerWarningCancel.click()
+        })
+        triggerWarning.appendChild(triggerWarningContinue)
+        mGlobals.addChatElement(triggerWarning)
+        /* trigger warning inline functions */
+        async function _warningCancel(){
+            _removeWarning()
+            await mAddMessage(`I'm sorry about that! I'm still happy to share information about MyLife... just ask!`, {
+                bubbleClass: 'system-bubble',
+                typeDelay: 10,
+                typewrite: true,
+            })
+            show(mGlobals.MemberChat)
+        }
+        async function _warningContinue(){
+            _removeWarning(true)
+            if(await mGlobals.datamanager.acceptShareWarnings(activeShareId))
+                mShare(activeShareId)
+        }
+        function _removeWarning(warningOnly=false){
+            triggerWarningBubble.remove()
+            triggerWarning.remove()
+            if(warningOnly)
+                return
+            shareWelcome.remove()
+            shareTitle.remove()
+        }
+    } else
+        mShare(activeShareId)
+}
+function mShareStop(activeShareId){
+    mGlobals.datamanager.shareStop(activeShareId)
+    // return to normal interface
 }
 /**
  * Display the entire page.

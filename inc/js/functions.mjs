@@ -172,8 +172,8 @@ async function feedback(ctx){
  * @returns {object} - Greetings response message object: { responses, success, }
  */
 async function greetings(ctx){
-	const { vld: validateId, } = ctx.request.query
-	let { dyn: dynamic, } = ctx.request.query
+	const { vld: validateId, } = ctx.params
+	let { dyn: dynamic, } = ctx.params
 	if(typeof dynamic==='string')
 		dynamic = JSON.parse(dynamic)
 	const { avatar: Avatar, } = ctx.state

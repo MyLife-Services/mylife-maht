@@ -318,8 +318,18 @@ class Share extends EventEmitter {
                 ...this.share,
                 scene: this.stop()
             }
+        if(input?.length)
+            this.#conversation.addMessage({
+                content: input,
+                created_at: Date.now(),
+                role: 'member',
+            })
         const scene = this.scenes[this.#currentScene]
-        console.log('Share::play()::scene', scene)
+        this.#conversation.addMessage({
+            content: scene,
+            created_at: Date.now(),
+            role: 'agent',
+        })
         this.#currentScene++
         return {
             ...this.share,
@@ -327,14 +337,13 @@ class Share extends EventEmitter {
         }
     }
     /**
-     * Save the share to the datacore.
+     * Save the Conversation to the member's datacore.
      * @param {object} data - Data object describing fields to be saved (optional), defaults to allowable fields
      * @returns {Promise<void>}
      */
     async save(){
-        // save Conversation
-        // this.#conversation.save() // no await
-        // **NOTE** item itself never gets stored, only the share
+        if(this.#conversation)
+            this.#conversation.save()
     }
     /**
      * Stop the share, ending the conversation, save if complete.
@@ -343,8 +352,9 @@ class Share extends EventEmitter {
     stop(){
         if(this.#currentScene>=this.scenes.length)
             this.save()
-        // end gracefully
-        this.#currentScene = 0
+        if(this.#conversation)
+            this.#conversation.removeThread(this.#conversation.thread_id)
+        this.#conversation = null
         return mShareGratitude
     }
     triggerWarnings(){

@@ -394,9 +394,11 @@ class BotAgent {
 	 * @param {String} type - The type of conversation, defaults to `chat`
 	 * @param {String} form - The form of conversation, defaults to `system-avatar`
 	 * @param {String} prompt - The prompt for the conversation (optional)
+	 * @param {Guid} scriptAdvisorLlmId - The script advisor llm id (optional)
+	 * @param {String} mbr_id - The member id to use for conversation (optional)
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId){
+	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id){
 		let { id, llm_id, } = this.avatar
 		if(type==='experience'){
 			id = this.#factory.actor.id
@@ -405,7 +407,7 @@ class BotAgent {
 			// use  member avatar?
 			llm_id = scriptAdvisorLlmId
 		}
-		const Conversation = await mConversationStart(type, form, id, null, llm_id, this.#llm, this.#factory, prompt)
+		const Conversation = await mConversationStart(type, form, id, null, llm_id, this.#llm, this.#factory, prompt, null, mbr_id)
 		return Conversation
 	}
     /**
@@ -1084,10 +1086,14 @@ async function mConversationDelete(Conversation, factory, llm){
  * @param {AgentFactory} factory - Agent Factory object
  * @param {string} prompt - The prompt for the conversation (optional)
  * @param {Message[]} messages - The array of messages to seed the conversation
+ * @param {String} mbr_id_Override - The member id to use for conversation (optional)
  * @returns {Conversation} - The conversation object
  */
-async function mConversationStart(type='chat', form='system', bot_id, thread_id, llm_id, llm, factory, prompt, messages){
-	const { mbr_id, newGuid: id, } = factory
+async function mConversationStart(type='chat', form='system', bot_id, thread_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
+	console.log(`conversationStart::${ type }`, form, bot_id, thread_id, llm_id, prompt, messages, mbr_id_Override)
+	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
+	const mbr_id = mbr_id_Override
+		?? mbr_id_innate
 	const metadata = { bot_id, conversation_id: id, mbr_id, },
 		processStartTime = Date.now(),
 		thread = await mThread(llm, thread_id, messages, metadata)

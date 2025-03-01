@@ -41,7 +41,9 @@ import {
     improveMemory,
     reliveMemory,
     shareMemory,
+    shareFeedback,
     shareHeader,
+    shareStop,
     validateShare,
 } from './memory-functions.mjs'
 import {
@@ -73,8 +75,8 @@ _Router.get('/logout', logout)
 _Router.get('/experiences', availableExperiences)
 _Router.get('/greeting', greetings)
 _Router.get('/greetings', greetings)
-_Router.get('/share/:sid', validateShare)
 _Router.get('/share/header/:sid', shareHeader)
+_Router.get('/share/:sid', validateShare) // last to not interfere with previous
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
@@ -82,11 +84,13 @@ _Router.get('/routine', routine)
 _Router.get('/routine/:rid', routine)
 _Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
-_Router.patch('/share/:sid', shareMemory)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
+_Router.patch('/share/stop/:sid', shareStop)
+_Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
+_Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)

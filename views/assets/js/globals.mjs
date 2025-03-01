@@ -492,12 +492,36 @@ class Datamanager {
      */
     async share(shareId, input){
         const url = `/share/${ shareId }`
-        const options = { method: 'PATCH', }
+        console.log(`share: ${ shareId }`, input)
+        const options = {
+            body: JSON.stringify({ input, }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'PATCH',
+        }
         const response = await this.#fetch(url, options)
         return response
     }
     async shareHeader(shareId){
         const url = `/share/header/${ shareId }`
+        const response = await this.#fetch(url)
+        return response
+    }
+    async shareFeedback(shareId, isPositive=true, message){
+        const url = `/share/feedback/${ shareId }`
+        const options = {
+            body: JSON.stringify({ isPositive, message, }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async shareStop(shareId){
+        const url = `/share/stop/${ shareId }`
         const response = await this.#fetch(url)
         return response
     }

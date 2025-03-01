@@ -254,10 +254,11 @@ class Avatar extends EventEmitter {
      * Start a new conversation.
      * @param {String} type - The type of conversation, defaults to `chat`
      * @param {String} form - The form of conversation, defaults to `member-avatar`
+     * @param {String} mbr_id - The member id (optional)
      * @returns {Promise<Conversation>} - The Conversation instance
      */
-	async conversationStart(type='chat', form='member-avatar'){
-        const Conversation = await this.#botAgent.conversationStart(type, form)
+	async conversationStart(type='chat', form='member-avatar', mbr_id){
+        const Conversation = await this.#botAgent.conversationStart(type, form, null, null, mbr_id)
         return Conversation
     }
     /**
@@ -1482,18 +1483,32 @@ class Q extends Avatar {
         }
         return this.#hostedMembers
     }
+    /**
+     * Share a memory `Header` with frontend to determine warnings or restrictions.
+	 * @param {Guid} sid - Share id
+     * @returns {Promise<object>} - shareHeader object
+     */
     async shareHeader(sid){
-        const header = await this.#ShareAgent.shareHeader(sid)
+        const header = await this.#ShareAgent.header(sid)
         return header
     }
 	/**
 	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
-	 * @param {guid} sid - Share id
+	 * @param {Guid} sid - Share id
+     * @param {String} input - Text from recipient
      * @returns {Promise<Object>} - The Share response object { error, instruction, responses, success, warnings, }
 	 */
-	async shareMemory(sid){
-        return await this.#ShareAgent.play(sid)
+	async shareMemory(sid, input){
+        return await this.#ShareAgent.play(sid, input)
 	}
+    /**
+     * Stop a shared memory.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<Object>} - The Share.stop response object { error, instruction, responses, success, }
+     */
+    async shareStop(sid){
+        return await this.#ShareAgent.stop(sid)
+    }
     /**
      * Validate registration id.
      * @param {Guid} validationId - The registration id
