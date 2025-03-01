@@ -481,7 +481,7 @@ class ShareAgent {
         shareData.Conversation = await this.#avatar.conversationStart('share', 'share-agent', Share.mbr_id)
         Share.init(shareData)
         setTimeout(_=>{ // @todo - incorporate lock
-            if(this.share(instanceId))
+            if(this.share(Share.instanceId))
                 this.#shares = this.#shares.filter(share=>share.instanceId!==Share.instanceId)
                 Share.stop()
         }, 10 * 60 * 1000)
