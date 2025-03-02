@@ -408,6 +408,27 @@ class ShareAgent {
             throw new Error('Share not found')
     }
     /**
+     * Get a share data by id.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<object>} - The MemberShare document
+     */
+    async getShare(shareId){
+        let response = await this.#factory.getShare(shareId, this.#factory.mbr_id)
+        response = this.#factory.globals.sanitize(response)
+        return response
+    }
+    /**
+     * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
+     * @param {Guid} itemId - The item id (optional)
+     * @returns {Promise<object[]>} - The MemberShare array
+     */
+    async getShares(itemId){
+        let response = await this.#factory.getShares(itemId)
+        if(Array.isArray(response))
+            response = response.map(share=>this.#factory.globals.sanitize(share))
+        return response
+    }
+    /**
      * Get a memory `Header`.
 	 * @param {guid} instanceId - Share instanceId
      * @returns {Promise<object>} - shareHeader object

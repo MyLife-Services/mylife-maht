@@ -14,6 +14,27 @@ function acceptShareWarnings(ctx){
 async function collectMemory(ctx){
 	// @todo - implement memory collection
 }
+/**
+ * Gets an owned share from MyLife `shares` container.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object>} - The MemberShare document
+ */
+async function getShare(ctx){
+	const { sid, } = ctx.params
+	const { avatar: MemberAvatar, } = ctx.state
+	const { avatar: SystemAvatar, } = ctx.MyLife
+	ctx.body = await MemberAvatar.getShare(sid)
+}
+/**
+ * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object[]>} - The MemberShare array
+ */
+async function getShares(ctx){
+	const { iid, } = ctx.params
+	const { avatar: MemberAvatar, } = ctx.state
+	ctx.body = await MemberAvatar.getShares(iid)
+}
 async function endMemory(ctx){
 	const { iid, } = ctx.params
 	const { Globals, MyLife, } = ctx
@@ -95,6 +116,14 @@ async function shareStop(ctx){
 		return ctx.throw(401, 'Unauthorized access to MyLife share')
 	ctx.body = await Avatar.shareStop(sid)
 }
+async function shareUpdate(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(!Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife share')
+	const { input, } = ctx.request.body
+	ctx.body = await Avatar.shareUpdate(sid, input)
+}
 async function validateShare(ctx){
 	const { sid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
@@ -108,10 +137,13 @@ export {
     collectMemory,
     improveMemory,
 	endMemory,
+	getShare,
+	getShares,
     reliveMemory,
 	shareHeader,
 	shareFeedback,
 	shareMemory,
 	shareStop,
+	shareUpdate,
 	validateShare,
 }

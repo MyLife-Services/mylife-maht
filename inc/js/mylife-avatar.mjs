@@ -51,6 +51,7 @@ class Avatar extends EventEmitter {
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as g/setter is "complex"
     #setupComplete
+    #ShareAgent
     #vectorstoreId // vectorstore id for avatar
     /**
      * @constructor
@@ -64,8 +65,8 @@ class Avatar extends EventEmitter {
         this.#assetAgent = new AssetAgent(this.#factory, this.#llmServices)
         this.#botAgent = new BotAgent(this.#factory, this.#llmServices)
         this.#collectionsAgent = new CollectionsAgent(this.#factory, this.#llmServices)
+        this.#ShareAgent = new ShareAgent({ instanceStartTime: Date.now() }, this, this.#factory, this.#llmServices)
     }
-    /* public functions */
     /**
      * Initialize the Avatar class.
      * @todo - create class-extender specific to the "singleton" MyLife avatar
@@ -80,6 +81,16 @@ class Avatar extends EventEmitter {
         this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
         this.#experienceAgent = new ExperienceAgent({}, this.#botAgent, this.#llmServices, this.#factory, this, this.#experienceGenericVariables)
         return this
+    }
+    /* public functions */
+    /**
+     * Accepts share warnings and plays the shared memory.
+     * @param {Guid} instanceId - The share instance id
+     * @returns {Boolean} - Whether or not warnings were accepted
+     */
+    acceptShareWarnings(instanceId){
+        const response = this.#ShareAgent.acceptWarnings(instanceId)
+        return response
     }
     /**
      * Get a Bot instance by id.
@@ -410,6 +421,22 @@ class Avatar extends EventEmitter {
             .filter(c=>(thread_id?.length && c.thread_id===thread_id) || (bot_id?.length && c.bot_id===bot_id))
             ?.[0]
         return conversation
+    }
+    /**
+     * Get a share data by id.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<object>} - The MemberShare document
+     */
+    async getShare(sid){
+        return await this.#ShareAgent.getShare(sid)
+    }
+    /**
+     * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
+     * @param {Guid} itemId - The item id (optional)
+     * @returns {Promise<object[]>} - The MemberShare array
+     */
+    async getShares(itemId){
+        return await this.#ShareAgent.getShares(itemId)
     }
     /**
      * Returns all conversations of a specific-type stored in memory.
@@ -792,6 +819,32 @@ class Avatar extends EventEmitter {
     async shadows(){
         return await this.#factory.shadows()
     }
+    /**
+     * Share a memory `Header` with frontend to determine warnings or restrictions.
+	 * @param {Guid} sid - Share id
+     * @returns {Promise<object>} - shareHeader object
+     */
+    async shareHeader(sid){
+        const header = await this.#ShareAgent.header(sid)
+        return header
+    }
+	/**
+	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
+	 * @param {Guid} sid - Share id
+     * @param {String} input - Text from recipient
+     * @returns {Promise<Object>} - The Share response object { error, instruction, responses, success, warnings, }
+	 */
+	async shareMemory(sid, input){
+        return await this.#ShareAgent.play(sid, input)
+	}
+    /**
+     * Stop a shared memory.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<Object>} - The Share.stop response object { error, instruction, responses, success, }
+     */
+    async shareStop(sid){
+        return await this.#ShareAgent.stop(sid)
+    }
 	/**
 	 * Submits a memory to MyLife. Currently called both from API _and_ LLM function.
      * @todo - deprecate to `item` function
@@ -892,6 +945,17 @@ class Avatar extends EventEmitter {
             uploads: files,
             files: vectorstoreFileList,
             success: true,
+        }
+    }
+    /**
+     * Validates a share id and returns the instance id for newly spawned share.
+     * @param {Guid} shareId - The share id
+     * @returns {Promise<Object>} - Response object: { instanceId, }
+     */
+    async validateShare(shareId){
+        const instanceId = await this.#ShareAgent.validateShare(shareId)
+        return {
+            instanceId,
         }
     }
     /* getters/setters */
@@ -1296,7 +1360,6 @@ class Q extends Avatar {
     #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
     #mode = 'system' // @stub - experience mode for guests
-    #ShareAgent
     /**
      * @constructor
      * @param {MyLifeFactory} factory - The factory on which MyLife relies for all service interactions.
@@ -1308,7 +1371,6 @@ class Q extends Avatar {
         super(factory, llmServices)
         this.#factory = factory
         this.#llmServices = llmServices
-        this.#ShareAgent = new ShareAgent({ instanceStartTime: Date.now() }, this, this.#factory, this.#llmServices)
     }
     /* overloaded methods */
     /**
@@ -1397,15 +1459,6 @@ class Q extends Avatar {
     }
     /* public methods */
     /**
-     * Accepts share warnings and plays the shared memory.
-     * @param {Guid} instanceId - The share instance id
-     * @returns {Boolean} - Whether or not warnings were accepted
-     */
-    acceptShareWarnings(instanceId){
-        const response = this.#ShareAgent.acceptWarnings(instanceId)
-        return response
-    }
-    /**
      * Add a member to the hosted members list.
      * @param {string} id - The member id (mbr_id).
      * @returns {void}
@@ -1482,32 +1535,6 @@ class Q extends Avatar {
         return this.#hostedMembers
     }
     /**
-     * Share a memory `Header` with frontend to determine warnings or restrictions.
-	 * @param {Guid} sid - Share id
-     * @returns {Promise<object>} - shareHeader object
-     */
-    async shareHeader(sid){
-        const header = await this.#ShareAgent.header(sid)
-        return header
-    }
-	/**
-	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
-	 * @param {Guid} sid - Share id
-     * @param {String} input - Text from recipient
-     * @returns {Promise<Object>} - The Share response object { error, instruction, responses, success, warnings, }
-	 */
-	async shareMemory(sid, input){
-        return await this.#ShareAgent.play(sid, input)
-	}
-    /**
-     * Stop a shared memory.
-     * @param {Guid} sid - The share id
-     * @returns {Promise<Object>} - The Share.stop response object { error, instruction, responses, success, }
-     */
-    async shareStop(sid){
-        return await this.#ShareAgent.stop(sid)
-    }
-    /**
      * Validate registration id.
      * @param {Guid} validationId - The registration id
      * @returns {Promise<Object>} - Response object: { error, instruction, registrationData, responses, success, }
@@ -1515,12 +1542,6 @@ class Q extends Avatar {
     async validateRegistration(validationId){
         const response = await mValidateRegistration(this.activeBotId, this.#factory, validationId)
         return response
-    }
-    async validateShare(shareId){
-        const instanceId = await this.#ShareAgent.validateShare(shareId)
-        return {
-            instanceId,
-        }
     }
     /* getters/setters */
     /**

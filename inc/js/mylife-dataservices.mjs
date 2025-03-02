@@ -534,9 +534,9 @@ class Dataservices {
 	 */
 	async getItemsByFields(being, fields, container_id, _mbr_id=this.mbr_id){
 		const _items =  await this.getItems(
-			being, 
+			being,
 			undefined,
-			fields, 
+			fields,
 			container_id,
 			_mbr_id,
 		)

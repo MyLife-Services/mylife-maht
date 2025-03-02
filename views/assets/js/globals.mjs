@@ -313,6 +313,18 @@ class Datamanager {
         const response = await this.#fetch(url, options)
         return response
     }
+    async getShare(shareId){
+        const url = `/members/share/${ shareId }`
+        const response = await this.#fetch(url)
+        return response
+    }
+    async getShares(itemId){
+        const url = `/members/shares`
+        if(itemId?.length)
+            url += `/${ itemId }`
+        const response = await this.#fetch(url)
+        return response
+    }
     /**
      * Fetches the greetings from the server.
      * @param {Boolean} dynamic - Whether or not to use dynamic greetings

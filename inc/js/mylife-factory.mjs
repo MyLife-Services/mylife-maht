@@ -368,6 +368,32 @@ class BotFactory extends EventEmitter{
 		return await mDataservices.getItem(xid, 'system')
 	}
 	/**
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @param {String} mbr_id - The member id
+	 * @returns {object} - The share object from database with Item in-built
+	 */
+	async getShare(sid, mbr_id=this.mbr_id, type){
+		if(!this.globals.isValidGuid(sid))
+			return
+		const share = await mDataservices.share(sid, type) // pull from system database
+		if(!this.isMyLife && share?.mbr_id!==mbr_id)
+			throw new Error('Share does not belong to member')
+		return share
+	}
+    /**
+     * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
+     * @param {Guid} itemId - The item id (optional)
+     * @returns {Promise<object[]>} - The MemberShare array
+     */
+    async getShares(itemId){
+		const fields = [{ name: '@mbr_id', value: this.mbr_id, }]
+		if(this.globals.isValidGuid(itemId))
+			fields.push({ name: '@itemId', value: itemId })
+		const shares = await mDataservices.getItemsByFields('share', fields, 'shares', 'item') // **note**: partition key is `shareType`
+		return shares
+	}
+	/**
 	 * Retrieves a collection item by Id.
 	 * @param {Guid} id - The id of the collection item to retrieve.
 	 * @returns {object} - The item.
@@ -904,17 +930,6 @@ class MyLifeFactory extends AgentFactory {
 	 */
 	async registerCandidate(candidate){
 		return await this.#dataservices.registerCandidate(candidate)
-	}
-	/**
-	 * Retrieves a share object and its associated item from the database.
-	 * @param {Guid} sid - The share id
-	 * @returns {object} - The share object from database with Item in-built
-	 */
-	async getShare(sid, type){
-		if(!this.globals.isValidGuid(sid))
-			return
-		const share = await this.dataservices.share(sid) // pull from system database
-		return share
 	}
 	updateItem(){
 		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))

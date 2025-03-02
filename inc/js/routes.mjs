@@ -38,12 +38,15 @@ import {
     acceptShareWarnings,
     collectMemory,
     endMemory,
+    getShare,
+    getShares,
     improveMemory,
     reliveMemory,
     shareMemory,
     shareFeedback,
     shareHeader,
     shareStop,
+    shareUpdate,
     validateShare,
 } from './memory-functions.mjs'
 import {
@@ -127,6 +130,8 @@ _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/greetings', greetings)
 _memberRouter.get('/item/:iid', item)
+_memberRouter.get('/share/:sid', getShare)
+_memberRouter.get('/shares/:iid?', getShares)
 _memberRouter.get('/teams', teams)
 _memberRouter.patch('/experience/:xid', experience)
 _memberRouter.patch('/experience/:xid/end', experienceEnd)
@@ -146,6 +151,7 @@ _memberRouter.post('/migrate/chat/:bid', migrateChat)
 _memberRouter.post('/obscure/:iid', obscure)
 _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/chat/:bid', retireChat)
+_memberRouter.post('/share/:sid', shareUpdate)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)

@@ -459,7 +459,6 @@ function mShareStop(activeShareId){
     if(activeShareId)
         mGlobals.datamanager.shareStop(activeShareId)
     hide(awaitButton)
-    console.log('mShareStop', activeShareId)
     show(mGlobals.MemberChat)
 }
 /**
