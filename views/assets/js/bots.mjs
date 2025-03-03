@@ -630,7 +630,7 @@ async function mCreateCollections(){
  * @returns {HTMLDivElement} - The collection popup.
  */
 function mCreateCollectionPopup(collectionItem){
-    const { complete=false, form, id, name, shares, summary, title, type, version=1, } = collectionItem
+    const { complete=false, form, id, name, shares=[], summary, title, type, version=1, } = collectionItem
     const collectionPopup = document.createElement('div')
     collectionPopup.classList.add('collection-popup', 'popup-container')
     collectionPopup.dataset.active = 'false'
@@ -888,6 +888,11 @@ function mCreateCollectionPopup(collectionItem){
             improveMemoryLane.appendChild(improveMemoryLaneLeft)
             improveMemoryLane.appendChild(improveMemoryLaneRight)
             improveMemory.appendChild(improveMemoryLane)
+            /* memory version */
+            const memoryVersion = document.createElement('div')
+            memoryVersion.classList.add('memory-version')
+            memoryVersion.textContent = `Version: ${ version }`
+            improveMemoryLaneLeft.appendChild(memoryVersion)
             /* memory complete */
             const memoryComplete = document.createElement('div')
             memoryComplete.classList.add('memory-complete-container')
@@ -916,18 +921,6 @@ function mCreateCollectionPopup(collectionItem){
             evaluateMemory.textContent = 'Evaluate'
             evaluateMemory.addEventListener('click', mEvaluate, { once: true })
             improveMemoryLaneLeft.appendChild(evaluateMemory)
-            /* memory version */
-            const memoryVersion = document.createElement('div')
-            memoryVersion.classList.add('memory-version')
-            memoryVersion.textContent = `Version: ${ version }`
-            improveMemoryLaneRight.appendChild(memoryVersion)
-            /* relive memory explanation */
-            const reliveExplanation = document.createElement('div')
-            reliveExplanation.classList.add('relive-memory-explanation')
-            reliveExplanation.id = `relive-memory-explanation_${ id }`
-            reliveExplanation.name = 'relive-memory-explanation'
-            reliveExplanation.textContent = 'Relive a memory by clicking the button below. This will bring up the memory in chat, where you can add to it, or simply enjoy reliving it!'
-            improveMemoryLaneRight.appendChild(reliveExplanation)
             /* relive memory button */
             const reliveButton = document.createElement('button')
             reliveButton.classList.add('relive-memory-button', 'button')
@@ -937,6 +930,13 @@ function mCreateCollectionPopup(collectionItem){
             reliveButton.textContent = 'Relive Memory'
             reliveButton.addEventListener('click', mReliveMemory, { once: true })
             improveMemoryLaneRight.appendChild(reliveButton)
+            /* relive memory explanation */
+            const reliveExplanation = document.createElement('div')
+            reliveExplanation.classList.add('relive-memory-explanation')
+            reliveExplanation.id = `relive-memory-explanation_${ id }`
+            reliveExplanation.name = 'relive-memory-explanation'
+            reliveExplanation.textContent = 'Reliving will bring up your memory in chat presented as a story. You can add to it, or simply enjoy reliving it!'
+            improveMemoryLaneRight.appendChild(reliveExplanation)
             /* share memory */
             improveMemoryLaneRight.appendChild(mCreateSharePanel(id, shares, summary, title))
             /* memory media-carousel */
@@ -1026,62 +1026,85 @@ function mCreateMemoryShadows(itemId){
     }
     return shadowBox
 }
+function mCreateShareLink(itemId, shares, summary, title, shareId, shareListIndex){
+    /* share item container */
+    const shareItemContainer = document.createElement('div')
+    shareItemContainer.classList.add('share-item-container')
+    shareItemContainer.id = `share-item-container_${ shareId }`
+    shareItemContainer.name = shareItemContainer.id
+    /* share item descriptor */
+    const shareItem = document.createElement('div')
+    shareItem.classList.add('share-item')
+    shareItem.id = `share-item_${ shareId }_${ shareListIndex }`
+    shareItem.name = `share-item_${ shareId }`
+    shareItem.textContent = `${ title.substring(0, 24) }`
+    shareItem.addEventListener('click', async _=>mShareModal(itemId, shares, summary, title, shareId))
+    shareItemContainer.appendChild(shareItem)
+    /* share item link */
+    const shareLink = document.createElement('div')
+    shareLink.classList.add('fas', 'fa-link', 'share-link')
+    shareLink.id = `share-link_${ shareId }_${ shareListIndex }`
+    shareLink.name = `share-link_${ shareId }`
+    shareLink.addEventListener('click', _=>mShareLink(shareId))
+    shareItemContainer.appendChild(shareLink)
+    /* share item edit */
+    const shareEdit = document.createElement('div')
+    shareEdit.classList.add('fas', 'fa-edit', 'share-edit')
+    shareEdit.id = `share-edit_${ shareId }_${ shareListIndex }`
+    shareEdit.name = `share-edit_${ shareId }`
+    shareEdit.addEventListener('click', async _=>mShareModal(itemId, shares, summary, title, shareId))
+    shareItemContainer.appendChild(shareEdit)
+    /* share item delete */
+    const shareDelete = document.createElement('div')
+    shareDelete.classList.add('fas', 'fa-trash', 'share-delete')
+    shareDelete.id = `share-delete_${ shareId }_${ shareListIndex }`
+    shareDelete.name = `share-delete_${ shareId }`
+    shareDelete.addEventListener('click', async _=>mShareDelete(shareId, shareItemContainer), { once: true })
+    shareItemContainer.appendChild(shareDelete)
+    return shareItemContainer
+}
 /**
  * Create a share panel for a collection item where member can add, update or remove shares.
- * @param {ItemId} id - The collection item id
+ * @param {ItemId} itemId - The collection item id
  * @param {Array} shares - The collection item current share list
  * @param {String} title - The collection item title
  */
-function mCreateSharePanel(id, shares, summary, title){
+function mCreateSharePanel(itemId, shares, summary, title){
     /* share panel */
     const sharePanel = document.createElement('div')
     sharePanel.classList.add('share-panel')
-    sharePanel.id = `share-panel_${ id }`
+    sharePanel.id = `share-panel_${ itemId }`
     sharePanel.name = sharePanel.id
     /* share header */
-    const shareHeader = document.createElement('div')
+    const shareHeaderContainer = document.createElement('div') /* container */
+    shareHeaderContainer.classList.add('share-header-container')
+    shareHeaderContainer.id = `share-header-container_${ itemId }`
+    shareHeaderContainer.name = shareHeaderContainer.id
+    const shareHeader = document.createElement('div') /* header */
     shareHeader.classList.add('share-header')
-    shareHeader.id = `share-header_${ id }`
+    shareHeader.id = `share-header_${ itemId }`
     shareHeader.name = shareHeader.id
     shareHeader.textContent = `Share Station`
-    sharePanel.appendChild(shareHeader)
-    /* add share */
-    const addShare = document.createElement('button')
+    shareHeaderContainer.appendChild(shareHeader)
+    const addShare = document.createElement('button') /* add button */
     addShare.classList.add('share-add', 'button')
-    addShare.id = `share-add_${ id }`
+    addShare.id = `share-add_${ itemId }`
     addShare.name = addShare.id
     addShare.textContent = `+ New Share`
-    addShare.addEventListener('click', _=>mShareModal(id, shares, summary, title))
-    sharePanel.appendChild(addShare)
+    addShare.addEventListener('click', async _=>mShareModal(itemId, shares, summary, title))
+    shareHeaderContainer.appendChild(addShare)
+    sharePanel.appendChild(shareHeaderContainer)
     /* share list */
     const shareList = document.createElement('div')
     shareList.classList.add('share-list')
-    shareList.id = `share-list_${ id }`
+    shareList.id = `share-list_${ itemId }`
     shareList.name = shareList.id
     if(shares?.length){
         let shareListIndex = 0
-        shares.forEach(share=>{ // **note** share is a string indicating share.id
+        shares.forEach(shareId=>{ // **note** share is a string indicating share.id
             shareListIndex++
-            /* share item descriptor */
-            const shareItem = document.createElement('div')
-            shareItem.classList.add('share-item')
-            shareItem.id = `share-item_${ id }_${ shareListIndex }`
-            shareItem.name = `share-item_${ id }`
-            shareItem.textContent = `${ title.substring(0, 24) } - ${ shareListIndex }`
+            const shareItem = mCreateShareLink(itemId, shares, summary, title, shareId, shareListIndex)
             shareList.appendChild(shareItem)
-            /* share item edit */
-            const shareEdit = document.createElement('div')
-            shareEdit.classList.add('fas', 'fa-edit', 'share-edit')
-            shareEdit.id = `share-edit_${ id }_${ shareListIndex }`
-            shareEdit.name = `share-edit_${ id }`
-            shareEdit.addEventListener('click', mShareEdit)
-            shareItem.appendChild(shareEdit)
-            /* share item delete */
-            const shareDelete = document.createElement('div')
-            shareDelete.classList.add('fas', 'fa-trash', 'share-delete')
-            shareDelete.id = `share-delete_${ id }_${ shareListIndex }`
-            shareDelete.name = `share-delete_${ id }`
-            shareDelete.addEventListener('click', mShareDelete, { once: true })
         })
     }
     sharePanel.appendChild(shareList)
@@ -1642,6 +1665,22 @@ function mSpotlightBotStatus(){
         })
 }
 /**
+ * Deletes the share from the server, from the item and from the DOM.
+ * @param {Guid} shareId - The share id
+ * @param {HTMLElement} shareElement - The share HTML element to erase
+ */
+async function mShareDelete(shareId, shareElement){
+    await mGlobals.datamanager.shareDelete(shareId)
+    shareElement.remove()
+}
+async function mShareLink(shareId){
+    const rootUrl = window.location.origin
+    const link = `${ rootUrl }/?sid=${ shareId }`
+    navigator.clipboard.writeText(link)
+        .then(()=>alert("Link copied to clipboard"))
+        .catch(err => console.log("Error copying link:", err))
+}
+/**
  * Creates a screen-blocking set of share options for this item. Member can add or update this form.
  * @param {Guid} itemId - The item id
  * @param {String} summary - The item summary
@@ -1649,9 +1688,11 @@ function mSpotlightBotStatus(){
  * @param {Guid} shareId - The share id (optional for create, required for update)
  * @returns {void}
  */
-function mShareModal(itemId, shares, summary, title, shareId){
+async function mShareModal(itemId, shares, summary, title, shareId){
     expunge(document.getElementById('modal-share'))
-    const page = document.getElementById('page-container')
+    let shareData = {}
+    if(mGlobals.isGuid(shareId))
+        shareData = await mGlobals.datamanager.getShare(shareId)
     /* create modal */
     const shareModal = document.createElement('div')
     shareModal.classList.add('modal-share')
@@ -1662,8 +1703,8 @@ function mShareModal(itemId, shares, summary, title, shareId){
     shareHeader.classList.add('modal-share-header')
     shareHeader.id = `modal-share-header`
     shareHeader.name = shareHeader.id
+    // @todo - Esc not working, not firing on keyDown, propagation stopped elsewhere?
     shareHeader.addEventListener('keydown', event=>{
-        stopPropagation()
         console.log('key:', event.key)
         if(event.key==='Escape')
             mCloseSharePanel()
@@ -1673,7 +1714,7 @@ function mShareModal(itemId, shares, summary, title, shareId){
     shareTitle.classList.add('modal-share-title')
     shareTitle.id = `modal-share-title`
     shareTitle.name = shareTitle.id
-    shareTitle.textContent = `Share "${ title }"`
+    shareTitle.textContent = `Sharing Memory: "${ title }"`
     shareHeader.appendChild(shareTitle)
     /* share close */
     const shareClose = document.createElement('div')
@@ -1719,7 +1760,7 @@ function mShareModal(itemId, shares, summary, title, shareId){
     anonymousContainer.id = `modal-share-anonymous`
     anonymousContainer.name = anonymousContainer.id
     const shareAnonymous = document.createElement('input')
-    shareAnonymous.checked = false
+    shareAnonymous.checked = shareData.anonymous ?? false
     shareAnonymous.id = `modal-share-anonymous-checkbox`
     shareAnonymous.name = shareAnonymous.id
     shareAnonymous.type = 'checkbox'
@@ -1738,7 +1779,7 @@ function mShareModal(itemId, shares, summary, title, shareId){
     guessableContainer.id = `modal-share-guessable`
     guessableContainer.name = guessableContainer.id
     const shareGuessable = document.createElement('input')
-    shareGuessable.checked = false
+    shareGuessable.checked = shareData.guessable ?? false
     shareGuessable.id = `modal-share-guessable-checkbox`
     shareGuessable.name = shareGuessable.id
     shareGuessable.type = 'checkbox'
@@ -1772,6 +1813,7 @@ function mShareModal(itemId, shares, summary, title, shareId){
     shareVoiceInput.id = `modal-share-voice-input`
     shareVoiceInput.name = shareVoiceInput.id
     shareVoiceInput.placeholder = 'Ex. dark poetry a la Edgar Allan Poe...'
+    shareVoiceInput.value = shareData.voice ?? null
     shareVoiceContainer.appendChild(shareVoiceInput)
     /* share scope */
     const shareScope = document.createElement('div')
@@ -1791,6 +1833,8 @@ function mShareModal(itemId, shares, summary, title, shareId){
         const shareScopeOption = document.createElement('option')
         shareScopeOption.textContent = option.charAt(0).toUpperCase() + option.slice(1)
         shareScopeOption.value = option
+        if(option===shareData.scope)
+            shareScopeOption.selected = true
         shareScopeDropdown.appendChild(shareScopeOption)
     })
     shareScope.appendChild(shareScopeDropdown)
@@ -1818,6 +1862,9 @@ function mShareModal(itemId, shares, summary, title, shareId){
         const sharePovOption = document.createElement('option')
         sharePovOption.textContent = option.charAt(0).toUpperCase() + option.slice(1)
         sharePovOption.value = index + 1
+        console.log(shareData.pov, sharePovOption.value)
+        if(sharePovOption.value===shareData.pov)
+            sharePovOption.selected = true
         sharePovDropdown.appendChild(sharePovOption)
     })
     sharePov.appendChild(sharePovDropdown)
@@ -1847,7 +1894,8 @@ function mShareModal(itemId, shares, summary, title, shareId){
     shareConclusionInput.classList.add('modal-share-textarea', 'modal-share-conclusion-input')
     shareConclusionInput.id = `modal-share-conclusion-input`
     shareConclusionInput.name = shareConclusionInput.id
-    shareConclusionInput.placeholder = 'Ex. What would you do in this situation?'   
+    shareConclusionInput.placeholder = 'Ex. What would you do in this situation?'
+    shareConclusionInput.value = shareData.conclusion ?? null
     shareConclusionContainer.appendChild(shareConclusionInput)
     /* share submit */
     const shareSubmit = document.createElement('div')
@@ -1867,7 +1915,7 @@ function mShareModal(itemId, shares, summary, title, shareId){
     shareSubmitButton.name = shareSubmitButton.id
     shareSubmitButton.textContent = 'Share'
     shareSubmitButton.addEventListener('click', async _=>{
-        const shareOptions = {
+        const shareData = {
             anonymous: shareAnonymous.checked,
             conclusion: shareConclusionInput.value,
             guessable: shareGuessable.checked,
@@ -1879,9 +1927,15 @@ function mShareModal(itemId, shares, summary, title, shareId){
             title: shareTitleInput.value,
             voice: shareVoiceInput.value,
         }
-        const response = await mGlobals.datamanager.shareUpdate(shareOptions)
-        console.log('Share:', shareOptions, response)
-        // add to Item
+        const response = await mGlobals.datamanager.shareUpdate(shareData)
+        if(!shareId){
+            shareId = response.id
+            shares.push(shareId)
+            const shareItem = mCreateShareLink(itemId, shares, summary, title, shareId, 1)
+            const shareList = document.getElementById(`share-list_${ itemId }`)
+            if(shareList)
+                shareList.appendChild(shareItem)
+        }
         mCloseSharePanel()
     })
     // shareSubmitButton.addEventListener('click', mShareSubmit)
@@ -1891,9 +1945,9 @@ function mShareModal(itemId, shares, summary, title, shareId){
     shareModal.appendChild(shareSummary)
     shareModal.appendChild(shareOptions)
     shareOptions.appendChild(shareOptionsRow01)
+    shareOptionsRow01.appendChild(shareTitleContainer)
     shareOptionsRow01.appendChild(anonymousContainer)
     shareOptionsRow01.appendChild(guessableContainer)
-    shareOptionsRow01.appendChild(shareTitleContainer)
     shareOptions.appendChild(shareOptionsRow02)
     shareOptionsRow02.appendChild(shareVoiceContainer)
     shareOptionsRow02.appendChild(shareScope)
@@ -1901,7 +1955,7 @@ function mShareModal(itemId, shares, summary, title, shareId){
     shareOptions.appendChild(shareOptionsRow03)
     shareOptionsRow03.appendChild(shareConclusionContainer)
     shareModal.appendChild(shareSubmit)
-    page.appendChild(shareModal)
+    mGlobals.page.appendChild(shareModal)
     show(shareModal)
 }
 function mCloseSharePanel(){

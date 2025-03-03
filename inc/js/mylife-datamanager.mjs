@@ -165,7 +165,7 @@ class Datamanager {
 	 */
 	async share(sid){
 		const { resource: shareItem } = await this.#containers['shares']
-			.item(sid, 'item')
+			.item(sid, 'memory')
 			.read()
 		return shareItem
 	}

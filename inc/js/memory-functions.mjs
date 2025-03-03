@@ -78,6 +78,13 @@ async function reliveMemory(ctx){
 	const { memberInput, } = ctx.request.body
 	ctx.body = await avatar.reliveMemory(iid, memberInput)
 }
+async function shareDelete(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife share delete')
+	ctx.body = await Avatar.deleteShare(sid)
+}
 /**
  * Share a memory `Header` with frontend to determine warnings or restrictions.
  * @param {Koa} ctx - Koa context object
@@ -153,6 +160,7 @@ export {
 	getShare,
 	getShares,
     reliveMemory,
+	shareDelete,
 	shareHeader,
 	shareFeedback,
 	shareMemory,

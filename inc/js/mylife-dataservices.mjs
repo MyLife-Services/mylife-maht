@@ -315,13 +315,15 @@ class Dataservices {
      * Delete an item from member container.
      * @async
      * @public
-     * @param {Guid} id - The id of the item to delete.
+	 * @param {Guid} id - The id of the item to delete
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The member id (or other) to use, overriding default
      * @returns {boolean} - true if item deleted successfully.
      */
-	async deleteItem(id, mbr_id=this.mbr_id){
+	async deleteItem(id, containerId, partitionId=this.mbr_id){
 		if(!id?.length)
 			return false
-		const success = await this.datamanager.deleteItem(id, mbr_id)
+		const success = await this.datamanager.deleteItem(id, containerId, partitionId)
 		return success
 	}
 	async findRegistrationIdByEmail(_email){

@@ -41,6 +41,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mNavigation,
     mNavigationHelp,
     mNavigationHelpIcon,
+    mPage,
     mPlaceholder,
     mRecognition,
     mRecognizingSpeech = false,
@@ -515,6 +516,14 @@ class Datamanager {
         const response = await this.#fetch(url, options)
         return response
     }
+    async shareDelete(shareId){
+        const url = `members/share/${ shareId }`
+        const options = {
+            method: 'DELETE',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
     async shareHeader(shareId){
         const url = `/share/header/${ shareId }`
         const response = await this.#fetch(url)
@@ -691,6 +700,7 @@ class Globals {
             mNavigation = document.getElementById('navigation-container')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
+            mPage = document.getElementById('page-container')
             mSidebar = document.getElementById('sidebar')
             /* element initialization */
             if(mChatInput){
@@ -1120,6 +1130,9 @@ class Globals {
     }
     get newGuid(){ 
         return mNewGuid()
+    }
+    get page(){
+        return mPage
     }
     get sidebar(){
         return mSidebar

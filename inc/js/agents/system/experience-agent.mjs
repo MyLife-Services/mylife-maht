@@ -482,9 +482,9 @@ class ShareAgent {
     }
     share(instanceId, shareId){
         let Share
-        if(this.#factory.globals.isGuid(instanceId))
+        if(this.#factory.globals.isValidGuid(instanceId))
             Share = this.#shares.find(share=>share.instanceId===instanceId)
-        else if(this.#factory.globals.isGuid(shareId))
+        else if(this.#factory.globals.isValidGuid(shareId))
             Share = this.#shares.find(share=>share.id===shareId)
         return Share
     }
@@ -560,6 +560,8 @@ class ShareAgent {
     async validateShare(shareId){
         if(!this.share(shareId)){ // protect in case instanceId sent
             const share = await this.#factory.getShare(shareId)
+            if(!share)
+                throw new Error(`Share not found: ${ shareId }`)
             share.instanceId = this.#factory.newGuid
             const _Share = new Share(share)
             if(!_Share.mbr_id)

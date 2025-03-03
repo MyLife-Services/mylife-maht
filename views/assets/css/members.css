@@ -77,9 +77,28 @@
     gap: 1em; /* Adds space between each child div */
     width: 50%;
 }
+.share-add.button {
+    margin: 0.2rem;
+}
 .share-cancel,
 .share-next {
     margin: 0.2rem 0.5rem;
+}
+.share-delete,
+.share-edit,
+.share-link {
+    font-size: 1.2rem;
+}
+.share-header {
+    font-size: 1rem;
+    font-weight: bold;
+}
+.share-header-container {
+    align-items: baseline;
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    justify-content: flex-start;
 }
 .share-input {
     font-size: 0.9rem;
@@ -88,6 +107,35 @@
     min-height: 3rem;
     resize: none;
     width: 50rem;
+}
+.share-item {
+    color: navy;
+    display: flex;
+    flex-grow: 1;
+    font-size: 0.9rem;
+    max-width: 80%;
+    width: auto;
+}
+.share-item-container {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    width: 100%;
+}
+.share-list {
+    border-top: solid 0.1rem #ccc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin: 0.2rem;
+    width: 100%;
+}
+.share-panel {
+    align-items: baseline;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 .share-progress,
 .warning-input {

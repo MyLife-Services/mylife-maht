@@ -43,6 +43,7 @@ import {
     getShares,
     improveMemory,
     reliveMemory,
+    shareDelete,
     shareMemory,
     shareFeedback,
     shareHeader,
@@ -121,6 +122,7 @@ _apiRouter.post('/upload/:mid', upload)
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
 _memberRouter.delete('/items/:iid', item)
+_memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
