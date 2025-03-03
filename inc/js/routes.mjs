@@ -37,6 +37,7 @@ import {
 import {
     acceptShareWarnings,
     collectMemory,
+    deleteShare,
     endMemory,
     getShare,
     getShares,
@@ -131,7 +132,9 @@ _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/greetings', greetings)
 _memberRouter.get('/item/:iid', item)
 _memberRouter.get('/share/:sid', getShare)
-_memberRouter.get('/shares/:iid?', getShares)
+_memberRouter.get('/share/delete/:sid', deleteShare)
+_memberRouter.get('/shares', getShares)
+_memberRouter.get('/shares/:iid', getShares)
 _memberRouter.get('/teams', teams)
 _memberRouter.patch('/experience/:xid', experience)
 _memberRouter.patch('/experience/:xid/end', experienceEnd)
@@ -151,7 +154,7 @@ _memberRouter.post('/migrate/chat/:bid', migrateChat)
 _memberRouter.post('/obscure/:iid', obscure)
 _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/chat/:bid', retireChat)
-_memberRouter.post('/share/:sid', shareUpdate)
+_memberRouter.post('/share/:sid?', shareUpdate)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)

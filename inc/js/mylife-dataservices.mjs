@@ -318,10 +318,10 @@ class Dataservices {
      * @param {Guid} id - The id of the item to delete.
      * @returns {boolean} - true if item deleted successfully.
      */
-	async deleteItem(id){
+	async deleteItem(id, mbr_id=this.mbr_id){
 		if(!id?.length)
 			return false
-		const success = await this.datamanager.deleteItem(id)
+		const success = await this.datamanager.deleteItem(id, mbr_id)
 		return success
 	}
 	async findRegistrationIdByEmail(_email){
@@ -587,14 +587,15 @@ class Dataservices {
 		return await this.datamanager.patchItem(id, data, undefined, mbr_id)
 	}
     /**
-     * Pushes a new item to the data manager
+     * Pushes a new item to the data manager.
      * @async
 	 * @public
      * @param {Object} data - The data to be pushed
+	 * @param {String} container_id - The container to push into
      * @returns {Promise<Object>} The result of the push operation
      */
-	async pushItem(data){
-		return await this.datamanager.pushItem(data)
+	async pushItem(data, containerId){
+		return await this.datamanager.pushItem(data, containerId)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db

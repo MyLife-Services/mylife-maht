@@ -596,6 +596,53 @@ class AgentFactory extends BotFactory {
 		const response = await this.dataservices.pushItem(item)
 		return response
 	}
+	/**
+	 * Creates a new `Share` in the `share` container.
+	 * @param {object} shareData - The share object data
+	 * @returns {Promise<object>} - The created share object
+	 */
+	async createShare(shareData){
+		const {
+			anonymous=true,
+			being='share',
+			conclusion,
+			guessable=false,
+			id=this.newGuid,
+			itemId,
+			mbr_id=this.mbr_id,
+			pov=1,
+			scope='public',
+			shares=[],
+			shareType='memory',
+			title='untitled memory',
+			voice,
+		} = shareData
+		// @todo - throw exceptions for missing required data
+		const name = `share_${ title.substring(0, 64) }_${ id }`
+		const item = await this.item(itemId)
+		if(!item)
+			throw new Error('item not found')
+		shareData = {
+			anonymous,
+			being,
+			conclusion,
+			guessable,
+			id,
+			itemId,
+			mbr_id,
+			name,
+			pov,
+			scope,
+			shares,
+			shareType,
+			title,
+			voice,
+		}
+		const share = await mDataservices.pushItem(shareData, 'shares')
+		shares.push(share?.id)
+		this.dataservices.patch(itemId, { shares, }) // no await
+		return share
+	}
     /**
      * Delete an item from member container.
      * @param {Guid} id - The id of the item to delete.
@@ -603,6 +650,27 @@ class AgentFactory extends BotFactory {
      */
 	async deleteItem(id){
 		return await this.dataservices.deleteItem(id)
+	}
+    /**
+     * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+     * @param {Guid} shareId - The Share id
+	 * @param {Guid} itemId - The Item id
+     * @returns {Promise<Boolean>} - Success or failure of the operation
+     */
+	deleteShare(shareId, itemId, shares){
+		if( //  update `shares` property in associated Item (based upon `itemId`)
+			   this.globals.isValidGuid(itemId)
+			&& Array.isArray(shares)
+			&& shares.length
+			&& shares.find(share=>share.id===shareId)
+		){
+			const data = { shares: shares.filter(share=>share.id!==shareId) }
+			this.dataservices.patchItem(itemId, data) // delete share in `shares`; no await
+			console.log('Factory::deleteShare()::shares updated', shareId, itemId, shares, data)
+		}
+		this.dataservices.deleteItem(shareId, mDataservices.mbr_id) // delete share in `shares`; no await
+		console.log('Factory::deleteShare()::removed from system', shareId)
+		return true
 	}
 	async getAlert(_alert_id){
 		const _alert = mAlerts.system.find(alert => alert.id === _alert_id)

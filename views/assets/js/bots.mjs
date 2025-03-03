@@ -630,7 +630,7 @@ async function mCreateCollections(){
  * @returns {HTMLDivElement} - The collection popup.
  */
 function mCreateCollectionPopup(collectionItem){
-    const { complete=false, form, id, name, summary, title, type, version=1, } = collectionItem
+    const { complete=false, form, id, name, shares, summary, title, type, version=1, } = collectionItem
     const collectionPopup = document.createElement('div')
     collectionPopup.classList.add('collection-popup', 'popup-container')
     collectionPopup.dataset.active = 'false'
@@ -937,6 +937,8 @@ function mCreateCollectionPopup(collectionItem){
             reliveButton.textContent = 'Relive Memory'
             reliveButton.addEventListener('click', mReliveMemory, { once: true })
             improveMemoryLaneRight.appendChild(reliveButton)
+            /* share memory */
+            improveMemoryLaneRight.appendChild(mCreateSharePanel(id, shares, summary, title))
             /* memory media-carousel */
             const memoryCarousel = document.createElement('div')
             memoryCarousel.classList.add('media-carousel')
@@ -1023,6 +1025,67 @@ function mCreateMemoryShadows(itemId){
         clearInterval(intervalId)
     }
     return shadowBox
+}
+/**
+ * Create a share panel for a collection item where member can add, update or remove shares.
+ * @param {ItemId} id - The collection item id
+ * @param {Array} shares - The collection item current share list
+ * @param {String} title - The collection item title
+ */
+function mCreateSharePanel(id, shares, summary, title){
+    /* share panel */
+    const sharePanel = document.createElement('div')
+    sharePanel.classList.add('share-panel')
+    sharePanel.id = `share-panel_${ id }`
+    sharePanel.name = sharePanel.id
+    /* share header */
+    const shareHeader = document.createElement('div')
+    shareHeader.classList.add('share-header')
+    shareHeader.id = `share-header_${ id }`
+    shareHeader.name = shareHeader.id
+    shareHeader.textContent = `Share Station`
+    sharePanel.appendChild(shareHeader)
+    /* add share */
+    const addShare = document.createElement('button')
+    addShare.classList.add('share-add', 'button')
+    addShare.id = `share-add_${ id }`
+    addShare.name = addShare.id
+    addShare.textContent = `+ New Share`
+    addShare.addEventListener('click', _=>mShareModal(id, shares, summary, title))
+    sharePanel.appendChild(addShare)
+    /* share list */
+    const shareList = document.createElement('div')
+    shareList.classList.add('share-list')
+    shareList.id = `share-list_${ id }`
+    shareList.name = shareList.id
+    if(shares?.length){
+        let shareListIndex = 0
+        shares.forEach(share=>{ // **note** share is a string indicating share.id
+            shareListIndex++
+            /* share item descriptor */
+            const shareItem = document.createElement('div')
+            shareItem.classList.add('share-item')
+            shareItem.id = `share-item_${ id }_${ shareListIndex }`
+            shareItem.name = `share-item_${ id }`
+            shareItem.textContent = `${ title.substring(0, 24) } - ${ shareListIndex }`
+            shareList.appendChild(shareItem)
+            /* share item edit */
+            const shareEdit = document.createElement('div')
+            shareEdit.classList.add('fas', 'fa-edit', 'share-edit')
+            shareEdit.id = `share-edit_${ id }_${ shareListIndex }`
+            shareEdit.name = `share-edit_${ id }`
+            shareEdit.addEventListener('click', mShareEdit)
+            shareItem.appendChild(shareEdit)
+            /* share item delete */
+            const shareDelete = document.createElement('div')
+            shareDelete.classList.add('fas', 'fa-trash', 'share-delete')
+            shareDelete.id = `share-delete_${ id }_${ shareListIndex }`
+            shareDelete.name = `share-delete_${ id }`
+            shareDelete.addEventListener('click', mShareDelete, { once: true })
+        })
+    }
+    sharePanel.appendChild(shareList)
+    return sharePanel
 }
 /**
  * Create a team member that has been selected from add-team-member icon.
@@ -1577,6 +1640,274 @@ function mSpotlightBotStatus(){
                 mSetStatusBar(bot, botContainer)
             }
         })
+}
+/**
+ * Creates a screen-blocking set of share options for this item. Member can add or update this form.
+ * @param {Guid} itemId - The item id
+ * @param {String} summary - The item summary
+ * @param {String} title - The item title
+ * @param {Guid} shareId - The share id (optional for create, required for update)
+ * @returns {void}
+ */
+function mShareModal(itemId, shares, summary, title, shareId){
+    expunge(document.getElementById('modal-share'))
+    const page = document.getElementById('page-container')
+    /* create modal */
+    const shareModal = document.createElement('div')
+    shareModal.classList.add('modal-share')
+    shareModal.id = `modal-share`
+    shareModal.name = shareModal.id
+    /* share header */
+    const shareHeader = document.createElement('div')
+    shareHeader.classList.add('modal-share-header')
+    shareHeader.id = `modal-share-header`
+    shareHeader.name = shareHeader.id
+    shareHeader.addEventListener('keydown', event=>{
+        stopPropagation()
+        console.log('key:', event.key)
+        if(event.key==='Escape')
+            mCloseSharePanel()
+    }, { once: true })
+    /* share title */
+    const shareTitle = document.createElement('div')
+    shareTitle.classList.add('modal-share-title')
+    shareTitle.id = `modal-share-title`
+    shareTitle.name = shareTitle.id
+    shareTitle.textContent = `Share "${ title }"`
+    shareHeader.appendChild(shareTitle)
+    /* share close */
+    const shareClose = document.createElement('div')
+    shareClose.classList.add('fas', 'fa-times', 'modal-share-close')
+    shareClose.id = `modal-share-close`
+    shareClose.name = shareClose.id
+    shareClose.addEventListener('click', mCloseSharePanel)
+    shareHeader.appendChild(shareClose)
+    /* share summary */
+    const shareSummary = document.createElement('div')
+    shareSummary.classList.add('modal-share-summary')
+    shareSummary.disabled = true
+    shareSummary.id = `modal-share-summary`
+    shareSummary.name = shareSummary.id
+    shareSummary.textContent = summary
+    /* share options row 01 */
+    const shareOptionsRow01 = document.createElement('div')
+    shareOptionsRow01.classList.add('modal-share-options-row')
+    shareOptionsRow01.id = `modal-share-options-row01`
+    shareOptionsRow01.name = shareOptionsRow01.id
+    /* share options */
+    const shareOptions = document.createElement('div')
+    shareOptions.classList.add('modal-share-options')
+    shareOptions.id = `modal-share-options`
+    shareOptions.name = shareOptions.id
+    /* share title */
+    const shareTitleContainer = document.createElement('div')
+    shareTitleContainer.classList.add('modal-share-title')
+    shareTitleContainer.id = `modal-share-title`
+    shareTitleContainer.name = shareTitleContainer.id
+    shareTitleContainer.textContent = 'Share Title'
+    const shareTitleInput = document.createElement('input')
+    shareTitleInput.classList.add('modal-share-title-input')
+    shareTitleInput.id = `modal-share-title-input`
+    shareTitleInput.name = shareTitleInput.id
+    shareTitleInput.placeholder = 'Enter a title for this share...'
+    shareTitleInput.type = 'text'
+    shareTitleInput.value = title
+    shareTitleContainer.appendChild(shareTitleInput)
+    /* anonymous share */
+    const anonymousContainer = document.createElement('div')
+    anonymousContainer.classList.add('modal-share-anonymous')
+    anonymousContainer.id = `modal-share-anonymous`
+    anonymousContainer.name = anonymousContainer.id
+    const shareAnonymous = document.createElement('input')
+    shareAnonymous.checked = false
+    shareAnonymous.id = `modal-share-anonymous-checkbox`
+    shareAnonymous.name = shareAnonymous.id
+    shareAnonymous.type = 'checkbox'
+    shareAnonymous.value = 'anonymous'
+    anonymousContainer.appendChild(shareAnonymous)
+    const shareAnonymousLabel = document.createElement('label')
+    shareAnonymousLabel.classList.add('modal-share-checkbox-label')
+    shareAnonymousLabel.id = `modal-share-anonymous-label`
+    shareAnonymousLabel.name = shareAnonymousLabel.id
+    shareAnonymousLabel.textContent = 'Share Anonymously'
+    shareAnonymousLabel.htmlFor = shareAnonymous.id
+    anonymousContainer.appendChild(shareAnonymousLabel)
+    /* guessable share */
+    const guessableContainer = document.createElement('div')
+    guessableContainer.classList.add('modal-share-guessable')
+    guessableContainer.id = `modal-share-guessable`
+    guessableContainer.name = guessableContainer.id
+    const shareGuessable = document.createElement('input')
+    shareGuessable.checked = false
+    shareGuessable.id = `modal-share-guessable-checkbox`
+    shareGuessable.name = shareGuessable.id
+    shareGuessable.type = 'checkbox'
+    shareGuessable.value = 'guessable'
+    guessableContainer.appendChild(shareGuessable)
+    const shareGuessableLabel = document.createElement('label')
+    shareGuessableLabel.classList.add('modal-share-checkbox-label')
+    shareGuessableLabel.id = `modal-share-guessable-label`
+    shareGuessableLabel.name = shareGuessableLabel.id
+    shareGuessableLabel.textContent = 'Allow Recipient to Guess Your Identity'
+    shareGuessableLabel.htmlFor = shareGuessable.id
+    guessableContainer.appendChild(shareGuessableLabel)
+    /* share options row 02 */
+    const shareOptionsRow02 = document.createElement('div')
+    shareOptionsRow02.classList.add('modal-share-options-row')
+    shareOptionsRow02.id = `modal-share-options-row02`
+    shareOptionsRow02.name = shareOptionsRow02.id
+    /* share voice */
+    const shareVoiceContainer = document.createElement('div')
+    shareVoiceContainer.classList.add('modal-share-voice')
+    shareVoiceContainer.id = `modal-share-voice`
+    shareVoiceContainer.name = shareVoiceContainer.id
+    const shareVoiceLabel = document.createElement('label')
+    shareVoiceLabel.classList.add('modal-share-textarea-label')
+    shareVoiceLabel.id = `modal-share-voice-label`
+    shareVoiceLabel.name = shareVoiceLabel.id
+    shareVoiceLabel.textContent = 'What mood or voice should the memory have?'
+    shareVoiceContainer.appendChild(shareVoiceLabel)
+    const shareVoiceInput = document.createElement('textarea')
+    shareVoiceInput.classList.add('modal-share-textarea', 'modal-share-voice-input')
+    shareVoiceInput.id = `modal-share-voice-input`
+    shareVoiceInput.name = shareVoiceInput.id
+    shareVoiceInput.placeholder = 'Ex. dark poetry a la Edgar Allan Poe...'
+    shareVoiceContainer.appendChild(shareVoiceInput)
+    /* share scope */
+    const shareScope = document.createElement('div')
+    shareScope.classList.add('modal-share-scope')
+    shareScope.id = `modal-share-scope`
+    shareScope.name = shareScope.id
+    const shareScopeDropdown = document.createElement('select')
+    shareScopeDropdown.classList.add('modal-share-scope-dropdown')
+    shareScopeDropdown.id = `modal-share-scope-dropdown`
+    shareScopeDropdown.name = shareScopeDropdown.id
+    const shareScopeOption = document.createElement('option')
+    shareScopeOption.textContent = 'Select Share Scope...'
+    shareScopeOption.value = ''
+    shareScopeDropdown.appendChild(shareScopeOption)
+    const shareScopeOptions = ['public', 'private', 'team']
+    shareScopeOptions.forEach(option=>{
+        const shareScopeOption = document.createElement('option')
+        shareScopeOption.textContent = option.charAt(0).toUpperCase() + option.slice(1)
+        shareScopeOption.value = option
+        shareScopeDropdown.appendChild(shareScopeOption)
+    })
+    shareScope.appendChild(shareScopeDropdown)
+    const shareScopeLabel = document.createElement('label')
+    shareScopeLabel.classList.add('modal-share-dropdown-label')
+    shareScopeLabel.id = `modal-share-scope-label`
+    shareScopeLabel.name = shareScopeLabel.id
+    shareScopeLabel.textContent = 'Share Scope'
+    shareScope.appendChild(shareScopeLabel)
+    /* share pov */
+    const sharePov = document.createElement('div')
+    sharePov.classList.add('modal-share-scope')
+    sharePov.id = `modal-share-scope`
+    sharePov.name = sharePov.id
+    const sharePovDropdown = document.createElement('select')
+    sharePovDropdown.classList.add('modal-share-scope-dropdown')
+    sharePovDropdown.id = `modal-share-scope-dropdown`
+    sharePovDropdown.name = sharePovDropdown.id
+    const sharePovOption = document.createElement('option')
+    sharePovOption.textContent = 'Select Share Point of View...'
+    sharePovOption.value = ''
+    sharePovDropdown.appendChild(sharePovOption)
+    const sharePovOptions = ['first', 'second', 'third', 'first plural (we)']
+    sharePovOptions.forEach((option, index)=>{
+        const sharePovOption = document.createElement('option')
+        sharePovOption.textContent = option.charAt(0).toUpperCase() + option.slice(1)
+        sharePovOption.value = index + 1
+        sharePovDropdown.appendChild(sharePovOption)
+    })
+    sharePov.appendChild(sharePovDropdown)
+    const sharePovLabel = document.createElement('label')
+    sharePovLabel.classList.add('modal-share-dropdown-label')
+    sharePovLabel.id = `modal-share-pov-label`
+    sharePovLabel.name = sharePovLabel.id
+    sharePovLabel.textContent = 'Share Point of View'
+    sharePov.appendChild(sharePovLabel)
+    /* share options row 03 */
+    const shareOptionsRow03 = document.createElement('div')
+    shareOptionsRow03.classList.add('modal-share-options-row')
+    shareOptionsRow03.id = `modal-share-options-row03`
+    shareOptionsRow03.name = shareOptionsRow03.id
+    /* share conclusion */
+    const shareConclusionContainer = document.createElement('div')
+    shareConclusionContainer.classList.add('modal-share-conclusion')
+    shareConclusionContainer.id = `modal-share-conclusion`
+    shareConclusionContainer.name = shareConclusionContainer.id
+    const shareConclusionLabel = document.createElement('label')
+    shareConclusionLabel.classList.add('modal-share-textarea-label')
+    shareConclusionLabel.id = `modal-share-conclusion-label`
+    shareConclusionLabel.name = shareConclusionLabel.id
+    shareConclusionLabel.textContent = 'What question would you pose to your audience?'
+    shareConclusionContainer.appendChild(shareConclusionLabel)
+    const shareConclusionInput = document.createElement('textarea')
+    shareConclusionInput.classList.add('modal-share-textarea', 'modal-share-conclusion-input')
+    shareConclusionInput.id = `modal-share-conclusion-input`
+    shareConclusionInput.name = shareConclusionInput.id
+    shareConclusionInput.placeholder = 'Ex. What would you do in this situation?'   
+    shareConclusionContainer.appendChild(shareConclusionInput)
+    /* share submit */
+    const shareSubmit = document.createElement('div')
+    shareSubmit.classList.add('modal-share-submit')
+    shareSubmit.id = `modal-share-submit`
+    shareSubmit.name = shareSubmit.id
+    const shareSubmitCancel = document.createElement('button')
+    shareSubmitCancel.classList.add('modal-share-button', 'modal-share-cancel', 'button')
+    shareSubmitCancel.id = `modal-share-cancel`
+    shareSubmitCancel.name = shareSubmitCancel.id
+    shareSubmitCancel.textContent = 'Cancel Share'
+    shareSubmitCancel.addEventListener('click', mCloseSharePanel)
+    shareSubmit.appendChild(shareSubmitCancel)
+    const shareSubmitButton = document.createElement('button')
+    shareSubmitButton.classList.add('modal-share-button', 'modal-share-submit-button', 'button')
+    shareSubmitButton.id = `modal-share-submit-button`
+    shareSubmitButton.name = shareSubmitButton.id
+    shareSubmitButton.textContent = 'Share'
+    shareSubmitButton.addEventListener('click', async _=>{
+        const shareOptions = {
+            anonymous: shareAnonymous.checked,
+            conclusion: shareConclusionInput.value,
+            guessable: shareGuessable.checked,
+            itemId: itemId,
+            pov: sharePovDropdown.value,
+            shareId,
+            shares,
+            scope: shareScopeDropdown.value,
+            title: shareTitleInput.value,
+            voice: shareVoiceInput.value,
+        }
+        const response = await mGlobals.datamanager.shareUpdate(shareOptions)
+        console.log('Share:', shareOptions, response)
+        // add to Item
+        mCloseSharePanel()
+    })
+    // shareSubmitButton.addEventListener('click', mShareSubmit)
+    shareSubmit.appendChild(shareSubmitButton)
+    /* append */
+    shareModal.appendChild(shareHeader)
+    shareModal.appendChild(shareSummary)
+    shareModal.appendChild(shareOptions)
+    shareOptions.appendChild(shareOptionsRow01)
+    shareOptionsRow01.appendChild(anonymousContainer)
+    shareOptionsRow01.appendChild(guessableContainer)
+    shareOptionsRow01.appendChild(shareTitleContainer)
+    shareOptions.appendChild(shareOptionsRow02)
+    shareOptionsRow02.appendChild(shareVoiceContainer)
+    shareOptionsRow02.appendChild(shareScope)
+    shareOptionsRow02.appendChild(sharePov)
+    shareOptions.appendChild(shareOptionsRow03)
+    shareOptionsRow03.appendChild(shareConclusionContainer)
+    shareModal.appendChild(shareSubmit)
+    page.appendChild(shareModal)
+    show(shareModal)
+}
+function mCloseSharePanel(){
+    const shareModal = document.getElementById('modal-share')
+    if(shareModal)
+        expunge(shareModal)
 }
 /**
  * Click event to trigger server explanation of how to begin a diary.

@@ -408,6 +408,28 @@ class ShareAgent {
             throw new Error('Share not found')
     }
     /**
+     * Create share with new data.
+     * @param {object} shareData - The share data object
+     * @returns {Promise<object>} - The updated Share object
+     */
+    async create(shareData){
+        const share = await this.#factory.createShare(shareData)
+        this.#shares.push(share.id)
+        console.log('ShareAgent::create', share, this.#shares)
+        return share
+    }
+    /**
+     * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+     * @param {Guid} sid - The Share id
+     * @returns {Promise<Boolean>} - Success or failure of the operation
+     */
+    async delete(shareId){
+        const { itemId, shares, } = (this.share(undefined, shareId) ?? await this.getShare(shareId))
+            ?.itemId
+        this.#factory.deleteShare(shareId, itemId, shares)
+        return true
+    }
+    /**
      * Get a share data by id.
      * @param {Guid} sid - The share id
      * @returns {Promise<object>} - The MemberShare document
@@ -458,8 +480,12 @@ class ShareAgent {
             await this.shareInit(Share)
         return await Share.play(input)
     }
-    share(instanceId){
-        const Share = this.#shares.find(share=>share.instanceId===instanceId)
+    share(instanceId, shareId){
+        let Share
+        if(this.#factory.globals.isGuid(instanceId))
+            Share = this.#shares.find(share=>share.instanceId===instanceId)
+        else if(this.#factory.globals.isGuid(shareId))
+            Share = this.#shares.find(share=>share.id===shareId)
         return Share
     }
     /**
@@ -521,6 +547,15 @@ class ShareAgent {
                 success: true
             }
         }
+    }
+    /**
+     * Update a share with provided data.
+     * @param {Guid} shareId - The share id
+     * @param {object} shareData - The share data object
+     * @returns {Promise<object>} - The updated Share object
+     */
+    async update(shareId, shareData){
+        return await this.#factory.updateShare(shareId, shareData)
     }
     async validateShare(shareId){
         if(!this.share(shareId)){ // protect in case instanceId sent

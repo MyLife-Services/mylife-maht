@@ -68,9 +68,9 @@ class Datamanager {
 	 * @param {object} options - The request options, defaults to `this.requestOptions`
 	 * @returns {Boolean} - Whether operation was successful and item was deleted, i.e., has no resource
 	 */
-	async deleteItem(id, containerId=this.containerDefault, options=this.requestOptions){
+	async deleteItem(id, containerId=this.containerDefault, partitionId=this.#partitionId){
 		const { resource } = await this.#containers[containerId]
-			.item(id, this.#partitionId)
+			.item(id, partitionId)
 			.delete()
 		return !resource
 	}
@@ -137,7 +137,13 @@ class Datamanager {
 			return {}
 		}
 	}
-	async pushItem(item, container_id=this.containerDefault){
+	/**
+	 * Pushes an item into a container.
+	 * @param {object} item - The item to push into the container.
+	 * @param {String} containerId - The container to push the item into, defaults to `this.containerDefault`.
+	 * @returns {Promise<object>} - The document JSON item pushed.
+	 */
+	async pushItem(item, containerId=this.containerDefault){
 		/* validate item */
 		const { being, id, mbr_id, } = item
 		if(!being?.length)
@@ -146,7 +152,8 @@ class Datamanager {
 			item.id = this.globals.newGuid
 		if(!mbr_id?.length)
 			item.mbr_id = this.#partitionId
-		const { resource: doc } = await this.#containers[container_id]
+		console.log('Datamanager::pushItem::item', item, containerId)
+		const { resource: doc } = await this.#containers[containerId]
 			.items
 			.upsert(item)
 		return doc

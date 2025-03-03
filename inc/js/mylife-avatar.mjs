@@ -285,6 +285,14 @@ class Avatar extends EventEmitter {
         return bot
     }
     /**
+     * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+     * @param {Guid} sid - The Share id
+     * @returns {Promise<Boolean>} - Success or failure of the operation
+     */
+    async deleteShare(sid){
+        return await this.#ShareAgent.delete(sid)
+    }
+    /**
      * End the living memory, if running.
      * @async
      * @public
@@ -844,6 +852,17 @@ class Avatar extends EventEmitter {
      */
     async shareStop(sid){
         return await this.#ShareAgent.stop(sid)
+    }
+    /**
+     * Create or Update a share with new data.
+     * @param {Guid} shareId - The share id (optional to create new share)
+     * @param {object} shareData - The share data object
+     * @returns {Promise<object>} - The updated Share object
+     */
+    async shareUpdate(shareId, shareData){
+        return this.globals.isValidGuid(shareId)
+            ? await this.#ShareAgent.update(shareId, shareData)
+            : await this.#ShareAgent.create(shareData)
     }
 	/**
 	 * Submits a memory to MyLife. Currently called both from API _and_ LLM function.

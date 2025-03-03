@@ -537,6 +537,19 @@ class Datamanager {
         const response = await this.#fetch(url)
         return response
     }
+    async shareUpdate(shareData){
+        const { id, } = shareData
+        const url = `/members/share/${ id ?? '' }`
+        const options = {
+            body: JSON.stringify(shareData),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
     async signupStatus(){
         const response = await this.#fetch('signup')
         return response

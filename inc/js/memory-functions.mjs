@@ -15,6 +15,18 @@ async function collectMemory(ctx){
 	// @todo - implement memory collection
 }
 /**
+ * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<Boolean>} - Success or failure of the operation
+ */
+async function deleteShare(ctx){
+	const { sid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(Avatar.isMyLife)
+		return ctx.throw(401, 'MyLife cannot delete shares')
+	ctx.body = await Avatar.deleteShare(sid)
+}
+/**
  * Gets an owned share from MyLife `shares` container.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<object>} - The MemberShare document
@@ -119,10 +131,10 @@ async function shareStop(ctx){
 async function shareUpdate(ctx){
 	const { sid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife share')
-	const { input, } = ctx.request.body
-	ctx.body = await Avatar.shareUpdate(sid, input)
+	const shareData = ctx.request.body
+	if(Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife sharing system')
+	ctx.body = await Avatar.shareUpdate(sid, shareData)
 }
 async function validateShare(ctx){
 	const { sid, } = ctx.params
@@ -135,6 +147,7 @@ async function validateShare(ctx){
 export {
 	acceptShareWarnings,
     collectMemory,
+	deleteShare,
     improveMemory,
 	endMemory,
 	getShare,
