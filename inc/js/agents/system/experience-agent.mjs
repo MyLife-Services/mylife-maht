@@ -415,7 +415,6 @@ class ShareAgent {
     async create(shareData){
         const share = await this.#factory.createShare(shareData)
         this.#shares.push(share.id)
-        console.log('ShareAgent::create', share, this.#shares)
         return share
     }
     /**
@@ -424,9 +423,9 @@ class ShareAgent {
      * @returns {Promise<Boolean>} - Success or failure of the operation
      */
     async delete(shareId){
-        const { itemId, shares, } = (this.share(undefined, shareId) ?? await this.getShare(shareId))
-            ?.itemId
-        this.#factory.deleteShare(shareId, itemId, shares)
+        const { itemId, } = await this.getShare(shareId)
+        this.#factory.deleteShare(shareId, itemId)
+        this.#shares = this.#shares.filter(share=>share!==shareId)
         return true
     }
     /**
@@ -550,12 +549,11 @@ class ShareAgent {
     }
     /**
      * Update a share with provided data.
-     * @param {Guid} shareId - The share id
      * @param {object} shareData - The share data object
      * @returns {Promise<object>} - The updated Share object
      */
-    async update(shareId, shareData){
-        return await this.#factory.updateShare(shareId, shareData)
+    async update(shareData){
+        return await this.#factory.updateShare(shareData)
     }
     async validateShare(shareId){
         if(!this.share(shareId)){ // protect in case instanceId sent

@@ -827,6 +827,9 @@ class Avatar extends EventEmitter {
     async shadows(){
         return await this.#factory.shadows()
     }
+    async shareCreate(shareData){
+        return await this.#ShareAgent.create(shareData)
+    }
     /**
      * Share a memory `Header` with frontend to determine warnings or restrictions.
 	 * @param {Guid} sid - Share id
@@ -855,14 +858,11 @@ class Avatar extends EventEmitter {
     }
     /**
      * Create or Update a share with new data.
-     * @param {Guid} shareId - The share id (optional to create new share)
      * @param {object} shareData - The share data object
      * @returns {Promise<object>} - The updated Share object
      */
-    async shareUpdate(shareId, shareData){
-        return this.globals.isValidGuid(shareId)
-            ? await this.#ShareAgent.update(shareId, shareData)
-            : await this.#ShareAgent.create(shareData)
+    async shareUpdate(shareData){
+        return await this.#ShareAgent.update(shareData)
     }
 	/**
 	 * Submits a memory to MyLife. Currently called both from API _and_ LLM function.

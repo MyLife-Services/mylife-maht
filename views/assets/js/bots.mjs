@@ -1752,7 +1752,7 @@ async function mShareModal(itemId, shares, summary, title, shareId){
     shareTitleInput.name = shareTitleInput.id
     shareTitleInput.placeholder = 'Enter a title for this share...'
     shareTitleInput.type = 'text'
-    shareTitleInput.value = title
+    shareTitleInput.value = shareData.title ?? title
     shareTitleContainer.appendChild(shareTitleInput)
     /* anonymous share */
     const anonymousContainer = document.createElement('div')
@@ -1862,7 +1862,6 @@ async function mShareModal(itemId, shares, summary, title, shareId){
         const sharePovOption = document.createElement('option')
         sharePovOption.textContent = option.charAt(0).toUpperCase() + option.slice(1)
         sharePovOption.value = index + 1
-        console.log(shareData.pov, sharePovOption.value)
         if(sharePovOption.value===shareData.pov)
             sharePovOption.selected = true
         sharePovDropdown.appendChild(sharePovOption)
@@ -1919,15 +1918,16 @@ async function mShareModal(itemId, shares, summary, title, shareId){
             anonymous: shareAnonymous.checked,
             conclusion: shareConclusionInput.value,
             guessable: shareGuessable.checked,
+            id: shareId,
             itemId: itemId,
             pov: sharePovDropdown.value,
-            shareId,
-            shares,
             scope: shareScopeDropdown.value,
             title: shareTitleInput.value,
             voice: shareVoiceInput.value,
         }
-        const response = await mGlobals.datamanager.shareUpdate(shareData)
+        const response = mGlobals.isGuid(shareId)
+            ? await mGlobals.datamanager.shareUpdate(shareData)
+            : await mGlobals.datamanager.shareCreate(shareData)
         if(!shareId){
             shareId = response.id
             shares.push(shareId)

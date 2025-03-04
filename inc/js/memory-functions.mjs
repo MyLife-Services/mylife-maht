@@ -78,6 +78,15 @@ async function reliveMemory(ctx){
 	const { memberInput, } = ctx.request.body
 	ctx.body = await avatar.reliveMemory(iid, memberInput)
 }
+async function shareCreate(ctx){
+	const { avatar: Avatar, } = ctx.state
+	const shareData = ctx.request.body
+	if(Avatar.isMyLife)
+		return ctx.throw(401, 'Unauthorized access to MyLife sharing system')
+	if(shareData.id)
+		shareData.id = undefined
+	ctx.body = await Avatar.shareCreate(shareData)
+}
 async function shareDelete(ctx){
 	const { sid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
@@ -141,7 +150,8 @@ async function shareUpdate(ctx){
 	const shareData = ctx.request.body
 	if(Avatar.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife sharing system')
-	ctx.body = await Avatar.shareUpdate(sid, shareData)
+	shareData.id = sid
+	ctx.body = await Avatar.shareUpdate(shareData)
 }
 async function validateShare(ctx){
 	const { sid, } = ctx.params
@@ -160,6 +170,7 @@ export {
 	getShare,
 	getShares,
     reliveMemory,
+	shareCreate,
 	shareDelete,
 	shareHeader,
 	shareFeedback,

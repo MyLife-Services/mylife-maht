@@ -560,33 +560,33 @@ class Dataservices {
 	 * @param {string} [path='/'] - The path for patching, defaults to root.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patch(id, data, path = '/') {
+	async patch(id, data, containerId, partitionId, path = '/') {
 		const patchOperations = Object.keys(data)
 			.filter(key => !['id', 'being', 'mbr_id'].includes(key))
 			.map(key => {
 				return { op: 'add', path: path + key, value: data[key] }
 			})
-		// Split operations into batches of 10 per Cosmos DB limitations
-		const patchBatches = []
+		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations
 		while(patchOperations.length){
 			patchBatches.push(patchOperations.splice(0, 10))
 		}
-		// Perform the patch operation(s) for each batch
 		let endResult
-		for(const batch of patchBatches){
-			endResult = await this.patchItem(id, batch, data?.mbr_id)
+		for(const batch of patchBatches){ // Perform the patch operation(s) for each batch
+			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id)
 		}
 		return endResult
 	}
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
 	 * @async
-	 * @param {string} id - The unique identifier for the item to be patched.
-	 * @param {Array<Object>} data - The data for patching, including the path and operation.
+	 * @param {string} id - The unique identifier for the item to be patched
+	 * @param {Array<Object>} data - The data for patching, including the path and operation
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The partition ID to use, overriding default
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(id, data, mbr_id){ // path Embedded in data
-		return await this.datamanager.patchItem(id, data, undefined, mbr_id)
+	async patchItem(id, data, containerId, partitionId){
+		return await this.datamanager.patchItem(id, data, containerId, partitionId)
 	}
     /**
      * Pushes a new item to the data manager.

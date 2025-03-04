@@ -152,7 +152,6 @@ class Datamanager {
 			item.id = this.globals.newGuid
 		if(!mbr_id?.length)
 			item.mbr_id = this.#partitionId
-		console.log('Datamanager::pushItem::item', item, containerId)
 		const { resource: doc } = await this.#containers[containerId]
 			.items
 			.upsert(item)

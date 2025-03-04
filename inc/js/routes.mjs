@@ -43,6 +43,7 @@ import {
     getShares,
     improveMemory,
     reliveMemory,
+    shareCreate,
     shareDelete,
     shareMemory,
     shareFeedback,
@@ -143,6 +144,7 @@ _memberRouter.patch('/experience/:xid/end', experienceEnd)
 _memberRouter.patch('/experience/:xid/manifest', experienceManifest)
 _memberRouter.patch('/memory/relive/:iid', reliveMemory)
 _memberRouter.patch('/memory/end/:iid', endMemory)
+_memberRouter.patch('/share/:sid', shareUpdate)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/create', createBot)
@@ -156,7 +158,7 @@ _memberRouter.post('/migrate/chat/:bid', migrateChat)
 _memberRouter.post('/obscure/:iid', obscure)
 _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/chat/:bid', retireChat)
-_memberRouter.post('/share/:sid?', shareUpdate)
+_memberRouter.post('/share', shareCreate)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)

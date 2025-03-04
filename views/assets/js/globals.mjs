@@ -516,6 +516,36 @@ class Datamanager {
         const response = await this.#fetch(url, options)
         return response
     }
+    async shareUpdate(shareData){
+        const { id, } = shareData
+        const url = `/members/share/${ id ?? '' }`
+        const options = {
+            body: JSON.stringify(shareData),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'PATCH',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    /**
+     * Creates a new member share on the server.
+     * @param {object} shareData - The share data
+     * @returns 
+     */
+    async shareCreate(shareData){
+        const url = `/members/share`
+        const options = {
+            body: JSON.stringify(shareData),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
     async shareDelete(shareId){
         const url = `members/share/${ shareId }`
         const options = {
@@ -554,7 +584,7 @@ class Datamanager {
             headers: {
                 'Content-Type': 'application/json',
             },
-            method: 'POST',
+            method: 'PATCH',
         }
         const response = await this.#fetch(url, options)
         return response
