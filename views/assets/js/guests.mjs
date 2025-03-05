@@ -11,7 +11,7 @@ window.privacyPolicy = privacyPolicy
 /* variables */
 let mChallengeMemberId,
     mChatBubbleCount = 0,
-    mDefaultTypeDelay = 7,
+    mDefaultTypeDelay = 10,
     mPageType = null,
     mRecognition,
     mRecognizingSpeech = false,
@@ -33,7 +33,6 @@ let awaitButton,
     signupEmailInputField,
     signupErrorMessage,
     signupForm,
-    signupHeader,
     signupHumanNameInput,
     signupSuccess,
     signupTeaser
@@ -54,11 +53,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
         hideChat = true
     mShowPage(hideChat)
     if(messages.length)
-        mAddMessages(messages, { // no await necessary
-            bubbleClass: 'agent-bubble',
-            typeDelay: 10,
-            typewrite: true,
-        })
+        mAddMessages(messages, 'agent')
         if(input)
             mGlobals.addChatElement(input)
     /* execute Share */
@@ -76,61 +71,72 @@ function privacyPolicy(){
 /**
  * Adds a message to the chat column.
  * @private
- * @param {string} message - The message to add to the chat column
- * @param {object} options - The options for the chat bubble
- * @returns {chatBubble} - The chat bubble element
+ * @param {String} message - The message to add to the chat column
+ * @param {String} role - The role of the originator of the message
+ * @param {Number} typeDelay - The delay between typing each character
+ * @param {Function} callback - The callback function to execute after the message is added
+ * @returns {HTMLElement} - The chat message element
  */
-function mAddMessage(message, options={}){
-    const {
-        bubbleClass='agent-bubble',
-        callback=_=>{},
-		typeDelay=mDefaultTypeDelay,
-		typewrite=true,
-	} = options
-    const role = bubbleClass.split('-')[0]
+function mAddMessage(message, role=agent, typeDelay=mDefaultTypeDelay, callback){
     const isSynthetic = !['chat', 'guest', 'member', 'user', 'visitor'].includes(role)
     /* message container */
     const chatMessage = document.createElement('div')
-    chatMessage.classList.add('chat-message-container', `chat-message-container-${ role }`)
+    if(!isSynthetic)
+        chatMessage.classList.add('chat-message-organic') // use reverse-flex for organic
+    else
+        chatMessage.classList.add('chat-message', `chat-message-${ role }`)
+    chatMessage.id = `chat-message-${ mChatBubbleCount }`
+    chatMessage.name = 'chat-message'
     /* message thumbnail */
-    if(isSynthetic){
-        const messageThumb = document.createElement('img')
-        messageThumb.classList.add('chat-thumb')
-        messageThumb.id = `message-thumb-${ mChatBubbleCount }`
-        messageThumb.src = 'png/Q.png'
-        messageThumb.alt = `Q, MyLife's Corporate Intelligence`
-        messageThumb.title = `Hi, I'm Q, MyLife's Corporate Synthetic Intelligence. I am designed to help you better understand MyLife's organization, membership, services and vision.`
-        chatMessage.appendChild(messageThumb)
+    const messageThumb = document.createElement('img')
+    messageThumb.id = `message-thumb-${ mChatBubbleCount }`
+    switch(role){
+        case 'share':
+            break
+        case 'system':
+            messageThumb.src = 'png/Q.png'
+            messageThumb.alt = `Q, MyLife's Corporate Intelligence`
+            messageThumb.title = `Hi, I'm Q, MyLife's Corporate Synthetic Intelligence. I am designed to help you better understand MyLife's organization, membership, services and vision.`        
+            break
+        case 'warning':
+            break
+        case 'agent':
+            messageThumb.src = 'png/Q-alt.png'
+            messageThumb.alt = `Q, MyLife's Corporate Intelligence`
+            messageThumb.title = `Hi, I'm Q, MyLife's Corporate Synthetic Intelligence. I am designed to help you better understand MyLife's organization, membership, services and vision.`        
+            break
+        default:
+            // organic profile thumb
+            break
     }
+    chatMessage.appendChild(messageThumb)
     /* message bubble */
 	const chatBubble = document.createElement('div')
-	chatBubble.classList.add('chat-bubble', (bubbleClass ?? role+'-bubble'))
+	chatBubble.classList.add('chat-message-text')
     chatBubble.id = `chat-bubble-${ mChatBubbleCount }`
-    mChatBubbleCount++
+    chatBubble.name = 'chat-bubble'
     chatMessage.appendChild(chatBubble)
+    mChatBubbleCount++
     /* append chat message */
     mGlobals.addChatElement(chatMessage)
-    if(!message.startsWith('<section>'))
+    if(!message.startsWith('<section>')) // fixes issues with inline flex blocks; ex. <b>...</b>
         message = `<section>${message}</section>`
-	if(typewrite)
-        mTypeMessage(chatBubble, message, typeDelay, callback)
-	else {
-		chatBubble.insertAdjacentHTML('beforeend', message)
-        mGlobals.scrollBottom()
-        callback()
-	}
+    mTypeMessage(chatBubble, message, typeDelay, callback)
     return chatMessage
 }
 /**
  * Adds multiple messages to the chat column.
- * @param {Message[]} messages - The messages to add to the chat column.
- * @param {object} options - The options for the chat bubble.
- * @returns {void}
+ * @private
+ * @param {Message[]} messages - The messages to add to the chat column
+ * @param {String} role - The role of the originator of the message
+ * @param {Number} typeDelay - The delay between typing each character
+ * @param {Function} callback - The callback function to execute after the message is added
+ * @returns {HTMLElement} - The chat message element
  */
-async function mAddMessages(messages, options={}){
-    for (const message of messages) {
+async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, callback){
+    for(const message of messages){
         await new Promise(resolve=>{
-            mAddMessage(message, {...options, callback: resolve})
+            mAddMessage(message, role, typeDelay, (callback ?? resolve))
         })
     }
 }
@@ -141,17 +147,12 @@ async function mAddMessages(messages, options={}){
  */
 function mAddUserMessage(event){
     event.preventDefault()
-    // Dynamically get the current message element (input or textarea)
     const userMessage = mGlobals.chatInput
     if(!userMessage.length)
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
-    const options = {
-        bubbleClass: 'user-bubble',
-        typeDelay: 2,
-    }
     mSubmitInput(event, message)
-    mAddMessage(message, options)
+    mAddMessage(message, 'member', 2)
 }
 /**
  * Creates a challenge element for the user to enter their passphrase. Simultaneously sets modular variables to the instantion of the challenge element. Unclear what happens if multiples are attempted to spawn, but code shouldn't allow for that, only hijax. See the `@required` for elements that this function generates and associates.
@@ -221,7 +222,7 @@ async function mFetchStart(){
         case 'login':
         case 'select':
             if(mChallengeMemberId){
-                await mAddMessage(`Please enter the passphrase for your account to continue...`, { typeDelay: 6, })
+                await mAddMessage(`Please enter the passphrase for your account to continue...`, 'system', 6)
                 mGlobals.addChatElement(mCreateChallengeElement())
                 mGlobals.scrollBottom()
             } else
@@ -263,11 +264,10 @@ async function mLoadStart(){
     privacyContainer = document.getElementById('privacy-container')
     sidebar = mGlobals.sidebar
     signupButton = document.getElementById('signup-submit')
-    signupEmailInputField = document.getElementById('email-input-text')
+    signupEmailInputField = document.getElementById('input-email')
     signupErrorMessage = document.getElementById('signup-error-message')
-    signupForm = document.getElementById('signup-form')
-    signupHeader = document.getElementById('signup-header')
-    signupHumanNameInput = document.getElementById('human-name-input-text')
+    signupForm = document.getElementById('join-form')
+    signupHumanNameInput = document.getElementById('input-name')
     signupSuccess = document.getElementById('signup-success')
     signupTeaser = document.getElementById('signup-teaser')
     /* load page */
@@ -292,11 +292,11 @@ async function mRoutine(routineName){
                 let message = event.dialog.message
                 return message
             })
-        mAddMessages(events, { bubbleClass: 'system-bubble', responseDelay: 6, typeDelay: 4, typewrite: true, })
+        mAddMessages(events, 'system', 4)
     } else if(responses?.length)
-        mAddMessages(responses, { responseDelay: 4, typeDelay: 1, typewrite: true, })
+        mAddMessages(responses, 'system', 1)
     else if(error.message)
-        mAddMessage(error.message, { bubbleClass: 'system-bubble', typeDelay: 1, typewrite: true, })
+        mAddMessage(error.message, 'error', 1)
 }
 /**
  * Leads interface through a shared memory.
@@ -324,7 +324,7 @@ async function mShare(activeShareId){
         }
     }
     if(scene?.length){
-        await mAddMessage(scene, { bubbleClass: 'share-bubble', typeDelay: 4, typewrite: true, })
+        await mAddMessage(scene, 'share', 4)
         mShareProgress(activeShareId)
         mGlobals.scrollBottom()
     }
@@ -375,11 +375,8 @@ function mShareProgress(activeShareId){
     }
 }
 async function mShareStart(activeShareId){
-    const shareWelcome = mAddMessage('Congratulations! A <i>MyLife</i> Member has shared a memory with you!<br />Please wait while I load and interpret the memory', { // no await necessary
-        bubbleClass: 'system-bubble',
-        typeDelay: 10,
-        typewrite: true,
-    })
+    const shareWelcomeText = 'Congratulations! A <i>MyLife</i> Member has shared a memory with you!<br />Please wait while I load and interpret the memory'
+    const shareWelcome = mAddMessage(shareWelcomeText, 'system')
     const awaitOriginalContent = awaitButton.textContent.trim()
     awaitButton.textContent = 'Connecting with Member Avatar to retrieve memory...'
     show(awaitButton)
@@ -388,14 +385,10 @@ async function mShareStart(activeShareId){
     const title = `<i>Prepare to experience</i>:<br />&mdash; <b>${ shareHeader.title ?? 'A MyLife Shared Memory' }</b>`
     hide(awaitButton)
     awaitButton.textContent = awaitOriginalContent
-    const shareTitle = await mAddMessage(title, { // no await necessary
-        bubbleClass: 'share-bubble',
-        typeDelay: 10,
-        typewrite: true,
-    })
+    const shareTitle = await mAddMessage(title, 'share')
     if(shareHeader.warnings?.length){
         const shareWarning = `Before we proceed, <i>MyLife</i> needs to notify you that the shared content contains the following warnings: <b>${ shareHeader.warnings }</b><br />&mdash; Please confirm that you are willing to continue, or cancel out now.`
-        const triggerWarningBubble = await mAddMessage(shareWarning, { bubbleClass: 'warning-bubble', typeDelay: 4, typewrite: true, })
+        const triggerWarningBubble = await mAddMessage(shareWarning, 'warning', 4)
         /* trigger warnings */
         // @todo - move to response `input` node
         const triggerWarning = document.createElement('div')
@@ -427,11 +420,8 @@ async function mShareStart(activeShareId){
         /* trigger warning inline functions */
         async function _warningCancel(){
             _removeWarning()
-            await mAddMessage(`I'm sorry about that! I'm still happy to share information about MyLife... just ask!`, {
-                bubbleClass: 'system-bubble',
-                typeDelay: 10,
-                typewrite: true,
-            })
+            const shareCancelText = `I'm sorry, but I cannot proceed with the shared memory at this time.`
+            await mAddMessage(shareCancelText, 'system')
             show(mGlobals.MemberChat)
         }
         async function _warningContinue(){
@@ -493,7 +483,6 @@ function mSignupSuccess(){
     retract(signupForm)
     retract(signupTeaser)
     show(signupSuccess)
-    signupHeader.innerHTML = `Thank you for joining our pilot!`
 }
 /**
  * Submits a challenge response to the server.
@@ -539,7 +528,7 @@ async function mSubmitInput(event, message){
     }
 	const { responses, success, } = await mGlobals.datamanager.submitChat(chatData)
 	responses.forEach(gptMessage=>{
-		mAddMessage(gptMessage.message)
+		mAddMessage(gptMessage.message, 'member', 2)
 	})
     hide(awaitButton)
     mGlobals.chatInput = null

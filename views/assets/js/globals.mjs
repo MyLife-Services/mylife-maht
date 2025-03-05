@@ -39,8 +39,10 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mLoginContainer,
     mMainContent,
     mNavigation,
+    mNavigationHamburger,
     mNavigationHelp,
     mNavigationHelpIcon,
+    mNavigationMenu,
     mPage,
     mPlaceholder,
     mRecognition,
@@ -724,20 +726,23 @@ class Globals {
             mHelpRefresh = document.getElementById('help-chat-refresh')
             mHelpSystemChat = document.getElementById('help-chat') /* container for help system chat */
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
-            mLoginButton = document.getElementById('navigation-login-logout-button')
+            mLoginButton = document.getElementById('navigation-login')
             mLoginContainer = document.getElementById('navigation-login-logout')
             mMainContent = document.getElementById('main-content')
             mNavigation = document.getElementById('navigation-container')
+            mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
-            mPage = document.getElementById('page-container')
+            mNavigationMenu = document.getElementById('navigation-menu')
+            mPage = document.getElementById('page-header')
             mSidebar = document.getElementById('sidebar')
             /* element initialization */
             if(mChatInput){
                 this.chatInput = null
                 mChatInput.placeholder = mPlaceholder
             }
-            mSpeechInitialization(this.checkChatInput)
+            if(mAudioIcon)
+                mSpeechInitialization(this.checkChatInput)
             this.init()
         }
     }
@@ -778,6 +783,8 @@ class Globals {
                 mAudioPopup.addEventListener('click', ()=>this.hide(mAudioPopup))
             }
         }
+        if(mNavigationHamburger && mNavigationMenu)
+            mNavigationHamburger.addEventListener('click', _=>mNavigationMenu.classList.toggle('show'))
         mLoginButton.addEventListener('click', this.loginLogout, { once: true })
         /* fetch data */
         await this.datamanager.alerts()
