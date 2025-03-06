@@ -251,7 +251,7 @@
     font-size: 0.6rem;
     margin-left: auto; /* Pushes the version div to the right end */
 }
-.mylife-widget.bots {
+.bots {
 	flex-direction: column;
 	justify-content: flex-start;
     max-width: 100%;

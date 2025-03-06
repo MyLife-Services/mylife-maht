@@ -161,15 +161,6 @@
     background-color: #4CAF50; /* Active state color */
     color: white;
 }
-/* missions */
-.widget-mission{
-    background-color: #f0f0f0; /* Neutral color */
-    cursor: pointer;
-    display: flex;
-    margin: 5px;
-    padding: 10px;
-    border: none;
-}
 /* Avatars */
 /* Avatar detail listing */
 .avatar-detail {

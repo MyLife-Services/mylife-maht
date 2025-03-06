@@ -21,9 +21,9 @@
 <body>
 	<div id="page-loader" class="loader-container">
 		<div id="page-loader-icon" class="loader"></div>
-		<div id="page-loader-text" class="loader-text">Loading MyLife Member Platform</div>
+		<div id="page-loader-text" class="loader-text">Loading...<br /><i>MyLife Member Platform</i></div>
 	</div>
-	<div id="page-header" class="header">
+	<div id="page-header" class="header hide">
 		<div id="experience-transport" class="experience-transport hide">
 			<div id="experience-close" class="experience-transport-item" title="End and Close Experience">
 				<i class="fa fa-times" aria-hidden="true"></i>
@@ -51,10 +51,10 @@
 			<% include assets/html/_alerts %>
 		</div>
 	</div>
-	<div id="main-content" class="main-content">
+	<div id="main-content" class="main-content hide">
 		<%- body %><!-- koa-ejs body inclusion -->
 		<!-- sidebar area -->
-		<div id="sidebar" class="sidebar">
+		<div id="sidebar" class="sidebar hide">
 			<% include assets/html/_sidebar %>
 		</div>
 	</div>

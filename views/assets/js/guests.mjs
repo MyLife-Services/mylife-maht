@@ -34,8 +34,7 @@ let awaitButton,
     signupErrorMessage,
     signupForm,
     signupHumanNameInput,
-    signupSuccess,
-    signupTeaser
+    signupSuccess
 /* page load */
 document.addEventListener('DOMContentLoaded', async event=>{
     /* load data */
@@ -81,10 +80,11 @@ function mAddMessage(message, role=agent, typeDelay=mDefaultTypeDelay, callback)
     const isSynthetic = !['chat', 'guest', 'member', 'user', 'visitor'].includes(role)
     /* message container */
     const chatMessage = document.createElement('div')
+    chatMessage.classList.add('chat-message')
     if(!isSynthetic)
         chatMessage.classList.add('chat-message-organic') // use reverse-flex for organic
     else
-        chatMessage.classList.add('chat-message', `chat-message-${ role }`)
+        chatMessage.classList.add(`chat-message-${ role }`)
     chatMessage.id = `chat-message-${ mChatBubbleCount }`
     chatMessage.name = 'chat-message'
     /* message thumbnail */
@@ -92,13 +92,11 @@ function mAddMessage(message, role=agent, typeDelay=mDefaultTypeDelay, callback)
     messageThumb.id = `message-thumb-${ mChatBubbleCount }`
     switch(role){
         case 'share':
-            break
         case 'system':
+        case 'warning':
             messageThumb.src = 'png/Q.png'
             messageThumb.alt = `Q, MyLife's Corporate Intelligence`
             messageThumb.title = `Hi, I'm Q, MyLife's Corporate Synthetic Intelligence. I am designed to help you better understand MyLife's organization, membership, services and vision.`        
-            break
-        case 'warning':
             break
         case 'agent':
             messageThumb.src = 'png/Q-alt.png'
@@ -106,7 +104,10 @@ function mAddMessage(message, role=agent, typeDelay=mDefaultTypeDelay, callback)
             messageThumb.title = `Hi, I'm Q, MyLife's Corporate Synthetic Intelligence. I am designed to help you better understand MyLife's organization, membership, services and vision.`        
             break
         default:
-            // organic profile thumb
+            messageThumb.classList.add('chat-message-thumb-small')
+            messageThumb.src = 'png/personal-avatar-thumb.png'
+            messageThumb.alt = `Default Individual Avatar`
+            messageThumb.title = `I represent the individual speaking or typing.`
             break
     }
     chatMessage.appendChild(messageThumb)
@@ -151,8 +152,8 @@ function mAddUserMessage(event){
     if(!userMessage.length)
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
-    mSubmitInput(event, message)
     mAddMessage(message, 'member', 2)
+    mSubmitInput(event, message)
 }
 /**
  * Creates a challenge element for the user to enter their passphrase. Simultaneously sets modular variables to the instantion of the challenge element. Unclear what happens if multiples are attempted to spawn, but code shouldn't allow for that, only hijax. See the `@required` for elements that this function generates and associates.
@@ -243,7 +244,7 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
-    const chatSubmit = document.getElementById('chat-submit')
+    const chatSubmit = document.getElementById('chat-input-submit')
     if(chatSubmit)
         chatSubmit.addEventListener('click', mAddUserMessage)
     signupButton.addEventListener('click', mSubmitSignup)
@@ -266,11 +267,11 @@ async function mLoadStart(){
     signupButton = document.getElementById('signup-submit')
     signupEmailInputField = document.getElementById('input-email')
     signupErrorMessage = document.getElementById('signup-error-message')
-    signupForm = document.getElementById('join-form')
+    signupForm = document.getElementById('signup-join')
     signupHumanNameInput = document.getElementById('input-name')
     signupSuccess = document.getElementById('signup-success')
-    signupTeaser = document.getElementById('signup-teaser')
     /* load page */
+    signupButton.disabled = true
     mChallengeMemberId = new URLSearchParams(window.location.search).get('mbr')
     mPageType = new URLSearchParams(window.location.search).get('type')
         ?? window.location.pathname.split('/').pop()
@@ -466,22 +467,13 @@ function mShowPage(hideChat=false){
     /* display elements */
     hide(pageLoader)
     show(navigation)
-    document.querySelectorAll('.mylife-widget')
-        .forEach(widget=>{
-            const guestStatus = (widget.dataset?.requireLogin ?? "false")==="false"
-            if(guestStatus)
-                show(widget)
-            else
-                hide(widget)
-        })
-    show(sidebar)
     show(mainContent)
+    show(sidebar)
     if(hideChat)
         hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){
     retract(signupForm)
-    retract(signupTeaser)
     show(signupSuccess)
 }
 /**
@@ -528,7 +520,7 @@ async function mSubmitInput(event, message){
     }
 	const { responses, success, } = await mGlobals.datamanager.submitChat(chatData)
 	responses.forEach(gptMessage=>{
-		mAddMessage(gptMessage.message, 'member', 2)
+		mAddMessage(gptMessage.message, 'agent', 2)
 	})
     hide(awaitButton)
     mGlobals.chatInput = null
@@ -550,8 +542,8 @@ async function mSubmitSignup(event){
         humanName,
         type: mSignupType,
     }
-    const success = mGlobals.datamanager.signup(formData)
-    if(success)
+    const response = mGlobals.datamanager.submitSignup(formData)
+    if(response?.success)
         mSignupSuccess()
     else {
         const signupInputContainer = document.getElementById('signup-input-container')
@@ -604,7 +596,8 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay, callback
             setTimeout(_typewrite, typeDelay) // Adjust the typing speed here (50ms)
         } else {
             chatBubble.setAttribute('status', 'done')
-            callback()
+            if(callback)
+                callback()
         }
         mGlobals.scrollBottom()
     }
@@ -613,10 +606,9 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay, callback
 /**
  * Updates the form input and button states based on the input fields.
  * @private
- * @param {Event} event - The event object.
  * @returns {void}
  */
-function mUpdateFormState(event){
+function mUpdateFormState(){
     const { value: emailValue, } = signupEmailInputField
     const { value: humanNameValue, } = signupHumanNameInput
     signupButton.disabled = !(

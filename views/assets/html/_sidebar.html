@@ -1,6 +1,6 @@
 <div id="signup" class="signup-content" data-require-login="false">
 	<h2>Your Life is Worth Saving</h2>
-	<div id="signup-join">
+	<div id="signup-join" class="signup-join">
 		<p>
 			MyLife is a nonprofit humanist member organization dedicated to
 			helping you <strong>preserve and share what truly matters</strong>—both now and for future generations.
@@ -43,6 +43,7 @@
 					placeholder="Your full name..."
 				/>
 			</section>
+			<!--
 			<section>
 				<label for="input-avatar">Agent Name</label>
 				<input
@@ -52,7 +53,8 @@
 					placeholder="Name your agent..."
 				/>
 			</section>
-			<button id="signup-submit" type="submit">Become a Member</button>
+			-->
+			<button id="signup-submit" type="button" disabled="disabled">Become a Member</button>
 		</form>
 	</div>
 	<div id="signup-success" class="signup-success">
@@ -70,11 +72,4 @@
 			We will contact you shortly by email to confirm your interest.
 		</p>
 	</div>
-</div>
-<div
-	class="mylife-widget bots"
-	data-require-login="true"
-	id="bots-widget"
->
-	<% include _bots %>
 </div>

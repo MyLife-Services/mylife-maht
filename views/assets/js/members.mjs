@@ -865,16 +865,9 @@ function mStageTransitionMember(includeSidebar=true){
     hide(transport)
     hide(screen)
     hide(pageLoader)
-    document.querySelectorAll('.mylife-widget')
-        .forEach(widget=>{
-            const loginRequired = (widget.dataset?.requireLogin ?? "false")==="true"
-            if(loginRequired)
-                show(widget)
-            else
-                hide(widget)
-        })
     show(mainContent)
     show(navigation)
+    show(sidebar)
     show(mGlobals.ChatContainer)
     if(includeSidebar && sidebar){
         show(sidebar)

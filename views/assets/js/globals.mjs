@@ -11,13 +11,12 @@ const mHelpInitiatorContent = {
 const mNewGuid = ()=>crypto.randomUUID()
 /* module variables */
 let mActiveHelpType, // active help type, currently entire HTMLDivElement
-    mAudioIcon,
-    mAudioPopup,
+    mChatAudioIcon,
+    mChatAudioPopup,
     mAvatarName,
     mChatContainer,
-    mChatInput,
-    mChatMember,
-    mChatMemberContainer,
+    mChatInputContainer,
+    mChatInputField,
     mChatSubmit,
     mChatSystem,
     mDatamanager,
@@ -704,13 +703,12 @@ class Globals {
                 ?? 'MyLife'
             mPlaceholder = `Type your message to ${ mAvatarName }...`
             /* elements */
-            mAudioIcon = document.getElementById('audio-icon')
-            mAudioPopup = document.getElementById('audio-popup')
+            mChatAudioIcon = document.getElementById('audio-icon')
+            mChatAudioPopup = document.getElementById('audio-popup')
             mChatContainer = document.getElementById('chat-container')
-            mChatInput = document.getElementById('chat-message')
-            mChatMember = document.getElementById('chat-member')
-            mChatMemberContainer = document.getElementById('chat-member-container')
-            mChatSubmit = document.getElementById('chat-submit')
+            mChatInputContainer = document.getElementById('chat-input-container')
+            mChatInputField = document.getElementById('chat-input-text')
+            mChatSubmit = document.getElementById('chat-input-submit')
             mChatSystem = document.getElementById('chat-system')
             mDatamanager = new Datamanager()
             mHelpAwait = document.getElementById('help-await')
@@ -729,19 +727,20 @@ class Globals {
             mLoginButton = document.getElementById('navigation-login')
             mLoginContainer = document.getElementById('navigation-login-logout')
             mMainContent = document.getElementById('main-content')
-            mNavigation = document.getElementById('navigation-container')
+            mNavigation = document.getElementById('page-header')
             mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
             mNavigationMenu = document.getElementById('navigation-menu')
             mPage = document.getElementById('page-header')
             mSidebar = document.getElementById('sidebar')
+                ?? document.getElementById('bot-container')
             /* element initialization */
-            if(mChatInput){
+            if(mChatInputField){
                 this.chatInput = null
-                mChatInput.placeholder = mPlaceholder
+                this.chatInputPlaceholder = mPlaceholder
             }
-            if(mAudioIcon)
+            if(mChatAudioIcon)
                 mSpeechInitialization(this.checkChatInput)
             this.init()
         }
@@ -751,8 +750,8 @@ class Globals {
         /* global visibility settings */
         this.hide(mHelpContainer)
         /* assign event listeners */
-        if(mChatInput)
-            mChatInput.addEventListener('input', this.checkChatInput)
+        if(mChatInputField)
+            mChatInputField.addEventListener('input', this.checkChatInput)
         if(mNavigationHelp){
             mHelpClose.addEventListener('click', mToggleHelp)
             mHelpInputSubmit.addEventListener('click', mSubmitHelp)
@@ -763,24 +762,24 @@ class Globals {
             Array.from(mHelpType.children)?.[0]?.click() // default to first type
             mToggleHelpSubmit()
         }
-        if(mAudioIcon){
+        if(mChatAudioIcon){
             let iconHover = false
-            mAudioIcon.addEventListener('click', mSpeechRecognition)
-            mAudioIcon.addEventListener('touchend', mSpeechRecognition)
-            if(mAudioPopup){
-                mAudioIcon.addEventListener('mouseover', ()=>{
+            mChatAudioIcon.addEventListener('click', mSpeechRecognition)
+            mChatAudioIcon.addEventListener('touchend', mSpeechRecognition)
+            if(mChatAudioPopup){
+                mChatAudioIcon.addEventListener('mouseover', ()=>{
                     if(!mRecognizingSpeech){
                         iconHover = true
-                        this.show(mAudioPopup)
+                        this.show(mChatAudioPopup)
                     }
                 })
-                mAudioIcon.addEventListener('mouseout', ()=>{
+                mChatAudioIcon.addEventListener('mouseout', ()=>{
                     if(iconHover && !mRecognizingSpeech){
                         iconHover = false
-                        this.hide(mAudioPopup)
+                        this.hide(mChatAudioPopup)
                     }
                 })
-                mAudioPopup.addEventListener('click', ()=>this.hide(mAudioPopup))
+                mChatAudioPopup.addEventListener('click', ()=>this.hide(mChatAudioPopup))
             }
         }
         if(mNavigationHamburger && mNavigationMenu)
@@ -1068,7 +1067,7 @@ class Globals {
         this.chatInput = value
         if(placeholder?.length)
             this.chatInputPlaceholder = placeholder
-        mChatInput.focus()
+        mChatInputField.focus()
     }
     /**
      * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
@@ -1130,16 +1129,16 @@ class Globals {
         return mChatContainer
     }
     get chatInput(){
-        return mChatInput.value.trim()
+        return mChatInputField.value.trim()
     }
     set chatInput(value){
-        mChatInput.value = value
+        mChatInputField.value = value
     }
     get chatInputPlaceholder(){
-        return mChatInput.placeholder
+        return mChatInputField.placeholder
     }
     set chatInputPlaceholder(value){
-        mChatInput.placeholder = value
+        mChatInputField.placeholder = value
     }
     get ChatInput(){
         return mChatInput
@@ -1154,7 +1153,7 @@ class Globals {
         return mMainContent
     }
     get MemberChat(){ // return member chat container HTMLElement
-        return mChatMember
+        return mChatInputContainer
     }
     get navigation(){
         return mNavigation
@@ -1219,8 +1218,8 @@ function mAnimationEnd(animation, callbackFunction){
         callbackFunction(animation)
 }
 function mCheckChatInput(){
-    mChatInput.style.height = 'auto' // Reset height to shrink if text is removed
-    mChatInput.style.height = mChatInput.scrollHeight + 'px' // Set height based on content
+    mChatInputField.style.height = 'auto' // Reset height to shrink if text is removed
+    mChatInputField.style.height = mChatInputField.scrollHeight + 'px' // Set height based on content
     mToggleSubmitButton()
 }
 /**
@@ -1231,10 +1230,10 @@ function mSpeechInitialization(inputCheckCallback){
     /* speech recognition */
     if(!('webkitSpeechRecognition' in window)){
         alert('MyLife requires a browser that supports Speech Recognition. Please use Google Chrome or Microsoft Edge.')
-        mAudioIcon.style.display = 'none'
+        mChatAudioIcon.style.display = 'none'
         return
     }
-    mAudioPopup.innerHTML = mAudioNotRecording
+    mChatAudioPopup.innerHTML = mAudioNotRecording
     let finalTranscript='',
         ignoreEnd = false
     mRecognition = new webkitSpeechRecognition()
@@ -1254,11 +1253,11 @@ function mSpeechInitialization(inputCheckCallback){
     }
     mRecognition.onend = ()=>{
         mRecognizingSpeech = false
-        mAudioIcon.classList.remove('listening-mic')
-        mChatInput.classList.remove('listening')
-        mChatInput.placeholder = mPlaceholder
-        mAudioPopup.innerHTML = mAudioNotRecording
-        mHide(mAudioPopup)
+        mChatAudioIcon.classList.remove('listening-mic')
+        mChatInputField.classList.remove('listening')
+        mChatInputField.placeholder = mPlaceholder
+        mChatAudioPopup.innerHTML = mAudioNotRecording
+        mHide(mChatAudioPopup)
         mToggleSubmitButton() // no content keeps button disabled
         if(mRecognition?.trigger){
             mChatSubmit.click()
@@ -1283,7 +1282,7 @@ function mSpeechInitialization(inputCheckCallback){
                 const triggerWords = ['complete', 'done', 'end', 'finish', 'finished', 'send', 'stop', 'submit'] // trigger words
                 if(triggerWords.some(word=>finalPhrase==word)){
                     finalTranscript += finalPhrase.split(' ').slice(0, -1).join(' ') // remove trigger words
-                    mChatInput.value = finalTranscript
+                    mChatInputField.value = finalTranscript
                     if(finalPhrase.endsWith('send') || finalPhrase.endsWith('submit'))
                         mRecognition.trigger = true // request to submit input
                     mRecognition.stop() // Stop recognition
@@ -1294,23 +1293,23 @@ function mSpeechInitialization(inputCheckCallback){
                 interimTranscript += event.results[i][0].transcript
             }
         }
-        mChatInput.value = finalTranscript + interimTranscript
+        mChatInputField.value = finalTranscript + interimTranscript
         mCheckChatInput() // adjust input box height
     }
     mRecognition.onstart = ()=>{
         finalTranscript = ''
         // transform popup content
-        mAudioPopup.innerHTML = mAudioRecording
-        mShow(mAudioPopup)
-        mChatInput.innerHTML = finalTranscript
-        mAudioIcon.classList.add('listening-mic')
-        mChatInput.classList.add('listening')
-        mChatInput.placeholder = 'Speak aloud to capture your voice...'
+        mChatAudioPopup.innerHTML = mAudioRecording
+        mShow(mChatAudioPopup)
+        mChatInputField.innerHTML = finalTranscript
+        mChatAudioIcon.classList.add('listening-mic')
+        mChatInputField.classList.add('listening')
+        mChatInputField.placeholder = 'Speak aloud to capture your voice...'
         mRecognizingSpeech = true
     }
     /* speech synthesis */
     if(!('speechSynthesis' in window)){
-        mAudioIcon.style.display = 'none'
+        mChatAudioIcon.style.display = 'none'
         alert('MyLife requires a browser that supports Speech Synthesis. Please use Google Chrome or Microsoft Edge.')
         return
     }
@@ -1712,16 +1711,16 @@ function mToggleHelpSubmit(event){
  */
 function mToggleChatInput(display, classList){
     if(display){
-        mShow(mChatMemberContainer)
-        mChatInput.focus()
+        mShow(mChatInputContainer)
+        mChatInputField.focus()
         if(classList)
-            mChatInput.classList.add(classList)
-        mChatInput.value = null
+            mChatInputField.classList.add(classList)
+        mChatInputField.value = null
     } else {
-        mHide(mChatMemberContainer)
-        mChatInput.classList.remove('fade-in')
+        mHide(mChatInputContainer)
+        mChatInputField.classList.remove('fade-in')
         if(classList)
-            mChatInput.classList.remove(classList)
+            mChatInputField.classList.remove(classList)
     }
     mToggleSubmitButton()
 }
@@ -1731,7 +1730,7 @@ function mToggleChatInput(display, classList){
  * @returns {void}
  */
 function mToggleSubmitButton(){
-    const hasInput = mChatInput.value.trim().length ?? false
+    const hasInput = mChatInputField.value.trim().length ?? false
     mChatSubmit.disabled = !hasInput
     mChatSubmit.style.cursor = hasInput ? 'pointer' : 'not-allowed'
 }

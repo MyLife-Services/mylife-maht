@@ -731,7 +731,7 @@ function mEventInput(){
         return animationSequence
     const { complete, inputId, inputPlaceholder, inputType, variable, } = input
     let element,
-        elementId = `chat-member`
+        elementId = `chat-input-container`
     if(complete) // @stub - if complete, do not re-render? determine reaction; is it replay?
         return
     if(mBackdrop==='full'){
