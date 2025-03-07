@@ -318,7 +318,7 @@ async function mShare(activeShareId){
                 if(shareCancel)
                     shareCancel.click()
                 else
-                    mShareStop()
+                    await mShareStop()
                 return
             default:
                 return
@@ -366,7 +366,6 @@ function mShareProgress(activeShareId){
     /* share progress inline functions */
     function _cancel(){
         shareProgress.remove()
-        console.log('_cancel', activeShareId)
         mShareStop(activeShareId)
     } 
     function _next(){
@@ -446,9 +445,13 @@ async function mShareStart(activeShareId){
  * @param {Guid} activeShareId - The share id to process (optional)
  * @returns {void}
  */
-function mShareStop(activeShareId){
-    if(activeShareId)
-        mGlobals.datamanager.shareStop(activeShareId)
+async function mShareStop(activeShareId){
+    if(activeShareId){
+        const response = await mGlobals.datamanager.shareStop(activeShareId)
+        console.log('mShareStop', response)
+        if(response?.responses?.length)
+            mAddMessage(response.responses, 'agent')
+    }
     hide(awaitButton)
     show(mGlobals.MemberChat)
 }

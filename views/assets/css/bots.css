@@ -60,10 +60,11 @@
     display: flex;
     flex: 1 1 auto; /* Allow it to grow and shrink */
     flex-direction: column;
-    justify-content: space-between;
-    margin: 0.2rem 0;
+    justify-content: flex-start;
+    margin-bottom: 0.3rem;
     max-width: 100%;
     overflow: hidden;
+    padding-right: 0.2rem;
     width: 100%;
 }
 .bot-content {
@@ -72,14 +73,16 @@
     overflow: auto;
 }
 /* team */
-.add-team-member-icon {
-    font-size: 1.5rem;
-    padding: 0 1rem;
+.team-header .add-team-member-icon {
+    color: aliceblue;
     cursor: pointer;
+    font-size: 1.5rem;
+    font-style: normal;
+    padding: 0 1rem;
 }
-.team-header {
+.header.team-header {
     align-items: center;
-    background-color: #333; /* Change as needed */
+    background-color: navy; /* Change as needed */
     color: white;
     display: flex;
 	font-size: 1.2rem;
@@ -182,6 +185,12 @@
 .bot-options.open {
     animation: _slideBotOptions 0.5s forwards;
     display: flex; /* Make it flex when open */
+}
+.button.bot-options-button {
+    font-size: 0.9rem;
+    margin: 0.4rem;
+    padding: 0.5rem;
+    width: auto;
 }
 .bot-options-dropdown {
     align-items: center;
@@ -766,6 +775,7 @@ input:checked + .publicity-slider:before {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
+    font-size: 0.8rem;
     gap: 0.6em;
     margin-bottom: 0.6em;
     text-align: center;

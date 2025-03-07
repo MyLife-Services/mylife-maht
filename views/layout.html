@@ -55,7 +55,11 @@
 		<%- body %><!-- koa-ejs body inclusion -->
 		<!-- sidebar area -->
 		<div id="sidebar" class="sidebar hide">
-			<% include assets/html/_sidebar %>
+			<% if(locked) { %>
+				<% include assets/html/_sidebar %>
+			<% } else { %>
+				<% include assets/html/_bots %>
+			<% } %>
 		</div>
 	</div>
     <!-- Page Footer -->

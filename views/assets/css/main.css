@@ -1,6 +1,6 @@
 @import url('animations.css');
 @import url('bots.css');
-/* @import url('chat.css'); */
+@import url('chat.css');
 @import url('experience.css');
 @import url('members.css');
 /* css main variables */
@@ -292,12 +292,9 @@ button.chat-submit:disabled {
 }
 .chat-message-share {
 	background: #d4ffd3;
-	font-style: italic;
 }
 .chat-message-system {
 	background: #dadada;
-	font-style: italic;
-	margin: 0.25rem auto;
 }
 .chat-message-text {
 	display: flex;
@@ -337,31 +334,17 @@ img.chat-message-thumb-small {
 }
 /* Sidebar Section */
 .sidebar {
-	justify-content: center;
 	background: #fff;
     border-radius: var(--mylife-border-radius);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
 	color: #12094d;
-	flex: 1 1 33%;
+	display: flex;
+	flex: 1 1 100%;
+	flex-direction: column;
+	justify-content: flex-start;
     margin: 0.5rem;
     max-height: fit-content;
-    max-width: 33%;
 	width: auto;
-}
-.signup-content {
-	display: flex;
-	flex-direction: column;
-	max-width: 100%;
-	padding: 0.5rem;
-	width: 100%;
-}
-.signup-join,
-.signup-success {
-	display: flex;
-	flex-direction: column;
-}
-.signup-success p {
-	font-size: 0.9rem!important;
 }
 .sidebar h2 {
 	color: black;
@@ -387,6 +370,21 @@ img.chat-message-thumb-small {
     list-style: disc;
 	margin: 0;
     padding: 0rem 2rem;
+}
+.signup-content {
+	display: flex;
+	flex-direction: column;
+	max-width: 100%;
+	padding: 0.5rem;
+	width: 100%;
+}
+.signup-join,
+.signup-success {
+	display: flex;
+	flex-direction: column;
+}
+.signup-success p {
+	font-size: 0.9rem!important;
 }
 /* MyLife Signup Routine */
 .button {

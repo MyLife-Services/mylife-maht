@@ -194,21 +194,6 @@
     padding: 0.3em; /* Padding for space inside the container */
     resize: none; /* Allows vertical resizing, none to disable */
 }
-.chat-member {
-	align-items: flex-start;
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
-	flex-wrap: wrap;
-	margin: 0.5em 0;
-	max-height: 60%;
-	width: 100%;
-}
-.chat-member-container {
-	display: flex;
-	flex-direction: row;
-	width: 100%;
-}
 .chat-message-container {
     display: flex;
     position: relative;
@@ -395,3 +380,16 @@ button.chat-submit:disabled {
 	50% { transform: scale(1); }
 	100% { transform: scale(0.5); }
   }
+
+
+/* UNDER REVIEW */
+.chat-member {
+	align-items: flex-start;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	flex-wrap: wrap;
+	margin: 0.5em 0;
+	max-height: 60%;
+	width: 100%;
+}

@@ -638,7 +638,7 @@ async function mAddMessage(message, options={}){
     const isSynthetic = !['chat', 'guest', 'member', 'user', 'visitor'].includes(role)
     /* message container */
     const chatMessage = document.createElement('div')
-    chatMessage.classList.add('chat-message-container', `chat-message-container-${ role }`)
+    chatMessage.classList.add('chat-message', `chat-message-${ role }`)
     /* message thumbnail */
     if(isSynthetic){
         const messageThumb = document.createElement('img')

@@ -477,7 +477,9 @@ class ShareAgent {
             return await this.shareHeader(instanceId)
         else if(!Share.initialized)
             await this.shareInit(Share)
-        return await Share.play(input)
+        const shareContent = await Share.play(input)
+        shareContent.scene = new Marked().parse(shareContent.scene)
+        return shareContent
     }
     share(instanceId, shareId){
         let Share
