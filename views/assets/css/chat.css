@@ -139,30 +139,6 @@
     word-wrap: break-word;
 	z-index: calc(var(--chat-base-z-index) + 1);
 }
-.chat-container {
-	align-items: flex-start;
-	background-image: 
-	linear-gradient(
-		to bottom,
-		rgba(255, 255, 255, 0.85) 0%,
-			rgba(255, 255, 255, 0.85) 50%,
-			rgba(66, 66, 66, 0.85) 100%
-			), /* White overlay with 50% opacity */
-			url('../jpg/cosmos.jpg'); /* Your original background image */
-    background-size: cover; /* Ensures the image covers the whole area */
-    background-position: center; /* Centers the image */
-    border-radius: 22px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-	box-sizing: border-box;
-    display: flex;
-	flex: 1 0 auto;
-    flex-direction: column;
-	height: auto;
-	overflow: hidden;
-    padding: 0 0.5em;
-	position: relative;
-	width: 100%;
-}
 .chat-copy,
 .chat-feedback,
 .chat-save {
@@ -382,7 +358,7 @@ button.chat-submit:disabled {
   }
 
 
-/* UNDER REVIEW */
+/* deprecated 
 .chat-member {
 	align-items: flex-start;
 	display: flex;
@@ -393,3 +369,28 @@ button.chat-submit:disabled {
 	max-height: 60%;
 	width: 100%;
 }
+.chat-container {
+	align-items: flex-start;
+	background-image: 
+	linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.85) 0%,
+			rgba(255, 255, 255, 0.85) 50%,
+			rgba(66, 66, 66, 0.85) 100%
+			),
+			url('../jpg/cosmos.jpg');
+    background-size: cover;
+    background-position: center;
+    border-radius: 22px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
+    display: flex;
+	flex: 1 0 auto;
+    flex-direction: column;
+	height: auto;
+	overflow: hidden;
+    padding: 0 0.5em;
+	position: relative;
+	width: 100%;
+}
+*/
