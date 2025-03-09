@@ -48,7 +48,7 @@ async function alerts(ctx){
  * @returns {object} - Koa Context object
  */
 async function bots(ctx){
-	const { bid, } = ctx.params // bot_id sent in url path
+	const { bid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
 	const bot = ctx.request.body
 		?? {}
@@ -132,8 +132,9 @@ async function chat(ctx){
 	ctx.body = response
 }
 async function collections(ctx){
+	const { type, } = ctx.params
 	const { avatar, } = ctx.state
-	ctx.body = await avatar.collections(ctx.params.type)
+	ctx.body = await avatar.collections(type)
 }
 async function createBot(ctx){
 	const { teamId, type, } = ctx.request.body
@@ -172,8 +173,8 @@ async function feedback(ctx){
  * @returns {object} - Greetings response message object: { responses, success, }
  */
 async function greetings(ctx){
-	const { vld: validateId, } = ctx.params
-	let { dyn: dynamic, } = ctx.params
+	const { vld: validateId, } = ctx.query
+	let { dyn: dynamic, } = ctx.query
 	if(typeof dynamic==='string')
 		dynamic = JSON.parse(dynamic)
 	const { avatar: Avatar, } = ctx.state

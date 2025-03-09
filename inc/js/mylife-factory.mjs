@@ -913,6 +913,7 @@ class MyLifeFactory extends AgentFactory {
 			&& typeof registrationEmail==='string' // humor me, as it error-proofs next condition
 			&& registrationEmail.toLowerCase()===email.toLowerCase()
 		this.#registrationData.confirmed = confirmed
+		console.log(chalk.blueBright('confirmRegistration()::confirmed'), this.#registrationData)
 		return confirmed
 	}
 	/**
@@ -928,6 +929,7 @@ class MyLifeFactory extends AgentFactory {
 			memberAccount = {}
 		/* create account core */
 		try {
+			console.log(chalk.blueBright('Factory::createAccount()::registrationData'), this.#registrationData)
 			const { avatarName: _avatarName, email, humanName, id, interests, } = this.#registrationData
 			let { updates='', } = this.#registrationData
 			if(!id)

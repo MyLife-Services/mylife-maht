@@ -340,7 +340,7 @@ class Datamanager {
         validation = validation?.length
             ? `&vld=${ validation }`
             : ''
-        const url = `greetings${ dynamic + validation }`
+        const url = `greetings/${ dynamic + validation }`
         const response = await this.#fetch(url)
         const responses = ( response?.responses ?? [] )
             .map(response=>response.message)

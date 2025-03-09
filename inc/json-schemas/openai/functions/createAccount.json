@@ -1,5 +1,5 @@
 {
-  "description": "Creates MyLife accout, requirig basic personal information for account creation: member birthdate and passphrase",
+  "description": "Creates MyLife account, requirig basic personal information for account creation: member birthdate and passphrase",
   "name": "createAccount",
   "strict": true,
   "parameters": {
