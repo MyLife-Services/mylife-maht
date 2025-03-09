@@ -328,11 +328,10 @@ async function mShare(activeShareId){
         switch(instructions){
             case 'stopShare':
                 const shareCancel = document.getElementById('share-cancel')
-                console.log('stopShare', shareCancel)
                 if(shareCancel)
                     shareCancel.click()
                 else
-                    await mShareStop()
+                    await mShareStop(activeShareId)
                 return
             default:
                 return
@@ -462,7 +461,6 @@ async function mShareStart(activeShareId){
 async function mShareStop(activeShareId){
     if(activeShareId){
         const response = await mGlobals.datamanager.shareStop(activeShareId)
-        console.log('mShareStop', response)
         if(response?.responses?.length)
             await mAddMessage(response.responses, 'agent')
     }
