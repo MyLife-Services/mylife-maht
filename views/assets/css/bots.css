@@ -431,7 +431,7 @@
     margin: 0;
     overflow: auto;
 	opacity: 0; /* Start with hidden popup */
-    /* transition: opacity 0.3s; /* Smooth transition */
+    transition: opacity 0.3s; /* Smooth transition */
     padding: 0;
     position: absolute;
     right: 110vw;

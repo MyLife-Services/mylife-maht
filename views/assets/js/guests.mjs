@@ -76,7 +76,7 @@ function privacyPolicy(){
  * @param {Function} callback - The callback function to execute after the message is added
  * @returns {HTMLElement} - The chat message element
  */
-function mAddMessage(message, role=agent, typeDelay=mDefaultTypeDelay, callback){
+function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, callback){
     const isSynthetic = !['chat', 'guest', 'member', 'user', 'visitor'].includes(role)
     /* message container */
     const chatMessage = document.createElement('div')
@@ -114,8 +114,8 @@ function mAddMessage(message, role=agent, typeDelay=mDefaultTypeDelay, callback)
     /* message bubble */
 	const chatBubble = document.createElement('div')
 	chatBubble.classList.add('chat-message-text')
-    chatBubble.id = `chat-bubble-${ mChatBubbleCount }`
-    chatBubble.name = 'chat-bubble'
+    chatBubble.id = `chat-message-${ mChatBubbleCount }`
+    chatBubble.name = 'chat-message'
     chatMessage.appendChild(chatBubble)
     mChatBubbleCount++
     /* append chat message */

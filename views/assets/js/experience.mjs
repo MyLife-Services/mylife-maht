@@ -296,11 +296,7 @@ async function routine(script){
         const isQ = activeCharacter.type==='system'
         if(!isQ && activeCharacter?.bot_id)
             setActiveBot(activeCharacter.bot_id, false)
-        const options = {
-            bubbleClass: isQ ? 'system-bubble' : 'routine-bubble',
-            role: activeCharacter.type,
-        }
-        addMessage(message, options)
+        addMessage(message, activeCharacter.type)
         if(!activeTimers.length)
             routineEnd(false)
     }

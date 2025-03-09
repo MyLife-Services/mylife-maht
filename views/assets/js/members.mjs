@@ -88,26 +88,32 @@ function addInput(HTMLElement){
 /**
  * Pushes message content to the chat column.
  * @public
- * @param {string} message - The message object to add to column.
- * @param {object} options - The options object { bubbleClass, typeDelay, typewrite }.
+ * @param {String} message - The message object to add to column.
+ * @param {String} role - The role of the message, default=`agent`
+ * @param {number} typeDelay - The delay between typing each character, default=`2`
  * @returns {void}
  */
-function addMessage(message, options={}){
-    mAddMessage(message, options)
+function addMessage(message, role, typeDelay){
+    console.log('addMessage()')
+    mAddMessage(message, role, typeDelay)
 }
 /**
  * Pushes an array of messages to the chat column.
- * @param {Array} messages - The array of string messages to add to the chat column.
- * @param {object} options - The options object { bubbleClass, typeDelay, typewrite }.
+ * @param {String[]} messages - The array of string messages to add to the chat column.
+ * @param {String} role - The role of the message, default=`agent`
+ * @param {number} typeDelay - The delay between typing each character, default=`2`
+ * @param {number} responseDelay - The delay between each message, default=`3` seconds
  * @returns {void}
  */
-function addMessages(messages, options={}) {
-    const { responseDelay=0, } = options
+function addMessages(messages, role, typeDelay, responseDelay=3){
+    console.log('addMessages()')
+    if(!role || role==='agent')
+        throw new Error('addMessage() is deprecated; use addMessages() instead.')
     for(let i=0; i<messages.length; i++)
         if(responseDelay)
-            setTimeout(_=>mAddMessage(messages[i], options), i * responseDelay * 1000)
+            setTimeout(_=>mAddMessage(messages[i], role, typeDelay), i * responseDelay * 1000)
         else
-            mAddMessage(messages[i], options)
+            mAddMessage(messages[i], role, typeDelay)
 }
 /**
  * Clears the system chat column.
@@ -576,11 +582,7 @@ async function mAddMemberMessage(event){
         return
     /* prepare request */
     toggleMemberInput(false) /* hide */
-    mAddMessage(memberMessage, {
-        bubbleClass: 'user-bubble',
-        role: 'member',
-        typeDelay: 7,
-    })
+    mAddMessage(memberMessage, 'member', 7)
     /* server request */
     const response = await submit(memberMessage)
     let { instruction, responses=[], success=false, } = response
@@ -604,21 +606,18 @@ async function mAddMemberMessage(event){
     /* process response */
 	responses
         .forEach(message=>{
-            mAddMessage(message.message ?? message.content, {
-                bubbleClass: 'agent-bubble',
-                role: 'agent',
-                typeDelay: 1,
-            })
+            mAddMessage(message.message ?? message.content, Bot.type, 10)
         })
     toggleMemberInput(true) /* show */
 }
 /**
  * Adds specified string message to interface.
  * @param {object|string} message - The message to add to the chat; if object, reduces to `.message` or fails.
- * @param {object} options - The options object { bubbleClass, role, typeDelay, typewrite }.
+ * @param {String} role - The role of the message, default=`agent`
+ * @param {number} typeDelay - The delay between typing each character, default=`2`
  * @returns {void}
  */
-async function mAddMessage(message, options={}){
+async function mAddMessage(message, role='agent', typeDelay=2){
     if(typeof message==='object'){
         if(message?.message){ // otherwise error throws for not string (i.e., Array or classed object)
             options.role = message?.role // overwrite if exists
@@ -629,16 +628,13 @@ async function mAddMessage(message, options={}){
     }
     if(typeof message!=='string' || !message.length)
         throw new Error('mAddMessage::Error()::`message` string is required')
-    const {
-        bubbleClass,
-        role='agent',
-        typeDelay=2,
-        typewrite=true,
-    } = options
+    role = role.split('-').pop().trim().toLowerCase()
     const isSynthetic = !['chat', 'guest', 'member', 'user', 'visitor'].includes(role)
     /* message container */
     const chatMessage = document.createElement('div')
     chatMessage.classList.add('chat-message', `chat-message-${ role }`)
+    if(!isSynthetic)
+        chatMessage.classList.add('chat-message-organic')
     /* message thumbnail */
     if(isSynthetic){
         const messageThumb = document.createElement('img')
@@ -662,14 +658,13 @@ async function mAddMessage(message, options={}){
         chatMessage.appendChild(messageThumb)
     }
     /* message bubble */
-	const chatBubble = document.createElement('div')
-	chatBubble.classList.add('chat-bubble', ( bubbleClass ?? role+'-bubble' ))
-    chatBubble.id = `chat-bubble-${ mChatBubbleCount }`
-    mChatBubbleCount++
+	const chatText = document.createElement('div')
+	chatText.classList.add('chat-message-text')
+    chatText.id = `chat-bubble-${ mChatBubbleCount }`
     /* message tab */
     const chatMessageTab = document.createElement('div')
     chatMessageTab.id = `chat-message-tab-${ mChatBubbleCount }`
-    chatMessageTab.classList.add('chat-message-tab', `chat-message-tab-${ role }`)
+    chatMessageTab.classList.add('chat-message-tab', `chat-message-tab-${ isSynthetic ? 'agent': 'member' }`)
     const chatCopy = document.createElement('i')
     chatCopy.classList.add('fas', 'fa-copy', 'chat-copy')
     chatCopy.title = 'Copy content to clipboard'
@@ -690,14 +685,14 @@ async function mAddMessage(message, options={}){
         chatMessageTab.appendChild(chatFeedbackPositive)
         chatMessageTab.appendChild(chatFeedbackNegative)
     }
-    chatMessage.appendChild(chatBubble)
+    chatMessage.appendChild(chatText)
     chatMessage.appendChild(chatMessageTab)
 	mGlobals.addChatElement(chatMessage)
     /* assign listeners */
-    chatBubble.addEventListener('mouseover', event=>{
-        chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
+    chatMessage.addEventListener('mouseover', _=>{
+        chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${ isSynthetic ? 'agent' : 'member' }`)
     })
-    chatCopy.addEventListener('click', event=>{
+    chatCopy.addEventListener('click', _=>{
         navigator.clipboard.writeText(message).then(_=>{
             chatCopy.classList.remove('fa-copy')
             chatCopy.classList.add('fa-check')
@@ -768,18 +763,14 @@ async function mAddMessage(message, options={}){
             }
         }, 2000)
     }, { once: true })
-    chatMessage.addEventListener('mouseleave', event => {
-        chatMessageTab.classList.remove('chat-message-tab-hover', `chat-message-tab-hover-${ role }`)
+    chatMessage.addEventListener('mouseleave', _=>{
+        chatMessageTab.classList.remove('chat-message-tab-hover', `chat-message-tab-hover-${ isSynthetic ? 'agent' : 'member' }`)
     })
     /* chat message */
     if(!message.startsWith('<section>'))
         message = `<section>${message}</section>`
-	if(typewrite)
-        mTypeMessage(chatBubble, message, typeDelay)
-    else {
-        chatBubble.insertAdjacentHTML('beforeend', message)
-        mGlobals.scrollBottom()
-	}
+    mTypeMessage(chatText, message, typeDelay)
+    mChatBubbleCount++
 }
 /**
  * Initialize module variables from server.

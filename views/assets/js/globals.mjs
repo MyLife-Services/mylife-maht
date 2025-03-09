@@ -1187,10 +1187,10 @@ class Globals {
 function mAddDialogBubble(chatContainer, text, type='agent', subType){
     const bubble = document.createElement('div')
     bubble.id = `chat-dialog-${ type }-${ mNewGuid() }`
-    bubble.classList.add('chat-bubble', `${ type }-bubble`)
+    bubble.classList.add('chat-message', `chat-message-${ type }`)
     bubble.innerHTML = text
     if(subType)
-        bubble.classList.add(`${ subType }-bubble`)
+        bubble.classList.add(`chat-message-${ subType }`)
     chatContainer.appendChild(bubble)
 }
 /**

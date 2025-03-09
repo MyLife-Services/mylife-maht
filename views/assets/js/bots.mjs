@@ -123,10 +123,10 @@ function getAction(type='avatar'){
                     const response = await submit('## PRINT\nCreate the summary from our conversation since the last saved memory.')
                     unsetActiveAction()
                     if(!response?.success)
-                        addMessage('An error occurred while talking to the server. Try again.')
+                        addMessage('An error occurred while talking to the server. Try again.', 'error')
                     else {
                         enactInstruction(response.instruction, 'chat', { createItem, })
-                        addMessages(response.responses)
+                        addMessages(response.responses, type)
                     }
                 },
                 icon: 'fa-play',
@@ -233,9 +233,9 @@ async function setActiveBot(event, displayGreeting=true){
         mActiveBot.routines.push(botRoutine)
     }
     else if(displayGreeting && responses.length)
-        addMessages(responses)
+        addMessages(responses, type)
     else if(displayGreeting)
-        addMessage(mActiveBot.purpose)
+        addMessage(mActiveBot.purpose, type)
     decorateActiveBot(mActiveBot)
 }
 /**
@@ -309,7 +309,7 @@ async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
     await mUpdateTeams() // sets `mActiveBot`
     mUpdateBotContainers()
     if(includeGreeting)
-        addMessage(mActiveBot.greeting)
+        addMessage(mActiveBot.greeting, mActiveBot.type)
 }
 /* private functions */
 /**
@@ -485,7 +485,7 @@ async function mMemoryShadow(event){
     const { categories, id, text, type, } = shadow // type enum: [agent, member]
     switch(type){
         case 'agent': /* agent shadows go directly to server for answer */
-            addMessage(text, { role: 'member', })
+            addMessage(text, 'member')
             const response = await submit(text) /* proxy submission, use endpoint: /shadow */
             const { error, errors: _errors, itemId: responseItemId, messages, processingBotId, success=false, } = response
             const errors = error?.length ? [error] : _errors
@@ -497,7 +497,7 @@ async function mMemoryShadow(event){
             if(mActiveBot?.id===botId)
                 setActiveBot(botId)
             this.dataset.lastResponse = JSON.stringify(messages)
-            addMessages(messages) // print to screen
+            addMessages(messages, mActiveBot.type) // print to screen
             break
         case 'member': /* member shadows populate main chat input */
             const seedText = text.replace(/(\.\.\.|…)\s*$/, '').trim() + ' '
@@ -542,7 +542,7 @@ async function mSummarize(event){
     /* print response */
     if(instruction?.length)
         console.log('mSummarize::instruction', instruction)
-    addMessages(responses)
+    addMessages(responses, mActiveBot.type)
     setTimeout(_=>{
         this.addEventListener('click', mSummarize, { once: true })
         this.classList.add('fa-file-circle-question')
@@ -1274,7 +1274,7 @@ async function mDeleteCollectionItem(event){
         if(success){
             expunge(item)
             if(responses?.length)
-                addMessages(responses)
+                addMessages(responses, 'avatar')
         }
     } else
         collectionItemDelete.addEventListener('click', mDeleteCollectionItem, { once: true })
@@ -1340,7 +1340,7 @@ async function mEvaluate(event){
         popupClose.click()
     const { responses, success, } = await mGlobals.datamanager.evaluate(itemId)
     if(responses?.length)
-        addMessages(responses)
+        addMessages(responses, mActiveBot.type)
     toggleMemberInput(true)
 }
 async function mObscureEntry(event){
@@ -1356,7 +1356,7 @@ async function mObscureEntry(event){
         popupClose.click()
     const { responses, success, } = await mGlobals.datamanager.obscure(itemId)
     if(responses?.length)
-        addMessages(responses)
+        addMessages(responses, mActiveBot.type)
     toggleMemberInput(true)
 }
 /**
@@ -1421,11 +1421,8 @@ async function mReliveMemory(event){
     if(success){
         const interrupts = ['endMemory', 'endReliving']
         const haltMemory = interrupts.includes(instruction?.command)
-        const options = {
-            bubbleClass: haltMemory ? 'system-bubble' : 'relive-bubble',
-        }
         toggleMemberInput(false, true)
-        addMessages(responses, options)
+        addMessages(responses, haltMemory ? 'system' : 'relive')
         if(!!instruction){
             const functions = {
                 addMessages,
@@ -1487,10 +1484,10 @@ async function mRetireBot(event){
         if(mActiveBot.id===botId)
             setActiveBot()
         const response = await mGlobals.datamanager.botRetire(botId)
-        addMessages(response.responses)
+        addMessages(response.responses, 'avatar')
     } catch(err) {
         console.log('Error posting bot data:', err)
-        addMessage(`Error posting bot data: ${err.message}`)
+        addMessage(`Error posting bot data: ${err.message}`, 'error')
     }
 }
 /**
@@ -1505,10 +1502,10 @@ async function mRetireChat(event){
         const { dataset, id, } = event.target
         const { botId, type, } = dataset
         const reponse = await mGlobals.datamanager.chatRetire(botId)
-        addMessages(response.responses)
+        addMessages(response.responses, mActiveBot.type)
     } catch(err) {
         console.log('Error posting bot data:', err)
-        addMessage(`Error posting bot data: ${err.message}`)
+        addMessage(`Error posting bot data: ${err.message}`, 'error')
     }
 }
 /**
@@ -1979,7 +1976,7 @@ async function mStartDiary(event){
     unsetActiveItem()
     await setActiveBot(diaryBot.id)
     const response = await submit(`How do I get started?`, true)
-    addMessages(response.responses)
+    addMessages(response.responses, 'diary')
 }
 /**
  * Stop reliving memory and clean up memory input.
@@ -1994,7 +1991,7 @@ async function mStopRelivingMemory(id, server=true){
     if(server){
         const { instruction, responses, success} = await mGlobals.datamanager.memoryReliveEnd(id)
         if(success){
-            addMessages(responses, { responseDelay: 3, })
+            addMessages(responses, 'system', 3)
             if(!!instruction){
                 enactInstruction(instruction)
             }
