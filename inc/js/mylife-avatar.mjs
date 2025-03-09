@@ -1989,7 +1989,7 @@ function mRoutine(script, Avatar, BotAgent){
         role: Avatar.nickname,
         type: 'avatar',
     }
-    const { cast=[defaultCastMember], description, developers, events, files, name, public: isPublic, purpose, status, title, variables, version=1.0, } = script
+    const { cast=[defaultCastMember], description, developers, events, files, name, pause, public: isPublic, purpose, status, title, typeSpeed, variables, version=1.0, } = script
     if(!cast?.length || !events?.length)
         throw new Error('Routine must have a well-structured `cast` and `events` array.')
     if(!isPublic)
@@ -2005,16 +2005,13 @@ function mRoutine(script, Avatar, BotAgent){
                 if(event.character)
                     activeCastMember = cast.find(castMember=>castMember.id===event.character)
                         ?? activeCastMember
-                const Bot = BotAgent.bot(undefined, activeCastMember.type)
-                if(!!Bot){
-                    const replacement = Bot[variableReplacement]?.toString()
-                        ?? Avatar[variableReplacement]?.toString()
-                        ?? variableDefault
-                    const { message, } = event?.dialog
-                        ?? {}
-                    if(message)
-                        event.dialog.message = message.replace(new RegExp(`${ variable }`, 'g'), replacement)
-                }
+                const Bot = BotAgent.bot(undefined, activeCastMember.type) ?? {}
+                const replacement = Bot[variableReplacement]?.toString()
+                    ?? Avatar[variableReplacement]?.toString()
+                    ?? variableDefault
+                const { message, } = event?.dialog ?? {}
+                if(message)
+                    event.dialog.message = message.replace(new RegExp(`${ variable }`, 'g'), replacement)
             })
         })
     }
@@ -2023,8 +2020,10 @@ function mRoutine(script, Avatar, BotAgent){
         description,
         developers,
         events,
+        pause,
         purpose,
         title,
+        typeSpeed,
     }
 }
 /**

@@ -94,7 +94,6 @@ function addInput(HTMLElement){
  * @returns {void}
  */
 function addMessage(message, role, typeDelay){
-    console.log('addMessage()')
     mAddMessage(message, role, typeDelay)
 }
 /**
@@ -106,7 +105,6 @@ function addMessage(message, role, typeDelay){
  * @returns {void}
  */
 function addMessages(messages, role, typeDelay, responseDelay=3){
-    console.log('addMessages()')
     if(!role || role==='agent')
         throw new Error('addMessage() is deprecated; use addMessages() instead.')
     for(let i=0; i<messages.length; i++)

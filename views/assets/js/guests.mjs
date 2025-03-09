@@ -11,6 +11,7 @@ window.privacyPolicy = privacyPolicy
 /* variables */
 let mChallengeMemberId,
     mChatBubbleCount = 0,
+    mDefaultPauseDelay = 5, // in seconds
     mDefaultTypeDelay = 10,
     mPageType = null,
     mRecognition,
@@ -76,7 +77,7 @@ function privacyPolicy(){
  * @param {Function} callback - The callback function to execute after the message is added
  * @returns {HTMLElement} - The chat message element
  */
-function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, callback){
+async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, callback){
     const isSynthetic = !['chat', 'guest', 'member', 'user', 'visitor'].includes(role)
     /* message container */
     const chatMessage = document.createElement('div')
@@ -131,14 +132,25 @@ function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, callbac
  * @param {Message[]} messages - The messages to add to the chat column
  * @param {String} role - The role of the originator of the message
  * @param {Number} typeDelay - The delay between typing each character
- * @param {Function} callback - The callback function to execute after the message is added
+ * @param {Number} pause - The delay between each message
  * @returns {HTMLElement} - The chat message element
  */
-async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, callback){
-    for(const message of messages){
-        await new Promise(resolve=>{
-            mAddMessage(message, role, typeDelay, (callback ?? resolve))
-        })
+async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, pause=5) {
+    for(let i = 0; i < messages.length; i++){
+        const message = messages[i]
+        await new Promise(async resolve=>{
+            await mAddMessage(message, role, typeDelay)
+            if (i===messages.length - 1) {
+                resolve()
+            } else {
+                let timerId = setTimeout(resolve, pause * 1000)
+                async function advance() {
+                    clearTimeout(timerId)
+                    resolve()
+                }
+                document.addEventListener('click', advance, { once: true })
+            }
+        });
     }
 }
 /**
@@ -146,13 +158,13 @@ async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, callbac
  * @param {Event} event - The event object.
  * @returns {void}
  */
-function mAddUserMessage(event){
+async function mAddUserMessage(event){
     event.preventDefault()
     const userMessage = mGlobals.chatInput
     if(!userMessage.length)
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
-    mAddMessage(message, 'member', 2)
+    await mAddMessage(message, 'member', 2)
     mSubmitInput(event, message)
 }
 /**
@@ -284,20 +296,22 @@ async function mLoadStart(){
  * @returns {Promise<void>}
  */
 async function mRoutine(routineName){
+    hide(mGlobals.MemberChat)
     const { error, responses=[], routine: routineScript, success, } = await mGlobals.datamanager.routine(routineName)
     if(success && routineScript){
-        const { events: _events, title, } = routineScript
+        const { events: _events, pause, title, typeSpeed, } = routineScript
         const events = _events
             .filter(event=>event?.dialog?.message?.length)
             .map(event=>{
                 let message = event.dialog.message
                 return message
             })
-        mAddMessages(events, 'system', 4)
+        await mAddMessages(events, 'agent', typeSpeed, pause)
     } else if(responses?.length)
-        mAddMessages(responses, 'system', 1)
+        await mAddMessages(responses, 'system', typeSpeed, pause)
     else if(error.message)
         mAddMessage(error.message, 'error', 1)
+    show(mGlobals.MemberChat)
 }
 /**
  * Leads interface through a shared memory.
@@ -376,7 +390,7 @@ function mShareProgress(activeShareId){
 }
 async function mShareStart(activeShareId){
     const shareWelcomeText = 'Congratulations! A <i>MyLife</i> Member has shared a memory with you!<br />Please wait while I load and interpret the memory'
-    const shareWelcome = mAddMessage(shareWelcomeText, 'system')
+    const shareWelcome = await mAddMessage(shareWelcomeText, 'system')
     const awaitOriginalContent = awaitButton.textContent.trim()
     awaitButton.textContent = 'Connecting with Member Avatar to retrieve memory...'
     show(awaitButton)
@@ -450,7 +464,7 @@ async function mShareStop(activeShareId){
         const response = await mGlobals.datamanager.shareStop(activeShareId)
         console.log('mShareStop', response)
         if(response?.responses?.length)
-            mAddMessage(response.responses, 'agent')
+            await mAddMessage(response.responses, 'agent')
     }
     hide(awaitButton)
     show(mGlobals.MemberChat)

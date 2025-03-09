@@ -25,7 +25,7 @@
 			}
 		}
 	],
-    "name": "biographer",
+    "name": "routine_biographer",
     "public": true,
     "status": "active",
     "title": "Biographer Introduction",

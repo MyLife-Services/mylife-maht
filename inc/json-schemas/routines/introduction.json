@@ -82,11 +82,13 @@
         }
     ],
     "files": [],
-    "name": "Introduction",
+    "name": "routine_introduction",
+    "pause": 8,
     "public": true,
     "purpose": "Routines are short (one-scene) predominantly hard-coded reduced `experience`s. This introductory routine is designed to welcome new members to the MyLife Alpha Program and introduce them to the basic navigation and  MyLife Member Platform.",
     "status": "active",
     "title": "Introduction to MyLife",
+    "typeSpeed": 10,
     "variables": [
         {
             "default": "MyLife Member",

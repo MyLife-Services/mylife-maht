@@ -1,6 +1,7 @@
 /* imports */
 import {
     addMessage,
+    addMessages,
     clearSystemChat,
     escapeHtml,
     globals,
@@ -238,7 +239,7 @@ async function routine(script){
         if(response.success)
             script = response?.routine
     }
-    const { cast, description, developers, events, purpose, title } = script
+    const { cast, description, developers, events, pause=3, purpose, title, typeSpeed, } = script
     if(!events?.length)
         throw new Error("No events found")
     if(!cast?.length)
@@ -262,8 +263,9 @@ async function routine(script){
             if(index===(events.length-1))
                 toggleMemberInput(true)
             activeTimers.shift()
-        }, index * 3000 + (index * 750))
+        }, ( index * pause * 1000 ))
         activeTimers.push(timer)
+        console.log("Routine event", timer, activeTimers)
     })
     /* inline functions */
     function getCharacter(id='avatar'){
@@ -290,13 +292,13 @@ async function routine(script){
     }
     function routineExecute(event){
         const { character=activeCharacter?.id, dialog } = event
-        let { message } = dialog
+        let { message, } = dialog
         if(!character || character!==activeCharacter?.id)
             activeCharacter = getCharacter(character)
         const isQ = activeCharacter.type==='system'
         if(!isQ && activeCharacter?.bot_id)
             setActiveBot(activeCharacter.bot_id, false)
-        addMessage(message, activeCharacter.type)
+        addMessages([message], activeCharacter.type, typeSpeed, pause)
         if(!activeTimers.length)
             routineEnd(false)
     }
@@ -305,7 +307,7 @@ async function routine(script){
         activeTimers.forEach(clearTimeout)
         toggleMemberInput(true)
         if(aborted)
-            addMessage(routineAbortMessage)
+            addMessage(routineAbortMessage, 'error')
         console.log("Routine ended")
     }
 }
