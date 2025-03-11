@@ -317,7 +317,6 @@ img.chat-message-thumb-small {
 	padding-top: 0.2rem;
 	position: absolute; /* Position relative to window */
 	right: 41.5vw;
-	z-index: var(--chat-refresh-z-index);
 }
 .chat-thumb {
 	height: fit-content;
