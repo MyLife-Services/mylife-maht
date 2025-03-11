@@ -423,20 +423,15 @@
     overflow-y: auto;
 }
 .collection-popup.popup-container {
-    bottom: auto;
     display: flex;
     flex: 1 0 auto;
     flex-direction: column;
-    height: auto;
-    left: auto;
+    height: fit-content;
     margin: 0;
     overflow: auto;
 	opacity: 0; /* Start with hidden popup */
     transition: opacity 0.3s; /* Smooth transition */
     padding: 0;
-    position: absolute;
-    right: 110vw;
-    top: 0;
     width: 40em;
     z-index: var(--collection-item-popup-z-index); /* above sidebar and other popups */
 }
@@ -470,7 +465,8 @@
     font-weight: bold;
     padding: 0.5rem;
 }
-.collection-popup-header-title {
+.popup-header .collection-popup-header-title {
+    color: aliceblue;
     display: flex;
     flex: 1 1 auto;
     font-size: 1.0rem;

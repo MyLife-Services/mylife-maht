@@ -436,9 +436,7 @@ function mCreateCollectionItem(collectionItem){
             /* file-summary popup */
             break
         default:
-            const itemPopup = mCreateCollectionPopup(collectionItem)
-            item.appendChild(itemPopup)
-            item.addEventListener('click', mTogglePopup)
+            item.addEventListener('click', e=>mTogglePopup(e, collectionItem))
             itemTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
             break
     }
@@ -633,7 +631,6 @@ function mCreateCollectionPopup(collectionItem){
     const { complete=false, form, id, name, shares=[], summary, title, type, version=1, } = collectionItem
     const collectionPopup = document.createElement('div')
     collectionPopup.classList.add('collection-popup', 'popup-container')
-    collectionPopup.dataset.active = 'false'
     collectionPopup.dataset.complete = complete
     collectionPopup.dataset.id = id
     collectionPopup.dataset.name = name
@@ -659,10 +656,13 @@ function mCreateCollectionPopup(collectionItem){
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
-    popupClose.dataset.isClose = 'true'
     popupClose.id = `popup-close_${ id }`
     popupClose.setAttribute('aria-label', 'Close')
-    popupClose.addEventListener('click', mTogglePopup)
+    popupClose.addEventListener('click', _=>mGlobals.expunge(collectionPopup), { once: true })
+    document.addEventListener('keydown', event=>{
+        if(event.key==='Escape')
+            popupClose.click()
+    }, { once: true })
     popupHeader.appendChild(popupClose)
     /* Variables for dragging */
     let isDragging = false
@@ -2136,49 +2136,23 @@ function mTogglePassphrase(event){
  * @param {Event} event - The event object.
  * @returns {void}
  */
-function mTogglePopup(event){
+function mTogglePopup(event, collectionItem){
     event.stopPropagation()
-    const { id, } = this
+    const item = event.target.parentElement
+    const { id, } = item
     const popupId = id.split('_').pop()
-    const popup = document.getElementById(`popup-container_${ popupId }`)
-    if(!popup)
-        throw new Error(`Popup not found: ${ popupId }`)
-    const { active, } = popup.dataset
-    const isClose = event.target?.dataset?.isClose
-    if(active=='true' || isClose){ /* close */
-        popup.dataset.active = 'false'
-        popup.style.opacity = 0
-        hide(popup)
-    } else { /* open */
-        let { offsetX, offsetY, } = popup.dataset
-        if(!offsetX || !offsetY){ // initial placement onscreen
-            const item = popup.parentElement // collection-item
-            /* calculate desired position */
-            const popupHalfHeight = popup.offsetHeight / 2
-            const itemHalfHeight = item.offsetHeight / 2
-            const desiredMiddlePosition = item.offsetTop + itemHalfHeight
-            let topPosition = desiredMiddlePosition - popupHalfHeight
-            /* screen failsafes */
-            if(topPosition < 0){
-                topPosition = 0
-            } else if (topPosition + popup.offsetHeight > window.innerHeight){
-                topPosition = window.innerHeight - popup.offsetHeight
-            }
-            const leftPosition = item.offsetLeft - popup.offsetWidth - 10 // hard-coded 10px to the left
-            /* set dataset */
-            offsetX = `${ leftPosition }px`
-            offsetY = `${ topPosition }px`
-            popup.dataset.offsetY = offsetY
-            popup.dataset.offsetX = offsetX
-        }
-        /* position */
-        popup.style.left = offsetX
-        popup.style.right = 'auto'
-        popup.style.top = offsetY
-        show(popup)
-        setActiveItem(popupId)
-        popup.dataset.active = 'true'
+    let popup = document.getElementById(`popup-container_${ popupId }`)
+    if(!!popup){
+        mGlobals.expunge(popup)
+        return
     }
+    popup = mCreateCollectionPopup(collectionItem)
+    item.appendChild(popup)
+    /* calculate desired position */
+    popup.style.position = 'fixed'
+    popup.style.right = '80vw'
+    show(popup)
+    setActiveItem(popupId)
 }
 /**
  * 
