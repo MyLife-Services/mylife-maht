@@ -34,7 +34,7 @@ const mAvailableCollections = ['entry', 'experience', 'file', 'memory'], // ['ch
     mCollections = document.getElementById('collections-collections'),
     mCollectionsContainer = document.getElementById('collections-container'),
     mCollectionsUpload = document.getElementById('collections-upload'),
-    mDefaultReliveMemoryButtonText = 'next',
+    mDefaultReliveMemoryButtonText = 'Next',
     mDefaultTeam = 'memory',
     mGlobals = new Globals(),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
@@ -1335,12 +1335,15 @@ async function mEvaluate(event){
     if(itemId)
         setActiveItem(itemId)
     toggleMemberInput(false)
+    const awaitBar = mGlobals.await(`${ mActiveBot.name } is evaluating your summary...`)
+    mGlobals.addChatElement(awaitBar)
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
     const { responses, success, } = await mGlobals.datamanager.evaluate(itemId)
     if(responses?.length)
         addMessages(responses, mActiveBot.type)
+    mGlobals.expunge(awaitBar)
     toggleMemberInput(true)
 }
 async function mObscureEntry(event){
@@ -1350,6 +1353,8 @@ async function mObscureEntry(event){
     const { id: itemId, } = this.dataset
     if(itemId)
         setActiveItem(itemId)
+    const awaitBar = mGlobals.await(`${ mActiveBot.name } is obscuring your content...`)
+    mGlobals.addChatElement(awaitBar)
     toggleMemberInput(false)
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
@@ -1357,6 +1362,7 @@ async function mObscureEntry(event){
     const { responses, success, } = await mGlobals.datamanager.obscure(itemId)
     if(responses?.length)
         addMessages(responses, mActiveBot.type)
+    mGlobals.expunge(awaitBar)
     toggleMemberInput(true)
 }
 /**
@@ -1415,14 +1421,16 @@ async function mReliveMemory(event){
         clearSystemChat()
     }
     mGlobals.removeDisappearingElements()
-    toggleMemberInput(false, `Reliving memory with `)
+    const awaitBar = mGlobals.await(`Reliving memory with ${ mActiveBot.name }...`)
+    mGlobals.addChatElement(awaitBar)
+    toggleMemberInput(false)
     unsetActiveItem()
     const { instruction, item, responses, success, } = await mGlobals.datamanager.memoryRelive(id, inputContent)
+    mGlobals.expunge(awaitBar)
     if(success){
         const interrupts = ['endMemory', 'endReliving']
         const haltMemory = interrupts.includes(instruction?.command)
-        toggleMemberInput(false)
-        addMessages(responses, haltMemory ? 'system' : 'relive')
+        addMessages(responses, haltMemory ? 'system' : 'relive', undefined, 0)
         if(!!instruction){
             const functions = {
                 addMessages,
@@ -1434,17 +1442,18 @@ async function mReliveMemory(event){
         }
         /* direct relive structure */
         const input = document.createElement('div')
-        input.classList.add('memory-input-container')
+        input.classList.add('relive-progress', 'input-disappear')
         input.id = `relive-memory-input-container_${ id }`
         input.name = `input_${ id }`
-        const inputClose = document.createElement('div')
-        inputClose.classList.add('fas', 'fa-close', 'relive-memory-input-close')
+        const inputClose = document.createElement('button')
+        inputClose.classList.add('relive-cancel')
+        inputClose.textContent = 'Cancel'
         const inputContent = document.createElement('textarea')
-        inputContent.classList.add('memory-input')
+        inputContent.classList.add('relive-input')
         inputContent.name = `memory-input_${ id }`
         inputContent.placeholder = `What did I get wrong? What important details were missed? Click 'Next' to just continue...`
         const inputSubmit = document.createElement('button')
-        inputSubmit.classList.add('memory-input-button')
+        inputSubmit.classList.add('relive-next')
         inputSubmit.dataset.id = id
         inputSubmit.textContent = mDefaultReliveMemoryButtonText
         input.appendChild(inputClose)
@@ -1985,9 +1994,7 @@ async function mStartDiary(event){
  * @returns {void}
  */
 async function mStopRelivingMemory(id, server=true){
-    const input = document.getElementById(`relive-memory-input-container_${ id }`)
-    if(input)
-        expunge(input)
+    mGlobals.removeDisappearingElements()
     if(server){
         const { instruction, responses, success} = await mGlobals.datamanager.memoryReliveEnd(id)
         if(success){
@@ -2000,9 +2007,6 @@ async function mStopRelivingMemory(id, server=true){
     mRelivingMemory = null
     unsetActiveItem()
     toggleMemberInput(true)
-    const reliveButton = document.getElementById(`relive-memory-button_${ id }`)
-    if(reliveButton)
-        reliveButton.addEventListener('click', mReliveMemory, { once: true })
 }
 /**
  * Manages `change` event selection of team member from `team-select` dropdown.

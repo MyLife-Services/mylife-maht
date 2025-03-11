@@ -104,8 +104,6 @@ function addMessage(message, role, typeDelay){
  * @returns {void}
  */
 function addMessages(messages, role, typeDelay, responseDelay=3){
-    if(!role || role==='agent')
-        throw new Error('addMessage() is deprecated; use addMessages() instead.')
     for(let i=0; i<messages.length; i++)
         if(responseDelay)
             setTimeout(_=>mAddMessage(messages[i], role, typeDelay), i * responseDelay * 1000)
@@ -467,22 +465,23 @@ async function startExperience(experienceId){
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`
  * @returns {Promise<object>} - The return is the chat response object: { instruction, responses, success, }
  */
-async function submit(message, hideMemberChat=true){
+async function submit(message){
 	if(!message?.length)
-		throw new Error('submit(): `message` argument is required')
-    if(hideMemberChat)
-        toggleMemberInput(false)
+		return
+    toggleMemberInput(false)
+    const awaitBar = mGlobals.await(`Connecting with ${ activeBot().name }...`)
+    mGlobals.addChatElement(awaitBar)
     const { itemId, } = chatActiveItem.dataset
     const { id: botId, } = activeBot()
 	const request = {
-			botId,
-            itemId,
-			message,
-			role: 'member',
-		}
+        botId,
+        itemId,
+        message,
+        role: 'member',
+    }
 	const response = await mGlobals.datamanager.submitChat(request, true)
-    if(hideMemberChat)
-        toggleMemberInput(true)
+    mGlobals.expunge(awaitBar)
+    toggleMemberInput(true)
     return response
 }
 /**
@@ -493,13 +492,8 @@ async function submit(message, hideMemberChat=true){
  * @param {boolean} connectingText - The server-connecting text, default: `Connecting with `.
  * @returns {void}
  */
-function toggleMemberInput(display=true, connectingText){
-    const { id, name, } = activeBot()
-    decorateActiveBot()
-    connectingText = connectingText
-        ?? `Connecting with ${ name }...`
+function toggleMemberInput(display=true){
     mGlobals.toggleChatInput(display, 'slide-up')
-    mToggleMemberInput(display, connectingText)
 }
 /**
  * Toggles the visibility of an element with option to force state.
@@ -615,9 +609,8 @@ async function mAddMemberMessage(event){
 async function mAddMessage(message, role='agent', typeDelay=2){
     if(typeof message==='object'){
         if(message?.message){ // otherwise error throws for not string (i.e., Array or classed object)
-            options.role = message?.role // overwrite if exists
-                ?? options?.role
-                ?? 'agent'
+            role = message?.role // overwrite if exists
+                ?? role
             message = message.message
         }
     }
@@ -867,16 +860,6 @@ function mToggleItemPopup(event){
     event.preventDefault()
     const { itemId, } = event.target.dataset
     togglePopup(itemId, true)
-}
-function mToggleMemberInput(display, connectingText){
-    if(display){
-        const awaitButton = document.getElementById('await-button')
-        if(awaitButton)
-            mGlobals.expunge(awaitButton)
-    } else {
-        const awaitButton = mGlobals.await(connectingText)
-        mGlobals.addChatElement(awaitButton)
-    }
 }
 /**
  * Typewrites a message to a chat bubble.

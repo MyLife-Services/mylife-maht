@@ -493,7 +493,7 @@ footer p {
 }
 .popup-input {
 	align-items: center;
-	border-top: thin solid black;
+	border: thin solid black;
 	display: flex;
 	flex-direction: row;
 	font-size: 1rem;
