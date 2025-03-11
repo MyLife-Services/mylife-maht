@@ -1,5 +1,6 @@
 /* imports */
 import { promises as fs } from 'fs'
+import chalk from 'chalk'
 import EventEmitter from 'events'
 import vm from 'vm'
 import util from 'util'
@@ -16,7 +17,7 @@ import {
 import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
 import MylifeMemberSession from './session.mjs'
-import chalk from 'chalk'
+import { type } from 'os'
 /* module constants */
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
@@ -234,6 +235,50 @@ class BotFactory extends EventEmitter{
 		const challengeSuccessful = await mDataservices.challengeAccess(this.mbr_id, passphrase, caseInsensitive)
 		return challengeSuccessful
 	}
+	/**
+	 * Uses proxy of Member Avatar to manage alteration for a given share. **Note:** currently leveraging MyLife General Functioneer, but could be migrated to Personal Avatar instructions after testing.
+	 * @param {Share} Share - The Share instance
+	 * @returns {Share} - The cleaned Share instance
+	 */
+	async cleanShare(Share){
+		let prompt = '# CLEAN\n## Variables:\n'
+		const { anonymous, guessable, itemId, pov=1, restrictions, } = Share
+		const { name, names, } = this.core
+		const memberName = names?.[0] ?? name
+		const item = await this.item(itemId)
+		const { phaseOfLife, summary, } = item
+		let shareData = {
+			phaseOfLife,
+			summary,
+		}
+		if(!anonymous || guessable)
+			shareData.variables = { 'memberName': memberName }
+		if(anonymous)
+			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
+		prompt += `- pov=${ pov }\n- summary: ${ summary }`
+		const messages = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt)
+		if(messages?.[0]){
+			const { content, thread_id, } = messages[0]
+			const message = content
+				.filter(_content=>_content.type==='text')
+				?.[0]
+				?.text
+				?.value
+			if(message?.length){
+				try {
+					shareData = {
+						...shareData,
+						...JSON.parse(message),
+					}
+				} catch (error) {
+					console.log('Error parsing context.text:', error)
+				}
+			}
+			if(thread_id?.length)
+				this.#llmServices.deleteThread(thread_id) // no await
+		}
+		return shareData
+	}
     /**
      * Get member collection items.
      * @param {String} type - The type of collection to retrieve, `false`-y = all
@@ -321,6 +366,32 @@ class BotFactory extends EventEmitter{
 			throw new Error('factory.experience: experience id required')
 		// @todo remove restriction (?) for all experiences to be stored under MyLife `mbr_id`
 		return await mDataservices.getItem(xid, 'system')
+	}
+	/**
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @param {String} mbr_id - The member id
+	 * @returns {object} - The share object from database with Item in-built
+	 */
+	async getShare(sid, mbr_id=this.mbr_id, type){
+		if(!this.globals.isValidGuid(sid))
+			return
+		const share = await mDataservices.share(sid, type) // pull from system database
+		if(!this.isMyLife && share?.mbr_id!==mbr_id)
+			throw new Error('Share does not belong to member')
+		return share
+	}
+    /**
+     * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
+     * @param {Guid} itemId - The item id (optional)
+     * @returns {Promise<object[]>} - The MemberShare array
+     */
+    async getShares(itemId){
+		const fields = [{ name: '@mbr_id', value: this.mbr_id, }]
+		if(this.globals.isValidGuid(itemId))
+			fields.push({ name: '@itemId', value: itemId })
+		const shares = await mDataservices.getItemsByFields('share', fields, 'shares', 'item') // **note**: partition key is `shareType`
+		return shares
 	}
 	/**
 	 * Retrieves a collection item by Id.
@@ -525,6 +596,54 @@ class AgentFactory extends BotFactory {
 		const response = await this.dataservices.pushItem(item)
 		return response
 	}
+	/**
+	 * Creates a new `Share` in the `share` container.
+	 * @param {object} shareData - The share object data
+	 * @returns {Promise<object>} - The created share object
+	 */
+	async createShare(shareData){
+		const {
+			anonymous=true,
+			being='share',
+			conclusion,
+			guessable=false,
+			id=this.newGuid,
+			itemId,
+			mbr_id=this.mbr_id,
+			pov=1,
+			scope='public',
+			shareType='memory',
+			title='untitled memory',
+			ttl=2592000, // 30 days
+			voice,
+		} = shareData
+		// @todo - throw exceptions for missing required data
+		const name = `share_${ title.substring(0, 64) }_${ id }`
+		const item = await this.item(itemId)
+		if(!item)
+			throw new Error('item not found')
+		shareData = {
+			anonymous,
+			being,
+			conclusion,
+			guessable,
+			id,
+			itemId,
+			mbr_id,
+			name,
+			pov,
+			scope,
+			shareType,
+			title,
+			ttl,
+			voice,
+		}
+		const share = await mDataservices.pushItem(shareData, 'shares')
+		const shares = item.shares ?? []
+		shares.push(share.id)
+		this.dataservices.patch(itemId, { shares, }) // no await
+		return share
+	}
     /**
      * Delete an item from member container.
      * @param {Guid} id - The id of the item to delete.
@@ -532,6 +651,21 @@ class AgentFactory extends BotFactory {
      */
 	async deleteItem(id){
 		return await this.dataservices.deleteItem(id)
+	}
+    /**
+     * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+     * @param {Guid} shareId - The Share id
+	 * @param {Guid} itemId - The Item id
+     * @returns {Promise<Boolean>} - Success or failure of the operation
+     */
+	async deleteShare(shareId, itemId){
+		const { shares=[], } = await this.dataservices.getItem(itemId)
+		if(shares.some(share=>share===shareId)){
+			const data = { shares: shares.filter(share=>share!==shareId) }
+			this.dataservices.patch(itemId, data) // delete share in `shares`; no await
+		}
+		mDataservices.deleteItem(shareId, 'shares', 'memory') // delete share in `shares`; no await
+		return true
 	}
 	async getAlert(_alert_id){
 		const _alert = mAlerts.system.find(alert => alert.id === _alert_id)
@@ -660,6 +794,32 @@ class AgentFactory extends BotFactory {
 		const response = await this.dataservices.patch(item.id, item)
 		return response
 	}
+	/**
+	 * Updates a share in the `shares` container
+	 * @param {object} shareData - The share data to update
+	 * @returns {Promise<object>} - The updated share object
+	 */
+	async updateShare(shareData){
+		const { anonymous, conclusion, guessable, id, pov, restrictions, scope, title, voice, } = shareData
+		const share = await this.getShare(id)
+		const data = {
+			anonymous,
+			conclusion,
+			guessable,
+			pov,
+			restrictions,
+			scope,
+			title,
+			voice,
+		}
+		Object.keys(data).forEach(key => {
+			if(share?.[key]===data[key]) {
+				delete data[key]
+			}
+		})
+		const updatedShare = await mDataservices.patch(id, data, 'shares', 'memory')
+		return updatedShare
+	}
 	/* getters/setters */
 	get alerts(){ // currently only returns system alerts
 		return mAlerts.system
@@ -753,6 +913,7 @@ class MyLifeFactory extends AgentFactory {
 			&& typeof registrationEmail==='string' // humor me, as it error-proofs next condition
 			&& registrationEmail.toLowerCase()===email.toLowerCase()
 		this.#registrationData.confirmed = confirmed
+		console.log(chalk.blueBright('confirmRegistration()::confirmed'), this.#registrationData)
 		return confirmed
 	}
 	/**
@@ -768,6 +929,7 @@ class MyLifeFactory extends AgentFactory {
 			memberAccount = {}
 		/* create account core */
 		try {
+			console.log(chalk.blueBright('Factory::createAccount()::registrationData'), this.#registrationData)
 			const { avatarName: _avatarName, email, humanName, id, interests, } = this.#registrationData
 			let { updates='', } = this.#registrationData
 			if(!id)
@@ -806,7 +968,7 @@ class MyLifeFactory extends AgentFactory {
 			memberAccount = await this.dataservices.addCore(core) ?? {}
 			this.#registrationData = null
 		} catch(error) {
-			console.log(chalk.blueBright('createAccount()::createCore()::error'), chalk.bgRed(error))
+			console.log(chalk.blueBright('Factory::createAccount()::account core error'), chalk.bgRed(error))
 		}
 		/* create avatar */
 		if(Object.keys(memberAccount)?.length){
@@ -814,7 +976,7 @@ class MyLifeFactory extends AgentFactory {
 				const avatarData = await this.dataservices.addAvatar(memberAccount?.core)
 				return avatarData
 			} catch(error) { 
-				console.log(chalk.blueBright('createAccount()::createAvatar()::error'), chalk.bgRed(error))
+				console.log(chalk.blueBright('Factory::createAccount()::create Avatar error'), chalk.bgRed(error))
 			}
 		}
 	}
@@ -827,7 +989,7 @@ class MyLifeFactory extends AgentFactory {
 	 * @returns {object} - The member's core data
 	 */
 	async datacore(mbr_id){
-		const core = ( await mDataservices.getItems('core', null, null, null, mbr_id) )
+		const core = ( await mDataservices.getItems('core', undefined, undefined, undefined, mbr_id) )
 			?.[0]
 		return core
 	}
@@ -975,7 +1137,7 @@ async function mEvaluateItem(summary, llm_id=mGeneralBotId){
 		success: false,
 	}
     const prompt = `Evaluate the included summary for clarity, dramatics, aesthetics, and completeness. Give top 2 recommendations to improve the summary. Do not repeat summary in response.\nSUMMARY:\n${summary}`
-    let responses = await mLLMServices.getLLMResponse(null, llm_id, prompt)
+    let responses = await mLLMServices.getLLMResponse(undefined, llm_id, prompt)
 	responses = mLLMServices.extractResponses(responses)
 	evaluation.success = responses.length
 	if(evaluation.success)
@@ -1066,7 +1228,6 @@ constructor(obj){
 		console.log('vm ${ _className } class constructed')
 	} catch(err) {
 		console.log(\`FATAL ERROR CREATING \${obj.being}\`, err)
-		rethrow
 	}
 }
 // if id changes are necessary, then use set .id() to trigger the change
@@ -1169,7 +1330,7 @@ async function mObscure(summary) {
 	let obscuredSummary
     // @stub - if greater than limit, turn into text file and add
     const prompt = `OBSCURE:\n${summary}`
-    const messageArray = await mLLMServices.getLLMResponse(null, mGeneralBotId, prompt)
+    const messageArray = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt)
 	const { content: contentArray=[], } = messageArray?.[0] ?? {}
 	const { value, } = contentArray
 		.filter(message=>message.type==='text')

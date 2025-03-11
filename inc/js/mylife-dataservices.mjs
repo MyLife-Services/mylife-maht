@@ -290,7 +290,7 @@ class Dataservices {
 						...memories,
 					])
 					.catch(err=>{
-						console.log('mylife-data-service::collections() error', err)
+						console.log('Dataservices::collections()::error', err)
 						return []
 					})
 		}
@@ -315,13 +315,15 @@ class Dataservices {
      * Delete an item from member container.
      * @async
      * @public
-     * @param {Guid} id - The id of the item to delete.
+	 * @param {Guid} id - The id of the item to delete
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The member id (or other) to use, overriding default
      * @returns {boolean} - true if item deleted successfully.
      */
-	async deleteItem(id){
+	async deleteItem(id, containerId, partitionId=this.mbr_id){
 		if(!id?.length)
 			return false
-		const success = await this.datamanager.deleteItem(id)
+		const success = await this.datamanager.deleteItem(id, containerId, partitionId)
 		return success
 	}
 	async findRegistrationIdByEmail(_email){
@@ -441,7 +443,7 @@ class Dataservices {
 			)
 		}
 		catch(error){
-			console.log('mylife-data-service::getItem() error', error, id, mbr_id, container_id,)
+			console.log('Dataservices::getItem()::error', error, id, mbr_id, container_id,)
 			return null
 		}
 	}
@@ -519,7 +521,7 @@ class Dataservices {
 				},
 			)
 		} catch(_error){
-			console.log('mylife-data-service::getItems() error', _error, being, query, paramsArray, container_id,)
+			console.log('Dataservices::getItems()::error', _error, being, query, paramsArray, container_id,)
 		}
 	}
 	/**
@@ -534,9 +536,9 @@ class Dataservices {
 	 */
 	async getItemsByFields(being, fields, container_id, _mbr_id=this.mbr_id){
 		const _items =  await this.getItems(
-			being, 
+			being,
 			undefined,
-			fields, 
+			fields,
 			container_id,
 			_mbr_id,
 		)
@@ -558,43 +560,44 @@ class Dataservices {
 	 * @param {string} [path='/'] - The path for patching, defaults to root.
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patch(id, data, path = '/') {
+	async patch(id, data, containerId, partitionId, path = '/') {
 		const patchOperations = Object.keys(data)
-			.filter(key => !['id', 'being', 'mbr_id'].includes(key)) // keys which must not be included in patch
+			.filter(key => !['id', 'being', 'mbr_id'].includes(key))
 			.map(key => {
 				return { op: 'add', path: path + key, value: data[key] }
 			})
-		// Split operations into batches of 10 per Cosmos DB limitations
-		const patchBatches = []
+		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations
 		while(patchOperations.length){
 			patchBatches.push(patchOperations.splice(0, 10))
 		}
-		// Perform the patch operation(s) for each batch
 		let endResult
-		for(const batch of patchBatches){
-			endResult = await this.patchItem(id, batch)
+		for(const batch of patchBatches){ // Perform the patch operation(s) for each batch
+			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id)
 		}
 		return endResult
 	}
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
 	 * @async
-	 * @param {string} id - The unique identifier for the item to be patched.
-	 * @param {Array<Object>} data - The data for patching, including the path and operation.
+	 * @param {string} id - The unique identifier for the item to be patched
+	 * @param {Array<Object>} data - The data for patching, including the path and operation
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The partition ID to use, overriding default
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(id, data){ // path Embedded in data
-		return await this.datamanager.patchItem(id, data)
+	async patchItem(id, data, containerId, partitionId){
+		return await this.datamanager.patchItem(id, data, containerId, partitionId)
 	}
     /**
-     * Pushes a new item to the data manager
+     * Pushes a new item to the data manager.
      * @async
 	 * @public
      * @param {Object} data - The data to be pushed
+	 * @param {String} container_id - The container to push into
      * @returns {Promise<Object>} The result of the push operation
      */
-	async pushItem(data){
-		return await this.datamanager.pushItem(data)
+	async pushItem(data, containerId){
+		return await this.datamanager.pushItem(data, containerId)
 	}
 	/**
 	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
@@ -633,13 +636,23 @@ class Dataservices {
 			const response = await this.datamanager.patchItem(this.core.id, [{ op: 'add', path: '/passphrase', value: passphrase }])
 			return response?.passphrase===passphrase
 		} catch(err){
-			console.log('mylife-data-service::resetPassphrase() error', err)
+			console.log('Dataservices::resetPassphrase()::error', err)
 			return false
 		}
     }
 	async saveExperience(experience){
 		const savedExperience = await this.pushItem(experience)
 		return savedExperience
+	}
+	/**
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @param {string} type - The share type
+	 * @returns {object} - The share object from database with Item in-built
+	 */
+	async share(sid, type){
+		const shared = await this.datamanager.share(sid, type)
+		return shared
 	}
 	/**
 	 * Tests partition key for member

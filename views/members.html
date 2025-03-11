@@ -2,8 +2,8 @@
 	<div id="chat-refresh" class="chat-refresh">
 		<i class="fas fa-redo"></i>
 	</div>
-	<div id="chat-system" class="chat-system"></div>
-	<div id="chat-member" class="chat-member">
+	<div id="chat-system" class="chat-section"></div>
+	<div id="chat-separator" class="chat-separator">
 		<div id="chat-active-items" class="chat-active-items">
 			<img id="chat-active-item-thumb" class="chat-active-item-thumb"></img>
 			<div id="chat-active-item" class="chat-active-item">
@@ -14,15 +14,11 @@
 				<div id="chat-active-item-close" class="fas fa-close chat-active-item-close"></div>
 			</div>
 		</div>
-		<div id="chat-member-container" class="chat-member-container">
-			<div id="audio-popup" class="popup"></div>
-			<div id="audio-icon" class="label fas fa-microphone-lines"></div>
-			<textarea id="chat-message" class="chat-input"></textarea>
-			<button id="chat-submit" class="button chat-submit" type="button" disabled>Submit</button>
-		</div>
+		<div id="audio-popup" class="audio-popup"></div>
 	</div>
-	<button id="await-button" class="await-button" type="button" disabled>
-		<span class="spinner-border spinner-border-sm await-button-spinner" role="status" aria-hidden="true"></span>
-		<span class="await-button-text"></span>
-	</button>
+	<div id="chat-input-container" class="chat-input-container">
+		<div id="audio-icon" class="label fas fa-microphone-lines"></div>
+		<textarea id="chat-input-text" class="chat-input-text"></textarea>
+		<button id="chat-input-submit" class="button chat-submit" type="button" disabled>Submit</button>
+	</div>
 </div>

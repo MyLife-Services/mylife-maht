@@ -1,9 +1,10 @@
 /* imports */
 import {
     addMessage,
+    addMessages,
     clearSystemChat,
     escapeHtml,
-    globals,
+    globals as mGlobals,
     hide,
     replaceElement,
     sceneTransition as memberSceneTransition,
@@ -77,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     if(mExperiences.length)
         window.addEventListener('launchExperience', async event=>{
             const { detail: experienceId } = event
-            if(!globals.isGuid(experienceId))
+            if(!mGlobals.isGuid(experienceId))
                 throw new Error('mInitializePageListeners::launchExperience::Error()::`detail` is required')
             mExperience = mExperiences.find(experience=>experience.id===experienceId)
             if(!mExperience)
@@ -94,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
  * @returns {Promise<void>} - The return is its own success, having cleared all active experience data.
  */
 async function experienceEnd(){
-    if(!mExperience || !mExperience?.id?.length || !await globals.datamanager.experienceEnd(mExperience.id))
+    if(!mExperience || !mExperience?.id?.length || !await mGlobals.datamanager.experienceEnd(mExperience.id))
         return
     mExperience = null
     /* remove listeners */
@@ -103,7 +104,7 @@ async function experienceEnd(){
     /* end experience onscreen */
     sceneStage.innerHTML = '' // clear full-screen character-lanes
     clearSystemChat() // clear member chat lanes
-    stageTransition(null, true) // request force-clear of member experience
+    stageTransition(undefined, true) // request force-clear of member experience
 }
 /**
  * Play experience onscreen, mutates `mExperience` object.
@@ -203,7 +204,7 @@ function experienceSkip(sceneId){
  * @returns {Promise<void>}
  */
 async function experienceStart(experienceId){
-    if(!globals.isGuid(experienceId))
+    if(!mGlobals.isGuid(experienceId))
         return
     mExperience = mExperiences.find(experience=>experience.id===experienceId)
     if(!mExperience)
@@ -214,7 +215,7 @@ async function experienceStart(experienceId){
     if(!events?.length)
         mExperience.events = await mEvents()
     /* experience manifest */
-    const manifest = await globals.datamanager.experienceManifest(id)
+    const manifest = await mGlobals.datamanager.experienceManifest(id)
     console.log('experienceStart::manifest', manifest)
     if(!manifest)
         throw new Error("Experience not found")
@@ -234,11 +235,11 @@ async function experienceStart(experienceId){
 async function routine(script){
     /* validate request */
     if(typeof script==='string'){
-        const response = await globals.datamanager.routine(script)
+        const response = await mGlobals.datamanager.routine(script)
         if(response.success)
             script = response?.routine
     }
-    const { cast, description, developers, events, purpose, title } = script
+    const { cast, description, developers, events, pause=3, purpose, title, typeSpeed, } = script
     if(!events?.length)
         throw new Error("No events found")
     if(!cast?.length)
@@ -248,7 +249,7 @@ async function routine(script){
     let activeCharacter,
         interrupted=false
     /* execute request */
-    toggleMemberInput(false, true)
+    toggleMemberInput(false)
     document.addEventListener("keydown",e=>{
         if(e.key==='Escape')
             routineEnd()
@@ -262,8 +263,9 @@ async function routine(script){
             if(index===(events.length-1))
                 toggleMemberInput(true)
             activeTimers.shift()
-        }, index * 3000 + (index * 750))
+        }, ( index * pause * 1000 ))
         activeTimers.push(timer)
+        console.log("Routine event", timer, activeTimers)
     })
     /* inline functions */
     function getCharacter(id='avatar'){
@@ -290,17 +292,13 @@ async function routine(script){
     }
     function routineExecute(event){
         const { character=activeCharacter?.id, dialog } = event
-        let { message } = dialog
+        let { message, } = dialog
         if(!character || character!==activeCharacter?.id)
             activeCharacter = getCharacter(character)
         const isQ = activeCharacter.type==='system'
         if(!isQ && activeCharacter?.bot_id)
             setActiveBot(activeCharacter.bot_id, false)
-        const options = {
-            bubbleClass: isQ ? 'system-bubble' : 'routine-bubble',
-            role: activeCharacter.type,
-        }
-        addMessage(message, options)
+        addMessages([message], activeCharacter.type, typeSpeed, pause)
         if(!activeTimers.length)
             routineEnd(false)
     }
@@ -309,7 +307,7 @@ async function routine(script){
         activeTimers.forEach(clearTimeout)
         toggleMemberInput(true)
         if(aborted)
-            addMessage(routineAbortMessage)
+            addMessage(routineAbortMessage, 'error')
         console.log("Routine ended")
     }
 }
@@ -322,7 +320,7 @@ function submitInput(event){
     const { inputVariableName, variable, } = mEvent.input
     const value = mBackdrop==='full'
         ? inputElement.value.trim()
-        : globals.chatInput
+        : mGlobals.chatInput
     if(value?.length){
         const memberInput = { [inputVariableName ?? variable ?? 'input']: value }
         experiencePlay(memberInput)
@@ -343,7 +341,7 @@ function mAddCharacterLane(dialogDiv, character, clearDialog=false){
         throw new Error(`Character lane not found and unable to be created! ${characterId}`)
     hide(characterLane)
     if(!dialogDiv)
-        globals.addChatElement(characterLane)
+        mGlobals.addChatElement(characterLane)
     else
         dialogDiv.appendChild(characterLane) /* appendChild will **move** the element */
     if(clearDialog){
@@ -731,7 +729,7 @@ function mEventInput(){
         return animationSequence
     const { complete, inputId, inputPlaceholder, inputType, variable, } = input
     let element,
-        elementId = `chat-member`
+        elementId = `chat-input-container`
     if(complete) // @stub - if complete, do not re-render? determine reaction; is it replay?
         return
     if(mBackdrop==='full'){
@@ -790,7 +788,7 @@ function mEventInput(){
  * @returns {Object[]} - Array of event objects
  */
 async function mEvents(memberInput, xid=mExperience.id){
-    const { instruction, experience, success, } = await globals.datamanager.experience(xid, memberInput)
+    const { instruction, experience, success, } = await mGlobals.datamanager.experience(xid, memberInput)
     if(!success)
         throw new Error(`Experience failed! ${ xid }`)
     const { autoplay, description, events, id, location, purpose, skippable, title, } = experience
@@ -843,7 +841,7 @@ async function mGetExperiences(scope='system'){
     const experiences = []
     /* system experiences */
     if(scope==='system'){
-        let systemExperiences = await globals.datamanager.experiences()
+        let systemExperiences = await mGlobals.datamanager.experiences()
         systemExperiences = systemExperiences?.experiences
             ?? systemExperiences
             ?? experiences
@@ -944,7 +942,7 @@ function mSceneTransition(){
                 })
                 .forEach(character=>{
                     /* create/move character lane */
-                    mAddCharacterLane(null, character, true)
+                    mAddCharacterLane(undefined, character, true)
                 })
             mUpdateModerator(true) // clear moderator
             memberSceneTransition()
@@ -1020,7 +1018,7 @@ function mToggleInputLane(display=true, hidden=false){
     switch(mBackdrop){
         case 'chat':
         case 'interface':
-            toggleMemberInput(display, hidden)
+            toggleMemberInput(display)
             break
         case 'full':
         default:

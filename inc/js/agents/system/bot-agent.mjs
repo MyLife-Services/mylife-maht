@@ -394,9 +394,11 @@ class BotAgent {
 	 * @param {String} type - The type of conversation, defaults to `chat`
 	 * @param {String} form - The form of conversation, defaults to `system-avatar`
 	 * @param {String} prompt - The prompt for the conversation (optional)
+	 * @param {Guid} scriptAdvisorLlmId - The script advisor llm id (optional)
+	 * @param {String} mbr_id - The member id to use for conversation (optional)
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId){
+async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id){
 		let { id, llm_id, } = this.avatar
 		if(type==='experience'){
 			id = this.#factory.actor.id
@@ -405,7 +407,7 @@ class BotAgent {
 			// use  member avatar?
 			llm_id = scriptAdvisorLlmId
 		}
-		const Conversation = await mConversationStart(type, form, id, null, llm_id, this.#llm, this.#factory, prompt)
+    const Conversation = await mConversationStart(type, form, id, undefined, llm_id, this.#llm, this.#factory, prompt, undefined, mbr_id)
 		return Conversation
 	}
     /**
@@ -462,7 +464,7 @@ class BotAgent {
 				role: 'user',
 			})
 			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, MEMORY SUMMARY starts this conversation`
-			const Conversation = await mConversationStart('memory', type, bot_id, null, llm_id, this.#llm, this.#factory, memberInput, messages)
+			const Conversation = await mConversationStart('memory', type, bot_id, undefined, llm_id, this.#llm, this.#factory, memberInput, messages)
 			Conversation.action = 'living'
 			livingMemory.Conversation = Conversation
 			livingMemory.id = this.#factory.newGuid
@@ -1084,11 +1086,17 @@ async function mConversationDelete(Conversation, factory, llm){
  * @param {AgentFactory} factory - Agent Factory object
  * @param {string} prompt - The prompt for the conversation (optional)
  * @param {Message[]} messages - The array of messages to seed the conversation
+ * @param {String} mbr_id_Override - The member id to use for conversation (optional)
  * @returns {Conversation} - The conversation object
  */
-async function mConversationStart(type='chat', form='system', bot_id, thread_id, llm_id, llm, factory, prompt, messages){
-	const { mbr_id, newGuid: id, } = factory
-	const metadata = { bot_id, conversation_id: id, mbr_id, },
+async function mConversationStart(type='chat', form='system', bot_id, thread_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
+	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
+	const mbr_id = mbr_id_Override
+		?? mbr_id_innate
+	const metadata = {
+			bot_id,
+			conversation_id: id,
+		},
 		processStartTime = Date.now(),
 		thread = await mThread(llm, thread_id, messages, metadata)
 	const Conversation = new (factory.conversation)(
@@ -1212,7 +1220,7 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
 async function mInit(BotAgent, bots, Avatar, factory, llm){
 	const { vectorstoreId, } = BotAgent
 	bots.push(...await mInitBots(vectorstoreId, Avatar, factory, llm))
-	BotAgent.setActiveBot(null, false)
+	BotAgent.setActiveBot(undefined, false)
 }
 /**
  * Initializes active bots based upon criteria.
@@ -1345,7 +1353,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     if(!summaryMessages.length)
         return
     /* add messages to new thread */
-	const newThread = await mThread(llm, null, summaryMessages.reverse(), metadata)
+	const newThread = await mThread(llm, undefined, summaryMessages.reverse(), metadata)
 	if(!!conversation){
 	    conversation.setThread(newThread)
 		if(saveConversation)

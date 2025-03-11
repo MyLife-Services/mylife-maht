@@ -35,10 +35,22 @@ import {
     upload,
 } from './functions.mjs'
 import {
+    acceptShareWarnings,
     collectMemory,
+    deleteShare,
     endMemory,
+    getShare,
+    getShares,
     improveMemory,
     reliveMemory,
+    shareCreate,
+    shareDelete,
+    shareMemory,
+    shareFeedback,
+    shareHeader,
+    shareStop,
+    shareUpdate,
+    validateShare,
 } from './memory-functions.mjs'
 import {
     availableExperiences,
@@ -69,6 +81,9 @@ _Router.get('/logout', logout)
 _Router.get('/experiences', availableExperiences)
 _Router.get('/greeting', greetings)
 _Router.get('/greetings', greetings)
+_Router.get('/share/header/:sid', shareHeader)
+_Router.get('/share/stop/:sid', shareStop)
+_Router.get('/share/:sid', validateShare) // last to not interfere with previous
 _Router.get('/select', loginSelect)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
@@ -76,9 +91,12 @@ _Router.get('/routine', routine)
 _Router.get('/routine/:rid', routine)
 _Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
+_Router.patch('/share/accept/:sid', acceptShareWarnings)
+_Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
+_Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)
@@ -105,6 +123,7 @@ _apiRouter.post('/upload/:mid', upload)
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
 _memberRouter.delete('/items/:iid', item)
+_memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
@@ -115,12 +134,17 @@ _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/greetings', greetings)
 _memberRouter.get('/item/:iid', item)
+_memberRouter.get('/share/:sid', getShare)
+_memberRouter.get('/share/delete/:sid', deleteShare)
+_memberRouter.get('/shares', getShares)
+_memberRouter.get('/shares/:iid', getShares)
 _memberRouter.get('/teams', teams)
 _memberRouter.patch('/experience/:xid', experience)
 _memberRouter.patch('/experience/:xid/end', experienceEnd)
 _memberRouter.patch('/experience/:xid/manifest', experienceManifest)
 _memberRouter.patch('/memory/relive/:iid', reliveMemory)
 _memberRouter.patch('/memory/end/:iid', endMemory)
+_memberRouter.patch('/share/:sid', shareUpdate)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
 _memberRouter.post('/bots/create', createBot)
@@ -134,6 +158,7 @@ _memberRouter.post('/migrate/chat/:bid', migrateChat)
 _memberRouter.post('/obscure/:iid', obscure)
 _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/chat/:bid', retireChat)
+_memberRouter.post('/share', shareCreate)
 _memberRouter.post('/summarize', summarize)
 _memberRouter.post('/teams/:tid', team)
 _memberRouter.post('/upload', upload)

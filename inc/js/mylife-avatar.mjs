@@ -9,7 +9,7 @@ import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
 import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
-import ExperienceAgent from './agents/system/experience-agent.mjs'
+import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 /* module constants */
 // file services
@@ -51,6 +51,7 @@ class Avatar extends EventEmitter {
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as g/setter is "complex"
     #setupComplete
+    #ShareAgent
     #vectorstoreId // vectorstore id for avatar
     /**
      * @constructor
@@ -64,8 +65,8 @@ class Avatar extends EventEmitter {
         this.#assetAgent = new AssetAgent(this.#factory, this.#llmServices)
         this.#botAgent = new BotAgent(this.#factory, this.#llmServices)
         this.#collectionsAgent = new CollectionsAgent(this.#factory, this.#llmServices)
+        this.#ShareAgent = new ShareAgent({ instanceStartTime: Date.now() }, this, this.#factory, this.#llmServices)
     }
-    /* public functions */
     /**
      * Initialize the Avatar class.
      * @todo - create class-extender specific to the "singleton" MyLife avatar
@@ -80,6 +81,16 @@ class Avatar extends EventEmitter {
         this.#experienceGenericVariables = mAssignGenericExperienceVariables(this.#experienceGenericVariables, this)
         this.#experienceAgent = new ExperienceAgent({}, this.#botAgent, this.#llmServices, this.#factory, this, this.#experienceGenericVariables)
         return this
+    }
+    /* public functions */
+    /**
+     * Accepts share warnings and plays the shared memory.
+     * @param {Guid} instanceId - The share instance id
+     * @returns {Boolean} - Whether or not warnings were accepted
+     */
+    acceptShareWarnings(instanceId){
+        const response = this.#ShareAgent.acceptWarnings(instanceId)
+        return response
     }
     /**
      * Get a Bot instance by id.
@@ -254,10 +265,11 @@ class Avatar extends EventEmitter {
      * Start a new conversation.
      * @param {String} type - The type of conversation, defaults to `chat`
      * @param {String} form - The form of conversation, defaults to `member-avatar`
+     * @param {String} mbr_id - The member id (optional)
      * @returns {Promise<Conversation>} - The Conversation instance
      */
-	async conversationStart(type='chat', form='member-avatar'){
-        const Conversation = await this.#botAgent.conversationStart(type, form)
+	async conversationStart(type='chat', form='member-avatar', mbr_id){
+        const Conversation = await this.#botAgent.conversationStart(type, form, undefined, undefined, mbr_id)
         return Conversation
     }
     /**
@@ -271,6 +283,14 @@ class Avatar extends EventEmitter {
         const Bot = await this.#botAgent.botCreate(botData)
         const bot = Bot.bot
         return bot
+    }
+    /**
+     * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+     * @param {Guid} sid - The Share id
+     * @returns {Promise<Boolean>} - Success or failure of the operation
+     */
+    async deleteShare(sid){
+        return await this.#ShareAgent.delete(sid)
     }
     /**
      * End the living memory, if running.
@@ -338,7 +358,6 @@ class Avatar extends EventEmitter {
      * @returns {object} - The frontend response object: { error, experience, instruction, success, }
      */
     async experience(xid, memberInput){
-        console.log('experience', xid, memberInput)
         const Experience = await this.#experienceAgent.experience(xid, memberInput)
         const experience = mPruneExperience(Experience)
         // add frontend instructions here
@@ -412,6 +431,22 @@ class Avatar extends EventEmitter {
         return conversation
     }
     /**
+     * Get a share data by id.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<object>} - The MemberShare document
+     */
+    async getShare(sid){
+        return await this.#ShareAgent.getShare(sid)
+    }
+    /**
+     * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
+     * @param {Guid} itemId - The item id (optional)
+     * @returns {Promise<object[]>} - The MemberShare array
+     */
+    async getShares(itemId){
+        return await this.#ShareAgent.getShares(itemId)
+    }
+    /**
      * Returns all conversations of a specific-type stored in memory.
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
      * @returns {Conversation[]} - The array of conversation objects.
@@ -460,7 +495,7 @@ class Avatar extends EventEmitter {
         if(mAllowSave)
             conversation.save()
         else
-            console.log('helpRequest::BYPASS-SAVE', conversation.message.content)
+            console.log('MemberAvatar::help()::BYPASS-SAVE', conversation.message.content)
         const response = mPruneMessages(this.activeBotId, helpResponseArray, 'help', processStartTime)
         return response
     }
@@ -792,6 +827,43 @@ class Avatar extends EventEmitter {
     async shadows(){
         return await this.#factory.shadows()
     }
+    async shareCreate(shareData){
+        return await this.#ShareAgent.create(shareData)
+    }
+    /**
+     * Share a memory `Header` with frontend to determine warnings or restrictions.
+	 * @param {Guid} sid - Share id
+     * @returns {Promise<object>} - shareHeader object
+     */
+    async shareHeader(sid){
+        const header = await this.#ShareAgent.header(sid)
+        return header
+    }
+	/**
+	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
+	 * @param {Guid} sid - Share id
+     * @param {String} input - Text from recipient
+     * @returns {Promise<Object>} - The Share response object { error, instruction, responses, success, warnings, }
+	 */
+	async shareMemory(sid, input){
+        return await this.#ShareAgent.play(sid, input)
+	}
+    /**
+     * Stop a shared memory.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<Object>} - The Share.stop response object { error, instruction, responses, success, }
+     */
+    async shareStop(sid){
+        return await this.#ShareAgent.stop(sid)
+    }
+    /**
+     * Create or Update a share with new data.
+     * @param {object} shareData - The share data object
+     * @returns {Promise<object>} - The updated Share object
+     */
+    async shareUpdate(shareData){
+        return await this.#ShareAgent.update(shareData)
+    }
 	/**
 	 * Submits a memory to MyLife. Currently called both from API _and_ LLM function.
      * @todo - deprecate to `item` function
@@ -892,6 +964,17 @@ class Avatar extends EventEmitter {
             uploads: files,
             files: vectorstoreFileList,
             success: true,
+        }
+    }
+    /**
+     * Validates a share id and returns the instance id for newly spawned share.
+     * @param {Guid} shareId - The share id
+     * @returns {Promise<Object>} - Response object: { instanceId, }
+     */
+    async validateShare(shareId){
+        const instanceId = await this.#ShareAgent.validateShare(shareId)
+        return {
+            instanceId,
         }
     }
     /* getters/setters */
@@ -1306,7 +1389,7 @@ class Q extends Avatar {
             throw new Error('factory parameter must be an instance of MyLifeFactory')
         super(factory, llmServices)
         this.#factory = factory
-        this.llmServices = llmServices
+        this.#llmServices = llmServices
     }
     /* overloaded methods */
     /**
@@ -1356,7 +1439,7 @@ class Q extends Avatar {
         const { routine, success, } = greeting
         let { responses, } = greeting
         responses = responses.map(response=>{
-            response = mPruneMessage(null, response, 'greeting')
+            response = mPruneMessage(undefined, response, 'greeting')
             delete response.activeBotId
             return response
         })
@@ -1378,7 +1461,6 @@ class Q extends Avatar {
         const updatedSummary = await botFactory.obscure(iid)
         return updatedSummary
     }
-    
     /* overload rejections */
     /**
      * OVERLOADED: Q refuses to execute.
@@ -1444,9 +1526,9 @@ class Q extends Avatar {
             const { mbr_id, } = avatar
             success = true
             this.addMember(mbr_id)
-            console.log(`member account created: ${ mbr_id }`)
+            console.log(`SystemAvatar::createAccount::mbr_id: ${ mbr_id }`)
         } else
-            console.log('member account creation failed')
+            console.log('SystemAvatar::createAccount::error: failed')
         return {
             avatar,
             success,
@@ -1699,7 +1781,7 @@ function mItem(item, avatar, llmServices){
                 break
         }
     } catch(error){
-        console.log('item()::error', error)
+        console.log('mIitem()::error', error)
     }
     return Item
 }
@@ -1766,6 +1848,7 @@ function mPruneItem(item){
         mood,
         phaseOfLife,
         relationships,
+        shares=[],
         summary,
         title,
         type,
@@ -1781,6 +1864,7 @@ function mPruneItem(item){
         mood,
         phaseOfLife,        
         relationships,
+        shares,
         summary,
         title,
         type,
@@ -1905,7 +1989,7 @@ function mRoutine(script, Avatar, BotAgent){
         role: Avatar.nickname,
         type: 'avatar',
     }
-    const { cast=[defaultCastMember], description, developers, events, files, name, public: isPublic, purpose, status, title, variables, version=1.0, } = script
+    const { cast=[defaultCastMember], description, developers, events, files, name, pause, public: isPublic, purpose, status, title, typeSpeed, variables, version=1.0, } = script
     if(!cast?.length || !events?.length)
         throw new Error('Routine must have a well-structured `cast` and `events` array.')
     if(!isPublic)
@@ -1921,16 +2005,13 @@ function mRoutine(script, Avatar, BotAgent){
                 if(event.character)
                     activeCastMember = cast.find(castMember=>castMember.id===event.character)
                         ?? activeCastMember
-                const Bot = BotAgent.bot(null, activeCastMember.type)
-                if(!!Bot){
-                    const replacement = Bot[variableReplacement]?.toString()
-                        ?? Avatar[variableReplacement]?.toString()
-                        ?? variableDefault
-                    const { message, } = event?.dialog
-                        ?? {}
-                    if(message)
-                        event.dialog.message = message.replace(new RegExp(`${ variable }`, 'g'), replacement)
-                }
+                const Bot = BotAgent.bot(undefined, activeCastMember.type) ?? {}
+                const replacement = Bot[variableReplacement]?.toString()
+                    ?? Avatar[variableReplacement]?.toString()
+                    ?? variableDefault
+                const { message, } = event?.dialog ?? {}
+                if(message)
+                    event.dialog.message = message.replace(new RegExp(`${ variable }`, 'g'), replacement)
             })
         })
     }
@@ -1939,8 +2020,10 @@ function mRoutine(script, Avatar, BotAgent){
         description,
         developers,
         events,
+        pause,
         purpose,
         title,
+        typeSpeed,
     }
 }
 /**

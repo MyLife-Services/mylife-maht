@@ -30,10 +30,12 @@
 			}
 		}
 	],
-    "name": "avatar",
+    "name": "routine_avatar",
+    "pause": 5,
     "public": true,
     "status": "active",
     "title": "Avatar Introduction",
+	"typeSpeed": 2,
     "variables": [
         {
           "default": "MyLife Member",

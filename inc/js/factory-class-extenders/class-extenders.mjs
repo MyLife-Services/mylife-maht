@@ -34,14 +34,17 @@ function extendClass_conversation(originClass, referencesObject){
     class Conversation extends originClass {
         #bot_id
         #factory
+        #form
         #id
         #llm_id
+        #mbr_id
         #messages = []
         #run_id
         #runs = new Set()
         #saved = false
         #thread
         #threads = new Set()
+        #type
         /**
          * Constructor for Conversation class.
          * @param {Object} obj - Data object for construction
@@ -52,19 +55,23 @@ function extendClass_conversation(originClass, referencesObject){
          * @returns {Conversation} - The constructed conversation instance
          */
         constructor(obj, factory, bot_id, llm_id, thread){
-            super(obj)
+            const {
+                form='system-avatar',
+                id=this.#factory.newGuid,
+                mbr_id=this.#factory.mbr_id,
+                type='chat',
+                ..._obj
+            } = obj
+            super(_obj)
             this.#factory = factory
             this.#thread = thread
-            this.#id = this.#factory.newGuid
-            if(factory.globals.isValidGuid(bot_id))
-                this.#bot_id = bot_id
-            if(llm_id?.length)
-                this.#llm_id = llm_id
-            this.form = this.form
-                ?? 'system-avatar'
-            this.name = `conversation_${ this.#factory.mbr_id }`
-            this.type = this.type
-                ?? 'chat'
+            this.#bot_id = bot_id
+            this.#form = form
+            this.#id = id
+            this.#llm_id = llm_id
+            this.#mbr_id = mbr_id
+            this.name = `conversation_${ this.#mbr_id }`
+            this.#type = type
         }
         /* public functions */
         /**
@@ -190,11 +197,9 @@ function extendClass_conversation(originClass, referencesObject){
                 throw new Error(`Invalid bot_id: ${ bot_id }`)
             this.#bot_id = bot_id
         }
-        /**
-         * Get the generated Guid `id` of the Conversation instance.
-         * @getter
-         * @returns {Guid} - The conversation id
-         */
+        get form(){
+            return this.#form
+        }
         get id(){
             return this.#id
         }
@@ -206,11 +211,6 @@ function extendClass_conversation(originClass, referencesObject){
         get isSaved(){
             return this.#saved
         }
-        /**
-         * Get the `id` {String} of the conversation's active LLM.
-         * @getter
-         * @returns {String} - The llm id
-         */
         get llm_id(){
             return this.#llm_id
         }
@@ -222,6 +222,9 @@ function extendClass_conversation(originClass, referencesObject){
         set llm_id(llm_id){
             if(!llm_id?.length)
                 this.#llm_id = llm_id
+        }
+        get mbr_id(){
+            return this.#mbr_id
         }
         /**
          * Get the most recently added message.
@@ -259,6 +262,9 @@ function extendClass_conversation(originClass, referencesObject){
         }
         get threads(){
             return this.#threads
+        }
+        get type(){
+            return this.#type
         }
     }
     return Conversation

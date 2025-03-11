@@ -1,7 +1,6 @@
 /* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
-import chalk from 'chalk'
 import Config from './mylife-datasource-config.mjs'
 import Globals from './globals.mjs'
 /* module constants */
@@ -28,6 +27,7 @@ class Datamanager {
 		this.#containers = {
 			members: this.database.container(_config.members.container.id),
 			registration: this.database.container(_config.registration.container.id),
+			shares: this.database.container(_config.shares.container.id),
 			system: this.database.container(_config.system.container.id),
 		}
 		this.requestOptions = {
@@ -68,9 +68,9 @@ class Datamanager {
 	 * @param {object} options - The request options, defaults to `this.requestOptions`
 	 * @returns {Boolean} - Whether operation was successful and item was deleted, i.e., has no resource
 	 */
-	async deleteItem(id, containerId=this.containerDefault, options=this.requestOptions){
+	async deleteItem(id, containerId=this.containerDefault, partitionId=this.#partitionId){
 		const { resource } = await this.#containers[containerId]
-			.item(id, this.#partitionId)
+			.item(id, partitionId)
 			.delete()
 		return !resource
 	}
@@ -123,21 +123,27 @@ class Datamanager {
 			throw new Error('No hosted members found')
 		return documents
 	}
-	async patchItem(id, item, container_id=this.containerDefault){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+	async patchItem(id, item, container_id=this.containerDefault, partitionId=this.#partitionId){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		// [Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(item))
 			item = [item]
 		try{
 			const { resource: update, } = await this.#containers[container_id]
-				.item(id, this.#partitionId)
+				.item(id, partitionId)
 				.patch(item) //	see below for filter-patch example
 			return update
 		} catch (error){
-			console.error('patchItem error:', error, item, id, container_id)
+			console.log('Datamanager::patchItem::error', error, item, id, container_id, partitionId)
 			return {}
 		}
 	}
-	async pushItem(item, container_id=this.containerDefault){
+	/**
+	 * Pushes an item into a container.
+	 * @param {object} item - The item to push into the container.
+	 * @param {String} containerId - The container to push the item into, defaults to `this.containerDefault`.
+	 * @returns {Promise<object>} - The document JSON item pushed.
+	 */
+	async pushItem(item, containerId=this.containerDefault){
 		/* validate item */
 		const { being, id, mbr_id, } = item
 		if(!being?.length)
@@ -146,10 +152,21 @@ class Datamanager {
 			item.id = this.globals.newGuid
 		if(!mbr_id?.length)
 			item.mbr_id = this.#partitionId
-		const { resource: doc } = await this.#containers[container_id]
+		const { resource: doc } = await this.#containers[containerId]
 			.items
 			.upsert(item)
 		return doc
+	}
+	/**
+	 * Retrieves a share object and its associated item from the database.
+	 * @param {Guid} sid - The share id
+	 * @returns {object} - The share object from database with Item in-built
+	 */
+	async share(sid){
+		const { resource: shareItem } = await this.#containers['shares']
+			.item(sid, 'memory')
+			.read()
+		return shareItem
 	}
 	/**
 	 * Registers a new candidate to MyLife membership

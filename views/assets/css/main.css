@@ -5,118 +5,112 @@
 @import url('members.css');
 /* css main variables */
 :root {
+	--mylife-border-radius: 0.22rem;
     --mylife-base-z-index: 1;
 	--mylife-help-z-index: 5;
 	--mylife-sidebar-z-index: 20;
 }
-/* MyLife layout */
+/* Basic Reset */
+* {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+html,
 body {
-	background-color: #000000;
-	background-size: 1200px;
-	background-repeat: no-repeat;
-	background-position: top;
+	color: #333;
 	display: flex;
 	flex-direction: column;
-	font-family: Arial, sans-serif;
-	justify-items: flex-start;
-	margin: 0 2em;
-	max-width: 100%;
+	font-family: "Raleway", serif;
+	height: 100%;
+	margin: 0;
 }
 .page-container {
     display: flex;
     flex-direction: column; /* Change to row for horizontal layout */
 	height: 100%;
 	margin: 0;
-	max-height: 100vh; /* Ensures the container grows to the full height */
+	max-height: 100%; /* Ensures the container grows to the full height */
 	max-width: 100%;
 	width: 100%; /* Ensures the container grows to the full width */
 }
-.page-column-collection {
+/* MyLife Menu Navigation */
+.top-nav {
+	align-items: center;
+	color: #fff;
 	display: flex;
-	flex-direction: row; /* Change to column for vertical layout */
-	height: 100%;
-	max-width: 100%;
-	overflow: hidden; /* Critical for keeping the layout within the viewport */
+	gap: 0.5rem;
+	justify-content: space-between;
+	max-height: 10vh;
+	max-width: 100vw;
+	padding: 1.5rem 0rem;
+	position: relative;
 	width: 100%;
 }
-/* MyLife Menu Navigation */
-.navigation-container {
-	background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.25) 70%, rgba(0, 0, 100, 0.15) 100%);
-	background-color: whitesmoke; /* Blue background color */
-	border: 1px dotted rgba(0, 0, 139, 0.3);
-	border-radius: 22px; /* Rounded corners */
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
-	box-sizing: border-box; /* Ensures padding and width stays within the border */
-	display: none;
-	justify-content: flex-start; /* Aligns items horizontally */
-	padding: 0px;
-	width: 100%; /* Full width */
-}
-.navigation-brand,
-.navigation-help,
-.navigation-login-logout,
-.navigation-nav,
-.navigation-padding,
-.navigation-version {
-	align-items: center;
-	display: flex;
-	flex: none; /* Prevents items from growing */
-}
-.navigation-brand {
-	cursor: default; /* Set cursor to default */
-	margin-right: 2em; /* Right margin on navigation brand */
-}
-.navigation-help {
-	align-items: center;
-	color: #007bff;
-	cursor: pointer;
-	display: flex;
-	font-size: 2em;
-	height: auto;
-	justify-content: center;
-}
-.navigation-help:hover {
-	color: purple; /* Your existing styles for active link */
-}
-.navigation-link {
-	margin: 0em .8em;
+.top-nav .logo {
+	color: #fff;
+	font-family: "EB Garamond", serif;
+	font-size: 2.5rem;
+	font-style: normal;
+	font-weight: 400;
 	text-decoration: none;
 }
-.navigation-link.active {
-    color: #007bff; /* Your existing styles for active link */
-    font-weight: bold;
-    cursor: pointer; /* Set cursor to default */
+.top-nav a {
+	color: #fff;
+	font-weight: bold;
+	text-decoration: none;
 }
-.navigation-login-logout {
-	align-self: flex-end;
+.top-nav img {
+	height: 8vh;
+	width: auto;
+}
+.top-nav li {
 	display: flex;
-	justify-content: flex-end
 }
-.navigation-nav {
-	background: linear-gradient(
-		to bottom,
-		rgba(255, 255, 255, 0.25) 60%,
-		rgba(0, 0, 100, 0.15) 100%
-	); /* Gradient from top (lighter) to bottom (slightly darker) with alpha */
-    background-color: #f8f9fa; /* A light base color for the navigation */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds a subtle shadow for depth */
-    border-radius: 10px; /* Rounded edges */
-	flex-direction: row; /* Aligns the flex item horizontally (default: row) */
-	margin: 1em 0;
+.top-nav ul {
+	align-items: baseline;
+	display: flex;
+	gap: 1.5rem;
+	list-style: none;
+	margin-bottom: 0;
+	margin-left: auto;
 }
-.navigation-nav:hover {
-	border:rgba(53, 31, 53, 0.25) 1px solid;
-	cursor: default;
+a.login-btn {
+	background: #557a8b;
+	border: thin solid navy;
+	border-radius: var(--mylife-border-radius);
+	color: #fff;
+	cursor: pointer;
+	text-decoration: none;
+	padding: 0.5rem 1rem;
+	border-radius: var(--mylife-border-radius);
+	font-weight: bold;
 }
-.navigation-padding {
-	flex: 1; /* Prevents the brand from growing */
+a.login-btn:hover {
+	background: #1d292f;
 }
 .navigation-version {
-    color: rebeccapurple;
+    color: rgb(232, 210, 255);
 	font-size: 0.8rem;
 	font-style: italic;
-	font-weight: bold;
-	padding: 0 2rem;
+	margin-left: 1rem;
+}
+/* Hamburger Icon - Hidden on Desktop */
+.hamburger {
+    cursor: pointer;
+    display: none;
+    flex-direction: column;
+	gap: 0.3rem;
+    height: 2rem;
+    margin-left: auto;
+    width: 2rem;
+}
+.hamburger span {
+    display: block;
+    height: 1rem;
+    width: 100%;
+    background: #fff;
+    border-radius: var(--mylife-border-radius);
 }
 /* MyLife system alerts */
 .alert-container{
@@ -129,7 +123,7 @@ body {
     align-items: center;
 	background-color: aliceblue;
 	border: rgba(0,0,0,.25) 2px solid;
-	border-radius: 7px;
+	border-radius: var(--mylife-border-radius);
 	box-shadow: inset 4px 4px 2px 0px rgba(0, 0, 0, 0.1); /* Shadow for depth */
 	display: flex;
     flex-direction: row; /* Stack alert elements horizontally */
@@ -190,31 +184,22 @@ body {
 	animation: alertFadeIn 0.5s forwards;
 }
 /* MyLife main content */
-.input-button {
-	display: flex;
-	margin: 0.4rem;
-}
 .main-content {
-    background: white; /* Assuming a card-like look typically has a white background */
-    background-position: center; /* Centers the image in the area */
-    background-size: cover; /* Ensures the image covers the whole area */
-	border: rgb(0, 25, 51, .3) 2px dotted;
-    border-radius: 22px;
-	box-sizing: border-box;
-	display: none;
-	flex: 0 65%;
-	height: auto;
-	min-height: 70vh;
+	background-color: #eee;
+	background-image: url("../jpg/bkg_child_dandelion.jpg");
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: bottom;
+	flex-grow: 1; /* Pushes the footer down */
 	overflow: hidden;
-    padding: 0px;
 }
 .main-content h1 {
-	padding: 3%;
-	padding-bottom: 0px;
-	margin-bottom: 0px;
-	font-size: 20px;
-	font-weight: lighter;
 	font-family: 'Arial Narrow', sans-serif;
+	font-size: 1.2rem;
+	font-weight: lighter;
+	margin-bottom: 0;
+	padding: 2rem;
+	padding-bottom: 0;
 }
 .main-content hr {
     border: none; /* Removes the default border */
@@ -229,70 +214,66 @@ body {
 .main-content h2 {
 	font-size: 20px;
 }
-/* MyLife Memories */
-.memory-input {
-	background-color: aliceblue;
-	border: 1px solid #ccc;
-	border-radius: 0.4rem;
+/* Sidebar Section */
+.sidebar {
+	background: #fff;
+    border-radius: var(--mylife-border-radius);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+	color: #12094d;
+	display: flex;
+	flex: 1 1 100%;
+	flex-direction: column;
+	justify-content: flex-start;
+    margin: 0.5rem;
+    max-height: fit-content;
+	width: auto;
+}
+.sidebar h2 {
 	color: black;
 	display: flex;
-	font-size: 0.9rem;
-	flex: 1 0 auto;
-	margin: 0.25rem;
-	overflow: hidden;
-	padding: 0.25rem;
-	resize: none;
-}
-.memory-input-container {
-    align-content: center;
-    background-color: sienna;
-    border-radius: 0.4rem;
-    display: flex;
-    flex: 1 0 auto;
-	gap: 0.25rem;
+	font-weight: bold;
 	justify-content: center;
-    margin: 0.25rem;
-    max-height: 5rem;
-    max-width: 90%;
-    padding: 0.25rem;
+}
+.sidebar li {
+	margin-bottom: 0.2rem;
+}
+.sidebar p {
+	font-size: 0.8rem;
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+.sidebar span{
+	color: #263d48;
+	font-style: italic;
+	font-size: 0.85rem;
+}
+.sidebar ul {
+	font-size: 0.85rem;
+    list-style: disc;
+	margin: 0;
+    padding: 0rem 2rem;
+}
+.signup-content {
+	display: flex;
+	flex-direction: column;
+	max-width: 100%;
+	padding: 0.5rem;
 	width: 100%;
 }
-.memory-input-button {
-	background-color: #741237;
-	border: 1px solid #ccc;
-	border-radius: 0.4rem;
-	color: #fff;
-	cursor: pointer;
-	display: flex;
-	flex: 0 1 5%;
-	justify-content: center;
-	margin: 0.5rem;
-	padding: 0.5rem;
-
-}
-/* MyLife About, Privacy Policy */
-.about-container, .privacy-container {
+.signup-join,
+.signup-success {
 	display: flex;
 	flex-direction: column;
-	overflow: scroll;
-	margin: 1em;
 }
-.about-section, .privacy-section {
-	display: flex;
-	flex-direction: column;
-	padding: .5em;
-}
-.about-section, .privacy-section h3 {
-	border-bottom: thin solid navy;
-	color: navy;
-	display: flex;
+.signup-success p {
+	font-size: 0.9rem!important;
 }
 /* MyLife Signup Routine */
 .button {
 	align-items: center;
 	background-color: navy; /* Default background color */
 	border: 2px solid #061320; /* Blue border */
-	border-radius: 12px; /* Rounded corners */
+	border-radius: var(--mylife-border-radius); /* Rounded corners */
 	box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
 	cursor: pointer; /* Cursor changes to pointer on hover */
 	color: #fff; /* Text color */
@@ -325,7 +306,7 @@ body {
     background-color: green; /* Default background color */
     color: #fff; /* Text color */
     border: 2px solid red; /* Red border */
-    border-radius: 5px; /* Rounded corners */
+    border-radius: var(--mylife-border-radius); /* Rounded corners */
     box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Drop shadow */
     font-weight: bold; /* Bold text */
     padding: 10px 20px; /* Adjust as needed */
@@ -339,6 +320,74 @@ body {
 .button-join:active {
     background-color: lightslategray; /* Background color when the button is clicked */
 }
+.signup {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
+	padding: 0.5rem;
+}
+.join-form {
+	display: flex;
+	flex-direction: column;
+	font-size: 0.8rem;
+	gap: 0.5rem;
+}
+.join-form button {
+	align-self: center;
+	background-color: #741237;
+	border: 1px solid #ccc;
+	border-radius: var(--mylife-border-radius);
+	color: #fff;
+	cursor: pointer;
+	display: flex;
+	font-size: 0.9rem;
+	justify-self: unset;
+	padding: 0.15rem 1rem;
+	width: fit-content
+}
+.join-form button:disabled {
+	background-color: #ccc;
+	color: #666;
+	cursor: not-allowed;
+}
+.join-form h2 {
+	align-self: flex-start;
+	margin: 0;
+}
+.join-form input {
+    display: flex;
+    flex: 1 1 60%;
+    width: 100%;
+}
+.join-form label {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+	font-weight: bold;
+    gap: 0.5em;
+}
+.join-form section { /* input container */
+	align-items: baseline;
+	display: flex;
+	flex-direction: row;
+	gap: 1rem;
+}
+/* Page Footer */
+footer {
+	align-items: baseline;
+	background: #345e6b;
+	color: #fff;
+	display: flex;
+	justify-content: center;
+	width: 100%;
+}
+footer p {
+	font-size: 1rem;
+    margin: 0.5rem 0;
+}
+/* MyLife miscellaneous */
 .content-transition {
     width: 100%; /* Adjust based on your design */
 }
@@ -355,82 +404,12 @@ body {
     animation: none !important;
     display: none !important;
 }
-.input-container {
-    align-self: center;
-    background-color: rgba(255, 255, 255, 0.2); /* light background */
-    border: 0.01rem solid #000;
-    border-radius: 22rem;
-    display: flex;
-    justify-content: center;
-}
 .ital {
 	font-style: italic;
 }
 .show {
     display: flex !important;
 	opacity: 1 !important;
-}
-.signup {
-	display: flex;
-	flex-direction: column;
-	flex-wrap: wrap;
-	justify-content: center;
-	align-items: center;
-	padding: 0.5rem;
-}
-.signup-form,
-.signup-success,
-.signup-teaser {
-	align-items: flex-start;
-	display: flex;
-	flex-direction: column;
-	flex-wrap: wrap;
-	justify-content: flex-start;
-	max-height: 100%;
-	padding: 0 0.15rem;
-}
-.signup-input {
-	margin-bottom: 0.5rem;
-	text-align: left;
-}
-.signup-input-container {
-	background: linear-gradient(to right, rgba(94, 128, 191, 0.1), rgba(128, 0, 128, 0.1));
-	border: 1px solid #ccc;
-	border-radius: 4px;
-	box-shadow: inset 1px 1px 3px rgba(94, 128, 191, 0.2), inset -1px -1px 3px rgba(128, 0, 128, 0.3);
-	margin-bottom: 16px;
-	margin-top: 6px;
-	padding: 10px 12px;
-	width: 100%;
-}
-.signup-input-label {
-	font-weight: bold;
-	font-style: normal;
-	font-stretch: condensed;
-}
-.signup-label {
-    align-items: center;
-    cursor: pointer;
-    display: flex;
-    gap: 0.5em;
-}
-.signup-type {
-    align-items: center;
-    display: flex;
-    gap: 1em;
-}
-.signup-teaser-text {
-	display: block;
-	padding-bottom: 1rem;
-}
-.signup-teaser-text ul {
-	list-style-type: square;
-	margin-top: 6px;
-	margin-bottom: 6px;
-}
-.signup-teaser-text li {
-	margin-left: 12px;
-	margin-top: 6px;
 }
 /* MyLife Generic Popup */
 .popup-await {
@@ -461,7 +440,7 @@ body {
     background-color: aliceblue;
     bottom: 2em;
     border: thin solid #ccc;
-	border-radius: 0.4em;
+	border-radius: var(--mylife-border-radius);
 	color: navy;
     display: flex;
     left: 0;
@@ -494,7 +473,7 @@ body {
 .popup-dialog-box {
     background-color: rgba(229, 59, 0, 1);
     border: solid navy;
-    border-radius: 0.4em;
+    border-radius: var(--mylife-border-radius);
     color: aliceblue;
     display: flex;
     flex-direction: row;
@@ -514,7 +493,7 @@ body {
 }
 .popup-input {
 	align-items: center;
-	border-top: thin solid black;
+	border: thin solid black;
 	display: flex;
 	flex-direction: row;
 	font-size: 1rem;
@@ -573,13 +552,13 @@ body {
 /* MyLife Help System */
 .help-await {
 	border: medium solid lightpink;
-	border-radius: 0.6rem;
+	border-radius: var(--mylife-border-radius);
 }
 .help-button {
 	align-content: center;
 	background-color: #741237;
 	border: medium solid aliceblue;
-	border-radius: 0.25rem;
+	border-radius: var(--mylife-border-radius);
 	color: aliceblue;
 	cursor: pointer;
 	display: flex;
@@ -599,7 +578,7 @@ body {
 	background-color: white;
 	cursor: pointer;
     border: thin solid red;
-    border-radius: .25em;
+    border-radius: var(--mylife-border-radius);
 }
 .help-container {
 	border: solid indianred;
@@ -633,7 +612,7 @@ body {
     padding: 10px;
 }
 .help-type-item {
-	border-radius: 0.4em;
+	border-radius: var(--mylife-border-radius);
     cursor: pointer;
     padding: 5px 10px;
 }
@@ -693,51 +672,12 @@ body {
 }
 .help-input-text {
 	border: thin solid #ccc;
-	border-radius: 0.25rem;
+	border-radius: var(--mylife-border-radius);
 	color: black;
 	margin: 0.5rem;
 }
 .help-input-text:focus {
 	color: purple;
-}
-/* MyLife sidebar */
-.sidebar {
-	align-items: flex-start;
-    background: white; /* Assuming a card-like look typically has a white background */
-    background-position: center; /* Centers the image in the area */
-    background-size: cover; /* Ensures the image covers the whole area */
-    border: 2px dotted rgba(0, 25, 51, 0.3);
-    border-radius: 22px;
-    display: none; /* Changed to flex for layout */
-    flex-direction: column;
-    flex: 1 1 auto; /* Allows growth and shrinkage */
-    font-family: "Optima", "Segoe UI", "Candara", "Calibri", "Segoe", "Optima", Arial, sans-serif;
-    font-size: 0.8em;
-    height: auto; /* Ensure it adjusts based on content */
-    max-height: 100vh; /* Prevents exceeding the viewport height */
-    max-width: 35%;
-    padding: 0px;
-	z-index: var(--mylife-sidebar-z-index);
-}
-.widget {
-    align-items: center; /* rows get left-aligned */
-	background-color: rgba(240, 248, 255, 1);
-	border: 1px solid #666; /* Border color */
-	border-radius: 12px; /* rounded corners */
-    display: flex;
-    flex-direction: column;
-    min-height: 100px; /* Adjust based on your content */
-	width: 100%;
-}
-.widget .header {
-    background-color: #333; /* Black background */
-    color: #fff; /* White text */
-    padding: 10px; /* Padding inside the header */
-    font-size: 1.2em; /* Adjust the text size as needed */
-    text-align: center; /* Center the text */
-    border-radius: 12px 12px 0 0; /* Rounded top corners, flat bottom */
-    margin: 0; /* No margin to ensure it meets the container's edges */
-    width: 100%; /* Full width of the container */
 }
 /* MyLife error handling */
 .error {
@@ -760,7 +700,7 @@ body {
 .card {
 	background-color: #fff;
 	border: 1px solid rgba(0,0,0,.125);
-	border-radius: .25rem;
+	border-radius: var(--mylife-border-radius);
 	box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
 	padding: 1rem;
 	margin: 1rem;
@@ -770,7 +710,7 @@ codeblock,
 .code { /* employed by conversion to markdown */
 	background-color: #f8f9fa;
 	border: thin solid #ccc;
-	border-radius: 0.2rem;
+	border-radius: var(--mylife-border-radius);
 	margin: 0;
 	padding: 0 0.25rem;
 	resize: none;
@@ -792,10 +732,12 @@ codeblock {
 }
 .loader-container {
 	align-items: center;
+	background-color: #151535;
 	display: flex;
 	flex-direction: column;
+	font-family: "Raleway", serif;
 	justify-content: center;
-	height: 95vh;
+	height: 100%;
 	overflow: hidden;
 }
 .loader-text {
@@ -810,46 +752,37 @@ codeblock {
 	color: #6c757d;
 	text-align: center;
 }
-.mylife-widget {
-	align-items: flex-start;
-	display: flex;
-	width: 100%;
-}
 pre code {
 	color: rgb(100, 14, 14);
 	font-size: 0.8rem;
 }
 /* MyLife header */
-#header {
-    background-color: #007BFF;
-    padding: 0.5rem;
-    color: white;
-}
-.header-text {
-    font-weight: bold;
+.header {
+	color: #fff;
+	background: #1d4253;
+	max-height: 10vh;
+	padding: 0rem 1.5rem;
+	width: 100%;
 }
 /* MyLife general */
-#audio-icon {
+.audio-icon {
+	color: lightgray;
 	cursor: pointer;
+	font-size: 2rem;
 	margin: 0.5rem 0rem 0rem 0.5rem;
 }
-#audio-popup {
-	animation: fadeOut 1s 5s forwards;
-	border-color: #666;
-	border-radius: 5px;
-	bottom: 70px;  /* Positions it directly above the container */
-	background-color: rgba(240, 248, 255, 1);
-	color: #666;
+.audio-popup {
+	border: thin solid gray;
+	border-radius: var(--mylife-border-radius);
+	background-color: aliceblue;
+	color: black;
 	display: flex;
 	font-size: 1rem;
-	margin: 0px;
+	margin: 0.5rem 0 0 0.5rem;
 	max-width: 80%;
-	opacity: 1;
-	padding: 10px 10px;
-	position: absolute;
+	padding: 0.5rem;
 	width: auto;
-	z-index: calc(var(--mylife-sidebar-z-index) + 1);
-  }
+}
 .caret {
 	border-style: solid;
     cursor: pointer;
@@ -920,21 +853,32 @@ pre code {
     100% { color: red; }
 }
 /* media queries */
-@media screen and (min-width: 1024px) {
-    body {
-        margin-right: 3em; /* Increased margin for larger screens */
-        max-width: 1024px; /* Set a max-width to center the content */
-        margin-left: auto; /* Center the body horizontally */
-        margin-right: auto;
-    }
+@media (max-width: 800px) {
+	.top-nav ul {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		margin-top: -20px;
+		margin-left: -30px;
+		margin-right: -30px;
+		background: #1d4253;
+		flex-direction: column;
+		align-items: center;
+		display: none;
+		padding-bottom: 1rem;
+	}
+	.top-nav ul.show {
+		display: flex;
+	}
+	.top-nav li {
+		margin: 1rem 0;
+	}
+	.hamburger {
+		display: flex;
+	}
 }
 @media screen and (max-width: 768px) { /* Adjust the max-width as needed */
-    .page-column-collection {
-        flex-direction: column;
-    }
-	.main-content {
-		max-width: 100%;
-	}
 	.sidebar {
 		flex-basis: 100%;
 		max-width: 100%;
