@@ -11,18 +11,17 @@
 	flex: 1 0 60%;
     flex-direction: column;
     height: 100%; /* or a fixed height if needed */
-    margin: 0.5rem;
+    padding: 0.5rem;
     overflow-y: hidden; /* let the chat-section handle scrolling */
 	/* z-index: var(--chat-base-z-index); */
 }
 .chat-input-container {
-    flex: 0 0 auto;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    margin: 0.5em 0;
-    height: min-content;
+    max-height: min-content;
     width: 100%;
 }
 .chat-input-text {
@@ -124,6 +123,8 @@ button.chat-submit:disabled {
 .chat-message-text {
 	display: flex;
 	flex-direction: column;
+	overflow: auto;
+	overflow-wrap: anywhere;
 	padding: 0.25rem;
 	width: 100%;
 }
@@ -138,23 +139,22 @@ img.chat-message-thumb-small {
 	font-style: italic;
 }
 .chat-section { 
-    flex: 1 1 60%;
+    flex: 1 1 40vh;
     background: #ffffffad;
     border-radius: var(--mylife-border-radius);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-	min-height: 65vh;
+	min-height: 40vh;
     overflow-y: auto;
     padding: 0.5rem;
     width: 100%;
 }
 .chat-separator {
-	align-items: flex-end;
 	display: flex;
-	flex: 1 1 100%;
-	height: min-content;
+	flex: 0 1 auto;
+	flex-direction: column;
 	justify-content: flex-start;
 	width: 100%
 }
@@ -179,7 +179,8 @@ img.chat-message-thumb-small {
 	display: flex;
 	flex: 1 0 auto;
 	flex-direction: row;
-	margin-bottom: 0.5rem;
+	margin: 0.5rem;
+	margin-bottom: 0;
 	max-width: 100%;
 }
 .chat-active-item {
@@ -309,13 +310,13 @@ img.chat-message-thumb-small {
 .chat-refresh {
 	background-color: transparent;
 	border: none;
-	color: #888;
+	color: gray;
 	cursor: pointer;
 	display: flex;
 	font-size: 1.5rem;
 	padding-top: 0.2rem;
 	position: absolute; /* Position relative to window */
-	right: 40vw;
+	right: 41.5vw;
 	z-index: var(--chat-refresh-z-index);
 }
 .chat-thumb {

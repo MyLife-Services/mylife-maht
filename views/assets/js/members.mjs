@@ -43,6 +43,7 @@ let activeCategory,
     chatActiveItem,
     chatActiveThumb,
     mChatRefresh,
+    mLogout,
     pageLoader,
     sceneContinue,
     screen,
@@ -56,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     chatActiveItem = document.getElementById('chat-active-item')
     chatActiveThumb = document.getElementById('chat-active-item-thumb')
     mChatRefresh = document.getElementById('chat-refresh')
+    mLogout = document.getElementById('navigation-logout')
     pageLoader = document.getElementById('page-loader')
     sceneContinue = document.getElementById('experience-continue')
     spinner = document.getElementById('agent-spinner')
@@ -794,6 +796,7 @@ function mInitializePageListeners(){
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
     navigationLinks.forEach(link=>{
+        console.log('link', link)
         if(link.getAttribute('href')===currentPath){
             link.classList.add('active') // Add 'active' class to the current link
             link.addEventListener('click', event=>{

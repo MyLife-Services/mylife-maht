@@ -77,7 +77,10 @@ body {
 }
 a.login-btn {
 	background: #557a8b;
+	border: thin solid navy;
+	border-radius: var(--mylife-border-radius);
 	color: #fff;
+	cursor: pointer;
 	text-decoration: none;
 	padding: 0.5rem 1rem;
 	border-radius: var(--mylife-border-radius);
@@ -769,17 +772,15 @@ pre code {
 	margin: 0.5rem 0rem 0rem 0.5rem;
 }
 .audio-popup {
-	animation: fadeOut 1s 5s forwards;
-	border-color: #666;
+	border: thin solid gray;
 	border-radius: var(--mylife-border-radius);
-	background-color: rgb(197, 228, 255);
-	color: #666;
+	background-color: aliceblue;
+	color: black;
 	display: flex;
 	font-size: 1rem;
-	margin: 0px;
+	margin: 0.5rem 0 0 0.5rem;
 	max-width: 80%;
-	opacity: 1;
-	padding: 10px 10px;
+	padding: 0.5rem;
 	width: auto;
 }
 .caret {

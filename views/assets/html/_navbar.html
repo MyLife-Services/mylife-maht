@@ -9,6 +9,8 @@
     <% menu.forEach(_menuItem=>{ %>
         <li><a <%= _menuItem?.click?.length ? `onClick=${ _menuItem.click }` : '' %> href="<%= _menuItem.route %>"><%= _menuItem.display %></a></li>
     <% }) %>
-    <li><a id="navigation-login" class="login-btn" href="#">Member Login</a></li>
+    <% if(!locked){ %>
+        <li><a id="navigation-logout" class="login-btn">Logout</a></li>
+    <% } %>
 </ul>
 <div id="navigation-version" class="navigation-version"><%= version ? `v.${ version }` : '' %></div>

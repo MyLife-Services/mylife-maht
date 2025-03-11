@@ -34,8 +34,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mHelpSystemChat,
     mHelpType,
     mLoaded = false,
-    mLoginButton,
-    mLoginContainer,
+    mLogoutButton,
     mMainContent,
     mNavigation,
     mNavigationHamburger,
@@ -724,8 +723,7 @@ class Globals {
             mHelpRefresh = document.getElementById('help-chat-refresh')
             mHelpSystemChat = document.getElementById('help-chat') /* container for help system chat */
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
-            mLoginButton = document.getElementById('navigation-login')
-            mLoginContainer = document.getElementById('navigation-login-logout')
+            mLogoutButton = document.getElementById('navigation-logout')
             mMainContent = document.getElementById('main-content')
             mNavigation = document.getElementById('page-header')
             mNavigationHamburger = document.getElementById('hamburger')
@@ -766,25 +764,61 @@ class Globals {
             let iconHover = false
             mChatAudioIcon.addEventListener('click', mSpeechRecognition)
             mChatAudioIcon.addEventListener('touchend', mSpeechRecognition)
-            if(mChatAudioPopup){
-                mChatAudioIcon.addEventListener('mouseover', ()=>{
-                    if(!mRecognizingSpeech){
-                        iconHover = true
-                        this.show(mChatAudioPopup)
-                    }
-                })
-                mChatAudioIcon.addEventListener('mouseout', ()=>{
-                    if(iconHover && !mRecognizingSpeech){
-                        iconHover = false
-                        this.hide(mChatAudioPopup)
-                    }
-                })
-                mChatAudioPopup.addEventListener('click', ()=>this.hide(mChatAudioPopup))
-            }
+            mChatAudioIcon.addEventListener('mouseover', ()=>{
+                if(!mRecognizingSpeech){
+                    iconHover = true
+                    let audioPopupTimeout
+                    mChatAudioIcon.addEventListener('mouseover', _=>{
+                        if(!mRecognizingSpeech){
+                            iconHover = true
+                            audioPopupTimeout = setTimeout(()=>{
+                                mChatAudioPopup.classList.remove('hide', 'fade-out', 'show')
+                                void mChatAudioPopup.offsetWidth
+                                mChatAudioPopup.classList.add('fade-out')
+                            }, 3000)
+                            mChatAudioPopup.addEventListener('animationend', this.hide(mChatAudioPopup))
+                            this.show(mChatAudioPopup)
+                            this.scrollBottom()
+                        }
+                    })
+                    mChatAudioIcon.addEventListener('mouseout', _=>{
+                        if(audioPopupTimeout){
+                            clearTimeout(audioPopupTimeout)
+                            audioPopupTimeout = null
+                        }
+                        if(iconHover && !mRecognizingSpeech){
+                            iconHover = false
+                            mChatAudioPopup.classList.remove('fade-out')
+                            mChatAudioPopup.getAnimations().forEach(animation => animation.cancel())
+                            this.hide(mChatAudioPopup)
+                            this.scrollBottom()
+                        }
+                    })
+                    this.scrollBottom()
+                }
+            })
+            mChatAudioIcon.addEventListener('mouseout', _=>{
+                if(iconHover && !mRecognizingSpeech){
+                    iconHover = false
+                    mChatAudioPopup.classList.remove('hide', 'fade-out', 'show')
+                    mChatAudioPopup.getAnimations().forEach(animation => animation.cancel())
+                    this.hide(mChatAudioPopup)
+                    this.scrollBottom()
+                }
+            })
+            mChatAudioPopup.addEventListener('click', _=>this.hide(mChatAudioPopup))
+            setTimeout(()=>{
+                mChatAudioPopup.classList.remove('hide', 'fade-out')
+                void mChatAudioPopup.offsetWidth
+                mChatAudioPopup.classList.add('fade-out')
+                mChatAudioPopup.addEventListener('animationend', _=>{
+                    this.hide(mChatAudioPopup)})
+            }, 5000)
         }
         if(mNavigationHamburger && mNavigationMenu)
             mNavigationHamburger.addEventListener('click', _=>mNavigationMenu.classList.toggle('show'))
-        mLoginButton.addEventListener('click', this.loginLogout, { once: true })
+        if(mLogoutButton)
+            mLogoutButton.addEventListener('click', mLogout, { once: true })
         /* fetch data */
         await this.datamanager.alerts()
         /* page loaded */
@@ -1028,11 +1062,6 @@ class Globals {
             return false
         }
     }
-    async loginLogout(event){
-        this.getAttribute('data-locked')==='true'
-            ? mLogin()
-            : mLogout()
-    }
     /**
      * Remove an element from the DOM based upon its class name of `input-disappear`.
      * @returns {void}
@@ -1157,12 +1186,6 @@ class Globals {
     }
     get navigation(){
         return mNavigation
-    }
-    get navigationLogin(){
-        return mLoginContainer
-    }
-    get navigationLoginButton(){
-        return mLoginButton
     }
     get newGuid(){ 
         return mNewGuid()
@@ -1543,14 +1566,6 @@ function mLaunchTutorial(){
     let event = new CustomEvent('launchExperience', { detail: 'aae28fe4-30f9-4c29-9174-a0616569e762', })
     window.dispatchEvent(event)
     mHelpClose.click()
-}
-/**
- * Redirects to login page (?select).
- * @private
- * @returns {void}
- */
-function mLogin(){
-    window.location.href = '/?type=select'
 }
 /**
  * Logs out the current user and redirects to homepage.

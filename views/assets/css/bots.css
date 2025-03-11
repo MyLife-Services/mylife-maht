@@ -381,11 +381,12 @@
     max-height: 2.5rem;
     width: auto;
 }
-.collection-item-delete {
+.fa-trash.collection-item-delete {
     color: navy;
     display: flex;
     flex: 0 0 auto;
     font-size: 1.2rem;
+    font-style: normal;
     margin: 0 0.5rem;
 }
 .collection-item-delete:hover {
@@ -486,11 +487,12 @@
     margin: 0.22rem;
     padding: 0.22rem;
 }
-.collection-refresh {
+.fa-refresh.collection-refresh {
     color: aliceblue;
     display: flex;
     flex: 0 0 auto;
     font-size: 1.3rem;
+    font-style: normal;
     margin: 0 0.5rem;
 }
 .collection-title {
