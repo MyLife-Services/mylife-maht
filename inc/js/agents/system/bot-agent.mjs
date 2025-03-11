@@ -398,7 +398,7 @@ class BotAgent {
 	 * @param {String} mbr_id - The member id to use for conversation (optional)
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id){
+async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id){
 		let { id, llm_id, } = this.avatar
 		if(type==='experience'){
 			id = this.#factory.actor.id
@@ -407,7 +407,7 @@ class BotAgent {
 			// use  member avatar?
 			llm_id = scriptAdvisorLlmId
 		}
-		const Conversation = await mConversationStart(type, form, id, undefined, llm_id, this.#llm, this.#factory, prompt, undefined, mbr_id)
+    const Conversation = await mConversationStart(type, form, id, undefined, llm_id, this.#llm, this.#factory, prompt, undefined, mbr_id)
 		return Conversation
 	}
     /**

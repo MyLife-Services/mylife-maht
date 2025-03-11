@@ -235,6 +235,7 @@ async function mFetchStart(){
         case 'select':
             if(mChallengeMemberId){
                 await mAddMessage(`Please enter the passphrase for your account to continue...`, 'system', 6)
+
                 mGlobals.addChatElement(mCreateChallengeElement())
                 mGlobals.scrollBottom()
             } else
