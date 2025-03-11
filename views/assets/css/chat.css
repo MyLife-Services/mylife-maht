@@ -166,7 +166,7 @@ img.chat-message-thumb-small {
 	box-shadow: inset 7px 3px 6px 0px rgba(0, 0, 0, 0.3);
 	color: #fff;
 	cursor: not-allowed;
-	display: none;
+	display: flex;
 	font-size: 1em;
 	padding: 0.5em 1em;
 	margin: 0.5em;

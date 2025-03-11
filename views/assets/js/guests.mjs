@@ -19,8 +19,7 @@ let mChallengeMemberId,
     mSignupType = 'newsletter',
     mIgnoreEnd = true
 /* page div variables */
-let awaitButton,
-    challengeError,
+let challengeError,
     challengeInput,
     challengeInputText,
     challengeSubmit,
@@ -270,7 +269,6 @@ function mInitializeListeners(){
  */
 async function mLoadStart(){
     /* assign page div variables */
-    awaitButton = document.getElementById('await-button')
     mainContent = mGlobals.mainContent
     navigation = mGlobals.navigation
     pageLoader = document.getElementById('page-loader')
@@ -319,9 +317,8 @@ async function mRoutine(routineName){
  * @returns {void}
  */
 async function mShare(activeShareId){
-    const awaitOriginalContent = awaitButton.textContent.trim()
-    awaitButton.textContent = 'Retrieving scene from server...'
-    show(awaitButton)
+    const awaitButton = mGlobals.await('Retrieving scene from server...')
+    mGlobals.addChatElement(awaitButton)
     const inputText = document.getElementById('share-input')?.value
     const { instructions, scene, } = await mGlobals.datamanager.share(activeShareId, inputText)
     if(instructions?.length){
@@ -342,8 +339,7 @@ async function mShare(activeShareId){
         mShareProgress(activeShareId)
         mGlobals.scrollBottom()
     }
-    hide(awaitButton)
-    awaitButton.textContent = awaitOriginalContent
+    mGlobals.expunge(awaitButton)
 }
 function mShareProgress(activeShareId){
     /* share progress container */
@@ -390,14 +386,12 @@ function mShareProgress(activeShareId){
 async function mShareStart(activeShareId){
     const shareWelcomeText = 'Congratulations! A <i>MyLife</i> Member has shared a memory with you!<br />Please wait while I load and interpret the memory'
     const shareWelcome = await mAddMessage(shareWelcomeText, 'system')
-    const awaitOriginalContent = awaitButton.textContent.trim()
-    awaitButton.textContent = 'Connecting with Member Avatar to retrieve memory...'
-    show(awaitButton)
+    const awaitButton = mGlobals.await('Connecting with Member Avatar to retrieve memory...')
+    mGlobals.addChatElement(awaitButton)
     const shareHeader = await mGlobals.datamanager.shareHeader(activeShareId)
     shareWelcome.remove()
     const title = `<i>Prepare to experience</i>:<br />&mdash; <b>${ shareHeader.title ?? 'A MyLife Shared Memory' }</b>`
-    hide(awaitButton)
-    awaitButton.textContent = awaitOriginalContent
+    mGlobals.expunge(awaitButton)
     const shareTitle = await mAddMessage(title, 'share')
     if(shareHeader.warnings?.length){
         const shareWarning = `Before we proceed, <i>MyLife</i> needs to notify you that the shared content contains the following warnings: <b>${ shareHeader.warnings }</b><br />&mdash; Please confirm that you are willing to continue, or cancel out now.`
@@ -464,7 +458,9 @@ async function mShareStop(activeShareId){
         if(response?.responses?.length)
             await mAddMessage(response.responses, 'agent')
     }
-    hide(awaitButton)
+    const awaitButton = document.getElementById('await-button')
+    if(awaitButton)
+        mGlobals.expunge(awaitButton)
     show(mGlobals.MemberChat)
 }
 /**
@@ -528,7 +524,9 @@ async function mSubmitInput(event, message){
     event.stopPropagation()
 	event.preventDefault()
     hide(mGlobals.MemberChat)
-    show(awaitButton)
+    const awaitButton = mGlobals.await('Connecting with MyLife...')
+    mGlobals.addChatElement(awaitButton)
+    console.log('mSubmitInput', message, awaitButton)
     const chatData = {
         message,
         role: 'user',
@@ -537,7 +535,7 @@ async function mSubmitInput(event, message){
 	responses.forEach(gptMessage=>{
 		mAddMessage(gptMessage.message, 'agent', 2)
 	})
-    hide(awaitButton)
+    mGlobals.expunge(awaitButton)
     mGlobals.chatInput = null
     mGlobals.toggleChatInput()
     show(mGlobals.MemberChat)

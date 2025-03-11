@@ -1334,7 +1334,7 @@ async function mEvaluate(event){
     const { id: itemId, } = this.dataset
     if(itemId)
         setActiveItem(itemId)
-    toggleMemberInput(false, false)
+    toggleMemberInput(false)
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
@@ -1350,7 +1350,7 @@ async function mObscureEntry(event){
     const { id: itemId, } = this.dataset
     if(itemId)
         setActiveItem(itemId)
-    toggleMemberInput(false, false)
+    toggleMemberInput(false)
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
@@ -1415,13 +1415,13 @@ async function mReliveMemory(event){
         clearSystemChat()
     }
     mGlobals.removeDisappearingElements()
-    toggleMemberInput(false, false, `Reliving memory with `)
+    toggleMemberInput(false, `Reliving memory with `)
     unsetActiveItem()
     const { instruction, item, responses, success, } = await mGlobals.datamanager.memoryRelive(id, inputContent)
     if(success){
         const interrupts = ['endMemory', 'endReliving']
         const haltMemory = interrupts.includes(instruction?.command)
-        toggleMemberInput(false, true)
+        toggleMemberInput(false)
         addMessages(responses, haltMemory ? 'system' : 'relive')
         if(!!instruction){
             const functions = {

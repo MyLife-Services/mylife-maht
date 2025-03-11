@@ -37,9 +37,7 @@ let mAutoplay=false,
     mChatBubbleCount=0,
     mMemberId
 /* page div variables */
-let activeCategory,
-    awaitButton,
-    botBar,
+let botBar,
     chatActiveItem,
     chatActiveThumb,
     mChatRefresh,
@@ -52,7 +50,6 @@ let activeCategory,
 /* page load listener */
 document.addEventListener('DOMContentLoaded', async event=>{
     /* post-DOM population constants */
-    awaitButton = document.getElementById('await-button')
     botBar = document.getElementById('bot-bar')
     chatActiveItem = document.getElementById('chat-active-item')
     chatActiveThumb = document.getElementById('chat-active-item-thumb')
@@ -496,13 +493,13 @@ async function submit(message, hideMemberChat=true){
  * @param {boolean} connectingText - The server-connecting text, default: `Connecting with `.
  * @returns {void}
  */
-function toggleMemberInput(display=true, hidden=false, connectingText){
+function toggleMemberInput(display=true, connectingText){
     const { id, name, } = activeBot()
     decorateActiveBot()
     connectingText = connectingText
         ?? `Connecting with ${ name }...`
     mGlobals.toggleChatInput(display, 'slide-up')
-    mToggleMemberInput(display, hidden, connectingText)
+    mToggleMemberInput(display, connectingText)
 }
 /**
  * Toggles the visibility of an element with option to force state.
@@ -581,7 +578,6 @@ async function mAddMemberMessage(event){
     if (!memberMessage.length)
         return
     /* prepare request */
-    toggleMemberInput(false) /* hide */
     mAddMessage(memberMessage, 'member', 7)
     /* server request */
     const response = await submit(memberMessage)
@@ -608,7 +604,6 @@ async function mAddMemberMessage(event){
         .forEach(message=>{
             mAddMessage(message.message ?? message.content, Bot.type, 10)
         })
-    toggleMemberInput(true) /* show */
 }
 /**
  * Adds specified string message to interface.
@@ -873,17 +868,15 @@ function mToggleItemPopup(event){
     const { itemId, } = event.target.dataset
     togglePopup(itemId, true)
 }
-function mToggleMemberInput(display, hidden, connectingText){
+function mToggleMemberInput(display, connectingText){
     if(display){
-        mGlobals.hide(awaitButton)
-        awaitButton.classList.remove('slide-up')
+        const awaitButton = document.getElementById('await-button')
+        if(awaitButton)
+            mGlobals.expunge(awaitButton)
     } else {
-        awaitButton.classList.add('slide-up')
-        awaitButton.innerHTML = connectingText
-        mGlobals.show(awaitButton)
+        const awaitButton = mGlobals.await(connectingText)
+        mGlobals.addChatElement(awaitButton)
     }
-    if(hidden)
-        mGlobals.hide(awaitButton)
 }
 /**
  * Typewrites a message to a chat bubble.

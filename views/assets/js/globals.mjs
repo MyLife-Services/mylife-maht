@@ -832,6 +832,14 @@ class Globals {
     addChatElement(element){
         mChatSystem.appendChild(element)
     }
+    /**
+     * Creates an await button element for the user to interact with.
+     * @param {String} message - The text for button
+     * @returns (HTMLELement) - The await element
+     */
+    await(message){
+        return mCreateAwait(message)
+    }
     checkChatInput(){
         mCheckChatInput()
     }
@@ -1244,6 +1252,24 @@ function mCheckChatInput(){
     mChatInputField.style.height = 'auto' // Reset height to shrink if text is removed
     mChatInputField.style.height = mChatInputField.scrollHeight + 'px' // Set height based on content
     mToggleSubmitButton()
+}
+/**
+ * Creates an await button element for the user to interact with.
+ * @param {String} message - The text for button
+ * @returns (HTMLELement) - The await element
+ */
+function mCreateAwait(message){
+    const awaitButton = document.createElement('div')
+    awaitButton.classList.add('await-button')
+    awaitButton.id = 'await-button'
+    const spinner = document.createElement('span')
+    spinner.classList.add('spinner-border', 'spinner-border-sm', 'await-button-spinner')
+    const text = document.createElement('span')
+    text.classList.add('await-button-text')
+    text.textContent = message
+    awaitButton.appendChild(spinner)
+    awaitButton.appendChild(text)
+    return awaitButton
 }
 /**
  * Initializes the speech recognition object, when available
