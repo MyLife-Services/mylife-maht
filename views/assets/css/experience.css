@@ -4,8 +4,9 @@
     --dialog-final-opacity: 0.5;
     --experience-base-z-index: calc(var(--mylife-base-z-index) + 100);
 }
-/* modal experience screen */
-.modal-screen {
+/* modal experience/share screen */
+.modal-screen,
+.modal-share {
     animation: dropDown 1.2s ease-in forwards; /* @todo: convert to class */
     background-color: rgba(0, 0, 0, 0.88); /* Black with opacity */
     border: 1.2em solid rgb(0,0,0);
@@ -20,6 +21,102 @@
     top: -100vh; /* Start above the screen */
     width: 100vw;
     z-index: var(--experience-base-z-index);
+}
+.modal-share {
+    animation: none;
+    cursor: default;
+    display: none; /* Hidden by default */
+    left: 0;
+    top: 0;
+}
+.modal-share-anonymous,
+.modal-share-guessable { /* checkbox containers */
+    color: aliceblue;
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+}
+.modal-share-checkbox-label { /* checkbox labels */
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+.modal-share-close {
+    align-self: flex-end;
+    background: transparent;
+    border: none;
+    color: red;
+    font-size: 2rem;
+}
+.modal-share-content {
+    background: #fff;
+    border: 1.2rem solid rgb(0,0,0);
+    border-radius: 5px;
+    margin: 0;
+    padding: 2rem;
+    position: relative;
+    max-width: 75vw;
+    width: auto;
+}
+.modal-share-button.button {
+    margin: 1rem;
+    padding: 0.5rem;
+    max-width: 25vw;
+    min-width: 10rem;
+}
+.modal-share-options {
+    display: flex;
+    gap: 0.5em;
+    margin: 1rem;
+}
+.modal-share-options-row {
+    color: aliceblue;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.modal-share-header {
+    align-items: flex-start;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.2em;
+    width: 100%;
+}
+.modal-share-submit {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+}
+.modal-share-summary {
+    background-color: cadetblue;
+    display: flex;
+    font-size: 0.9rem;
+    height: auto;
+    margin: 0.5rem;
+    max-height: 40vh;
+    overflow: auto;
+    padding: 0.5rem;
+    width: fit-content;
+}
+.modal-share-textarea {
+    background-color: aliceblue;
+    border: 1px solid lightgray;
+    border-radius: 0.3rem;
+    color: #333;
+    font-size: 1rem;
+    height: 6rem;
+    margin: 0.2rem;
+    padding: 0.2rem;
+    resize: none;
+}
+.modal-share-textarea-label {
+    color: aliceblue;
+    font-size: 1rem;
+    font-weight: bold;
+}
+.modal-share-title {
+    color: aliceblue;
+    font-size: 1.5rem;
+    font-weight: bold;
 }
 /* experience transport */
 #experience-breadcrumb {
@@ -496,7 +593,10 @@
     animation: fadeIn 6s ease-in forwards;
 }
 .fade-out {
-    animation: fadeOut 2s ease-out forwards;
+    animation: fadeOut 1s ease-out forwards;
+}
+.fade-out-5 {
+    animation: fadeOut 5s ease-out forwards;
 }
 .flip {
     animation: flipAnimation 0.6s ease-in-out forwards;

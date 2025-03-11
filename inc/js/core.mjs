@@ -236,7 +236,9 @@ class Organization extends Member {	//	form=organization
 }
 class MyLife extends Organization {	// form=server
 	#avatar // MyLife's private class avatar, _same_ object reference as Member Class's `#avatar`
+	#currentShares = [] // array of current shares
 	#factory
+	#shareAgent
 	#version = '0.0.0' // indicates error
 	constructor(Factory){ // no session presumed to exist
 		super(Factory)

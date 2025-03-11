@@ -1,25 +1,13 @@
 <div id="chat-container" class="chat-container">
-	<div id="chat-system" class="chat-system">
+	<div id="chat-system" class="chat-section">
 		<!-- Agent and User messages will be added via innerHTML here -->
 	</div>
-	<div id="chat-member" class="chat-member">
-		<div id="chat-member-container" class="chat-member-container">
-			<div id="audio-popup" class="popup"></div>
-			<div id="audio-icon" class="label fas fa-microphone-lines"></div>
-			<textarea id="chat-message" class="chat-input"></textarea>
-			<button id="chat-submit" class="button chat-submit" type="button" disabled>Submit</button>
-		</div>
+	<div id="chat-separator" class="chat-separator">
+		<div id="audio-popup" class="audio-popup"></div>
 	</div>
-	<button id="await-button" class="await-button" type="button" disabled>
-		<span class="spinner-border spinner-border-sm await-button-spinner" role="status" aria-hidden="true"></span>
-		Connecting with <%= avatar.name %>...
-	</button>
+	<div id="chat-input-container" class="chat-input-container">
+		<div id="audio-icon" class="label fas fa-microphone-lines audio-icon"></div>
+		<textarea id="chat-input-text" class="chat-input-text"></textarea>
+		<button id="chat-input-submit" class="button chat-submit" type="button" disabled>Submit</button>
+	</div>
 </div>
-<script>
-	/* write variable data to window object */
-	window.mylifeAvatar = {
-		name: '<%= avatar.name %>',
-		names: '<%= avatar.names %>'.split(',').map(name => name.trim()),
-		nickname: '<%= avatar.nickname %>',
-	}
-</script>

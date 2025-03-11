@@ -46,9 +46,11 @@
 			}
 		}
 	],
-    "name": "privacy",
+    "name": "routine_privacy",
+	"pause": 15,
     "public": true,
     "status": "active",
     "title": "MyLife's Privacy Policy",
+	"typeSpeed": 2,
     "version": 1
 }

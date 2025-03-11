@@ -44,7 +44,7 @@ async function entry(ctx){
 async function experienceBuilder(ctx){
     await mAPIKeyValidation(ctx)
     const { assistantType, mbr_id } = ctx.state
-    const { eid, sid } = ctx.params
+    const { eid, } = ctx.params
     const { experience } = ctx.request.body?.experience
     if(!experience)
         ctx.throw(400, 'No experience provided for builder. Use `experience` field.')
@@ -314,9 +314,9 @@ async function upload(ctx){
  * @returns {Promise<void>}
  */
 async function mAPIKeyValidation(ctx){ // transforms ctx.state
-    if(ctx.params.mid === ':mid')
-        ctx.params.mid = undefined
-    const memberId = ctx.params?.mid
+    if(ctx.query.mid === ':mid')
+        ctx.query.mid = undefined
+    const memberId = ctx.query?.mid
         ??  ctx.request.body?.mbr_id
         ??  ctx.request.body?.memberKey
         ??  ctx.session?.APIMemberKey

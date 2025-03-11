@@ -40,9 +40,11 @@
 			}
 		}
 	],
-    "name": "about",
+    "name": "routine_about",
+	"pause": 8,
     "public": true,
     "status": "active",
     "title": "About MyLife",
+	"typeSpeed": 5,
     "version": 1
 }

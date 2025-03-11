@@ -11,13 +11,12 @@ const mHelpInitiatorContent = {
 const mNewGuid = ()=>crypto.randomUUID()
 /* module variables */
 let mActiveHelpType, // active help type, currently entire HTMLDivElement
-    mAudioIcon,
-    mAudioPopup,
+    mChatAudioIcon,
+    mChatAudioPopup,
     mAvatarName,
     mChatContainer,
-    mChatInput,
-    mChatMember,
-    mChatMemberContainer,
+    mChatInputContainer,
+    mChatInputField,
     mChatSubmit,
     mChatSystem,
     mDatamanager,
@@ -35,12 +34,14 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mHelpSystemChat,
     mHelpType,
     mLoaded = false,
-    mLoginButton,
-    mLoginContainer,
+    mLogoutButton,
     mMainContent,
     mNavigation,
+    mNavigationHamburger,
     mNavigationHelp,
     mNavigationHelpIcon,
+    mNavigationMenu,
+    mPage,
     mPlaceholder,
     mRecognition,
     mRecognizingSpeech = false,
@@ -90,6 +91,14 @@ class Datamanager {
         return response
     }
     /* public functions */
+    async acceptShareWarnings(shareId){
+        const url = `/share/accept/${ shareId }`
+        const options = {
+            method: 'PATCH',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
     async alerts(){
         const url = `alerts`
         const responses = await this.#fetch(url)
@@ -305,13 +314,32 @@ class Datamanager {
         const response = await this.#fetch(url, options)
         return response
     }
+    async getShare(shareId){
+        const url = `/members/share/${ shareId }`
+        const response = await this.#fetch(url)
+        return response
+    }
+    async getShares(itemId){
+        const url = `/members/shares`
+        if(itemId?.length)
+            url += `/${ itemId }`
+        const response = await this.#fetch(url)
+        return response
+    }
+    /**
+     * Fetches the greetings from the server.
+     * @param {Boolean} dynamic - Whether or not to use dynamic greetings
+     * @returns {Promise<object>} - The server response object
+     * @property {Array} response - Array of greeting message objects { agent, message, response_time, type, }
+     * @property {Boolean} success - Whether or not the request was successful
+     */
     async greetings(dynamic=false){
         dynamic = '?dyn=' + dynamic
         let validation = new URLSearchParams(window.location.search).get('vld')
         validation = validation?.length
             ? `&vld=${ validation }`
             : ''
-        const url = `greetings${ dynamic + validation }`
+        const url = `greetings/${ dynamic + validation }`
         const response = await this.#fetch(url)
         const responses = ( response?.responses ?? [] )
             .map(response=>response.message)
@@ -467,6 +495,100 @@ class Datamanager {
         const response = await this.#fetch(url)
         return response
     }
+    /**
+     * Conducts a share of a memory with recipient guest.
+     * @param {Guid} shareId - The share ID
+     * @param {String} input - Whether or not to use dynamic greetings
+     * @returns {Promise<object>} - The server response object
+     * @property {Array} response - Array of greeting message objects { agent, message, response_time, type, }
+     * @property {Boolean} success - Whether or not the request was successful
+     */
+    async share(shareId, input){
+        const url = `/share/${ shareId }`
+        console.log(`share: ${ shareId }`, input)
+        const options = {
+            body: JSON.stringify({ input, }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'PATCH',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async shareUpdate(shareData){
+        const { id, } = shareData
+        const url = `/members/share/${ id ?? '' }`
+        const options = {
+            body: JSON.stringify(shareData),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'PATCH',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    /**
+     * Creates a new member share on the server.
+     * @param {object} shareData - The share data
+     * @returns 
+     */
+    async shareCreate(shareData){
+        const url = `/members/share`
+        const options = {
+            body: JSON.stringify(shareData),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async shareDelete(shareId){
+        const url = `members/share/${ shareId }`
+        const options = {
+            method: 'DELETE',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async shareHeader(shareId){
+        const url = `/share/header/${ shareId }`
+        const response = await this.#fetch(url)
+        return response
+    }
+    async shareFeedback(shareId, isPositive=true, message){
+        const url = `/share/feedback/${ shareId }`
+        const options = {
+            body: JSON.stringify({ isPositive, message, }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async shareStop(shareId){
+        const url = `/share/stop/${ shareId }`
+        const response = await this.#fetch(url)
+        return response
+    }
+    async shareUpdate(shareData){
+        const { id, } = shareData
+        const url = `/members/share/${ id ?? '' }`
+        const options = {
+            body: JSON.stringify(shareData),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'PATCH',
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
     async signupStatus(){
         const response = await this.#fetch('signup')
         return response
@@ -565,7 +687,10 @@ class Datamanager {
         }
         const response = await this.#fetch(url, options)
         return response
-
+    }
+    async validateShare(shareId){
+        const { instanceId, } = await this.#fetch(`/share/${ shareId }`)
+        return instanceId
     }
 }
 class Globals {
@@ -577,13 +702,12 @@ class Globals {
                 ?? 'MyLife'
             mPlaceholder = `Type your message to ${ mAvatarName }...`
             /* elements */
-            mAudioIcon = document.getElementById('audio-icon')
-            mAudioPopup = document.getElementById('audio-popup')
+            mChatAudioIcon = document.getElementById('audio-icon')
+            mChatAudioPopup = document.getElementById('audio-popup')
             mChatContainer = document.getElementById('chat-container')
-            mChatInput = document.getElementById('chat-message')
-            mChatMember = document.getElementById('chat-member')
-            mChatMemberContainer = document.getElementById('chat-member-container')
-            mChatSubmit = document.getElementById('chat-submit')
+            mChatInputContainer = document.getElementById('chat-input-container')
+            mChatInputField = document.getElementById('chat-input-text')
+            mChatSubmit = document.getElementById('chat-input-submit')
             mChatSystem = document.getElementById('chat-system')
             mDatamanager = new Datamanager()
             mHelpAwait = document.getElementById('help-await')
@@ -599,19 +723,23 @@ class Globals {
             mHelpRefresh = document.getElementById('help-chat-refresh')
             mHelpSystemChat = document.getElementById('help-chat') /* container for help system chat */
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
-            mLoginButton = document.getElementById('navigation-login-logout-button')
-            mLoginContainer = document.getElementById('navigation-login-logout')
+            mLogoutButton = document.getElementById('navigation-logout')
             mMainContent = document.getElementById('main-content')
-            mNavigation = document.getElementById('navigation-container')
+            mNavigation = document.getElementById('page-header')
+            mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
+            mNavigationMenu = document.getElementById('navigation-menu')
+            mPage = document.getElementById('page-header')
             mSidebar = document.getElementById('sidebar')
+                ?? document.getElementById('bot-container')
             /* element initialization */
-            if(mChatInput){
+            if(mChatInputField){
                 this.chatInput = null
-                mChatInput.placeholder = mPlaceholder
+                this.chatInputPlaceholder = mPlaceholder
             }
-            mSpeechInitialization(this.checkChatInput)
+            if(mChatAudioIcon)
+                mSpeechInitialization(this.checkChatInput)
             this.init()
         }
     }
@@ -620,8 +748,8 @@ class Globals {
         /* global visibility settings */
         this.hide(mHelpContainer)
         /* assign event listeners */
-        if(mChatInput)
-            mChatInput.addEventListener('input', this.checkChatInput)
+        if(mChatInputField)
+            mChatInputField.addEventListener('input', this.checkChatInput)
         if(mNavigationHelp){
             mHelpClose.addEventListener('click', mToggleHelp)
             mHelpInputSubmit.addEventListener('click', mSubmitHelp)
@@ -632,27 +760,65 @@ class Globals {
             Array.from(mHelpType.children)?.[0]?.click() // default to first type
             mToggleHelpSubmit()
         }
-        if(mAudioIcon){
+        if(mChatAudioIcon){
             let iconHover = false
-            mAudioIcon.addEventListener('click', mSpeechRecognition)
-            mAudioIcon.addEventListener('touchend', mSpeechRecognition)
-            if(mAudioPopup){
-                mAudioIcon.addEventListener('mouseover', ()=>{
-                    if(!mRecognizingSpeech){
-                        iconHover = true
-                        this.show(mAudioPopup)
-                    }
-                })
-                mAudioIcon.addEventListener('mouseout', ()=>{
-                    if(iconHover && !mRecognizingSpeech){
-                        iconHover = false
-                        this.hide(mAudioPopup)
-                    }
-                })
-                mAudioPopup.addEventListener('click', ()=>this.hide(mAudioPopup))
-            }
+            mChatAudioIcon.addEventListener('click', mSpeechRecognition)
+            mChatAudioIcon.addEventListener('touchend', mSpeechRecognition)
+            mChatAudioIcon.addEventListener('mouseover', ()=>{
+                if(!mRecognizingSpeech){
+                    iconHover = true
+                    let audioPopupTimeout
+                    mChatAudioIcon.addEventListener('mouseover', _=>{
+                        if(!mRecognizingSpeech){
+                            iconHover = true
+                            audioPopupTimeout = setTimeout(()=>{
+                                mChatAudioPopup.classList.remove('hide', 'fade-out', 'show')
+                                void mChatAudioPopup.offsetWidth
+                                mChatAudioPopup.classList.add('fade-out')
+                            }, 3000)
+                            mChatAudioPopup.addEventListener('animationend', this.hide(mChatAudioPopup))
+                            this.show(mChatAudioPopup)
+                            this.scrollBottom()
+                        }
+                    })
+                    mChatAudioIcon.addEventListener('mouseout', _=>{
+                        if(audioPopupTimeout){
+                            clearTimeout(audioPopupTimeout)
+                            audioPopupTimeout = null
+                        }
+                        if(iconHover && !mRecognizingSpeech){
+                            iconHover = false
+                            mChatAudioPopup.classList.remove('fade-out')
+                            mChatAudioPopup.getAnimations().forEach(animation => animation.cancel())
+                            this.hide(mChatAudioPopup)
+                            this.scrollBottom()
+                        }
+                    })
+                    this.scrollBottom()
+                }
+            })
+            mChatAudioIcon.addEventListener('mouseout', _=>{
+                if(iconHover && !mRecognizingSpeech){
+                    iconHover = false
+                    mChatAudioPopup.classList.remove('hide', 'fade-out', 'show')
+                    mChatAudioPopup.getAnimations().forEach(animation => animation.cancel())
+                    this.hide(mChatAudioPopup)
+                    this.scrollBottom()
+                }
+            })
+            mChatAudioPopup.addEventListener('click', _=>this.hide(mChatAudioPopup))
+            setTimeout(()=>{
+                mChatAudioPopup.classList.remove('hide', 'fade-out')
+                void mChatAudioPopup.offsetWidth
+                mChatAudioPopup.classList.add('fade-out')
+                mChatAudioPopup.addEventListener('animationend', _=>{
+                    this.hide(mChatAudioPopup)})
+            }, 5000)
         }
-        mLoginButton.addEventListener('click', this.loginLogout, { once: true })
+        if(mNavigationHamburger && mNavigationMenu)
+            mNavigationHamburger.addEventListener('click', _=>mNavigationMenu.classList.toggle('show'))
+        if(mLogoutButton)
+            mLogoutButton.addEventListener('click', mLogout, { once: true })
         /* fetch data */
         await this.datamanager.alerts()
         /* page loaded */
@@ -665,6 +831,14 @@ class Globals {
      */
     addChatElement(element){
         mChatSystem.appendChild(element)
+    }
+    /**
+     * Creates an await button element for the user to interact with.
+     * @param {String} message - The text for button
+     * @returns (HTMLELement) - The await element
+     */
+    await(message){
+        return mCreateAwait(message)
     }
     checkChatInput(){
         mCheckChatInput()
@@ -896,11 +1070,6 @@ class Globals {
             return false
         }
     }
-    async loginLogout(event){
-        this.getAttribute('data-locked')==='true'
-            ? mLogin()
-            : mLogout()
-    }
     /**
      * Remove an element from the DOM based upon its class name of `input-disappear`.
      * @returns {void}
@@ -935,7 +1104,7 @@ class Globals {
         this.chatInput = value
         if(placeholder?.length)
             this.chatInputPlaceholder = placeholder
-        mChatInput.focus()
+        mChatInputField.focus()
     }
     /**
      * Last stop before Showing an element and kicking off animation chain. Adds universal run-once animation-end listener, which may include optional callback functionality.
@@ -997,16 +1166,16 @@ class Globals {
         return mChatContainer
     }
     get chatInput(){
-        return mChatInput.value.trim()
+        return mChatInputField.value.trim()
     }
     set chatInput(value){
-        mChatInput.value = value
+        mChatInputField.value = value
     }
     get chatInputPlaceholder(){
-        return mChatInput.placeholder
+        return mChatInputField.placeholder
     }
     set chatInputPlaceholder(value){
-        mChatInput.placeholder = value
+        mChatInputField.placeholder = value
     }
     get ChatInput(){
         return mChatInput
@@ -1021,19 +1190,16 @@ class Globals {
         return mMainContent
     }
     get MemberChat(){ // return member chat container HTMLElement
-        return mChatMember
+        return mChatInputContainer
     }
     get navigation(){
         return mNavigation
     }
-    get navigationLogin(){
-        return mLoginContainer
-    }
-    get navigationLoginButton(){
-        return mLoginButton
-    }
     get newGuid(){ 
         return mNewGuid()
+    }
+    get page(){
+        return mPage
     }
     get sidebar(){
         return mSidebar
@@ -1052,10 +1218,10 @@ class Globals {
 function mAddDialogBubble(chatContainer, text, type='agent', subType){
     const bubble = document.createElement('div')
     bubble.id = `chat-dialog-${ type }-${ mNewGuid() }`
-    bubble.classList.add('chat-bubble', `${ type }-bubble`)
+    bubble.classList.add('chat-message', `chat-message-${ type }`)
     bubble.innerHTML = text
     if(subType)
-        bubble.classList.add(`${ subType }-bubble`)
+        bubble.classList.add(`chat-message-${ subType }`)
     chatContainer.appendChild(bubble)
 }
 /**
@@ -1083,9 +1249,27 @@ function mAnimationEnd(animation, callbackFunction){
         callbackFunction(animation)
 }
 function mCheckChatInput(){
-    mChatInput.style.height = 'auto' // Reset height to shrink if text is removed
-    mChatInput.style.height = mChatInput.scrollHeight + 'px' // Set height based on content
+    mChatInputField.style.height = 'auto' // Reset height to shrink if text is removed
+    mChatInputField.style.height = mChatInputField.scrollHeight + 'px' // Set height based on content
     mToggleSubmitButton()
+}
+/**
+ * Creates an await button element for the user to interact with.
+ * @param {String} message - The text for button
+ * @returns (HTMLELement) - The await element
+ */
+function mCreateAwait(message){
+    const awaitButton = document.createElement('div')
+    awaitButton.classList.add('await-button')
+    awaitButton.id = 'await-button'
+    const spinner = document.createElement('span')
+    spinner.classList.add('spinner-border', 'spinner-border-sm', 'await-button-spinner')
+    const text = document.createElement('span')
+    text.classList.add('await-button-text')
+    text.textContent = message
+    awaitButton.appendChild(spinner)
+    awaitButton.appendChild(text)
+    return awaitButton
 }
 /**
  * Initializes the speech recognition object, when available
@@ -1095,10 +1279,10 @@ function mSpeechInitialization(inputCheckCallback){
     /* speech recognition */
     if(!('webkitSpeechRecognition' in window)){
         alert('MyLife requires a browser that supports Speech Recognition. Please use Google Chrome or Microsoft Edge.')
-        mAudioIcon.style.display = 'none'
+        mChatAudioIcon.style.display = 'none'
         return
     }
-    mAudioPopup.innerHTML = mAudioNotRecording
+    mChatAudioPopup.innerHTML = mAudioNotRecording
     let finalTranscript='',
         ignoreEnd = false
     mRecognition = new webkitSpeechRecognition()
@@ -1118,11 +1302,11 @@ function mSpeechInitialization(inputCheckCallback){
     }
     mRecognition.onend = ()=>{
         mRecognizingSpeech = false
-        mAudioIcon.classList.remove('listening-mic')
-        mChatInput.classList.remove('listening')
-        mChatInput.placeholder = mPlaceholder
-        mAudioPopup.innerHTML = mAudioNotRecording
-        mHide(mAudioPopup)
+        mChatAudioIcon.classList.remove('listening-mic')
+        mChatInputField.classList.remove('listening')
+        mChatInputField.placeholder = mPlaceholder
+        mChatAudioPopup.innerHTML = mAudioNotRecording
+        mHide(mChatAudioPopup)
         mToggleSubmitButton() // no content keeps button disabled
         if(mRecognition?.trigger){
             mChatSubmit.click()
@@ -1147,7 +1331,7 @@ function mSpeechInitialization(inputCheckCallback){
                 const triggerWords = ['complete', 'done', 'end', 'finish', 'finished', 'send', 'stop', 'submit'] // trigger words
                 if(triggerWords.some(word=>finalPhrase==word)){
                     finalTranscript += finalPhrase.split(' ').slice(0, -1).join(' ') // remove trigger words
-                    mChatInput.value = finalTranscript
+                    mChatInputField.value = finalTranscript
                     if(finalPhrase.endsWith('send') || finalPhrase.endsWith('submit'))
                         mRecognition.trigger = true // request to submit input
                     mRecognition.stop() // Stop recognition
@@ -1158,23 +1342,23 @@ function mSpeechInitialization(inputCheckCallback){
                 interimTranscript += event.results[i][0].transcript
             }
         }
-        mChatInput.value = finalTranscript + interimTranscript
+        mChatInputField.value = finalTranscript + interimTranscript
         mCheckChatInput() // adjust input box height
     }
     mRecognition.onstart = ()=>{
         finalTranscript = ''
         // transform popup content
-        mAudioPopup.innerHTML = mAudioRecording
-        mShow(mAudioPopup)
-        mChatInput.innerHTML = finalTranscript
-        mAudioIcon.classList.add('listening-mic')
-        mChatInput.classList.add('listening')
-        mChatInput.placeholder = 'Speak aloud to capture your voice...'
+        mChatAudioPopup.innerHTML = mAudioRecording
+        mShow(mChatAudioPopup)
+        mChatInputField.innerHTML = finalTranscript
+        mChatAudioIcon.classList.add('listening-mic')
+        mChatInputField.classList.add('listening')
+        mChatInputField.placeholder = 'Speak aloud to capture your voice...'
         mRecognizingSpeech = true
     }
     /* speech synthesis */
     if(!('speechSynthesis' in window)){
-        mAudioIcon.style.display = 'none'
+        mChatAudioIcon.style.display = 'none'
         alert('MyLife requires a browser that supports Speech Synthesis. Please use Google Chrome or Microsoft Edge.')
         return
     }
@@ -1410,14 +1594,6 @@ function mLaunchTutorial(){
     mHelpClose.click()
 }
 /**
- * Redirects to login page (?select).
- * @private
- * @returns {void}
- */
-function mLogin(){
-    window.location.href = '/?type=select'
-}
-/**
  * Logs out the current user and redirects to homepage.
  * @private
  * @async
@@ -1576,16 +1752,16 @@ function mToggleHelpSubmit(event){
  */
 function mToggleChatInput(display, classList){
     if(display){
-        mShow(mChatMemberContainer)
-        mChatInput.focus()
+        mShow(mChatInputContainer)
+        mChatInputField.focus()
         if(classList)
-            mChatInput.classList.add(classList)
-        mChatInput.value = null
+            mChatInputField.classList.add(classList)
+        mChatInputField.value = null
     } else {
-        mHide(mChatMemberContainer)
-        mChatInput.classList.remove('fade-in')
+        mHide(mChatInputContainer)
+        mChatInputField.classList.remove('fade-in')
         if(classList)
-            mChatInput.classList.remove(classList)
+            mChatInputField.classList.remove(classList)
     }
     mToggleSubmitButton()
 }
@@ -1595,7 +1771,7 @@ function mToggleChatInput(display, classList){
  * @returns {void}
  */
 function mToggleSubmitButton(){
-    const hasInput = mChatInput.value.trim().length ?? false
+    const hasInput = mChatInputField.value.trim().length ?? false
     mChatSubmit.disabled = !hasInput
     mChatSubmit.style.cursor = hasInput ? 'pointer' : 'not-allowed'
 }

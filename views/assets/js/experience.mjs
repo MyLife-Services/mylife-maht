@@ -1,6 +1,7 @@
 /* imports */
 import {
     addMessage,
+    addMessages,
     clearSystemChat,
     escapeHtml,
     globals,
@@ -103,7 +104,7 @@ async function experienceEnd(){
     /* end experience onscreen */
     sceneStage.innerHTML = '' // clear full-screen character-lanes
     clearSystemChat() // clear member chat lanes
-    stageTransition(null, true) // request force-clear of member experience
+    stageTransition(undefined, true) // request force-clear of member experience
 }
 /**
  * Play experience onscreen, mutates `mExperience` object.
@@ -238,7 +239,7 @@ async function routine(script){
         if(response.success)
             script = response?.routine
     }
-    const { cast, description, developers, events, purpose, title } = script
+    const { cast, description, developers, events, pause=3, purpose, title, typeSpeed, } = script
     if(!events?.length)
         throw new Error("No events found")
     if(!cast?.length)
@@ -262,8 +263,9 @@ async function routine(script){
             if(index===(events.length-1))
                 toggleMemberInput(true)
             activeTimers.shift()
-        }, index * 3000 + (index * 750))
+        }, ( index * pause * 1000 ))
         activeTimers.push(timer)
+        console.log("Routine event", timer, activeTimers)
     })
     /* inline functions */
     function getCharacter(id='avatar'){
@@ -290,17 +292,13 @@ async function routine(script){
     }
     function routineExecute(event){
         const { character=activeCharacter?.id, dialog } = event
-        let { message } = dialog
+        let { message, } = dialog
         if(!character || character!==activeCharacter?.id)
             activeCharacter = getCharacter(character)
         const isQ = activeCharacter.type==='system'
         if(!isQ && activeCharacter?.bot_id)
             setActiveBot(activeCharacter.bot_id, false)
-        const options = {
-            bubbleClass: isQ ? 'system-bubble' : 'routine-bubble',
-            role: activeCharacter.type,
-        }
-        addMessage(message, options)
+        addMessages([message], activeCharacter.type, typeSpeed, pause)
         if(!activeTimers.length)
             routineEnd(false)
     }
@@ -309,7 +307,7 @@ async function routine(script){
         activeTimers.forEach(clearTimeout)
         toggleMemberInput(true)
         if(aborted)
-            addMessage(routineAbortMessage)
+            addMessage(routineAbortMessage, 'error')
         console.log("Routine ended")
     }
 }
@@ -731,7 +729,7 @@ function mEventInput(){
         return animationSequence
     const { complete, inputId, inputPlaceholder, inputType, variable, } = input
     let element,
-        elementId = `chat-member`
+        elementId = `chat-input-container`
     if(complete) // @stub - if complete, do not re-render? determine reaction; is it replay?
         return
     if(mBackdrop==='full'){
@@ -944,7 +942,7 @@ function mSceneTransition(){
                 })
                 .forEach(character=>{
                     /* create/move character lane */
-                    mAddCharacterLane(null, character, true)
+                    mAddCharacterLane(undefined, character, true)
                 })
             mUpdateModerator(true) // clear moderator
             memberSceneTransition()

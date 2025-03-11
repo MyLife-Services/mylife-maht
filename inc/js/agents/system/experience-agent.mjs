@@ -1,5 +1,5 @@
-import LLMServices from "../../mylife-llm-services.mjs"
 import BotAgent from "./bot-agent.mjs"
+import { Share, } from '../../mylife-models.mjs'
 import { Marked } from 'marked'
 /* module constants */
 const mAvailableEventActionMap = {
@@ -272,7 +272,6 @@ class ExperienceAgent {
             Experience = mExperience(experienceData, this.#botAgent, this.#llm, this.#factory, this.#variables)
             this.#experiences.push(Experience)
         }
-        console.log()
         await Experience.run(memberInput)
         return Experience
     }
@@ -376,6 +375,203 @@ class ExperienceEvent {
         this.#portrayed = !!portrayed
     }
 }
+/* ShareAgent class */
+/**
+ * @class ShareAgent
+ * Handles the `sharing` process for Mylife currently only via System Avatar.
+ */
+class ShareAgent {
+    /* private properties */
+    #avatar
+    #botAgent // @todo - unclear if necessary
+    #factory
+    #llm
+    #shares=[] // current-list of active shares
+    constructor(obj={}, avatar, factory, llm){
+        this.#avatar = avatar
+        this.#factory = factory
+        this.#llm = llm
+        obj = this.#factory.globals.sanitize(obj)
+        Object.assign(this, obj)
+    }
+    /* public functions */
+    /**
+     * Accepts the warnings for a share.
+     * @param {Guid} instanceId - The Share instance id
+     * @returns {Boolean} - The Share acceptance status
+     */
+    acceptWarnings(instanceId){
+        const Share = this.share(instanceId)
+        if(!!Share)
+            return Share.acceptWarnings()
+        else
+            throw new Error('Share not found')
+    }
+    /**
+     * Create share with new data.
+     * @param {object} shareData - The share data object
+     * @returns {Promise<object>} - The updated Share object
+     */
+    async create(shareData){
+        const share = await this.#factory.createShare(shareData)
+        this.#shares.push(share.id)
+        return share
+    }
+    /**
+     * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+     * @param {Guid} sid - The Share id
+     * @returns {Promise<Boolean>} - Success or failure of the operation
+     */
+    async delete(shareId){
+        const { itemId, } = await this.getShare(shareId)
+        this.#factory.deleteShare(shareId, itemId)
+        this.#shares = this.#shares.filter(share=>share!==shareId)
+        return true
+    }
+    /**
+     * Get a share data by id.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<object>} - The MemberShare document
+     */
+    async getShare(shareId){
+        let response = await this.#factory.getShare(shareId, this.#factory.mbr_id)
+        response = this.#factory.globals.sanitize(response)
+        return response
+    }
+    /**
+     * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
+     * @param {Guid} itemId - The item id (optional)
+     * @returns {Promise<object[]>} - The MemberShare array
+     */
+    async getShares(itemId){
+        let response = await this.#factory.getShares(itemId)
+        if(Array.isArray(response))
+            response = response.map(share=>this.#factory.globals.sanitize(share))
+        return response
+    }
+    /**
+     * Get a memory `Header`.
+	 * @param {guid} instanceId - Share instanceId
+     * @returns {Promise<object>} - shareHeader object
+     */
+    async header(instanceId){
+        const Share = this.share(instanceId)
+        if(Share && !Share.header){
+            let MemberAvatar = await this.#factory.avatarProxy(Share.mbr_id)
+            const shareData = await MemberAvatar.cleanShare(Share) // operates directly upon Shared Memory Share
+            Share.header = shareData
+        }
+        return Share?.header
+    }
+    /**
+     * Plays a public share.
+     * @param {Guid} instanceId - The instance id
+     * @param {object} input - The recipient input
+     * @returns {object} - The next message(s) in the share experience
+     */
+    async play(instanceId, input){
+        const Share = this.share(instanceId)
+        if(!Share)
+            throw new Error('Share not found')
+        else if(!Share.header || !Share.warningsAccepted)
+            return await this.shareHeader(instanceId)
+        else if(!Share.initialized)
+            await this.shareInit(Share)
+        const shareContent = await Share.play(input)
+        shareContent.scene = new Marked().parse(shareContent.scene)
+        return shareContent
+    }
+    share(instanceId, shareId){
+        let Share
+        if(this.#factory.globals.isValidGuid(instanceId))
+            Share = this.#shares.find(share=>share.instanceId===instanceId)
+        else if(this.#factory.globals.isValidGuid(shareId))
+            Share = this.#shares.find(share=>share.id===shareId)
+        return Share
+    }
+    /**
+     * Initializes a share experience.
+     * @param {Share} Share - The Share instance
+     * @returns {object} - The first message(s) in the share experience
+     */
+    async shareInit(Share){
+        if(!Share.header) // set header if not already set
+            await this.shareHeader(Share.instanceId)
+        /* scene creation */
+        let prompt = `# Scenes\n`
+        const shareData = {}
+        if(Share.conclusion?.length)
+            prompt += `- conclusion: ${ Share.conclusion }\n`
+        if(Share.voice?.length)
+            prompt += `- voice: ${ Share.voice }\n`
+        prompt += `- summary: ${ Share.summary }`
+        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMId, prompt)
+        if(messages?.[0]){
+            const { content, thread_id, } = messages[0]
+            const message = content
+                .filter(_content=>_content.type==='text')
+                ?.[0]
+                ?.text
+                ?.value
+            if(message?.length){
+                const scenes = JSON.parse(message).scenes
+                if(scenes.length===1)
+                    scenes = scenes.first()
+                        .split(/(?=(scene\s*\d+:?\n?))/i)
+                        .filter(item =>item.trim()!=='')
+                const lastItem = scenes[scenes.length - 1].trim()
+                shareData.scenes = scenes
+            }
+            if(thread_id?.length)
+                this.#llm.deleteThread(thread_id) // no await
+        }
+        /* set Conversation */
+        shareData.Conversation = await this.#avatar.conversationStart('share', 'share-agent', Share.mbr_id)
+        Share.init(shareData)
+        setTimeout(_=>{ // @todo - incorporate lock
+            if(this.share(Share.instanceId))
+                this.#shares = this.#shares.filter(share=>share.instanceId!==Share.instanceId)
+                Share.stop()
+        }, 10 * 60 * 1000)
+    }
+    /**
+     * Stops a share experience.
+     * @param {Guid} instanceId - The Share instance id
+     * @returns {Promise<object>} - The share stop object
+     */
+    async stop(instanceId){
+        const Share = this.share(instanceId)
+        if(Share){
+            this.#shares = this.#shares.filter(share=>share.instanceId!==Share.instanceId)
+            return {
+                responses: Share.stop(),
+                success: true
+            }
+        }
+    }
+    /**
+     * Update a share with provided data.
+     * @param {object} shareData - The share data object
+     * @returns {Promise<object>} - The updated Share object
+     */
+    async update(shareData){
+        return await this.#factory.updateShare(shareData)
+    }
+    async validateShare(shareId){
+        if(!this.share(shareId)){ // protect in case instanceId sent
+            const share = await this.#factory.getShare(shareId)
+            if(!share)
+                throw new Error(`Share not found: ${ shareId }`)
+            share.instanceId = this.#factory.newGuid
+            const _Share = new Share(share)
+            if(!_Share.mbr_id)
+                throw new Error('Invalid Share, no Member associated with content')
+            shareId = _Share.instanceId
+            this.#shares.push(_Share)
+        }
+        return shareId
+    }
+}
 /* module functions */
 /**
  * Creates cast and returns associated `cast` object.
@@ -403,7 +599,7 @@ function mCast(cast, botAgent, Factory){
             case 'member':
             case 'member-bot':
             default:
-                Bot = botAgent.bot(null, form)
+                Bot = botAgent.bot(undefined, form)
                 break
             }
         const Actor = new CastMember(castMember, Bot, Factory)
@@ -922,7 +1118,7 @@ function mLocation(Experience, eid){
     eid = eid
         ?? scriptEvents[0].id
     const iteration = 0
-    const sid = Experience.scene(null, eid).id
+    const sid = Experience.scene(undefined, eid).id
     return { xid, eid, iteration, sid, }
 }
 /**
@@ -969,4 +1165,7 @@ function mReplaceVariables(prompt, variableList, variableValues){
     return prompt
 }
 /* exports */
-export default ExperienceAgent
+export {
+    ExperienceAgent,
+    ShareAgent,
+}

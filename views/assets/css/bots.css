@@ -60,10 +60,11 @@
     display: flex;
     flex: 1 1 auto; /* Allow it to grow and shrink */
     flex-direction: column;
-    justify-content: space-between;
-    margin: 0.2rem 0;
+    justify-content: flex-start;
+    margin-bottom: 0.3rem;
     max-width: 100%;
     overflow: hidden;
+    padding-right: 0.2rem;
     width: 100%;
 }
 .bot-content {
@@ -72,14 +73,16 @@
     overflow: auto;
 }
 /* team */
-.add-team-member-icon {
-    font-size: 1.5rem;
-    padding: 0 1rem;
+.team-header .add-team-member-icon {
+    color: aliceblue;
     cursor: pointer;
+    font-size: 1.5rem;
+    font-style: normal;
+    padding: 0 1rem;
 }
-.team-header {
+.header.team-header {
     align-items: center;
-    background-color: #333; /* Change as needed */
+    background-color: navy; /* Change as needed */
     color: white;
     display: flex;
 	font-size: 1.2rem;
@@ -183,6 +186,12 @@
     animation: _slideBotOptions 0.5s forwards;
     display: flex; /* Make it flex when open */
 }
+.button.bot-options-button {
+    font-size: 0.9rem;
+    margin: 0.4rem;
+    padding: 0.5rem;
+    width: auto;
+}
 .bot-options-dropdown {
     align-items: center;
     background-color: rgba(255, 255, 255, .7); /* Circle color */
@@ -251,7 +260,7 @@
     font-size: 0.6rem;
     margin-left: auto; /* Pushes the version div to the right end */
 }
-.mylife-widget.bots {
+.bots {
 	flex-direction: column;
 	justify-content: flex-start;
     max-width: 100%;
@@ -372,11 +381,12 @@
     max-height: 2.5rem;
     width: auto;
 }
-.collection-item-delete {
+.fa-trash.collection-item-delete {
     color: navy;
     display: flex;
     flex: 0 0 auto;
     font-size: 1.2rem;
+    font-style: normal;
     margin: 0 0.5rem;
 }
 .collection-item-delete:hover {
@@ -413,20 +423,15 @@
     overflow-y: auto;
 }
 .collection-popup.popup-container {
-    bottom: auto;
     display: flex;
     flex: 1 0 auto;
     flex-direction: column;
-    height: auto;
-    left: auto;
+    height: fit-content;
     margin: 0;
     overflow: auto;
 	opacity: 0; /* Start with hidden popup */
-    /* transition: opacity 0.3s; /* Smooth transition */
+    transition: opacity 0.3s; /* Smooth transition */
     padding: 0;
-    position: absolute;
-    right: 110vw;
-    top: 0;
     width: 40em;
     z-index: var(--collection-item-popup-z-index); /* above sidebar and other popups */
 }
@@ -460,7 +465,8 @@
     font-weight: bold;
     padding: 0.5rem;
 }
-.collection-popup-header-title {
+.popup-header .collection-popup-header-title {
+    color: aliceblue;
     display: flex;
     flex: 1 1 auto;
     font-size: 1.0rem;
@@ -477,11 +483,12 @@
     margin: 0.22rem;
     padding: 0.22rem;
 }
-.collection-refresh {
+.fa-refresh.collection-refresh {
     color: aliceblue;
     display: flex;
     flex: 0 0 auto;
     font-size: 1.3rem;
+    font-style: normal;
     margin: 0 0.5rem;
 }
 .collection-title {
@@ -766,6 +773,7 @@ input:checked + .publicity-slider:before {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
+    font-size: 0.8rem;
     gap: 0.6em;
     margin-bottom: 0.6em;
     text-align: center;

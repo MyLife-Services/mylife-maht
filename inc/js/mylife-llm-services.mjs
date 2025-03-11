@@ -443,7 +443,7 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'createaccount':
                             case 'create_account':
                             case 'create account':
-                                console.log('mRunFunctions()::createAccount', toolArguments, factory.mylifeRegistrationData)
+                                console.log('mRunFunctions()::createAccount', toolArguments, factory.registrationData)
                                 const { birthdate, id, passphrase, } = toolArguments
                                 action = `error setting basics for member: `
                                 if(!birthdate)
@@ -503,6 +503,8 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'hijack_attempt':
                             case 'hijack-attempt':
                             case 'hijack attempt':
+                                // @todo - add conversation flag
+                                console.log('mRunFunctions()::hijackattempt', toolArguments)
                                 action = 'attempt noted in system and user ejected; greet per normal as first time new user'
                                 success = true
                                 confirmation.output = JSON.stringify({ action, success, })

@@ -1,15 +1,16 @@
-<div id="navigation-brand" class="navigation-brand">
-    <a href="/"><img src="../png/logotype-knockout.png" class="d-inline-block align-middle" width="120" alt="MyLife logo"></a>
-</div>
-<div id="navigation-nav" class="navigation-nav">
+<img src="../png/mylife-logo.png" alt="MyLife logo">
+<a href="#" class="logo">MyLife</a>
+<div class="hamburger" id="hamburger">
     <% menu.forEach(_menuItem=>{ %>
-        <a class="navigation-link" <%= _menuItem?.click?.length ? `onClick=${ _menuItem.click }` : '' %> href="<%= _menuItem.route %>"><%= _menuItem.display %></a>
+        <span></span>
     <% }) %>
 </div>
+<ul id="navigation-menu">
+    <% menu.forEach(_menuItem=>{ %>
+        <li><a <%= _menuItem?.click?.length ? `onClick=${ _menuItem.click }` : '' %> href="<%= _menuItem.route %>"><%= _menuItem.display %></a></li>
+    <% }) %>
+    <% if(!locked){ %>
+        <li><a id="navigation-logout" class="login-btn">Logout</a></li>
+    <% } %>
+</ul>
 <div id="navigation-version" class="navigation-version"><%= version ? `v.${ version }` : '' %></div>
-<div id="navigation-padding" class="navigation-padding"></div>
-<div id="navigation-login-logout" class="navigation-login-logout">
-    <button id="navigation-login-logout-button" class="button navigation-login-logout-button" data-locked="<%= locked %>">
-        <%= locked ? 'Login' : 'Logout' %>
-    </button>
-</div>
