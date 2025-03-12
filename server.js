@@ -13,7 +13,7 @@ import chalk from 'chalk'
 /* local service imports */
 import MyLife from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.31'
+const version = '0.0.32'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
@@ -131,7 +131,7 @@ app.use(koaBody({
 		session(	//	session initialization
 			{
 				key: 'mylife.sid',   // cookie session id
-				maxAge: parseInt(process.env.MYLIFE_SESSION_TIMEOUT_MS) || 900000,     // session lifetime in milliseconds
+				maxAge: parseInt(process.env.MYLIFE_SESSION_TIMEOUT_MS) || 900000, // session lifetime in milliseconds
 				autoCommit: true,
 				overwrite: true,
 				httpOnly: false,
@@ -153,7 +153,6 @@ app.use(koaBody({
 			console.error(err)
 		}
 	})
-	//	system context, koa: https://koajs.com/#request
 	.use(async (ctx,next) => {
 		/* SESSION: member login */
 		if(!ctx.session?.MemberSession){
