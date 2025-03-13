@@ -226,7 +226,7 @@ class BotFactory extends EventEmitter{
 	 * @param {boolean} caseInsensitive - Whether requestor suggests to ignore case in passphrase, defaults to `false`
 	 * @returns {Promise<boolean>} - `true` if challenge successful
 	 */
-	async challengeAccess(passphrase, caseInsensitive=false){
+	async challengeAccess(passphrase, caseInsensitive){
 		caseInsensitive = this.core.caseInsensitive
 			?? caseInsensitive
 		const challengeSuccessful = await mDataservices.challengeAccess(this.mbr_id, passphrase, caseInsensitive)
@@ -699,12 +699,14 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Creates the member instance.
-	 * @returns {Member} - The member instance.
+	 * @param {String} mbr_id - The member id
+	 * @returns {Promise<Member>} - The member instance
 	 */
-	async getMyLifeMember(){
-		const member =  await ( new (mSchemas.member)(this) )
+	async getMyLifeMember(mbr_id){
+		const Factory = await ( new AgentFactory(mbr_id) ).init()
+		const Member =  await ( new (mSchemas.member)(Factory) )
 			.init()
-		return member
+		return Member
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
@@ -865,19 +867,6 @@ class MyLifeFactory extends AgentFactory {
 		const Bot = await new BotFactory(mbr_id)
 			.init()
 		return Bot
-	}
-	/**
-	 * Accesses Dataservices to challenge access to a member's account.
-	 * @public
-	 * @param {string} mbr_id - The member id
-	 * @param {string} passphrase - The passphrase to challenge
-	 * @returns {object} - Returns passphrase document if access is granted.
-	 */
-	async challengeAccess(mbr_id, passphrase){
-		const caseInsensitive = true // MyLife server defaults to case-insensitive
-		const avatarProxy = await this.avatarProxy(mbr_id)
-		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase, caseInsensitive)
-		return challengeSuccessful
 	}
 	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.

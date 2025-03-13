@@ -153,23 +153,17 @@ app.use(koaBody({
 			console.error(err)
 		}
 	})
-	.use(async (ctx,next) => {
-		/* SESSION: member login */
-		if(!ctx.session?.MemberSession){
-			/* create generic session [references/leverages modular capabilities] */
-			ctx.session.MemberSession = await ctx.MyLife.getMyLifeSession()	//	create default locked session upon first request; does not require init(), _cannot_ have in fact, as it is referencing a global modular set of utilities and properties in order to charge-back to system as opposed to member
-			/* platform-required session-external variables */
-			ctx.session.signup = false
-		}
-		ctx.state.locked = ctx.session.MemberSession.locked
-		ctx.state.MemberSession = ctx.session.MemberSession	//	lock-down session to state
-		ctx.state.member = ctx.state.MemberSession?.member
+	.use(async (ctx,next)=>{
+		ctx.session.locked = ctx.session.locked
+			?? true
+		ctx.session.signup = ctx.session.signup
+			?? false
+		ctx.session.member = ctx.session.member
 			?? ctx.MyLife
-		ctx.state.avatar = ctx.state.member.avatar
+		ctx.state.avatar = ctx.session.member.avatar
+		ctx.state.locked = ctx.session.locked
 		ctx.state.menu = ctx.MyLife.menu
 		ctx.state.version = ctx.MyLife.version
-		if(!await ctx.state.MemberSession.requestConsent(ctx))
-			ctx.throw(404,'asset request rejected by consent')
 		await next()
 	})
 	.use(async(ctx,next) => { // alert check
