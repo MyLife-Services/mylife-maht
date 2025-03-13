@@ -5,7 +5,7 @@
 @import url('members.css');
 /* css main variables */
 :root {
-	--mylife-border-radius: 0.22rem;
+	--mylife-border-radius: 0.5rem;
     --mylife-base-z-index: 1;
 	--mylife-help-z-index: 5;
 	--mylife-sidebar-z-index: 20;
@@ -25,15 +25,7 @@ body {
 	height: 100%;
 	margin: 0;
 }
-.page-container {
-    display: flex;
-    flex-direction: column; /* Change to row for horizontal layout */
-	height: 100%;
-	margin: 0;
-	max-height: 100%; /* Ensures the container grows to the full height */
-	max-width: 100%;
-	width: 100%; /* Ensures the container grows to the full width */
-}
+
 /* MyLife Menu Navigation */
 .top-nav {
 	align-items: center;
@@ -185,14 +177,26 @@ a.login-btn:hover {
 }
 /* MyLife main content */
 .main-content {
+	flex: 1; /* Pushes the footer down */
 	background-color: #eee;
-	background-image: url("../jpg/bkg_child_dandelion.jpg");
+	background-image: url("bkg_child_dandelion.jpg");
 	background-repeat: no-repeat;
 	background-size: cover;
 	background-position: bottom;
-	flex-grow: 1; /* Pushes the footer down */
-	overflow: hidden;
+  }
+
+.page-container {
+    display: flex;
+	flex-wrap: wrap;
+	flex-direction: row;
+	max-width: 1400px;
+	margin: 1rem auto;
+	padding: 1rem 2rem 1rem 2rem;
+	gap: 2rem;
 }
+
+
+
 .main-content h1 {
 	font-family: 'Arial Narrow', sans-serif;
 	font-size: 1.2rem;
@@ -216,18 +220,16 @@ a.login-btn:hover {
 }
 /* Sidebar Section */
 .sidebar {
+	padding: 2rem;
 	background: #fff;
     border-radius: var(--mylife-border-radius);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
 	color: #12094d;
-	display: flex;
-	flex: 1 1 100%;
-	flex-direction: column;
-	justify-content: flex-start;
-    margin: 0.5rem;
-    max-height: fit-content;
-	width: auto;
+	flex: 1 1 400px; /* Makes it flexible with a base width of 600px */
+    min-width: 400px; /* Prevents excessive shrinking */
+    
 }
+
 .sidebar h2 {
 	color: black;
 	display: flex;
