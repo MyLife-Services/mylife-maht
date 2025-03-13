@@ -179,7 +179,7 @@ a.login-btn:hover {
 .main-content {
 	flex: 1; /* Pushes the footer down */
 	background-color: #eee;
-	background-image: url("bkg_child_dandelion.jpg");
+	background-image: url("../jpg/bkg_child_dandelion.jpg");
 	background-repeat: no-repeat;
 	background-size: cover;
 	background-position: bottom;
