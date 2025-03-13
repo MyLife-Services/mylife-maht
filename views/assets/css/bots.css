@@ -58,7 +58,6 @@
 .collections-container {
     cursor: pointer;
     display: flex;
-    flex: 1 1 auto; /* Allow it to grow and shrink */
     flex-direction: column;
     justify-content: flex-start;
     margin-bottom: 0.3rem;
