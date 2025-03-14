@@ -77,15 +77,7 @@ class LLMServices {
      * @returns 
      */
     async deleteThread(thread_id){
-        try {
-            const deletedThread = await this.openai.beta.threads.del(thread_id)
-            return deletedThread
-        } catch (error) {
-            if(error.name==='PermissionDeniedError')
-                console.error(`Permission denied to delete thread: ${ thread_id }`)
-            else
-                console.error(`ERROR trying to delete thread: ${ thread_id }`,  error.name, error.message)
-        }
+        return await mThreadDelete(this.openai, thread_id)
     }
     /**
      * Extracts response from LLM response object.
@@ -161,18 +153,25 @@ class LLMServices {
             }
         }
         const run = await mRunTrigger(this.openai, llm_id, thread_id, factory, avatar)
-        const { error, id: run_id, success, } = run
-        if(!success){
+        const { error, id: run_id, status, success, } = run
+        console.log('LLMServices::getLLMResponse()::run', status, success)
+        let llmMessages
+        if(status=='cancelled' || avatar.cancelResponse){
+            console.log('LLMServices::getLLMResponse()::runCancelled', avatar.cancelResponse)
+            llmMessages = [avatar.cancelResponse ?? 'try again!']
+            delete avatar.cancelResponse
+        } else if(!success){
             if(avatar.backupResponse){
                 avatar.backupResponse.action = 'endMemory'
                 avatar.backupResponse.error = error
                 avatar.backupResponse.role = 'avatar'
                 avatar.backupResponse.run_id = run_id
             }
-            return []
-        }
-        const llmMessages = ( await this.messages(thread_id) )
-            .filter(message=>message.role=='assistant' && message.run_id==run_id)
+            llmMessages = []
+        } else
+            llmMessages = ( await this.messages(thread_id) )
+                .filter(message=>message.role=='assistant' && message.run_id==run_id)
+        console.log('LLMServices::getLLMResponse()::llmMessages', llmMessages)
         return llmMessages
     }
     /**
@@ -318,9 +317,11 @@ async function mMessages(openai, threadId){
     return await openai.beta.threads.messages
         .list(threadId)
 }
-async function mRunCancel(openai, threadId, runId){
+async function mRunCancel(openai, threadId, runId, deleteThread=false){
     try {
         const run = await openai.beta.threads.runs.cancel(threadId, runId)
+        if(deleteThread)
+            await mThreadDelete(openai, threadId)
         return run
     } catch(err) {
         return false
@@ -343,7 +344,6 @@ async function mRunFinish(llmServices, run, factory, avatar){
                 const functionRun = await mRunStatus(llmServices, run, factory, avatar)
                 const functionRunStatus = functionRun?.status
                     ?? functionRun
-                    ?? false
                 if(functionRunStatus){
                     clearInterval(checkInterval)
                     resolve(functionRun)
@@ -510,13 +510,18 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 confirmation.output = JSON.stringify({ action, success, })
                                 return confirmation
                             case 'obscure':
-                                console.log('mRunFunctions()::obscure', toolArguments)
-                                const obscuredSummary = factory.obscure(itemId)
-                                action = 'confirm obscure was successful and present updated obscured text to member'
-                                success = true
-                                confirmation.output = JSON.stringify({ action, obscuredSummary, success, })
-                                console.log('mRunFunctions()::obscure', confirmation.output)
-                                return confirmation
+                                avatar.backupResponse = {
+                                    message: `I encountered an unexpected error while obscuring your content, please try again.`,
+                                    type: 'system',
+                                }
+                                console.log('mRunFunctions()::registercandidate', toolArguments)
+                                const { summary, obscuredSummary: _summary, } = toolArguments
+                                const obscuredSummary = summary
+                                    ?? _summary
+                                if(obscuredSummary?.length)
+                                    avatar.cancelResponse = obscuredSummary
+                                await mRunCancel(openai, thread_id, runId, true)
+                                return
                             case 'registercandidate':
                             case 'register_candidate':
                             case 'register candidate':
@@ -571,7 +576,8 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 return confirmation
                         }
                     }))
-            /* submit tool outputs */
+            /* submit tool output */
+            console.log('mRunFunctions()::toolCallsOutput', toolCallsOutput)
             const finalOutput = await openai.beta.threads.runs.submitToolOutputsAndPoll( // note: must submit all tool outputs at once
                 run.thread_id,
                 run.id,
@@ -615,11 +621,14 @@ async function mRunStatus(openai, run, factory, avatar){
     switch(run.status){
         case 'requires_action':
             const completedRun = await mRunFunctions(openai, run, factory, avatar)
+            console.log('Requires Action', completedRun)
             return completedRun /* if undefined, will ping again */
+        case 'cancelled':
+            console.log(`CANCELED:${run.thread_id}...`, run.id) // ping log
+            return run
         case 'completed':
             return run // run
         case 'failed':
-        case 'cancelled':
         case 'expired':
             return false
         case 'queued':
@@ -734,6 +743,17 @@ async function mThreadCreate(openai, messages, metadata){
         tool_resources: {},
     })
     return thread
+}
+async function mThreadDelete(openai, thread_id){
+    try {
+        const deletedThread = await openai.beta.threads.del(thread_id)
+        return deletedThread
+    } catch (error) {
+        if(error.name==='PermissionDeniedError')
+            console.error(`Permission denied to delete thread: ${ thread_id }`)
+        else
+            console.error(`ERROR trying to delete thread: ${ thread_id }`,  error.name, error.message)
+    }
 }
 /**
  * Validates assistant data before sending to OpenAI.

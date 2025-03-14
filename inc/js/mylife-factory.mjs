@@ -411,16 +411,17 @@ class BotFactory extends EventEmitter{
     /**
      * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
      * @param {Guid} itemId - Id of the item to obscure
+	 * @param {Bot} bot - The bot instance to use for obscuring
      * @returns {string} - The obscured content
      */
-	async obscure(itemId){
+	async obscure(itemId, bot){
 		const { id, summary, relationships, } = await this.item(itemId)
 			?? {}
 		if(!id)
 			throw new Error('Item not found')
 		if(!summary?.length)
 			throw new Error('No summary found to obscure')
-		const obscuredSummary = await mObscure(summary)
+		const obscuredSummary = await mObscure(summary, bot)
 		if(obscuredSummary?.length) /* save response */
 			this.dataservices.patch(id, { summary: obscuredSummary }) // no need await
 		return obscuredSummary
@@ -1285,24 +1286,15 @@ async function mLoadSchemas(){
 /**
  * Given an itemId, obscures aspects of contents of the data record.
  * @param {string} summary - The summary to obscure
+ * @param {Bot} bot - The bot instance that will obscure the summary
  * @returns {string} - The obscured summary
  */
-async function mObscure(summary) {
-	let obscuredSummary
-    // @stub - if greater than limit, turn into text file and add
+async function mObscure(summary, bot){
     const prompt = `OBSCURE:\n${summary}`
-    const messageArray = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt)
-	const { content: contentArray=[], } = messageArray?.[0] ?? {}
-	const { value, } = contentArray
-		.filter(message=>message.type==='text')
-		?.[0]
-		?.text
-			?? {}
-    try {
-		let parsedSummary = JSON.parse(value)
-        if(typeof parsedSummary==='object' && parsedSummary!==null)
-            obscuredSummary = parsedSummary.obscuredSummary
-    } catch(e) {} // obscuredSummary is just a string; use as-is or null
+    const messageArray = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt, undefined, bot)
+		?? ['Error obscuring summary']
+	const obscuredSummary = messageArray[0]
+	console.log(chalk.blueBright('mObscure()::obscuredSummary'), obscuredSummary)
 	return obscuredSummary
 }
 async function mPopulateBotInstructions(){

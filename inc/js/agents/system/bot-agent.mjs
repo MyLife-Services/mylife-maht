@@ -192,7 +192,7 @@ class Bot {
      * @returns {Object} - The obscured item object
      */
 	async obscure(itemId){
-        const updatedSummary = await this.#factory.obscure(itemId)
+        const updatedSummary = await this.#factory.obscure(itemId, this)
 		return updatedSummary
 	}
 	/**

@@ -20,6 +20,7 @@ import {
     setActiveBot as _setActiveBot,
     togglePopup,
     updateItem,
+    updateItemSummary,
     updateItemTitle,
     updateTitle,
 } from './bots.mjs'
@@ -582,6 +583,7 @@ async function mAddMemberMessage(event){
         enactInstruction(instruction, 'chat', {
             createItem,
             updateItem,
+            updateItemSummary,
             updateItemTitle,
         })
     else {

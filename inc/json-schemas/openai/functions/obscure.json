@@ -1,18 +1,19 @@
 {
-    "description": "Obscures a summary so that no human names are present",
+    "description": "Obscures a summary so that no human names are present. I consume text content and remove all of the human name references and replace them with just the first letter of their name, capitalized.",
     "name": "obscure",
     "strict": true,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
         "properties": {
-            "itemId": {
-                "description": "Id of summary to obscure",
+            "obscuredSummary": {
+                "description": "The cleaned and obscured text content",
+                "example": "\"John Doe is at Google\" becomes: \"J is at Google\"",
                 "type": "string"
             }
         },
         "required": [
-            "itemId"
+            "obscuredSummary"
         ]
     }
 }

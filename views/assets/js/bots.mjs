@@ -267,12 +267,24 @@ function updateItem(item){
         return
     createItem(item)
 }
+function updateItemSummary(id, summary){
+    const popupContent = document.getElementById(`popup-content_${ id }`)
+    if(popupContent){
+        popupContent.dataset.lastUpdatedContent = summary
+        popupContent.value = summary
+    } else {
+        const item = document.getElementById(`collection-item_${ id }`)
+        const collectionItem = item?.collectionItem
+        if(collectionItem)
+            collectionItem.summary = summary
+    }
+}
 /**
  * Sets an item's changed title in all locations.
  * @param {Guid} itemId - The collection item id
  * @param {String} title - The title to set for the item
  */
-async function updateItemTitle(itemId, title){
+function updateItemTitle(itemId, title){
     const titleSpan = document.getElementById(`collection-item-title_${ itemId }`)
     const titleInput = document.getElementById(`collection-item-title-input__${ itemId }`)
     const popupTitle = document.getElementById(`popup-header-title_${ itemId }`)
@@ -400,10 +412,10 @@ function mCreateCollectionItem(collectionItem){
     item.id = `collection-item_${ id }`
     item.name = `collection-item-${ type }`
     item.classList.add('collection-item', `${ type }-collection-item`)
+    item.collectionItem = collectionItem
     /* icon */
     const itemIcon = document.createElement('img')
     itemIcon.id = `collection-item-icon_${ id }`
-    itemIcon.name = `collection-item-icon-${ type }`
     itemIcon.classList.add('collection-item-icon', `${ type }-collection-item-icon`)
     itemIcon.src = mBotIcon(iconType)
     item.appendChild(itemIcon)
@@ -435,7 +447,7 @@ function mCreateCollectionItem(collectionItem){
             /* file-summary popup */
             break
         default:
-            item.addEventListener('click', e=>mTogglePopup(e, collectionItem))
+            item.addEventListener('click', e=>mTogglePopup(e, item.collectionItem))
             itemTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
             break
     }
@@ -693,7 +705,8 @@ function mCreateCollectionPopup(collectionItem){
     popupBody.id = `popup-body_${ id }`
     popupBody.name = `popup-body-${ type }`
     /* create popup content */
-    const content = summary ?? JSON.stringify(collectionItem)
+    const content = summary
+        ?? JSON.stringify(collectionItem)
     const popupContent = document.createElement('textarea')
     popupContent.classList.add('popup-content', 'collection-popup-content')
     popupContent.dataset.lastUpdatedContent = content
@@ -1358,9 +1371,11 @@ async function mObscureEntry(event){
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
-    const { responses, success, } = await globals.datamanager.obscure(itemId)
+    const { instruction, responses, success, } = await globals.datamanager.obscure(itemId)
     if(responses?.length)
         addMessages(responses, mActiveBot.type)
+    if(instruction)
+        enactInstruction(instruction, 'chat', { updateItemSummary, })
     globals.expunge(awaitBar)
     toggleMemberInput(true)
 }
@@ -2706,6 +2721,7 @@ export {
     setActiveBot,
     togglePopup,
     updateItem,
+    updateItemSummary,
     updateItemTitle,
     updateTitle,
     updatePageBots,
