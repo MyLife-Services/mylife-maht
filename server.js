@@ -85,10 +85,7 @@ render(app, {
 })
 setInterval(
 	checkForLiveAlerts,
-	JSON.parse(
-		process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL
-			?? '60000'
-	)
+	JSON.parse(process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL ?? '60000')
 )
 /* upload directory */
 const uploadDir = path.join(__dirname, '.tmp')
@@ -179,5 +176,5 @@ app.use(koaBody({
 	})
 /** server functions **/
 function checkForLiveAlerts(){
-	_Maht.getAlerts()
+	_Maht.alerts()
 }
