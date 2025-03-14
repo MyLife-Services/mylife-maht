@@ -16,8 +16,6 @@ import {
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
 import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
-import MylifeMemberSession from './session.mjs'
-import { type } from 'os'
 /* module constants */
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
@@ -126,7 +124,6 @@ const mSchemas = {
 	dataservices: Dataservices,
 	menu: Menu,
 	member: Member,
-	session: MylifeMemberSession
 }
 /* module construction functions */
 mConfigureSchemaPrototypes()
@@ -229,7 +226,7 @@ class BotFactory extends EventEmitter{
 	 * @param {boolean} caseInsensitive - Whether requestor suggests to ignore case in passphrase, defaults to `false`
 	 * @returns {Promise<boolean>} - `true` if challenge successful
 	 */
-	async challengeAccess(passphrase, caseInsensitive=false){
+	async challengeAccess(passphrase, caseInsensitive){
 		caseInsensitive = this.core.caseInsensitive
 			?? caseInsensitive
 		const challengeSuccessful = await mDataservices.challengeAccess(this.mbr_id, passphrase, caseInsensitive)
@@ -691,45 +688,31 @@ class AgentFactory extends BotFactory {
 		return avatar
 	}
 	/**
-	 * Generates via personal intelligence, nature of consent/protection around itemId or Bot id.
+	 * Generates via personal intelligence, nature of consent/protection around itemId or Bot id. Consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access; id of Consent should be same as id of object being _request_ so lookup will be straight-forward.
 	 * @todo - build out consent structure
 	 * @param {Guid} id - The id of the item to generate consent for.
 	 * @param {Guid} requesting_mbr_id - The id of the member requesting consent.
 	 * @returns {object} - The consent object, with parameters or natural language guidelines.
 	 */
 	async getConsent(id, requesting_mbr_id){
-		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
 		return new (mSchemas.consent)(consent, this)
 	}
 	/**
 	 * Creates the member instance.
-	 * @returns {Member} - The member instance.
+	 * @param {String} mbr_id - The member id
+	 * @returns {Promise<Member>} - The member instance
 	 */
-	async getMyLifeMember(){
-		const member =  await ( new (mSchemas.member)(this) )
+	async getMyLifeMember(mbr_id){
+		const Factory = await ( new AgentFactory(mbr_id) ).init()
+		const Member =  await ( new (mSchemas.member)(Factory) )
 			.init()
-		return member
-	}
-	/**
-	 * Creates the session instance.
-	 * @todo - review this code and architecture.
-	 * @returns {Session} - The Session instance.
-	 */
-	async getMyLifeSession(){
-		// default is session based around default dataservices [Maht entertains guests]
-		// **note**: consequences from this is that I must be careful to not abuse the module space for sessions, and regard those as _untouchable_
-		return await new (mSchemas.session)(
-			( new AgentFactory(mPartitionId) ) // no need to init (?)
-		).init()
+		return Member
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
 	}
 	isConsent(_consent){	//	when unavailable from general schemas
 		return (_consent instanceof mSchemas.consent)
-	}
-	isSession(_session){	//	when unavailable from general schemas
-		return (_session instanceof mSchemas.session)
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.
@@ -886,19 +869,6 @@ class MyLifeFactory extends AgentFactory {
 		return Bot
 	}
 	/**
-	 * Accesses Dataservices to challenge access to a member's account.
-	 * @public
-	 * @param {string} mbr_id - The member id
-	 * @param {string} passphrase - The passphrase to challenge
-	 * @returns {object} - Returns passphrase document if access is granted.
-	 */
-	async challengeAccess(mbr_id, passphrase){
-		const caseInsensitive = true // MyLife server defaults to case-insensitive
-		const avatarProxy = await this.avatarProxy(mbr_id)
-		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase, caseInsensitive)
-		return challengeSuccessful
-	}
-	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
 	 * @param {Guid} registrationId - The registration id.
@@ -1053,7 +1023,7 @@ class MyLifeFactory extends AgentFactory {
 	}
 	/* getters/setters */
     /**
-     * Test whether avatar session is creating an account.
+     * Test whether avatar is creating an account.
      * @getter
      * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
      */
@@ -1151,7 +1121,7 @@ async function mEvaluateItem(summary, llm_id=mGeneralBotId){
 	return evaluation
 }
 function mExposedSchemas(factoryBlockedSchemas){
-	const _systemBlockedSchemas = ['dataservices','session']
+	const _systemBlockedSchemas = ['dataservices']
 	return Object.keys(mSchemas)
 		.filter(key => !_systemBlockedSchemas.includes(key) && !factoryBlockedSchemas.includes(key))
 		.reduce((obj, key) => {

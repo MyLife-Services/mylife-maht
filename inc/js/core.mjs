@@ -11,7 +11,7 @@ class Member extends EventEmitter {
 		this.#factory = factory
 	}
 	/**
-	 * Initializes `this.#avatar` and returns `this`. The Avatar will thence be primary point of interaction with Session and Server. Only upon dissolution of Avatar [sessionEnd] is triggered an internal `this` evolution evaluation based on upon the conduct of Avatar.
+	 * Initializes `this.#avatar` and returns `this`.
 	 * @async
 	 * @public
 	 * @param {Q} avatar - Avatar object to initialize, when infused from child instance
@@ -267,16 +267,6 @@ class MyLife extends Organization {	// form=server
 		return experiences
 	}
 	/**
-	 * Challenges and logs in member.
-	 * @param {string} memberId - Member id to challenge.
-	 * @param {string} passphrase - Passphrase response to challenge.
-	 * @returns {boolean} - Whether or not member is logged in successfully.
-	 */
-	async challengeAccess(memberId, passphrase){
-		const challengeSuccessful = await this.#avatar.challengeAccess(memberId, passphrase)
-		return challengeSuccessful
-	}
-	/**
 	 * Returns the datacore object for the specified member id.
 	 * @param {string} mbr_id - The Member id to access datacore
 	 * @returns {Promise<object>} - Datacore object for member id
@@ -310,9 +300,6 @@ class MyLife extends Organization {	// form=server
 	 */
 	getAlerts(){
 		this.#factory.getAlerts()
-	}
-	async getMyLifeSession(){
-		return await this.#factory.getMyLifeSession()
 	}
 	async hostedMemberList(){
 		let members = await this.hostedMembers()

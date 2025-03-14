@@ -196,13 +196,13 @@ class Dataservices {
      * Challenges access to a member ID via passphrase, running against a stored procedure in the database.
      * @async
 	 * @public
-     * @param {string} mbr_id - The member ID.
-     * @param {string} passphrase - The passphrase for access.
-	 * @param {boolean} caseInsensitive - Whether to ignore case in passphrase, defaults to `false`
-     * @returns {Promise<Object>} The result of the access challenge.
+     * @param {string} mbr_id - The member ID
+     * @param {string} passphrase - The passphrase for access
+	 * @param {boolean} caseInsensitive - Whether to ignore case in passphrase, defaults to `false
+	 * @returns {Promise<boolean>} - `true` if challenge is successful
      */
-	async challengeAccess(mbr_id, passphrase, caseInsensitive=false){
-		return await this.datamanager.challengeAccess(mbr_id, passphrase)
+	async challengeAccess(mbr_id, passphrase, caseInsensitive){
+		return await this.datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
 	}
 	/**
 	 * Proxy to retrieve stored conversations.

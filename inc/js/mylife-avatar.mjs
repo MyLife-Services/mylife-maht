@@ -28,6 +28,7 @@ const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-sc
  * @todo - deprecate `factory` getter
  */
 class Avatar extends EventEmitter {
+    #alertsShown = [] // array of alert ids
     #assetAgent
     #botAgent
     #collectionsAgent
@@ -92,6 +93,30 @@ class Avatar extends EventEmitter {
         const response = this.#ShareAgent.acceptWarnings(instanceId)
         return response
     }
+    /**
+     * Returns a specific alert.
+     * @param {Guid} aid - The alert id
+     * @returns {Promise<object>} - The alert object
+     */
+	async alert(aid){
+		return this.#factory.getAlert(aid)
+	}
+    /**
+     * Returns all alerts of a certain type for the member/visitor.
+     * @param {String} type - The type of alert
+     * @returns {Promise<object[]>} - The array of alerts
+     */
+	async alerts(type){
+		let currentAlerts = this.#factory.alerts
+		currentAlerts = currentAlerts // remove alerts already shown to member in this session
+			.filter(alert=>{
+				return !this.#alertsShown.includes(alert.id)
+			})
+		currentAlerts.forEach(alert=>{
+			this.#alertsShown.push(alert.id)
+		})
+		return currentAlerts
+	}
     /**
      * Get a Bot instance by id.
      * @public
@@ -283,6 +308,16 @@ class Avatar extends EventEmitter {
         const Bot = await this.#botAgent.botCreate(botData)
         const bot = Bot.bot
         return bot
+    }
+    /**
+     * Deletes a chat conversation from llm and memory.
+     * @param {Conversation} Conversation - The conversation instance to delete
+     * @param {Boolean} localDelete - Whether to delete locally or from database, defaults to `true`
+     * @returns {Promise<String>} - The deleted conversation instance id
+     */
+    async deleteChat(Conversation, localDelete=true){
+        const { id, } = await this.#botAgent.deleteChat(Conversation, localDelete)
+        return id
     }
     /**
      * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
@@ -1398,19 +1433,19 @@ class Q extends Avatar {
      * @public
      * @param {string} message - The chat message content
      * @param {Guid} itemId - The active collection-item id (optional)
-     * @param {MemberSession} MemberSession - The member session object
+     * @param {Koa Session} session - The context session object to store guest conversation
      * @returns {Promise<Object[]>} - The response(s) to the chat request
     */
-    async chat(message, itemId, MemberSession){
+    async chat(message, itemId, session){
         if(itemId?.length)
             throw new Error('MyLife System Avatar cannot process chats with `itemId`.')
-        let { Conversation, } = MemberSession
+        let { Conversation, } = session
         if(!Conversation){
             Conversation = await this.conversationStart('chat', 'system-avatar')
             if(!Conversation)
                 throw new Error('Unable to be create `Conversation`.')
             this.#conversations.push(Conversation)
-            MemberSession.Conversation = Conversation
+            session.Conversation = Conversation
         }
         Conversation.originalPrompt = message
         Conversation.processStartTime = Date.now()
@@ -1421,6 +1456,18 @@ class Q extends Avatar {
 		Conversation.prompt = message
         const response = await this.chatAgentBypass(Conversation)
         return response
+    }
+    /**
+     * OVERLOADED: MyLife deletes chat conversation including instance memory.
+     * @param {Conversation} Conversation - The conversation instance to delete
+     * @returns (Guid) - The id of the deleted conversation
+     */
+    async deleteChat(Conversation){
+        const id = await super.deleteChat(Conversation, false)
+        const index = this.#conversations.findIndex(c=>c.id===id)
+        if(index>=0)
+            this.#conversations.splice(index, 1)
+        return id
     }
     /**
      * OVERLOADED: MyLife must refuse to create bots.
@@ -1504,8 +1551,15 @@ class Q extends Avatar {
         const avatar = await this.#factory.avatarProxy(mbr_id)
         return avatar
     }
-    async challengeAccess(memberId, passphrase){
-        const avatarProxy = await this.avatarProxy(memberId)
+	/**
+	 * Accesses core data to challenge access to a member's account.
+	 * @public
+	 * @param {string} mbr_id - The member id
+	 * @param {string} passphrase - The passphrase to challenge
+	 * @returns {Promise<boolean>} - `true` if challenge is successful
+	 */
+    async challengeAccess(mbr_id, passphrase){
+        const avatarProxy = await this.avatarProxy(mbr_id)
 		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase)
 		return challengeSuccessful
 	}
@@ -1552,6 +1606,15 @@ class Q extends Avatar {
                 .sort((a, b) => a.name.localeCompare(b.name))
         }
         return this.#hostedMembers
+    }
+    /**
+     * Creates a member instance for logged in session.
+     * @param {String} mbr_id - The member id
+     * @returns {Promise<Member>} - The member instance
+     */
+    async mylifeMember(mbr_id){
+		const Member = await this.#factory.getMyLifeMember(mbr_id)
+        return Member
     }
     /**
      * Validate registration id.
