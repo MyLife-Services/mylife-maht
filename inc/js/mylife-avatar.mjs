@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Marked } from 'marked'
 import EventEmitter from 'events'
+import initRouter from './routes.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
@@ -116,6 +117,23 @@ class Avatar extends EventEmitter {
 			this.#alertsShown.push(alert.id)
 		})
 		return currentAlerts
+	}
+	/**
+	 * Retrieves all public experiences (i.e., owned by MyLife).
+	 * @returns {Object[]} - An array of the currently available public experiences.
+	 */
+	async availableExperiences(){
+		const experiences = ( await this.#factory.availableExperiences(this.mbr_id) )
+			.map(experience=>{ // map to display versions [from `mylife-avatar.mjs`]
+				const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
+				return {
+					description,
+					id,
+					name,
+					purpose,
+				}
+			})
+		return experiences
 	}
     /**
      * Get a Bot instance by id.
@@ -1413,7 +1431,8 @@ class Q extends Avatar {
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
     #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
-    #mode = 'system' // @stub - experience mode for guests
+    #Menu
+    #Router
     /**
      * @constructor
      * @param {MyLifeFactory} factory - The factory on which MyLife relies for all service interactions.
@@ -1458,6 +1477,14 @@ class Q extends Avatar {
         return response
     }
     /**
+     * OVERLOADED: MyLife must refuse to create bots.
+     * @public
+     * @throws {Error} - System avatar cannot create bots.
+     */
+    async createBot(){
+        throw new Error('System avatar cannot create bots.')
+    }
+    /**
      * OVERLOADED: MyLife deletes chat conversation including instance memory.
      * @param {Conversation} Conversation - The conversation instance to delete
      * @returns (Guid) - The id of the deleted conversation
@@ -1469,14 +1496,18 @@ class Q extends Avatar {
             this.#conversations.splice(index, 1)
         return id
     }
-    /**
-     * OVERLOADED: MyLife must refuse to create bots.
-     * @public
-     * @throws {Error} - System avatar cannot create bots.
+    /** 
+     * OVERLOADED: Submits and returns the journal or diary entry to MyLife via API.
+	 * @todo - consent check-in with spawned Member Avatar
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos
      */
-    async createBot(){
-        throw new Error('System avatar cannot create bots.')
-    }
+	async entry(summary){
+		summary.being = 'entry'
+		summary.form = summary.form
+            ?? 'journal'
+		return await this.summary(summary)
+	}
     /**
      * OVERLOADED: Get MyLife static greeting with identifying information stripped.
      * @returns {Object} - The greeting Response object: { responses, success, }
@@ -1496,6 +1527,18 @@ class Q extends Avatar {
             success,
         }
     }
+
+	/**
+	 * OVERLOADED: Submits and returns the memory to MyLife via API.
+	 * @todo - consent check-in with spawned Member Avatar
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos
+	 */
+	async memory(summary){
+		summary.being = 'story'
+		summary.form = 'memory'
+		return await this.summary(summary)
+	}
     /**
      * OVERLOADED: Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. In this overload, we invoke a micro-avatar for the member to handle the request on their behalf, with charge-backs going to MyLife as the sharing and api is a service.
      * @public
@@ -1520,6 +1563,34 @@ class Q extends Avatar {
     summarize(){
         throw new Error('MyLife System Avatar cannot summarize files')
     }
+	/**
+	 * OVERLOADED: Submits and returns a summary to MyLife via API.
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async summary(summary){
+		const {
+			being='story',
+			form='story',
+			id=this.globals.newGuid,
+			mbr_id,
+			title=`untitled ${ form }`,
+		} = summary
+		if(!mbr_id?.length)
+			throw new Error('story `mbr_id` required')
+		if(!summary.summary?.length)
+			throw new Error('story `summary` required')
+		const story = {
+			...summary,
+			being,
+			form,
+			id,
+			mbr_id,
+			name: `${ being }_${ title.substring(0,64) }_${ mbr_id }`,
+		}
+		const savedStory = this.globals.sanitize(await this.#factory.summary(story))
+		return savedStory
+	}
     upload(){
         throw new Error('MyLife System Avatar cannot upload files.')
     }
@@ -1607,14 +1678,27 @@ class Q extends Avatar {
         }
         return this.#hostedMembers
     }
+	/**
+	 * Returns whether a specified member id is hosted on this instance.
+	 * @param {string} mbr_id - Member id
+	 * @returns {boolean} - Returns true if member is hosted
+	 */
+	async isMemberHosted(mbr_id){
+		const hostedMembers = await this.hostedMemberList()
+		const isHosted = hostedMembers.includes(mbr_id)
+		let isValidated = false
+        if(isHosted)
+            isValidated = await this.testPartitionKey(mbr_id)
+		return isValidated
+	}
     /**
      * Creates a member instance for logged in session.
      * @param {String} mbr_id - The member id
-     * @returns {Promise<Member>} - The member instance
+     * @returns {Promise<Member>} - The Member Avatar instance
      */
     async mylifeMember(mbr_id){
-		const Member = await this.#factory.getMyLifeMember(mbr_id)
-        return Member
+		const Avatar = await this.#factory.getMemberAvatar(mbr_id)
+        return Avatar
     }
     /**
      * Validate registration id.
@@ -1635,14 +1719,23 @@ class Q extends Avatar {
     get being(){  
         return 'MyLife'
     }
-    /**
-     * Get full list of conversations active in System Avatar.
-     * @getter
-     * @returns {Conversation[]} - The list of conversations
-     */
     get conversations(){
         return this.#conversations
     }
+	get menu(){
+		if(!this.#Menu){
+			this.#Menu = new (this.schemas.menu)(this).menu
+		}
+		return this.#Menu
+	}
+    get router(){
+        if(!this.#Router)
+            this.#Router = initRouter(new (this.schemas.menu)(this))
+        return this.#Router
+    }
+	get schemas(){
+		return this.#factory.schemas
+	}
 }
 /* module functions */
 /**

@@ -34,7 +34,7 @@ async function deleteShare(ctx){
 async function getShare(ctx){
 	const { sid, } = ctx.params
 	const { avatar: MemberAvatar, } = ctx.state
-	const { avatar: SystemAvatar, } = ctx.MyLife
+	const { avatar: SystemAvatar, } = ctx.SystemAvatar
 	ctx.body = await MemberAvatar.getShare(sid)
 }
 /**

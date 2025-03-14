@@ -112,7 +112,8 @@ async function challenge(ctx){
 	if(challengeSuccessful){
 		const { Conversation, } = ctx.session
 		ctx.session.locked = false
-		ctx.session.member = await Avatar.mylifeMember(mid)
+		ctx.session.avatar = await Avatar.mylifeMember(mid)
+		ctx.state.avatar = ctx.session.avatar
 		if(Conversation)
 			await Avatar.deleteChat(Conversation)
 	}
@@ -202,7 +203,7 @@ async function help(ctx){
 	if(!helpRequest?.length)
 		ctx.throw(400, `missing help request text`)
 	const { avatar } = ctx.state
-	const _avatar = type==='membership' ? avatar : ctx.MyLife.avatar
+	const _avatar = type==='membership' ? avatar : ctx.SystemAvatar.avatar
 	ctx.body = await _avatar.help(helpRequest, type)
 }
 /**
@@ -366,8 +367,8 @@ async function signup(ctx) {
 			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNameInput',
 			payload: signupPacket,
 		})
-	signupPacket.id = ctx.MyLife.newGuid
-	const registrationData = await ctx.MyLife.registerCandidate(signupPacket)
+	signupPacket.id = ctx.SystemAvatar.newGuid
+	const registrationData = await ctx.SystemAvatar.registerCandidate(signupPacket)
 	console.log('signupPacket:', signupPacket, registrationData)
 	ctx.session.signup = true
 	success = true
