@@ -7,7 +7,6 @@ import util from 'util'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import { Avatar, Q, } from './mylife-avatar.mjs'
 import Dataservices from './mylife-dataservices.mjs'
-import { Member, MyLife } from './core.mjs'
 import {
 	extendClass_consent,
     extendClass_conversation,
@@ -123,7 +122,6 @@ const mSchemas = {
 	...await mLoadSchemas(),
 	dataservices: Dataservices,
 	menu: Menu,
-	member: Member,
 }
 /* module construction functions */
 mConfigureSchemaPrototypes()
@@ -268,7 +266,7 @@ class BotFactory extends EventEmitter{
 						...JSON.parse(message),
 					}
 				} catch (error) {
-					console.log('Error parsing context.text:', error)
+					console.log(chalk.blueBright('Error parsing context.text:'), error)
 				}
 			}
 			if(thread_id?.length)
@@ -484,7 +482,8 @@ class BotFactory extends EventEmitter{
 	 * @returns {object} - The Experience class definition.
 	 */
 	get core(){
-		return this.dataservices.core
+		const core = this.globals.sanitize(this.dataservices.core)
+		return core
 	}
 	get dataservices(){
 		return this.#dataservices
@@ -569,9 +568,10 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
-	 * @returns {Object[]} - An array of the currently available public experiences.
+	 * @returns {Object[]} - An array of the currently available public experiences
 	 */
 	async availableExperiences(){
+		// @todo - add member-owned experiences
 		return await mDataservices.availableExperiences()
 	}
 	/**
@@ -680,12 +680,13 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Retrieves member's Avatar data and creates singleton instance.
+	 * @param {AgentFactory} Factory - The AgentFactory instance; optional, defaults to MyLife
 	 * @returns {Avatar} - The Avatar instance.
 	 */
-	async getAvatar(){
-		const avatar = await ( new Avatar(this, this.#llmServices) )
+	async getAvatar(Factory=this){
+		const _Avatar = await ( new Avatar(Factory, this.#llmServices) ) // @todo - make non-generic LLM
 			.init()
-		return avatar
+		return _Avatar
 	}
 	/**
 	 * Generates via personal intelligence, nature of consent/protection around itemId or Bot id. Consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access; id of Consent should be same as id of object being _request_ so lookup will be straight-forward.
@@ -700,13 +701,12 @@ class AgentFactory extends BotFactory {
 	/**
 	 * Creates the member instance.
 	 * @param {String} mbr_id - The member id
-	 * @returns {Promise<Member>} - The member instance
+	 * @returns {Promise<Avatar>} - The Member Avatar instance
 	 */
-	async getMyLifeMember(mbr_id){
+	async getMemberAvatar(mbr_id){
 		const Factory = await ( new AgentFactory(mbr_id) ).init()
-		const Member =  await ( new (mSchemas.member)(Factory) )
-			.init()
-		return Member
+		const Avatar =  await this.getAvatar(Factory)
+		return Avatar
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
@@ -967,15 +967,6 @@ class MyLifeFactory extends AgentFactory {
 		throw new Error('MyLife server cannot delete items')
 	}
 	/**
-	 * Retrieves member's Avatar data and creates singleton instance.
-	 * @returns {Avatar} - The Avatar instance.
-	 */
-	async getAvatar(){
-		const avatar = await ( new Q(this, this.#llmServices) )
-			.init()
-		return avatar
-	}
-	/**
 	 * Returns Array of hosted members based on validation requirements.
 	 * @param {Array} validations - Array of validation strings to filter membership.
 	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
@@ -997,8 +988,8 @@ class MyLifeFactory extends AgentFactory {
 	}
     /**
      * Validate registration id.
-     * @param {Guid} validationId - The registration id.
-     * @returns {Promise<object>} - Registration data from system datacore.
+     * @param {Guid} validationId - The registration id
+     * @returns {Promise<object>} - Registration data from system datacore
      */
 	async validateRegistration(registrationId){
 		if(!registrationId?.length)
@@ -1452,11 +1443,10 @@ function mTeam(team){
         title,
     }
 }
-/* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance
-const _MyLife = await new MyLife(
-	new MyLifeFactory()
+const SystemAvatar = await new Q(
+	new MyLifeFactory(), mLLMServices
 )
 	.init()
 /* exports */
-export default _MyLife
+export default SystemAvatar
