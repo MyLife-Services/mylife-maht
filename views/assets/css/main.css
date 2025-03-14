@@ -191,6 +191,7 @@ a.login-btn:hover {
 	flex-wrap: wrap;
 	flex-direction: row;
 	gap: 1rem;
+	justify-content: center;
 	max-width: 1400px;
 	padding: 0.5rem 1rem 0.5rem 1rem;
 }
@@ -875,11 +876,5 @@ pre code {
 	}
 	.hamburger {
 		display: flex;
-	}
-}
-@media screen and (max-width: 768px) { /* Adjust the max-width as needed */
-	.sidebar {
-		flex-basis: 100%;
-		max-width: 100%;
 	}
 }
