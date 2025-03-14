@@ -5,7 +5,8 @@
 @import url('members.css');
 /* css main variables */
 :root {
-	--mylife-border-radius: 0.22rem;
+	--mylife-background-color: #1d4253;
+	--mylife-border-radius: 0.5rem;
     --mylife-base-z-index: 1;
 	--mylife-help-z-index: 5;
 	--mylife-sidebar-z-index: 20;
@@ -25,15 +26,7 @@ body {
 	height: 100%;
 	margin: 0;
 }
-.page-container {
-    display: flex;
-    flex-direction: column; /* Change to row for horizontal layout */
-	height: 100%;
-	margin: 0;
-	max-height: 100%; /* Ensures the container grows to the full height */
-	max-width: 100%;
-	width: 100%; /* Ensures the container grows to the full width */
-}
+
 /* MyLife Menu Navigation */
 .top-nav {
 	align-items: center;
@@ -185,13 +178,21 @@ a.login-btn:hover {
 }
 /* MyLife main content */
 .main-content {
-	background-color: #eee;
+	background-color: var(--mylife-background-color);
 	background-image: url("../jpg/bkg_child_dandelion.jpg");
 	background-repeat: no-repeat;
 	background-size: cover;
 	background-position: bottom;
-	flex-grow: 1; /* Pushes the footer down */
-	overflow: hidden;
+	flex: 1; /* Pushes the footer down */
+	justify-content: center;
+}
+.page-container {
+    display: flex;
+	flex-wrap: wrap;
+	flex-direction: row;
+	gap: 1rem;
+	max-width: 1400px;
+	padding: 0.5rem 1rem 0.5rem 1rem;
 }
 .main-content h1 {
 	font-family: 'Arial Narrow', sans-serif;
@@ -216,17 +217,15 @@ a.login-btn:hover {
 }
 /* Sidebar Section */
 .sidebar {
-	background: #fff;
+	padding: 1rem;
+	background: #ffffffad;
     border-radius: var(--mylife-border-radius);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
 	color: #12094d;
-	display: flex;
-	flex: 1 1 100%;
+	flex: 1 1 320px; /* Makes it flexible with a base width of 600px */
 	flex-direction: column;
-	justify-content: flex-start;
-    margin: 0.5rem;
-    max-height: fit-content;
-	width: auto;
+	max-width: 400px; /* Maximum width of 600px */
+    min-width: 320px; /* Prevents excessive shrinking */
 }
 .sidebar h2 {
 	color: black;
@@ -759,14 +758,14 @@ pre code {
 /* MyLife header */
 .header {
 	color: #fff;
-	background: #1d4253;
+	background: var(--mylife-background-color);
 	max-height: 10vh;
 	padding: 0rem 1.5rem;
 	width: 100%;
 }
 /* MyLife general */
 .audio-icon {
-	color: lightgray;
+	color: honeydew;
 	cursor: pointer;
 	font-size: 2rem;
 	margin: 0.5rem 0rem 0rem 0.5rem;
@@ -862,7 +861,7 @@ pre code {
 		margin-top: -20px;
 		margin-left: -30px;
 		margin-right: -30px;
-		background: #1d4253;
+		background: var(--mylife-background-color);
 		flex-direction: column;
 		align-items: center;
 		display: none;

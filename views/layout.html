@@ -52,14 +52,16 @@
 		</div>
 	</div>
 	<div id="main-content" class="main-content hide">
-		<%- body %><!-- koa-ejs body inclusion -->
-		<!-- sidebar area -->
-		<div id="sidebar" class="sidebar hide">
-			<% if(locked) { %>
-				<% include assets/html/_sidebar %>
-			<% } else { %>
-				<% include assets/html/_bots %>
-			<% } %>
+		<div class="page-container">
+			<%- body %><!-- koa-ejs body inclusion -->
+			<!-- sidebar area -->
+			<div id="sidebar" class="sidebar hide">
+				<% if(locked) { %>
+					<% include assets/html/_sidebar %>
+				<% } else { %>
+					<% include assets/html/_bots %>
+				<% } %>
+			</div>
 		</div>
 	</div>
     <!-- Page Footer -->
