@@ -26,10 +26,10 @@ import {
 import Globals from './globals.mjs'
 /* variables */
 /* constants */
-const mGlobals = new Globals()
-const mainContent = mGlobals.mainContent,
-    navigation = mGlobals.navigation,
-    sidebar = mGlobals.sidebar
+const globals = new Globals()
+const mainContent = globals.mainContent,
+    navigation = globals.navigation,
+    sidebar = globals.sidebar
 window.about = about
 window.privacyPolicy = privacyPolicy
 /* variables */
@@ -82,7 +82,7 @@ function about(){
  * @returns {void}
  */
 function addInput(HTMLElement){
-    mGlobals.addChatElement(HTMLElement)
+    globals.addChatElement(HTMLElement)
 }
 /**
  * Pushes message content to the chat column.
@@ -117,7 +117,7 @@ function addMessages(messages, role, typeDelay, responseDelay=3){
  */
 function clearSystemChat(){
     activeBot().interactionCount = 0
-    mGlobals.clearElement()
+    globals.clearElement()
 }
 /**
  * Called from setActiveBot, triggers any main interface changes as a result of new selection.
@@ -127,10 +127,10 @@ function clearSystemChat(){
  */
 function decorateActiveBot(){
     const { id, name, } = activeBot()
-    mGlobals.chatInputPlaceholder = `Type your message to ${ name }...`
+    globals.chatInputPlaceholder = `Type your message to ${ name }...`
 }
 function escapeHtml(text) {
-    return mGlobals.escapeHtml(text)
+    return globals.escapeHtml(text)
 }
 function experiences(){
     return _experiences()
@@ -141,7 +141,7 @@ function experiences(){
  * @returns {void}
  */
 function expunge(element){
-    return mGlobals.expunge(element)
+    return globals.expunge(element)
 }
 /**
  * Gets the active chat item id to send to server.
@@ -159,7 +159,7 @@ function getActiveItemId(){
  * @returns {void}
  */
 function hide(){
-    mGlobals.hide(...arguments)
+    globals.hide(...arguments)
 }
 /**
  * Determines whether an experience is in progress.
@@ -194,7 +194,7 @@ function enactInstruction(instruction, interfaceLocation='chat', additionalFunct
         addMessages,
         ...additionalFunctions, // overloads feasible
     }
-    mGlobals.enactInstruction(instruction, functions)
+    globals.enactInstruction(instruction, functions)
 }
 /**
  * Presents the `privacy-policy` page as a routine.
@@ -269,7 +269,7 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 function setActiveAction(instructions){
     if(!instructions)
         return
-    mGlobals.clearDataset(chatActiveItem.dataset)
+    globals.clearDataset(chatActiveItem.dataset)
     chatActiveItem.dataset.inAction = "true"
     const { button, callback, icon, status, text, thumb, } = instructions
     const activeButton = document.getElementById('chat-active-item-button')
@@ -277,14 +277,14 @@ function setActiveAction(instructions){
     const activeIcon = document.getElementById('chat-active-item-icon')
     const activeStatus = document.getElementById('chat-active-item-status')
     const activeTitle = document.getElementById('chat-active-item-title')
-    mGlobals.clearDataset(chatActiveThumb.dataset)
+    globals.clearDataset(chatActiveThumb.dataset)
     chatActiveThumb.className = 'fas chat-active-action-thumb'
     if(thumb?.length)
         chatActiveThumb.src = thumb
     else
         hide(chatActiveThumb)
     if(activeIcon){
-        mGlobals.clearDataset(activeIcon.dataset)
+        globals.clearDataset(activeIcon.dataset)
         activeIcon.className = 'fas chat-active-action-icon'
         if(icon?.length)
             activeIcon.classList.add(icon)
@@ -292,7 +292,7 @@ function setActiveAction(instructions){
             hide(activeIcon)
     }
     if(activeStatus){
-        mGlobals.clearDataset(activeStatus.dataset)
+        globals.clearDataset(activeStatus.dataset)
         activeStatus.className = 'chat-active-action-status'
         activeStatus.removeEventListener('click', mToggleItemPopup)
         if(status?.length)
@@ -301,7 +301,7 @@ function setActiveAction(instructions){
             hide(activeStatus)
     }
     if(activeButton){
-        mGlobals.clearDataset(activeButton.dataset)
+        globals.clearDataset(activeButton.dataset)
         activeButton.className = 'button chat-active-action-button'
         if(button?.length){
             activeButton.textContent = button
@@ -313,7 +313,7 @@ function setActiveAction(instructions){
             hide(activeButton)
     }
     if(activeTitle){
-        mGlobals.clearDataset(activeTitle.dataset)
+        globals.clearDataset(activeTitle.dataset)
         activeTitle.className = 'chat-active-action-title'
         if(text?.length)
             activeTitle.textContent = text
@@ -321,7 +321,7 @@ function setActiveAction(instructions){
             hide(activeTitle)
     }
     if(activeClose){
-        mGlobals.clearDataset(activeClose.dataset)
+        globals.clearDataset(activeClose.dataset)
         activeClose.addEventListener('click', unsetActiveAction, { once: true })
     }
     show(chatActiveItem)
@@ -343,8 +343,8 @@ async function setActiveBot(){
  * @returns {void}
  */
 function setActiveItem(itemId){
-    mGlobals.clearDataset(chatActiveItem.dataset)
-    if(!mGlobals.isGuid(itemId))
+    globals.clearDataset(chatActiveItem.dataset)
+    if(!globals.isGuid(itemId))
         return
     const popup = document.getElementById(`popup-container_${ itemId }`)
     if(!popup)
@@ -416,7 +416,7 @@ function setActiveItem(itemId){
  * @returns {void}
  */
 function show(){
-    mGlobals.show(...arguments)
+    globals.show(...arguments)
 }
 /**
  * Shows the member system.
@@ -443,7 +443,7 @@ function showSidebar(){
  * @returns {void}
  */
 function stageTransition(experienceId){
-    if(mGlobals.isGuid(experienceId))
+    if(globals.isGuid(experienceId))
         experienceStart(experienceId)
     else
         mStageTransitionMember()
@@ -469,8 +469,8 @@ async function submit(message){
 	if(!message?.length)
 		return
     toggleMemberInput(false)
-    const awaitBar = mGlobals.await(`Connecting with ${ activeBot().name }...`)
-    mGlobals.addChatElement(awaitBar)
+    const awaitBar = globals.await(`Connecting with ${ activeBot().name }...`)
+    globals.addChatElement(awaitBar)
     const { itemId, } = chatActiveItem.dataset
     const { id: botId, } = activeBot()
 	const request = {
@@ -479,8 +479,8 @@ async function submit(message){
         message,
         role: 'member',
     }
-	const response = await mGlobals.datamanager.submitChat(request, true)
-    mGlobals.expunge(awaitBar)
+	const response = await globals.datamanager.submitChat(request, true)
+    globals.expunge(awaitBar)
     toggleMemberInput(true)
     return response
 }
@@ -493,7 +493,7 @@ async function submit(message){
  * @returns {void}
  */
 function toggleMemberInput(display=true){
-    mGlobals.toggleChatInput(display, 'slide-up')
+    globals.toggleChatInput(display, 'slide-up')
 }
 /**
  * Toggles the visibility of an element with option to force state.
@@ -502,7 +502,7 @@ function toggleMemberInput(display=true){
  * @returns {void}
  */
 function toggleVisibility(){
-    mGlobals.toggleVisibility(...arguments)
+    globals.toggleVisibility(...arguments)
 }
 /**
  * Unsets the active action in the chat system.
@@ -512,7 +512,7 @@ function toggleVisibility(){
  * @returns {void}
  */
 function unsetActiveAction(){
-    mGlobals.clearDataset(chatActiveItem.dataset)
+    globals.clearDataset(chatActiveItem.dataset)
     hide(chatActiveThumb)
     hide(chatActiveItem)
 }
@@ -523,7 +523,7 @@ function unsetActiveAction(){
  * @returns {void}
  */
 function unsetActiveItem(){
-    mGlobals.clearDataset(chatActiveItem.dataset)
+    globals.clearDataset(chatActiveItem.dataset)
     hide(chatActiveItem)
 }
 /**
@@ -568,7 +568,7 @@ async function mAddMemberMessage(event){
     event.stopPropagation()
 	event.preventDefault()
     const Bot = activeBot() // lock in here `await`
-    let memberMessage = mGlobals.chatInput
+    let memberMessage = globals.chatInput
     if (!memberMessage.length)
         return
     /* prepare request */
@@ -675,7 +675,7 @@ async function mAddMessage(message, role='agent', typeDelay=2){
     }
     chatMessage.appendChild(chatText)
     chatMessage.appendChild(chatMessageTab)
-	mGlobals.addChatElement(chatMessage)
+	globals.addChatElement(chatMessage)
     /* assign listeners */
     chatMessage.addEventListener('mouseover', _=>{
         chatMessageTab.classList.add('chat-message-tab-hover', `chat-message-tab-hover-${ isSynthetic ? 'agent' : 'member' }`)
@@ -700,7 +700,7 @@ async function mAddMessage(message, role='agent', typeDelay=2){
             chatFeedbackNegative.classList.remove('fa-spinner', 'spin')
             chatFeedbackNegative.classList.add(baseClass)
         }, 5000)
-        const success = await mGlobals.datamanager.feedback(false, message)
+        const success = await globals.datamanager.feedback(false, message)
         clearTimeout(feedbackTimeout)
         const successClass = success ? 'fa-check' : 'fa-times'
         chatFeedbackNegative.classList.add(successClass)
@@ -718,7 +718,7 @@ async function mAddMessage(message, role='agent', typeDelay=2){
             chatFeedbackPositive.classList.remove('fa-spinner', 'spin')
             chatFeedbackPositive.classList.add(baseClass)
         }, 5000)
-        const success = await mGlobals.datamanager.feedback(true, message)
+        const success = await globals.datamanager.feedback(true, message)
         clearTimeout(feedbackTimeout)
         const successClass = success ? 'fa-check' : 'fa-times'
         chatFeedbackPositive.classList.add(successClass)
@@ -779,7 +779,7 @@ async function mInitialize(){
  */
 function mInitializePageListeners(){
     /* page listeners */
-    mGlobals.ChatSubmit.addEventListener('click', mAddMemberMessage) /* note default listener */
+    globals.ChatSubmit.addEventListener('click', mAddMemberMessage) /* note default listener */
     mChatRefresh.addEventListener('click', clearSystemChat)
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
@@ -805,7 +805,7 @@ function mInitializePageListeners(){
 function seedInput(itemId, shadowId, value, placeholder){
     chatActiveItem.dataset.itemId = itemId
     chatActiveItem.dataset.shadowId = shadowId
-    mGlobals.seedInput(value, placeholder)
+    globals.seedInput(value, placeholder)
 }
 /**
  * Transitions and sets the stage to experience version of member screen indicated.
@@ -815,12 +815,12 @@ function seedInput(itemId, shadowId, value, placeholder){
  */
 function sceneTransition(type='interface'){
     /* assign listeners */
-    mGlobals.ChatSubmit.removeEventListener('click', mAddMemberMessage)
-    mGlobals.ChatSubmit.addEventListener('click', submitInput)
+    globals.ChatSubmit.removeEventListener('click', mAddMemberMessage)
+    globals.ChatSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
     hide(navigation)
     hide(botBar)
-    mGlobals.toggleChatInput(false)
+    globals.toggleChatInput(false)
     /* type specifics */
     switch(type){
         case 'chat':
@@ -840,15 +840,15 @@ function sceneTransition(type='interface'){
  * @returns {void}
  */
 function mStageTransitionMember(includeSidebar=true){
-    mGlobals.ChatSubmit.removeEventListener('click', submitInput)
-    mGlobals.ChatSubmit.addEventListener('click', mAddMemberMessage)
+    globals.ChatSubmit.removeEventListener('click', submitInput)
+    globals.ChatSubmit.addEventListener('click', mAddMemberMessage)
     hide(transport)
     hide(screen)
     hide(pageLoader)
     show(mainContent)
     show(navigation)
     show(sidebar)
-    show(mGlobals.ChatContainer)
+    show(globals.ChatContainer)
     if(includeSidebar && sidebar){
         show(sidebar)
         if(botBar)
@@ -880,7 +880,7 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
             setTimeout(_typewrite, typeDelay) // Adjust the typing speed here (50ms)
         } else
             chatBubble.setAttribute('status', 'done')
-        mGlobals.scrollBottom()
+        globals.scrollBottom()
     }
     _typewrite()
 }
@@ -895,7 +895,7 @@ export {
     experiences,
     expunge,
     getActiveItemId,
-    mGlobals as globals,
+    globals,
     hide,
     inExperience,
     introduction,

@@ -9,6 +9,7 @@ import {
     experiences,
     expunge,
     getActiveItemId,
+    globals,
     hide,
     introduction,
     enactInstruction,
@@ -26,7 +27,6 @@ import {
     unsetActiveAction,
     unsetActiveItem,
 } from './members.mjs'
-import Globals from './globals.mjs'
 const mAvailableCollections = ['entry', 'experience', 'file', 'memory'], // ['chat', 'conversation'],
     mAvailableMimeTypes = [],
     mAvailableUploaderTypes = ['collections', 'personal-avatar'],
@@ -36,7 +36,6 @@ const mAvailableCollections = ['entry', 'experience', 'file', 'memory'], // ['ch
     mCollectionsUpload = document.getElementById('collections-upload'),
     mDefaultReliveMemoryButtonText = 'Next',
     mDefaultTeam = 'memory',
-    mGlobals = new Globals(),
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
     passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`),
@@ -55,8 +54,8 @@ let mActiveBot,
     mShadows
 /* onDomContentLoaded */
 document.addEventListener('DOMContentLoaded', async event=>{
-    mShadows = await mGlobals.datamanager.shadows()
-    const { bots, activeBotId: id } = await mGlobals.datamanager.bots()
+    mShadows = await globals.datamanager.shadows()
+    const { bots, activeBotId: id } = await globals.datamanager.bots()
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
     updatePageBots(bots)
@@ -192,7 +191,7 @@ function removeItem(id){
  * @returns {void}
  */
 async function setActiveBot(event, displayGreeting=true){
-    const botId = mGlobals.isGuid(event)
+    const botId = globals.isGuid(event)
         ? event /* bypassed event, sent id */
         : event.target?.dataset?.bot_id
     if(!botId)
@@ -205,7 +204,7 @@ async function setActiveBot(event, displayGreeting=true){
     if(initialActiveBot===mActiveBot)
         return // no change, no problem
     const { id, type, } = mActiveBot
-    const { bot_id, responses=[], routine: botRoutine, success=false, version, versionUpdate, } = await mGlobals.datamanager.botActivate(id)
+    const { bot_id, responses=[], routine: botRoutine, success=false, version, versionUpdate, } = await globals.datamanager.botActivate(id)
     if(!success)
         throw new Error(`Server unsuccessful at setting active bot.`)
     /* update page bot data */
@@ -243,7 +242,7 @@ async function setActiveBot(event, displayGreeting=true){
  * @param {string} id - Id for HTML div element to toggle.
  */
 function togglePopup(id, bForceState=null){
-    if(mGlobals.isGuid(id))
+    if(globals.isGuid(id))
         id = `popup-container_${ id }`
     const popup = document.getElementById(id)
     if(!popup)
@@ -530,7 +529,7 @@ async function mSummarize(event){
     this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-question', 'fa-file-circle-xmark')
     this.classList.add('fa-compass', 'spin')
     /* fetch summary */
-    const { instruction, responses, success, } = await mGlobals.datamanager.summary(fileId, fileName)
+    const { instruction, responses, success, } = await globals.datamanager.summary(fileId, fileName)
     /* visibility triggers */
     this.classList.remove('fa-compass', 'spin')
     if(success)
@@ -658,7 +657,7 @@ function mCreateCollectionPopup(collectionItem){
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
     popupClose.id = `popup-close_${ id }`
     popupClose.setAttribute('aria-label', 'Close')
-    popupClose.addEventListener('click', _=>mGlobals.expunge(collectionPopup), { once: true })
+    popupClose.addEventListener('click', _=>globals.expunge(collectionPopup), { once: true })
     document.addEventListener('keydown', event=>{
         if(event.key==='Escape')
             popupClose.click()
@@ -1125,7 +1124,7 @@ async function mCreateTeamMember(event){
         id: mActiveTeam.id,
         type,
     }
-    const bot = await mGlobals.datamanager.botCreate(data)
+    const bot = await globals.datamanager.botCreate(data)
     if(!bot)
         throw new Error(`no bot created for team member`)
     const { description, id, teams, } = bot
@@ -1268,7 +1267,7 @@ async function mDeleteCollectionItem(event){
     if(getActiveItemId()===id)
         unsetActiveItem()
     if(userConfirmed){
-        const { instruction, responses, success, } = await mGlobals.datamanager.itemDelete(id)
+        const { instruction, responses, success, } = await globals.datamanager.itemDelete(id)
         if(!!instruction)
             enactInstruction(instruction, 'chat', { removeItem, })
         if(success){
@@ -1335,15 +1334,15 @@ async function mEvaluate(event){
     if(itemId)
         setActiveItem(itemId)
     toggleMemberInput(false)
-    const awaitBar = mGlobals.await(`${ mActiveBot.name } is evaluating your summary...`)
-    mGlobals.addChatElement(awaitBar)
+    const awaitBar = globals.await(`${ mActiveBot.name } is evaluating your summary...`)
+    globals.addChatElement(awaitBar)
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
-    const { responses, success, } = await mGlobals.datamanager.evaluate(itemId)
+    const { responses, success, } = await globals.datamanager.evaluate(itemId)
     if(responses?.length)
         addMessages(responses, mActiveBot.type)
-    mGlobals.expunge(awaitBar)
+    globals.expunge(awaitBar)
     toggleMemberInput(true)
 }
 async function mObscureEntry(event){
@@ -1353,16 +1352,16 @@ async function mObscureEntry(event){
     const { id: itemId, } = this.dataset
     if(itemId)
         setActiveItem(itemId)
-    const awaitBar = mGlobals.await(`${ mActiveBot.name } is obscuring your content...`)
-    mGlobals.addChatElement(awaitBar)
+    const awaitBar = globals.await(`${ mActiveBot.name } is obscuring your content...`)
+    globals.addChatElement(awaitBar)
     toggleMemberInput(false)
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
-    const { responses, success, } = await mGlobals.datamanager.obscure(itemId)
+    const { responses, success, } = await globals.datamanager.obscure(itemId)
     if(responses?.length)
         addMessages(responses, mActiveBot.type)
-    mGlobals.expunge(awaitBar)
+    globals.expunge(awaitBar)
     toggleMemberInput(true)
 }
 /**
@@ -1403,7 +1402,7 @@ async function mRefreshCollection(type, collectionList){
         ?? document.getElementById(`collection-list-${ type }`)
     if(!collectionList)
         throw new Error(`No collection list found for refresh request.`)
-    const collection = await mGlobals.datamanager.collections(type)
+    const collection = await globals.datamanager.collections(type)
     mUpdateCollection(type, collectionList, collection)
 }
 async function mReliveMemory(event){
@@ -1420,13 +1419,13 @@ async function mReliveMemory(event){
         mRelivingMemory = id
         clearSystemChat()
     }
-    mGlobals.removeDisappearingElements()
-    const awaitBar = mGlobals.await(`Reliving memory with ${ mActiveBot.name }...`)
-    mGlobals.addChatElement(awaitBar)
+    globals.removeDisappearingElements()
+    const awaitBar = globals.await(`Reliving memory with ${ mActiveBot.name }...`)
+    globals.addChatElement(awaitBar)
     toggleMemberInput(false)
     unsetActiveItem()
-    const { instruction, item, responses, success, } = await mGlobals.datamanager.memoryRelive(id, inputContent)
-    mGlobals.expunge(awaitBar)
+    const { instruction, item, responses, success, } = await globals.datamanager.memoryRelive(id, inputContent)
+    globals.expunge(awaitBar)
     if(success){
         const interrupts = ['endMemory', 'endReliving']
         const haltMemory = interrupts.includes(instruction?.command)
@@ -1492,7 +1491,7 @@ async function mRetireBot(event){
         /* reset active bot */
         if(mActiveBot.id===botId)
             setActiveBot()
-        const response = await mGlobals.datamanager.botRetire(botId)
+        const response = await globals.datamanager.botRetire(botId)
         addMessages(response.responses, 'avatar')
     } catch(err) {
         console.log('Error posting bot data:', err)
@@ -1510,7 +1509,7 @@ async function mRetireChat(event){
     try {
         const { dataset, id, } = event.target
         const { botId, type, } = dataset
-        const reponse = await mGlobals.datamanager.chatRetire(botId)
+        const reponse = await globals.datamanager.chatRetire(botId)
         addMessages(response.responses, mActiveBot.type)
     } catch(err) {
         console.log('Error posting bot data:', err)
@@ -1521,7 +1520,7 @@ async function mRetireChat(event){
  * Sets bot attributes on bot container.
  * @private
  * @requires mActiveBot
- * @requires mGlobals
+ * @requires globals
  * @param {object} bot - The bot object.
  * @param {HTMLDivElement} botContainer - The bot container.
  * @returns {void}
@@ -1676,7 +1675,7 @@ function mSpotlightBotStatus(){
  * @param {HTMLElement} shareElement - The share HTML element to erase
  */
 async function mShareDelete(shareId, shareElement){
-    await mGlobals.datamanager.shareDelete(shareId)
+    await globals.datamanager.shareDelete(shareId)
     shareElement.remove()
 }
 async function mShareLink(shareId){
@@ -1697,8 +1696,8 @@ async function mShareLink(shareId){
 async function mShareModal(itemId, shares, summary, title, shareId){
     expunge(document.getElementById('modal-share'))
     let shareData = {}
-    if(mGlobals.isGuid(shareId))
-        shareData = await mGlobals.datamanager.getShare(shareId)
+    if(globals.isGuid(shareId))
+        shareData = await globals.datamanager.getShare(shareId)
     /* create modal */
     const shareModal = document.createElement('div')
     shareModal.classList.add('modal-share')
@@ -1931,9 +1930,9 @@ async function mShareModal(itemId, shares, summary, title, shareId){
             title: shareTitleInput.value,
             voice: shareVoiceInput.value,
         }
-        const response = mGlobals.isGuid(shareId)
-            ? await mGlobals.datamanager.shareUpdate(shareData)
-            : await mGlobals.datamanager.shareCreate(shareData)
+        const response = globals.isGuid(shareId)
+            ? await globals.datamanager.shareUpdate(shareData)
+            : await globals.datamanager.shareCreate(shareData)
         if(!shareId){
             shareId = response.id
             shares.push(shareId)
@@ -1961,7 +1960,7 @@ async function mShareModal(itemId, shares, summary, title, shareId){
     shareOptions.appendChild(shareOptionsRow03)
     shareOptionsRow03.appendChild(shareConclusionContainer)
     shareModal.appendChild(shareSubmit)
-    mGlobals.page.appendChild(shareModal)
+    globals.page.appendChild(shareModal)
     show(shareModal)
 }
 function mCloseSharePanel(){
@@ -1994,9 +1993,9 @@ async function mStartDiary(event){
  * @returns {void}
  */
 async function mStopRelivingMemory(id, server=true){
-    mGlobals.removeDisappearingElements()
+    globals.removeDisappearingElements()
     if(server){
-        const { instruction, responses, success} = await mGlobals.datamanager.memoryReliveEnd(id)
+        const { instruction, responses, success} = await globals.datamanager.memoryReliveEnd(id)
         if(success){
             addMessages(responses, 'system', 3)
             if(!!instruction){
@@ -2147,7 +2146,7 @@ function mTogglePopup(event, collectionItem){
     const popupId = id.split('_').pop()
     let popup = document.getElementById(`popup-container_${ popupId }`)
     if(!!popup){
-        mGlobals.expunge(popup)
+        globals.expunge(popup)
         return
     }
     popup = mCreateCollectionPopup(collectionItem)
@@ -2183,7 +2182,7 @@ function mToggleSwitch(event){
     }
     const { children, } = this
     let { id, } = this /* parent toggle id */
-    id = mGlobals.HTMLIdToType(id)
+    id = globals.HTMLIdToType(id)
     const associatedSwitch = mFindCheckbox(target) /* throws on missing */
     const { checked, } = associatedSwitch
     const { checkedValue=`${ event ? !checked : checked}`, } = target.dataset
@@ -2213,7 +2212,7 @@ function mToggleSwitch(event){
 function mToggleSwitchPrivacy(event){
     let { id, } = this
     id = id.replace('-toggle', '') // remove toggle
-    const type = mGlobals.HTMLIdToType(id)
+    const type = globals.HTMLIdToType(id)
     const publicityCheckbox = document.getElementById(`${ type }-publicity-input`)
     const viewIcon = document.getElementById(`${ type }-publicity-toggle-view-icon`)
     const { checked=false, } = publicityCheckbox
@@ -2323,7 +2322,7 @@ function mUpdateBotContainerAddenda(botContainer){
                     id,
                     type,
                 }
-                if(await mGlobals.datamanager.botUpdate(botData)){
+                if(await globals.datamanager.botUpdate(botData)){
                     const botTitleName = document.getElementById(`${ type }-title-name`)
                     if(botTitleName)
                         botTitleName.textContent = bot_name
@@ -2422,7 +2421,7 @@ async function mUpdateBotVersion(event){
     const { botId, currentVersion, updateVersion, } = dataset
     if(currentVersion==updateVersion)
         return
-    const updatedVersion = await mGlobals.datamanager.botVersion(botId)
+    const updatedVersion = await globals.datamanager.botVersion(botId)
     if(updatedVersion?.success){
         const { version, } = updatedVersion.bot
         dataset.currentVersion = version
@@ -2474,7 +2473,7 @@ async function mUpdateCollectionItem(event){
     const { value: content, } = contentElement
     if(content==lastUpdatedContent)
         return true
-    const { success, } = await mGlobals.datamanager.itemUpdate(id, content, emoticons)
+    const { success, } = await globals.datamanager.itemUpdate(id, content, emoticons)
     if(success)
         contentElement.dataset.lastUpdatedContent = content
     else 
@@ -2516,7 +2515,7 @@ function mUpdateCollectionItemTitle(event){
         input.remove()
         const title = input.value
         if(title?.length && title!==textContent){
-            if(await mGlobals.datamanager.itemUpdateTitle(itemId, title))
+            if(await globals.datamanager.itemUpdateTitle(itemId, title))
                 updateItemTitle(itemId, title)
         }
         span.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
@@ -2561,7 +2560,7 @@ function mUpdateInterests(botContainer){
                 interests,
                 type,
             }
-            mGlobals.datamanager.botUpdate(bot) // no `await
+            globals.datamanager.botUpdate(bot) // no `await
         })
     })
 }
@@ -2595,7 +2594,7 @@ async function mUpdatePassphrase(event){
     const { value, } = passphraseInput
     if(!value?.length)
         return
-    const success = await mGlobals.datamanager.passphraseUpdate(value)
+    const success = await globals.datamanager.passphraseUpdate(value)
     mTogglePassphrase(success)
 }
 /**
@@ -2609,14 +2608,14 @@ async function mUpdatePassphrase(event){
  */
 async function mUpdateTeams(identifier=mDefaultTeam){
     if(!mTeams?.length)
-        mTeams.push(...await mGlobals.datamanager.teams())
+        mTeams.push(...await globals.datamanager.teams())
     const team = mTeams
         .find(team=>team.name===identifier || team.id===identifier)
     if(!team)
         throw new Error(`Team "${ identifier }" not available at this time.`)
     if(mActiveTeam!==team){
         const { id: teamId, } = team
-        const activeTeam = await mGlobals.datamanager.teamActivate(teamId)
+        const activeTeam = await globals.datamanager.teamActivate(teamId)
         if(activeTeam)
             mActiveTeam = activeTeam
     }
@@ -2635,13 +2634,13 @@ async function mUpdateTeams(identifier=mDefaultTeam){
  * @async
  * @requires mAvailableMimeTypes
  * @requires mAvailableUploaderTypes
- * @requires mGlobals
+ * @requires globals
  * @requires mCollectionsUpload
  * @param {Event} event - The event object.
  */
 async function mUploadFiles(event){
     const { id, parentNode: uploadParent, } = this
-    const type = mGlobals.HTMLIdToType(id)
+    const type = globals.HTMLIdToType(id)
     if(!mAvailableUploaderTypes.includes(type))
         throw new Error(`Uploader "${ type }" not found, upload function unavailable for this bot.`)
     let fileInput
@@ -2670,8 +2669,8 @@ async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
             for(let file of uploads){
                 formData.append('files[]', file)
             }
-            formData.append('type', mGlobals.HTMLIdToType(uploadParent.id))
-            const { files, message, success, } = await mGlobals.datamanager.uploadFiles(formData)
+            formData.append('type', globals.HTMLIdToType(uploadParent.id))
+            const { files, message, success, } = await globals.datamanager.uploadFiles(formData)
             const type = 'file'
             const itemList = document.getElementById(`collection-list-${ type }`)
             mUpdateCollection(type, itemList, files)

@@ -41,11 +41,10 @@ async function activateBot(ctx){
 async function alerts(ctx){
 	const { aid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
-	if(aid){
+	if(aid)
 		ctx.body = await Avatar.alert(aid)
-	} else {
+	else
 		ctx.body = await Avatar.alerts()
-	}
 }
 /**
  * Manage bots for the member.
