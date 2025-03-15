@@ -235,7 +235,7 @@ class BotFactory extends EventEmitter{
 	 * @param {Share} Share - The Share instance
 	 * @returns {Share} - The cleaned Share instance
 	 */
-	async cleanShare(Share){
+	async cleanShare(Share, avatar){
 		let prompt = '# CLEAN\n## Variables:\n'
 		const { anonymous, guessable, itemId, pov=1, restrictions, } = Share
 		const { name, names, } = this.core
@@ -244,33 +244,16 @@ class BotFactory extends EventEmitter{
 		const { phaseOfLife, summary, } = item
 		let shareData = {
 			phaseOfLife,
-			summary,
 		}
 		if(!anonymous || guessable)
 			shareData.variables = { 'memberName': memberName }
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		const messages = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt)
-		if(messages?.[0]){
-			const { content, thread_id, } = messages[0]
-			const message = content
-				.filter(_content=>_content.type==='text')
-				?.[0]
-				?.text
-				?.value
-			if(message?.length){
-				try {
-					shareData = {
-						...shareData,
-						...JSON.parse(message),
-					}
-				} catch (error) {
-					console.log(chalk.blueBright('Error parsing context.text:'), error)
-				}
-			}
-			if(thread_id?.length)
-				this.#llmServices.deleteThread(thread_id) // no await
+		const response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt, this, avatar) // response = { preparedSummary, success, warnings, }
+		shareData = {
+			...shareData,
+			...response,
 		}
 		return shareData
 	}
@@ -1291,11 +1274,9 @@ async function mLoadSchemas(){
  */
 async function mObscure(summary, bot){
     const prompt = `OBSCURE:\n${summary}`
-    const messageArray = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt, undefined, bot)
-		?? ['Error obscuring summary']
-	const obscuredSummary = messageArray[0]
-	console.log(chalk.blueBright('mObscure()::obscuredSummary'), obscuredSummary)
-	return obscuredSummary
+    const response = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt, undefined, bot)
+	return response?.obscuredSummary
+		?? summary
 }
 async function mPopulateBotInstructions(){
 	const instructionSets = await mDataservices.botInstructions()

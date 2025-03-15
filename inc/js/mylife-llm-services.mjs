@@ -152,14 +152,18 @@ class LLMServices {
                 return []
             }
         }
-        const run = await mRunTrigger(this.openai, llm_id, thread_id, factory, avatar)
-        const { error, id: run_id, status, success, } = run
-        console.log('LLMServices::getLLMResponse()::run', status, success)
+        const runOutcome = await mRunTrigger(this.openai, llm_id, thread_id, factory, avatar)
+        const { cancelResponse=false, error, function: functionCall, id: run_id, status, success, } = runOutcome
         let llmMessages
-        if(status=='cancelled' || avatar.cancelResponse){
-            console.log('LLMServices::getLLMResponse()::runCancelled', avatar.cancelResponse)
-            llmMessages = [avatar.cancelResponse ?? 'try again!']
-            delete avatar.cancelResponse
+        if(status=='cancelled' || cancelResponse){
+            if(cancelResponse){
+                await mRunCancel(this.openai, thread_id, run_id, true)
+                console.log('LLMServices::getLLMResponse()::cancelResponse', cancelResponse, functionCall)
+                delete runOutcome.cancelResponse
+                delete runOutcome.function
+                delete runOutcome.id
+            }
+            llmMessages = runOutcome
         } else if(!success){
             if(avatar.backupResponse){
                 avatar.backupResponse.action = 'endMemory'
@@ -171,7 +175,6 @@ class LLMServices {
         } else
             llmMessages = ( await this.messages(thread_id) )
                 .filter(message=>message.role=='assistant' && message.run_id==run_id)
-        console.log('LLMServices::getLLMResponse()::llmMessages', llmMessages)
         return llmMessages
     }
     /**
@@ -514,14 +517,36 @@ async function mRunFunctions(openai, run, factory, avatar){
                                     message: `I encountered an unexpected error while obscuring your content, please try again.`,
                                     type: 'system',
                                 }
-                                console.log('mRunFunctions()::registercandidate', toolArguments)
-                                const { summary, obscuredSummary: _summary, } = toolArguments
-                                const obscuredSummary = summary
-                                    ?? _summary
-                                if(obscuredSummary?.length)
-                                    avatar.cancelResponse = obscuredSummary
-                                await mRunCancel(openai, thread_id, runId, true)
-                                return
+                                const { summary: obscured, obscuredSummary: _obscured, } = toolArguments
+                                const obscuredSummary = obscured
+                                    ?? _obscured
+                                console.log('mRunFunctions()::obscure complete')
+                                return {
+                                    cancelResponse: true,
+                                    function: 'obscure',
+                                    id: runId, // required for canceling run
+                                    obscuredSummary,
+                                    success: true,
+                                }
+                            case 'preparesummary':
+                            case 'prepare_summary':
+                            case 'prepare summary':
+                                avatar.backupResponse = {
+                                    message: `I encountered an unexpected error while preparing content for sharing, please try again.`,
+                                    type: 'system',
+                                }
+                                const { summary: prepared, preparedSummary: _prepared, warnings, } = toolArguments
+                                const preparedSummary = prepared
+                                    ?? _prepared
+                                console.log('mRunFunctions()::prepareSummary complete')
+                                return {
+                                    cancelResponse: true,
+                                    function: 'prepareSummary',
+                                    id: runId, // required for canceling run
+                                    preparedSummary,
+                                    success: true,
+                                    warnings,
+                                }
                             case 'registercandidate':
                             case 'register_candidate':
                             case 'register candidate':
@@ -577,12 +602,13 @@ async function mRunFunctions(openai, run, factory, avatar){
                         }
                     }))
             /* submit tool output */
-            console.log('mRunFunctions()::toolCallsOutput', toolCallsOutput)
-            const finalOutput = await openai.beta.threads.runs.submitToolOutputsAndPoll( // note: must submit all tool outputs at once
-                run.thread_id,
-                run.id,
-                { tool_outputs: toolCallsOutput },
-            )
+            const finalOutput = toolCallsOutput.some(response=>response?.cancelResponse===true)
+                ? toolCallsOutput[0]
+                : await openai.beta.threads.runs.submitToolOutputsAndPoll( // note: must submit all tool outputs at once
+                        run.thread_id,
+                        run.id,
+                        { tool_outputs: toolCallsOutput },
+                    )
             return finalOutput /* undefined indicates to ping again */
         }
     } catch(error){
@@ -621,12 +647,12 @@ async function mRunStatus(openai, run, factory, avatar){
     switch(run.status){
         case 'requires_action':
             const completedRun = await mRunFunctions(openai, run, factory, avatar)
-            console.log('Requires Action', completedRun)
             return completedRun /* if undefined, will ping again */
         case 'cancelled':
             console.log(`CANCELED:${run.thread_id}...`, run.id) // ping log
-            return run
+            break // **note** do not return here, as there can be run conditions and we need the completedRun from requires action
         case 'completed':
+            console.log(`COMPLETED:${run.thread_id}...`, run.id) // ping log
             return run // run
         case 'failed':
         case 'expired':

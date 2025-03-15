@@ -889,7 +889,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise<object>} - shareHeader object
      */
     async shareHeader(sid){
-        const header = await this.#ShareAgent.header(sid)
+        const header = await this.#ShareAgent.header(sid, this)
         return header
     }
 	/**
