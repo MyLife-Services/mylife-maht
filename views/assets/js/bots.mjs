@@ -2489,9 +2489,12 @@ async function mUpdateCollectionItem(event){
     if(content==lastUpdatedContent)
         return true
     const { success, } = await globals.datamanager.itemUpdate(id, content, emoticons)
-    if(success)
+    if(success){
         contentElement.dataset.lastUpdatedContent = content
-    else 
+        const item = document.getElementById(`collection-item_${ id }`)
+        if(item?.collectionItem)
+            item.collectionItem.summary = content
+    } else 
         contentElement.value = lastUpdatedContent
     return success
 }
