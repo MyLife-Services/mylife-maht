@@ -1323,8 +1323,12 @@ function mFindCheckbox(element, searchParent=true){
  * @requires passphraseInput
  * @returns {void}
  */
-function mInputPassphrase(){
-    if(passphraseInput?.value?.length)
+function mInputPassphrase(event){
+    if(event.key==='Enter')
+        passphraseSubmitButton.click()
+    else if(event.key==='Escape')
+        passphraseCancelButton.click()
+    if(( passphraseInput?.value?.length ?? 0 )>2)
         show(passphraseSubmitButton)
     else
         hide(passphraseSubmitButton)
@@ -2132,14 +2136,23 @@ function mTogglePassphrase(event){
     passphraseInput.value = ''
     passphraseInput.placeholder = 'Enter new passphrase...'
     hide(passphraseSubmitButton)
-    if(event.target===passphraseResetButton){
+    if(event?.target===passphraseResetButton){
+        event.stopPropagation()
+        console.log('resetting', event.target)
         passphraseInput.focus()
-        passphraseInput.addEventListener('input', mInputPassphrase)
+        passphraseInput.disabled = false
+        // passphraseInput.addEventListener('input', mInputPassphrase)
         passphraseCancelButton.addEventListener('click', mTogglePassphrase, { once: true })
-        passphraseSubmitButton.addEventListener('click', mUpdatePassphrase)
+        passphraseSubmitButton.classList.add('fa-circle-arrow-right')
+        passphraseSubmitButton.classList.remove('fa-check')
+        passphraseSubmitButton.addEventListener('click', mUpdatePassphrase);
+        passphraseInput.addEventListener('keydown', mInputPassphrase)
+        passphraseSubmitButton.classList.add('fa-circle-arrow-right')
         hide(passphraseResetButton)
+        show(passphraseCancelButton)
         show(passphraseInputContainer)
     } else {
+        console.log('toggling', event)
         passphraseInput.blur()
         passphraseInput.removeEventListener('input', mInputPassphrase)
         passphraseSubmitButton.removeEventListener('click', mUpdatePassphrase)
@@ -2613,7 +2626,17 @@ async function mUpdatePassphrase(event){
     if(!value?.length)
         return
     const success = await globals.datamanager.passphraseUpdate(value)
-    mTogglePassphrase(success)
+    if(success){
+        hide(passphraseCancelButton)
+        passphraseInput.disabled = true
+        passphraseInput.value = 'Passphrase updated!'
+        passphraseSubmitButton.classList.remove('fa-circle-arrow-right')
+        passphraseSubmitButton.classList.add('fa-check')
+        setTimeout(_=>{
+            mTogglePassphrase()
+        }, 2000)
+    } else
+        passphraseSubmitButton.classList.add('fa-circle-arrow-right')
 }
 /**
  * Updates the active team to specific or default.
