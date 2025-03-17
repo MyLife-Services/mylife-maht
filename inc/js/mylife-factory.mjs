@@ -7,7 +7,6 @@ import util from 'util'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import { Avatar, Q, } from './mylife-avatar.mjs'
 import Dataservices from './mylife-dataservices.mjs'
-import { Member, MyLife } from './core.mjs'
 import {
 	extendClass_consent,
     extendClass_conversation,
@@ -16,8 +15,6 @@ import {
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
 import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
-import MylifeMemberSession from './session.mjs'
-import { type } from 'os'
 /* module constants */
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
@@ -125,8 +122,6 @@ const mSchemas = {
 	...await mLoadSchemas(),
 	dataservices: Dataservices,
 	menu: Menu,
-	member: Member,
-	session: MylifeMemberSession
 }
 /* module construction functions */
 mConfigureSchemaPrototypes()
@@ -229,7 +224,7 @@ class BotFactory extends EventEmitter{
 	 * @param {boolean} caseInsensitive - Whether requestor suggests to ignore case in passphrase, defaults to `false`
 	 * @returns {Promise<boolean>} - `true` if challenge successful
 	 */
-	async challengeAccess(passphrase, caseInsensitive=false){
+	async challengeAccess(passphrase, caseInsensitive){
 		caseInsensitive = this.core.caseInsensitive
 			?? caseInsensitive
 		const challengeSuccessful = await mDataservices.challengeAccess(this.mbr_id, passphrase, caseInsensitive)
@@ -240,7 +235,7 @@ class BotFactory extends EventEmitter{
 	 * @param {Share} Share - The Share instance
 	 * @returns {Share} - The cleaned Share instance
 	 */
-	async cleanShare(Share){
+	async cleanShare(Share, avatar){
 		let prompt = '# CLEAN\n## Variables:\n'
 		const { anonymous, guessable, itemId, pov=1, restrictions, } = Share
 		const { name, names, } = this.core
@@ -249,33 +244,16 @@ class BotFactory extends EventEmitter{
 		const { phaseOfLife, summary, } = item
 		let shareData = {
 			phaseOfLife,
-			summary,
 		}
 		if(!anonymous || guessable)
 			shareData.variables = { 'memberName': memberName }
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		const messages = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt)
-		if(messages?.[0]){
-			const { content, thread_id, } = messages[0]
-			const message = content
-				.filter(_content=>_content.type==='text')
-				?.[0]
-				?.text
-				?.value
-			if(message?.length){
-				try {
-					shareData = {
-						...shareData,
-						...JSON.parse(message),
-					}
-				} catch (error) {
-					console.log('Error parsing context.text:', error)
-				}
-			}
-			if(thread_id?.length)
-				this.#llmServices.deleteThread(thread_id) // no await
+		const response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt, this, avatar) // response = { preparedSummary, success, warnings, }
+		shareData = {
+			...shareData,
+			...response,
 		}
 		return shareData
 	}
@@ -416,16 +394,17 @@ class BotFactory extends EventEmitter{
     /**
      * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
      * @param {Guid} itemId - Id of the item to obscure
+	 * @param {Bot} bot - The bot instance to use for obscuring
      * @returns {string} - The obscured content
      */
-	async obscure(itemId){
+	async obscure(itemId, bot){
 		const { id, summary, relationships, } = await this.item(itemId)
 			?? {}
 		if(!id)
 			throw new Error('Item not found')
 		if(!summary?.length)
 			throw new Error('No summary found to obscure')
-		const obscuredSummary = await mObscure(summary)
+		const obscuredSummary = await mObscure(summary, bot)
 		if(obscuredSummary?.length) /* save response */
 			this.dataservices.patch(id, { summary: obscuredSummary }) // no need await
 		return obscuredSummary
@@ -487,7 +466,8 @@ class BotFactory extends EventEmitter{
 	 * @returns {object} - The Experience class definition.
 	 */
 	get core(){
-		return this.dataservices.core
+		const core = this.globals.sanitize(this.dataservices.core)
+		return core
 	}
 	get dataservices(){
 		return this.#dataservices
@@ -572,9 +552,10 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
-	 * @returns {Object[]} - An array of the currently available public experiences.
+	 * @returns {Object[]} - An array of the currently available public experiences
 	 */
 	async availableExperiences(){
+		// @todo - add member-owned experiences
 		return await mDataservices.availableExperiences()
 	}
 	/**
@@ -683,53 +664,39 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Retrieves member's Avatar data and creates singleton instance.
+	 * @param {AgentFactory} Factory - The AgentFactory instance; optional, defaults to MyLife
 	 * @returns {Avatar} - The Avatar instance.
 	 */
-	async getAvatar(){
-		const avatar = await ( new Avatar(this, this.#llmServices) )
+	async getAvatar(Factory=this){
+		const _Avatar = await ( new Avatar(Factory, this.#llmServices) ) // @todo - make non-generic LLM
 			.init()
-		return avatar
+		return _Avatar
 	}
 	/**
-	 * Generates via personal intelligence, nature of consent/protection around itemId or Bot id.
+	 * Generates via personal intelligence, nature of consent/protection around itemId or Bot id. Consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access; id of Consent should be same as id of object being _request_ so lookup will be straight-forward.
 	 * @todo - build out consent structure
 	 * @param {Guid} id - The id of the item to generate consent for.
 	 * @param {Guid} requesting_mbr_id - The id of the member requesting consent.
 	 * @returns {object} - The consent object, with parameters or natural language guidelines.
 	 */
 	async getConsent(id, requesting_mbr_id){
-		//	consent is a special case, does not exist in database, is dynamically generated each time with sole purpose of granting access--stored for and in session, however, and attempted access there first... id of Consent should be same as id of object being _request_ so lookup will be straight-forward
 		return new (mSchemas.consent)(consent, this)
 	}
 	/**
 	 * Creates the member instance.
-	 * @returns {Member} - The member instance.
+	 * @param {String} mbr_id - The member id
+	 * @returns {Promise<Avatar>} - The Member Avatar instance
 	 */
-	async getMyLifeMember(){
-		const member =  await ( new (mSchemas.member)(this) )
-			.init()
-		return member
-	}
-	/**
-	 * Creates the session instance.
-	 * @todo - review this code and architecture.
-	 * @returns {Session} - The Session instance.
-	 */
-	async getMyLifeSession(){
-		// default is session based around default dataservices [Maht entertains guests]
-		// **note**: consequences from this is that I must be careful to not abuse the module space for sessions, and regard those as _untouchable_
-		return await new (mSchemas.session)(
-			( new AgentFactory(mPartitionId) ) // no need to init (?)
-		).init()
+	async getMemberAvatar(mbr_id){
+		const Factory = await ( new AgentFactory(mbr_id) ).init()
+		const Avatar =  await this.getAvatar(Factory)
+		return Avatar
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
 	}
 	isConsent(_consent){	//	when unavailable from general schemas
 		return (_consent instanceof mSchemas.consent)
-	}
-	isSession(_session){	//	when unavailable from general schemas
-		return (_session instanceof mSchemas.session)
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.
@@ -886,19 +853,6 @@ class MyLifeFactory extends AgentFactory {
 		return Bot
 	}
 	/**
-	 * Accesses Dataservices to challenge access to a member's account.
-	 * @public
-	 * @param {string} mbr_id - The member id
-	 * @param {string} passphrase - The passphrase to challenge
-	 * @returns {object} - Returns passphrase document if access is granted.
-	 */
-	async challengeAccess(mbr_id, passphrase){
-		const caseInsensitive = true // MyLife server defaults to case-insensitive
-		const avatarProxy = await this.avatarProxy(mbr_id)
-		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase, caseInsensitive)
-		return challengeSuccessful
-	}
-	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
 	 * @param {Guid} registrationId - The registration id.
@@ -997,15 +951,6 @@ class MyLifeFactory extends AgentFactory {
 		throw new Error('MyLife server cannot delete items')
 	}
 	/**
-	 * Retrieves member's Avatar data and creates singleton instance.
-	 * @returns {Avatar} - The Avatar instance.
-	 */
-	async getAvatar(){
-		const avatar = await ( new Q(this, this.#llmServices) )
-			.init()
-		return avatar
-	}
-	/**
 	 * Returns Array of hosted members based on validation requirements.
 	 * @param {Array} validations - Array of validation strings to filter membership.
 	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
@@ -1027,8 +972,8 @@ class MyLifeFactory extends AgentFactory {
 	}
     /**
      * Validate registration id.
-     * @param {Guid} validationId - The registration id.
-     * @returns {Promise<object>} - Registration data from system datacore.
+     * @param {Guid} validationId - The registration id
+     * @returns {Promise<object>} - Registration data from system datacore
      */
 	async validateRegistration(registrationId){
 		if(!registrationId?.length)
@@ -1053,7 +998,7 @@ class MyLifeFactory extends AgentFactory {
 	}
 	/* getters/setters */
     /**
-     * Test whether avatar session is creating an account.
+     * Test whether avatar is creating an account.
      * @getter
      * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
      */
@@ -1151,7 +1096,7 @@ async function mEvaluateItem(summary, llm_id=mGeneralBotId){
 	return evaluation
 }
 function mExposedSchemas(factoryBlockedSchemas){
-	const _systemBlockedSchemas = ['dataservices','session']
+	const _systemBlockedSchemas = ['dataservices']
 	return Object.keys(mSchemas)
 		.filter(key => !_systemBlockedSchemas.includes(key) && !factoryBlockedSchemas.includes(key))
 		.reduce((obj, key) => {
@@ -1324,25 +1269,14 @@ async function mLoadSchemas(){
 /**
  * Given an itemId, obscures aspects of contents of the data record.
  * @param {string} summary - The summary to obscure
+ * @param {Bot} bot - The bot instance that will obscure the summary
  * @returns {string} - The obscured summary
  */
-async function mObscure(summary) {
-	let obscuredSummary
-    // @stub - if greater than limit, turn into text file and add
+async function mObscure(summary, bot){
     const prompt = `OBSCURE:\n${summary}`
-    const messageArray = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt)
-	const { content: contentArray=[], } = messageArray?.[0] ?? {}
-	const { value, } = contentArray
-		.filter(message=>message.type==='text')
-		?.[0]
-		?.text
-			?? {}
-    try {
-		let parsedSummary = JSON.parse(value)
-        if(typeof parsedSummary==='object' && parsedSummary!==null)
-            obscuredSummary = parsedSummary.obscuredSummary
-    } catch(e) {} // obscuredSummary is just a string; use as-is or null
-	return obscuredSummary
+    const response = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt, undefined, bot)
+	return response?.obscuredSummary
+		?? summary
 }
 async function mPopulateBotInstructions(){
 	const instructionSets = await mDataservices.botInstructions()
@@ -1482,11 +1416,10 @@ function mTeam(team){
         title,
     }
 }
-/* final constructs relying on class and functions */
 // server build: injects default factory into _server_ **MyLife** instance
-const _MyLife = await new MyLife(
-	new MyLifeFactory()
+const SystemAvatar = await new Q(
+	new MyLifeFactory(), mLLMServices
 )
 	.init()
 /* exports */
-export default _MyLife
+export default SystemAvatar

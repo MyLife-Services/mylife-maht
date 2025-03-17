@@ -398,10 +398,9 @@ class Share extends EventEmitter {
             return this.share
     }
     set header(headerData){
-        const { summary, warnings, variables, } = headerData
-        if(!summary?.length)
-            return
-        this.#summary = summary
+        const { preparedSummary, summary, warnings, variables, } = headerData
+        this.#summary = preparedSummary
+            ?? summary
         this.#warnings = warnings
         if(variables && typeof variables==='object' && !Array.isArray(variables))
             this.addVariable(variables)

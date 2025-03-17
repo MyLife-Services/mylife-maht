@@ -222,7 +222,7 @@ function mCreateChallengeElement(){
 async function mFetchStart(){
     const isSignedUp = await mGlobals.datamanager.signupStatus()
     !isSignedUp
-        ? retract(signupSuccess)
+        ? hide(signupSuccess)
         : mSignupSuccess()
     const messages = []
     let input // HTMLDivElement containing input element
@@ -485,6 +485,7 @@ function mShowPage(hideChat=false){
         hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){
+    console.log('mSignupSuccess')
     retract(signupForm)
     show(signupSuccess)
 }
@@ -556,8 +557,8 @@ async function mSubmitSignup(event){
         humanName,
         type: mSignupType,
     }
-    const response = mGlobals.datamanager.submitSignup(formData)
-    if(response?.success)
+    const success = mGlobals.datamanager.submitSignup(formData)
+    if(success)
         mSignupSuccess()
     else {
         const signupInputContainer = document.getElementById('signup-input-container')

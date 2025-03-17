@@ -9,7 +9,7 @@ const mBotSecrets = JSON.parse(process.env.OPENAI_JWT_SECRETS)
  */
 async function availableExperiences(ctx){
     const { mbr_id } = ctx.state.avatar
-    const experiences = await ctx.MyLife.availableExperiences()
+    const experiences = await ctx.SystemAvatar.availableExperiences()
     const autoplay = experiences
         .find(experience=>experience.autoplay) // find first (of any) autoplay experience
         ?.id
@@ -30,7 +30,7 @@ async function entry(ctx){
         assistantType,
         mbr_id,
     }
-    const entry = await ctx.MyLife.entry(summary)
+    const entry = await ctx.SystemAvatar.entry(summary)
     ctx.status = 200
     ctx.body = {
         id: entry.id,
@@ -145,7 +145,7 @@ async function keyValidation(ctx){
     if(ctx.method === 'HEAD') return
     const { mbr_id } = ctx.state
     // @todo - may not reflect data core any longer
-    const memberCore = await ctx.MyLife.datacore(mbr_id)
+    const memberCore = await ctx.SystemAvatar.core(mbr_id)
     const { updates, interests, birth: memberBirth, birthDate: memberBirthDate, fullName, names, nickname } = memberCore
     const birth = (Array.isArray(memberBirth) && memberBirth.length)
         ? memberBirth[0]
@@ -232,7 +232,7 @@ async function memory(ctx){
         assistantType,
         mbr_id,
     }
-    const memory = await ctx.MyLife.memory(summary)
+    const memory = await ctx.SystemAvatar.memory(summary)
     ctx.status = 200
     ctx.body = {
         id: memory.id,
@@ -328,7 +328,7 @@ async function mAPIKeyValidation(ctx){ // transforms ctx.state
     if( // validated
             !ctx.state.locked
         ||  ( ctx.session.isAPIValidated ?? false )
-        ||  await ctx.MyLife.isMemberHosted(memberId)
+        ||  await ctx.SystemAvatar.isMemberHosted(memberId)
     ){
         ctx.state.isValidated = true
         ctx.state.mbr_id = memberId

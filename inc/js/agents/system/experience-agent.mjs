@@ -452,13 +452,14 @@ class ShareAgent {
     /**
      * Get a memory `Header`.
 	 * @param {guid} instanceId - Share instanceId
-     * @returns {Promise<object>} - shareHeader object
+     * @param {Avatar} avatar - The Avatar object
+     * @returns {Promise<object>} - The Share header object
      */
-    async header(instanceId){
+    async header(instanceId, avatar){
         const Share = this.share(instanceId)
         if(Share && !Share.header){
             let MemberAvatar = await this.#factory.avatarProxy(Share.mbr_id)
-            const shareData = await MemberAvatar.cleanShare(Share) // operates directly upon Shared Memory Share
+            const shareData = await MemberAvatar.cleanShare(Share, avatar) // operates directly upon Shared Memory Share
             Share.header = shareData
         }
         return Share?.header
@@ -474,7 +475,7 @@ class ShareAgent {
         if(!Share)
             throw new Error('Share not found')
         else if(!Share.header || !Share.warningsAccepted)
-            return await this.shareHeader(instanceId)
+            return await this.header(instanceId)
         else if(!Share.initialized)
             await this.shareInit(Share)
         const shareContent = await Share.play(input)
@@ -496,7 +497,7 @@ class ShareAgent {
      */
     async shareInit(Share){
         if(!Share.header) // set header if not already set
-            await this.shareHeader(Share.instanceId)
+            await this.header(Share.instanceId)
         /* scene creation */
         let prompt = `# Scenes\n`
         const shareData = {}
@@ -514,7 +515,8 @@ class ShareAgent {
                 ?.text
                 ?.value
             if(message?.length){
-                const scenes = JSON.parse(message).scenes
+                const scenes = JSON.parse(message)?.scenes
+                    ?? ['Error in LLM response while trying to cancel a thread; please reload page']
                 if(scenes.length===1)
                     scenes = scenes.first()
                         .split(/(?=(scene\s*\d+:?\n?))/i)

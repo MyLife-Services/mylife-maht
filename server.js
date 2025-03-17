@@ -11,16 +11,16 @@ import serve from 'koa-static'
 /* misc imports */
 import chalk from 'chalk'
 /* local service imports */
-import MyLife from './inc/js/mylife-factory.mjs'
+import SystemAvatar from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.31'
+const version = '0.0.32'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const _Maht = await MyLife // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
-if(!process.env.MYLIFE_HOSTING_KEY || process.env.MYLIFE_HOSTING_KEY !== _Maht.avatar.hosting_key)
+const _Maht = await SystemAvatar // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
+if(!process.env.MYLIFE_HOSTING_KEY || process.env.MYLIFE_HOSTING_KEY !== _Maht.hosting_key)
 	throw new Error('Invalid hosting key. Server will not start.')
 _Maht.version = version
 const MemoryStore = new session.MemoryStore()
@@ -73,7 +73,7 @@ const mimeTypesToExtensions = {
     'video/quicktime': ['.mov'],
 }
 const serverRouter = await _Maht.router
-console.log(chalk.bgBlue('created-core-entity:', chalk.bgRedBright('MAHT'), chalk.bgGreenBright(_Maht.version)))
+console.log(chalk.bgBlue('created-system-avatar:', chalk.bgRedBright('MAHT'), chalk.bgGreenBright(_Maht.version)))
 /** RESERVED: test harness **/
 /** application startup **/
 render(app, {
@@ -85,17 +85,14 @@ render(app, {
 })
 setInterval(
 	checkForLiveAlerts,
-	JSON.parse(
-		process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL
-			?? '60000'
-	)
+	JSON.parse(process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL ?? '60000')
 )
 /* upload directory */
 const uploadDir = path.join(__dirname, '.tmp')
 if(!fs.existsSync(uploadDir)){
 	fs.mkdirSync(uploadDir, { recursive: true })
 }
-app.context.MyLife = _Maht
+app.context.SystemAvatar = _Maht
 app.context.Globals = _Maht.globals
 app.context.menu = _Maht.menu
 app.keys = [
@@ -131,7 +128,7 @@ app.use(koaBody({
 		session(	//	session initialization
 			{
 				key: 'mylife.sid',   // cookie session id
-				maxAge: parseInt(process.env.MYLIFE_SESSION_TIMEOUT_MS) || 900000,     // session lifetime in milliseconds
+				maxAge: parseInt(process.env.MYLIFE_SESSION_TIMEOUT_MS) || 900000, // session lifetime in milliseconds
 				autoCommit: true,
 				overwrite: true,
 				httpOnly: false,
@@ -153,24 +150,17 @@ app.use(koaBody({
 			console.error(err)
 		}
 	})
-	//	system context, koa: https://koajs.com/#request
-	.use(async (ctx,next) => {
-		/* SESSION: member login */
-		if(!ctx.session?.MemberSession){
-			/* create generic session [references/leverages modular capabilities] */
-			ctx.session.MemberSession = await ctx.MyLife.getMyLifeSession()	//	create default locked session upon first request; does not require init(), _cannot_ have in fact, as it is referencing a global modular set of utilities and properties in order to charge-back to system as opposed to member
-			/* platform-required session-external variables */
-			ctx.session.signup = false
-		}
-		ctx.state.locked = ctx.session.MemberSession.locked
-		ctx.state.MemberSession = ctx.session.MemberSession	//	lock-down session to state
-		ctx.state.member = ctx.state.MemberSession?.member
-			?? ctx.MyLife
-		ctx.state.avatar = ctx.state.member.avatar
-		ctx.state.menu = ctx.MyLife.menu
-		ctx.state.version = ctx.MyLife.version
-		if(!await ctx.state.MemberSession.requestConsent(ctx))
-			ctx.throw(404,'asset request rejected by consent')
+	.use(async (ctx,next)=>{
+		ctx.session.locked = ctx.session.locked
+			?? true
+		ctx.session.signup = ctx.session.signup
+			?? false
+		ctx.session.avatar = ctx.session.avatar
+			?? ctx.SystemAvatar
+		ctx.state.avatar = ctx.session.avatar
+		ctx.state.locked = ctx.session.locked
+		ctx.state.menu = ctx.SystemAvatar.menu
+		ctx.state.version = ctx.SystemAvatar.version
 		await next()
 	})
 	.use(async(ctx,next) => { // alert check
@@ -186,5 +176,5 @@ app.use(koaBody({
 	})
 /** server functions **/
 function checkForLiveAlerts(){
-	_Maht.getAlerts()
+	_Maht.alerts()
 }
