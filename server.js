@@ -13,7 +13,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.32'
+const version = '0.0.33'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
