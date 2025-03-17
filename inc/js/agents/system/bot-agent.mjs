@@ -192,7 +192,7 @@ class Bot {
      * @returns {Object} - The obscured item object
      */
 	async obscure(itemId){
-        const updatedSummary = await this.#factory.obscure(itemId)
+        const updatedSummary = await this.#factory.obscure(itemId, this)
 		return updatedSummary
 	}
 	/**
@@ -398,7 +398,7 @@ class BotAgent {
 	 * @param {String} mbr_id - The member id to use for conversation (optional)
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id){
+	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id){
 		let { id, llm_id, } = this.avatar
 		if(type==='experience'){
 			id = this.#factory.actor.id
@@ -407,7 +407,19 @@ async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisor
 			// use  member avatar?
 			llm_id = scriptAdvisorLlmId
 		}
-    const Conversation = await mConversationStart(type, form, id, undefined, llm_id, this.#llm, this.#factory, prompt, undefined, mbr_id)
+    	const Conversation = await mConversationStart(type, form, id, undefined, llm_id, this.#llm, this.#factory, prompt, undefined, mbr_id)
+		return Conversation
+	}
+	/**
+	 * Deletes a chat conversation.
+	 * @param {Conversation} Conversation - The Conversation instance
+	 * @param {Boolean} localDelete - Whether to delete locally, defaults to `true`
+	 * @returns {Conversation} - The deleted Conversation instance
+	 */
+	async deleteChat(Conversation, localDelete=true){
+		if(!Conversation)
+			throw new Error('Conversation instance required')
+		await mDeleteChat(Conversation, localDelete, this.#llm, this.#factory)
 		return Conversation
 	}
     /**
@@ -1057,24 +1069,6 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
 		Conversation.save() // no `await`
 }
 /**
- * Deletes conversation and updates 
- * @param {Conversation} Conversation - The Conversation instance
- * @param {LLMServices} llm - The LLMServices instance
- * @returns {Promise<boolean>} - `true` if successful
- */
-async function mConversationDelete(Conversation, factory, llm){
-    /* delete thread_id from bot and save to Cosmos */
-    Bot.thread_id = ''
-    const { id, thread_id, } = Bot
-    factory.updateBot({
-        id,
-        thread_id,
-    })
-    await factory.deleteItem(Conversation.id) /* delete conversation from Cosmos */
-    await llm.deleteThread(thread_id) /* delete thread from LLM */
-    return true
-}
-/**
  * Create a new conversation.
  * @async
  * @module
@@ -1114,6 +1108,21 @@ async function mConversationStart(type='chat', form='system', bot_id, thread_id,
 		thread
 	)
 	return Conversation
+}
+/**
+ * Deletes thread and conversation (optional) from LLM and Cosmos, respectively.
+ * @param {Conversation} Conversation - The Conversation instance
+ * @param {boolean} localDelete - Whether to delete conversation from Cosmos, defaults to `false`
+ * @param {LLMServices} llm - The LLMServices instance
+ * @param {AgentFactory} factory - The Factory instance
+ * @returns {Promise<boolean>} - `true` if successful
+ */
+async function mDeleteChat(Conversation, localDelete=false, llm, factory){
+	const { id, thread_id, } = Conversation
+	await llm.deleteThread(thread_id) // delete thread from LLM
+	if(localDelete)
+	    factory.deleteItem(id) // no await
+    return true
 }
 /**
  * Retrieves any functions that need to be attached to the specific bot-type.

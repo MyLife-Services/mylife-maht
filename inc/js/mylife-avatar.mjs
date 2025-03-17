@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Marked } from 'marked'
 import EventEmitter from 'events'
+import initRouter from './routes.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
@@ -28,6 +29,7 @@ const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-sc
  * @todo - deprecate `factory` getter
  */
 class Avatar extends EventEmitter {
+    #alertsShown = [] // array of alert ids
     #assetAgent
     #botAgent
     #collectionsAgent
@@ -92,6 +94,47 @@ class Avatar extends EventEmitter {
         const response = this.#ShareAgent.acceptWarnings(instanceId)
         return response
     }
+    /**
+     * Returns a specific alert.
+     * @param {Guid} aid - The alert id
+     * @returns {Promise<object>} - The alert object
+     */
+	async alert(aid){
+		return this.#factory.getAlert(aid)
+	}
+    /**
+     * Returns all alerts of a certain type for the member/visitor.
+     * @param {String} type - The type of alert
+     * @returns {Promise<object[]>} - The array of alerts
+     */
+	async alerts(type){
+		let currentAlerts = this.#factory.alerts
+		currentAlerts = currentAlerts // remove alerts already shown to member in this session
+			.filter(alert=>{
+				return !this.#alertsShown.includes(alert.id)
+			})
+		currentAlerts.forEach(alert=>{
+			this.#alertsShown.push(alert.id)
+		})
+		return currentAlerts
+	}
+	/**
+	 * Retrieves all public experiences (i.e., owned by MyLife).
+	 * @returns {Object[]} - An array of the currently available public experiences.
+	 */
+	async availableExperiences(){
+		const experiences = ( await this.#factory.availableExperiences(this.mbr_id) )
+			.map(experience=>{ // map to display versions [from `mylife-avatar.mjs`]
+				const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
+				return {
+					description,
+					id,
+					name,
+					purpose,
+				}
+			})
+		return experiences
+	}
     /**
      * Get a Bot instance by id.
      * @public
@@ -283,6 +326,16 @@ class Avatar extends EventEmitter {
         const Bot = await this.#botAgent.botCreate(botData)
         const bot = Bot.bot
         return bot
+    }
+    /**
+     * Deletes a chat conversation from llm and memory.
+     * @param {Conversation} Conversation - The conversation instance to delete
+     * @param {Boolean} localDelete - Whether to delete locally or from database, defaults to `true`
+     * @returns {Promise<String>} - The deleted conversation instance id
+     */
+    async deleteChat(Conversation, localDelete=true){
+        const { id, } = await this.#botAgent.deleteChat(Conversation, localDelete)
+        return id
     }
     /**
      * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
@@ -836,7 +889,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise<object>} - shareHeader object
      */
     async shareHeader(sid){
-        const header = await this.#ShareAgent.header(sid)
+        const header = await this.#ShareAgent.header(sid, this)
         return header
     }
 	/**
@@ -1378,7 +1431,8 @@ class Q extends Avatar {
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
     #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
-    #mode = 'system' // @stub - experience mode for guests
+    #Menu
+    #Router
     /**
      * @constructor
      * @param {MyLifeFactory} factory - The factory on which MyLife relies for all service interactions.
@@ -1398,19 +1452,19 @@ class Q extends Avatar {
      * @public
      * @param {string} message - The chat message content
      * @param {Guid} itemId - The active collection-item id (optional)
-     * @param {MemberSession} MemberSession - The member session object
+     * @param {Koa Session} session - The context session object to store guest conversation
      * @returns {Promise<Object[]>} - The response(s) to the chat request
     */
-    async chat(message, itemId, MemberSession){
+    async chat(message, itemId, session){
         if(itemId?.length)
             throw new Error('MyLife System Avatar cannot process chats with `itemId`.')
-        let { Conversation, } = MemberSession
+        let { Conversation, } = session
         if(!Conversation){
             Conversation = await this.conversationStart('chat', 'system-avatar')
             if(!Conversation)
                 throw new Error('Unable to be create `Conversation`.')
             this.#conversations.push(Conversation)
-            MemberSession.Conversation = Conversation
+            session.Conversation = Conversation
         }
         Conversation.originalPrompt = message
         Conversation.processStartTime = Date.now()
@@ -1431,6 +1485,30 @@ class Q extends Avatar {
         throw new Error('System avatar cannot create bots.')
     }
     /**
+     * OVERLOADED: MyLife deletes chat conversation including instance memory.
+     * @param {Conversation} Conversation - The conversation instance to delete
+     * @returns (Guid) - The id of the deleted conversation
+     */
+    async deleteChat(Conversation){
+        const id = await super.deleteChat(Conversation, false)
+        const index = this.#conversations.findIndex(c=>c.id===id)
+        if(index>=0)
+            this.#conversations.splice(index, 1)
+        return id
+    }
+    /** 
+     * OVERLOADED: Submits and returns the journal or diary entry to MyLife via API.
+	 * @todo - consent check-in with spawned Member Avatar
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos
+     */
+	async entry(summary){
+		summary.being = 'entry'
+		summary.form = summary.form
+            ?? 'journal'
+		return await this.summary(summary)
+	}
+    /**
      * OVERLOADED: Get MyLife static greeting with identifying information stripped.
      * @returns {Object} - The greeting Response object: { responses, success, }
      */
@@ -1449,6 +1527,18 @@ class Q extends Avatar {
             success,
         }
     }
+
+	/**
+	 * OVERLOADED: Submits and returns the memory to MyLife via API.
+	 * @todo - consent check-in with spawned Member Avatar
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos
+	 */
+	async memory(summary){
+		summary.being = 'story'
+		summary.form = 'memory'
+		return await this.summary(summary)
+	}
     /**
      * OVERLOADED: Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. In this overload, we invoke a micro-avatar for the member to handle the request on their behalf, with charge-backs going to MyLife as the sharing and api is a service.
      * @public
@@ -1473,6 +1563,34 @@ class Q extends Avatar {
     summarize(){
         throw new Error('MyLife System Avatar cannot summarize files')
     }
+	/**
+	 * OVERLOADED: Submits and returns a summary to MyLife via API.
+	 * @param {object} summary - Object with story summary and metadata
+	 * @returns {object} - The story document from Cosmos.
+	 */
+	async summary(summary){
+		const {
+			being='story',
+			form='story',
+			id=this.globals.newGuid,
+			mbr_id,
+			title=`untitled ${ form }`,
+		} = summary
+		if(!mbr_id?.length)
+			throw new Error('story `mbr_id` required')
+		if(!summary.summary?.length)
+			throw new Error('story `summary` required')
+		const story = {
+			...summary,
+			being,
+			form,
+			id,
+			mbr_id,
+			name: `${ being }_${ title.substring(0,64) }_${ mbr_id }`,
+		}
+		const savedStory = this.globals.sanitize(await this.#factory.summary(story))
+		return savedStory
+	}
     upload(){
         throw new Error('MyLife System Avatar cannot upload files.')
     }
@@ -1504,8 +1622,15 @@ class Q extends Avatar {
         const avatar = await this.#factory.avatarProxy(mbr_id)
         return avatar
     }
-    async challengeAccess(memberId, passphrase){
-        const avatarProxy = await this.avatarProxy(memberId)
+	/**
+	 * Accesses core data to challenge access to a member's account.
+	 * @public
+	 * @param {string} mbr_id - The member id
+	 * @param {string} passphrase - The passphrase to challenge
+	 * @returns {Promise<boolean>} - `true` if challenge is successful
+	 */
+    async challengeAccess(mbr_id, passphrase){
+        const avatarProxy = await this.avatarProxy(mbr_id)
 		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase)
 		return challengeSuccessful
 	}
@@ -1553,6 +1678,28 @@ class Q extends Avatar {
         }
         return this.#hostedMembers
     }
+	/**
+	 * Returns whether a specified member id is hosted on this instance.
+	 * @param {string} mbr_id - Member id
+	 * @returns {boolean} - Returns true if member is hosted
+	 */
+	async isMemberHosted(mbr_id){
+		const hostedMembers = await this.hostedMemberList()
+		const isHosted = hostedMembers.includes(mbr_id)
+		let isValidated = false
+        if(isHosted)
+            isValidated = await this.testPartitionKey(mbr_id)
+		return isValidated
+	}
+    /**
+     * Creates a member instance for logged in session.
+     * @param {String} mbr_id - The member id
+     * @returns {Promise<Member>} - The Member Avatar instance
+     */
+    async mylifeMember(mbr_id){
+		const Avatar = await this.#factory.getMemberAvatar(mbr_id)
+        return Avatar
+    }
     /**
      * Validate registration id.
      * @param {Guid} validationId - The registration id
@@ -1572,14 +1719,23 @@ class Q extends Avatar {
     get being(){  
         return 'MyLife'
     }
-    /**
-     * Get full list of conversations active in System Avatar.
-     * @getter
-     * @returns {Conversation[]} - The list of conversations
-     */
     get conversations(){
         return this.#conversations
     }
+	get menu(){
+		if(!this.#Menu){
+			this.#Menu = new (this.schemas.menu)(this).menu
+		}
+		return this.#Menu
+	}
+    get router(){
+        if(!this.#Router)
+            this.#Router = initRouter(new (this.schemas.menu)(this))
+        return this.#Router
+    }
+	get schemas(){
+		return this.#factory.schemas
+	}
 }
 /* module functions */
 /**

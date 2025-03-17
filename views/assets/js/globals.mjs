@@ -892,6 +892,7 @@ class Globals {
             endMemory,
             removeItem,
             updateItem,
+            updateItemSummary,
             updateItemTitle,
         } = functions
         switch(command){
@@ -956,6 +957,11 @@ class Globals {
                 if(typeof updateItem!=='function')
                     return
                 updateItem(item)
+                return
+            case 'updateItemSummary':
+                if(typeof updateItemSummary!=='function')
+                    return
+                updateItemSummary(itemId, summary)
                 return
             case 'updateItemTitle':
                 if(typeof updateItemTitle!=='function')

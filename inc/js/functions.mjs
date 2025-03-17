@@ -33,14 +33,18 @@ async function activateBot(ctx){
 	const response =await Avatar.setActiveBot(bid)
 	ctx.body = response
 }
+/**
+ * Get alerts (or specific alert) for the member/visitor.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Object[]} - The array of alerts
+ */
 async function alerts(ctx){
-	// @todo: put into ctx the _type_ of alert to return, system use dataservices, member use personal
-	const { MemberSession, } = ctx.state
-	if(ctx.params?.aid){ // specific system alert
-		ctx.body = await ctx.state.MemberSession.alert(ctx.params.aid)
-	} else { // all system alerts
-		ctx.body = await ctx.state.MemberSession.alerts(ctx.request.body)
-	}
+	const { aid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	if(aid)
+		ctx.body = await Avatar.alert(aid)
+	else
+		ctx.body = await Avatar.alerts()
 }
 /**
  * Manage bots for the member.
@@ -100,13 +104,19 @@ async function challenge(ctx){
 	const { mid, } = ctx.params
 	if(!mid?.length)
 		ctx.throw(400, `challenge request requires member id`)
-	if(!ctx.state.MemberSession.locked)
+	if(!ctx.state.locked)
 		return true
-	const challengeSuccessful = await ctx.MyLife.challengeAccess(mid, passphrase)
-	const { MemberSession, } = ctx.session
-	MemberSession.challengeOutcome = challengeSuccessful
-	await MemberSession.init(mid)
-	ctx.body = !MemberSession.locked
+	const { avatar: Avatar, } = ctx.state
+	const challengeSuccessful = await Avatar.challengeAccess(mid, passphrase)
+	if(challengeSuccessful){
+		const { Conversation, } = ctx.session
+		ctx.session.locked = false
+		ctx.session.avatar = await Avatar.mylifeMember(mid)
+		ctx.state.avatar = ctx.session.avatar
+		if(Conversation)
+			await Avatar.deleteChat(Conversation)
+	}
+	ctx.body = !ctx.session.locked
 }
 /**
  * Chat with the Member or System Avatar's intelligence.
@@ -122,13 +132,10 @@ async function chat(ctx){
 		?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
-	const { avatar, } = ctx.state
-	const session = avatar.isMyLife
-		? ctx.session.MemberSession
-		: null
-	if(bot_id?.length && bot_id!==avatar.activeBotId)
+	const { avatar: Avatar, } = ctx.state
+	if(bot_id?.length && bot_id!==Avatar.activeBotId)
 		throw new Error(`Bot ${ bot_id } not currently active; chat() requires active bot`)
-	const response = await avatar.chat(message, itemId, session)
+	const response = await Avatar.chat(message, itemId, ctx.session)
 	ctx.body = response
 }
 async function collections(ctx){
@@ -195,7 +202,7 @@ async function help(ctx){
 	if(!helpRequest?.length)
 		ctx.throw(400, `missing help request text`)
 	const { avatar } = ctx.state
-	const _avatar = type==='membership' ? avatar : ctx.MyLife.avatar
+	const _avatar = type==='membership' ? avatar : ctx.SystemAvatar.avatar
 	ctx.body = await _avatar.help(helpRequest, type)
 }
 /**
@@ -359,8 +366,8 @@ async function signup(ctx) {
 			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNameInput',
 			payload: signupPacket,
 		})
-	signupPacket.id = ctx.MyLife.newGuid
-	const registrationData = await ctx.MyLife.registerCandidate(signupPacket)
+	signupPacket.id = ctx.SystemAvatar.newGuid
+	const registrationData = await ctx.SystemAvatar.registerCandidate(signupPacket)
 	console.log('signupPacket:', signupPacket, registrationData)
 	ctx.session.signup = true
 	success = true
