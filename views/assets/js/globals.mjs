@@ -1331,7 +1331,6 @@ function mSpeechInitialization(inputCheckCallback){
         let interimTranscript = ''
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             if(event.results[i].isFinal){
-                console.log(`Final result length`, event.results[i].length, event.results)
                 let finalPhrase = event.results[i][0].transcript.trim().toLowerCase()
                 finalPhrase = finalPhrase.replace(/[.,!?]$/, '') // Remove trailing punctuation
                 const triggerWords = ['complete', 'done', 'end', 'finish', 'finished', 'send', 'stop', 'submit'] // trigger words

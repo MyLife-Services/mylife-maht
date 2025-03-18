@@ -2342,7 +2342,9 @@ function mUpdateBotContainerAddenda(botContainer){
         const botNameInput = document.getElementById(`${ type }-input-bot_name`)
         /* attach bot name listener */
         if(botNameInput){
-            botNameInput.addEventListener('change', async event=>{
+            botNameInput.addEventListener('change', async _=>{
+                botNameInput.blur()
+                botNameInput.disabled = true
                 dataset.bot_name = botNameInput.value
                 const { bot_name, } = dataset
                 const botData = {
@@ -2350,7 +2352,9 @@ function mUpdateBotContainerAddenda(botContainer){
                     id,
                     type,
                 }
-                if(await globals.datamanager.botUpdate(botData)){
+                const { name, } = await globals.datamanager.botUpdate(botData)
+                botNameInput.disabled = false
+                if(name?.length){
                     const botTitleName = document.getElementById(`${ type }-title-name`)
                     if(botTitleName)
                         botTitleName.textContent = bot_name
@@ -2359,6 +2363,7 @@ function mUpdateBotContainerAddenda(botContainer){
                     const bot = mBot(id)
                     bot.bot_name = bot_name
                     bot.name = bot_name
+                    globals.chatInputPlaceholder = `Type a message to ${ bot_name }...`
                 } else {
                     dataset.bot_name = localVars.bot_name
                 }
