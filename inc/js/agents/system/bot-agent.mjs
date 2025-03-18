@@ -208,9 +208,9 @@ class Bot {
 			?? Object.keys(botData).some(key=>this.#instructionNodes.has(key))
 		const { feedback, id, mbr_id, type, ...updatedNodes } = await mBotUpdate(botData, botOptions, this, this.#llm, this.#factory)
 		Object.assign(this, updatedNodes)
-		if(botOptions.instructions){
+		if(botOptions.instructions)
 			await this.migrateChat()
-		}/* respond request */
+		/* respond request */
 		return this
 	}
 	/**
@@ -267,6 +267,14 @@ class Bot {
 	}
 	get greetings(){
 		return this.#greetings
+	}
+	set greetings(greetings){
+		if(
+				Array.isArray(greetings)
+			&&	greetings.length
+			&&	greetings.every(item => typeof item === 'string')
+		)
+			this.#greetings = greetings
 	}
 	get instructionNodes(){
 		return this.#instructionNodes
@@ -1003,7 +1011,8 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 	} = options
 	if(updateInstructions){
 		const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
-		const { instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
+		const { greetings, instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
+		allowedBotData.greetings = greetings
 		allowedBotData.instructions = instructions
 		allowedBotData.metadata = metadata
 		allowedBotData.metadata.version = version.toString()
