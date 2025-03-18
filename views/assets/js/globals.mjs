@@ -74,12 +74,11 @@ class Datamanager {
                 : `/${url}`
             url = this.#url + url
             response = await fetch(url, options)
-            if(response.status===401){ // session timeout
+            if(response.status>=400 && response.status < 500)
+                window.location.href = response?.redirectUrl
+                    ?? '/'
+            else
                 response = await response.json()
-                window.location.href = response.redirectUrl
-                return
-            }
-            response = await response.json()
         } catch(e) {
             const errorMessage = e.message
             response = {
