@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import { Marked } from 'marked'
 import EventEmitter from 'events'
 import initRouter from './routes.mjs'
+import AlphaDog from './agents/project/alpha-dog.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
@@ -30,6 +31,7 @@ const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-sc
  */
 class Avatar extends EventEmitter {
     #alertsShown = [] // array of alert ids
+    #alphaDog
     #assetAgent
     #botAgent
     #collectionsAgent
@@ -64,6 +66,7 @@ class Avatar extends EventEmitter {
         super() // EventEmitter
         this.#factory = factory
         this.#llmServices = llmServices
+        this.#alphaDog = new AlphaDog(this.#factory, this.#llmServices)
         this.#assetAgent = new AssetAgent(this.#factory, this.#llmServices)
         this.#botAgent = new BotAgent(this.#factory, this.#llmServices)
         this.#collectionsAgent = new CollectionsAgent(this.#factory, this.#llmServices)
