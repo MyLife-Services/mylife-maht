@@ -38,10 +38,6 @@ class Bot {
 	#llm
 	#type
 	constructor(botData, llm, factory){
-		if(!factory.isMyLife){
-			console.log(botData)
-			throw new Error('Bot class not yet implemented')
-		}
 		this.#factory = factory
 		this.#llm = llm
 		const { feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, name, unaccessed, type=mDefaultBotType, ..._botData } = botData
@@ -119,14 +115,10 @@ class Bot {
      * @returns {Object} - The feedback object
      */
 	async feedback(message_id, isPositive=true, message=''){
-		if(!message_id?.length)
-			console.log('feedback message_id required')
 		this.#feedback.push(isPositive)
 		const botData = { feedback: this.#feedback, }
 		const botOptions = { instructions: false, }
 		this.update(botData, botOptions) // no `await`
-		if(message.length)
-			console.log(`feedback regarding agent message`, message)
 		const response = {
 			message,
 			message_id,
@@ -614,7 +606,6 @@ class BotAgent {
 	 * @returns {Bot} - The updated Bot instance
 	 */
 	async updateBotInstructions(bot_id, migrateThread=true){
-		console.log(`updateBotInstructions`, bot_id, migrateThread)
 		const Bot = this.bot(bot_id)
 		const { type, version=1.0, } = Bot
         /* check version */
@@ -807,7 +798,6 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	validBotData.thread_id = thread_id
 	botData = await factory.createBot(validBotData) // repurposed incoming botData
 	const _Bot = new Bot(botData, llm, factory)
-	console.log(`bot created::${ type }`, _Bot.thread_id, _Bot.id, _Bot.llm_id, _Bot.bot_name )
 	return _Bot
 }
 /**
@@ -1274,7 +1264,6 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm){
 		)
 		Avatar.setupComplete = true
 	}
-	console.log(`bots initialized::${ bots.length }`, bots)
 	return bots
 }
 /**
