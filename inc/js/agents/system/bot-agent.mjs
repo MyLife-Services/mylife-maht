@@ -38,6 +38,10 @@ class Bot {
 	#llm
 	#type
 	constructor(botData, llm, factory){
+		if(!factory.isMyLife){
+			console.log(botData)
+			throw new Error('Bot class not yet implemented')
+		}
 		this.#factory = factory
 		this.#llm = llm
 		const { feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, name, unaccessed, type=mDefaultBotType, ..._botData } = botData
@@ -48,6 +52,7 @@ class Bot {
 		this.#greetingRoutine = type.split('-').pop()
 		this.#type = type
 		Object.assign(this, this.globals.sanitize(_botData))
+		this.#instructionNodes.add('bot_name')
 		switch(type){
 			case 'diary':
 			case 'journal':
@@ -86,20 +91,22 @@ class Bot {
      * Get collection items for this bot.
      * @returns {Promise<Array>} - The collection items (no wrapper)
      */
-	async collections(){
-		let type = this.type
-		switch(type){
-			case 'diary':
-			case 'journal':
-			case 'journaler':
-				type='entry'
-				break
-			case 'biographer':
-			case 'personal-biographer':
-				type = 'memory'
-				break
-			default:
-				break
+	async collections(type){
+		if(!type?.length){
+			type = this.type
+			switch(type){
+				case 'diary':
+				case 'journal':
+				case 'journaler':
+					type='entry'
+					break
+				case 'biographer':
+				case 'personal-biographer':
+					type = 'memory'
+					break
+				default:
+					break
+			}
 		}
 		const collections = ( await this.#factory.collections(type) )
 		return collections
@@ -206,10 +213,12 @@ class Bot {
 		this.globals.sanitize(botData)
 		/* execute request */
 		botOptions.instructions = botOptions.instructions
-			?? Object.keys(botData).some(key => this.#instructionNodes.has(key))
+			?? Object.keys(botData).some(key=>this.#instructionNodes.has(key))
 		const { feedback, id, mbr_id, type, ...updatedNodes } = await mBotUpdate(botData, botOptions, this, this.#llm, this.#factory)
 		Object.assign(this, updatedNodes)
-		/* respond request */
+		if(botOptions.instructions){
+			await this.migrateChat()
+		}/* respond request */
 		return this
 	}
 	/**
@@ -522,8 +531,7 @@ class BotAgent {
      * @returns {object} - Activated Response object: { bot_id, greeting, success, version, versionUpdate, }
 	 */
 	async setActiveBot(bot_id=this.avatar?.id, dynamic=false){
-		let greeting,
-			success=false,
+		let success=false,
 			version=0.0,
 			versionUpdate=0.0
 		const Bot = this.#bots.find(bot=>bot.id===bot_id)
@@ -606,6 +614,7 @@ class BotAgent {
 	 * @returns {Bot} - The updated Bot instance
 	 */
 	async updateBotInstructions(bot_id, migrateThread=true){
+		console.log(`updateBotInstructions`, bot_id, migrateThread)
 		const Bot = this.bot(bot_id)
 		const { type, version=1.0, } = Bot
         /* check version */
@@ -892,7 +901,7 @@ function mBotInstructions(factory, botData={}){
     switch(type){
 		case 'avatar':
         case 'personal-avatar':
-            instructions = preamble
+            instructions = purpose
                 + general
             break
 		case 'biographer':
@@ -1023,7 +1032,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 	if(_llm_id?.length && (allowedBotData.instructions || allowedBotData.bot_name?.length || allowedBotData.tools)){
 		allowedBotData.model = factory.globals.currentOpenAIBotModel // not dynamic
 		allowedBotData.llm_id = _llm_id
-		await llm.updateBot(allowedBotData)
+		await llm.updateBot(allowedBotData)			
 	}
 	await factory.updateBot(allowedBotData)
 	return allowedBotData
@@ -1265,6 +1274,7 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm){
 		)
 		Avatar.setupComplete = true
 	}
+	console.log(`bots initialized::${ bots.length }`, bots)
 	return bots
 }
 /**
@@ -1282,12 +1292,17 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     let messages = await llm.messages(thread_id) // @todo - limit to 25 messages or modify request
     if(!messages?.length)
         return false
-    let chatLimit=25,
+    let chatLimit=15,
 		disclaimer=`INFORMATIONAL ONLY **DO NOT PROCESS**\n`,
         itemCollectionTypes='item',
-        itemLimit=100,
+        itemLimit=75,
         type='item'
     switch(botType){
+		case 'avatar':
+		case 'personal-avatar':
+			type = 'item'
+			itemCollectionTypes = 'item'
+			break
         case 'biographer':
         case 'personal-biographer':
             type = 'memory'
@@ -1305,7 +1320,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
         default:
             break
     }
-    const chatSummary=`## ${ type.toUpperCase() } CHAT SUMMARY\n`,
+    const chatSummary=`## ${ botType.toUpperCase() } CHAT SUMMARY\n`,
         chatSummaryRegex = /^## [^\n]* CHAT SUMMARY\n/,
         itemSummary=`## ${ type.toUpperCase() } LIST\n`,
         itemSummaryRegex = /^## [^\n]* LIST\n/
@@ -1318,7 +1333,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     const itemCollectionList = items
         .map(item=>item.id)
         .join(',')
-        .slice(0, 512) // limit for metadata string field
+        .slice(0, 512) // limit for metadata string
     const metadata = {
         bot_id: bot_id,
     }
@@ -1334,10 +1349,14 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
             return { content, id, metadata, role, }
         })
         .filter(message=>!itemSummaryRegex.test(message.content))
-    const summaryMessage = messages
-        .filter(message=>!chatSummaryRegex.test(message.content))
-        .map(message=>message.content)
-        .join('\n')
+	const summaryMessage = messages
+		.map(message => {
+			const contentWithoutTags = message.content.replace(chatSummaryRegex, '').replace(disclaimer, '')
+			return chatSummaryRegex.test(message.content)
+				? contentWithoutTags
+				: `${message.role}: ${contentWithoutTags}`
+		})
+		.join('\n')
     /* contextualize previous content */
     const summaryMessages = []
     /* summary of items */
@@ -1361,14 +1380,14 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
         })
     if(!summaryMessages.length)
         return
-    /* add messages to new thread */
-	const newThread = await mThread(llm, undefined, summaryMessages.reverse(), metadata)
+	const newThread = await mThread(llm, undefined, summaryMessages, metadata) // add message(s) to new thread
 	if(!!conversation){
 	    conversation.setThread(newThread)
 		if(saveConversation)
 			conversation.save() // no `await`
 	}
-    await Bot.setThread(newThread.id) // autosaves `thread_id`, no `await`
+    Bot.setThread(newThread.id) // autosaves `thread_id`, no `await`
+	llm.deleteThread(thread_id)
 	console.log(`chat migrated::from ${ thread_id } to ${ newThread.id }`, botType )
 }
 /**

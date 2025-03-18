@@ -270,6 +270,8 @@ class Dataservices {
 				return await this.collectionLivedExperiences()
 			case 'file':
 				return await this.collectionFiles()
+			case 'item':
+				return []
 			case 'memory':
 				return await this.collectionMemories()
 			case 'story':

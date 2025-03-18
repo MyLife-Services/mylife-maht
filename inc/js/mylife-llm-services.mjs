@@ -317,8 +317,9 @@ function mMessage_openAI(message){
  * @param {string} threadId - thread id
  */
 async function mMessages(openai, threadId){
-    return await openai.beta.threads.messages
+    const messages = await openai.beta.threads.messages
         .list(threadId)
+    return messages
 }
 async function mRunCancel(openai, threadId, runId, deleteThread=false){
     try {
