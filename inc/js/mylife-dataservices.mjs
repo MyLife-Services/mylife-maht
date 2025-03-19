@@ -132,6 +132,32 @@ class Dataservices {
 		return { core, success: true, }
 	}
 	/**
+	 * Retrieves all available missions for the member avatar or system avatar.
+	 * @returns {String[]} - An array of the currently available missions by guid id
+	 */
+	async availableMissions(mbr_id=this.mbr_id, ){
+		const missions = []
+		const scope = []
+		scope
+			.push({
+				name: '@scope',
+				value: 'public',
+			})
+		missions.push(...await this.getItems('mission', undefined, scope, 'system', mbr_id))
+		if(this.mbr_id === mbr_id && !this.isMyLife) { // only Member Avatar can retrieve private missions
+			const privateMissions = await this.getItems('mission', undefined, scope, undefined, mbr_id);
+			privateMissions.forEach(pm=>{
+				const index = missions.findIndex(m=>m.id===pm.id)
+				if(index !== -1)
+					missions[index] = pm // Overwrite the system version with the private mission
+				else
+					missions.push(pm)
+			})
+		}
+		return missions
+			.map(m=>m.id)
+	}
+	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
 	 * @public
 	 * @async
@@ -553,6 +579,13 @@ class Dataservices {
 	 */
 	async hostedMembers(validations){
 		return await this.datamanager.hostedMembers(validations)
+	}
+	async mission(missionId, systemMbr_id){
+		let mission = await this.getItem(missionId)
+			?? await this.getItem(missionId, 'system', systemMbr_id)
+		if(!mission)
+			throw new Error(`Mission not found: ${ missionId }`)
+		return mission
 	}
 	/**
 	 * Patches an item by its ID with the provided data.

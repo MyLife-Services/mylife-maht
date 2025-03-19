@@ -66,7 +66,6 @@ class Avatar extends EventEmitter {
         super() // EventEmitter
         this.#factory = factory
         this.#llmServices = llmServices
-        this.#alphaDog = new AlphaDog(this.#factory, this.#llmServices)
         this.#assetAgent = new AssetAgent(this.#factory, this.#llmServices)
         this.#botAgent = new BotAgent(this.#factory, this.#llmServices)
         this.#collectionsAgent = new CollectionsAgent(this.#factory, this.#llmServices)
@@ -121,6 +120,22 @@ class Avatar extends EventEmitter {
 		})
 		return currentAlerts
 	}
+    /**
+     * Calls AlphaDog instance to generate a response.
+     * @async
+     * @public
+     * @param {object} data - The data object for AlphaDog (originally `ctx.request.body`)
+     * @param {string} method - The method used for request (originally `ctx.request.method`)
+     * @returns {Promise<object>} - The response object
+     */
+    async alphaDog(data, method){
+        if(!this.#alphaDog)
+            this.#alphaDog = await ( new AlphaDog(this.#llmServices, this.#factory) )
+                .init()
+        const response = await this.#alphaDog.input(data, method)
+        // @todo - legitimate here to test for structure
+        return response
+    }
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
 	 * @returns {Object[]} - An array of the currently available public experiences.

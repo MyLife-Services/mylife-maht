@@ -1,6 +1,23 @@
 // imports
 import Router from 'koa-router'
 import {
+    availableExperiences,
+    entry,
+    experience,
+    experienceCast,
+    experienceEnd,
+    experienceManifest,
+    experienceNavigation,
+    experiences,
+    experiencesLived,
+    keyValidation,
+    logout as apiLogout,
+    memory,
+    obscure as apiObscure,
+    register,
+    tokenValidation,
+} from './controllers/api-functions.mjs'
+import {
     about,
     activateBot,
     alerts,
@@ -33,7 +50,7 @@ import {
     teams,
     updateBotInstructions,
     upload,
-} from './functions.mjs'
+} from './controllers/functions.mjs'
 import {
     acceptShareWarnings,
     collectMemory,
@@ -51,24 +68,10 @@ import {
     shareStop,
     shareUpdate,
     validateShare,
-} from './memory-functions.mjs'
+} from './controllers/memory-functions.mjs'
 import {
-    availableExperiences,
-    entry,
-    experience,
-    experienceCast,
-    experienceEnd,
-    experienceManifest,
-    experienceNavigation,
-    experiences,
-    experiencesLived,
-    keyValidation,
-    logout as apiLogout,
-    memory,
-    obscure as apiObscure,
-    register,
-    tokenValidation,
-} from './api-functions.mjs'
+    mission,
+} from './controllers/testing-functions.mjs'
 // variables
 const _Router = new Router()
 const _memberRouter = new Router()
@@ -77,6 +80,8 @@ const _apiRouter = new Router()
 _Router.get('/', index)
 _Router.get('/about', about)
 _Router.get('/alerts', alerts)
+_Router.get('/alphadog', mission)
+_Router.get('/alphadog/:mid', mission)
 _Router.get('/logout', logout)
 _Router.get('/experiences', availableExperiences)
 _Router.get('/greeting', greetings)
@@ -94,10 +99,12 @@ _Router.get('/signup', status_signup)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
+_Router.post('/alphadog/:mid', mission)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
+_Router.put('/alphadog', mission)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)

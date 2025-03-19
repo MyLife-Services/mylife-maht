@@ -15,6 +15,7 @@ import {
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
 import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
+import { log } from 'console'
 /* module constants */
 const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
@@ -551,6 +552,14 @@ class AgentFactory extends BotFactory {
 		return this
 	}
 	/**
+	 * Retrieves all available missions for the member.
+	 * @returns {String[]} - An array of the currently available missions by guid id
+	 */
+	async availableMissions(){
+		const missions = await mDataservices.availableMissions(this.mbr_id)
+		return missions
+	}
+	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
 	 * @returns {Object[]} - An array of the currently available public experiences
 	 */
@@ -697,6 +706,10 @@ class AgentFactory extends BotFactory {
 	}
 	isConsent(_consent){	//	when unavailable from general schemas
 		return (_consent instanceof mSchemas.consent)
+	}
+	async mission(missionId){
+		const mission = await this.dataservices.mission(missionId, mDataservices.mbr_id)
+		return mission
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.
