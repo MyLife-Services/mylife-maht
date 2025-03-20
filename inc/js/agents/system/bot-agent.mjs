@@ -388,14 +388,14 @@ class BotAgent {
 	 * Chat with the active bot.
 	 * @param {Conversation} Conversation - The Conversation instance
 	 * @param {Boolean} allowSave - Whether to save the conversation, defaults to `true`
-	 * @param {Q} q - The avatar id
+	 * @param {Q/Avatar} Avatar - The Avatar instance
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async chat(Conversation, allowSave=true, q){
+	async chat(Conversation, allowSave=true, Avatar){
 		if(!Conversation)
 			throw new Error('Conversation instance required')
 		Conversation.processStartTime
-		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, q) // mutates Conversation
+		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, Avatar) // mutates Conversation
 		return Conversation
 	}
 	/**
@@ -1060,7 +1060,38 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
 	if(!botResponses?.length)
 		return
 	const { run_id, } = botResponses[0]
+	if(botResponses[0]?.cancelResponse===true){
+		botResponses.splice(1, botResponses.length-1) // remove any additional botResponses when canceled
+		const { function: callbackFunction } = botResponses[0]
+		console.log(`callbackFunction`, callbackFunction)
+		// can sort by functions here
+		switch(callbackFunction){
+			case 'updateSummary':
+				botResponses[0] = {
+					content: `I was able to update our summary based on your feedback`,
+					created_at: processStartTime,
+					role: 'assistant',
+					run_id,
+					thread_id,
+				}
+				break
+			case 'changeTitle':
+				const { title, } = botResponses[0]
+				botResponses[0] = {
+					content: `I was able to change the title of this entry to "${ title }"`,
+					created_at: processStartTime,
+					role: 'assistant',
+					run_id,
+					thread_id,
+				}
+				break
+			default:
+				break
+		}			
+	}
 	Conversation.addRun(run_id)
+	if(!Conversation.run_id?.length)
+		throw new Error('No `run_id` found in botResponses for `mCallLLM`.')
     botResponses
 		.filter(botResponse=>botResponse?.run_id===Conversation.run_id)
 		.sort((mA, mB)=>(mB.created_at-mA.created_at))

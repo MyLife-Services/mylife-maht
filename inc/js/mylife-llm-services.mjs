@@ -153,17 +153,17 @@ class LLMServices {
             }
         }
         const runOutcome = await mRunTrigger(this.openai, llm_id, thread_id, factory, avatar)
-        const { cancelResponse=false, error, function: functionCall, id: run_id, status, success, } = runOutcome
+        const { deleteThread=false, cancelResponse=false, error, function: functionCall, run_id, status, success, } = runOutcome
         let llmMessages
         if(status=='cancelled' || cancelResponse){
             if(cancelResponse){
-                await mRunCancel(this.openai, thread_id, run_id, true)
+                await mRunCancel(this.openai, thread_id, run_id, deleteThread)
                 console.log('LLMServices::getLLMResponse()::cancelResponse', cancelResponse, functionCall)
-                delete runOutcome.cancelResponse
-                delete runOutcome.function
-                delete runOutcome.id
+                delete runOutcome.deleteThread
             }
-            llmMessages = runOutcome
+            llmMessages = Array.isArray(runOutcome)
+                ? runOutcome
+                : [runOutcome]
         } else if(!success){
             if(avatar.backupResponse){
                 avatar.backupResponse.action = 'endMemory'
@@ -411,22 +411,36 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'change title':
                                 const { title: newTitle, } = toolArguments
                                 console.log('mRunFunctions()::changeTitle start', newTitle, itemId)
+                                avatar.backupResponse = {
+                                    message: `I encountered an unexpected error while changing our title to: ${ newTitle }. Please try again.`,
+                                    type: 'system',
+                                }
                                 if(!itemId?.length || !newTitle?.length){
                                     action = 'apologize for lack of clarity - member should click on the collection item (like a memory, story, etc) to identify it as active'
                                     confirmation.output = JSON.stringify({ action, success, })
                                     return confirmation
                                 }
-                                avatar.actionCallback = 'changeTitle'
-                                avatar.backupResponse = {
-                                    message: `I encountered an unexpected error while changing our title to: ${ newTitle }. Please try again.`,
-                                    type: 'system',
+                                delete avatar.actionCallback
+                                delete avatar.backupResponse
+                                delete avatar.frontendInstruction
+                                const updateTitle = {
+                                    id: itemId,
+                                    title: newTitle
                                 }
-                                avatar.frontendInstruction = {
-                                    command: 'updateItemTitle',
-                                    itemId,
+                                if(await avatar.itemUpdate(updateTitle))
+                                    avatar.frontendInstruction = {
+                                        command: 'updateItemTitle',
+                                        itemId,
+                                        title: newTitle,
+                                    }
+                                return {
+                                    cancelResponse: true,
+                                    deleteThread: false,
+                                    function: 'changeTitle',
+                                    run_id: runId, // required for canceling run
+                                    success: true,
                                     title: newTitle,
                                 }
-                                throw new Error('changeTitle intentionally aborted')
                             case 'confirmregistration':
                             case 'confirm_registration':
                             case 'confirm registration':
@@ -524,9 +538,10 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 console.log('mRunFunctions()::obscure complete')
                                 return {
                                     cancelResponse: true,
+                                    deleteThread: true,
                                     function: 'obscure',
-                                    id: runId, // required for canceling run
                                     obscuredSummary,
+                                    run_id: runId, // required for canceling run
                                     success: true,
                                 }
                             case 'preparesummary':
@@ -542,9 +557,10 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 console.log('mRunFunctions()::prepareSummary complete')
                                 return {
                                     cancelResponse: true,
+                                    deleteThread: true,
                                     function: 'prepareSummary',
-                                    id: runId, // required for canceling run
                                     preparedSummary,
+                                    run_id: runId, // required for canceling run
                                     success: true,
                                     warnings,
                                 }
@@ -566,6 +582,8 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'update_summary':
                             case 'update summary':
                                 const { summary: newSummary, } = toolArguments
+                                delete avatar.actionCallback
+                                delete avatar.frontendInstruction
                                 avatar.backupResponse = {
                                     message: `I encountered an unexpected error while updating item with id: "${ itemId }". Please try again.`,
                                     type: 'system',
@@ -583,18 +601,23 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 let { instruction: updateItemInstruction, responses: updateItemResponses, success: updateItemSuccess, } = await avatar.item(updateData, 'PUT')
                                 success = updateItemSuccess
                                 if(avatar.livingMemory?.item?.id===itemId){
-                                    delete avatar.actionCallback
                                     delete avatar.backupResponse
-                                    delete avatar.frontendInstruction
                                     console.log('mRunFunctions()::updatesummary::livingMemory', success)
                                     console.trace('Call stack trace')
                                     confirmation.output = JSON.stringify({ success, })
                                     return confirmation
                                 }
-                                avatar.actionCallback = 'updateItem'
                                 avatar.backupResponse = updateItemResponses?.[0]
                                 avatar.frontendInstruction = updateItemInstruction
-                                throw new Error('updateSummary intentionally aborted')
+                                return {
+                                    cancelResponse: true,
+                                    deleteThread: false,
+                                    function: 'updateSummary',
+                                    itemId,
+                                    run_id: runId, // required for canceling run
+                                    success: true,
+                                    updateItemResponses,
+                                }
                             default:
                                 console.log(`ERROR::mRunFunctions()::toolFunction not found: ${ name }`, toolFunction)
                                 action = `toolFunction not found: ${ name }, apologize for the error and continue on with the conversation; system notified to fix`
