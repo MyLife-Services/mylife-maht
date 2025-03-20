@@ -1063,7 +1063,6 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
 	if(botResponses[0]?.cancelResponse===true){
 		botResponses.splice(1, botResponses.length-1) // remove any additional botResponses when canceled
 		const { function: callbackFunction } = botResponses[0]
-		console.log(`callbackFunction`, callbackFunction)
 		// can sort by functions here
 		switch(callbackFunction){
 			case 'updateSummary':

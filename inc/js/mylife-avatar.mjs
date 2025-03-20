@@ -193,7 +193,6 @@ class Avatar extends EventEmitter {
         }
         const Conversation = await this.activeBot.chat(message, originalMessage, mAllowSave, this)
         // no active run_id in Conversation, so make sure to include it
-        console.log('MemberAvatar::chat()::Conversation', Conversation.message.content, Conversation.run_id)
         responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, Conversation.run_id) ?? [], 'chat', Conversation.processStartTime)
         const { actionCallback, frontendInstruction, } = this
         if(!responses.length)
