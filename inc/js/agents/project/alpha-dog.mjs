@@ -12,91 +12,78 @@ class AlphaDog extends EventEmitter{
     #llm
     constructor(llm, factory){
         super()
-        this.#availableMissions = []
         this.#factory = factory
         this.#llm = llm
-        this.#missions = []
     }
     /* public functions */
     async init(missionId){
-        // initialize the mission object with the factory
-        const missions = await this.#factory.availableMissions()
-        this.#availableMissions.push(...missions)
-        return this
-
-    }
-    /**
-     * Takes a structured call for AlphaDog functionality and returns a response.
-     * @param {object} data - the data to process
-     * @param {string} method - the http method used to make the request
-     * @returns {Promise<object>} - the correct response object
-     */
-    async input(data, method='get'){
-        // @todo = determine of this.#factory.isMyLife) is useful here
-        switch(method.toLowerCase()){
-            case 'delete':
-            case 'patch':
-            case 'post':
-            case 'put':
-                throw new Error(`AlphaDog: ${method} not implemented`)
-            case 'get':
-            default:
-                const { missionId, } = data
-                Mission = await this.mission(missionId)
-                break
+        const missions = await this.#factory.missions()
+        this.#missions = await Promise.all(
+            missions.map(async m => {
+                m = this.#factory.globals.sanitize(m)
+                const mission = new Mission(this.#llm, this.#factory)
+                await mission.init(m.id, m)
+                return mission
+            }))
+        const missionsAvailable = await this.#factory.availableMissions()
+        this.#availableMissions = missionsAvailable.map(m=>({
+            description: m.description,
+            goals: m.goals,
+            group: m.group,
+            id: m.id,
+            title: m.title,
+            type: m.type,
+            version: m.version=1,
+        }))
+        if(!this.missionFind(missionId)){
+            const Mission = await this.mission(missionId)
+            this.#missions.push(Mission)
         }
-        return Mission
+        return this
     }
     /**
      * Creates or finds a Mission by id.
+     * @todo - should Avatar (@mookse default) be in charge of parsing play()?
      * @param {Guid} missionId - The Mission id; optional
      * @returns {Promise<Mission>} - The Mission object
      */
-    async mission(missionId){
-        const Mission = this.#missions.find(m=>m.id===missionId)
+    async mission(missionId, play=false){
+        const Mission = this.missionFind(missionId)
             ?? await this.missionCreate(missionId)
+        if(!Mission)
+            throw new Error(`AlphaDog: mission ${ missionId } not created`)
+        if(play)
+            Mission.play()
         return Mission
     }
-    async missionAvailable(missionId){
-        return this.#availableMissions.find(m=>m===missionId)
+    missionAvailable(missionId){
+        return this.#availableMissions.find(m=>m.id===missionId)
     }
-    async missionCreate(){
-        const missionId = this.#availableMissions?.[0]
+    async missionCreate(missionId=this.#availableMissions?.[0]?.id){
         if(!this.missionAvailable(missionId))
-            return
-        const mission = this.missionFind(missionId)
-            ?? await new Mission(this.#llm, this.#factory)
-        if(!this.missionFind(missionId)){
+            throw new Error(`AlphaDog: mission ${ missionId } not available`)
+        let mission
+        mission = this.missionFind(missionId)
+        if(!mission){
+            mission = await new Mission(this.#llm, this.#factory)
             await mission.init(missionId)
             this.#missions.push(mission)
         }
-        return mission.mission
+        return mission
     }
     missionFind(missionId){
         return this.#missions.find(m=>m.id===missionId)
-    }
-    /**
-     * Indicates an interactive event has occurred inside the identified step of the mission.
-     * @async
-     * @param {string} missionId - The Mission id
-     * @param {string} stepId - The Step id
-     * @param {object} eventData - The event data to process
-     */
-    async missionEngage(missionId, stepId, eventData){
-        // get and populate mission object from factory
-        const mission = await this.#factory.missionEngage(missionId, stepId, eventData)
-        return mission
-
-    }
-    async missionsPossible(){
-        return this.#factory.missionsPossible()
     }
     /* getters and setters */
     get currentStep(){
         return this
     }
     get missions(){
-        return this.#missions
+        const missions = this.#missions.map(m=>m.mission)
+        return missions
+    }
+    get missionsAvailable(){
+        return this.#availableMissions
     }
     get newGuid(){
         return this.#factory.newGuid
@@ -109,31 +96,128 @@ class AlphaDog extends EventEmitter{
 class Mission extends EventEmitter {
     #currentStep
     #factory
+    #id
+    #isActive
+    #isComplete
     #llm
     #steps
     constructor(llm, factory){
         super()
         this.#factory = factory
         this.#llm = llm
-        this.#steps = []
     }
-    async init(missionId){
-        const data = await this.#factory.mission(missionId)
-        Object.assign(this, data)
+    async init(missionId, data){
+        missionId = missionId
+            ?? data?.id
+        data = data
+            ?? await this.#factory.mission(missionId)
+        const { currentStep, id, isComplete=false, steps, ..._data } = data
+        Object.assign(this, _data)
+        if(!steps || !steps.length)
+            throw new Error('AlphaDog: mission steps not found')
+        this.#currentStep = currentStep
+        this.#isComplete = isComplete
+        this.#isActive = true // @todo - always true?
+        this.#steps = steps
+            .map(step=>new Step(this.#llm, this.#factory, step))
+        this.#currentStep =  this.#steps[currentStep]
         return this
     }
+    async end(){
+        this.#currentStep = null
+        this.#isComplete = true
+        this.#isActive = false
+    }
+    async next(){
+        if(this.#currentStep>=this.#steps.length)
+            this.end()
+        const step = this.#steps[this.#currentStep]
+        if(step.isComplete)
+            this.#currentStep++
+        return this.mission
+    }
+    /**
+     * Indicates an interactive event has occurred inside the identified step of the mission.
+     * @async
+     * @param {string} missionId - The Mission id
+     * @param {string} stepId - The Step id
+     * @param {object} eventData - The event data to process
+     */
+    async play(eventData){
+        if(this.#currentStep>=this.#steps.length)
+            this.end()
+        const step = this.#steps[this.#currentStep]
+        if(eventData)
+            this.#currentStep++
+        return this.mission
+
+    }
+    // next mission
+    // type: 'alpha-01' - alpha dog mission
+    // this is the grouping that the mission belongs to, may want to call on instantiation
+    async previous(){
+        if(this.#currentStep>0)
+            this.#currentStep--
+        return this.mission
+    }
     /* getters and setters */
+    get active(){
+        return this.#isActive
+    }
+    set active(isActive=true){
+        if(typeof isActive!=='boolean' || isActive===null)
+            throw new Error('AlphaDog: isActive must be a boolean')
+        this.#isActive = isActive
+    }
+    get complete(){
+        return this.#isComplete
+    }
     get currentStep(){
         return this.#currentStep
     }
+    get id(){
+        return this.#id
+    }
     get mission(){
-        const { id, steps, title, type, } = this
+        const { active, complete, currentStep, description, goals, group, id, steps, title, type, } = this
         return {
+            active: this.active,
+            complete: this.complete,
+            currentStep,
+            description,
+            goals,
+            group,
             id,
             steps,
             title,
             type,
         }
+    }
+}
+/**
+ * @class - Step
+ * @description - The Step class manages the steps of activity
+ */
+class Step extends EventEmitter {
+    #factory
+    #isCurrent
+    #llm
+    constructor(llm, factory, step){
+        super()
+        this.#isCurrent = false
+        this.#factory = factory
+        this.#llm = llm
+        step = this.#factory.globals.sanitize(step)
+        Object.assign(this, step)
+    }
+    /* getters and setters */
+    get isCurrent(){
+        return this.#isCurrent
+    }
+    set isCurrent(isCurrent){
+        if(typeof isCurrent!=='boolean' || ( isCurrent ?? null )===null)
+            throw new Error('AlphaDog: isCurrent must be a boolean')
+        this.#isCurrent = isCurrent
     }
 }
 /* module exports */

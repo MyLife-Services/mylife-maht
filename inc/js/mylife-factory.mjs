@@ -556,7 +556,7 @@ class AgentFactory extends BotFactory {
 	 * @returns {String[]} - An array of the currently available missions by guid id
 	 */
 	async availableMissions(){
-		const missions = await mDataservices.availableMissions(this.mbr_id)
+		const missions = await mDataservices.availableMissions()
 		return missions
 	}
 	/**
@@ -707,9 +707,34 @@ class AgentFactory extends BotFactory {
 	isConsent(_consent){	//	when unavailable from general schemas
 		return (_consent instanceof mSchemas.consent)
 	}
+	/**
+	 * Retrieves a mission by id. If not found, it will create a new mission from the template.
+	 * @param {Guid} missionId - The mission id
+	 * @returns {Promise<object>} - The mission object
+	 */
 	async mission(missionId){
-		const mission = await this.dataservices.mission(missionId, mDataservices.mbr_id)
+		let mission = await this.dataservices.getItem(missionId)
+		if(!mission){
+			mission = await mDataservices.getItem(missionId, 'system')
+			console.log('Factory::mission()::template:', missionId)
+			if(!mission)
+				throw new Error(`Mission template not found: ${ missionId }`)
+			mission.completed = false
+			mission.completedDate = null
+			mission.currentStep = 0
+			mission.mbr_id = this.mbr_id
+			mission.template = false // remove template flag
+			mission = await this.dataservices.pushItem(mission) // push to member container with extra defaults
+		}
 		return mission
+	}
+	/**
+	 * Retrieves and hydrates all missions for the member.
+	 * @returns {Promise<object[]>} - The missions array
+	 */
+	async missions(){
+		const missions = await this.dataservices.getItems('mission')
+		return missions
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.

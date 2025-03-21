@@ -121,20 +121,17 @@ class Avatar extends EventEmitter {
 		return currentAlerts
 	}
     /**
-     * Calls AlphaDog instance to generate a response.
+     * Creates AlphaDog instance.
      * @async
      * @public
      * @param {object} data - The data object for AlphaDog (originally `ctx.request.body`)
      * @param {string} method - The method used for request (originally `ctx.request.method`)
-     * @returns {Promise<object>} - The response object
+     * @returns {Promise<void>} - The response object
      */
-    async alphaDog(data, method){
+    async alphaDogAlert(){
         if(!this.#alphaDog)
             this.#alphaDog = await ( new AlphaDog(this.#llmServices, this.#factory) )
                 .init()
-        const response = await this.#alphaDog.input(data, method)
-        // @todo - legitimate here to test for structure
-        return response
     }
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
@@ -703,6 +700,44 @@ class Avatar extends EventEmitter {
             success,
         }
         return response
+    }
+    /**
+     * Gets the Mission object from AlphaDog.
+     * @param {Guid} mid - The Mission id
+     * @returns {Promise<object>} - The Mission object with current step and status
+     */
+    async mission(mid){
+        await this.alphaDogAlert()
+        const Mission = await this.#alphaDog.mission(mid)
+        return Mission.mission
+
+    }
+    /**
+     * Gets the list of current Missions by header from AlphaDog.
+     * @returns {Promise<object[]>} - The array of Mission.header objects
+     */
+    async missions(){
+        await this.alphaDogAlert()
+        const missions = this.#alphaDog.missions
+        return missions
+    }
+    /**
+     * Gets the list of available Missions by header from AlphaDog.
+     * @returns {Promise<object[]>} - The array of Mission.header objects
+     */
+    async missionsAvailable(){
+        await this.alphaDogAlert()
+        const missions = await this.#alphaDog.missionsAvailable
+        return missions
+    }
+    /**
+     * Gets the list of completed Missions by header from AlphaDog.
+     * @returns {Promise<object[]>} - The array of Mission.header objects
+     */
+    async missionsComplete(){
+        await this.alphaDogAlert()
+        const missions = await this.#alphaDog.missionsComplete()
+        return missions
     }
     /**
      * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
