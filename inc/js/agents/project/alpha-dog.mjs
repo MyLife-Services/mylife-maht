@@ -53,7 +53,7 @@ class AlphaDog extends EventEmitter{
         if(!Mission)
             throw new Error(`AlphaDog: mission ${ missionId } not created`)
         if(play)
-            Mission.play()
+            this.missionPlay(missionId)
         return Mission
     }
     missionAvailable(missionId){
@@ -74,10 +74,15 @@ class AlphaDog extends EventEmitter{
     missionFind(missionId){
         return this.#missions.find(m=>m.id===missionId)
     }
-    /* getters and setters */
-    get currentStep(){
-        return this
+    missionPlay(missionId, eventData){
+        // @todo - ensure Mission has not ended (and hidden properties)
+        const Mission = this.missionFind(missionId)
+        if(!Mission)
+            throw new Error(`AlphaDog: mission ${ missionId } not found`)
+        Mission.play(eventData)
+        return Mission.currentStep
     }
+    /* getters and setters */
     get missions(){
         const missions = this.#missions.map(m=>m.mission)
         return missions
@@ -120,6 +125,7 @@ class Mission extends EventEmitter {
         this.#isActive = true // @todo - always true?
         this.#steps = steps
             .map(step=>new Step(this.#llm, this.#factory, step))
+            .sort((a, b)=>( a.order ?? 100 ) - ( b.order ?? 100 ))
         this.#currentStep =  this.#steps[currentStep]
         return this
     }
@@ -144,12 +150,16 @@ class Mission extends EventEmitter {
      * @param {object} eventData - The event data to process
      */
     async play(eventData){
-        if(this.#currentStep>=this.#steps.length)
-            this.end()
-        const step = this.#steps[this.#currentStep]
-        if(eventData)
-            this.#currentStep++
-        return this.mission
+        const { done=false, id, message, } = eventData
+        if(id!==this.#currentStep.id)
+            throw new Error(`AlphaDog: mission ${ this.#id } step ${ id } not found`)
+        const stepResponse = await this.#currentStep.play(eventData)
+        if(stepResponse.isComplete){
+            this.#currentStep = this.#steps[this.#currentStep+1]
+            if(!this.#currentStep)
+                this.end()
+        }
+        return this.#currentStep.step
 
     }
     // next mission
@@ -173,7 +183,7 @@ class Mission extends EventEmitter {
         return this.#isComplete
     }
     get currentStep(){
-        return this.#currentStep
+        return this.#currentStep.step
     }
     get id(){
         return this.#id
@@ -201,6 +211,7 @@ class Mission extends EventEmitter {
 class Step extends EventEmitter {
     #factory
     #isCurrent
+    #isComplete
     #llm
     constructor(llm, factory, step){
         super()
@@ -210,7 +221,23 @@ class Step extends EventEmitter {
         step = this.#factory.globals.sanitize(step)
         Object.assign(this, step)
     }
+    async play(eventData){
+        const { id, } = eventData
+        if(!this.#isComplete){
+            this.#isCurrent = true
+            if(!eventData) // starting
+
+            if(complete){
+                this.#isComplete = true
+                this.#isCurrent = false
+            }
+        }
+        return this.step
+    }
     /* getters and setters */
+    get complete(){
+        return this.#isComplete
+    }
     get isCurrent(){
         return this.#isCurrent
     }
@@ -218,6 +245,16 @@ class Step extends EventEmitter {
         if(typeof isCurrent!=='boolean' || ( isCurrent ?? null )===null)
             throw new Error('AlphaDog: isCurrent must be a boolean')
         this.#isCurrent = isCurrent
+    }
+    get step(){
+        const step = {
+            action: this.action,
+            id: this.id,
+            isCurrent: this.isCurrent,
+            isComplete: this.isComplete,
+            type: this.type,
+        }
+        return step
     }
 }
 /* module exports */

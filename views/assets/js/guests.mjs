@@ -13,6 +13,7 @@ let mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultPauseDelay = 5, // in seconds
     mDefaultTypeDelay = 10,
+    mMissionId,
     mPageType = null,
     mRecognition,
     mRecognizingSpeech = false,
@@ -221,6 +222,10 @@ function mCreateChallengeElement(){
  */
 async function mFetchStart(){
     const isSignedUp = await mGlobals.datamanager.signupStatus()
+    if(mGlobals.isGuid(mMissionId)){
+        const missions = await mGlobals.datamanager.availableMissions()
+        console.log('missions', missions)
+    }
     !isSignedUp
         ? hide(signupSuccess)
         : mSignupSuccess()
@@ -235,7 +240,6 @@ async function mFetchStart(){
         case 'select':
             if(mChallengeMemberId){
                 await mAddMessage(`Please enter the passphrase for your account to continue...`, 'system', 6)
-
                 mGlobals.addChatElement(mCreateChallengeElement())
                 mGlobals.scrollBottom()
             } else
@@ -284,6 +288,7 @@ async function mLoadStart(){
     /* load page */
     signupButton.disabled = true
     mChallengeMemberId = new URLSearchParams(window.location.search).get('mbr')
+    mMissionId = new URLSearchParams(window.location.search).get('mid')
     mPageType = new URLSearchParams(window.location.search).get('type')
         ?? window.location.pathname.split('/').pop()
     const startObject = await mFetchStart()

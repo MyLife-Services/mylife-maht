@@ -104,6 +104,11 @@ class Datamanager {
         responses.forEach(response=>mAlertCreate(response))
         return responses
     }
+    async availableMissions(){
+        const url = `/alphadog/missions/available`
+        const responses = await this.#fetch(url)
+        return responses
+    }
     async botActivate(botId){
         const url = `/members/bots/activate/${ botId }`
         const options = {

@@ -712,6 +712,11 @@ class Avatar extends EventEmitter {
         return Mission.mission
 
     }
+    async missionPlay(eventData){
+        await this.alphaDogAlert()
+        const Mission = await this.#alphaDog.missionPlay(eventData)
+        return Mission.mission
+    }
     /**
      * Gets the list of current Missions by header from AlphaDog.
      * @returns {Promise<object[]>} - The array of Mission.header objects
@@ -1274,14 +1279,6 @@ class Avatar extends EventEmitter {
         return this.#factory.isMyLife
     }
     /**
-     * Test whether avatar is `validating` in session.
-     * @getter
-     * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
-     */
-    get isValidating(){
-        return this.#factory.isValidating
-    }
-    /**
      * Get the current living experience.
      * @getter
      * @returns {object} - The current living experience.
@@ -1440,7 +1437,7 @@ class Avatar extends EventEmitter {
             this.#nickname = nickname
     }
     get registrationId(){
-        return this.#factory.registrationId
+        return this.#factory.candidateId
     }
     get setupComplete(){
         return this.#setupComplete
@@ -1522,7 +1519,7 @@ class Q extends Avatar {
         }
         Conversation.originalPrompt = message
         Conversation.processStartTime = Date.now()
-        if(this.isValidating) // trigger confirmation until session (or vld) ends
+        if(this.isRegistered) // trigger confirmation until session (or vld) ends
             message = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ message }`
         if(this.isCreatingAccount)
             message = `CREATE ACCOUNT PHASE: ${ message }`
@@ -1745,6 +1742,9 @@ class Q extends Avatar {
             isValidated = await this.testPartitionKey(mbr_id)
 		return isValidated
 	}
+    isRegistered(){
+        return this.#factory.isRegistered
+    }
     /**
      * Creates a member instance for logged in session.
      * @param {String} mbr_id - The member id

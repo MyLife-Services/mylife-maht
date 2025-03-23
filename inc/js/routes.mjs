@@ -71,6 +71,7 @@ import {
 } from './controllers/memory-functions.mjs'
 import {
     mission,
+    missionPlay,
     missions,
     missionsAvailable,
 } from './controllers/testing-functions.mjs'
@@ -103,12 +104,11 @@ _Router.get('/signup', status_signup)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
-_Router.post('/alphadog/mission/:mid', mission)
+_Router.post('/alphadog/mission/:mid', missionPlay)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
-_Router.put('/alphadog/mission', mission)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
