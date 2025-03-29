@@ -112,11 +112,13 @@ class LLMServices {
     }
     /**
      * Returns file list from indicated vector store.
+     * @documentation [OpenAI API Reference: Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores-files/listFiles)
      * @param {string} vectorstoreId - OpenAI vector store ID.
      * @returns {Promise<Object[]>} - Array of openai `file` objects.
      */
     async files(vectorstoreId){
-        return await this.openai.beta.vectorStores.files.list(vectorstoreId)
+        const files = await this.openai.vectorStores.files.list(vectorstoreId)
+        return files
     }
     /**
      * Given member input, get a response from the specified LLM service.
@@ -242,7 +244,7 @@ class LLMServices {
         let response,
             success = false
         try{
-            response = await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorstoreId, { files, })
+            response = await this.openai.vectorStores.fileBatches.uploadAndPoll(vectorstoreId, { files, })
             success = true
         } catch(error) {
             console.log('LLMServices::upload()::error', error.message)

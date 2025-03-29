@@ -184,6 +184,7 @@
 .bot-options.open {
     animation: _slideBotOptions 0.5s forwards;
     display: flex; /* Make it flex when open */
+    overflow-y: auto;
 }
 .button.bot-options-button {
     font-size: 0.9rem;

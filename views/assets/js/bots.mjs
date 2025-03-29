@@ -33,6 +33,7 @@ const mAvailableCollections = ['entry', 'experience', 'file', 'memory'], // ['ch
     botBar = document.getElementById('bot-bar'),
     mCollections = document.getElementById('collections-collections'),
     mCollectionsContainer = document.getElementById('collections-container'),
+    mCollectionsDescription = document.getElementById('collections-description'),
     mCollectionsUpload = document.getElementById('collections-upload'),
     mDefaultReliveMemoryButtonText = 'Next',
     mDefaultTeam = 'memory',
@@ -2165,9 +2166,9 @@ async function mToggleCollectionItems(event){
         dataset.init = 'true'
         refreshTrigger.classList.remove('spin')
         show(target)
-        show(itemList) // even if `none`
-    } else
-        toggleVisibility(itemList)
+    }
+    toggleVisibility(itemList)
+    toggleVisibility(mCollectionsDescription)
 }
 /**
  * Toggles passphrase input visibility.
