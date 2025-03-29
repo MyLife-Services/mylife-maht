@@ -243,15 +243,18 @@ class BotFactory extends EventEmitter{
 		const memberName = names?.[0] ?? name
 		const item = await this.item(itemId)
 		const { phaseOfLife, summary, } = item
-		let shareData = {
-			phaseOfLife,
-		}
+		let response,
+			shareData = {
+				phaseOfLife,
+			}
 		if(!anonymous || guessable)
 			shareData.variables = { 'memberName': memberName }
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		const response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt, this, avatar) // response = { preparedSummary, success, warnings, }
+		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt, this, avatar) // response = { preparedSummary, success, warnings, }
+		if(Array.isArray(response))
+			response = response[0] // flatten
 		shareData = {
 			...shareData,
 			...response,
