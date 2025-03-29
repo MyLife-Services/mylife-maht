@@ -1,11 +1,7 @@
 /* imports */
-import {
-	activateBot,
-	upload,
-} from './functions.mjs'
-/* module export functions */
+/* public functions */
 /**
- * Get or interact regarding "Missions with Moka," our AlphaDog Alpha Tester companion intelligence.
+ * Get or start "Missions with Moka," our AlphaDog Alpha Tester companion intelligence.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<object>} - The AlphaDog mission response
  */
@@ -14,182 +10,37 @@ async function mission(ctx){
 	const { body, method, } = ctx.request
 	const { avatar: Avatar, } = ctx.state
 	body.missionId = missionId
-	ctx.body = await Avatar.alphaDog(body, method)
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function acceptShareWarnings(ctx){
-	const { sid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife memory')
-	ctx.body = Avatar.acceptShareWarnings(sid)
-}
-async function collectMemory(ctx){
-	// @todo - implement memory collection
+	ctx.body = await Avatar.mission(body, method)
 }
 /**
- * Deletes a share from MyLife `shares` container and associated object (get itemId from `share` itself).
+ * Interact with AlphaDog to start/continue a mission.
  * @param {Koa} ctx - Koa context object
- * @returns {Promise<Boolean>} - Success or failure of the operation
+ * @returns {Promise<object>} - The AlphaDog mission play response
  */
-async function deleteShare(ctx){
-	const { sid, } = ctx.params
+async function missionPlay(ctx){
+	const { mid: missionId, } = ctx.params
+	const { body, } = ctx.request
 	const { avatar: Avatar, } = ctx.state
-	if(Avatar.isMyLife)
-		return ctx.throw(401, 'MyLife cannot delete shares')
-	ctx.body = await Avatar.deleteShare(sid)
+	body.missionId = missionId
+	ctx.body = await Avatar.missionPlay(body)
 }
 /**
- * Gets an owned share from MyLife `shares` container.
+ * Get all available missions for the current avatar.
  * @param {Koa} ctx - Koa context object
- * @returns {Promise<object>} - The MemberShare document
+ * @returns {Promise<object[]>} - Array of available missions (`Mission.header`)
  */
-async function getShare(ctx){
-	const { sid, } = ctx.params
-	const { avatar: MemberAvatar, } = ctx.state
-	const { avatar: SystemAvatar, } = ctx.SystemAvatar
-	ctx.body = await MemberAvatar.getShare(sid)
-}
-/**
- * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
- * @param {Koa} ctx - Koa context object
- * @returns {Promise<object[]>} - The MemberShare array
- */
-async function getShares(ctx){
-	const { iid, } = ctx.params
-	const { avatar: MemberAvatar, } = ctx.state
-	ctx.body = await MemberAvatar.getShares(iid)
-}
-async function endMemory(ctx){
-	const { iid, } = ctx.params
-	const { Globals, MyLife, } = ctx
-	if(!Globals.isValidGuid(iid))
-		return ctx.throw(400, 'Invalid Item ID')
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.endMemory(iid)
-}
-async function improveMemory(ctx){
-	const { iid, } = ctx.params
-	const { Globals, MyLife, } = ctx
-	if(!Globals.isValidGuid(iid))
-		return ctx.throw(400, 'Invalid Item ID')
-	const { avatar, } = ctx.state
-	const { memberInput, } = ctx.request.body
-	ctx.body = await avatar.reliveMemory(iid, memberInput)
-}
-/**
- * Reliving a memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage they choose. The bot by default will:
- * @param {Koa} ctx - Koa context object
- * @returns {Promise<object>} - livingMemory engagement object (i.e., includes frontend parameters for engagement as per instructions for included `portrayMemory` function in LLM-speak)
- */
-async function reliveMemory(ctx){
-	const { iid } = ctx.params
-	const { Globals, MyLife, } = ctx
-	if(!Globals.isValidGuid(iid))
-		return ctx.throw(400, 'Invalid Item ID')
-	const { avatar, } = ctx.state
-	const { memberInput, } = ctx.request.body
-	ctx.body = await avatar.reliveMemory(iid, memberInput)
-}
-async function shareCreate(ctx){
+async function missions(ctx){
 	const { avatar: Avatar, } = ctx.state
-	const shareData = ctx.request.body
-	if(Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife sharing system')
-	if(shareData.id)
-		shareData.id = undefined
-	ctx.body = await Avatar.shareCreate(shareData)
+	ctx.body = await Avatar.missions()
 }
-async function shareDelete(ctx){
-	const { sid, } = ctx.params
+async function missionsAvailable(ctx){
 	const { avatar: Avatar, } = ctx.state
-	if(Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife share delete')
-	ctx.body = await Avatar.deleteShare(sid)
-}
-/**
- * Share a memory `Header` with frontend to determine warnings or restrictions.
- * @param {Koa} ctx - Koa context object
- * @returns {Promise<object>} - shareHeader object
- */
-async function shareHeader(ctx){
-	const { sid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife share header')
-	ctx.body = await Avatar.shareHeader(sid)
-}
-/**
- * Submit memory `Feedback`.
- * @param {Koa} ctx - Koa context object
- * @returns {Promise<object>} - shareFeedback object
- */
-async function shareFeedback(ctx){
-	const { sid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	ctx.throw(501, 'Not Implemented')
-}
-/**
- * Execute a memory `Share`; currently only shared publicly with non-MyLife members.
- * @param {Koa} ctx - Koa context object
- * @returns {Promise<object>} - shareMemory object
- */
-async function shareMemory(ctx){
-	const { sid, } = ctx.params
-	const { Globals, MyLife, } = ctx
-	const { avatar: Avatar, } = ctx.state
-	if(!Globals.isValidGuid(sid))
-		return ctx.throw(400, 'Invalid Item ID')
-	if(!Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife memory')
-	const { input, } = ctx.request.body
-	ctx.body = await Avatar.shareMemory(sid, input)
-}
-/**
- * Stop sharing a memory.
- * @param {Koa} ctx - Koa context object
- * @returns {Promise<object>} - shareStop object
- */
-async function shareStop(ctx){
-	const { sid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife share')
-	ctx.body = await Avatar.shareStop(sid)
-}
-async function shareUpdate(ctx){
-	const { sid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	const shareData = ctx.request.body
-	if(Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife sharing system')
-	shareData.id = sid
-	ctx.body = await Avatar.shareUpdate(shareData)
-}
-async function validateShare(ctx){
-	const { sid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
-		return ctx.throw(401, 'Unauthorized access to MyLife share')
-	ctx.body = await Avatar.validateShare(sid)
+	ctx.body = await Avatar.missionsAvailable()
 }
 /* exports */
 export {
 	mission,
+	missionPlay,
+	missions,
+	missionsAvailable,
 }

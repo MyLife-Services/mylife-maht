@@ -132,30 +132,18 @@ class Dataservices {
 		return { core, success: true, }
 	}
 	/**
-	 * Retrieves all available missions for the member avatar or system avatar.
+	 * Retrieves all available missions for the system avatar. Members are handled by their own avatar.
 	 * @returns {String[]} - An array of the currently available missions by guid id
 	 */
-	async availableMissions(mbr_id=this.mbr_id, ){
-		const missions = []
+	async availableMissions(mbr_id=this.mbr_id){
 		const scope = []
 		scope
 			.push({
 				name: '@scope',
 				value: 'public',
 			})
-		missions.push(...await this.getItems('mission', undefined, scope, 'system', mbr_id))
-		if(this.mbr_id === mbr_id && !this.isMyLife) { // only Member Avatar can retrieve private missions
-			const privateMissions = await this.getItems('mission', undefined, scope, undefined, mbr_id);
-			privateMissions.forEach(pm=>{
-				const index = missions.findIndex(m=>m.id===pm.id)
-				if(index !== -1)
-					missions[index] = pm // Overwrite the system version with the private mission
-				else
-					missions.push(pm)
-			})
-		}
+		const missions = await this.getItems('mission', undefined, scope, 'system', mbr_id)
 		return missions
-			.map(m=>m.id)
 	}
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
@@ -580,13 +568,6 @@ class Dataservices {
 	async hostedMembers(validations){
 		return await this.datamanager.hostedMembers(validations)
 	}
-	async mission(missionId, systemMbr_id){
-		let mission = await this.getItem(missionId)
-			?? await this.getItem(missionId, 'system', systemMbr_id)
-		if(!mission)
-			throw new Error(`Mission not found: ${ missionId }`)
-		return mission
-	}
 	/**
 	 * Patches an item by its ID with the provided data.
 	 * @async
@@ -646,7 +627,7 @@ class Dataservices {
 		const id = candidateId 
 			?? await this.findRegistrationIdByEmail(email) /* defaults to newGuid */
 		const mbr_id = this.#partitionId
-		const name = `${ avatarName ?? humanName ?? 'registerCandidate' }-${id}`
+		const name = `${ avatarName ?? humanName ?? 'registerCandidate' }-${ id }`
 		candidate = {
 			...candidate,
 			being,
@@ -716,24 +697,23 @@ class Dataservices {
 	}
 	/**
 	 * Returns the registration record by Id.
-	 * @todo - revisit hosts: currently process.env
-	 * @param {string} registrationId - Guid for registration record in system container.
+	 * @param {string} candidateId - Guid for registration record in system container.
 	 * @returns {object} - The registration document, if exists.
 	 */
-	async validateRegistration(registrationId){
+	async validateRegistration(candidateId){
 		const { mbr_id, } = this
-		const registration = await this.getItem(registrationId, 'registration', mbr_id)
-		if(!registration)
-			throw new Error(`Registration not found: ${registrationId}`)
-		const { avatarName, id, } = registration
+		const candidate = await this.getItem(candidateId, 'registration', mbr_id)
+		if(!candidate)
+			throw new Error(`Registration not found: ${ candidateId }`)
+		const { avatarName, id, } = candidate
 		if(id?.length){
-			registration.mbr_id = this.globals.createMbr_id(avatarName, id) // overwrites MyLife mbr_id
-			const exists = await this.testPartitionKey(registration.mbr_id)
+			candidate.mbr_id = this.globals.createMbr_id(avatarName, id) // overwrites MyLife mbr_id
+			const exists = await this.testPartitionKey(candidate.mbr_id)
 			if(exists)
 				throw new Error('Registrant already a member!')
-			registration.validated = true
+			candidate.validated = true
 		}
-		return registration
+		return candidate
 	}
 }
 /* modular functions */

@@ -153,7 +153,8 @@ class LLMServices {
             }
         }
         const runOutcome = await mRunTrigger(this.openai, llm_id, thread_id, factory, avatar)
-        const { deleteThread=false, cancelResponse=false, error, function: functionCall, run_id, status, success, } = runOutcome
+        const { deleteThread=false, cancelResponse=false, error, function: functionCall, id: _run_id, status, success, } = runOutcome
+        const { run_id=_run_id } = runOutcome
         let llmMessages
         if(status=='cancelled' || cancelResponse){
             if(cancelResponse){
@@ -172,9 +173,10 @@ class LLMServices {
                 avatar.backupResponse.run_id = run_id
             }
             llmMessages = []
-        } else
-            llmMessages = ( await this.messages(thread_id) )
-                .filter(message=>message.role=='assistant' && message.run_id==run_id)
+        } else{
+            const messages = await this.messages(thread_id)
+            llmMessages = messages.filter(message=>message.role=='assistant' && message.run_id==run_id)
+        }
         return llmMessages
     }
     /**
@@ -461,7 +463,7 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'createaccount':
                             case 'create_account':
                             case 'create account':
-                                console.log('mRunFunctions()::createAccount', toolArguments, factory.registrationData)
+                                console.log('mRunFunctions()::createAccount', toolArguments, factory.candidate)
                                 const { birthdate, id, passphrase, } = toolArguments
                                 action = `error setting basics for member: `
                                 if(!birthdate)
@@ -569,8 +571,8 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'register candidate':
                                 console.log('mRunFunctions()::registercandidate', toolArguments)
                                 const { avatarName, email: registerEmail, humanName, type, } = toolArguments /* rename email as it triggers IDE error being in switch */
-                                const registration = await factory.registerCandidate({ avatarName, email: registerEmail, humanName, type, })
-                                if(!registration)
+                                const registrant = await factory.registerCandidate({ avatarName, email: registerEmail, humanName, type, })
+                                if(!registrant)
                                     action = 'error registering candidate in system; notify member of system error and continue discussing MyLife organization'
                                 else {
                                     action = 'candidate registered in system; let them know they will be contacted by email within the week and if they have any more questions'

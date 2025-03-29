@@ -71,6 +71,9 @@ import {
 } from './controllers/memory-functions.mjs'
 import {
     mission,
+    missionPlay,
+    missions,
+    missionsAvailable,
 } from './controllers/testing-functions.mjs'
 // variables
 const _Router = new Router()
@@ -80,8 +83,10 @@ const _apiRouter = new Router()
 _Router.get('/', index)
 _Router.get('/about', about)
 _Router.get('/alerts', alerts)
-_Router.get('/alphadog', mission)
-_Router.get('/alphadog/:mid', mission)
+_Router.get('/alphadog/mission', mission)
+_Router.get('/alphadog/mission/:mid', mission)
+_Router.get('/alphadog/missions', missions)
+_Router.get('/alphadog/missions/available', missionsAvailable)
 _Router.get('/logout', logout)
 _Router.get('/experiences', availableExperiences)
 _Router.get('/greeting', greetings)
@@ -99,12 +104,11 @@ _Router.get('/signup', status_signup)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
-_Router.post('/alphadog/:mid', mission)
+_Router.post('/alphadog/mission/:mid', missionPlay)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
-_Router.put('/alphadog', mission)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)

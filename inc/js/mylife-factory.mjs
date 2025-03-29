@@ -559,7 +559,7 @@ class AgentFactory extends BotFactory {
 	 * @returns {String[]} - An array of the currently available missions by guid id
 	 */
 	async availableMissions(){
-		const missions = await mDataservices.availableMissions(this.mbr_id)
+		const missions = await mDataservices.availableMissions()
 		return missions
 	}
 	/**
@@ -710,9 +710,34 @@ class AgentFactory extends BotFactory {
 	isConsent(_consent){	//	when unavailable from general schemas
 		return (_consent instanceof mSchemas.consent)
 	}
+	/**
+	 * Retrieves a mission by id. If not found, it will create a new mission from the template.
+	 * @param {Guid} missionId - The mission id
+	 * @returns {Promise<object>} - The mission object
+	 */
 	async mission(missionId){
-		const mission = await this.dataservices.mission(missionId, mDataservices.mbr_id)
+		let mission = await this.dataservices.getItem(missionId)
+		if(!mission){
+			mission = await mDataservices.getItem(missionId, 'system')
+			console.log('Factory::mission()::template:', missionId)
+			if(!mission)
+				throw new Error(`Mission template not found: ${ missionId }`)
+			mission.completed = false
+			mission.completedDate = null
+			mission.currentStep = 0
+			mission.mbr_id = this.mbr_id
+			mission.template = false // remove template flag
+			mission = await this.dataservices.pushItem(mission) // push to member container with extra defaults
+		}
 		return mission
+	}
+	/**
+	 * Retrieves and hydrates all missions for the member.
+	 * @returns {Promise<object[]>} - The missions array
+	 */
+	async missions(){
+		const missions = await this.dataservices.getItems('mission')
+		return missions
 	}
 	/**
 	 * Saves a completed lived experience to MyLife.
@@ -850,9 +875,10 @@ class AgentFactory extends BotFactory {
 	}
 }
 class MyLifeFactory extends AgentFactory {
+	#candidate
 	#dataservices = mDataservices
 	#llmServices = mLLMServices
-	#registrationData
+	#registrant
 	constructor(){
 		super(mPartitionId)
 	} // no init() for MyLife server
@@ -875,15 +901,14 @@ class MyLifeFactory extends AgentFactory {
 	 * @returns {boolean} - `true` if registration confirmed.
 	 */
 	confirmRegistration(email, registrationId){
-		if(!this.#registrationData)
+		if(!this.#candidate)
 			return false
-		const { email: registrationEmail, id, } = this.#registrationData
+		const { email: registrationEmail, id, } = this.#candidate
 		const confirmed = id===registrationId
 			&& typeof email==='string'
 			&& typeof registrationEmail==='string' // humor me, as it error-proofs next condition
 			&& registrationEmail.toLowerCase()===email.toLowerCase()
-		this.#registrationData.confirmed = confirmed
-		console.log(chalk.blueBright('confirmRegistration()::confirmed'), this.#registrationData)
+		this.#candidate = confirmed
 		return confirmed
 	}
 	/**
@@ -899,15 +924,15 @@ class MyLifeFactory extends AgentFactory {
 			memberAccount = {}
 		/* create account core */
 		try {
-			console.log(chalk.blueBright('Factory::createAccount()::registrationData'), this.#registrationData)
-			const { avatarName: _avatarName, email, humanName, id, interests, } = this.#registrationData
-			let { updates='', } = this.#registrationData
+			const { avatarName: _avatarName, email, humanName, id, interests, } = this.#candidate
+			let { updates='', } = this.#candidate
 			if(!id)
-				throw new Error('registration not confirmed, cannot accept request')
+				throw new Error('candidate not confirmed, cannot accept request')
 			if(!humanName)
 				throw new Error('member personal name required to create account')
 			const avatarId = this.newGuid
-			avatarName = _avatarName ?? `${ humanName }-AI`
+			avatarName = _avatarName
+				?? `${ humanName }-AI`
 			const badges = []
 			birthdate = new Date(birthdate).toISOString()
 			if(!birthdate?.length)
@@ -936,7 +961,7 @@ class MyLifeFactory extends AgentFactory {
 				validations,
 			}
 			memberAccount = await this.dataservices.addCore(core) ?? {}
-			this.#registrationData = null
+			this.#candidate = null
 		} catch(error) {
 			console.log(chalk.blueBright('Factory::createAccount()::account core error'), chalk.bgRed(error))
 		}
@@ -968,27 +993,29 @@ class MyLifeFactory extends AgentFactory {
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.
-	 * @param {Array} validations - Array of validation strings to filter membership.
-	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
+	 * @param {Array} validations - Array of validation strings to filter membership
+	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member
 	 */
 	async hostedMembers(validations){
 		return await this.#dataservices.hostedMembers(validations)
 	}
 	/**
-	 * Registers a new candidate to MyLife membership
+	 * Registers a new MyLife registrant. This represents the intial contact with the MyLife system by a human candidate. The registration process is a three-step process. The first step is to 1) register the candidate; 2) validate the registration; and 3) creating a new Member account from their inputs.
 	 * @public
-	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
-	 * @returns {object} - The registration document from Cosmos.
+	 * @param {object} registration { 'avatarName': string, 'email': string, 'humanName': string, }
+	 * @returns {object} - The registrant's document from Cosmos
 	 */
-	async registerCandidate(candidate){
-		return await this.#dataservices.registerCandidate(candidate)
+	async registerCandidate(registration){
+		const registrant = await this.#dataservices.registerCandidate(registration)
+		this.#registrant = registrant
+		return this.#registrant
 	}
 	updateItem(){
 		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))
 	}
     /**
      * Validate registration id.
-     * @param {Guid} validationId - The registration id
+     * @param {Guid} registrationId - The registration id
      * @returns {Promise<object>} - Registration data from system datacore
      */
 	async validateRegistration(registrationId){
@@ -998,19 +1025,20 @@ class MyLifeFactory extends AgentFactory {
 			success = false
 		try{
 			registration = await this.dataservices.validateRegistration(registrationId)
-			const { id, } = registration
-			if(id===registrationId){
+			if(!!registration){
 				success = true
-				this.#registrationData = registration
+				this.#candidate = registration
+				this.#registrant = null
 				setTimeout(timeout=>{ // Set a timeout to clear the data after 5 minutes (300000 milliseconds)
-					this.#registrationData = null
+					this.#candidate = null
 				}, 5 * 60 * 1000)
 			}
 		} catch(error){
-			this.#registrationData = null
+			this.#candidate = null
+			this.#registrant = null
 			console.log(chalk.blueBright(`validateRegistration(${ registrationId })::error`), error.message)
 		}
-		return this.#registrationData
+		return this.#candidate
 	}
 	/* getters/setters */
     /**
@@ -1019,21 +1047,25 @@ class MyLifeFactory extends AgentFactory {
      * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
      */
     get isCreatingAccount(){
-        return this.#registrationData?.confirmed===true
+        return this.#candidate?.mbr_id?.length
     }
+	get isRegistered(){
+		console.log('isRegistered', this.#registrant?.id?.length)
+		return this.#registrant?.id?.length
+	}
     /**
      * Test whether factory is currently `validating` a session.
      * @getter
      * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
      */
-    get isValidating(){
-		return this.#registrationData?.validated===true && !this.#registrationData?.confirmed
+    get isValidated(){
+		return this.#candidate?.id?.length
     }
-	get registrationData(){
-		return this.#registrationData
+	get candidate(){
+		return this.#candidate
 	}
-	get registrationId(){
-		return this.#registrationData?.id
+	get candidateId(){
+		return this.#candidate?.id
 	}
 }
 // private module functions

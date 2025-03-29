@@ -121,20 +121,17 @@ class Avatar extends EventEmitter {
 		return currentAlerts
 	}
     /**
-     * Calls AlphaDog instance to generate a response.
+     * Creates AlphaDog instance.
      * @async
      * @public
      * @param {object} data - The data object for AlphaDog (originally `ctx.request.body`)
      * @param {string} method - The method used for request (originally `ctx.request.method`)
-     * @returns {Promise<object>} - The response object
+     * @returns {Promise<void>} - The response object
      */
-    async alphaDog(data, method){
+    async alphaDogAlert(){
         if(!this.#alphaDog)
             this.#alphaDog = await ( new AlphaDog(this.#llmServices, this.#factory) )
                 .init()
-        const response = await this.#alphaDog.input(data, method)
-        // @todo - legitimate here to test for structure
-        return response
     }
 	/**
 	 * Retrieves all public experiences (i.e., owned by MyLife).
@@ -705,6 +702,49 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
+     * Gets the Mission object from AlphaDog.
+     * @param {Guid} mid - The Mission id
+     * @returns {Promise<object>} - The Mission object with current step and status
+     */
+    async mission(mid){
+        await this.alphaDogAlert()
+        const Mission = await this.#alphaDog.mission(mid)
+        return Mission.mission
+
+    }
+    async missionPlay(eventData){
+        await this.alphaDogAlert()
+        const Mission = await this.#alphaDog.missionPlay(eventData)
+        return Mission.mission
+    }
+    /**
+     * Gets the list of current Missions by header from AlphaDog.
+     * @returns {Promise<object[]>} - The array of Mission.header objects
+     */
+    async missions(){
+        await this.alphaDogAlert()
+        const missions = this.#alphaDog.missions
+        return missions
+    }
+    /**
+     * Gets the list of available Missions by header from AlphaDog.
+     * @returns {Promise<object[]>} - The array of Mission.header objects
+     */
+    async missionsAvailable(){
+        await this.alphaDogAlert()
+        const missions = await this.#alphaDog.missionsAvailable
+        return missions
+    }
+    /**
+     * Gets the list of completed Missions by header from AlphaDog.
+     * @returns {Promise<object[]>} - The array of Mission.header objects
+     */
+    async missionsComplete(){
+        await this.alphaDogAlert()
+        const missions = await this.#alphaDog.missionsComplete()
+        return missions
+    }
+    /**
      * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
      * @param {Guid} iid - The item id
      * @returns {Object} - The obscured item object
@@ -1239,14 +1279,6 @@ class Avatar extends EventEmitter {
         return this.#factory.isMyLife
     }
     /**
-     * Test whether avatar is `validating` in session.
-     * @getter
-     * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
-     */
-    get isValidating(){
-        return this.#factory.isValidating
-    }
-    /**
      * Get the current living experience.
      * @getter
      * @returns {object} - The current living experience.
@@ -1405,7 +1437,7 @@ class Avatar extends EventEmitter {
             this.#nickname = nickname
     }
     get registrationId(){
-        return this.#factory.registrationId
+        return this.#factory.candidateId
     }
     get setupComplete(){
         return this.#setupComplete
@@ -1487,7 +1519,7 @@ class Q extends Avatar {
         }
         Conversation.originalPrompt = message
         Conversation.processStartTime = Date.now()
-        if(this.isValidating) // trigger confirmation until session (or vld) ends
+        if(this.isRegistered) // trigger confirmation until session (or vld) ends
             message = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ message }`
         if(this.isCreatingAccount)
             message = `CREATE ACCOUNT PHASE: ${ message }`
@@ -1710,6 +1742,9 @@ class Q extends Avatar {
             isValidated = await this.testPartitionKey(mbr_id)
 		return isValidated
 	}
+    isRegistered(){
+        return this.#factory.isRegistered
+    }
     /**
      * Creates a member instance for logged in session.
      * @param {String} mbr_id - The member id
