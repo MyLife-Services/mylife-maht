@@ -606,8 +606,6 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 success = updateItemSuccess
                                 if(avatar.livingMemory?.item?.id===itemId){
                                     delete avatar.backupResponse
-                                    console.log('mRunFunctions()::updatesummary::livingMemory', success)
-                                    console.trace('Call stack trace')
                                     confirmation.output = JSON.stringify({ success, })
                                     return confirmation
                                 }
