@@ -27,6 +27,7 @@
 	min-width: 320px; /* Prevents shrinking too much */
 	overflow-y: hidden;
 	padding: 0.5rem;
+	position: relative;
 }
 .chat-input-container {
     flex: 1 0 auto;
@@ -327,7 +328,7 @@ img.chat-message-thumb-small {
 	font-size: 1.5rem;
 	padding-top: 0.2rem;
 	position: absolute; /* Position relative to window */
-	right: 41.5vw;
+	right: 0.3rem;
 }
 .chat-thumb {
 	height: fit-content;

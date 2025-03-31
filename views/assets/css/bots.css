@@ -184,6 +184,7 @@
 .bot-options.open {
     animation: _slideBotOptions 0.5s forwards;
     display: flex; /* Make it flex when open */
+    overflow-y: auto;
 }
 .button.bot-options-button {
     font-size: 0.9rem;
@@ -530,17 +531,32 @@
 .passphrase-input {
     flex: 1 1 auto;
 }
+.passphrase-cancel {
+    color: darkred;
+    cursor: pointer;
+    display: flex;
+    font-size: 1.2rem;
+    margin: 0;
+}
 .passphrase-container {
     align-items: center;
     display: none;
     flex-direction: row;
-    gap: 0.5rem;
+    gap: 1rem;
     justify-content: space-between;
+    margin-bottom: 1rem;
     width: 100%;
 }
 .passphrase-reset,
 .tutorial-button {
     width: 100%;
+}
+.passphrase-submit {
+    color: green;
+    cursor: pointer;
+    display: flex;
+    font-size: 1.5rem;
+    margin: 0;
 }
 /* publicity sliders */
 .publicity {
@@ -768,7 +784,7 @@ input:checked + .publicity-slider:before {
 }
 /* generic bot slider */
 .input-group {
-    align-items: center;
+    align-items: baseline;
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
@@ -786,7 +802,7 @@ input:checked + .publicity-slider:before {
 }
 .input-group label {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     max-width: 50%;
 }
 input[type="range"] {

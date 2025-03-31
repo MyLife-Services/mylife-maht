@@ -19,9 +19,9 @@
         </div>
         <button id="passphrase-reset-button" class="bot-options-button button passphrase-reset">Reset passphrase</button>
         <div id="personal-avatar-passphrase-container" class="passphrase-container">
-            <span id="personal-avatar-passphrase-cancel" class="fas fa-close passphrase-cancel"></span>
+            <div id="personal-avatar-passphrase-cancel" class="fas fa-close passphrase-cancel"></div>
             <input id="personal-avatar-passphrase" class="bot-input passphrase-input" maxlength="256" />
-            <span id="personal-avatar-passphrase-submit" class="fa-solid fa-circle-arrow-right passphrase-enter"></span>
+            <div id="personal-avatar-passphrase-submit" class="fa-solid fa-circle-arrow-right passphrase-submit"></div>
         </div>
         <!--
         <div id="personal-avatar-publicity" class="publicity">
@@ -156,9 +156,8 @@
                     <label for="personal-biographer-travel">Travel</label>
                 </div>
             </div>
-            <button id="personal-biographer-routine" class="button routine-button">My Greeting Routine</button>
         </div>
-        <button id="personal-biographer-routine" class="bot-options-button button routine-button">My Greeting Routine</button>
+        <button id="personal-biographer-routine" class="bot-options-button button routine-button" type="button">My Greeting Routine</button>
     </div>
 </div>
 <div class="bot-container" id="diary">
@@ -294,7 +293,7 @@
     </div>
     <div class=" bot-options collections-options hidden" id="collections-options" name="collections-options">
         <!-- Bot Name -->
-        <div class="collections-description" id="collections-description">
+        <div class="collections-description show" id="collections-description">
             Click on a category to browse entries
         </div>
         <div id="collections-collections" class="collections"><!-- from here _could_ be dynamic, not just listing -->

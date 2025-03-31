@@ -74,12 +74,11 @@ class Datamanager {
                 : `/${url}`
             url = this.#url + url
             response = await fetch(url, options)
-            if(response.status===401){ // session timeout
+            if(response.status>=400 && response.status < 500)
+                window.location.href = response?.redirectUrl
+                    ?? '/'
+            else
                 response = await response.json()
-                window.location.href = response.redirectUrl
-                return
-            }
-            response = await response.json()
         } catch(e) {
             const errorMessage = e.message
             response = {
@@ -103,6 +102,11 @@ class Datamanager {
         const url = `alerts`
         const responses = await this.#fetch(url)
         responses.forEach(response=>mAlertCreate(response))
+        return responses
+    }
+    async availableMissions(){
+        const url = `/alphadog/missions/available`
+        const responses = await this.#fetch(url)
         return responses
     }
     async botActivate(botId){
@@ -1331,7 +1335,6 @@ function mSpeechInitialization(inputCheckCallback){
         let interimTranscript = ''
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             if(event.results[i].isFinal){
-                console.log(`Final result length`, event.results[i].length, event.results)
                 let finalPhrase = event.results[i][0].transcript.trim().toLowerCase()
                 finalPhrase = finalPhrase.replace(/[.,!?]$/, '') // Remove trailing punctuation
                 const triggerWords = ['complete', 'done', 'end', 'finish', 'finished', 'send', 'stop', 'submit'] // trigger words
