@@ -535,7 +535,7 @@ class ShareAgent {
                             }
                         }
                     }
-                } else if(scenes.length>1)
+                } else if(scenes.length<=0)
                     scenes.push('Error in LLM response while trying to cancel a thread; please reload page')
                 shareData.scenes = scenes
             }
