@@ -523,7 +523,7 @@ class ShareAgent {
                         .split(/(?=(scene\s*\d+:?\n?))/i)
                         .filter(item =>item.trim()!=='')
                     let lastScene = scenes[scenes.length - 1].trim()
-                    if(lastScene.contains('conclusion')){
+                    if(lastScene.includes('conclusion')){
                         const conclusionIndex = lastScene.toLowerCase().indexOf('conclusion')
                         if(conclusionIndex>0){
                             const lastNewlineBeforeConclusion = lastScene.lastIndexOf('\n', conclusionIndex)
