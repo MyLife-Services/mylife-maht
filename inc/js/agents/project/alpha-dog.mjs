@@ -135,12 +135,7 @@ class Mission extends EventEmitter {
         this.#isActive = false
     }
     async next(){
-        if(this.#currentStep>=this.#steps.length)
-            this.end()
-        const step = this.#steps[this.#currentStep]
-        if(step.isComplete)
-            this.#currentStep++
-        return this.mission
+        console.log('next not yet implemented')
     }
     /**
      * Indicates an interactive event has occurred inside the identified step of the mission.
