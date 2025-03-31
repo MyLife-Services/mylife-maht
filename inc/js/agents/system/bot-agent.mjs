@@ -48,6 +48,7 @@ class Bot {
 		this.#greetingRoutine = type.split('-').pop()
 		this.#type = type
 		Object.assign(this, this.globals.sanitize(_botData))
+		this.#instructionNodes.add('bot_name')
 		switch(type){
 			case 'diary':
 			case 'journal':
@@ -86,20 +87,22 @@ class Bot {
      * Get collection items for this bot.
      * @returns {Promise<Array>} - The collection items (no wrapper)
      */
-	async collections(){
-		let type = this.type
-		switch(type){
-			case 'diary':
-			case 'journal':
-			case 'journaler':
-				type='entry'
-				break
-			case 'biographer':
-			case 'personal-biographer':
-				type = 'memory'
-				break
-			default:
-				break
+	async collections(type){
+		if(!type?.length){
+			type = this.type
+			switch(type){
+				case 'diary':
+				case 'journal':
+				case 'journaler':
+					type='entry'
+					break
+				case 'biographer':
+				case 'personal-biographer':
+					type = 'memory'
+					break
+				default:
+					break
+			}
 		}
 		const collections = ( await this.#factory.collections(type) )
 		return collections
@@ -112,14 +115,10 @@ class Bot {
      * @returns {Object} - The feedback object
      */
 	async feedback(message_id, isPositive=true, message=''){
-		if(!message_id?.length)
-			console.log('feedback message_id required')
 		this.#feedback.push(isPositive)
 		const botData = { feedback: this.#feedback, }
 		const botOptions = { instructions: false, }
 		this.update(botData, botOptions) // no `await`
-		if(message.length)
-			console.log(`feedback regarding agent message`, message)
 		const response = {
 			message,
 			message_id,
@@ -206,9 +205,11 @@ class Bot {
 		this.globals.sanitize(botData)
 		/* execute request */
 		botOptions.instructions = botOptions.instructions
-			?? Object.keys(botData).some(key => this.#instructionNodes.has(key))
+			?? Object.keys(botData).some(key=>this.#instructionNodes.has(key))
 		const { feedback, id, mbr_id, type, ...updatedNodes } = await mBotUpdate(botData, botOptions, this, this.#llm, this.#factory)
 		Object.assign(this, updatedNodes)
+		if(botOptions.instructions)
+			await this.migrateChat()
 		/* respond request */
 		return this
 	}
@@ -266,6 +267,14 @@ class Bot {
 	}
 	get greetings(){
 		return this.#greetings
+	}
+	set greetings(greetings){
+		if(
+				Array.isArray(greetings)
+			&&	greetings.length
+			&&	greetings.every(item => typeof item === 'string')
+		)
+			this.#greetings = greetings
 	}
 	get instructionNodes(){
 		return this.#instructionNodes
@@ -379,14 +388,14 @@ class BotAgent {
 	 * Chat with the active bot.
 	 * @param {Conversation} Conversation - The Conversation instance
 	 * @param {Boolean} allowSave - Whether to save the conversation, defaults to `true`
-	 * @param {Q} q - The avatar id
+	 * @param {Q/Avatar} Avatar - The Avatar instance
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async chat(Conversation, allowSave=true, q){
+	async chat(Conversation, allowSave=true, Avatar){
 		if(!Conversation)
 			throw new Error('Conversation instance required')
 		Conversation.processStartTime
-		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, q) // mutates Conversation
+		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, Avatar) // mutates Conversation
 		return Conversation
 	}
 	/**
@@ -522,8 +531,7 @@ class BotAgent {
      * @returns {object} - Activated Response object: { bot_id, greeting, success, version, versionUpdate, }
 	 */
 	async setActiveBot(bot_id=this.avatar?.id, dynamic=false){
-		let greeting,
-			success=false,
+		let success=false,
 			version=0.0,
 			versionUpdate=0.0
 		const Bot = this.#bots.find(bot=>bot.id===bot_id)
@@ -798,7 +806,6 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	validBotData.thread_id = thread_id
 	botData = await factory.createBot(validBotData) // repurposed incoming botData
 	const _Bot = new Bot(botData, llm, factory)
-	console.log(`bot created::${ type }`, _Bot.thread_id, _Bot.id, _Bot.llm_id, _Bot.bot_name )
 	return _Bot
 }
 /**
@@ -892,7 +899,7 @@ function mBotInstructions(factory, botData={}){
     switch(type){
 		case 'avatar':
         case 'personal-avatar':
-            instructions = preamble
+            instructions = purpose
                 + general
             break
 		case 'biographer':
@@ -1004,7 +1011,8 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 	} = options
 	if(updateInstructions){
 		const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
-		const { instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
+		const { greetings, instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
+		allowedBotData.greetings = greetings
 		allowedBotData.instructions = instructions
 		allowedBotData.metadata = metadata
 		allowedBotData.metadata.version = version.toString()
@@ -1023,7 +1031,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 	if(_llm_id?.length && (allowedBotData.instructions || allowedBotData.bot_name?.length || allowedBotData.tools)){
 		allowedBotData.model = factory.globals.currentOpenAIBotModel // not dynamic
 		allowedBotData.llm_id = _llm_id
-		await llm.updateBot(allowedBotData)
+		await llm.updateBot(allowedBotData)			
 	}
 	await factory.updateBot(allowedBotData)
 	return allowedBotData
@@ -1052,7 +1060,37 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
 	if(!botResponses?.length)
 		return
 	const { run_id, } = botResponses[0]
+	if(botResponses[0]?.cancelResponse===true){
+		botResponses.splice(1, botResponses.length-1) // remove any additional botResponses when canceled
+		const { function: callbackFunction } = botResponses[0]
+		// can sort by functions here
+		switch(callbackFunction){
+			case 'updateSummary':
+				botResponses[0] = {
+					content: `I was able to update our summary based on your feedback`,
+					created_at: processStartTime,
+					role: 'assistant',
+					run_id,
+					thread_id,
+				}
+				break
+			case 'changeTitle':
+				const { title, } = botResponses[0]
+				botResponses[0] = {
+					content: `I was able to change the title of this entry to "${ title }"`,
+					created_at: processStartTime,
+					role: 'assistant',
+					run_id,
+					thread_id,
+				}
+				break
+			default:
+				break
+		}			
+	}
 	Conversation.addRun(run_id)
+	if(!Conversation.run_id?.length)
+		throw new Error('No `run_id` found in botResponses for `mCallLLM`.')
     botResponses
 		.filter(botResponse=>botResponse?.run_id===Conversation.run_id)
 		.sort((mA, mB)=>(mB.created_at-mA.created_at))
@@ -1282,12 +1320,17 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     let messages = await llm.messages(thread_id) // @todo - limit to 25 messages or modify request
     if(!messages?.length)
         return false
-    let chatLimit=25,
+    let chatLimit=15,
 		disclaimer=`INFORMATIONAL ONLY **DO NOT PROCESS**\n`,
         itemCollectionTypes='item',
-        itemLimit=100,
+        itemLimit=75,
         type='item'
     switch(botType){
+		case 'avatar':
+		case 'personal-avatar':
+			type = 'item'
+			itemCollectionTypes = 'item'
+			break
         case 'biographer':
         case 'personal-biographer':
             type = 'memory'
@@ -1305,7 +1348,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
         default:
             break
     }
-    const chatSummary=`## ${ type.toUpperCase() } CHAT SUMMARY\n`,
+    const chatSummary=`## ${ botType.toUpperCase() } CHAT SUMMARY\n`,
         chatSummaryRegex = /^## [^\n]* CHAT SUMMARY\n/,
         itemSummary=`## ${ type.toUpperCase() } LIST\n`,
         itemSummaryRegex = /^## [^\n]* LIST\n/
@@ -1318,7 +1361,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     const itemCollectionList = items
         .map(item=>item.id)
         .join(',')
-        .slice(0, 512) // limit for metadata string field
+        .slice(0, 512) // limit for metadata string
     const metadata = {
         bot_id: bot_id,
     }
@@ -1334,10 +1377,14 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
             return { content, id, metadata, role, }
         })
         .filter(message=>!itemSummaryRegex.test(message.content))
-    const summaryMessage = messages
-        .filter(message=>!chatSummaryRegex.test(message.content))
-        .map(message=>message.content)
-        .join('\n')
+	const summaryMessage = messages
+		.map(message => {
+			const contentWithoutTags = message.content.replace(chatSummaryRegex, '').replace(disclaimer, '')
+			return chatSummaryRegex.test(message.content)
+				? contentWithoutTags
+				: `${message.role}: ${contentWithoutTags}`
+		})
+		.join('\n')
     /* contextualize previous content */
     const summaryMessages = []
     /* summary of items */
@@ -1361,14 +1408,14 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
         })
     if(!summaryMessages.length)
         return
-    /* add messages to new thread */
-	const newThread = await mThread(llm, undefined, summaryMessages.reverse(), metadata)
+	const newThread = await mThread(llm, undefined, summaryMessages, metadata) // add message(s) to new thread
 	if(!!conversation){
 	    conversation.setThread(newThread)
 		if(saveConversation)
 			conversation.save() // no `await`
 	}
-    await Bot.setThread(newThread.id) // autosaves `thread_id`, no `await`
+    Bot.setThread(newThread.id) // autosaves `thread_id`, no `await`
+	llm.deleteThread(thread_id)
 	console.log(`chat migrated::from ${ thread_id } to ${ newThread.id }`, botType )
 }
 /**

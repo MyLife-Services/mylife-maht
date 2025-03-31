@@ -462,7 +462,7 @@ class ShareAgent {
             const shareData = await MemberAvatar.cleanShare(Share, avatar) // operates directly upon Shared Memory Share
             Share.header = shareData
         }
-        return Share?.header
+        return Share.header
     }
     /**
      * Plays a public share.
@@ -515,13 +515,28 @@ class ShareAgent {
                 ?.text
                 ?.value
             if(message?.length){
-                const scenes = JSON.parse(message)?.scenes
-                    ?? ['Error in LLM response while trying to cancel a thread; please reload page']
-                if(scenes.length===1)
-                    scenes = scenes.first()
+                console.log('shareInit::message', message)
+                let scenes = JSON.parse(message)?.scenes
+                    ?? []
+                if(scenes.length===1){ // array incorrectly sent as one scene
+                    scenes = scenes[0]
                         .split(/(?=(scene\s*\d+:?\n?))/i)
                         .filter(item =>item.trim()!=='')
-                const lastItem = scenes[scenes.length - 1].trim()
+                    let lastScene = scenes[scenes.length - 1].trim()
+                    if(lastScene.includes('conclusion')){
+                        const conclusionIndex = lastScene.toLowerCase().indexOf('conclusion')
+                        if(conclusionIndex>0){
+                            const lastNewlineBeforeConclusion = lastScene.lastIndexOf('\n', conclusionIndex)
+                            if (lastNewlineBeforeConclusion > 0) {
+                                const mainScene = lastScene.substring(0, lastNewlineBeforeConclusion)
+                                const conclusionScene = lastScene.substring(lastNewlineBeforeConclusion + 1)
+                                scenes[scenes.length - 1] = mainScene
+                                scenes.push(conclusionScene)
+                            }
+                        }
+                    }
+                } else if(scenes.length<=0)
+                    scenes.push('Error in LLM response while trying to cancel a thread; please reload page')
                 shareData.scenes = scenes
             }
             if(thread_id?.length)

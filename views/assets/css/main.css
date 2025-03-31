@@ -185,6 +185,7 @@ a.login-btn:hover {
 	background-position: bottom;
 	flex: 1; /* Pushes the footer down */
 	justify-content: center;
+	overflow: hidden;
 }
 .page-container {
     display: flex;
@@ -225,8 +226,10 @@ a.login-btn:hover {
 	color: #12094d;
 	flex: 1 1 320px; /* Makes it flexible with a base width of 600px */
 	flex-direction: column;
+	max-height: 100%;
 	max-width: 400px; /* Maximum width of 600px */
     min-width: 320px; /* Prevents excessive shrinking */
+	overflow: hidden;
 }
 .sidebar h2 {
 	color: black;
@@ -877,4 +880,10 @@ pre code {
 	.hamburger {
 		display: flex;
 	}
+}
+/* overflow */
+@media (max-width: 688px) {
+    .page-container {
+        overflow-y: auto;
+    }
 }

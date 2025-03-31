@@ -71,7 +71,7 @@ async function bots(ctx){
 		case 'GET':
 		default:
 			if(bid?.length){ // specific bot
-				ctx.body = await Avatar.getBot(ctx.params.bid)
+				ctx.body = await Avatar.getBot(bid)
 			} else {
 				const bots = await Avatar.getBots()
 				let { activeBotId, greeting, } = Avatar
