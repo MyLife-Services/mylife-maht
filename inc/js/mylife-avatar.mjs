@@ -13,7 +13,6 @@ import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
-import { title } from 'process'
 /* module constants */
 // file services
 const __dirpath = fileURLToPath(import.meta.url)
