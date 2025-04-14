@@ -1,4 +1,4 @@
-// imports
+/* imports */
 import Router from 'koa-router'
 import {
     availableExperiences,
@@ -15,6 +15,8 @@ import {
     memory,
     obscure as apiObscure,
     register,
+    sharedMemories,
+    sharedMemory,
     tokenValidation,
 } from './controllers/api-functions.mjs'
 import {
@@ -70,15 +72,23 @@ import {
     validateShare,
 } from './controllers/memory-functions.mjs'
 import {
+    mcpCall,
+    mcpStream,
+    mcpSystemInfo,
+} from './controllers/mcp-functions.mjs'
+import {
     mission,
     missionPlay,
     missions,
     missionsAvailable,
 } from './controllers/testing-functions.mjs'
-// variables
+/* module constants */
 const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
+const _mcpRouter = new Router()
+const mJsonRpcVersion = process.env.MCP_JSONRPC_Version || 2,
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
 //	root routes
 _Router.get('/', index)
 _Router.get('/about', about)
@@ -116,6 +126,9 @@ _apiRouter.get('/alerts/:aid', alerts)
 _apiRouter.get('/experiences/:mid', experiences) // **note**: currently triggers autoplay experience
 _apiRouter.get('/experiencesLived/:mid', experiencesLived)
 _apiRouter.get('/logout', apiLogout)
+_apiRouter.get('/memories', sharedMemories)
+_apiRouter.get('/memories/memory', sharedMemory)
+_apiRouter.get('/memories/memory/:sid', sharedMemory)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.patch('/experiences/:mid/experience/:xid/cast', experienceCast)
 _apiRouter.patch('/experiences/:mid/experience/:xid/end', experienceEnd)
@@ -130,6 +143,11 @@ _apiRouter.post('/obscure/:mid', apiObscure)
 _apiRouter.post('/register', register)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
+/* mcp-api routes */
+_mcpRouter.use(protocolValidation)
+_mcpRouter.get('/', mcpSystemInfo)
+_mcpRouter.get('/sse', mcpStream)
+_mcpRouter.post('/', mcpCall)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
@@ -179,6 +197,7 @@ _memberRouter.put('/item/:iid', item)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
+_Router.use('/api/v2/mcp/system-avatar', _mcpRouter.routes(), _mcpRouter.allowedMethods())
 /* modular functions */
 /**
  * Connects the routes to the router
@@ -228,7 +247,71 @@ function status(ctx){ //	currently returns reverse "locked" status, could send o
 function status_signup(ctx){
 	ctx.body = ctx.session.signup
 }
-// exports
+/**
+ * Validates the MCP protocol request.
+ * @param {Koa} ctx - Koa context object
+ */
+async function protocolValidation(ctx, next){
+    const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
+    if(!ctx.session.mcpSessionId)
+        ctx.session.mcpSessionId = crypto.randomUUID()
+    // Set the header for the response
+    ctx.set('Mcp-Session-Id', ctx.session.mcpSessionId)
+    if(ctx.request.method==='GET'){
+        await next()
+        return
+    }
+    if(headerAuthorization!==process.env.MCP_AUTHORIZATION)
+        ctx.throw(401, 'Unauthorized - Invalid or missing authorization token')
+    const { id, jsonrpc, method, params, } = ctx.request.body // defined by [MCP protocol]()
+    const { capabilities, clientInfo, protocolVersion, } = params ?? {}
+    const { mcpAuthorized=false, mcpHandshake=false, mcpRequestIds=[], } = ctx.session // MyLife Session tracking of requests
+    if(!mcpAuthorized){
+        console.log(`MCP`, ctx.request.body)
+        if(method!=='initialize')
+            ctx.throw(401, 'Unauthorized - MCP protocol not authorized, please initialize first')
+        console.log(jsonrpc)
+        if(!jsonrpc || parseFloat(jsonrpc) > mJsonRpcVersion)
+            ctx.throw(400, 'Bad Request - Invalid or Incompatible JSON-RPC version')
+        if(!protocolVersion)
+            ctx.throw(400, 'Bad Request - Missing protocolVersion')
+        if(mJsonRpcProtocolVersion && new Date(protocolVersion) > new Date(mJsonRpcProtocolVersion))
+            ctx.throw(400, 'Bad Request - Incompatible protocol version (too new)')
+        ctx.session.mcp_client = clientInfo
+        ctx.session.mcpAuthorized = true
+        ctx.body = {
+            jsonrpc: mJsonRpcVersion,
+            id,
+            result: {
+                protocolVersion,
+                capabilities: {
+                    /*
+                    logging: {},
+                    prompts: {},
+                    resources: {},
+                    */
+                    tools: {
+                        listChanged: true
+                    }
+                },
+                serverInfo: {
+                    name: 'MyLife MCP',
+                    version: 1.0,
+                },
+                instructions: 'Optional Instructions about MyLife'
+            }
+        }
+    } else if(!mcpHandshake){
+        console.log(method)
+        if(method==='notifications/initialized'){
+            ctx.session.mcpHandshake = true
+            ctx.body = null
+        } else
+            ctx.throw(401, 'Unauthorized - MCP protocol initialization not confirmed')
+    } else
+        await next()
+}
+/* exports */
 export default function init(_Menu) {
 	connectRoutes(_Menu)
 	return _Router

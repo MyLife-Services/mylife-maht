@@ -181,6 +181,42 @@ async function logout(ctx){
     ctx.body = { success: true }
 }
 /**
+ * Functionality around story contributions.
+ * @param {Koa} ctx - Koa Context object
+ */
+async function memory(ctx){
+    await mAPIKeyValidation(ctx) // sets ctx.state.mbr_id and more
+    const { assistantType, mbr_id } = ctx.state
+    if(!ctx.request.body?.summary?.length)
+        throw new Error('No memory summary provided. Use `summary` field.')
+    const summary = {
+        ...ctx.request.body,
+        assistantType,
+        mbr_id,
+    }
+    const memory = await ctx.SystemAvatar.memory(summary)
+    ctx.status = 200
+    ctx.body = {
+        id: memory.id,
+        message: 'memory submitted successfully.',
+        success: true,
+    }
+}
+/**
+ * Given an itemId, obscures aspects of contents of the data record.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Promise<object>} - Promise object representing obscured item
+ */
+async function obscure(ctx){
+    await mAPIKeyValidation(ctx)
+    const { itemId: iid, } = ctx.request?.body ?? {}
+    if(!ctx.Globals.isValidGuid(iid))
+        ctx.throw(400, 'Improper `itemId` provided in request')
+    const { avatar, mbr_id, } = ctx.state
+    ctx.body = await avatar.obscure(mbr_id, iid)
+}
+
+/**
  * Registration function for new members.
  * @todo - throttle register requests to prevent abuse.
  * @param {Koa} ctx - Koa Context object
@@ -218,40 +254,22 @@ async function register(ctx){
 		data: registration,
     }
 }
-/**
- * Functionality around story contributions.
- * @param {Koa} ctx - Koa Context object
- */
-async function memory(ctx){
-    await mAPIKeyValidation(ctx) // sets ctx.state.mbr_id and more
-    const { assistantType, mbr_id } = ctx.state
-    if(!ctx.request.body?.summary?.length)
-        throw new Error('No memory summary provided. Use `summary` field.')
-    const summary = {
-        ...ctx.request.body,
-        assistantType,
-        mbr_id,
-    }
-    const memory = await ctx.SystemAvatar.memory(summary)
-    ctx.status = 200
+async function sharedMemories(ctx){
+    const { avatar: SystemAvatar, } = ctx.state
+    const memories = await SystemAvatar.sharedMemories()
     ctx.body = {
-        id: memory.id,
-        message: 'memory submitted successfully.',
         success: true,
+        memories,
     }
 }
-/**
- * Given an itemId, obscures aspects of contents of the data record.
- * @param {Koa} ctx - Koa Context object
- * @returns {Promise<object>} - Promise object representing obscured item
- */
-async function obscure(ctx){
-    await mAPIKeyValidation(ctx)
-    const { itemId: iid, } = ctx.request?.body ?? {}
-    if(!ctx.Globals.isValidGuid(iid))
-        ctx.throw(400, 'Improper `itemId` provided in request')
-    const { avatar, mbr_id, } = ctx.state
-    ctx.body = await avatar.obscure(mbr_id, iid)
+async function sharedMemory(ctx){
+    const { sid, } = ctx.query
+    const { avatar: SystemAvatar, } = ctx.state
+    const memory = await SystemAvatar.sharedMemory(sid)
+    ctx.body = {
+        success: true,
+        memory,
+    }
 }
 /**
  * Validates api token.
@@ -343,7 +361,7 @@ function mTokenType(ctx){
     return assistantType
 }
 function mTokenValidation(token){
-    return mBotSecrets?.[token]?.length??false
+    return mBotSecrets?.[token]?.length ?? false
 }
 /* exports */
 export {
@@ -361,6 +379,8 @@ export {
     memory,
     obscure,
     register,
+    sharedMemories,
+    sharedMemory,
     tokenValidation,
     upload,
 }
