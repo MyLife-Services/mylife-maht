@@ -889,7 +889,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .interests-label {
     font-weight: bold;
-    min-width: fit-content;
+    min-width: -webkit-fill-available;
 }
 /* keyframes */
 @keyframes _scrollText {

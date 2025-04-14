@@ -1010,6 +1010,31 @@ class MyLifeFactory extends AgentFactory {
 		this.#registrant = registrant
 		return this.#registrant
 	}
+    /**
+     * Get a list of publicly shared memories.
+     * @param {Number} limit - The max number of memories to return
+     * @returns {Promise<Object[]>} - The list of shared memories
+     */
+    async sharedMemories(limit=10){
+		if(limit<0)
+			limit = 1
+		if(limit>25)
+			limit = 25
+		const memories = await this.dataservices.getItemsByFields(
+			'share',
+			[{ name: '@scope', value: 'public' }],
+			'shares',
+			'memory',
+		)
+		const shuffled = [...memories].sort(() => 0.5 - Math.random())
+		return shuffled.slice(0, limit)
+	}
+	async sharedMemory(sid){
+		const memory = sid?.length
+			? await this.dataservices.getItem(sid, 'shares', 'memory')
+			: (await this.sharedMemories(1))?.[0]
+		return memory
+	}
 	updateItem(){
 		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))
 	}
