@@ -84,6 +84,7 @@ async function mcpCall(ctx, next){
                     break
                 case 'list':
                     result = mToolList
+                    break
                 default:
                     break
             }
