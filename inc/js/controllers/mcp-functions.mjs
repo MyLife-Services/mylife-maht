@@ -78,7 +78,7 @@ async function mcpCall(ctx, next){
                                 annotations: mToolList.find(tool => tool.name === name).annotations,
                             }
                         default:
-                            ctx.throw(new Error(`Tool ${name} not found`))
+                            ctx.throw(404, `Tool ${name} not found`)
                             break
                     }
                     break
