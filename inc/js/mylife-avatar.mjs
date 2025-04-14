@@ -13,6 +13,7 @@ import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
+import { title } from 'process'
 /* module constants */
 // file services
 const __dirpath = fileURLToPath(import.meta.url)
@@ -1753,6 +1754,38 @@ class Q extends Avatar {
     async mylifeMember(mbr_id){
 		const Avatar = await this.#factory.getMemberAvatar(mbr_id)
         return Avatar
+    }
+    /**
+     * Get a list of publicly shared memories.
+     * @param {Number} limit - The max number of memories to return
+     * @returns {Promise<Object[]>} - The list of shared memories
+     */
+    async sharedMemories(limit=10){
+        const memories = ( await this.#factory.sharedMemories(limit) )
+            .map(memory=>({
+                id: memory.id,
+                title: memory.title,
+            }))
+        return memories
+    }
+    /**
+     * Get a specific (or random) shared memory by id.
+     * @param {Guid} sid - The share id
+     * @returns {Promise<Object>} - The shared memory object
+     */
+    async sharedMemory(sid){
+        const _memory = await this.#factory.sharedMemory(sid)
+        const { anonymous, conclusion, guessable, id, scenes=['Scenes should be requested using this `id` from MyLife'], title, voice, } = _memory
+        const memory = {
+            anonymous,
+            conclusion,
+            guessable,
+            id,
+            scenes,
+            title,
+            voice,
+        }
+        return memory
     }
     /**
      * Validate registration id.
