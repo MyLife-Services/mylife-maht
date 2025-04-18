@@ -1774,7 +1774,7 @@ class Q extends Avatar {
      */
     async sharedMemory(sid){
         const _memory = await this.#factory.sharedMemory(sid)
-        const { anonymous, conclusion, guessable, id, scenes=['Scenes should be requested using this `id` from MyLife'], title, voice, } = _memory
+        const { anonymous, conclusion, guessable, id, scenes=['Scenes should be requested using this `id` from MyLife'], title, voice, } = _memory ?? {}
         const memory = {
             anonymous,
             conclusion,

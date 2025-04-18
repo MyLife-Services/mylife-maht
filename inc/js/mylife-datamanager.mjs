@@ -82,8 +82,10 @@ class Datamanager {
 	 * @returns {object} The document JSON item retrieved.
 	 */
 	async getItem(id, containerId=this.containerDefault, options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
+		const partitionKey = options?.partitionKey
+			?? this.#partitionId
 		const { resource: retrievedItem } = await this.#containers[containerId]
-			.item(id, this.#partitionId)
+			.item(id, partitionKey)
 			.read(options)
 		return retrievedItem
 	}
