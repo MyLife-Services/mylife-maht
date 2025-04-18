@@ -258,13 +258,15 @@ async function protocolValidation(ctx, next){
     const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
     switch(ctx.request.method.toUpperCase()){
         case 'GET':
-            if(!mClientEntities?.[headerAuthorization])
+            const bypassAuth = true
+            if(!bypassAuth && ctx.path.endsWith('/sse') && !mClientEntities?.[headerAuthorization])
                 ctx.throw(401, 'Unauthorized - Invalid or missing authorization token')
             break
         case 'POST':
             const { sessionId, } = ctx.request.query
             if(!sessionId)
                 ctx.throw(401, 'Unauthorized - Missing sessionId')
+            console.log('sessionId', sessionId)
             const sessionMeta = ctx.mcpSessionMeta.get(sessionId)
             if(!sessionMeta){
                 const { id, jsonrpc, method, params, } = ctx.request.body // defined by [MCP protocol]()

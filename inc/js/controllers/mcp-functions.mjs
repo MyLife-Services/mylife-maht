@@ -5,10 +5,28 @@ import { SseError } from '@modelcontextprotocol/sdk/client/sse.js'
 /* modular constants */
 const mJSONRPCVersion = process.env.MCP_JSONRPC_Version
 const mProtocolVersion = process.env.MCP_JSONRPC_Protocol
+const mQInitialization = {
+    protocolVersion: mProtocolVersion,
+    capabilities: {
+        /*
+        logging: {},
+        prompts: {},
+        resources: {},
+        */
+        tools: {
+            listChanged: true
+        }
+    },
+    serverInfo: {
+        name: 'MyLife MCP',
+        version: '1.0',
+    },
+    instructions: 'I am Q, corporate intelligence for MyLife. MyLife is a humanist 501c3 nonprofit member organization. MyLife has created an AI-Agent platform available by MCP to assist with helping members collect, shape and share their memories and personal narratives with their family and posterity.',
+}
 const mToolList = [
     {
         name: 'get_shared_memories',
-        description: 'Gets a list of MyLife publicly shared memories',
+        description: 'I get a random list (max 10) of MyLife public memories { id, title, } that can be experienced.',
         inputSchema: {
             type: 'object',
             properties: {},
@@ -110,24 +128,8 @@ async function mcpCall(ctx, next){
             }
             break
         case 'initialize':
-            result = {
-                protocolVersion,
-                capabilities: {
-                    /*
-                    logging: {},
-                    prompts: {},
-                    resources: {},
-                    */
-                    tools: {
-                        listChanged: true
-                    }
-                },
-                serverInfo: {
-                    name: 'MyLife MCP',
-                    version: '1.0',
-                },
-                instructions: 'MyLife is a humanist nonprofit member organization dedicated to bringing people together to share their life stories.',
-            }
+            result = mQInitialization
+            result.protocolVersion = protocolVersion
             break
         case 'notifications':
             const notificationType = method.split('/').pop()

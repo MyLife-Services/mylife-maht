@@ -1030,6 +1030,7 @@ class MyLifeFactory extends AgentFactory {
 		return shuffled.slice(0, limit)
 	}
 	async sharedMemory(sid){
+		const _memory = await this.dataservices.getItem(sid, 'shares', 'memory')
 		const memory = sid?.length
 			? await this.dataservices.getItem(sid, 'shares', 'memory')
 			: (await this.sharedMemories(1))?.[0]
