@@ -9,6 +9,11 @@ const mToolList = [
     {
         name: 'get_shared_memories',
         description: 'Gets a list of MyLife publicly shared memories',
+        inputSchema: {
+            type: 'object',
+            properties: {},
+            required: []
+        },
         annotations: {        // Optional hints about tool behavior
             title: 'Shared-Memory',      // Human-readable title for the tool
             readOnlyHint: true,    // If true, the tool does not modify its environment
@@ -42,51 +47,63 @@ const mToolList = [
 /* System Avatar MCP Functions */
 async function mcpCall(ctx, next){
     const { sessionId, } = ctx.request.query
-    const { id, jsonrpc, method, params, } = ctx.request.body
-    const { protocolVersion, } = params
-    console.log(chalk.yellow('MCP Call request'), params)
+    const { id, jsonrpc, method, params={}, } = ctx.request.body
+    const { arguments: args, name, protocolVersion, _meta={}, } = params
+    const { progressToken, } = _meta
+    const mcpData = ctx.mcpSessionMeta.get(sessionId)
+    if(!mcpData)
+        ctx.throw(404, `Session ${ sessionId } not found`)
+    const { capabilities, clientInfo, initializeConfirmation, transportEntry, } = mcpData
+    if(!transportEntry)
+        throw new SseError('Session SSE transport not found', { sessionId })
     let result
     const methodBase = method.split('/')[0]
     switch(methodBase){
         case 'getSharedMemory':
         case 'tools':
+            if(!initializeConfirmation)
+                ctx.throw(403, 'Session not initialized')
             const methodAction = method.split('/').pop()
+            console.log(chalk.yellow('MCP TOOLS Call request'), methodAction, params)
             switch(methodAction){
                 case 'call':
                     if(!params)
                         throw new Error('Missing required parameter: params')
-                    const { arguments: args, name, } = params
                     if(!name?.length)
                         throw new Error('Missing required parameter: name')
                     if(!mToolList.some(tool => tool.name === name))
-                        throw new Error(`Tool ${name} not found`)
+                        throw new Error(`Tool ${ name } not found`)
                     switch(name){
                         case 'get_shared_memories':
+                            const memories = await ctx.SystemAvatar.sharedMemories()
                             result = {
-                                content: [
-                                    {
-                                        text: 'List of shared memories',
-                                        type: 'text',
-                                    },
-                                ],
+                                content: memories.map(memory=>({
+                                    text: JSON.stringify(memory, null, 2),
+                                    type: 'text',
+                                })),
                                 isError: false,
                             }
                             break
                         case 'get_shared_memory':
-                            if(!args?.memoryId)
-                                throw new Error('Missing required parameter: memoryId')
+                            const memory = await ctx.SystemAvatar.sharedMemory(args?.memoryId)
+                            console.log(chalk.yellow('get_shared_memory'), memory)
                             result = {
-                                name: args.memoryId,
-                                description: `Shared memory with ID ${args.memoryId}`,
-                                annotations: mToolList.find(tool => tool.name === name).annotations,
+                                content: [{
+                                    text: JSON.stringify(memory, null, 2),
+                                    type: 'text',
+                                }],
+                                isError: false,
                             }
+                            break
                         default:
-                            ctx.throw(404, `Tool ${name} not found`)
+                            ctx.throw(404, `Tool ${ name } not found`)
                             break
                     }
                     break
                 case 'list':
-                    result = mToolList
+                    result = {
+                        tools: mToolList,
+                    }
                     break
                 default:
                     break
@@ -94,35 +111,49 @@ async function mcpCall(ctx, next){
             break
         case 'initialize':
             result = {
-                jsonrpc,
-                id,
-                result: {
-                    protocolVersion,
-                    capabilities: {
-                        /*
-                        logging: {},
-                        prompts: {},
-                        resources: {},
-                        */
-                        tools: {
-                            listChanged: true
-                        }
-                    },
-                    serverInfo: {
-                        name: 'MyLife MCP',
-                        version: '1.0',
-                    },
-                    instructions: 'MyLife is a humanist nonprofit member organization dedicated to bringing people together to share their life stories.',
-                }
+                protocolVersion,
+                capabilities: {
+                    /*
+                    logging: {},
+                    prompts: {},
+                    resources: {},
+                    */
+                    tools: {
+                        listChanged: true
+                    }
+                },
+                serverInfo: {
+                    name: 'MyLife MCP',
+                    version: '1.0',
+                },
+                instructions: 'MyLife is a humanist nonprofit member organization dedicated to bringing people together to share their life stories.',
             }
             break
+        case 'notifications':
+            const notificationType = method.split('/').pop()
+            switch(notificationType){
+                case 'cancelled':
+                    break
+                case 'initialized':
+                    mcpData.initializeConfirmation = true
+                    break
+                default:
+                    break
+            }
+            break
+        case 'ping':
+            result = {}
+            break
         default:
+            console.log(chalk.red('MCP Call request - unhandled method'), method)
             break
     }
-    const transportEntry = ctx.app.webAppTransports?.find(t => t.sessionId === sessionId)
-    if(!transportEntry)
-        throw new SseError('Session SSE transport not found', { sessionId })
-    transportEntry.send(result)
+    if(result)
+        transportEntry.send({
+            jsonrpc,
+            id,
+            result,
+        })
     ctx.status = 200
     await next()
 }
@@ -274,7 +305,7 @@ async function mcpHandler(ctx) {
 */
 async function mSessionInfo(ctx) {
     const { sid: sessionId, } = ctx.params
-    const transport = ctx.SystemAvatar.webAppTransports?.find(t => t.sessionId === sessionId)
+    const transport = ctx.app.webAppTransports?.find(t => t.sessionId === sessionId)
     if (!transport) {
         ctx.status = 404
         ctx.body = { error: 'Session not found', sessionId }
