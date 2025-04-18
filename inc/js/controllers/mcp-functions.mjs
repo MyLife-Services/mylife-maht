@@ -78,7 +78,7 @@ async function mcpCall(ctx, next){
     const methodBase = method.split('/')[0]
     switch(methodBase){
         case 'getSharedMemory':
-        case 'tools':
+      case 'tools':
             if(!initializeConfirmation)
                 ctx.throw(403, 'Session not initialized')
             const methodAction = method.split('/').pop()
