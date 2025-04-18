@@ -1,8 +1,9 @@
 /* imports */
 import chalk from 'chalk'
-import { PassThrough } from 'stream'
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
+import { SseError } from '@modelcontextprotocol/sdk/client/sse.js'
 /* modular constants */
-const mJSONRPCVersion = process.env.MCP_JSONRPC_Version ?? 2
+const mJSONRPCVersion = process.env.MCP_JSONRPC_Version
 const mProtocolVersion = process.env.MCP_JSONRPC_Protocol
 const mToolList = [
     {
@@ -40,8 +41,10 @@ const mToolList = [
 ]
 /* System Avatar MCP Functions */
 async function mcpCall(ctx, next){
-    console.log(chalk.yellow('MCP POST request'))
+    const { sessionId, } = ctx.request.query
     const { id, jsonrpc, method, params, } = ctx.request.body
+    const { protocolVersion, } = params
+    console.log(chalk.yellow('MCP Call request'), params)
     let result
     const methodBase = method.split('/')[0]
     switch(methodBase){
@@ -89,14 +92,38 @@ async function mcpCall(ctx, next){
                     break
             }
             break
+        case 'initialize':
+            result = {
+                jsonrpc,
+                id,
+                result: {
+                    protocolVersion,
+                    capabilities: {
+                        /*
+                        logging: {},
+                        prompts: {},
+                        resources: {},
+                        */
+                        tools: {
+                            listChanged: true
+                        }
+                    },
+                    serverInfo: {
+                        name: 'MyLife MCP',
+                        version: '1.0',
+                    },
+                    instructions: 'MyLife is a humanist nonprofit member organization dedicated to bringing people together to share their life stories.',
+                }
+            }
+            break
         default:
             break
     }
-    ctx.body = {
-        jsonrpc,
-        id,
-        result,
-    }
+    const transportEntry = ctx.app.webAppTransports?.find(t => t.sessionId === sessionId)
+    if(!transportEntry)
+        throw new SseError('Session SSE transport not found', { sessionId })
+    transportEntry.send(result)
+    ctx.status = 200
     await next()
 }
 /**
@@ -245,40 +272,36 @@ async function mcpHandler(ctx) {
     }
 }
 */
+async function mSessionInfo(ctx) {
+    const { sid: sessionId, } = ctx.params
+    const transport = ctx.SystemAvatar.webAppTransports?.find(t => t.sessionId === sessionId)
+    if (!transport) {
+        ctx.status = 404
+        ctx.body = { error: 'Session not found', sessionId }
+        return
+    }
+    ctx.body = {
+        sessionId: transport.sessionId,
+        type: transport.constructor.name,
+        messageUrl: `/message?sessionId=${transport.sessionId}`,
+        createdAt: transport.createdAt || '(unknown)',
+        info: 'Active session details',
+    }
+}
 /**
  * Handles the System Avatar (Q) MCP request for streaming.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<void>}
  */
-async function mcpStream(ctx){
-    console.log(chalk.yellow('MCP Stream request'))
-    ctx.set({
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no transform",
-      "Connection": "keep-alive",
-      "Access-Control-Allow-Headers": "Authorization",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST",
-      "Transfer-Encoding": "chunked",
-    })
-    ctx.request.socket.setTimeout(0)
-    ctx.req.socket.setNoDelay(true)
-    ctx.req.socket.setKeepAlive(true)
-    ctx.status = 200
+async function mcpStream(ctx) {
     ctx.respond = false
-    ctx.res.flushHeaders()
-    const stream = new PassThrough()
-    ctx.body = stream
-    let id = 0
-    stream.write(`data: ok` + '\n\n')
-    const interval = setInterval(()=>{
-        id++
-        stream.write(`data: ${ id }\n\n`)
-    }, 7000)
-    stream.on("close", () => {
-        clearInterval(interval)
-        stream.end()
-    })
+    const sseTransport = new SSEServerTransport('/api/v2/mcp/system-avatar/message', ctx.res)
+    await sseTransport.start() // sends endpoint event
+    const { sessionId, } = sseTransport
+    console.log('✅ Connected Inspector SSE session:', sessionId)
+    // Store for later routing
+    ctx.app.webAppTransports ??= []
+    ctx.app.webAppTransports.push(sseTransport)
 }
 /**
  * Returns system information adhering to MCP protocol requirements.
@@ -304,6 +327,7 @@ async function mcpSystemInfo(ctx) {
 /* exports */
 export {
     mcpCall,
+    mSessionInfo,
     mcpStream,
     mcpSystemInfo,
 }

@@ -73,6 +73,7 @@ import {
 } from './controllers/memory-functions.mjs'
 import {
     mcpCall,
+    mSessionInfo,
     mcpStream,
     mcpSystemInfo,
 } from './controllers/mcp-functions.mjs'
@@ -87,6 +88,7 @@ const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
 const _mcpRouter = new Router()
+const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version || 2,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
 //	root routes
@@ -147,7 +149,8 @@ _apiRouter.post('/upload/:mid', upload)
 _mcpRouter.use(protocolValidation)
 _mcpRouter.get('/', mcpSystemInfo)
 _mcpRouter.get('/sse', mcpStream)
-_mcpRouter.post('/', mcpCall)
+_mcpRouter.get('/message/:sid', mSessionInfo)
+_mcpRouter.post('/message', mcpCall)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
@@ -253,63 +256,30 @@ function status_signup(ctx){
  */
 async function protocolValidation(ctx, next){
     const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
-    if(!ctx.session.mcpSessionId)
-        ctx.session.mcpSessionId = crypto.randomUUID()
-    // Set the header for the response
-    ctx.set('Mcp-Session-Id', ctx.session.mcpSessionId)
     if(ctx.request.method==='GET'){
-        await next()
-        return
-    }
-    if(headerAuthorization!==process.env.MCP_AUTHORIZATION)
-        ctx.throw(401, 'Unauthorized - Invalid or missing authorization token')
-    const { id, jsonrpc, method, params, } = ctx.request.body // defined by [MCP protocol]()
-    const { capabilities, clientInfo, protocolVersion, } = params ?? {}
-    const { mcpAuthorized=false, mcpHandshake=false, mcpRequestIds=[], } = ctx.session // MyLife Session tracking of requests
-    if(!mcpAuthorized){
-        console.log(`MCP`, ctx.request.body)
-        if(method!=='initialize')
-            ctx.throw(401, 'Unauthorized - MCP protocol not authorized, please initialize first')
-        console.log(jsonrpc)
-        if(!jsonrpc || parseFloat(jsonrpc) > mJsonRpcVersion)
-            ctx.throw(400, 'Bad Request - Invalid or Incompatible JSON-RPC version')
-        if(!protocolVersion)
-            ctx.throw(400, 'Bad Request - Missing protocolVersion')
-        if(mJsonRpcProtocolVersion && new Date(protocolVersion) > new Date(mJsonRpcProtocolVersion))
-            ctx.throw(400, 'Bad Request - Incompatible protocol version (too new)')
-        ctx.session.mcp_client = clientInfo
-        ctx.session.mcpAuthorized = true
-        ctx.body = {
-            jsonrpc: mJsonRpcVersion,
-            id,
-            result: {
-                protocolVersion,
-                capabilities: {
-                    /*
-                    logging: {},
-                    prompts: {},
-                    resources: {},
-                    */
-                    tools: {
-                        listChanged: true
-                    }
-                },
-                serverInfo: {
-                    name: 'MyLife MCP',
-                    version: 1.0,
-                },
-                instructions: 'Optional Instructions about MyLife'
-            }
+        if(!mClientEntities?.[headerAuthorization])
+            ctx.throw(401, 'Unauthorized - Invalid or missing authorization token')
+    } else {
+        const { sessionId, } = ctx.request.query
+        const transportEntry = ctx.app.webAppTransports?.find(t => t.sessionId === sessionId)
+        if(!transportEntry)
+            ctx.throw(401, 'Unauthorized or unknown session')
+        const { id, jsonrpc, method, params, } = ctx.request.body // defined by [MCP protocol]()
+        const { capabilities, clientInfo, protocolVersion, } = params ?? {}
+        const { mcpAuthorized=false, mcpRequestIds=[], } = ctx.session // MyLife Session tracking of requests
+        if(!mcpAuthorized){
+            if(method!=='initialize')
+                ctx.throw(401, 'Unauthorized - MCP protocol not authorized, please initialize first')
+            if(!jsonrpc || parseFloat(jsonrpc) > mJsonRpcVersion)
+                ctx.throw(400, 'Bad Request - Invalid or Incompatible JSON-RPC version')
+            if(!protocolVersion)
+                ctx.throw(400, 'Bad Request - Missing protocolVersion')
+            if(mJsonRpcProtocolVersion && new Date(protocolVersion) > new Date(mJsonRpcProtocolVersion))
+                ctx.throw(400, 'Bad Request - Incompatible protocol version (too new)')
+            ctx.session.mcpAuthorized = true
         }
-    } else if(!mcpHandshake){
-        console.log(method)
-        if(method==='notifications/initialized'){
-            ctx.session.mcpHandshake = true
-            ctx.body = null
-        } else
-            ctx.throw(401, 'Unauthorized - MCP protocol initialization not confirmed')
-    } else
-        await next()
+    }
+    await next()
 }
 /* exports */
 export default function init(_Menu) {
