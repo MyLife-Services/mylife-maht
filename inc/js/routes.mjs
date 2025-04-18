@@ -89,8 +89,6 @@ const _memberRouter = new Router()
 const _apiRouter = new Router()
 const _mcpRouter = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
-const mJsonRpcVersion = process.env.MCP_JSONRPC_Version || 2,
-    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
 //	root routes
 _Router.get('/', index)
 _Router.get('/about', about)
@@ -255,9 +253,10 @@ function status_signup(ctx){
  * @param {Koa} ctx - Koa context object
  */
 async function protocolValidation(ctx, next){
-    const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
     switch(ctx.request.method.toUpperCase()){
         case 'GET':
+            // @todo - only required when initiating session or every get (main page `/` for example)?
+            const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
             const bypassAuth = true
             if(!bypassAuth && ctx.path.endsWith('/sse') && !mClientEntities?.[headerAuthorization])
                 ctx.throw(401, 'Unauthorized - Invalid or missing authorization token')
@@ -266,32 +265,12 @@ async function protocolValidation(ctx, next){
             const { sessionId, } = ctx.request.query
             if(!sessionId)
                 ctx.throw(401, 'Unauthorized - Missing sessionId')
-            console.log('sessionId', sessionId)
             const sessionMeta = ctx.mcpSessionMeta.get(sessionId)
-            if(!sessionMeta){
-                const { id, jsonrpc, method, params, } = ctx.request.body // defined by [MCP protocol]()
-                const { capabilities, clientInfo, protocolVersion, } = params ?? {}
-                if(method!=='initialize')
-                    ctx.throw(401, 'Unauthorized - MCP protocol not authorized, please initialize first')
-                if(!jsonrpc || parseFloat(jsonrpc) > parseFloat(mJsonRpcVersion))
-                    ctx.throw(400, 'Bad Request - Invalid or Incompatible JSON-RPC version')
-                if(!protocolVersion)
-                    ctx.throw(400, 'Bad Request - Missing protocolVersion')
-                if(mJsonRpcProtocolVersion && new Date(protocolVersion) > new Date(mJsonRpcProtocolVersion))
-                    ctx.throw(400, 'Bad Request - Incompatible protocol version (too new)')
-                const transportEntry = ctx.app.webAppTransports?.find(t => t.sessionId === sessionId)
-                if(!transportEntry)
-                    ctx.throw(401, 'Unauthorized or unknown session')
-                ctx.mcpSessionMeta.set(sessionId, {
-                    capabilities,
-                    clientInfo,
-                    createdAt: Date.now(),
-                    initializeConfirmation: false,
-                    jsonrpc,
-                    protocolVersion,
-                    transportEntry,
-                })
-            }
+            if(!sessionMeta)
+                ctx.throw(401, `Session Unauthorized; sessionId=${ sessionId }`)
+            const { transportEntry, } = sessionMeta
+            if(!transportEntry)
+                ctx.throw(401, 'Unauthorized or unknown session; cannot communicate with MCP')
             break
         default:
             break
