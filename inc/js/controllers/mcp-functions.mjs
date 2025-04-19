@@ -122,11 +122,24 @@ async function mcpCall(ctx, next){
     const { arguments: args, name, protocolVersion, _meta={}, } = params
     const { progressToken, } = _meta
     const sessionMeta = ctx.mcpSessionMeta.get(sessionId)
-    const { initialized, initializeConfirmation, transportEntry, } = sessionMeta
+    const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
     if(!transportEntry)
         throw new error('Session not found', sessionId)
     let error,
         result
+    /* save run ID to transport entry for later use */
+    let run = runs.find((run)=>(run.id===id))
+    // @todo - handle run in progress
+    if(!!run)
+        return
+    run = {
+        args,
+        id,
+        progressToken,
+        method,
+        name,
+    }
+    runs.push(run)
     if(!initialized){
         if(method!=='initialize'){
             error = {
@@ -217,8 +230,25 @@ async function mcpCall(ctx, next){
                                     }
                                     break
                                 case 'get_shared_memory':
+                                    let interval
+                                    if(progressToken){
+                                        let progress = 0
+                                        interval = setInterval(_=>{
+                                            progress += 10
+                                            transportEntry.send({
+                                                jsonrpc,
+                                                method: 'notifications/progress',
+                                                params:{
+                                                    message: `Retrieving shared memory`,
+                                                    progress,
+                                                    progressToken,
+                                                },
+                                            })
+                                        }, 2500)
+                                    }
                                     const memory = await ctx.SystemAvatar.shareMemory(args?.memoryId)
-                                    console.log(chalk.yellow('get_shared_memory'), memory, args)
+                                    if(interval)
+                                        clearInterval(interval)
                                     result = {
                                         content: [{
                                             text: JSON.stringify(memory, null, 2),
@@ -275,7 +305,25 @@ async function mcpCall(ctx, next){
                                             email: registerEmail,
                                             humanName: registerHumanName,
                                         }
+                                        let interval
+                                        if(progressToken){
+                                            let progress = 0
+                                            interval = setInterval(_=>{
+                                                progress += 10
+                                                transportEntry.send({
+                                                    jsonrpc,
+                                                    method: 'notifications/progress',
+                                                    params:{
+                                                        message: `Checking and registering: ${ registerEmail }`,
+                                                        progress,
+                                                        progressToken,
+                                                    },
+                                                })
+                                            }, 1000)
+                                        }
                                         const registrationData = await ctx.SystemAvatar.registerCandidate(signupPacket)
+                                        if(interval)
+                                            clearInterval(interval)
                                         const { email: registeredEmail, } = registrationData
                                         if(registeredEmail!==signupPacket.email)
                                             result = {
@@ -361,6 +409,7 @@ async function mcpCall(ctx, next){
                 break
         }
     }
+    sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==id))
     if(result)
         transportEntry.send({
             jsonrpc,
@@ -406,6 +455,8 @@ async function mcpStream(ctx) {
         created: Date.now(),
         initialized: false,
         initializeConfirmation: false,
+        runs: [],
+        sessionId,
         transportEntry: sseTransport,
     })
     console.log('✅ Connected Inspector SSE session:', sessionId)

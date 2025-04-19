@@ -168,7 +168,7 @@ class LLMServices {
                 ? runOutcome
                 : [runOutcome]
         } else if(!success){
-            if(avatar.backupResponse){
+            if(avatar?.backupResponse){
                 avatar.backupResponse.action = 'endMemory'
                 avatar.backupResponse.error = error
                 avatar.backupResponse.role = 'avatar'
