@@ -14,7 +14,6 @@ import {
     logout as apiLogout,
     memory,
     obscure as apiObscure,
-    register,
     sharedMemories,
     sharedMemory,
     tokenValidation,
@@ -140,7 +139,6 @@ _apiRouter.post('/entry/:mid', entry)
 _apiRouter.post('/keyValidation/:mid', keyValidation)
 _apiRouter.post('/memory/:mid', memory)
 _apiRouter.post('/obscure/:mid', apiObscure)
-_apiRouter.post('/register', register)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
 /* mcp-api routes */

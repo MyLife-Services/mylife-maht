@@ -1006,6 +1006,7 @@ class MyLifeFactory extends AgentFactory {
 	 * @returns {object} - The registrant's document from Cosmos
 	 */
 	async registerCandidate(registration){
+		registration.id = this.newGuid
 		const registrant = await this.#dataservices.registerCandidate(registration)
 		this.#registrant = registrant
 		return this.#registrant

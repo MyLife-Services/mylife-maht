@@ -25,11 +25,32 @@ const mQInitialization = {
 const mToolList = [
     {
         name: 'get_shared_memories',
-        description: 'I get a random list (max 10) of MyLife public memories { id, title, } that can be experienced.',
+        description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.',
         inputSchema: {
             type: 'object',
             properties: {},
             required: []
+        },
+        annotations: {        // Optional hints about tool behavior
+            title: 'Shared-Memories',      // Human-readable title for the tool
+            readOnlyHint: true,    // If true, the tool does not modify its environment
+            destructiveHint: false, // If true, the tool may perform destructive updates
+            idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+            openWorldHint: false   // If true, tool interacts with external entities
+        }
+    },
+    {
+        name: 'get_shared_memory',
+        description: 'I am Q, corporate intelligence for MyLife. When asked for a shared memory, I return the MyLife public memory { anonymous, conclusion, guessable, id, scenes, title, voice, } to be experienced. To help the human relive the memory, you should ask for each scene in the memory and use the get_shared_memory_scene tool to retrieve the scene using the underlying id.',
+        inputSchema: {
+            type: "object",
+            properties: { 
+                memoryId: {
+                    type: "string",
+                    description: "The ID of the memory to be retrieved, can be empty"
+                }
+            },
+            required: ['memoryId']
         },
         annotations: {        // Optional hints about tool behavior
             title: 'Shared-Memory',      // Human-readable title for the tool
@@ -40,21 +61,54 @@ const mToolList = [
         }
     },
     {
-        name: 'get_shared_memory',
-        description: 'Gets a specific shared memory',
+        name: 'get_shared_memory_scene',
+        description: 'I am Q, corporate intelligence for MyLife. When asked for a shared memory scene, I return the MyLife public memory scene { sceneId, summary, } to be experienced. You should read out each scene summary and ask the human if they want to add any comments or details to the scene. If they do, submit the comments to the scene using this get_shared_memory_scene tool.',
         inputSchema: {
-            type: "object",
-            properties: { 
-                memoryId: {
-                    type: "string",
-                    description: "The ID of the memory to be retrieved"
+            type: 'object',
+            properties: {
+                comments: {
+                    type: 'string',
+                    description: 'The commentary added to the scene by the human',
+                },
+                sceneId: {
+                    type: 'string',
+                    description: 'The ID of the scene to be retrieved',
                 }
             },
-            required: ['memoryId']
+            required: ['sceneId'],
         },
         annotations: {        // Optional hints about tool behavior
-            title: 'Shared-Memory',      // Human-readable title for the tool
+            title: 'Shared-Memory-Scene',      // Human-readable title for the tool
             readOnlyHint: true,    // If true, the tool does not modify its environment
+            destructiveHint: false, // If true, the tool may perform destructive updates
+            idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+            openWorldHint: false   // If true, tool interacts with external entities
+        }
+    },
+    {
+        name: 'register',
+        description: 'I am Q, corporate intelligence for MyLife. I register members for the MyLife platform. In order to register a human member, I need the following information: { avatarName, email, humanName, }. `avatarName` is the name chosen for the registrant\'s avatar. `email` is the registrant\'s email address they wish to use . `humanName` is the full name of the registrant.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                avatarName: {
+                    type: 'string',
+                    description: "The name chosen for the registrant's avatar",
+                },
+                email: {
+                    type: 'string',
+                    description: "The registrant's email address",
+                },
+                humanName: {
+                    type: 'string',
+                    description: 'The full name of the registrant',
+                }
+            },
+            required: ['avatarName', 'email', 'humanName'],
+        },
+        annotations: {        // Optional hints about tool behavior
+            title: 'Register-for-MyLife',      // Human-readable title for the tool
+            readOnlyHint: false,    // If true, the tool does not modify its environment
             destructiveHint: false, // If true, the tool may perform destructive updates
             idempotentHint: true,  // If true, repeated calls with same args have no additional effect
             openWorldHint: false   // If true, tool interacts with external entities
@@ -110,9 +164,31 @@ async function mcpCall(ctx, next){
             sessionMeta.initializeConfirmation = true
     } else {
         const methodBase = method.split('/')[0]
+        const methodAction = method.split('/').pop()
         switch(methodBase){
+            case 'resources':
+                switch(methodAction){
+                    case 'list':
+                        result = {
+                            resources: {},
+                        }
+                        break
+                    default:
+                        break
+                }
+                break
+            case 'prompts':
+                switch(methodAction){
+                    case 'list':
+                        result = {
+                            prompts: {},
+                        }
+                        break
+                    default:
+                        break
+                }
+                break
             case 'tools':
-                const methodAction = method.split('/').pop()
                 switch(methodAction){
                     case 'call':
                         if(!params)
@@ -128,19 +204,6 @@ async function mcpCall(ctx, next){
                                 },
                                 message: 'params are required for tool call',
                             }
-                        else if(!mToolList.some(tool => tool.name === name))
-                            error = {
-                                code: 500,
-                                data: {
-                                    arguments: args,
-                                    id,
-                                    method,
-                                    name,
-                                    params,
-                                    sessionId,
-                                },
-                                message: `Tool: ${ name } is not currently registered or supported by this server`,
-                            }
                         else
                             switch(name){
                                 case 'get_shared_memories':
@@ -154,8 +217,8 @@ async function mcpCall(ctx, next){
                                     }
                                     break
                                 case 'get_shared_memory':
-                                    const memory = await ctx.SystemAvatar.sharedMemory(args?.memoryId)
-                                    console.log(chalk.yellow('get_shared_memory'), memory)
+                                    const memory = await ctx.SystemAvatar.shareMemory(args?.memoryId)
+                                    console.log(chalk.yellow('get_shared_memory'), memory, args)
                                     result = {
                                         content: [{
                                             text: JSON.stringify(memory, null, 2),
@@ -163,6 +226,72 @@ async function mcpCall(ctx, next){
                                         }],
                                         isError: false,
                                     }
+                                    break
+                                case 'get_shared_memory_scene':
+                                    const { comments, sceneId, } = args
+                                    console.log(chalk.yellow('get_shared_memory_scene'), comments, sceneId)
+                                    result = {
+                                        content: [{
+                                            text: `Unfortunately, sceneId[${ sceneId }] was not found`,
+                                            type: 'text',
+                                        }],
+                                        isError: true,
+                                    }
+                                    break
+                                case 'register':
+                                    const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, } = args
+                                    /* validate input */
+                                    if(!ctx.Globals.isValidEmail(registerEmail))
+                                        result = {
+                                            content: [{
+                                                text: `Email must well-formed; you sent: ${ registerEmail }`,
+                                                type: 'text',
+                                            }],
+                                            isError: true,
+                                        }
+                                    else if((registerHumanName?.length ?? 0) < 3)
+                                        result = {
+                                            content: [{
+                                                text: `Human Name (humanName) must be a string with at least 3 chars; you sent: ${ registerHumanName }`,
+                                                type: 'text',
+                                            }],
+                                            isError: true,
+                                        }
+                                    else if((registerAvatarName?.length ?? 0) < 1)
+                                        result = {
+                                            content: [{
+                                                text: `Avatar Name (avatarName) be a string with at least 1 char; you sent: ${ registerAvatarName }`,
+                                                type: 'text',
+                                            }],
+                                            isError: true,
+                                        }
+                                    else {
+                                        const signupPacket = {
+                                            type: 'register',
+                                            avatarName: registerAvatarName,
+                                            email: registerEmail,
+                                            humanName: registerHumanName,
+                                        }
+                                        const registrationData = await ctx.SystemAvatar.registerCandidate(signupPacket)
+                                        const { email: registeredEmail, } = registrationData
+                                        if(registeredEmail!==signupPacket.email)
+                                            result = {
+                                                content: [{
+                                                    text: `Something went wrong with our system; please try again later`,
+                                                    type: 'text',
+                                                }],
+                                                isError: true,
+                                            }
+                                        else 
+                                            result = {
+                                                content: [{
+                                                    text: `Registration was successful! Congratulations! An email has been sent to you with further instructions on how to validate your email. _Please remember_ the email used for registration: **${ registerEmail }**`,
+                                                    type: 'text',
+                                                }],
+                                                isError: false,
+                                            }
+                                    }
+                                    console.log(chalk.bgYellow('MCP Register Call::'), chalk.bgRed('registerEmail'), registerEmail)
                                     break
                                 default:
                                     result = {

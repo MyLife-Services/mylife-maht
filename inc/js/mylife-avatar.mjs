@@ -781,9 +781,10 @@ class Avatar extends EventEmitter {
      * @returns {object} - The registration object.
      */
     async registerCandidate(candidate){
-        const registration = await this.#factory.registerCandidate(candidate)
-        delete registration.mbr_id
-        delete registration.passphrase
+        const _registration = await this.#factory.registerCandidate(candidate)
+        delete _registration.mbr_id
+        delete _registration.passphrase
+        const registration = this.sanitize(_registration)
         return registration
     }
     /**
@@ -1767,24 +1768,14 @@ class Q extends Avatar {
             }))
         return memories
     }
-    /**
-     * Get a specific (or random) shared memory by id.
-     * @param {Guid} sid - The share id
-     * @returns {Promise<Object>} - The shared memory object
-     */
-    async sharedMemory(sid){
-        const _memory = await this.#factory.sharedMemory(sid)
-        const { anonymous, conclusion, guessable, id, scenes=['Scenes should be requested using this `id` from MyLife'], title, voice, } = _memory ?? {}
-        const memory = {
-            anonymous,
-            conclusion,
-            guessable,
-            id,
-            scenes,
-            title,
-            voice,
-        }
-        return memory
+    async shareMemory(shareId, input){
+        if(!shareId)
+            shareId = ( await this.sharedMemories(1) )?.[0]?.id
+        const { instanceId, } = await this.validateShare(shareId)
+        console.log(`SystemAvatar::shareMemory::instanceId`, instanceId, shareId)
+        const response = await super.shareMemory(instanceId, input)
+        console.log(`SystemAvatar::shareMemory::response`, response)
+        return response
     }
     /**
      * Validate registration id.
