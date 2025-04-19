@@ -635,11 +635,12 @@ class Dataservices {
 			registration = await this.patch(registration.id, patches, 'registration')
 			// @todo - re-send email to candidate?
 		} else {
+			const id = this.globals.newGuid
 			const name = `${ avatarName ?? humanName ?? 'registerCandidate()' }-${ id }`
 			candidate = {
 				...candidate,
 				being,
-				id: this.globals.newGuid,
+				id,
 				mbr_id: this.mbr_id,
 				name,
 				type,

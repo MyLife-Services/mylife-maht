@@ -247,6 +247,7 @@ async function mcpCall(ctx, next){
                                                 text: `Email must well-formed; you sent: ${ registerEmail }`,
                                                 type: 'text',
                                             }],
+                                            data: args,
                                             isError: true,
                                         }
                                     else if((registerHumanName?.length ?? 0) < 3)
@@ -255,6 +256,7 @@ async function mcpCall(ctx, next){
                                                 text: `Human Name (humanName) must be a string with at least 3 chars; you sent: ${ registerHumanName }`,
                                                 type: 'text',
                                             }],
+                                            data: args,
                                             isError: true,
                                         }
                                     else if((registerAvatarName?.length ?? 0) < 1)
@@ -263,6 +265,7 @@ async function mcpCall(ctx, next){
                                                 text: `Avatar Name (avatarName) be a string with at least 1 char; you sent: ${ registerAvatarName }`,
                                                 type: 'text',
                                             }],
+                                            data: args,
                                             isError: true,
                                         }
                                     else {
@@ -280,6 +283,7 @@ async function mcpCall(ctx, next){
                                                     text: `Something went wrong with our system; please try again later`,
                                                     type: 'text',
                                                 }],
+                                                data: signupPacket,
                                                 isError: true,
                                             }
                                         else 
@@ -288,10 +292,11 @@ async function mcpCall(ctx, next){
                                                     text: `Registration was successful! Congratulations! An email has been sent to you with further instructions on how to validate your email. _Please remember_ the email used for registration: **${ registerEmail }**`,
                                                     type: 'text',
                                                 }],
+                                                data: registrationData,
                                                 isError: false,
                                             }
+                                        console.log(chalk.bgYellow('MCP Register Call::'), chalk.bgRed('registerEmail'), registerEmail)
                                     }
-                                    console.log(chalk.bgYellow('MCP Register Call::'), chalk.bgRed('registerEmail'), registerEmail)
                                     break
                                 default:
                                     result = {
