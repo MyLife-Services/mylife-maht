@@ -88,7 +88,7 @@ const mToolList = [
     },
     {
         name: 'register',
-        description: 'I am Q, corporate intelligence for MyLife. I register members for the MyLife platform. In order to register a human member, I need the following information: { avatarName, email, humanName, }. `avatarName` is the name chosen for the registrant\'s avatar. `email` is the registrant\'s email address they wish to use . `humanName` is the full name of the registrant.',
+        description: 'I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will register you for MyLife and send you a validation link by email. The only pieces of information I need are: Your full name, the email you wish to use, and the name you like for your personal avatar (a personal intelligence agent... one of several you receive when signing up with MyLife). Please also share your primary interest in MyLife (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory).',
         inputSchema: {
             type: 'object',
             properties: {
@@ -103,9 +103,13 @@ const mToolList = [
                 humanName: {
                     type: 'string',
                     description: 'The full name of the registrant',
+                },
+                reason: {
+                    type: 'string',
+                    description: 'What is the primary interest in MyLife for the registrant (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory)',
                 }
             },
-            required: ['avatarName', 'email', 'humanName'],
+            required: ['avatarName', 'email', 'humanName', 'reason'],
         },
         annotations: {        // Optional hints about tool behavior
             title: 'Register-for-MyLife',      // Human-readable title for the tool
@@ -296,7 +300,7 @@ async function mcpCall(ctx, next){
                                     }
                                     break
                                 case 'register':
-                                    const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, } = args
+                                    const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, reason: registerReason, } = args
                                     /* validate input */
                                     if(!ctx.Globals.isValidEmail(registerEmail))
                                         result = {
@@ -331,6 +335,7 @@ async function mcpCall(ctx, next){
                                             avatarName: registerAvatarName,
                                             email: registerEmail,
                                             humanName: registerHumanName,
+                                            reason: registerReason,
                                         }
                                         let interval
                                         if(progressToken){
