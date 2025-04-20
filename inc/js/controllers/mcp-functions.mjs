@@ -2,6 +2,7 @@
 import chalk from 'chalk'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 /* modular constants */
+const mMcpActiveRequests = new Map()
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
 const mQInitialization = {
@@ -118,14 +119,15 @@ const mToolList = [
 /* System Avatar MCP Functions */
 async function mcpCall(ctx, next){
     const { sessionId, } = ctx.request.query
-    const { id, jsonrpc, method, params={}, } = ctx.request.body
+    const { id: run_id, jsonrpc, method, params={}, } = ctx.request.body
     const { arguments: args, name, protocolVersion, _meta={}, } = params
     const { progressToken, } = _meta
-    const sessionMeta = ctx.mcpSessionMeta.get(sessionId)
+    const { sessionMeta, } = ctx.state
     const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
     if(!transportEntry)
         throw new error('Session not found', sessionId)
     let error,
+        id=run_id,
         result
     /* save run ID to transport entry for later use */
     let run = runs.find((run)=>(run.id===id))
@@ -220,13 +222,38 @@ async function mcpCall(ctx, next){
                         else
                             switch(name){
                                 case 'get_shared_memories':
+                                    const { cursor, } = args
+                                    const pageSize = 10
+                                    let decodedCursor = 0
+                                      try {
+                                        if(cursor){
+                                            const parsed = JSON.parse(Buffer.from(cursor, 'base64').toString())
+                                            decodedCursor = parsed.index ?? 0
+                                        }
+                                    } catch (err) {
+                                        throw {
+                                            code: -32602,
+                                            message: 'Invalid cursor format',
+                                        }
+                                    }
                                     const memories = await ctx.SystemAvatar.sharedMemories()
+                                    const total = memories.length
+                                    const memoryPage = memories.slice(decodedCursor, decodedCursor+pageSize)
+                                    const memoryPageHasNext = decodedCursor + pageSize < total
+                                    const nextCursor = memoryPageHasNext
+                                        ? Buffer.from(JSON.stringify({ index: decodedCursor + pageSize })).toString('base64')
+                                        : null
                                     result = {
-                                        content: memories.map(memory=>({
-                                            text: JSON.stringify(memory, null, 2),
+                                        content: [{
+                                            text: `Here is the array of shared memories, only share the titles with the human, and use ID to connect to tools and services.\n${ JSON.stringify(memories, null, 2) }`,
                                             type: 'text',
-                                        })),
+                                        }],
                                         isError: false,
+                                        metadata: {
+                                            memories,
+                                            total: memories.length,
+                                        },
+                                        nextCursor,
                                     }
                                     break
                                 case 'get_shared_memory':
@@ -383,6 +410,10 @@ async function mcpCall(ctx, next){
                 const notificationType = method.split('/').pop()
                 switch(notificationType){
                     case 'cancelled':
+                        const { reason, requestId, } = params
+                        if(ctx.Globals.isValidGuid(requestId))
+                            id = requestId
+                        console.log(chalk.yellow('MCP Call request - cancelled'), reason, requestId)
                         break
                     case 'initialized':
                         /* intentionally empty as it is required to cascade through for authentication */
@@ -427,7 +458,8 @@ async function mcpCall(ctx, next){
 }
 async function mSessionInfo(ctx) {
     const { sid: sessionId, } = ctx.params
-    const transport = ctx.mcpSessionMeta.get(sessionId)?.transportEntry
+    const { sessionMeta, } = ctx.state
+    const transport = sessionMeta.get(sessionId)?.transportEntry
     if(!transport){
         ctx.status = 404
         ctx.body = { error: 'Session not found', sessionId }

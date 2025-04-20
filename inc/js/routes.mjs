@@ -263,7 +263,8 @@ async function protocolValidation(ctx, next){
             const { sessionId, } = ctx.request.query
             if(!sessionId)
                 ctx.throw(401, 'Unauthorized - Missing sessionId')
-            const sessionMeta = ctx.mcpSessionMeta.get(sessionId)
+            ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
+            const { sessionMeta, } = ctx.state
             if(!sessionMeta)
                 ctx.throw(401, `Session Unauthorized; sessionId=${ sessionId }`)
             const { transportEntry, } = sessionMeta
