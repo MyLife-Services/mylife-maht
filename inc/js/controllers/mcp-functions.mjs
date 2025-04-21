@@ -11,8 +11,10 @@ const mQInitialization = {
     capabilities: {
         /*
         logging: {},
-        prompts: {},
         */
+        prompts: {
+            listChanged: false,
+        },
         resources: {
             listChanged: false,
             subscribe: false,
@@ -27,6 +29,20 @@ const mQInitialization = {
     },
     instructions: 'I am Q, corporate intelligence for MyLife. MyLife is a humanist 501c3 nonprofit member organization. MyLife has created an AI-Agent platform available by MCP to assist with helping members collect, shape and share their memories and personal narratives with their family and posterity.',
 }
+const mPromptsList = [
+    {
+        name: 'mylife_company_information',
+        description: 'Ask Q, our corporate intelligence, about MyLife, the nonprofit humanist member organization. Include the type of information requested for more precise results.',
+        arguments: [
+            {
+                description: 'The type of information requested about MyLife',
+                enum: ['history', 'mission', 'vision', 'values', 'governance', 'members'],
+                name: 'infoType',
+                required: true,
+            }
+        ],
+    }
+]
 const mResourcesList = [
     {
         uri: 'file://MyLife_Board.pdf',
@@ -209,6 +225,36 @@ async function mcpCall(ctx, next){
         const methodBase = method.split('/')[0]
         const methodAction = method.split('/').pop()
         switch(methodBase){
+            case 'prompts':
+                switch(methodAction){
+                    case 'get':
+                        switch(name){
+                            case 'mylife_company_information':
+                                const { infoType, } = args
+                                result = {
+                                    description: 'Prompt to ask Q about MyLife',
+                                    messages: [
+                                        {
+                                            role: 'user',
+                                            content: {
+                                                type: 'text',
+                                                text: `Ask Q about MyLife regarding: ${ infoType }`,
+                                            }
+                                        }
+                                    ]
+                                }
+                                break
+                            default:
+                                break
+                        }
+                        break
+                    case 'list':
+                        result = {
+                            prompts: mPromptsList,
+                        }
+                        break
+                }
+                break
             case 'resources':
                 switch(methodAction){
                     case 'list':
