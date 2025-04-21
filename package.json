@@ -64,6 +64,7 @@
     "koa-router": "^13.0.1",
     "koa-static": "^5.0.0",
     "marked": "^15.0.7",
+    "nodemailer": "^6.10.1",
     "openai": "^4.87.3"
   },
   "devDependencies": {

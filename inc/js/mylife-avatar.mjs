@@ -1,9 +1,9 @@
 /* imports */
 import fs from 'fs/promises'
 import path from 'path'
-import { fileURLToPath } from 'url'
-import { Marked } from 'marked'
 import EventEmitter from 'events'
+import { Marked } from 'marked'
+import { fileURLToPath } from 'url'
 import initRouter from './routes.mjs'
 import AlphaDog from './agents/project/alpha-dog.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'

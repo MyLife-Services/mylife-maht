@@ -615,41 +615,6 @@ class Dataservices {
 	async pushItem(data, containerId){
 		return await this.datamanager.pushItem(data, containerId)
 	}
-	/**
-	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
-	 * @public
-	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
-	 * @returns {object} - The registration document from Cosmos.
-	 */
-	async registerCandidate(candidate){
-		const { avatarName, email, humanName, type='newsletter', } = candidate
-		const being = 'registration'
-		let registration = await this.findRegistrationByEmail(email)
-		if(!!registration){
-			const patches = {
-				avatarName,
-				humanName,
-				name: `${ avatarName ?? humanName }-${ registration.id }`,
-				type,
-			}
-			registration = await this.patch(registration.id, patches, 'registration')
-			// @todo - re-send email to candidate?
-		} else {
-			const id = this.globals.newGuid
-			const name = `${ avatarName ?? humanName ?? 'registerCandidate()' }-${ id }`
-			candidate = {
-				...candidate,
-				being,
-				id,
-				mbr_id: this.mbr_id,
-				name,
-				type,
-			}
-			registration = await this.datamanager.registerCandidate(candidate)
-			// @todo - send email to candidate?
-		}
-		return registration
-	}
     /**
      * Allows member to reset passphrase.
      * @param {string} passphrase 

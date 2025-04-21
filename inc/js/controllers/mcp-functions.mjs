@@ -1,8 +1,9 @@
 /* imports */
 import chalk from 'chalk'
+import fs from 'fs'
+import path from 'path'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 /* modular constants */
-const mMcpActiveRequests = new Map()
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
 const mQInitialization = {
@@ -11,8 +12,11 @@ const mQInitialization = {
         /*
         logging: {},
         prompts: {},
-        resources: {},
         */
+        resources: {
+            listChanged: false,
+            subscribe: false,
+        },
         tools: {
             listChanged: true
         }
@@ -23,6 +27,26 @@ const mQInitialization = {
     },
     instructions: 'I am Q, corporate intelligence for MyLife. MyLife is a humanist 501c3 nonprofit member organization. MyLife has created an AI-Agent platform available by MCP to assist with helping members collect, shape and share their memories and personal narratives with their family and posterity.',
 }
+const mResourcesList = [
+    {
+        uri: 'file://MyLife_Board.pdf',
+        name: 'MyLife Board of Directors Bylaws.pdf',
+        description: 'MyLife Board of Directors Bylaws version 1.0',
+        mimeType: 'application/pdf',
+    },
+    {
+        uri: 'file://MyLife_Summary.pdf',
+        name: 'MyLife_Summary.pdf',
+        description: 'Outreach Material for MyLife, written 2 years ago prior to development of the platform',
+        mimeType: 'application/pdf',
+    },
+    {
+        uri: 'https://github.com/MyLife-Services/mylife-maht/',
+        name: 'MyLife-MAHT GIT codebase',
+        description: 'MyLife MAHT codebase, written in Node.js',
+        mimeType: 'text/html',
+    }
+]
 const mToolList = [
     {
         name: 'get_shared_memories',
@@ -189,18 +213,51 @@ async function mcpCall(ctx, next){
                 switch(methodAction){
                     case 'list':
                         result = {
-                            resources: {},
+                            resources: mResourcesList,
                         }
                         break
-                    default:
-                        break
-                }
-                break
-            case 'prompts':
-                switch(methodAction){
-                    case 'list':
-                        result = {
-                            prompts: {},
+                    case 'read':
+                        const { uri, } = params
+                        switch(uri){
+                            case 'file://MyLife_Summary.pdf':
+                                const summaryPath = path.join(ctx.Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
+                                const pdfSummary = mReadPdf(summaryPath)
+                                result = {
+                                    contents: [{
+                                        blob: pdfSummary,
+                                        mimeType: 'application/pdf',
+                                        uri,
+                                    }]
+                                }
+                                break
+                            case 'file://MyLife_Board.pdf':
+                                const boardPath = path.join(ctx.Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
+                                const pdfBoard = mReadPdf(boardPath)
+                                result = {
+                                    contents: [{
+                                        blob: pdfBoard,
+                                        mimeType: 'application/pdf',
+                                        uri,
+                                    }]
+                                }
+                                break
+                            default:
+                                let text = ''
+                                try {
+                                    const response = await fetch(uri)
+                                    text = ( await response.text() ).trim()
+                                } catch (error) {
+                                    console.error(chalk.red('Error fetching resource:'), uri, error)
+                                    text = `Error fetching external resource: ${error.message}`
+                                }
+                                result = {
+                                    contents: [{
+                                        mimeType: 'text/html',
+                                        text,
+                                        uri,
+                                    }]
+                                }
+                                break
                         }
                         break
                     default:
@@ -518,6 +575,10 @@ async function mcpSystemInfo(ctx) {
             max_tokens: 8192
         }
     }
+}
+function mReadPdf(filePath){
+    const pdfBuffer = fs.readFileSync(filePath)
+    return pdfBuffer.toString('base64')
 }
 function mTestMcpProtocols(jsonrpc, protocolVersion){
     if(!jsonrpc || parseFloat(jsonrpc) > parseFloat(mJsonRpcVersion))

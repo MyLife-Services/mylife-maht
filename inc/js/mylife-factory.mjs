@@ -2,8 +2,9 @@
 import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import EventEmitter from 'events'
-import vm from 'vm'
+import nodemailer from 'nodemailer'
 import util from 'util'
+import vm from 'vm'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import { Avatar, Q, } from './mylife-avatar.mjs'
 import Dataservices from './mylife-dataservices.mjs'
@@ -15,9 +16,12 @@ import {
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
 import LLMServices from './mylife-llm-services.mjs'
 import Menu from './menu.mjs'
-import { log } from 'console'
 /* module constants */
-const { MYLIFE_SERVER_MBR_ID: mPartitionId, } = process.env
+const {
+	MAHT_EMAIL,
+	MAHT_EMAIL_PASSWORD,
+	MYLIFE_SERVER_MBR_ID: mPartitionId,
+} = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
 const mBotInstructions = {}
 const mDefaultBotType = 'personal-avatar'
@@ -37,6 +41,13 @@ const mExcludeProperties = {
 }
 const mGeneralBotId = 'asst_yhX5mohHmZTXNIH55FX2BR1m'
 const mLLMServices = new LLMServices()
+const mMailer = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: MAHT_EMAIL,        // e.g., maht@humanremembranceproject.org
+        pass: MAHT_EMAIL_PASSWORD,   // App-specific password or OAuth token
+    }
+})
 const mNewGuid = ()=>Guid.newGuid().toString()
 const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
@@ -1002,13 +1013,53 @@ class MyLifeFactory extends AgentFactory {
 	/**
 	 * Registers a new MyLife registrant. This represents the intial contact with the MyLife system by a human candidate. The registration process is a three-step process. The first step is to 1) register the candidate; 2) validate the registration; and 3) creating a new Member account from their inputs.
 	 * @public
-	 * @param {object} registration { 'avatarName': string, 'email': string, 'humanName': string, }
+	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
 	 * @returns {object} - The registrant's document from Cosmos
 	 */
-	async registerCandidate(registration){
-		registration.id = this.newGuid
-		const registrant = await this.#dataservices.registerCandidate(registration)
-		this.#registrant = registrant
+	async registerCandidate(candidate){
+		const { avatarName, email, humanName, type, reason, } = candidate
+		const being = 'registration'
+		let registration = await this.#dataservices.findRegistrationByEmail(email)
+		if(!!registration){
+			const patches = {
+				avatarName,
+				humanName,
+				name: `${ avatarName ?? humanName }-${ registration.id }`,
+				reason: reason?.length ? reason : registration.reason,
+				type: type ?? registration.type ?? 'Newsletter',
+			}
+			registration = await this.#dataservices.patch(registration.id, patches, 'registration')
+			// @todo - re-send email to candidate?
+		} else {
+			const id = this.globals.newGuid
+			const name = `${ avatarName ?? humanName ?? 'registerCandidate()' }-${ id }`
+			candidate = {
+				...candidate,
+				being,
+				id,
+				mbr_id: this.mbr_id,
+				name,
+				reason,
+				type,
+			}
+			registration = await this.#dataservices.pushItem(candidate, 'registration')
+			const response = await mMailer.sendMail({
+				from: `"MyLife Corporate Intelligence, Q" <${ process.env.MAHT_EMAIL }>`,
+				to: email,
+				subject: '✅ Welcome to MyLife! Validate your email, please',
+				html: `<p>Hello ${ humanName },</p>
+					<p>Thank you for registering for MyLife, the nonprofit humanist member organization dedicated to helping you tell your personal narratives for posterity. To confirm your registration, please visit:</p>
+					<p><a href="https://humanremembranceproject.org/vld=${ id }">Click here to validate your email</a></p>`
+			})
+			.then(info => {
+				console.log(chalk.green(`📧 Test email sent to ${ email }! Message ID:`), info.messageId)
+			})
+			.catch(error => {
+				console.error(chalk.red('❌ Failed to send test email:'), error)
+			})
+			console.log(chalk.blueBright('Factory::registerCandidate()::email'), response)
+		}
+		this.#registrant = registration
 		return this.#registrant
 	}
     /**

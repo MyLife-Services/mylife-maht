@@ -94,11 +94,12 @@ if(!fs.existsSync(uploadDir)){
 }
 app.context.SystemAvatar = _Maht
 app.context.Globals = _Maht.globals
+app.context.Globals.rootDirectory = __dirname
 app.context.menu = _Maht.menu
 app.context.mcpSessionMeta ??= new Map()
 app.keys = [
 	process.env.MYLIFE_SESSION_KEY
-		?? `mylife-session-failsafe|${_Maht.newGuid()}`
+		?? `mylife-session-failsafe|${ _Maht.newGuid }`
 ]
 app.use(koaBody({
     multipart: true,
