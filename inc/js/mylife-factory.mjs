@@ -1049,7 +1049,7 @@ class MyLifeFactory extends AgentFactory {
 				subject: '✅ Welcome to MyLife! Validate your email, please',
 				html: `<p>Hello ${ humanName },</p>
 					<p>Thank you for registering for MyLife, the nonprofit humanist member organization dedicated to helping you tell your personal narratives for posterity. To confirm your registration, please visit:</p>
-					<p><a href="https://humanremembranceproject.org/vld=${ id }">Click here to validate your email</a></p>`
+					<p><a href="https://humanremembranceproject.org/?vld=${ id }">Click here to validate your email</a></p>`
 			})
 			.then(info => {
 				console.log(chalk.green(`📧 Test email sent to ${ email }! Message ID:`), info.messageId)
