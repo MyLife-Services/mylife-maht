@@ -77,7 +77,7 @@ const mToolList = [
             readOnlyHint: true,    // If true, the tool does not modify its environment
             destructiveHint: false, // If true, the tool may perform destructive updates
             idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false   // If true, tool interacts with external entities
+            openWorldHint: false,   // If true, tool interacts with external entities
         }
     },
     {
@@ -98,7 +98,7 @@ const mToolList = [
             readOnlyHint: true,    // If true, the tool does not modify its environment
             destructiveHint: false, // If true, the tool may perform destructive updates
             idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false   // If true, tool interacts with external entities
+            openWorldHint: false,   // If true, tool interacts with external entities
         }
     },
     {
@@ -123,7 +123,33 @@ const mToolList = [
             readOnlyHint: true,    // If true, the tool does not modify its environment
             destructiveHint: false, // If true, the tool may perform destructive updates
             idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false   // If true, tool interacts with external entities
+            openWorldHint: false,   // If true, tool interacts with external entities
+        }
+    },
+    {
+        name: 'mylife_information',
+        description: `I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will answer any questions about MyLife you have, sorted along the following lines: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc']`,
+        inputSchema: {
+            type: 'object',
+            properties: {
+                question: {
+                    description: 'The question asked of Q',
+                    type: 'string',
+                },
+                questionType: {
+                    description: 'The type of information requested about MyLife',
+                    enum: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc'],
+                    type: 'string',
+                }
+            },
+            required: ['question', 'questionType'],
+        },
+        annotations: {
+            title: 'MyLife-Information',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
         }
     },
     {
@@ -151,12 +177,12 @@ const mToolList = [
             },
             required: ['avatarName', 'email', 'humanName', 'reason'],
         },
-        annotations: {        // Optional hints about tool behavior
-            title: 'Register-for-MyLife',      // Human-readable title for the tool
-            readOnlyHint: false,    // If true, the tool does not modify its environment
-            destructiveHint: false, // If true, the tool may perform destructive updates
-            idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false   // If true, tool interacts with external entities
+        annotations: {
+            title: 'Register-for-MyLife',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
         }
     }
 ]
@@ -400,6 +426,22 @@ async function mcpCall(ctx, next){
                                             type: 'text',
                                         }],
                                         isError: true,
+                                    }
+                                    break
+                                case 'mylife_information':
+                                    const { question, questionType, } = args
+                                    const { SystemAvatar, } = ctx
+                                    let message = question
+                                    if(questionType?.length)
+                                        message += `\n\nQuestion Type: ${ questionType }`
+                                    const { responses, } = await SystemAvatar.chat(message, undefined, ctx.session)
+                                    const infoContent = responses.map((response)=>({
+                                        text: response.message,
+                                        type: 'text',
+                                    }))
+                                    result = {
+                                        content: infoContent,
+                                        isError: false,
                                     }
                                     break
                                 case 'register':

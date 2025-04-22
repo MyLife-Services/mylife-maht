@@ -1127,7 +1127,6 @@ class MyLifeFactory extends AgentFactory {
         return this.#candidate?.mbr_id?.length
     }
 	get isRegistered(){
-		console.log('isRegistered', this.#registrant?.id?.length)
 		return this.#registrant?.id?.length
 	}
     /**

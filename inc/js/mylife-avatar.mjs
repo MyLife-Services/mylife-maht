@@ -1520,10 +1520,11 @@ class Q extends Avatar {
         }
         Conversation.originalPrompt = message
         Conversation.processStartTime = Date.now()
-        if(this.isRegistered) // trigger confirmation until session (or vld) ends
+        if(this.isRegistered && this.registrationId) // trigger confirmation until session (or vld) ends
             message = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ message }`
         if(this.isCreatingAccount)
             message = `CREATE ACCOUNT PHASE: ${ message }`
+        console.log('Q.chat', message)
 		Conversation.prompt = message
         const response = await this.chatAgentBypass(Conversation)
         return response
@@ -1743,9 +1744,6 @@ class Q extends Avatar {
             isValidated = await this.testPartitionKey(mbr_id)
 		return isValidated
 	}
-    isRegistered(){
-        return this.#factory.isRegistered
-    }
     /**
      * Creates a member instance for logged in session.
      * @param {String} mbr_id - The member id
@@ -1798,6 +1796,9 @@ class Q extends Avatar {
     }
     get conversations(){
         return this.#conversations
+    }
+    get isRegistered(){
+        return this.#factory.isRegistered
     }
 	get menu(){
 		if(!this.#Menu){
