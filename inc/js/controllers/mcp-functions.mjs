@@ -390,10 +390,10 @@ async function mcpCall(ctx, next){
                                     }
                                     break
                                 case 'get_shared_memory':
-                                    let interval
+                                    let sharedMemoryInterval
                                     if(progressToken){
                                         let progress = 0
-                                        interval = setInterval(_=>{
+                                        sharedMemoryInterval = setInterval(_=>{
                                             progress += 10
                                             transportEntry.send({
                                                 jsonrpc,
@@ -407,8 +407,8 @@ async function mcpCall(ctx, next){
                                         }, 2500)
                                     }
                                     const memory = await ctx.SystemAvatar.shareMemory(args?.memoryId)
-                                    if(interval)
-                                        clearInterval(interval)
+                                    if(sharedMemoryInterval)
+                                        clearInterval(sharedMemoryInterval)
                                     result = {
                                         content: [{
                                             text: JSON.stringify(memory, null, 2),
@@ -434,7 +434,25 @@ async function mcpCall(ctx, next){
                                     let message = question
                                     if(questionType?.length)
                                         message += `\n\nQuestion Type: ${ questionType }`
+                                    let infoInterval
+                                    if(progressToken){
+                                        let progress = 0
+                                        infoInterval = setInterval(_=>{
+                                            progress += 10
+                                            transportEntry.send({
+                                                jsonrpc,
+                                                method: 'notifications/progress',
+                                                params:{
+                                                    message: `Answering question about MyLife`,
+                                                    progress,
+                                                    progressToken,
+                                                },
+                                            })
+                                        }, 2500)
+                                    }
                                     const { responses, } = await SystemAvatar.chat(message, undefined, ctx.session)
+                                    if(infoInterval)
+                                        clearInterval(infoInterval)
                                     const infoContent = responses.map((response)=>({
                                         text: response.message,
                                         type: 'text',
