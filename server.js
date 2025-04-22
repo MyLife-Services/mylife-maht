@@ -13,7 +13,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.34'
+const version = '0.0.35'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
@@ -94,11 +94,12 @@ if(!fs.existsSync(uploadDir)){
 }
 app.context.SystemAvatar = _Maht
 app.context.Globals = _Maht.globals
+app.context.Globals.rootDirectory = __dirname
 app.context.menu = _Maht.menu
 app.context.mcpSessionMeta ??= new Map()
 app.keys = [
 	process.env.MYLIFE_SESSION_KEY
-		?? `mylife-session-failsafe|${_Maht.newGuid()}`
+		?? `mylife-session-failsafe|${ _Maht.newGuid }`
 ]
 app.use(koaBody({
     multipart: true,

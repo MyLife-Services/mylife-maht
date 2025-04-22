@@ -342,8 +342,7 @@ class Dataservices {
 		const success = await this.datamanager.deleteItem(id, containerId, partitionId)
 		return success
 	}
-	async findRegistrationIdByEmail(_email){
-		/* pull record for email, returning id or new guid */
+	async findRegistrationByEmail(_email){
 		const registered = await this.getItems(
 			'registration',
 			undefined,
@@ -352,9 +351,10 @@ class Dataservices {
 			}],
 			'registration',
 		)
-		const registrationId = registered?.[0]?.id
-			?? this.globals.newGuid
-		return registrationId
+		if(registered?.length > 1){
+			// @todo - handle multiple registrations
+		}
+		return registered?.[0]
 	}
 	/**
 	 * Retrieves a specific alert by its ID. _Currently placehoder_.
@@ -615,29 +615,6 @@ class Dataservices {
 	async pushItem(data, containerId){
 		return await this.datamanager.pushItem(data, containerId)
 	}
-	/**
-	 * Registers a new candidate to MyLife membership after finding record (or contriving Guid) in db
-	 * @public
-	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
-	 * @returns {object} - The registration document from Cosmos.
-	 */
-	async registerCandidate(candidate){
-		const { avatarName, email, id: candidateId, humanName, type='newsletter', } = candidate
-		const being = 'registration'
-		const id = candidateId 
-			?? await this.findRegistrationIdByEmail(email) /* defaults to newGuid */
-		const mbr_id = this.#partitionId
-		const name = `${ avatarName ?? humanName ?? 'registerCandidate' }-${ id }`
-		candidate = {
-			...candidate,
-			being,
-			id,
-			mbr_id,
-			name,
-			type,
-		}
-		return await this.datamanager.registerCandidate(candidate)
-	}
     /**
      * Allows member to reset passphrase.
      * @param {string} passphrase 
@@ -649,7 +626,7 @@ class Dataservices {
         if(!passphrase?.length)
             throw new Error('Passphrase required for reset.')
         try{
-			const response = await this.datamanager.patchItem(this.core.id, [{ op: 'add', path: '/passphrase', value: passphrase }])
+			const response = await this.patchItem(this.core.id, [{ op: 'add', path: '/passphrase', value: passphrase }])
 			return response?.passphrase===passphrase
 		} catch(err){
 			console.log('Dataservices::resetPassphrase()::error', err)
