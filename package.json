@@ -51,6 +51,7 @@
   "dependencies": {
     "@azure/cosmos": "^4.2.0",
     "@azure/identity": "^4.8.0",
+    "@modelcontextprotocol/sdk": "^1.9.0",
     "ajv": "^8.17.1",
     "axios": "^1.8.3",
     "chalk": "^5.4.1",
@@ -63,6 +64,7 @@
     "koa-router": "^13.0.1",
     "koa-static": "^5.0.0",
     "marked": "^15.0.7",
+    "nodemailer": "^6.10.1",
     "openai": "^4.87.3"
   },
   "devDependencies": {

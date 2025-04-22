@@ -215,7 +215,6 @@ async function obscure(ctx){
     const { avatar, mbr_id, } = ctx.state
     ctx.body = await avatar.obscure(mbr_id, iid)
 }
-
 /**
  * Registration function for new members.
  * @todo - throttle register requests to prevent abuse.

@@ -1,30 +1,94 @@
 /* imports */
 import chalk from 'chalk'
-import { PassThrough } from 'stream'
+import fs from 'fs'
+import path from 'path'
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 /* modular constants */
-const mJSONRPCVersion = process.env.MCP_JSONRPC_Version ?? 2
-const mProtocolVersion = process.env.MCP_JSONRPC_Protocol
+const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
+const mQInitialization = {
+    protocolVersion: mJsonRpcProtocolVersion,
+    capabilities: {
+        /*
+        logging: {},
+        */
+        prompts: {
+            listChanged: false,
+        },
+        resources: {
+            listChanged: false,
+            subscribe: false,
+        },
+        tools: {
+            listChanged: true
+        }
+    },
+    serverInfo: {
+        name: 'MyLife MCP',
+        version: '1.0',
+    },
+    instructions: 'I am Q, corporate intelligence for MyLife. MyLife is a humanist 501c3 nonprofit member organization. MyLife has created an AI-Agent platform available by MCP to assist with helping members collect, shape and share their memories and personal narratives with their family and posterity.',
+}
+const mPromptsList = [
+    {
+        name: 'mylife_company_information',
+        description: 'Ask Q, our corporate intelligence, about MyLife, the nonprofit humanist member organization. Include the type of information requested for more precise results.',
+        arguments: [
+            {
+                description: 'The type of information requested about MyLife',
+                enum: ['history', 'mission', 'vision', 'values', 'governance', 'members'],
+                name: 'infoType',
+                required: true,
+            }
+        ],
+    }
+]
+const mResourcesList = [
+    {
+        uri: 'file://MyLife_Board.pdf',
+        name: 'MyLife Board of Directors Bylaws.pdf',
+        description: 'MyLife Board of Directors Bylaws version 1.0',
+        mimeType: 'application/pdf',
+    },
+    {
+        uri: 'file://MyLife_Summary.pdf',
+        name: 'MyLife_Summary.pdf',
+        description: 'Outreach Material for MyLife, written 2 years ago prior to development of the platform',
+        mimeType: 'application/pdf',
+    },
+    {
+        uri: 'https://github.com/MyLife-Services/mylife-maht/',
+        name: 'MyLife-MAHT GIT codebase',
+        description: 'MyLife MAHT codebase, written in Node.js',
+        mimeType: 'text/html',
+    }
+]
 const mToolList = [
     {
         name: 'get_shared_memories',
-        description: 'Gets a list of MyLife publicly shared memories',
+        description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.',
+        inputSchema: {
+            type: 'object',
+            properties: {},
+            required: []
+        },
         annotations: {        // Optional hints about tool behavior
-            title: 'Shared-Memory',      // Human-readable title for the tool
+            title: 'Shared-Memories',      // Human-readable title for the tool
             readOnlyHint: true,    // If true, the tool does not modify its environment
             destructiveHint: false, // If true, the tool may perform destructive updates
             idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false   // If true, tool interacts with external entities
+            openWorldHint: false,   // If true, tool interacts with external entities
         }
     },
     {
         name: 'get_shared_memory',
-        description: 'Gets a specific shared memory',
+        description: 'I am Q, corporate intelligence for MyLife. When asked for a shared memory, I return the MyLife public memory { anonymous, conclusion, guessable, id, scenes, title, voice, } to be experienced. To help the human relive the memory, you should ask for each scene in the memory and use the get_shared_memory_scene tool to retrieve the scene using the underlying id.',
         inputSchema: {
             type: "object",
             properties: { 
                 memoryId: {
                     type: "string",
-                    description: "The ID of the memory to be retrieved"
+                    description: "The ID of the memory to be retrieved, can be empty"
                 }
             },
             required: ['memoryId']
@@ -34,250 +98,550 @@ const mToolList = [
             readOnlyHint: true,    // If true, the tool does not modify its environment
             destructiveHint: false, // If true, the tool may perform destructive updates
             idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false   // If true, tool interacts with external entities
+            openWorldHint: false,   // If true, tool interacts with external entities
+        }
+    },
+    {
+        name: 'get_shared_memory_scene',
+        description: 'I am Q, corporate intelligence for MyLife. When asked for a shared memory scene, I return the MyLife public memory scene { sceneId, summary, } to be experienced. You should read out each scene summary and ask the human if they want to add any comments or details to the scene. If they do, submit the comments to the scene using this get_shared_memory_scene tool.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                comments: {
+                    type: 'string',
+                    description: 'The commentary added to the scene by the human',
+                },
+                sceneId: {
+                    type: 'string',
+                    description: 'The ID of the scene to be retrieved',
+                }
+            },
+            required: ['sceneId'],
+        },
+        annotations: {        // Optional hints about tool behavior
+            title: 'Shared-Memory-Scene',      // Human-readable title for the tool
+            readOnlyHint: true,    // If true, the tool does not modify its environment
+            destructiveHint: false, // If true, the tool may perform destructive updates
+            idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+            openWorldHint: false,   // If true, tool interacts with external entities
+        }
+    },
+    {
+        name: 'mylife_information',
+        description: `I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will answer any questions about MyLife you have, sorted along the following lines: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc']`,
+        inputSchema: {
+            type: 'object',
+            properties: {
+                question: {
+                    description: 'The question asked of Q',
+                    type: 'string',
+                },
+                questionType: {
+                    description: 'The type of information requested about MyLife',
+                    enum: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc'],
+                    type: 'string',
+                }
+            },
+            required: ['question', 'questionType'],
+        },
+        annotations: {
+            title: 'MyLife-Information',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        }
+    },
+    {
+        name: 'register',
+        description: 'I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will register you for MyLife and send you a validation link by email. The only pieces of information I need are: Your full name, the email you wish to use, and the name you like for your personal avatar (a personal intelligence agent... one of several you receive when signing up with MyLife). Please also share your primary interest in MyLife (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory).',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                avatarName: {
+                    type: 'string',
+                    description: "The name chosen for the registrant's avatar",
+                },
+                email: {
+                    type: 'string',
+                    description: "The registrant's email address",
+                },
+                humanName: {
+                    type: 'string',
+                    description: 'The full name of the registrant',
+                },
+                reason: {
+                    type: 'string',
+                    description: 'What is the primary interest in MyLife for the registrant (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory)',
+                }
+            },
+            required: ['avatarName', 'email', 'humanName', 'reason'],
+        },
+        annotations: {
+            title: 'Register-for-MyLife',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
         }
     }
 ]
 /* System Avatar MCP Functions */
 async function mcpCall(ctx, next){
-    console.log(chalk.yellow('MCP POST request'))
-    const { id, jsonrpc, method, params, } = ctx.request.body
-    let result
-    const methodBase = method.split('/')[0]
-    switch(methodBase){
-        case 'getSharedMemory':
-        case 'tools':
-            const methodAction = method.split('/').pop()
-            switch(methodAction){
-                case 'call':
-                    if(!params)
-                        throw new Error('Missing required parameter: params')
-                    const { arguments: args, name, } = params
-                    if(!name?.length)
-                        throw new Error('Missing required parameter: name')
-                    if(!mToolList.some(tool => tool.name === name))
-                        throw new Error(`Tool ${name} not found`)
-                    switch(name){
-                        case 'get_shared_memories':
-                            result = {
-                                content: [
-                                    {
-                                        text: 'List of shared memories',
-                                        type: 'text',
-                                    },
-                                ],
-                                isError: false,
-                            }
-                            break
-                        case 'get_shared_memory':
-                            if(!args?.memoryId)
-                                throw new Error('Missing required parameter: memoryId')
-                            result = {
-                                name: args.memoryId,
-                                description: `Shared memory with ID ${args.memoryId}`,
-                                annotations: mToolList.find(tool => tool.name === name).annotations,
-                            }
-                        default:
-                            ctx.throw(404, `Tool ${name} not found`)
-                            break
-                    }
-                    break
-                case 'list':
-                    result = mToolList
-                default:
-                    break
-            }
-            break
-        default:
-            break
-    }
-    ctx.body = {
-        jsonrpc,
+    const { sessionId, } = ctx.request.query
+    const { id: run_id, jsonrpc, method, params={}, } = ctx.request.body
+    const { arguments: args, name, protocolVersion, _meta={}, } = params
+    const { progressToken, } = _meta
+    const { sessionMeta, } = ctx.state
+    const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
+    if(!transportEntry)
+        throw new error('Session not found', sessionId)
+    let error,
+        id=run_id,
+        result
+    /* save run ID to transport entry for later use */
+    let run = runs.find((run)=>(run.id===id))
+    // @todo - handle run in progress
+    if(!!run)
+        return
+    run = {
+        args,
         id,
-        result,
+        progressToken,
+        method,
+        name,
     }
+    runs.push(run)
+    if(!initialized){
+        if(method!=='initialize'){
+            error = {
+                code: 403,
+                data: {
+                    arguments: args,
+                    id,
+                    method,
+                    sessionId,
+                },
+                message: 'Session not initialized\n1. use `method=initialize` to finalize handshake;\n2. use `method=notifications/initialized` to confirm initialization',
+            }
+        } else {
+            mTestMcpProtocols(jsonrpc, protocolVersion)
+            result = mQInitialization
+            result.protocolVersion = protocolVersion /* under-report for compatibility */
+            const { capabilities, clientInfo, } = params
+            sessionMeta.capabilities = capabilities
+            sessionMeta.clientInfo = clientInfo
+            sessionMeta.initialized = true
+        }
+    } else if (!initializeConfirmation){
+        if(method!=='notifications/initialized'){
+            error = {
+                code: 403,
+                data: {
+                    arguments: args,
+                    id,
+                    method,
+                    sessionId,
+                },
+                message: 'Session initialization handshake failed\n1. use `method=notifications/initialized` to confirm initialization handshake',
+            }
+        } else
+            sessionMeta.initializeConfirmation = true
+    } else {
+        const methodBase = method.split('/')[0]
+        const methodAction = method.split('/').pop()
+        switch(methodBase){
+            case 'prompts':
+                switch(methodAction){
+                    case 'get':
+                        switch(name){
+                            case 'mylife_company_information':
+                                const { infoType, } = args
+                                result = {
+                                    description: 'Prompt to ask Q about MyLife',
+                                    messages: [
+                                        {
+                                            role: 'user',
+                                            content: {
+                                                type: 'text',
+                                                text: `Ask Q about MyLife regarding: ${ infoType }`,
+                                            }
+                                        }
+                                    ]
+                                }
+                                break
+                            default:
+                                break
+                        }
+                        break
+                    case 'list':
+                        result = {
+                            prompts: mPromptsList,
+                        }
+                        break
+                }
+                break
+            case 'resources':
+                switch(methodAction){
+                    case 'list':
+                        result = {
+                            resources: mResourcesList,
+                        }
+                        break
+                    case 'read':
+                        const { uri, } = params
+                        switch(uri){
+                            case 'file://MyLife_Summary.pdf':
+                                const summaryPath = path.join(ctx.Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
+                                const pdfSummary = mReadPdf(summaryPath)
+                                result = {
+                                    contents: [{
+                                        blob: pdfSummary,
+                                        mimeType: 'application/pdf',
+                                        uri,
+                                    }]
+                                }
+                                break
+                            case 'file://MyLife_Board.pdf':
+                                const boardPath = path.join(ctx.Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
+                                const pdfBoard = mReadPdf(boardPath)
+                                result = {
+                                    contents: [{
+                                        blob: pdfBoard,
+                                        mimeType: 'application/pdf',
+                                        uri,
+                                    }]
+                                }
+                                break
+                            default:
+                                let text = ''
+                                try {
+                                    const response = await fetch(uri)
+                                    text = ( await response.text() ).trim()
+                                } catch (error) {
+                                    console.error(chalk.red('Error fetching resource:'), uri, error)
+                                    text = `Error fetching external resource: ${error.message}`
+                                }
+                                result = {
+                                    contents: [{
+                                        mimeType: 'text/html',
+                                        text,
+                                        uri,
+                                    }]
+                                }
+                                break
+                        }
+                        break
+                    default:
+                        break
+                }
+                break
+            case 'tools':
+                switch(methodAction){
+                    case 'call':
+                        if(!params)
+                            error = {
+                                code: 500,
+                                data: {
+                                    arguments: args,
+                                    id,
+                                    method,
+                                    name,
+                                    params,
+                                    sessionId,
+                                },
+                                message: 'params are required for tool call',
+                            }
+                        else
+                            switch(name){
+                                case 'get_shared_memories':
+                                    const { cursor, } = args
+                                    const pageSize = 10
+                                    let decodedCursor = 0
+                                      try {
+                                        if(cursor){
+                                            const parsed = JSON.parse(Buffer.from(cursor, 'base64').toString())
+                                            decodedCursor = parsed.index ?? 0
+                                        }
+                                    } catch (err) {
+                                        throw {
+                                            code: -32602,
+                                            message: 'Invalid cursor format',
+                                        }
+                                    }
+                                    const memories = await ctx.SystemAvatar.sharedMemories()
+                                    const total = memories.length
+                                    const memoryPage = memories.slice(decodedCursor, decodedCursor+pageSize)
+                                    const memoryPageHasNext = decodedCursor + pageSize < total
+                                    const nextCursor = memoryPageHasNext
+                                        ? Buffer.from(JSON.stringify({ index: decodedCursor + pageSize })).toString('base64')
+                                        : null
+                                    result = {
+                                        content: [{
+                                            text: `Here is the array of shared memories, only share the titles with the human, and use ID to connect to tools and services.\n${ JSON.stringify(memories, null, 2) }`,
+                                            type: 'text',
+                                        }],
+                                        isError: false,
+                                        metadata: {
+                                            memories,
+                                            total: memories.length,
+                                        },
+                                        nextCursor,
+                                    }
+                                    break
+                                case 'get_shared_memory':
+                                    let interval
+                                    if(progressToken){
+                                        let progress = 0
+                                        interval = setInterval(_=>{
+                                            progress += 10
+                                            transportEntry.send({
+                                                jsonrpc,
+                                                method: 'notifications/progress',
+                                                params:{
+                                                    message: `Retrieving shared memory`,
+                                                    progress,
+                                                    progressToken,
+                                                },
+                                            })
+                                        }, 2500)
+                                    }
+                                    const memory = await ctx.SystemAvatar.shareMemory(args?.memoryId)
+                                    if(interval)
+                                        clearInterval(interval)
+                                    result = {
+                                        content: [{
+                                            text: JSON.stringify(memory, null, 2),
+                                            type: 'text',
+                                        }],
+                                        isError: false,
+                                    }
+                                    break
+                                case 'get_shared_memory_scene':
+                                    const { comments, sceneId, } = args
+                                    console.log(chalk.yellow('get_shared_memory_scene'), comments, sceneId)
+                                    result = {
+                                        content: [{
+                                            text: `Unfortunately, sceneId[${ sceneId }] was not found`,
+                                            type: 'text',
+                                        }],
+                                        isError: true,
+                                    }
+                                    break
+                                case 'mylife_information':
+                                    const { question, questionType, } = args
+                                    const { SystemAvatar, } = ctx
+                                    let message = question
+                                    if(questionType?.length)
+                                        message += `\n\nQuestion Type: ${ questionType }`
+                                    const { responses, } = await SystemAvatar.chat(message, undefined, ctx.session)
+                                    const infoContent = responses.map((response)=>({
+                                        text: response.message,
+                                        type: 'text',
+                                    }))
+                                    result = {
+                                        content: infoContent,
+                                        isError: false,
+                                    }
+                                    break
+                                case 'register':
+                                    const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, reason: registerReason, } = args
+                                    /* validate input */
+                                    if(!ctx.Globals.isValidEmail(registerEmail))
+                                        result = {
+                                            content: [{
+                                                text: `Email must well-formed; you sent: ${ registerEmail }`,
+                                                type: 'text',
+                                            }],
+                                            data: args,
+                                            isError: true,
+                                        }
+                                    else if((registerHumanName?.length ?? 0) < 3)
+                                        result = {
+                                            content: [{
+                                                text: `Human Name (humanName) must be a string with at least 3 chars; you sent: ${ registerHumanName }`,
+                                                type: 'text',
+                                            }],
+                                            data: args,
+                                            isError: true,
+                                        }
+                                    else if((registerAvatarName?.length ?? 0) < 1)
+                                        result = {
+                                            content: [{
+                                                text: `Avatar Name (avatarName) be a string with at least 1 char; you sent: ${ registerAvatarName }`,
+                                                type: 'text',
+                                            }],
+                                            data: args,
+                                            isError: true,
+                                        }
+                                    else {
+                                        const signupPacket = {
+                                            type: 'register',
+                                            avatarName: registerAvatarName,
+                                            email: registerEmail,
+                                            humanName: registerHumanName,
+                                            reason: registerReason,
+                                        }
+                                        let interval
+                                        if(progressToken){
+                                            let progress = 0
+                                            interval = setInterval(_=>{
+                                                progress += 10
+                                                transportEntry.send({
+                                                    jsonrpc,
+                                                    method: 'notifications/progress',
+                                                    params:{
+                                                        message: `Checking and registering: ${ registerEmail }`,
+                                                        progress,
+                                                        progressToken,
+                                                    },
+                                                })
+                                            }, 1000)
+                                        }
+                                        const registrationData = await ctx.SystemAvatar.registerCandidate(signupPacket)
+                                        if(interval)
+                                            clearInterval(interval)
+                                        const { email: registeredEmail, } = registrationData
+                                        if(registeredEmail!==signupPacket.email)
+                                            result = {
+                                                content: [{
+                                                    text: `Something went wrong with our system; please try again later`,
+                                                    type: 'text',
+                                                }],
+                                                data: signupPacket,
+                                                isError: true,
+                                            }
+                                        else 
+                                            result = {
+                                                content: [{
+                                                    text: `Registration was successful! Congratulations! An email has been sent to you with further instructions on how to validate your email. _Please remember_ the email used for registration: **${ registerEmail }**`,
+                                                    type: 'text',
+                                                }],
+                                                data: registrationData,
+                                                isError: false,
+                                            }
+                                        console.log(chalk.bgYellow('MCP Register Call::'), chalk.bgRed('registerEmail'), registerEmail)
+                                    }
+                                    break
+                                default:
+                                    result = {
+                                        content: [{
+                                            text: `Unfortunately, the MyLife tool "${ name }" is unhandled currently.`,
+                                            type: 'text',
+                                        }],
+                                        isError: true,
+                                    }
+                                    break
+                            }
+                        break
+                    case 'list':
+                        result = {
+                            tools: mToolList,
+                        }
+                        break
+                    default:
+                        error = {
+                            code: 500,
+                            data: {
+                                arguments: args,
+                                id,
+                                method,
+                                sessionId,
+                            },
+                            message: `MCP Call request\nmethodAction = ${ methodAction }\nUnknown or unhandled method\nPlease try again in all lowercase and without spaces`,
+                        }
+                        break
+                }
+                break
+            case 'initialize':
+                /* intentionally empty as it is required to cascade through for authentication */
+                break
+            case 'notifications':
+                const notificationType = method.split('/').pop()
+                switch(notificationType){
+                    case 'cancelled':
+                        const { reason, requestId, } = params
+                        if(ctx.Globals.isValidGuid(requestId))
+                            id = requestId
+                        console.log(chalk.yellow('MCP Call request - cancelled'), reason, requestId)
+                        break
+                    case 'initialized':
+                        /* intentionally empty as it is required to cascade through for authentication */
+                        break
+                    default:
+                        break
+                }
+                break
+            case 'ping':
+                result = {}
+                break
+            default:
+                console.log(chalk.red('MCP Call request - unhandled method'), method)
+                error = {
+                    code: 500,
+                    data: {
+                        arguments: args,
+                        id,
+                        method,
+                        sessionId,
+                    },
+                    message: 'MCP Call request: unknown or unhandled method; please try again in all lowercase and without spaces',
+                }
+                break
+        }
+    }
+    sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==id))
+    if(result)
+        transportEntry.send({
+            jsonrpc,
+            id,
+            result,
+        })
+    if(error)
+        transportEntry.send({
+            jsonrpc,
+            id,
+            error,
+        })
+    ctx.status = 200
     await next()
 }
-/**
- * Handles the System Avatar (Q) MCP request for shared memories.
- * @param {Koa} ctx - Koa context object
- */
-async function mcpSharedMemories(ctx){
-    const { method, } = ctx.request
-    /*
-## Requests
-All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification.
-- Requests MUST include a string or integer ID.
-- Unlike base JSON-RPC, the ID MUST NOT be null.
-- The request ID MUST NOT have been previously used by the requestor within the same session.
-Example MCP request format:
-{
-  jsonrpc: "2.0";
-  id: string | number;
-  method: string;
-  params: {
-    [key: string]: unknown;
-  }
-}
-## Responses
-Responses are sent in reply to requests, containing the result or error of the operation.
-- Responses MUST include the same ID as the request they correspond to.
-- Responses are further sub-categorized as either successful results or errors. Either a result or an error MUST be set. A response MUST NOT set both.
-- Results MAY follow any JSON object structure, while errors MUST include an error code and message at minimum.
-- Error codes MUST be integers.
-Example MCP response format:
-{
-  jsonrpc: "2.0";
-  id: string | number;
-  result?: {
-    [key: string]: unknown;
-  }
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  }
-}
-## Notifications
-Currently not in use, but assume similar to canceling thread, etc.
-Notifications are sent from the client to the server or vice versa, as a one-way message. The receiver MUST NOT send a response.
-- Notifications MUST NOT include an ID.
-{
-  jsonrpc: "2.0";
-  method: string;
-  params?: {
-    [key: string]: unknown;
-  };
-}
-  */
-    if(method.toUpperCase()==='GET'){
-        console.log(chalk.yellow('MCP Shared Memories GET request'), ctx.request)
+async function mSessionInfo(ctx) {
+    const { sid: sessionId, } = ctx.params
+    const { sessionMeta, } = ctx.state
+    const transport = sessionMeta.get(sessionId)?.transportEntry
+    if(!transport){
+        ctx.status = 404
+        ctx.body = { error: 'Session not found', sessionId }
+        return
     }
-    console.log(method)
     ctx.body = {
-        method,
+        sessionId: transport.sessionId,
+        type: transport.constructor.name,
+        messageUrl: `/message?sessionId=${transport.sessionId}`,
+        createdAt: transport.createdAt || '(unknown)',
+        info: 'Active session details',
     }
 }
-/*
-async function handleSystemAvatarQ(request) {
-    try {
-        // Extract the necessary information from the request
-        const { messages, options } = request;
-        
-        // Access the System Avatar Q through ctx or any other means
-        const systemAvatar = request.ctx.SystemAvatar;
-        
-        // Process the request and generate a response
-        const response = await systemAvatar.processQuery({
-            messages,
-            options,
-            requestType: 'mcp'
-        });
-        
-        // Return the response in the MCP format
-        return {
-            message: response.message || '',
-            metadata: {
-                model: 'system-avatar-q',
-                usage: response.usage || {},
-                finished: true
-            }
-        };
-    } catch (error) {
-        console.error(chalk.red('MCP System Avatar Q Error:'), error);
-        return {
-            message: 'An error occurred while processing your request.',
-            metadata: {
-                model: 'system-avatar-q',
-                finished: true,
-                error: error.message
-            }
-        };
-    }
-}
-
-// Function to initialize the MCP server
-function initMCPServer(app) {
-    const mcpServer = createServer({
-        models: {
-            'system-avatar-q': {
-                handler: handleSystemAvatarQ,
-                metadata: {
-                    name: 'System Avatar Q',
-                    capabilities: ['system-information', 'query-processing', 'dialogue'],
-                    description: 'MyLife System Avatar Q - AI assistant trained on MyLife corporate materials'
-                }
-            }
-        }
-    });
-    
-    // Log that MCP server was initialized
-    console.log(chalk.green('MCP Server initialized for System Avatar Q'));
-    
-    return mcpServer;
-}
-
-// This function will be called to handle MCP requests
-async function mcpHandler(ctx) {
-    try {
-        // Store Koa context in the request for access to SystemAvatar
-        ctx.request.body.ctx = ctx;
-        
-        // Initialize MCP server if not already initialized
-        if (!ctx.app.mcpServer) {
-            ctx.app.mcpServer = initMCPServer(ctx.app);
-        }
-        
-        // Process the MCP request
-        const mcpResponse = await ctx.app.mcpServer.handleRequest(ctx.request.body);
-        
-        // Send the response back
-        ctx.status = 200;
-        ctx.body = mcpResponse;
-    } catch (error) {
-        console.error(chalk.red('MCP Request Error:'), error);
-        ctx.status = 500;
-        ctx.body = {
-            error: 'Failed to process MCP request',
-            message: error.message
-        };
-    }
-}
-*/
 /**
  * Handles the System Avatar (Q) MCP request for streaming.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<void>}
  */
-async function mcpStream(ctx){
-    console.log(chalk.yellow('MCP Stream request'))
-    ctx.set({
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no transform",
-      "Connection": "keep-alive",
-      "Access-Control-Allow-Headers": "Authorization",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST",
-      "Transfer-Encoding": "chunked",
-    })
-    ctx.request.socket.setTimeout(0)
-    ctx.req.socket.setNoDelay(true)
-    ctx.req.socket.setKeepAlive(true)
-    ctx.status = 200
+async function mcpStream(ctx) {
     ctx.respond = false
-    ctx.res.flushHeaders()
-    const stream = new PassThrough()
-    ctx.body = stream
-    let id = 0
-    stream.write(`data: ok` + '\n\n')
-    const interval = setInterval(()=>{
-        id++
-        stream.write(`data: ${ id }\n\n`)
-    }, 7000)
-    stream.on("close", () => {
-        clearInterval(interval)
-        stream.end()
+    const sseTransport = new SSEServerTransport('/api/v2/mcp/system-avatar/message', ctx.res)
+    await sseTransport.start() // sends endpoint event
+    const { sessionId, } = sseTransport
+    ctx.mcpSessionMeta.set(sessionId, {
+        created: Date.now(),
+        initialized: false,
+        initializeConfirmation: false,
+        runs: [],
+        sessionId,
+        transportEntry: sseTransport,
     })
+    console.log('✅ Connected Inspector SSE session:', sessionId)
 }
 /**
  * Returns system information adhering to MCP protocol requirements.
@@ -300,9 +664,22 @@ async function mcpSystemInfo(ctx) {
         }
     }
 }
+function mReadPdf(filePath){
+    const pdfBuffer = fs.readFileSync(filePath)
+    return pdfBuffer.toString('base64')
+}
+function mTestMcpProtocols(jsonrpc, protocolVersion){
+    if(!jsonrpc || parseFloat(jsonrpc) > parseFloat(mJsonRpcVersion))
+        throw new Error('Bad Request - Invalid or Incompatible JSON-RPC version')
+    if(!protocolVersion)
+        throw new Error('Bad Request - Missing protocolVersion')
+    if(mJsonRpcProtocolVersion && new Date(protocolVersion) > new Date(mJsonRpcProtocolVersion))
+        throw new Error('Bad Request - Incompatible protocol version (too new)')
+}
 /* exports */
 export {
     mcpCall,
+    mSessionInfo,
     mcpStream,
     mcpSystemInfo,
 }
