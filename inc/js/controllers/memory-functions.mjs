@@ -130,7 +130,8 @@ async function shareMemory(ctx){
 	if(!Avatar.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife memory')
 	const { input, } = ctx.request.body
-	ctx.body = await Avatar.shareMemory(sid, input)
+	const Share = await Avatar.shareMemory(sid, input)
+	ctx.body = Share.share
 }
 /**
  * Stop sharing a memory.

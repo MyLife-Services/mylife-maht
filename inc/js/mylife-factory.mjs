@@ -263,7 +263,7 @@ class BotFactory extends EventEmitter{
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt, this, avatar) // response = { preparedSummary, success, warnings, }
+		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt, this, this) // response = { preparedSummary, success, warnings, }
 		if(Array.isArray(response))
 			response = response[0] // flatten
 		shareData = {

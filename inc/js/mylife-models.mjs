@@ -329,17 +329,14 @@ class Share extends EventEmitter {
                 instructions: `stopShare`,
                 scene: this.stop()
             }
-        const scene = this.scenes[this.#currentScene]
+        const scene = this.currentScene
         this.#conversation.addMessage({
             content: scene,
             created_at: Date.now(),
             role: 'agent',
         })
         this.#currentScene++
-        return {
-            ...this.share,
-            scene,
-        }
+        return scene
     }
     /**
      * Save the Conversation to the member's datacore.
@@ -390,6 +387,9 @@ class Share extends EventEmitter {
     set conversation(Conversation){
         this.#conversation = Conversation
     }
+    get currentScene(){
+        return this.scenes?.[this.#currentScene]
+    }
     get guessable(){
         return this.#guessable
     }
@@ -425,6 +425,12 @@ class Share extends EventEmitter {
     get pov(){
         return this.#pov
     }
+    get previousScene(){
+        const sceneIndex = this.#currentScene > 0
+            ? this.#currentScene-1
+            : 0
+        return this.scenes?.[sceneIndex]
+    }
     get restrictions(){
         return this.#restrictions
     }
@@ -437,6 +443,7 @@ class Share extends EventEmitter {
     }
     get share(){
         const response = {
+            acceptWarnings: this.#acceptWarnings,
             anonymous: this.anonymous,
             guessable: this.guessable,
             id: this.instanceId,

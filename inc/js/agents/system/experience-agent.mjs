@@ -474,13 +474,14 @@ class ShareAgent {
         const Share = this.share(instanceId)
         if(!Share)
             throw new Error('Share not found')
-        else if(!Share.header || !Share.warningsAccepted)
-            return await this.header(instanceId)
-        else if(!Share.initialized)
+        else if(!Share.header || !Share.warningsAccepted){
+            const header = await this.header(instanceId)
+            return header
+        } else if(!Share.initialized){
             await this.shareInit(Share)
-        const shareContent = await Share.play(input)
-        shareContent.scene = new Marked().parse(shareContent.scene)
-        return shareContent
+        }
+        await Share.play(input)
+        return Share
     }
     share(instanceId, shareId){
         let Share
@@ -515,7 +516,6 @@ class ShareAgent {
                 ?.text
                 ?.value
             if(message?.length){
-                console.log('shareInit::message', message)
                 let scenes = JSON.parse(message)?.scenes
                     ?? []
                 if(scenes.length===1){ // array incorrectly sent as one scene

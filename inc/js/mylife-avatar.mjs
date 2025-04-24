@@ -940,6 +940,9 @@ class Avatar extends EventEmitter {
     async shadows(){
         return await this.#factory.shadows()
     }
+    async share(sid){
+        return await this.#ShareAgent.share(sid)
+    }
     async shareCreate(shareData){
         return await this.#ShareAgent.create(shareData)
     }
@@ -956,10 +959,12 @@ class Avatar extends EventEmitter {
 	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
 	 * @param {Guid} sid - Share id
      * @param {String} input - Text from recipient
-     * @returns {Promise<Object>} - The Share response object { error, instruction, responses, success, warnings, }
+     * @returns {Promise<Share>} - The Share response object { error, instruction, responses, success, warnings, }
 	 */
 	async shareMemory(sid, input){
-        return await this.#ShareAgent.play(sid, input)
+        const Share = await this.#ShareAgent.play(sid, input)
+        // Share.scene = new Marked().parse(Share.scene)
+        return Share
 	}
     /**
      * Stop a shared memory.
@@ -1081,7 +1086,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Validates a share id and returns the instance id for newly spawned share.
-     * @param {Guid} shareId - The share id
+     * @param {Guid} shareId - The share id or instance id
      * @returns {Promise<Object>} - Response object: { instanceId, }
      */
     async validateShare(shareId){
@@ -1142,7 +1147,7 @@ class Avatar extends EventEmitter {
      * @getter
      * @returns {string} The object being the avatar is emulating.
     */
-    get being(){  
+    get being(){
         return 'human'
     }
     /**
@@ -1766,14 +1771,18 @@ class Q extends Avatar {
             }))
         return memories
     }
+    /**
+     * OVERLOAD: Share a memory with the MyLife system. If no shareId is provided, the first shared memory will be used.
+     * @param {Guid} shareId - The share id
+     * @param {Object} input - The input object to share
+     * @returns {Promise<Share>} - The response object { error, instruction, responses, success, }
+     */
     async shareMemory(shareId, input){
         if(!shareId)
             shareId = ( await this.sharedMemories(1) )?.[0]?.id
         const { instanceId, } = await this.validateShare(shareId)
-        console.log(`SystemAvatar::shareMemory::instanceId`, instanceId, shareId)
-        const response = await super.shareMemory(instanceId, input)
-        console.log(`SystemAvatar::shareMemory::response`, response)
-        return response
+        const Share = await super.shareMemory(instanceId, input)
+        return Share
     }
     /**
      * Validate registration id.
