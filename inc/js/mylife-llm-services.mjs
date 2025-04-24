@@ -175,7 +175,7 @@ class LLMServices {
                 avatar.backupResponse.run_id = run_id
             }
             llmMessages = []
-        } else{
+        } else {
             const messages = await this.messages(thread_id)
             llmMessages = messages.filter(message=>message.role=='assistant' && message.run_id==run_id)
         }
@@ -551,10 +551,11 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'preparesummary':
                             case 'prepare_summary':
                             case 'prepare summary':
-                                avatar.backupResponse = {
-                                    message: `I encountered an unexpected error while preparing content for sharing, please try again.`,
-                                    type: 'system',
-                                }
+                                if(!!avatar)
+                                    avatar.backupResponse = {
+                                        message: `I encountered an unexpected error while preparing content for sharing, please try again.`,
+                                        type: 'system',
+                                    }
                                 const { summary: prepared, preparedSummary: _prepared, warnings, } = toolArguments
                                 const preparedSummary = prepared
                                     ?? _prepared

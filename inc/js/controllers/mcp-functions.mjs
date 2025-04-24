@@ -82,10 +82,14 @@ const mToolList = [
     },
     {
         name: 'get_shared_memory',
-        description: 'I am Q, corporate intelligence for MyLife. When asked for a shared memory, I return the MyLife public memory { anonymous, conclusion, guessable, id, scenes, title, voice, } to be experienced. To help the human relive the memory, you should ask for each scene in the memory and use the get_shared_memory_scene tool to retrieve the scene using the underlying id.',
+        description: 'I am Q, corporate intelligence for MyLife. I am able to access public shared memories and play the experience for a human user. The memory will be delivered from MyLife scene-by-scene using the `get_shared_memory` and the appropriate `memberId`. Display the scenes one-by-one, prompt the human to add any optional input to the memory, which should be sent using the `input` field.',
         inputSchema: {
             type: "object",
-            properties: { 
+            properties: {
+                input: {
+                    type: "string",
+                    description: "Any input by the human user while experiencing the memory (optional)"
+                },
                 memoryId: {
                     type: "string",
                     description: "The ID of the memory to be retrieved, can be empty"
@@ -95,31 +99,6 @@ const mToolList = [
         },
         annotations: {        // Optional hints about tool behavior
             title: 'Shared-Memory',      // Human-readable title for the tool
-            readOnlyHint: true,    // If true, the tool does not modify its environment
-            destructiveHint: false, // If true, the tool may perform destructive updates
-            idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false,   // If true, tool interacts with external entities
-        }
-    },
-    {
-        name: 'get_shared_memory_scene',
-        description: 'I am Q, corporate intelligence for MyLife. When asked for a shared memory scene, I return the MyLife public memory scene { sceneId, summary, } to be experienced. You should read out each scene summary and ask the human if they want to add any comments or details to the scene. If they do, submit the comments to the scene using this get_shared_memory_scene tool.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                comments: {
-                    type: 'string',
-                    description: 'The commentary added to the scene by the human',
-                },
-                sceneId: {
-                    type: 'string',
-                    description: 'The ID of the scene to be retrieved',
-                }
-            },
-            required: ['sceneId'],
-        },
-        annotations: {        // Optional hints about tool behavior
-            title: 'Shared-Memory-Scene',      // Human-readable title for the tool
             readOnlyHint: true,    // If true, the tool does not modify its environment
             destructiveHint: false, // If true, the tool may perform destructive updates
             idempotentHint: true,  // If true, repeated calls with same args have no additional effect
@@ -390,42 +369,81 @@ async function mcpCall(ctx, next){
                                     }
                                     break
                                 case 'get_shared_memory':
-                                    let interval
+                                    let { input: sharedMemoryInput, memoryId: sharedMemoryMemoryId, } = args
+                                    let Share = sessionMeta.Share
+                                    if(!Share || Share.instanceId!==sharedMemoryMemoryId){
+                                        let sharedMemoryInterval01
+                                        if(progressToken){
+                                            let progress = 0
+                                            sharedMemoryInterval01 = setInterval(_=>{
+                                                progress += 10
+                                                transportEntry.send({
+                                                    jsonrpc,
+                                                    method: 'notifications/progress',
+                                                    params:{
+                                                        message: `Retrieving shared memory header`,
+                                                        progress,
+                                                        progressToken,
+                                                    },
+                                                })
+                                            }, 2500)
+                                        }
+                                        const { instanceId, } = await ctx.SystemAvatar.validateShare(sharedMemoryMemoryId)
+                                        if(!instanceId){
+                                            result = {
+                                                content: [{
+                                                    text: `The memoryId ${ sharedMemoryMemoryId } is not valid`,
+                                                    type: 'text',
+                                                }],
+                                                isError: true,
+                                            }
+                                            break
+                                        }
+                                        sharedMemoryMemoryId = instanceId
+                                        await ctx.SystemAvatar.shareHeader(sharedMemoryMemoryId)
+                                        Share = await ctx.SystemAvatar.share(sharedMemoryMemoryId)
+                                        if(sharedMemoryInterval01)
+                                            clearInterval(sharedMemoryInterval01)
+                                        sessionMeta.Share = Share
+                                        Share = sessionMeta.Share
+                                        if(Share.warnings?.length){
+                                            result = {
+                                                content: [{
+                                                    text: `Confirm that the viewer would like to proceed given the following content warnings: ${ JSON.stringify(Share.warnings) }. Then make the \`get_shared_memory\` call again with the new memoryId: ${ sharedMemoryMemoryId }`,
+                                                    type: 'text',
+                                                }],
+                                                isError: true,
+                                            }
+                                            break
+                                        }
+                                    }
+                                    let sharedMemoryInterval02
                                     if(progressToken){
                                         let progress = 0
-                                        interval = setInterval(_=>{
+                                        sharedMemoryInterval02 = setInterval(_=>{
                                             progress += 10
                                             transportEntry.send({
                                                 jsonrpc,
                                                 method: 'notifications/progress',
                                                 params:{
-                                                    message: `Retrieving shared memory`,
+                                                    message: `Retrieving shared memory header`,
                                                     progress,
                                                     progressToken,
                                                 },
                                             })
                                         }, 2500)
                                     }
-                                    const memory = await ctx.SystemAvatar.shareMemory(args?.memoryId)
-                                    if(interval)
-                                        clearInterval(interval)
+                                    if(!Share.warningsAccepted) /* previous error result required intelligence to issue warnings to human before re-contacting */
+                                        Share.acceptWarnings()
+                                    await ctx.SystemAvatar.shareMemory(sharedMemoryMemoryId, sharedMemoryInput)
+                                    if(sharedMemoryInterval02)
+                                        clearInterval(sharedMemoryInterval02)
                                     result = {
                                         content: [{
-                                            text: JSON.stringify(memory, null, 2),
+                                            text: `Below is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the correct memoryId: ${ sharedMemoryMemoryId } and any human input in field \`input\`.\n${ JSON.stringify(Share.previousScene, null, 2) }`,
                                             type: 'text',
                                         }],
                                         isError: false,
-                                    }
-                                    break
-                                case 'get_shared_memory_scene':
-                                    const { comments, sceneId, } = args
-                                    console.log(chalk.yellow('get_shared_memory_scene'), comments, sceneId)
-                                    result = {
-                                        content: [{
-                                            text: `Unfortunately, sceneId[${ sceneId }] was not found`,
-                                            type: 'text',
-                                        }],
-                                        isError: true,
                                     }
                                     break
                                 case 'mylife_information':
@@ -434,7 +452,25 @@ async function mcpCall(ctx, next){
                                     let message = question
                                     if(questionType?.length)
                                         message += `\n\nQuestion Type: ${ questionType }`
+                                    let infoInterval
+                                    if(progressToken){
+                                        let progress = 0
+                                        infoInterval = setInterval(_=>{
+                                            progress += 10
+                                            transportEntry.send({
+                                                jsonrpc,
+                                                method: 'notifications/progress',
+                                                params:{
+                                                    message: `Answering question about MyLife`,
+                                                    progress,
+                                                    progressToken,
+                                                },
+                                            })
+                                        }, 2500)
+                                    }
                                     const { responses, } = await SystemAvatar.chat(message, undefined, ctx.session)
+                                    if(infoInterval)
+                                        clearInterval(infoInterval)
                                     const infoContent = responses.map((response)=>({
                                         text: response.message,
                                         type: 'text',
@@ -591,18 +627,22 @@ async function mcpCall(ctx, next){
         }
     }
     sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==id))
-    if(result)
-        transportEntry.send({
-            jsonrpc,
-            id,
-            result,
-        })
-    if(error)
-        transportEntry.send({
-            jsonrpc,
-            id,
-            error,
-        })
+    try{
+        if(result)
+            transportEntry.send({
+                jsonrpc,
+                id,
+                result,
+            })
+        if(error)
+            transportEntry.send({
+                jsonrpc,
+                id,
+                error,
+            })
+    } catch(error){
+        console.log(chalk.red('NO TRANSPORT SENT::most likely disconnected'), error)
+    }
     ctx.status = 200
     await next()
 }

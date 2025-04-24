@@ -215,6 +215,44 @@ async function obscure(ctx){
     const { avatar, mbr_id, } = ctx.state
     ctx.body = await avatar.obscure(mbr_id, iid)
 }
+/**
+ * Registration function for new members.
+ * @todo - throttle register requests to prevent abuse.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Koa} Koa Context object
+ */
+async function register(ctx){
+	const registrationData = ctx.request.body
+    const { avatar, } = ctx.state
+	const {
+		registrationInterests,
+		contact={}, // as to not elicit error destructuring
+		personalInterests,
+		additionalInfo
+	} = registrationData
+	const {
+		avatarName,
+		humanName,
+		humanDateOfBirth,
+		email,
+		city,
+		state,
+		country,
+	} = contact
+	if (!humanName?.length || !email?.length)
+        ctx.throw(400, 'Missing required contact information: humanName and/or email are required.')
+	// Email validation
+    if (!ctx.Globals.isValidEmail(contact.email))
+        ctx.throw(400, 'Invalid email format.')
+	registrationData.email = email // required at root for select
+	const registration = await avatar.registerCandidate(registrationData)
+	ctx.status = 200
+    ctx.body = {
+        success: true,
+        message: 'Registration completed successfully.',
+		data: registration,
+    }
+}
 async function sharedMemories(ctx){
     const { avatar: SystemAvatar, } = ctx.state
     const memories = await SystemAvatar.sharedMemories()
@@ -339,6 +377,7 @@ export {
     logout,
     memory,
     obscure,
+    register,
     sharedMemories,
     sharedMemory,
     tokenValidation,
