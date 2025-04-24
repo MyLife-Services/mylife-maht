@@ -627,18 +627,22 @@ async function mcpCall(ctx, next){
         }
     }
     sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==id))
-    if(result)
-        transportEntry.send({
-            jsonrpc,
-            id,
-            result,
-        })
-    if(error)
-        transportEntry.send({
-            jsonrpc,
-            id,
-            error,
-        })
+    try{
+        if(result)
+            transportEntry.send({
+                jsonrpc,
+                id,
+                result,
+            })
+        if(error)
+            transportEntry.send({
+                jsonrpc,
+                id,
+                error,
+            })
+    } catch(error){
+        console.log(chalk.red('NO TRANSPORT SENT::most likely disconnected'), error)
+    }
     ctx.status = 200
     await next()
 }
