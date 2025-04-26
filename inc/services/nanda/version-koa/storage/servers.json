@@ -1,0 +1,274 @@
+[
+  {
+    "id": "bakery ",
+    "name": "Bakery",
+    "url": "https://web-production-091a3.up.railway.app/sse",
+    "description": "An MCP-compatible server for bakery operations that handles menu queries, order processing, and real-time ingredient availability. Responds to natural language prompts like “What pastries are fresh today?” or “Order a dozen croissants for pickup.”",
+    "types": [
+      "agent"
+    ],
+    "tags": [
+      "agent"
+    ],
+    "verified": false,
+    "rating": 0
+  },
+  {
+    "id": "Spotify",
+    "name": "Spotify ",
+    "url": "https://tjdgmjqend.us-east-1.awsapprunner.com"
+  },
+  {
+    "id": "Spotify1",
+    "name": "Spotify1",
+    "url": "https://tjdgmjqend.us-east-1.awsapprunner.com/sse"
+  },
+  {
+    "id": "2871c512-7765-498c-831e-0b1a09be5336",
+    "name": "ConstructionAI",
+    "url": "https://smort-digital-tejas45.replit.app/mcp/sse"
+  },
+  {
+    "id": "d0accff0-f994-49fa-aa37-c2b76ee59b3d",
+    "name": "Toxicology AI",
+    "url": "https://agjz7p7vza.us-east-1.awsapprunner.com/sse",
+    "description": "Toxicology AI MCP delivers insights from toxicology data related to medicolegal death investigations (MDI). It streams live responses from an AI system that analyzes trends, identifies substances, and surfaces patterns across toxicology reports — helping investigators, researchers, and public health teams get immediate, interpretable feedback from complex MDI datasets.",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "toxicology",
+      "medicolegal-death-investigation",
+      "public-health-insights",
+      "forensic-data",
+      "forensic-toxicology",
+      "mdi-data",
+      "health"
+    ],
+    "verified": false,
+    "rating": 5
+  },
+  {
+    "id": "aa9262ad-6cd8-4d4d-9bf0-013517ecac08",
+    "name": "Search Spotify Songs",
+    "url": "https://mppfwfdsnu.us-east-1.awsapprunner.com/sse"
+  },
+  {
+    "id": "97f3f10d-7c5e-4343-ad98-8b863121eafa",
+    "name": "Currency Converter MCP Server",
+    "url": "http://3.133.113.164:8080/sse",
+    "description": "Converts amounts from one currency to another using live exchange rates.",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "currency",
+      "converter",
+      "finance"
+    ],
+    "verified": false,
+    "rating": 1
+  },
+  {
+    "id": "4e463897-3f21-44af-881e-00a9814a085a",
+    "name": "Synthetic Data generator",
+    "url": "https://gbznaqxwci.us-east-1.awsapprunner.com/sse"
+  },
+  {
+    "id": "767b2a3a-53ac-4dcf-8721-21a7c0584449",
+    "name": "Self Sovereign Identity Tools",
+    "url": "https://mcp-traction-api.xanaducyber.com/sse",
+    "description": "This project establishes a middleware communication layer between an ACA-py Self-Sovereign Identity (SSI) Custodial Wallet and a generative AI agent environment, using the Message-Channel-Protocol (MCP) framework. It integrates:\n\nA reactive client that communicates with a ChatOllama AI model\nMultiple toolchains derived from Traction's Swagger API\nStructured, multi-turn conversation flows\nComprehensive integration testing using a synthetic test tenant (\"Alice\")\nThe client simulates complex workflows by invoking tools in a structured fashion and summarizing outputs clearly. Tests are configured via .example-env and validate real-time interactions against the Traction instance.",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "self-sovereign-identity",
+      "ssi",
+      "identity",
+      "decentralised-identity",
+      "zero-knowledge-proofs",
+      "cl-singatures",
+      "verifiable-credentials",
+      "traction",
+      "acapy",
+      "aries",
+      "hyperledger",
+      "identity-wallet"
+    ],
+    "verified": false,
+    "rating": 0
+  },
+  {
+    "id": "dce98a32-70aa-45ad-9266-b7dc8dce442c",
+    "name": "Mara MCP",
+    "url": "https://mcpapi.alys.pro/sse",
+    "description": "A Model Context Protocol (MCP) server that provides real-time Bitcoin blockchain data. This server can be integrated with NANDA Registry to enhance your AI assistants with live Bitcoin blockchain data.",
+    "types": [
+      "agent",
+      "tool"
+    ],
+    "tags": [
+      "mara",
+      "btc",
+      "bitcoin"
+    ],
+    "verified": false,
+    "rating": 0
+  },
+  {
+    "id": "a9ac8350-b64e-4eef-85e1-d1b67f9a3d39",
+    "name": "HCLSoftware Info",
+    "url": "http://nanda.eastus2.cloudapp.azure.com/sse"
+  },
+  {
+    "id": "2e3131c0-65ae-4d84-9621-17a6e8f0e6cd",
+    "name": "Arxiv Paper Helper",
+    "url": "https://mjrupm9g3c.us-east-1.awsapprunner.com/sse"
+  },
+  {
+    "id": "9d0b54be-8a53-49c7-82ac-db8a356c7f21",
+    "name": "Spotify Song Search",
+    "url": "https://tjdgmjqend.us-east-1.awsapprunner.com/sse"
+  },
+  {
+    "id": "a149be9b-d2e6-429e-b9f4-57b168f10b16",
+    "name": "DeepMyst",
+    "url": "https://mcp.deepmyst.com/sse",
+    "description": "DeepMyst is an AI optimization platform designed to supercharge large language model (LLM) interactions through token optimization and intelligent model routing, but its real breakthrough lies in enabling LLM collaboration and Mixture of Agents workflows.\r\n\r\nAt its core, DeepMyst acts as a unified gateway to major LLM providers like OpenAI, Anthropic, Google, and Groq, offering access to top models (e.g., GPT-4o, Claude, Gemini) via a single API. Its Model Context Protocol (MCP) allows these diverse models to collaborate as a team—each agent or model specializing in different tasks such as ideation, reasoning, or data analysis.\r\n\r\nThis Mixture of Agents approach lets organizations orchestrate AI workflows where each LLM contributes based on its strengths. The models share context, build on each other’s outputs, and solve complex problems together—far more effectively than any single model alone. DeepMyst routes each task to the best-suited model, balancing speed, cost, and performance, while optimizing token usage by up to 75%.\r\n\r\nIn short, DeepMyst doesn't just streamline LLM usage—it reimagines how models collaborate, unlocking new frontiers in agent-based AI systems and complex, multi-model workflows.",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "mixture-of-agents",
+      "model-router",
+      "token-optimization",
+      "cross-model-reasoning",
+      "llm-collaboration"
+    ],
+    "verified": false,
+    "rating": 5
+  },
+  {
+    "id": "fe9c7d80-7f3f-495f-8406-7ef7a5667495",
+    "name": "AI Coding Project Setup Helper",
+    "url": "https://mcp-cursor-setup-enlighter.replit.app/sse",
+    "description": "This MCP is a part of Enlighter project (https://enlightby.ai). MCP server helps users set up and configure their AI assistant environments with three key components:\n\n1. Memory Bank - A structured documentation system for context preservation (Currently Implemented)\n2. MCP Servers - MCP servers recommender for extending AI capabilities (In progress)\n3. Rules - Rules recommendations based on tech stack and project features (In progress)",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "education",
+      "vibe-coding",
+      "ai-coding"
+    ],
+    "verified": false,
+    "rating": 5
+  },
+  {
+    "id": "a3e09952-e1bf-44ed-96cc-65defbf3d8d4",
+    "name": "Hyperskill",
+    "url": "https://mcp-hyperskill.replit.app/sse",
+    "description": "Hyperskill MCP is a server that integrates with Hyperskill's educational resources, enabling AI agents to provide programming topic explanations using Hyperskill's learning materials.\r\n\r\nCore Capabilities\r\n- Code Concept Explanation: Analyzes code to identify and explain programming concepts with direct links to relevant Hyperskill learning resources\r\n- Topic Search: Allows searching for specific programming topics within Hyperskill's knowledge base\r\n\r\nThe server exposes two main tools for AI agents:\r\n1. explain_topics_in_the_code: Identifies key programming concepts in code snippets and provides structured explanations with Hyperskill references\r\n2. find_topics_on_hyperskill: Searches Hyperskill's database for specific programming topics",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "education",
+      "programming",
+      "learn-programming"
+    ],
+    "verified": false,
+    "rating": 5
+  },
+  {
+    "id": "c6284608-6bce-4417-a170-da6c1a117616",
+    "name": "Nexonco",
+    "url": "https://mcp.nexonco.nexgene.ai/sse",
+    "description": "Nexonco by Nexgene Research is an advanced MCP Server for accessing and analyzing clinical evidence data, with flexible search across genes, variants, diseases, drugs and phenotypes to support precision oncology research.",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "health",
+      "bio",
+      "cancer",
+      "oncology",
+      "variant",
+      "disease",
+      "drug",
+      "therapy",
+      "phenotype",
+      "genomics",
+      "medicine"
+    ],
+    "verified": false,
+    "rating": 5
+  },
+  {
+    "id": "d10a76ec-5182-4570-bf6c-a8b3af099507",
+    "name": "Web Data Scraper 1",
+    "url": "https://9223-2406-7400-56-cb93-20da-c905-3538-629b.ngrok-free.app/sse"
+  },
+  {
+    "id": "7951eac1-57b0-45be-ad75-566eb52edd2a",
+    "name": "chainaim's mcp",
+    "url": "https://5ezxku2qc8.us-east-1.awsapprunner.com/sse",
+    "description": "A simple server for chain aim",
+    "types": [
+      "tool"
+    ],
+    "tags": [
+      "cashflow",
+      "simulation",
+      "financial",
+      "loans"
+    ],
+    "verified": false,
+    "rating": 0
+  },
+  {
+    "id": "04628c42-6c74-4397-a2ad-76218414ffa7",
+    "name": "Office Supplies Inventory",
+    "url": "https://p8x2zwifa5.us-east-2.awsapprunner.com/sse",
+    "description": "An MCP server to query an office supplies inventory: you can get a list of all items in the inventory, or get all the attributes of a particular item.",
+    "types": [
+      "resource"
+    ],
+    "tags": [
+      "office-inventory"
+    ],
+    "verified": false,
+    "rating": 0
+  },
+  {
+    "id": "d9246b27-1367-4f28-989f-ad7081ba922f",
+    "name": "Economic Index Analyzer",
+    "url": "https://econ-agent-cloudflare.zwadia.workers.dev/sse",
+    "description": "Anthropic periodically publishes data on how Claude is being used. These emergent patterns of use can be analyzed by an Agent, and it may elect to collate other tools & resources to then assemble a solution that addresses this emergent use-case. This explorer via MCP SSE is just step one.",
+    "types": [
+      "resource",
+      "tool"
+    ],
+    "tags": [],
+    "verified": false,
+    "rating": 0
+  },
+  {
+    "id": "4d93fb27-26e3-48f2-870d-e8a43ba6d9ec",
+    "name": "Compare Zipcode Demographics",
+    "url": "https://0ce1-18-27-79-169.ngrok-free.app/sse",
+    "description": "A FastMCP-compatible Model Context Protocol (MCP) server for comparing zipcode-level demographic distributions. Includes a tool for detecting statistically significant differences in population segments—based on age, gender, and ethnicity—between two ZIP Code Tabulation Areas (ZCTAs), using z-score analysis over synthetic census data.",
+    "types": [
+      "tool"
+    ],
+    "tags": [],
+    "verified": false,
+    "rating": 0
+  },
+  {
+    "id": "1d72cda4-3bd9-4f18-a71d-957bb60fd342",
+    "name": "Bakery",
+    "url": "https://web-production-091a3.up.railway.app/sse"
+  }
+]

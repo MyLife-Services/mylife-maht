@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "outDir": "./dist", // Output relative to this tsconfig.json -> /app/server/dist
+    "rootDir": "..", // Root of source files including parent directory
+    "baseUrl": "..", // Base directory to resolve non-relative module names
+    "declaration": true,
+    "resolveJsonModule": true,
+    "useUnknownInCatchVariables": false,
+    "paths": {
+      "../../shared/*": ["shared/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../shared/**/*.ts" // Path to shared from server directory
+  ],
+  "exclude": ["node_modules", "dist"]
+}

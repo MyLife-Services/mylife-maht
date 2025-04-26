@@ -1,0 +1,124 @@
+/* client/src/index.css */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1c1921;
+  overflow: hidden;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+/* Animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(220, 20, 60, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(220, 20, 60, 0.3);
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+p {
+  margin-bottom: 1em;
+}
+
+a {
+  color: #dc143c;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  color: #ff6a8a;
+}
+
+/* Markdown styling */
+pre {
+  margin: 1em 0;
+  padding: 1em;
+  border-radius: 0.5em;
+  background-color: rgba(0, 0, 0, 0.3);
+  overflow-x: auto;
+}
+
+blockquote {
+  border-left: 3px solid #dc143c;
+  margin-left: 0;
+  padding-left: 1em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(42, 36, 41, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(220, 20, 60, 0.15);
+}
+
+/* Network visualization styling */
+.network-node {
+  fill: #dc143c;
+  stroke: #ff6a8a;
+  transition: all 0.3s ease;
+}
+
+.network-link {
+  stroke: rgba(220, 20, 60, 0.6);
+  stroke-width: 1.5;
+}
+
+.network-node.active {
+  fill: #f3cc24;
+  stroke: #f9de72;
+  filter: drop-shadow(0 0 8px rgba(220, 20, 60, 0.5));
+}
+
+/* Button and UI element overrides */
+.btn-primary,
+.chakra-button {
+  transition: all 0.2s ease !important;
+}

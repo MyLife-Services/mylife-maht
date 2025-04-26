@@ -1,0 +1,25 @@
+{
+  "short_name": "NANDA Host",
+  "name": "NANDA Host",
+  "icons": [
+    {
+      "src": "NANDA.png",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "NANDA.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "NANDA.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}

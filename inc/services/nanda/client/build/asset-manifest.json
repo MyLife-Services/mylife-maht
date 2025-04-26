@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/nanda/static/css/main.16662802.css",
+    "main.js": "/nanda/static/js/main.2b1e4da8.js",
+    "static/js/453.ffcf4502.chunk.js": "/nanda/static/js/453.ffcf4502.chunk.js",
+    "index.html": "/nanda/index.html",
+    "main.16662802.css.map": "/nanda/static/css/main.16662802.css.map",
+    "main.2b1e4da8.js.map": "/nanda/static/js/main.2b1e4da8.js.map",
+    "453.ffcf4502.chunk.js.map": "/nanda/static/js/453.ffcf4502.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.16662802.css",
+    "static/js/main.2b1e4da8.js"
+  ]
+}
