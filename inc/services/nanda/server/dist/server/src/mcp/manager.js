@@ -1,47 +1,9 @@
+// server/src/mcp/manager.ts
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { ToolRegistry } from "./toolRegistry.js";
 import { SessionManager } from "./sessionManager.js";
 import { RegistryClient } from "../registry/client.js";
-// Disable server-side persistence - we'll use browser-based storage instead
-// const STORAGE_DIR = process.env.MCP_STORAGE_DIR || path.join(process.cwd(), 'storage');
-// const SERVERS_FILE = path.join(STORAGE_DIR, 'servers.json');
-// // Ensure the storage directory exists
-// if (!fs.existsSync(STORAGE_DIR)) {
-//   fs.mkdirSync(STORAGE_DIR, { recursive: true });
-// }
-// // Create servers file if it doesn't exist - with empty array
-// if (!fs.existsSync(SERVERS_FILE)) {
-//   fs.writeFileSync(SERVERS_FILE, JSON.stringify([], null, 2));
-// }
-// // Ensure the file is only readable by the server process
-// try {
-//   fs.chmodSync(SERVERS_FILE, 0o600);
-// } catch (error) {
-//   console.warn('Unable to set file permissions, server configuration may not be secure');
-// }
-// Disable loading servers from file - rely on client registrations only
-const loadServers = () => {
-    // Comment out file loading
-    // try {
-    //   const data = fs.readFileSync(SERVERS_FILE, 'utf8');
-    //   return JSON.parse(data);
-    // } catch (error) {
-    //   console.error('Error loading servers:', error);
-    //   return [];
-    // }
-    return []; // Return empty array - no pre-loaded servers
-};
-// Disable saving servers to file
-const saveServers = (servers) => {
-    // Comment out file saving
-    // try {
-    //   fs.writeFileSync(SERVERS_FILE, JSON.stringify(servers, null, 2));
-    // } catch (error) {
-    //   console.error('Error saving servers:', error);
-    // }
-    // No-op - we don't save servers anymore
-};
 // Rate limiting configuration
 const RATE_LIMIT_CONFIG = {
     // Maximum requests per minute to a server
@@ -51,7 +13,7 @@ const RATE_LIMIT_CONFIG = {
     // Maximum queue length per server
     maxQueueLength: 50,
 };
-export function setupMcpManager(io) {
+export function setupMcpManager() {
     console.log("--- McpManager setup initiated ---");
     // Registry to keep track of available MCP tools
     const toolRegistry = new ToolRegistry();

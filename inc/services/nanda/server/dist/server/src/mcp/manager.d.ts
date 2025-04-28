@@ -1,4 +1,3 @@
-import { Server as SocketIoServer } from "socket.io";
 import { SessionManager } from "./sessionManager.js";
 import { ToolInfo, CredentialRequirement, ServerConfig } from "./types.js";
 interface ToolCredentialInfo {
@@ -18,5 +17,5 @@ export interface McpManager {
     getSessionManager: () => SessionManager;
     fetchRegistryServers: () => Promise<ServerConfig[]>;
 }
-export declare function setupMcpManager(io?: SocketIoServer): McpManager;
+export declare function setupMcpManager(): McpManager;
 export {};
