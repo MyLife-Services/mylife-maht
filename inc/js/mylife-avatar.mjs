@@ -9,6 +9,7 @@ import AlphaDog from './agents/project/alpha-dog.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
+import ConnectorAgent from './agents/system/connector-agent.mjs'
 import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
@@ -1484,6 +1485,7 @@ class Avatar extends EventEmitter {
  * @extends Avatar
  */
 class Q extends Avatar {
+    #connectorAgent // connector agent for MyLife
     #conversations = []
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
     #hostedMembers = [] // MyLife-hosted members
@@ -1501,6 +1503,7 @@ class Q extends Avatar {
         super(factory, llmServices)
         this.#factory = factory
         this.#llmServices = llmServices
+        this.#connectorAgent = new ConnectorAgent(this.#factory, this.#llmServices)
     }
     /* overloaded methods */
     /**
@@ -1792,6 +1795,19 @@ class Q extends Avatar {
     async validateRegistration(validationId){
         const response = await mValidateRegistration(this.activeBotId, this.#factory, validationId)
         return response
+    }
+    /* nanda services */
+    async nandaServer(serverId){
+        const server = await this.#connectorAgent.nandaServer(serverId)
+        return server
+    }
+    async nandaServerRatings(serverId){
+        const ratings = await this.#connectorAgent.nandaServerRatings(serverId)
+        return ratings
+    }
+    async nandaServers(){
+        const servers = await this.#connectorAgent.nandaServers()
+        return servers
     }
     /* getters/setters */
     /**

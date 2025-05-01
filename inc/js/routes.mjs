@@ -77,6 +77,11 @@ import {
     mcpSystemInfo,
 } from './controllers/mcp-functions.mjs'
 import {
+    server,
+    serverRatings,
+    servers,
+} from './controllers/nanda-functions.mjs'
+import {
     mission,
     missionPlay,
     missions,
@@ -87,6 +92,7 @@ const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
 const _mcpRouter = new Router()
+const _nandaRouter = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 //	root routes
 _Router.get('/', index)
@@ -193,10 +199,16 @@ _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
+/* Nanda routes */
+_nandaRouter.get('/mylife', server)
+_nandaRouter.get('/servers/:sid', server)
+_nandaRouter.get('/servers/:sid/ratings', serverRatings)
+_nandaRouter.get('/servers', servers)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
 _Router.use('/api/v2/mcp/system-avatar', _mcpRouter.routes(), _mcpRouter.allowedMethods())
+_Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**
  * Connects the routes to the router
