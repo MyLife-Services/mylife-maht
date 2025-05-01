@@ -83,9 +83,6 @@ console.log(chalk.bgBlue('created-system-avatar:', chalk.bgRedBright('MAHT'), ch
 const nandaClientPath = path.join(process.cwd(), 'inc', 'services', 'nanda', 'client', 'build')
 const { router: nandaRouter, start: startNandaRouter } = createNandaRouter()
 await startNandaRouter()
-const nandaPrefixedRouter = new Router({ prefix: '/nanda-registry' })
-nandaPrefixedRouter.use(nandaRouter.routes())
-nandaPrefixedRouter.use(nandaRouter.allowedMethods())
 render(app, {
 	root: path.join(__dirname, 'views'),
 	layout: 'layout',
@@ -185,8 +182,8 @@ app.use(async (ctx, next) => {
 //	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
 	.use(serverRouter.routes())	//	enable system routes
 	.use(serverRouter.allowedMethods())	//	enable system routes
-	.use(nandaPrefixedRouter.routes())
-	.use(nandaPrefixedRouter.allowedMethods())
+	.use(nandaRouter.routes())
+	.use(nandaRouter.allowedMethods())
 /* post-start server functions */
 /* server listens */
 app.listen(port, () => {	//	start the server
