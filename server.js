@@ -15,7 +15,6 @@ import serve from 'koa-static'
 import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/mylife-factory.mjs'
-import { createNandaRouter, } from './inc/services/nanda/server/dist/server/src/nanda.js'
 /** variables **/
 const version = '0.0.36'
 const app = new Koa()
@@ -80,9 +79,6 @@ const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-system-avatar:', chalk.bgRedBright('MAHT'), chalk.bgGreenBright(_Maht.version)))
 /** RESERVED: test harness **/
 /** application startup **/
-const nandaClientPath = path.join(process.cwd(), 'inc', 'services', 'nanda', 'client', 'build')
-const { router: nandaRouter, start: startNandaRouter } = createNandaRouter()
-await startNandaRouter()
 render(app, {
 	root: path.join(__dirname, 'views'),
 	layout: 'layout',
@@ -109,9 +105,6 @@ app.keys = [
 		?? `mylife-session-failsafe|${ _Maht.newGuid }`
 ]
 app.use(async (ctx, next) => {
-  if (ctx.path.startsWith('/nanda') || ctx.path.startsWith('/nanda-registry')) // ⚡ Skip koaBody for Nanda API and registry paths
-    await next()
-  else
     await koaBody({
       multipart: true,
       formidable: {
@@ -135,7 +128,6 @@ app.use(async (ctx, next) => {
     })(ctx, next)
 })
 	.use(serve(path.join(__dirname, 'views', 'assets')))
-	.use(mount('/nanda', serve(nandaClientPath)))
 	.use(
 		session(	//	session initialization
 			{
@@ -182,8 +174,6 @@ app.use(async (ctx, next) => {
 //	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
 	.use(serverRouter.routes())	//	enable system routes
 	.use(serverRouter.allowedMethods())	//	enable system routes
-	.use(nandaRouter.routes())
-	.use(nandaRouter.allowedMethods())
 /* post-start server functions */
 /* server listens */
 app.listen(port, () => {	//	start the server
