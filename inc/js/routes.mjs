@@ -71,7 +71,8 @@ import {
     validateShare,
 } from './controllers/memory-functions.mjs'
 import {
-    mcpCall,
+    mcpCallMember,
+    mcpCallSystem,
     mSessionInfo,
     mcpStream,
     mcpSystemInfo,
@@ -91,7 +92,8 @@ import {
 const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
-const _mcpRouter = new Router()
+const _mcpSystemAvatarRouter = new Router()
+const _mcpMemberAvatarRouter = new Router()
 const _nandaRouter = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 //	root routes
@@ -148,11 +150,11 @@ _apiRouter.post('/obscure/:mid', apiObscure)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
 /* mcp-api routes */
-_mcpRouter.use(protocolValidation)
-_mcpRouter.get('/', mcpSystemInfo)
-_mcpRouter.get('/sse', mcpStream)
-_mcpRouter.get('/message/:sid', mSessionInfo)
-_mcpRouter.post('/message', mcpCall)
+_mcpSystemAvatarRouter.use(mcpProtocolValidation)
+_mcpSystemAvatarRouter.get('/', mcpSystemInfo)
+_mcpSystemAvatarRouter.get('/sse', mcpStream)
+_mcpSystemAvatarRouter.get('/message/:sid', mSessionInfo)
+_mcpSystemAvatarRouter.post('/message', mcpCallSystem)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
@@ -199,6 +201,12 @@ _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
+/* mcp-member-api routes */
+_mcpMemberAvatarRouter.use(mcpProtocolValidation)
+_mcpMemberAvatarRouter.get('/', mcpSystemInfo)
+_mcpMemberAvatarRouter.get('/sse', mcpStream)
+_mcpMemberAvatarRouter.get('/message/:sid', mSessionInfo)
+_mcpMemberAvatarRouter.post('/message', mcpCallMember)
 /* Nanda routes */
 _nandaRouter.get('/mylife', server)
 _nandaRouter.get('/servers/:sid', server)
@@ -207,7 +215,8 @@ _nandaRouter.get('/servers', servers)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
-_Router.use('/api/v2/mcp/system-avatar', _mcpRouter.routes(), _mcpRouter.allowedMethods())
+_Router.use('/api/v2/mcp/system-avatar', _mcpSystemAvatarRouter.routes(), _mcpSystemAvatarRouter.allowedMethods())
+_Router.use('/api/v2/mcp/member-avatar', _mcpMemberAvatarRouter.routes(), _mcpMemberAvatarRouter.allowedMethods())
 _Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**
@@ -227,7 +236,7 @@ function connectRoutes(_Menu){
 async function memberValidation(ctx, next){
     const { locked=true, } = ctx.state
     ctx.state.dateNow = Date.now()
-    const redirectUrl = `/?type=select`
+    const redirectUrl = `/`
     if(locked){
         const isAjax = ctx.get('X-Requested-With') === 'XMLHttpRequest' || ctx.is('json')
         if(isAjax){
@@ -262,7 +271,7 @@ function status_signup(ctx){
  * Validates the MCP protocol request.
  * @param {Koa} ctx - Koa context object
  */
-async function protocolValidation(ctx, next){
+async function mcpProtocolValidation(ctx, next){
     switch(ctx.request.method.toUpperCase()){
         case 'GET':
             // @todo - only required when initiating session or every get (main page `/` for example)?
@@ -282,6 +291,23 @@ async function protocolValidation(ctx, next){
             const { transportEntry, } = sessionMeta
             if(!transportEntry)
                 ctx.throw(401, 'Unauthorized or unknown session; cannot communicate with MCP')
+            const { id: run_id, jsonrpc, method, params={}, } = ctx.request.body
+            const { arguments: args, capabilities, clientInfo, name, protocolVersion, _meta={}, } = params
+            const { progressToken, } = _meta
+            ctx.state.mcp = {
+                args,
+                capabilities,
+                clientInfo,
+                jsonrpc,
+                method,
+                name,
+                params,
+                progressToken,
+                protocolVersion,
+                run_id,
+                sessionId,
+                _meta,
+            }
             break
         default:
             break

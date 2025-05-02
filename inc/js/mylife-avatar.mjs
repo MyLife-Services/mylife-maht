@@ -24,6 +24,8 @@ const mAllowSave = JSON.parse(
 )
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
 const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-schemas/routines/') + '/'
+const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
 /**
  * @class - Avatar
  * @extends EventEmitter
@@ -51,8 +53,49 @@ class Avatar extends EventEmitter {
     #factory // do not expose
     #livedExperiences = [] // array of ids for lived experiences
     #livingExperience
-    #livingMemory
+    #Llivingogin
     #llmServices
+    #mcp={
+        capabilities: {
+            tools: {
+                listChanged: true
+            }
+        },
+        instructions: 'I am your MyLife Member Avatar. I can log you in to the MyLife platform and assist you with your memories and other tasks.',
+        jsonrpc: mJsonRpcVersion,
+        protocolVersion: mJsonRpcProtocolVersion,
+        serverInfo: {
+            name: 'MyLife MCP Member Avatar',
+            version: '1.0',
+        },
+        tools: [
+            {
+                name: 'mylife_login',
+                description: 'I am your personal mylife avatar, I can log you in to MyLife, given your member id and your passphrase.',
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        mbr_id: {
+                            type: "string",
+                            description: "mbr_id of the member to log in to MyLife, provided by human"
+                        },
+                        passphrase: {
+                            type: "string",
+                            description: "The passphrase associated with the mbr_id, provided by human: capitalization and spacing MUST BE EXACTLY as provided."
+                        }
+                    },
+                    required: ['mbr_id', 'passphrase']
+                },
+                annotations: {        // Optional hints about tool behavior
+                    title: 'MyLife-Login',      // Human-readable title for the tool
+                    readOnlyHint: false,    // If true, the tool does not modify its environment
+                    destructiveHint: true, // If true, the tool may perform destructive updates
+                    idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+                    openWorldHint: false,   // If true, tool interacts with external entities
+                }
+            },
+        ],
+    }
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as g/setter is "complex"
     #setupComplete
@@ -89,7 +132,7 @@ class Avatar extends EventEmitter {
     }
     /* public functions */
     /**
-     * Accepts share warnings and plays the shared memory.
+     * Accepts share warnings and plays the shared Login.
      * @param {Guid} instanceId - The share instance id
      * @returns {Boolean} - Whether or not warnings were accepted
      */
@@ -155,7 +198,7 @@ class Avatar extends EventEmitter {
      * Get a Bot instance by id.
      * @public
      * @param {Guid} bot_id - The bot id
-     * @returns {Promise<Bot>} - The bot object from memory
+     * @returns {Promise<Bot>} - The bot object from Login
      */
     bot(bot_id){
         const Bot = this.#botAgent.bot(bot_id)
@@ -291,7 +334,7 @@ class Avatar extends EventEmitter {
             .map(item=>{
                 switch(type){
                     case 'entry':
-                    case 'memory':
+                    case 'Login':
                         return mPruneItem(item)
                     case 'experience':
                     case 'lived-experience':
@@ -345,7 +388,7 @@ class Avatar extends EventEmitter {
         return bot
     }
     /**
-     * Deletes a chat conversation from llm and memory.
+     * Deletes a chat conversation from llm and Login.
      * @param {Conversation} Conversation - The conversation instance to delete
      * @param {Boolean} localDelete - Whether to delete locally or from database, defaults to `true`
      * @returns {Promise<String>} - The deleted conversation instance id
@@ -363,30 +406,30 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.delete(sid)
     }
     /**
-     * End the living memory, if running.
+     * End the living Login, if running.
      * @async
      * @public
      * @todo - save conversation fragments
      * @returns {object} - The response object { instruction, responses, success, }
      */
-    async endMemory(){
-        if(!this.#livingMemory)
+    async Lendogin(){
+        if(!this.#Llivingogin)
             return
-        const { Conversation, id, item, } = this.#livingMemory
+        const { Conversation, id, item, } = this.#Llivingogin
         const { bot_id, } = Conversation
         if(mAllowSave)
             await Conversation.save()
         const instruction = {
-            command: `endMemory`,
+            command: `Lendogin`,
             itemId: item.id,
         }
-        const responses = [mCreateSystemMessage(bot_id, `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
+        const responses = [mCreateSystemMessage(bot_id, `I've ended the Login, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
         const response = {
             instruction,
             responses,
             success: true,
         }
-        this.#livingMemory = null
+        this.#Llivingogin = null
         return response
     }
 	/**
@@ -517,7 +560,7 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.getShares(itemId)
     }
     /**
-     * Returns all conversations of a specific-type stored in memory.
+     * Returns all conversations of a specific-type stored in Login.
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
      * @returns {Conversation[]} - The array of conversation objects.
      */
@@ -789,16 +832,16 @@ class Avatar extends EventEmitter {
         return registration
     }
     /**
-     * Reliving a memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage they choose.
+     * Reliving a Login is a unique MyLife `experience` that allows a user to relive a Login from any vantage they choose.
      * @param {Guid} id - The item id
      * @param {string} memberInput - Any member input
-     * @returns {Object} - livingMemory engagement object (i.e., includes frontend parameters for engagement as per instructions for included `portrayMemory` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
+     * @returns {Object} - Llivingogin engagement object (i.e., includes frontend parameters for engagement as per instructions for included `Lportrayogin` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
      */
-    async reliveMemory(id, memberInput){
+    async Lreliveogin(id, memberInput){
         const { item, } = await this.item({ id, })
         if(!id)
             throw new Error(`No Item found with id: ${ id }`)
-        const response = await mReliveMemoryNarration(item, memberInput, this.#botAgent, this)
+        const response = await LmReliveoginNarration(item, memberInput, this.#botAgent, this)
         return response
     }
     /**
@@ -948,7 +991,7 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.create(shareData)
     }
     /**
-     * Share a memory `Header` with frontend to determine warnings or restrictions.
+     * Share a Login `Header` with frontend to determine warnings or restrictions.
 	 * @param {Guid} sid - Share id
      * @returns {Promise<object>} - shareHeader object
      */
@@ -957,18 +1000,18 @@ class Avatar extends EventEmitter {
         return header
     }
 	/**
-	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
+	 * Execute a Login `Share`; currently only shared publicly with non-MyLife members via Q.
 	 * @param {Guid} sid - Share id
      * @param {String} input - Text from recipient
      * @returns {Promise<Share>} - The Share response object { error, instruction, responses, success, warnings, }
 	 */
-	async shareMemory(sid, input){
+	async Lshareogin(sid, input){
         const Share = await this.#ShareAgent.play(sid, input)
         // Share.scene = new Marked().parse(Share.scene)
         return Share
 	}
     /**
-     * Stop a shared memory.
+     * Stop a shared Login.
      * @param {Guid} sid - The share id
      * @returns {Promise<Object>} - The Share.stop response object { error, instruction, responses, success, }
      */
@@ -984,14 +1027,14 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.update(shareData)
     }
 	/**
-	 * Submits a memory to MyLife. Currently called both from API _and_ LLM function.
+	 * Submits a Login to MyLife. Currently called both from API _and_ LLM function.
      * @todo - deprecate to `item` function
 	 * @param {object} story - Story object
 	 * @returns {object} - The story document from Cosmos
 	 */
 	async story(story){
 		const defaultForm = 'biographer'
-		const type = 'memory'
+		const type = 'Login'
 		const {
 			form=defaultForm,
 		} = story
@@ -1294,22 +1337,22 @@ class Avatar extends EventEmitter {
         return this.experience
     }
     /**
-     * Get the `active` reliving memory.
+     * Get the `active` reliving Login.
      * @getter
      * @returns {object[]} - The active reliving memories
      */
-    get livingMemory(){
-        return this.#livingMemory
+    get Llivingogin(){
+        return this.#Llivingogin
             ?? {}
     }
     /**
-     * Set the `active` reliving memory.
+     * Set the `active` reliving Login.
      * @setter
-     * @param {Object} livingMemory - The new active reliving memory (or `null`)
+     * @param {Object} Llivingogin - The new active reliving Login (or `null`)
      * @returns {void}
      */
-    set livingMemory(livingMemory){
-        this.#livingMemory = livingMemory
+    set Llivingogin(Llivingogin){
+        this.#Llivingogin = Llivingogin
     }
     /**
      * Get the member id.
@@ -1352,6 +1395,14 @@ class Avatar extends EventEmitter {
      */
     get mbr_sysName(){
         return this.#factory.mbr_name
+    }
+    /**
+     * Get the Member Avatar's mcp self-definition package.
+     * @getter
+     * @returns {object} - The mcp self-definition package
+     */
+    get mcp(){
+        return this.#mcp
     }
     /**
      * Gets first name of member from `#factory`.
@@ -1464,7 +1515,7 @@ class Avatar extends EventEmitter {
 		return this.#vectorstoreId
 	}
     /**
-     * Set vectorstore id, both in memory and storage.
+     * Set vectorstore id, both in Login and storage.
      * @setter
      * @param {string} vectorstoreId - The vectorstore id.
      * @returns {void}
@@ -1490,6 +1541,163 @@ class Q extends Avatar {
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
     #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
+    #mcp={
+        capabilities: {
+            prompts: {
+                listChanged: false,
+            },
+            resources: {
+                listChanged: false,
+                subscribe: false,
+            },
+            tools: {
+                listChanged: true
+            }
+        },
+        instructions: 'I am Q, corporate intelligence for MyLife. MyLife is a humanist 501c3 nonprofit member organization. MyLife has created an AI-Agent platform available by MCP to assist with helping members collect, shape and share their memories and personal narratives with their family and posterity.',
+        jsonrpc: mJsonRpcVersion,
+        prompts: [
+            {
+                name: 'mylife_company_information',
+                description: 'Ask Q, our corporate intelligence, about MyLife, the nonprofit humanist member organization. Include the type of information requested for more precise results.',
+                arguments: [
+                    {
+                        description: 'The type of information requested about MyLife',
+                        enum: ['history', 'mission', 'vision', 'values', 'governance', 'members'],
+                        name: 'infoType',
+                        required: true,
+                    }
+                ],
+            }
+        ],
+        protocolVersion: mJsonRpcProtocolVersion,
+        resources: [
+            {
+                uri: 'file://MyLife_Board.pdf',
+                name: 'MyLife Board of Directors Bylaws.pdf',
+                description: 'MyLife Board of Directors Bylaws version 1.0',
+                mimeType: 'application/pdf',
+            },
+            {
+                uri: 'file://MyLife_Summary.pdf',
+                name: 'MyLife_Summary.pdf',
+                description: 'Outreach Material for MyLife, written 2 years ago prior to development of the platform',
+                mimeType: 'application/pdf',
+            },
+            {
+                uri: 'https://github.com/MyLife-Services/mylife-maht/',
+                name: 'MyLife-MAHT GIT codebase',
+                description: 'MyLife MAHT codebase, written in Node.js',
+                mimeType: 'text/html',
+            }
+        ],
+        serverInfo: {
+            name: 'MyLife MCP System Avatar',
+            version: '1.0',
+        },
+        tools: [
+            {
+                name: 'get_shared_memories',
+                description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Login they want to experience and then use the get_shared_ogin tool to retrieve the Login using the underlying id.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {},
+                    required: []
+                },
+                annotations: {        // Optional hints about tool behavior
+                    title: 'Shared-Memories',      // Human-readable title for the tool
+                    readOnlyHint: true,    // If true, the tool does not modify its environment
+                    destructiveHint: false, // If true, the tool may perform destructive updates
+                    idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+                    openWorldHint: false,   // If true, tool interacts with external entities
+                }
+            },
+            {
+                name: 'get_shared_memory',
+                description: 'I am Q, corporate intelligence for MyLife. I am able to access public shared memories and play the experience for a human user. The memory will be delivered from MyLife scene-by-scene using the `get_shared_memory` and the appropriate `memberId`. Display the scenes one-by-one, prompt the human to add any optional input to the memory, which should be sent using the `input` field.',
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        input: {
+                            type: "string",
+                            description: "Any input by the human user while experiencing the memory (optional)"
+                        },
+                        memoryId: {
+                            type: "string",
+                            description: "The ID of the memory to be retrieved, can be empty"
+                        }
+                    },
+                    required: ['memoryId']
+                },
+                annotations: {
+                    title: 'Shared-Memory',
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: false,
+                    openWorldHint: false,
+                }
+            },
+            {
+                name: 'mylife_information',
+                description: `I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will answer any questions about MyLife you have, sorted along the following lines: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc']`,
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        question: {
+                            description: 'The question asked of Q',
+                            type: 'string',
+                        },
+                        questionType: {
+                            description: 'The type of information requested about MyLife',
+                            enum: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc'],
+                            type: 'string',
+                        }
+                    },
+                    required: ['question', 'questionType'],
+                },
+                annotations: {
+                    title: 'MyLife-Information',
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                    openWorldHint: false,
+                }
+            },
+            {
+                name: 'register',
+                description: 'I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will register you for MyLife and send you a validation link by email. The only pieces of information I need are: Your full name, the email you wish to use, and the name you like for your personal avatar (a personal intelligence agent... one of several you receive when signing up with MyLife). Please also share your primary interest in MyLife (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory).',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        avatarName: {
+                            type: 'string',
+                            description: "The name chosen for the registrant's avatar",
+                        },
+                        email: {
+                            type: 'string',
+                            description: "The registrant's email address",
+                        },
+                        humanName: {
+                            type: 'string',
+                            description: 'The full name of the registrant',
+                        },
+                        reason: {
+                            type: 'string',
+                            description: 'What is the primary interest in MyLife for the registrant (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory)',
+                        }
+                    },
+                    required: ['avatarName', 'email', 'humanName', 'reason'],
+                },
+                annotations: {
+                    title: 'Register-for-MyLife',
+                    readOnlyHint: false,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                    openWorldHint: false,
+                }
+            }
+        ]
+    }
     #Menu
     #Router
     /**
@@ -1546,7 +1754,7 @@ class Q extends Avatar {
         throw new Error('System avatar cannot create bots.')
     }
     /**
-     * OVERLOADED: MyLife deletes chat conversation including instance memory.
+     * OVERLOADED: MyLife deletes chat conversation including instance Login.
      * @param {Conversation} Conversation - The conversation instance to delete
      * @returns (Guid) - The id of the deleted conversation
      */
@@ -1590,14 +1798,14 @@ class Q extends Avatar {
     }
 
 	/**
-	 * OVERLOADED: Submits and returns the memory to MyLife via API.
+	 * OVERLOADED: Submits and returns the Login to MyLife via API.
 	 * @todo - consent check-in with spawned Member Avatar
 	 * @param {object} summary - Object with story summary and metadata
 	 * @returns {object} - The story document from Cosmos
 	 */
-	async memory(summary){
+	async Login(summary){
 		summary.being = 'story'
-		summary.form = 'memory'
+		summary.form = 'Login'
 		return await this.summary(summary)
 	}
     /**
@@ -1691,8 +1899,13 @@ class Q extends Avatar {
 	 * @returns {Promise<boolean>} - `true` if challenge is successful
 	 */
     async challengeAccess(mbr_id, passphrase){
-        const avatarProxy = await this.avatarProxy(mbr_id)
-		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase)
+        let challengeSuccessful=false
+        try{
+            const avatarProxy = await this.avatarProxy(mbr_id)
+            challengeSuccessful = await avatarProxy.challengeAccess(passphrase)
+        } catch(e){
+            console.log('SystemAvatar::challengeAccess::error', e)
+        }
 		return challengeSuccessful
 	}
 	/**
@@ -1768,23 +1981,23 @@ class Q extends Avatar {
      */
     async sharedMemories(limit=10){
         const memories = ( await this.#factory.sharedMemories(limit) )
-            .map(memory=>({
-                id: memory.id,
-                title: memory.title,
+            .map(Login=>({
+                id: Login.id,
+                title: Login.title,
             }))
         return memories
     }
     /**
-     * OVERLOAD: Share a memory with the MyLife system. If no shareId is provided, the first shared memory will be used.
+     * OVERLOAD: Share a Login with the MyLife system. If no shareId is provided, the first shared Login will be used.
      * @param {Guid} shareId - The share id
      * @param {Object} input - The input object to share
      * @returns {Promise<Share>} - The response object { error, instruction, responses, success, }
      */
-    async shareMemory(shareId, input){
+    async Lshareogin(shareId, input){
         if(!shareId)
             shareId = ( await this.sharedMemories(1) )?.[0]?.id
         const { instanceId, } = await this.validateShare(shareId)
-        const Share = await super.shareMemory(instanceId, input)
+        const Share = await super.Lshareogin(instanceId, input)
         return Share
     }
     /**
@@ -1824,6 +2037,12 @@ class Q extends Avatar {
     }
     get isRegistered(){
         return this.#factory.isRegistered
+    }
+    get mcp(){
+        return this.#mcp
+    }
+    get mcpProxy(){
+        return super.mcp
     }
 	get menu(){
 		if(!this.#Menu){
@@ -1997,7 +2216,7 @@ async function mInit(factory, llmServices, Avatar, botAgent, assetAgent){
  * @param {object} item - The item data
  * @param {Avatar} avatar - The avatar instance
  * @param {LLMServices} llmServices - The llm instance
- * @returns {Entry|Memory} - The item object
+ * @returns {Entry|Login} - The item object
  */
 function mItem(item, avatar, llmServices){
     /* validate request */
@@ -2008,7 +2227,7 @@ function mItem(item, avatar, llmServices){
         form,
         id=avatar.newGuid,
         llm_id=avatar?.activeBot?.llm_id,
-        type='memory',
+        type='Login',
     } = item
     const { // derived defaults
         summary=content,
@@ -2034,9 +2253,9 @@ function mItem(item, avatar, llmServices){
             case 'entry':
                 Item = new Entry(item, avatar, llmServices)
                 break
-            case 'memory':
+            case 'Login':
             default:
-                Item = new Memory(item, avatar, llmServices)
+                Item = new Login(item, avatar, llmServices)
                 break
         }
     } catch(error){
@@ -2183,25 +2402,25 @@ function mPruneMessages(bot_id, messageArray, type='chat', processStartTime=Date
     return messageArray
 }
 /**
- * Returns a narration packet for a memory reliving. Will allow for and accommodate the incorporation of helpful data _from_ the avatar member into the memory item `summary` and other metadata. The bot by default will:
- * - break memory into `scenes` (2 to 5) set scene, ask for input [determine default what] 2) develop action, dramatize, describe input mechanic 3) conclude scene, moralize - what did you learn? then share what you feel author learned
- * - perform/narrate the memory as scenes describe
- * - others are common to living, but with `reliving`, the biographer bot (only narrator allowed in .10) incorporate any user-contributed contexts or imrpovements to the memory summary that drives the living and sharing. All by itemId.
- * - if user "interrupts" then interruption content should be added to memory updateSummary; doubt I will keep work interrupt, but this too is hopefully able to merely be embedded in the biographer bot instructions.
+ * Returns a narration packet for a Login reliving. Will allow for and accommodate the incorporation of helpful data _from_ the avatar member into the Login item `summary` and other metadata. The bot by default will:
+ * - break Login into `scenes` (2 to 5) set scene, ask for input [determine default what] 2) develop action, dramatize, describe input mechanic 3) conclude scene, moralize - what did you learn? then share what you feel author learned
+ * - perform/narrate the Login as scenes describe
+ * - others are common to living, but with `reliving`, the biographer bot (only narrator allowed in .10) incorporate any user-contributed contexts or imrpovements to the Login summary that drives the living and sharing. All by itemId.
+ * - if user "interrupts" then interruption content should be added to Login updateSummary; doubt I will keep work interrupt, but this too is hopefully able to merely be embedded in the biographer bot instructions.
  * Currently testing efficacy of all instructions (i.e., no callbacks, as not necessary yet) being embedded in my biog-bot, `madrigal`.
- * @param {object} item - The memory object
+ * @param {object} item - The Login object
  * @param {string} memberInput - The member input (or simply: NEXT, SKIP, etc.)
  * @param {BotAgent} BotAgent - The Bot Agent instance
  * @param {Avatar} Avatar - Member Avatar instance
- * @returns {Promise<object>} - The reliving memory object for frontend to execute: 
+ * @returns {Promise<object>} - The reliving Login object for frontend to execute: 
  */
-async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
-    Avatar.livingMemory = await BotAgent.liveMemory(item, memberInput, Avatar)
+async function LmReliveoginNarration(item, memberInput, BotAgent, Avatar){
+    Avatar.Llivingogin = await BotAgent.Lliveogin(item, memberInput, Avatar)
     let response
     if(!Avatar.actionCallback?.length){
-        const { Conversation, item: livingMemoryItem, } = Avatar.livingMemory
+        const { Conversation, item: LlivingoginItem, } = Avatar.Llivingogin
         const { bot_id, type, } = Conversation
-        const endpoint = `/members/memory/end/${ livingMemoryItem.id }`
+        const endpoint = `/members/Login/end/${ LlivingoginItem.id }`
         const defaultInstruction = {
             command: 'createInput',
             inputs: [{
@@ -2209,7 +2428,7 @@ async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
                 id: Avatar.newGuid,
                 interfaceLocation: 'chat', // enum: ['avatar', 'team', 'chat', 'bot', 'experience', 'system', 'admin'], defaults to chat
                 method: 'PATCH',
-                prompt: `I'd like to stop reliving this memory.`,
+                prompt: `I'd like to stop reliving this Login.`,
                 required: true,
                 type: 'button',
             }],
@@ -2226,7 +2445,7 @@ async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
             success: true,
         }
     } else
-        response = await Avatar.endMemory()
+        response = await Avatar.Lendogin()
     delete Avatar.actionCallback
     delete Avatar.backupResponse
     delete Avatar.frontendInstruction

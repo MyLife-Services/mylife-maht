@@ -3,230 +3,147 @@ import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
+import { challenge, } from './functions.mjs'
 /* modular constants */
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
-const mQInitialization = {
-    protocolVersion: mJsonRpcProtocolVersion,
-    capabilities: {
-        /*
-        logging: {},
-        */
-        prompts: {
-            listChanged: false,
-        },
-        resources: {
-            listChanged: false,
-            subscribe: false,
-        },
-        tools: {
-            listChanged: true
-        }
-    },
-    serverInfo: {
-        name: 'MyLife MCP',
-        version: '1.0',
-    },
-    instructions: 'I am Q, corporate intelligence for MyLife. MyLife is a humanist 501c3 nonprofit member organization. MyLife has created an AI-Agent platform available by MCP to assist with helping members collect, shape and share their memories and personal narratives with their family and posterity.',
-}
-const mPromptsList = [
-    {
-        name: 'mylife_company_information',
-        description: 'Ask Q, our corporate intelligence, about MyLife, the nonprofit humanist member organization. Include the type of information requested for more precise results.',
-        arguments: [
-            {
-                description: 'The type of information requested about MyLife',
-                enum: ['history', 'mission', 'vision', 'values', 'governance', 'members'],
-                name: 'infoType',
-                required: true,
-            }
-        ],
-    }
-]
-const mResourcesList = [
-    {
-        uri: 'file://MyLife_Board.pdf',
-        name: 'MyLife Board of Directors Bylaws.pdf',
-        description: 'MyLife Board of Directors Bylaws version 1.0',
-        mimeType: 'application/pdf',
-    },
-    {
-        uri: 'file://MyLife_Summary.pdf',
-        name: 'MyLife_Summary.pdf',
-        description: 'Outreach Material for MyLife, written 2 years ago prior to development of the platform',
-        mimeType: 'application/pdf',
-    },
-    {
-        uri: 'https://github.com/MyLife-Services/mylife-maht/',
-        name: 'MyLife-MAHT GIT codebase',
-        description: 'MyLife MAHT codebase, written in Node.js',
-        mimeType: 'text/html',
-    }
-]
-const mToolList = [
-    {
-        name: 'get_shared_memories',
-        description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.',
-        inputSchema: {
-            type: 'object',
-            properties: {},
-            required: []
-        },
-        annotations: {        // Optional hints about tool behavior
-            title: 'Shared-Memories',      // Human-readable title for the tool
-            readOnlyHint: true,    // If true, the tool does not modify its environment
-            destructiveHint: false, // If true, the tool may perform destructive updates
-            idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false,   // If true, tool interacts with external entities
-        }
-    },
-    {
-        name: 'get_shared_memory',
-        description: 'I am Q, corporate intelligence for MyLife. I am able to access public shared memories and play the experience for a human user. The memory will be delivered from MyLife scene-by-scene using the `get_shared_memory` and the appropriate `memberId`. Display the scenes one-by-one, prompt the human to add any optional input to the memory, which should be sent using the `input` field.',
-        inputSchema: {
-            type: "object",
-            properties: {
-                input: {
-                    type: "string",
-                    description: "Any input by the human user while experiencing the memory (optional)"
-                },
-                memoryId: {
-                    type: "string",
-                    description: "The ID of the memory to be retrieved, can be empty"
-                }
-            },
-            required: ['memoryId']
-        },
-        annotations: {        // Optional hints about tool behavior
-            title: 'Shared-Memory',      // Human-readable title for the tool
-            readOnlyHint: true,    // If true, the tool does not modify its environment
-            destructiveHint: false, // If true, the tool may perform destructive updates
-            idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-            openWorldHint: false,   // If true, tool interacts with external entities
-        }
-    },
-    {
-        name: 'mylife_information',
-        description: `I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will answer any questions about MyLife you have, sorted along the following lines: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc']`,
-        inputSchema: {
-            type: 'object',
-            properties: {
-                question: {
-                    description: 'The question asked of Q',
-                    type: 'string',
-                },
-                questionType: {
-                    description: 'The type of information requested about MyLife',
-                    enum: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc'],
-                    type: 'string',
-                }
-            },
-            required: ['question', 'questionType'],
-        },
-        annotations: {
-            title: 'MyLife-Information',
-            readOnlyHint: true,
-            destructiveHint: false,
-            idempotentHint: true,
-            openWorldHint: false,
-        }
-    },
-    {
-        name: 'register',
-        description: 'I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will register you for MyLife and send you a validation link by email. The only pieces of information I need are: Your full name, the email you wish to use, and the name you like for your personal avatar (a personal intelligence agent... one of several you receive when signing up with MyLife). Please also share your primary interest in MyLife (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory).',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                avatarName: {
-                    type: 'string',
-                    description: "The name chosen for the registrant's avatar",
-                },
-                email: {
-                    type: 'string',
-                    description: "The registrant's email address",
-                },
-                humanName: {
-                    type: 'string',
-                    description: 'The full name of the registrant',
-                },
-                reason: {
-                    type: 'string',
-                    description: 'What is the primary interest in MyLife for the registrant (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory)',
-                }
-            },
-            required: ['avatarName', 'email', 'humanName', 'reason'],
-        },
-        annotations: {
-            title: 'Register-for-MyLife',
-            readOnlyHint: false,
-            destructiveHint: false,
-            idempotentHint: true,
-            openWorldHint: false,
-        }
-    }
-]
-/* System Avatar MCP Functions */
-async function mcpCall(ctx, next){
-    const { sessionId, } = ctx.request.query
-    const { id: run_id, jsonrpc, method, params={}, } = ctx.request.body
-    const { arguments: args, name, protocolVersion, _meta={}, } = params
-    const { progressToken, } = _meta
-    const { sessionMeta, } = ctx.state
+/* public functions */
+async function mcpCallMember(ctx){
+    let { error, result, } = mcpInitializationChecks(ctx, 'member')
+    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
     const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
-    if(!transportEntry)
-        throw new error('Session not found', sessionId)
-    let error,
-        id=run_id,
-        result
-    /* save run ID to transport entry for later use */
-    let run = runs.find((run)=>(run.id===id))
-    // @todo - handle run in progress
-    if(!!run)
-        return
-    run = {
-        args,
-        id,
-        progressToken,
-        method,
-        name,
-    }
-    runs.push(run)
-    if(!initialized){
-        if(method!=='initialize'){
-            error = {
-                code: 403,
-                data: {
-                    arguments: args,
-                    id,
-                    method,
-                    sessionId,
-                },
-                message: 'Session not initialized\n1. use `method=initialize` to finalize handshake;\n2. use `method=notifications/initialized` to confirm initialization',
-            }
-        } else {
-            mTestMcpProtocols(jsonrpc, protocolVersion)
-            result = mQInitialization
-            result.protocolVersion = protocolVersion /* under-report for compatibility */
-            const { capabilities, clientInfo, } = params
-            sessionMeta.capabilities = capabilities
-            sessionMeta.clientInfo = clientInfo
-            sessionMeta.initialized = true
+    const { args, jsonrpc, method, name, params, progressToken, protocolVersion, run_id, _meta, } = mcp
+    if(!(error ?? result)){
+        console.log(chalk.yellow('mcpCallMember'), method, name)
+        if(Avatar.isMyLife){} // not logged in
+        const methodBase = method.split('/')[0]
+        const methodAction = method.split('/').pop()
+        switch(methodBase){
+            case 'initialize': /* intentionally empty as it is required to cascade through for authentication */
+                break
+            case 'tools':
+                switch(methodAction){
+                    case 'call':
+                        if(!params)
+                            error = {
+                                code: 500,
+                                data: {
+                                    arguments: args,
+                                    id,
+                                    method,
+                                    name,
+                                    params,
+                                    sessionId,
+                                },
+                                message: 'params are required for tool call',
+                            }
+                        else
+                            switch(name){
+                                case 'mylife_login':
+                                    const { mbr_id: memberId, passphrase: memberPassphrase, } = args
+                                    await challenge(ctx, memberId, memberPassphrase)
+                                    const loginSuccess = ctx.body===true
+                                    ctx.body = null
+                                    if(!loginSuccess){
+                                        console.log('mylife_login::fail', loginSuccess, memberId, memberPassphrase)
+                                        result = {
+                                            content: [{
+                                                text: `Unfortunately, the MyLife login failed. Please try again.`,
+                                                type: 'text',
+                                            }],
+                                            isError: true,
+                                        }
+                                        break
+                                    }
+                                    console.log('mylife_login::success', loginSuccess, memberId, memberPassphrase)
+                                    // set any session variables?
+                                    result = {
+                                        content: [{
+                                            text: `I am currently not logging anyone in.\nmbr_id=${ memberId }\npassphrase=${ memberPassphrase }`,
+                                            type: 'text',
+                                        }],
+                                        isError: false,
+                                    }
+                                    break
+                                default:
+                                    console.log(chalk.red('MCP Call request - unhandled method'), method, name)
+                                    result = {
+                                        content: [{
+                                            text: `Unfortunately, the MyLife Member Avatar tool "${ name }" is unhandled currently.`,
+                                            type: 'text',
+                                        }],
+                                        isError: true,
+                                    }
+                                    break
+                            }
+                        break
+                    case 'list':
+                        result = {
+                            tools: Avatar.isMyLife ? Avatar.mcpProxy.tools : Avatar.mcp.tools,
+                        }
+                        break
+                    default:
+                        error = {
+                            code: 500,
+                            data: {
+                                arguments: args,
+                                id,
+                                method,
+                                sessionId,
+                            },
+                            message: `MCP Call request\nmethodAction = ${ methodAction }\nUnknown or unhandled method\nPlease try again in all lowercase and without spaces`,
+                        }
+                        break
+                }
+                break
+            case 'notifications':
+                const notificationType = method.split('/').pop()
+                switch(notificationType){
+                    case 'cancelled':
+                        const { reason, requestId, } = params
+                        if(ctx.Globals.isValidGuid(requestId))
+                            id = requestId
+                        console.log(chalk.yellow('MCP Call request - cancelled'), reason, requestId)
+                        break
+                    case 'initialized':
+                        /* intentionally empty as it is required to cascade through for authentication */
+                        break
+                    default:
+                        break
+                }
+                break
+            case 'ping':
+                result = {}
+                break
+            case 'prompts':
+            case 'resources':
+            default:
+                console.log(chalk.red('MCP Call request - unhandled method'), method)
+                error = {
+                    code: 500,
+                    data: {
+                        arguments: args,
+                        id,
+                        method,
+                        sessionId,
+                    },
+                    message: 'MCP Call request: unknown or unhandled method; please try again in all lowercase and without spaces',
+                }
+                break
         }
-    } else if (!initializeConfirmation){
-        if(method!=='notifications/initialized'){
-            error = {
-                code: 403,
-                data: {
-                    arguments: args,
-                    id,
-                    method,
-                    sessionId,
-                },
-                message: 'Session initialization handshake failed\n1. use `method=notifications/initialized` to confirm initialization handshake',
-            }
-        } else
-            sessionMeta.initializeConfirmation = true
-    } else {
+    }
+    console.log(chalk.yellow('mcpCallMember'), method, name, error, result)
+    sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==run_id))
+    mcpSendResponse(transportEntry, jsonrpc, error, run_id, result)
+    ctx.status = 200
+}
+/* System Avatar MCP Functions */
+async function mcpCallSystem(ctx){
+    let { error, result, } = mcpInitializationChecks(ctx)
+    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
+    const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
+    const { args, jsonrpc, method, name, progressToken, protocolVersion, params, run_id, _meta, } = mcp
+    if(!(error ?? result)){
         const methodBase = method.split('/')[0]
         const methodAction = method.split('/').pop()
         switch(methodBase){
@@ -255,7 +172,7 @@ async function mcpCall(ctx, next){
                         break
                     case 'list':
                         result = {
-                            prompts: mPromptsList,
+                            prompts: Avatar.mcp.prompts,
                         }
                         break
                 }
@@ -264,7 +181,7 @@ async function mcpCall(ctx, next){
                 switch(methodAction){
                     case 'list':
                         result = {
-                            resources: mResourcesList,
+                            resources: Avatar.mcp.resources,
                         }
                         break
                     case 'read':
@@ -335,12 +252,14 @@ async function mcpCall(ctx, next){
                             switch(name){
                                 case 'get_shared_memories':
                                     const { cursor, } = args
+                                        ?? {}
                                     const pageSize = 10
                                     let decodedCursor = 0
-                                      try {
+                                    try {
                                         if(cursor){
                                             const parsed = JSON.parse(Buffer.from(cursor, 'base64').toString())
-                                            decodedCursor = parsed.index ?? 0
+                                            decodedCursor = parsed.index
+                                                ?? 0
                                         }
                                     } catch (err) {
                                         throw {
@@ -348,7 +267,7 @@ async function mcpCall(ctx, next){
                                             message: 'Invalid cursor format',
                                         }
                                     }
-                                    const memories = await ctx.SystemAvatar.sharedMemories()
+                                    const memories = await Avatar.sharedMemories()
                                     const total = memories.length
                                     const memoryPage = memories.slice(decodedCursor, decodedCursor+pageSize)
                                     const memoryPageHasNext = decodedCursor + pageSize < total
@@ -388,7 +307,7 @@ async function mcpCall(ctx, next){
                                                 })
                                             }, 2500)
                                         }
-                                        const { instanceId, } = await ctx.SystemAvatar.validateShare(sharedMemoryMemoryId)
+                                        const { instanceId, } = await Avatar.validateShare(sharedMemoryMemoryId)
                                         if(!instanceId){
                                             result = {
                                                 content: [{
@@ -400,8 +319,8 @@ async function mcpCall(ctx, next){
                                             break
                                         }
                                         sharedMemoryMemoryId = instanceId
-                                        await ctx.SystemAvatar.shareHeader(sharedMemoryMemoryId)
-                                        Share = await ctx.SystemAvatar.share(sharedMemoryMemoryId)
+                                        await Avatar.shareHeader(sharedMemoryMemoryId)
+                                        Share = await Avatar.share(sharedMemoryMemoryId)
                                         if(sharedMemoryInterval01)
                                             clearInterval(sharedMemoryInterval01)
                                         sessionMeta.Share = Share
@@ -435,7 +354,7 @@ async function mcpCall(ctx, next){
                                     }
                                     if(!Share.warningsAccepted) /* previous error result required intelligence to issue warnings to human before re-contacting */
                                         Share.acceptWarnings()
-                                    await ctx.SystemAvatar.shareMemory(sharedMemoryMemoryId, sharedMemoryInput)
+                                    await Avatar.shareMemory(sharedMemoryMemoryId, sharedMemoryInput)
                                     if(sharedMemoryInterval02)
                                         clearInterval(sharedMemoryInterval02)
                                     result = {
@@ -534,7 +453,7 @@ async function mcpCall(ctx, next){
                                                 })
                                             }, 1000)
                                         }
-                                        const registrationData = await ctx.SystemAvatar.registerCandidate(signupPacket)
+                                        const registrationData = await Avatar.registerCandidate(signupPacket)
                                         if(interval)
                                             clearInterval(interval)
                                         const { email: registeredEmail, } = registrationData
@@ -572,7 +491,7 @@ async function mcpCall(ctx, next){
                         break
                     case 'list':
                         result = {
-                            tools: mToolList,
+                            tools: Avatar.mcp.tools,
                         }
                         break
                     default:
@@ -589,8 +508,7 @@ async function mcpCall(ctx, next){
                         break
                 }
                 break
-            case 'initialize':
-                /* intentionally empty as it is required to cascade through for authentication */
+            case 'initialize': /* intentionally empty as it is required to cascade through for authentication */
                 break
             case 'notifications':
                 const notificationType = method.split('/').pop()
@@ -626,25 +544,9 @@ async function mcpCall(ctx, next){
                 break
         }
     }
-    sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==id))
-    try{
-        if(result)
-            transportEntry.send({
-                jsonrpc,
-                id,
-                result,
-            })
-        if(error)
-            transportEntry.send({
-                jsonrpc,
-                id,
-                error,
-            })
-    } catch(error){
-        console.log(chalk.red('NO TRANSPORT SENT::most likely disconnected'), error)
-    }
+    sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==run_id))
+    mcpSendResponse(transportEntry, jsonrpc, error, run_id, result)
     ctx.status = 200
-    await next()
 }
 async function mSessionInfo(ctx) {
     const { sid: sessionId, } = ctx.params
@@ -670,7 +572,12 @@ async function mSessionInfo(ctx) {
  */
 async function mcpStream(ctx) {
     ctx.respond = false
-    const sseTransport = new SSEServerTransport('/api/v2/mcp/system-avatar/message', ctx.res)
+    console.log(chalk.yellow('MCP Stream request'), ctx.request.url)
+    const url = ctx.request.url.split('/')
+    if(url[url.length - 1].toLowerCase()==='sse')
+        url.pop()
+    url.push('message')
+    const sseTransport = new SSEServerTransport(url.join('/'), ctx.res)
     await sseTransport.start() // sends endpoint event
     const { sessionId, } = sseTransport
     ctx.mcpSessionMeta.set(sessionId, {
@@ -704,9 +611,89 @@ async function mcpSystemInfo(ctx) {
         }
     }
 }
+/* private functions */
+function mcpInitializationChecks(ctx, requestType='system'){
+    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
+    const { args, capabilities, clientInfo, jsonrpc, method, name, progressToken, protocolVersion, run_id, sessionId, _meta, } = mcp
+    const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
+    if(!transportEntry)
+        throw new error('Session not found', sessionId)
+    let error,
+        id=run_id,
+        result
+    let run = runs.find((run)=>(run.id===id))
+    // @todo - handle run in progress
+    if(!!run)
+        throw new error('Run in progress', run_id)
+    run = {
+        args,
+        id,
+        progressToken,
+        method,
+        name,
+    }
+    runs.push(run)
+    if(!initialized){
+        if(method!=='initialize'){
+            error = {
+                code: 403,
+                data: {
+                    arguments: args,
+                    id,
+                    method,
+                    sessionId,
+                },
+                message: 'Session not initialized\n1. use `method=initialize` to finalize handshake;\n2. use `method=notifications/initialized` to confirm initialization',
+            }
+        } else {
+            mTestMcpProtocols(jsonrpc, protocolVersion)
+            result = requestType!=='system' && Avatar.isMyLife ? Avatar.mcpProxy : Avatar.mcp
+            result.protocolVersion = protocolVersion /* under-report for compatibility */
+            sessionMeta.capabilities = capabilities
+            sessionMeta.clientInfo = clientInfo
+            sessionMeta.initialized = true
+        }
+    } else if(!initializeConfirmation){
+        if(method!=='notifications/initialized'){
+            error = {
+                code: 403,
+                data: {
+                    arguments: args,
+                    id,
+                    method,
+                    sessionId,
+                },
+                message: 'Session initialization handshake failed\n1. use `method=notifications/initialized` to confirm initialization handshake',
+            }
+        } else
+            sessionMeta.initializeConfirmation = true
+    }
+    return {
+        error,
+        result,
+    }
+}
 function mReadPdf(filePath){
     const pdfBuffer = fs.readFileSync(filePath)
     return pdfBuffer.toString('base64')
+}
+function mcpSendResponse(transportEntry, jsonrpc, error, id, result){
+    try{
+        if(error)
+            transportEntry.send({
+                jsonrpc,
+                id,
+                error,
+            })
+        if(result)
+            transportEntry.send({
+                jsonrpc,
+                id,
+                result,
+            })
+    } catch(error){
+        console.log(chalk.red('NO TRANSPORT SENT::most likely disconnected'), error)
+    }
 }
 function mTestMcpProtocols(jsonrpc, protocolVersion){
     if(!jsonrpc || parseFloat(jsonrpc) > parseFloat(mJsonRpcVersion))
@@ -718,7 +705,8 @@ function mTestMcpProtocols(jsonrpc, protocolVersion){
 }
 /* exports */
 export {
-    mcpCall,
+    mcpCallMember,
+    mcpCallSystem,
     mSessionInfo,
     mcpStream,
     mcpSystemInfo,
