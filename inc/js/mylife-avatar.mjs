@@ -2028,35 +2028,33 @@ class Q extends Avatar {
         return this.#mcp
     }
     get mcpGuestTools(){
-        return {
-            tools: [
-                {
-                    name: 'mylife_login',
-                    description: 'I am your personal mylife avatar, I can log you in to MyLife, given your member id and your passphrase.',
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            mbr_id: {
-                                type: "string",
-                                description: "mbr_id of the member to log in to MyLife, provided by human"
-                            },
-                            passphrase: {
-                                type: "string",
-                                description: "The passphrase associated with the mbr_id, provided by human: capitalization and spacing MUST BE EXACTLY as provided."
-                            }
+        return [
+            {
+                name: 'mylife_login',
+                description: 'I am your personal mylife avatar, I can log you in to MyLife, given your member id and your passphrase.',
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        mbr_id: {
+                            type: "string",
+                            description: "mbr_id of the member to log in to MyLife, provided by human"
                         },
-                        required: ['mbr_id', 'passphrase']
+                        passphrase: {
+                            type: "string",
+                            description: "The passphrase associated with the mbr_id, provided by human: capitalization and spacing MUST BE EXACTLY as provided."
+                        }
                     },
-                    annotations: {        // Optional hints about tool behavior
-                        title: 'MyLife-Login',      // Human-readable title for the tool
-                        readOnlyHint: false,    // If true, the tool does not modify its environment
-                        destructiveHint: true, // If true, the tool may perform destructive updates
-                        idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-                        openWorldHint: false,   // If true, tool interacts with external entities
-                    }
+                    required: ['mbr_id', 'passphrase']
                 },
-            ],
-        }
+                annotations: {        // Optional hints about tool behavior
+                    title: 'MyLife-Login',      // Human-readable title for the tool
+                    readOnlyHint: false,    // If true, the tool does not modify its environment
+                    destructiveHint: true, // If true, the tool may perform destructive updates
+                    idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+                    openWorldHint: false,   // If true, tool interacts with external entities
+                }
+            },
+        ]
     }
     get mcpProxy(){
         return super.mcp
