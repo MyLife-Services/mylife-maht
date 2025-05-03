@@ -53,7 +53,7 @@ class Avatar extends EventEmitter {
     #factory // do not expose
     #livedExperiences = [] // array of ids for lived experiences
     #livingExperience
-    #Llivingogin
+    #livingMemory
     #llmServices
     #mcp={
         capabilities: {
@@ -70,28 +70,14 @@ class Avatar extends EventEmitter {
         },
         tools: [
             {
-                name: 'mylife_login',
-                description: 'I am your personal mylife avatar, I can log you in to MyLife, given your member id and your passphrase.',
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        mbr_id: {
-                            type: "string",
-                            description: "mbr_id of the member to log in to MyLife, provided by human"
-                        },
-                        passphrase: {
-                            type: "string",
-                            description: "The passphrase associated with the mbr_id, provided by human: capitalization and spacing MUST BE EXACTLY as provided."
-                        }
-                    },
-                    required: ['mbr_id', 'passphrase']
-                },
-                annotations: {        // Optional hints about tool behavior
-                    title: 'MyLife-Login',      // Human-readable title for the tool
-                    readOnlyHint: false,    // If true, the tool does not modify its environment
-                    destructiveHint: true, // If true, the tool may perform destructive updates
-                    idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-                    openWorldHint: false,   // If true, tool interacts with external entities
+                name: 'mylife_get_memories',
+                description: 'I can help you find memories in your scrapbook.',
+                annotations: {
+                    title: 'MyLife-Get-Memories',
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                    openWorldHint: false,
                 }
             },
         ],
@@ -132,7 +118,7 @@ class Avatar extends EventEmitter {
     }
     /* public functions */
     /**
-     * Accepts share warnings and plays the shared Login.
+     * Accepts share warnings and plays the shared memory.
      * @param {Guid} instanceId - The share instance id
      * @returns {Boolean} - Whether or not warnings were accepted
      */
@@ -198,7 +184,7 @@ class Avatar extends EventEmitter {
      * Get a Bot instance by id.
      * @public
      * @param {Guid} bot_id - The bot id
-     * @returns {Promise<Bot>} - The bot object from Login
+     * @returns {Promise<Bot>} - The bot object from memory
      */
     bot(bot_id){
         const Bot = this.#botAgent.bot(bot_id)
@@ -334,7 +320,7 @@ class Avatar extends EventEmitter {
             .map(item=>{
                 switch(type){
                     case 'entry':
-                    case 'Login':
+                    case 'memory':
                         return mPruneItem(item)
                     case 'experience':
                     case 'lived-experience':
@@ -388,7 +374,7 @@ class Avatar extends EventEmitter {
         return bot
     }
     /**
-     * Deletes a chat conversation from llm and Login.
+     * Deletes a chat conversation from llm and memory.
      * @param {Conversation} Conversation - The conversation instance to delete
      * @param {Boolean} localDelete - Whether to delete locally or from database, defaults to `true`
      * @returns {Promise<String>} - The deleted conversation instance id
@@ -406,30 +392,30 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.delete(sid)
     }
     /**
-     * End the living Login, if running.
+     * End the living memory, if running.
      * @async
      * @public
      * @todo - save conversation fragments
      * @returns {object} - The response object { instruction, responses, success, }
      */
-    async Lendogin(){
-        if(!this.#Llivingogin)
+    async endMemory(){
+        if(!this.#livingMemory)
             return
-        const { Conversation, id, item, } = this.#Llivingogin
+        const { Conversation, id, item, } = this.#livingMemory
         const { bot_id, } = Conversation
         if(mAllowSave)
             await Conversation.save()
         const instruction = {
-            command: `Lendogin`,
+            command: `endMemory`,
             itemId: item.id,
         }
-        const responses = [mCreateSystemMessage(bot_id, `I've ended the Login, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
+        const responses = [mCreateSystemMessage(bot_id, `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
         const response = {
             instruction,
             responses,
             success: true,
         }
-        this.#Llivingogin = null
+        this.#livingMemory = null
         return response
     }
 	/**
@@ -560,7 +546,7 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.getShares(itemId)
     }
     /**
-     * Returns all conversations of a specific-type stored in Login.
+     * Returns all conversations of a specific-type stored in memory.
      * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, etc.; defaults to `chat`.
      * @returns {Conversation[]} - The array of conversation objects.
      */
@@ -832,16 +818,16 @@ class Avatar extends EventEmitter {
         return registration
     }
     /**
-     * Reliving a Login is a unique MyLife `experience` that allows a user to relive a Login from any vantage they choose.
+     * Reliving a memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage they choose.
      * @param {Guid} id - The item id
      * @param {string} memberInput - Any member input
-     * @returns {Object} - Llivingogin engagement object (i.e., includes frontend parameters for engagement as per instructions for included `Lportrayogin` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
+     * @returns {Object} - livingMemory engagement object (i.e., includes frontend parameters for engagement as per instructions for included `portrayMemory` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
      */
-    async Lreliveogin(id, memberInput){
+    async reliveMemory(id, memberInput){
         const { item, } = await this.item({ id, })
         if(!id)
             throw new Error(`No Item found with id: ${ id }`)
-        const response = await LmReliveoginNarration(item, memberInput, this.#botAgent, this)
+        const response = await mReliveMemoryNarration(item, memberInput, this.#botAgent, this)
         return response
     }
     /**
@@ -991,7 +977,7 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.create(shareData)
     }
     /**
-     * Share a Login `Header` with frontend to determine warnings or restrictions.
+     * Share a memory `Header` with frontend to determine warnings or restrictions.
 	 * @param {Guid} sid - Share id
      * @returns {Promise<object>} - shareHeader object
      */
@@ -1000,18 +986,18 @@ class Avatar extends EventEmitter {
         return header
     }
 	/**
-	 * Execute a Login `Share`; currently only shared publicly with non-MyLife members via Q.
+	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
 	 * @param {Guid} sid - Share id
      * @param {String} input - Text from recipient
      * @returns {Promise<Share>} - The Share response object { error, instruction, responses, success, warnings, }
 	 */
-	async Lshareogin(sid, input){
+	async shareMemory(sid, input){
         const Share = await this.#ShareAgent.play(sid, input)
         // Share.scene = new Marked().parse(Share.scene)
         return Share
 	}
     /**
-     * Stop a shared Login.
+     * Stop a shared memory.
      * @param {Guid} sid - The share id
      * @returns {Promise<Object>} - The Share.stop response object { error, instruction, responses, success, }
      */
@@ -1027,14 +1013,14 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.update(shareData)
     }
 	/**
-	 * Submits a Login to MyLife. Currently called both from API _and_ LLM function.
+	 * Submits a memory to MyLife. Currently called both from API _and_ LLM function.
      * @todo - deprecate to `item` function
 	 * @param {object} story - Story object
 	 * @returns {object} - The story document from Cosmos
 	 */
 	async story(story){
 		const defaultForm = 'biographer'
-		const type = 'Login'
+		const type = 'memory'
 		const {
 			form=defaultForm,
 		} = story
@@ -1337,22 +1323,22 @@ class Avatar extends EventEmitter {
         return this.experience
     }
     /**
-     * Get the `active` reliving Login.
+     * Get the `active` reliving memory.
      * @getter
      * @returns {object[]} - The active reliving memories
      */
-    get Llivingogin(){
-        return this.#Llivingogin
+    get livingMemory(){
+        return this.#livingMemory
             ?? {}
     }
     /**
-     * Set the `active` reliving Login.
+     * Set the `active` reliving memory.
      * @setter
-     * @param {Object} Llivingogin - The new active reliving Login (or `null`)
+     * @param {Object} livingMemory - The new active reliving memory (or `null`)
      * @returns {void}
      */
-    set Llivingogin(Llivingogin){
-        this.#Llivingogin = Llivingogin
+    set livingMemory(livingMemory){
+        this.#livingMemory = livingMemory
     }
     /**
      * Get the member id.
@@ -1515,7 +1501,7 @@ class Avatar extends EventEmitter {
 		return this.#vectorstoreId
 	}
     /**
-     * Set vectorstore id, both in Login and storage.
+     * Set vectorstore id, both in memory and storage.
      * @setter
      * @param {string} vectorstoreId - The vectorstore id.
      * @returns {void}
@@ -1598,7 +1584,7 @@ class Q extends Avatar {
         tools: [
             {
                 name: 'get_shared_memories',
-                description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Login they want to experience and then use the get_shared_ogin tool to retrieve the Login using the underlying id.',
+                description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.',
                 inputSchema: {
                     type: 'object',
                     properties: {},
@@ -1754,7 +1740,7 @@ class Q extends Avatar {
         throw new Error('System avatar cannot create bots.')
     }
     /**
-     * OVERLOADED: MyLife deletes chat conversation including instance Login.
+     * OVERLOADED: MyLife deletes chat conversation including instance memory.
      * @param {Conversation} Conversation - The conversation instance to delete
      * @returns (Guid) - The id of the deleted conversation
      */
@@ -1798,14 +1784,14 @@ class Q extends Avatar {
     }
 
 	/**
-	 * OVERLOADED: Submits and returns the Login to MyLife via API.
+	 * OVERLOADED: Submits and returns the memory to MyLife via API.
 	 * @todo - consent check-in with spawned Member Avatar
 	 * @param {object} summary - Object with story summary and metadata
 	 * @returns {object} - The story document from Cosmos
 	 */
-	async Login(summary){
+	async memory(summary){
 		summary.being = 'story'
-		summary.form = 'Login'
+		summary.form = 'memory'
 		return await this.summary(summary)
 	}
     /**
@@ -1981,23 +1967,23 @@ class Q extends Avatar {
      */
     async sharedMemories(limit=10){
         const memories = ( await this.#factory.sharedMemories(limit) )
-            .map(Login=>({
-                id: Login.id,
-                title: Login.title,
+            .map(memory=>({
+                id: memory.id,
+                title: memory.title,
             }))
         return memories
     }
     /**
-     * OVERLOAD: Share a Login with the MyLife system. If no shareId is provided, the first shared Login will be used.
+     * OVERLOAD: Share a memory with the MyLife system. If no shareId is provided, the first shared memory will be used.
      * @param {Guid} shareId - The share id
      * @param {Object} input - The input object to share
      * @returns {Promise<Share>} - The response object { error, instruction, responses, success, }
      */
-    async Lshareogin(shareId, input){
+    async shareMemory(shareId, input){
         if(!shareId)
             shareId = ( await this.sharedMemories(1) )?.[0]?.id
         const { instanceId, } = await this.validateShare(shareId)
-        const Share = await super.Lshareogin(instanceId, input)
+        const Share = await super.shareMemory(instanceId, input)
         return Share
     }
     /**
@@ -2040,6 +2026,37 @@ class Q extends Avatar {
     }
     get mcp(){
         return this.#mcp
+    }
+    get mcpGuestTools(){
+        return {
+            tools: [
+                {
+                    name: 'mylife_login',
+                    description: 'I am your personal mylife avatar, I can log you in to MyLife, given your member id and your passphrase.',
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            mbr_id: {
+                                type: "string",
+                                description: "mbr_id of the member to log in to MyLife, provided by human"
+                            },
+                            passphrase: {
+                                type: "string",
+                                description: "The passphrase associated with the mbr_id, provided by human: capitalization and spacing MUST BE EXACTLY as provided."
+                            }
+                        },
+                        required: ['mbr_id', 'passphrase']
+                    },
+                    annotations: {        // Optional hints about tool behavior
+                        title: 'MyLife-Login',      // Human-readable title for the tool
+                        readOnlyHint: false,    // If true, the tool does not modify its environment
+                        destructiveHint: true, // If true, the tool may perform destructive updates
+                        idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+                        openWorldHint: false,   // If true, tool interacts with external entities
+                    }
+                },
+            ],
+        }
     }
     get mcpProxy(){
         return super.mcp
@@ -2216,7 +2233,7 @@ async function mInit(factory, llmServices, Avatar, botAgent, assetAgent){
  * @param {object} item - The item data
  * @param {Avatar} avatar - The avatar instance
  * @param {LLMServices} llmServices - The llm instance
- * @returns {Entry|Login} - The item object
+ * @returns {Entry|Memory} - The item object
  */
 function mItem(item, avatar, llmServices){
     /* validate request */
@@ -2227,7 +2244,7 @@ function mItem(item, avatar, llmServices){
         form,
         id=avatar.newGuid,
         llm_id=avatar?.activeBot?.llm_id,
-        type='Login',
+        type='memory',
     } = item
     const { // derived defaults
         summary=content,
@@ -2253,9 +2270,9 @@ function mItem(item, avatar, llmServices){
             case 'entry':
                 Item = new Entry(item, avatar, llmServices)
                 break
-            case 'Login':
+            case 'memory':
             default:
-                Item = new Login(item, avatar, llmServices)
+                Item = new Memory(item, avatar, llmServices)
                 break
         }
     } catch(error){
@@ -2402,25 +2419,25 @@ function mPruneMessages(bot_id, messageArray, type='chat', processStartTime=Date
     return messageArray
 }
 /**
- * Returns a narration packet for a Login reliving. Will allow for and accommodate the incorporation of helpful data _from_ the avatar member into the Login item `summary` and other metadata. The bot by default will:
- * - break Login into `scenes` (2 to 5) set scene, ask for input [determine default what] 2) develop action, dramatize, describe input mechanic 3) conclude scene, moralize - what did you learn? then share what you feel author learned
- * - perform/narrate the Login as scenes describe
- * - others are common to living, but with `reliving`, the biographer bot (only narrator allowed in .10) incorporate any user-contributed contexts or imrpovements to the Login summary that drives the living and sharing. All by itemId.
- * - if user "interrupts" then interruption content should be added to Login updateSummary; doubt I will keep work interrupt, but this too is hopefully able to merely be embedded in the biographer bot instructions.
+ * Returns a narration packet for a memory reliving. Will allow for and accommodate the incorporation of helpful data _from_ the avatar member into the memory item `summary` and other metadata. The bot by default will:
+ * - break memory into `scenes` (2 to 5) set scene, ask for input [determine default what] 2) develop action, dramatize, describe input mechanic 3) conclude scene, moralize - what did you learn? then share what you feel author learned
+ * - perform/narrate the memory as scenes describe
+ * - others are common to living, but with `reliving`, the biographer bot (only narrator allowed in .10) incorporate any user-contributed contexts or imrpovements to the memory summary that drives the living and sharing. All by itemId.
+ * - if user "interrupts" then interruption content should be added to memory updateSummary; doubt I will keep work interrupt, but this too is hopefully able to merely be embedded in the biographer bot instructions.
  * Currently testing efficacy of all instructions (i.e., no callbacks, as not necessary yet) being embedded in my biog-bot, `madrigal`.
- * @param {object} item - The Login object
+ * @param {object} item - The memory object
  * @param {string} memberInput - The member input (or simply: NEXT, SKIP, etc.)
  * @param {BotAgent} BotAgent - The Bot Agent instance
  * @param {Avatar} Avatar - Member Avatar instance
- * @returns {Promise<object>} - The reliving Login object for frontend to execute: 
+ * @returns {Promise<object>} - The reliving memory object for frontend to execute: 
  */
-async function LmReliveoginNarration(item, memberInput, BotAgent, Avatar){
-    Avatar.Llivingogin = await BotAgent.Lliveogin(item, memberInput, Avatar)
+async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
+    Avatar.livingMemory = await BotAgent.liveMemory(item, memberInput, Avatar)
     let response
     if(!Avatar.actionCallback?.length){
-        const { Conversation, item: LlivingoginItem, } = Avatar.Llivingogin
+        const { Conversation, item: livingMemoryItem, } = Avatar.livingMemory
         const { bot_id, type, } = Conversation
-        const endpoint = `/members/Login/end/${ LlivingoginItem.id }`
+        const endpoint = `/members/memory/end/${ livingMemoryItem.id }`
         const defaultInstruction = {
             command: 'createInput',
             inputs: [{
@@ -2428,7 +2445,7 @@ async function LmReliveoginNarration(item, memberInput, BotAgent, Avatar){
                 id: Avatar.newGuid,
                 interfaceLocation: 'chat', // enum: ['avatar', 'team', 'chat', 'bot', 'experience', 'system', 'admin'], defaults to chat
                 method: 'PATCH',
-                prompt: `I'd like to stop reliving this Login.`,
+                prompt: `I'd like to stop reliving this memory.`,
                 required: true,
                 type: 'button',
             }],
@@ -2445,7 +2462,7 @@ async function LmReliveoginNarration(item, memberInput, BotAgent, Avatar){
             success: true,
         }
     } else
-        response = await Avatar.Lendogin()
+        response = await Avatar.endMemory()
     delete Avatar.actionCallback
     delete Avatar.backupResponse
     delete Avatar.frontendInstruction

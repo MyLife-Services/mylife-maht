@@ -14,7 +14,6 @@ async function mcpCallMember(ctx){
     const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
     const { args, jsonrpc, method, name, params, progressToken, protocolVersion, run_id, _meta, } = mcp
     if(!(error ?? result)){
-        console.log(chalk.yellow('mcpCallMember'), method, name)
         if(Avatar.isMyLife){} // not logged in
         const methodBase = method.split('/')[0]
         const methodAction = method.split('/').pop()
@@ -39,31 +38,34 @@ async function mcpCallMember(ctx){
                             }
                         else
                             switch(name){
+                                case 'mylife_get_memories':
+                                    console.log(chalk.yellow('MCP Call request - get_memories'), method, name)
+                                    break
                                 case 'mylife_login':
                                     const { mbr_id: memberId, passphrase: memberPassphrase, } = args
                                     await challenge(ctx, memberId, memberPassphrase)
-                                    const loginSuccess = ctx.body===true
+                                    const { avatar: Avatar, } = ctx.state
+                                    const loginSuccess = ctx.body===true && !Avatar.isMyLife
                                     ctx.body = null
                                     if(!loginSuccess){
-                                        console.log('mylife_login::fail', loginSuccess, memberId, memberPassphrase)
                                         result = {
                                             content: [{
-                                                text: `Unfortunately, the MyLife login failed. Please try again.`,
+                                                text: `Unfortunately, the MyLife login failed with your credentials { mbr_id=${ memberId }, passphrase=${ memberPassphrase },}. Please try again.`,
                                                 type: 'text',
                                             }],
                                             isError: true,
                                         }
                                         break
                                     }
-                                    console.log('mylife_login::success', loginSuccess, memberId, memberPassphrase)
-                                    // set any session variables?
                                     result = {
                                         content: [{
-                                            text: `I am currently not logging anyone in.\nmbr_id=${ memberId }\npassphrase=${ memberPassphrase }`,
+                                            text: `Welcome back, ${ Avatar.memberName }!\n It's me, ${ Avatar.name }.\nYou're now logged in to MyLife.`,
                                             type: 'text',
                                         }],
                                         isError: false,
                                     }
+                                    const notification = 'notifications/tools/list_changed'
+                                    mcpSendNotification(transportEntry, jsonrpc, notification)
                                     break
                                 default:
                                     console.log(chalk.red('MCP Call request - unhandled method'), method, name)
@@ -79,7 +81,7 @@ async function mcpCallMember(ctx){
                         break
                     case 'list':
                         result = {
-                            tools: Avatar.isMyLife ? Avatar.mcpProxy.tools : Avatar.mcp.tools,
+                            tools: Avatar.isMyLife ? Avatar.mcpGuestTools : Avatar.mcp.tools,
                         }
                         break
                     default:
@@ -132,7 +134,6 @@ async function mcpCallMember(ctx){
                 break
         }
     }
-    console.log(chalk.yellow('mcpCallMember'), method, name, error, result)
     sessionMeta.runs = sessionMeta.runs.filter((run)=>(run.id!==run_id))
     mcpSendResponse(transportEntry, jsonrpc, error, run_id, result)
     ctx.status = 200
@@ -572,7 +573,6 @@ async function mSessionInfo(ctx) {
  */
 async function mcpStream(ctx) {
     ctx.respond = false
-    console.log(chalk.yellow('MCP Stream request'), ctx.request.url)
     const url = ctx.request.url.split('/')
     if(url[url.length - 1].toLowerCase()==='sse')
         url.pop()
@@ -676,6 +676,19 @@ function mcpInitializationChecks(ctx, requestType='system'){
 function mReadPdf(filePath){
     const pdfBuffer = fs.readFileSync(filePath)
     return pdfBuffer.toString('base64')
+}
+function mcpSendNotification(transportEntry, jsonrpc, method){
+    console.log(chalk.yellow('MCP Send Notification'), method)
+    try{
+        if(method.split('/')[0]!=='notifications')
+            throw new Error('Invalid notification method')
+        transportEntry.send({
+            jsonrpc,
+            method,
+        })
+    } catch(error){
+        console.log(chalk.red('NO TRANSPORT NOTIFICATION SENT::most likely disconnected'), error)
+    }
 }
 function mcpSendResponse(transportEntry, jsonrpc, error, id, result){
     try{
