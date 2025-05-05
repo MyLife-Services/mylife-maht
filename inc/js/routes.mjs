@@ -71,6 +71,7 @@ import {
     validateShare,
 } from './controllers/memory-functions.mjs'
 import {
+    mcpCallBot,
     mcpCallMember,
     mcpCallSystem,
     mSessionInfo,
@@ -92,8 +93,9 @@ import {
 const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
-const _mcpSystemAvatarRouter = new Router()
+const _mcpBotRouter = new Router()
 const _mcpMemberAvatarRouter = new Router()
+const _mcpSystemAvatarRouter = new Router()
 const _nandaRouter = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 //	root routes
@@ -207,6 +209,13 @@ _mcpMemberAvatarRouter.get('/', mcpSystemInfo)
 _mcpMemberAvatarRouter.get('/sse', mcpStream)
 _mcpMemberAvatarRouter.get('/message/:sid', mSessionInfo)
 _mcpMemberAvatarRouter.post('/message', mcpCallMember)
+/* mcp-bot-api routes */
+// currently only one bot; testing how "swapping" works; i.e., infusing a new toolset rather than new instructions (i.e., limiting need for new routes when bots are created, and could lend credence to universal member avatar)
+_mcpBotRouter.use(mcpProtocolValidation)
+_mcpBotRouter.get('/', mcpSystemInfo)
+_mcpBotRouter.get('/sse', mcpStream)
+_mcpBotRouter.get('/message/:sid', mSessionInfo)
+_mcpBotRouter.post('/message', mcpCallBot)
 /* Nanda routes */
 _nandaRouter.get('/mylife', server)
 _nandaRouter.get('/servers/:sid', server)
@@ -217,6 +226,7 @@ _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
 _Router.use('/api/v2/mcp/system-avatar', _mcpSystemAvatarRouter.routes(), _mcpSystemAvatarRouter.allowedMethods())
 _Router.use('/api/v2/mcp/member-avatar', _mcpMemberAvatarRouter.routes(), _mcpMemberAvatarRouter.allowedMethods())
+_Router.use('/api/v2/mcp/bot', _mcpBotRouter.routes(), _mcpBotRouter.allowedMethods())
 _Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**
@@ -278,19 +288,31 @@ async function mcpProtocolValidation(ctx, next){
             const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
             const bypassAuth = true
             if(!bypassAuth && ctx.path.endsWith('/sse') && !mClientEntities?.[headerAuthorization])
-                ctx.throw(401, 'Unauthorized - Invalid or missing authorization token')
+                ctx.throw(401, 'Invalid or missing authorization token')
             break
         case 'POST':
             const { sessionId, } = ctx.request.query
             if(!sessionId)
-                ctx.throw(401, 'Unauthorized - Missing sessionId')
+                ctx.throw(401, 'Missing sessionId')
             ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
             const { sessionMeta, } = ctx.state
             if(!sessionMeta)
                 ctx.throw(401, `Session Unauthorized; sessionId=${ sessionId }`)
-            const { transportEntry, } = sessionMeta
+            const { sessionIdKoa, transportEntry, } = sessionMeta
             if(!transportEntry)
-                ctx.throw(401, 'Unauthorized or unknown session; cannot communicate with MCP')
+                ctx.throw(401, 'Unknown session; cannot communicate with MCP')
+            if(!sessionIdKoa?.length)
+                ctx.throw(401, 'Unknown session; cannot communicate with Koa')
+            /* validate Koa session */
+            const prefix = 'koa:sess:'
+            const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
+            if(!existingKoaSession)
+                ctx.throw(401, 'Unknown session; cannot find existing Koa session')
+            ctx.session = existingKoaSession
+			await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // 🧹 destroy temporary blank session created by Koa
+            // Koa server will have mis-assigned ctx.state
+            ctx.state.avatar = ctx.session.avatar
+            ctx.state.locked = ctx.session.locked
             const { id: run_id, jsonrpc, method, params={}, } = ctx.request.body
             const { arguments: args, capabilities, clientInfo, name, protocolVersion, _meta={}, } = params
             const { progressToken, } = _meta

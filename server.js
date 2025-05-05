@@ -99,6 +99,7 @@ app.context.SystemAvatar = _Maht
 app.context.Globals = _Maht.globals
 app.context.Globals.rootDirectory = __dirname
 app.context.menu = _Maht.menu
+app.context.MemoryStore = MemoryStore
 app.context.mcpSessionMeta ??= new Map()
 app.keys = [
 	process.env.MYLIFE_SESSION_KEY
