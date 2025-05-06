@@ -1,3 +1,5 @@
+import { error } from "console"
+
 /* module constants */
 const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
@@ -57,13 +59,15 @@ const mcpTool_activateBot = {
 		type: "object",
 		properties: {
 			team: {
+				default: 'memory',
+				description: 'Team to which bot belongs',
 				enum: ['unknown', 'memory', 'health', 'career', 'art', 'other'],
 				type: 'string',
-				description: 'Team to which bot belongs',
 			},
 			type: {
+				default: 'avatar',
+				description: "The type of bot in team to switch to",
 				type: "string",
-				description: "The type of bot in team to switch to"
 			}
 		},
 		required: ['team', 'type']
@@ -626,6 +630,52 @@ class BotAgent {
 			: message
 		await mCallLLM(Conversation, false, this.#llm, this.#factory, Avatar)
 		return livingMemory
+	}
+	/**
+	 * Passthrough to call a function on the active bot or avatar, passing the MCP data to it.
+	 * @param {string} functionName - The function name to call
+	 * @param {object} mcpData - The MCP data to pass to the function
+	 * @returns {object} - The MCP-ready result of the function call
+	 */
+	async mcp_bot_function(functionName, mcpData){
+		functionName = functionName.replace('mylife_', 'mcp_')
+		if(typeof this[functionName]=== 'function')
+			return await this[functionName](mcpData)
+		if(typeof this.activeBot[functionName]=== 'function')
+			return await this.activeBot[functionName](mcpData)
+		if(typeof this.avatar[functionName]=== 'function')
+			return await this.activeBot[functionName](mcpData)
+		// search all bots?
+		throw new Error(`Function not found: ${ functionName }`)
+	}
+	async mcp_switch_bot(mcpdata){
+		const { team='memory', type, } = mcpdata
+		let result
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot switch bot.')
+        if(team!=='memory')
+            throw new Error('Only memory team available.')
+		const Bot = this.bot(undefined, type)
+		if(this.activeBot.id===Bot.id)
+			result = {
+				content: [{
+					text: `System already using ${ type } bot`,
+					type: 'text',
+				}],
+				isError: true,
+			}
+		else {
+			const activeBot = await this.setActiveBot(Bot.id, false)
+			result = {
+				content: [{
+					text: `Successfully switched active intelligence to type: ${ type }; activeBot: ${ JSON.stringify(activeBot) }`,
+					type: 'text',
+				}],
+				isError: false,
+				notification: 'notifications/tools/list_changed'
+			}
+		}
+		return result
 	}
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.

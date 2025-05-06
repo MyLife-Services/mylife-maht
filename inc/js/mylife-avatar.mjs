@@ -671,6 +671,9 @@ class Avatar extends EventEmitter {
     manifest(xid){
         return this.#experienceAgent.experienceManifest(xid)
     }
+    async mcp_bot_function(functionName, mcpData){
+        return await this.#botAgent.mcp_bot_function(functionName, mcpData)
+    }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
      * @param {Guid} bot_id - The bot id

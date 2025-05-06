@@ -72,7 +72,6 @@ import {
 } from './controllers/memory-functions.mjs'
 import {
     mcpCallBot,
-    mcpCallMember,
     mcpCallSystem,
     mSessionInfo,
     mcpStream,
@@ -94,7 +93,6 @@ const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
 const _mcpBotRouter = new Router()
-const _mcpMemberAvatarRouter = new Router()
 const _mcpSystemAvatarRouter = new Router()
 const _nandaRouter = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
@@ -203,12 +201,6 @@ _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
-/* mcp-member-api routes */
-_mcpMemberAvatarRouter.use(mcpProtocolValidation)
-_mcpMemberAvatarRouter.get('/', mcpSystemInfo)
-_mcpMemberAvatarRouter.get('/sse', mcpStream)
-_mcpMemberAvatarRouter.get('/message/:sid', mSessionInfo)
-_mcpMemberAvatarRouter.post('/message', mcpCallMember)
 /* mcp-bot-api routes */
 // currently only one bot; testing how "swapping" works; i.e., infusing a new toolset rather than new instructions (i.e., limiting need for new routes when bots are created, and could lend credence to universal member avatar)
 _mcpBotRouter.use(mcpProtocolValidation)
@@ -225,7 +217,6 @@ _nandaRouter.get('/servers', servers)
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
 _Router.use('/api/v2/mcp/system-avatar', _mcpSystemAvatarRouter.routes(), _mcpSystemAvatarRouter.allowedMethods())
-_Router.use('/api/v2/mcp/member-avatar', _mcpMemberAvatarRouter.routes(), _mcpMemberAvatarRouter.allowedMethods())
 _Router.use('/api/v2/mcp/bot', _mcpBotRouter.routes(), _mcpBotRouter.allowedMethods())
 _Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */

@@ -38,14 +38,23 @@ async function mcpCallBot(ctx){
                                         data: { arguments: args, id, method, name, params, sessionId, },
                                         message: 'session is locked',
                                     }
-                                result = {
-                                    content: [{
-                                        text: `Unfortunately, the MyLife Bot is unable to handle tool "${ name }" currently.`,
-                                        type: 'text',
-                                    }],
-                                    isError: true,
-                                }
-                            }
+                                else
+                                    try {
+                                        result = await Avatar.mcp_bot_function(name, args)
+                                        if(result.notification?.length){
+                                            mcpSendNotification(transportEntry, jsonrpc, result.notification)
+                                            delete result.notification
+                                        }
+                                    } catch (toolError) {
+                                        result = {
+                                            content: [{
+                                                text: `Error executing tool "${ name }": ${ toolError.message || 'Unknown error' }`,
+                                                type: 'text',
+                                            }],
+                                            isError: true,
+                                        }
+                                    }
+                        }
                         break
                     case 'list':
                         result = {
@@ -100,147 +109,6 @@ async function mcpCallBot(ctx){
                         sessionId,
                     },
                     message: 'MCP BOT Call request: unknown or unhandled method; please try again in all lowercase and without spaces',
-                }
-                break
-        }
-    }
-    sessionMeta.runs = runs.filter((run)=>(run.id!==run_id))
-    mcpSendResponse(transportEntry, jsonrpc, error, run_id, result)
-    ctx.status = 200
-}
-async function mcpCallMember(ctx){
-    let { error, result, } = mcpInitializationChecks(ctx, 'member')
-    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
-    const { runs, transportEntry, } = sessionMeta
-    const { args, jsonrpc, method, name, params, progressToken, protocolVersion, run_id, _meta, } = mcp
-    if(!(error ?? result)){
-        // if(Avatar.isMyLife) // not logged in (will bots need exceptions? Avatar does not as of yet)
-        const methodBase = method.split('/')[0]
-        const methodAction = method.split('/').pop()
-        switch(methodBase){
-            case 'initialize': /* intentionally empty as it is required to cascade through for authentication */
-                break
-            case 'tools':
-                switch(methodAction){
-                    case 'call':
-                        if(!params)
-                            error = {
-                                code: 500,
-                                data: {
-                                    arguments: args,
-                                    id,
-                                    method,
-                                    name,
-                                    params,
-                                    sessionId,
-                                },
-                                message: 'params are required for tool call',
-                            }
-                        else
-                            switch(name){
-                                case 'mylife_get_memories':
-                                    result = {
-                                        content: [{
-                                            text: `I'm sorry, but I cannot access your memories at this time. Please try again later.`,
-                                            type: 'text',
-                                        }],
-                                        isError: true,
-                                    }
-                                    break
-                                case 'mylife_login': // "guest" tools for now
-                                    const { mbr_id: memberId, passphrase: memberPassphrase, } = args
-                                    try {
-                                        await challenge(ctx, memberId, memberPassphrase)
-                                    } catch(e) {
-                                        console.log(chalk.red('mylife_login::ERROR'), args, ctx.body, e)
-                                        ctx.body = false
-                                    }
-                                    const { avatar: Avatar, } = ctx.state
-                                    const loginSuccess = ctx.body===true && !Avatar.isMyLife
-                                    ctx.body = null
-                                    if(!loginSuccess){
-                                        result = {
-                                            content: [{
-                                                text: `Unfortunately, the MyLife login failed with your credentials { mbr_id=${ memberId }, passphrase=${ memberPassphrase },}. Please try again.`,
-                                                type: 'text',
-                                            }],
-                                            isError: true,
-                                        }
-                                    } else {
-                                        result = {
-                                            content: [{
-                                                text: `Welcome back, ${ Avatar.memberName }!\n It's me, ${ Avatar.name }.\nYou're now logged in to MyLife.`,
-                                                type: 'text',
-                                            }],
-                                            isError: false,
-                                        }
-                                        const notification = 'notifications/tools/list_changed'
-                                        mcpSendNotification(transportEntry, jsonrpc, notification)
-                                    }
-                                    break
-                                default:
-                                    console.log(chalk.red('MCP Call request - unhandled method'), method, name)
-                                    result = {
-                                        content: [{
-                                            text: `Unfortunately, the MyLife Member Avatar tool "${ name }" is unhandled currently.`,
-                                            type: 'text',
-                                        }],
-                                        isError: true,
-                                    }
-                                    break
-                            }
-                        break
-                    case 'list':
-                        result = {
-                            tools: Avatar.mcp.tools,
-                        }
-                        break
-                    default:
-                        error = {
-                            code: 500,
-                            data: {
-                                arguments: args,
-                                id,
-                                method,
-                                sessionId,
-                            },
-                            message: `MCP Call request\nmethodAction = ${ methodAction }\nUnknown or unhandled method\nPlease try again in all lowercase and without spaces`,
-                        }
-                        break
-                }
-                break
-            case 'notifications':
-                const notificationType = method.split('/').pop()
-                switch(notificationType){
-                    case 'cancelled':
-                        const { reason, requestId, } = params
-                        if(ctx.Globals.isValidGuid(requestId))
-                            id = requestId
-                        console.log(chalk.yellow('MCP Call request - cancelled'), reason, requestId)
-                        break
-                    case 'initialized':
-                        /* intentionally empty as it is required to cascade through for authentication */
-                        break
-                    default:
-                        break
-                }
-                break
-            case 'ping':
-                result = {}
-                break
-            case 'prompts':
-            case 'resources':
-            default:
-                console.log(chalk.red('MCP Call request - unhandled method'), method)
-                error = {
-                    code: 500,
-                    data: {
-                        arguments: args,
-                        id,
-                        method,
-                        sessionId,
-                    },
-                    message: 'MCP Call request: unknown or unhandled method; please try again in all lowercase and without spaces',
                 }
                 break
         }
@@ -863,7 +731,6 @@ function mTestMcpProtocols(jsonrpc, protocolVersion){
 /* exports */
 export {
     mcpCallBot,
-    mcpCallMember,
     mcpCallSystem,
     mSessionInfo,
     mcpStream,
