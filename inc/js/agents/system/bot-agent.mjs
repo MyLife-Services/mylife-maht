@@ -54,7 +54,7 @@ const mcpTools = [
 ]
 const mcpTool_activateBot = {
 	name: 'mylife_switch_bot',
-	description: 'I can switch you to a different MyLife bot, given the bot function and team.',
+	description: 'I can switch you to a different active MyLife bot intelligence, given the bot function and team.',
 	inputSchema: {
 		type: "object",
 		properties: {
@@ -66,7 +66,7 @@ const mcpTool_activateBot = {
 			},
 			type: {
 				default: 'avatar',
-				description: "The type of bot in team to switch to",
+				description: "The type of bot to switch to",
 				type: "string",
 			}
 		},
@@ -78,6 +78,31 @@ const mcpTool_activateBot = {
 		destructiveHint: true,
 		idempotentHint: true,
 		openWorldHint: false,
+	}
+}
+const mcpTool_chat = {
+	name: 'mylife_chat',
+	description: 'Based on the active intelligence, I am here to chat and accomplish tasks with you.',
+	inputSchema: {
+		type: "object",
+		properties: {
+			itemId: {
+				description: "The guid for an active story or data item",
+				type: "string",
+			},
+			message: {
+				description: 'Human message to bot',
+				type: 'string',
+			},
+		},
+		required: ['message']
+	},
+	annotations: {
+		title: 'MyLife-Chat',
+		readOnlyHint: false,
+		destructiveHint: true,
+		idempotentHint: false,
+		openWorldHint: true,
 	}
 }
 const mcpBot = {
@@ -391,8 +416,11 @@ class Bot {
 	get mcp(){
 		if(!this.#mcp){
 			const mcp = mcpBot
-			if(!this.isMyLife)
+			if(!this.isMyLife){
 				mcp.tools.push(mcpTool_activateBot)
+				mcp.tools.push(mcpTool_chat)
+			}
+			// @todo - update tools from database
 			if(this.tools?.length)
 				this.tools.forEach(tool=>{
 					if(tool.type!=='function')
@@ -647,6 +675,18 @@ class BotAgent {
 			return await this.activeBot[functionName](mcpData)
 		// search all bots?
 		throw new Error(`Function not found: ${ functionName }`)
+	}
+	async mcp_chat(mcpdata){
+		const { message, } = mcpdata
+		const Conversation = await this.activeBot.chat(message, message, true, this.avatar)
+		const content = Conversation.getMessages()
+			.map(message=>({ text: message.content, type: 'text', }))
+			// @todo - looks as though Avatar and biographer both used thread_7cM3ujWethnmRSunWCJYHgw3 - was this fluke of error or is it a current bug?
+		const result = {
+			content,
+			isError: false,
+		}
+		return result
 	}
 	async mcp_switch_bot(mcpdata){
 		const { team='memory', type, } = mcpdata
