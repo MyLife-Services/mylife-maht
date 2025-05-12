@@ -673,7 +673,7 @@ class BotAgent {
 			return await this.activeBot[functionName](mcpData)
 		if(typeof this.avatar[functionName]=== 'function')
 			return await this.activeBot[functionName](mcpData)
-		// search all bots?
+		// @todo - search all bots?
 		throw new Error(`Function not found: ${ functionName }`)
 	}
 	async mcp_chat(mcpdata){
@@ -687,6 +687,10 @@ class BotAgent {
 			isError: false,
 		}
 		return result
+	}
+	async mcp_get_memories(mcpdata){
+		// route to biographer
+		// no need to activate bot
 	}
 	async mcp_switch_bot(mcpdata){
 		const { team='memory', type, } = mcpdata

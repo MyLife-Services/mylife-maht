@@ -6,6 +6,7 @@ import EventEmitter from 'events'
 import { Guid } from 'js-guid'
 /* constants */
 const mAiJsFunctions = await mParseFunctions()
+const mMCPFunctions = await mParseFunctions('/mcp/tools')
 const mEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const mForbiddenCosmosFields = ['$', '_', ' ', '@', '#',]
 const mForbiddenValues = [undefined, null, NaN]
@@ -172,6 +173,9 @@ class Globals extends EventEmitter {
 	get GPTJavascriptFunctions(){
 		return mAiJsFunctions
 	}
+	get MCPFunctions(){
+		return mMCPFunctions
+	}
 	get newGuid(){	//	this.newGuid
 		return Guid.newGuid().toString()
 	}
@@ -180,10 +184,11 @@ class Globals extends EventEmitter {
 	}
 }
 /* modular functions */
-async function mParseFunctions(){
+async function mParseFunctions(route='/openai/functions'){
 	const __filename = fileURLToPath(import.meta.url)
     const __dirname = path.dirname(__filename)
-	const jsonFolderPath = path.join(__dirname, '..', 'json-schemas/openai/functions')
+	const jsonFolder = 'json-schemas' + route
+	const jsonFolderPath = path.join(__dirname, '..', jsonFolder)
 	const jsonObjects = {}
 	const files = await fs.readdir(jsonFolderPath)
 	for(const file of files){
