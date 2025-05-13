@@ -94,14 +94,15 @@ async function bots(ctx){
  * @public
  * @async
  * @param {Koa} ctx - Koa Context object
- * @returns {object} - Koa Context object
- * @property {object} ctx.body - The result of the challenge.
+ * @param {string} memberId - The member id to challenge
+ * @param {string} memberPassphrase - The passphrase to challenge with
+ * @returns {boolean} - Whether or not the challenge was successful
  */
-async function challenge(ctx){
-	const { passphrase, } = ctx.request.body
+async function challenge(ctx, memberId, memberPassphrase){
+	const { passphrase=memberPassphrase, } = ctx.request.body
 	if(!passphrase?.length)
 		ctx.throw(400, `challenge request requires passphrase`)
-	const { mid, } = ctx.params
+	const { mid=memberId, } = ctx.params
 	if(!mid?.length)
 		ctx.throw(400, `challenge request requires member id`)
 	if(!ctx.state.locked)

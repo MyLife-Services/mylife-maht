@@ -1,5 +1,5 @@
 # basic js installations
-/node_modules/
+node_modules/
 /in-progress/
 .env*
 .vscode/

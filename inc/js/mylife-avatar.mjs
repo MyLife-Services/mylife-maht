@@ -9,6 +9,7 @@ import AlphaDog from './agents/project/alpha-dog.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
+import ConnectorAgent from './agents/system/connector-agent.mjs'
 import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
@@ -23,6 +24,8 @@ const mAllowSave = JSON.parse(
 )
 const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
 const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-schemas/routines/') + '/'
+const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
 /**
  * @class - Avatar
  * @extends EventEmitter
@@ -667,6 +670,9 @@ class Avatar extends EventEmitter {
     }
     manifest(xid){
         return this.#experienceAgent.experienceManifest(xid)
+    }
+    async mcp_bot_function(functionName, mcpData){
+        return await this.#botAgent.mcp_bot_function(functionName, mcpData)
     }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
@@ -1353,6 +1359,14 @@ class Avatar extends EventEmitter {
         return this.#factory.mbr_name
     }
     /**
+     * Get the Member Avatar's mcp self-definition package.
+     * @getter
+     * @returns {object} - The mcp self-definition package
+     */
+    get mcp(){
+        return this.#botAgent.mcp
+    }
+    /**
      * Gets first name of member from `#factory`.
      * @getter
      * @returns {guid} - The member's core guid.
@@ -1484,10 +1498,168 @@ class Avatar extends EventEmitter {
  * @extends Avatar
  */
 class Q extends Avatar {
+    #connectorAgent // connector agent for MyLife
     #conversations = []
     #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
     #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
+    #mcp={
+        capabilities: {
+            prompts: {
+                listChanged: false,
+            },
+            resources: {
+                listChanged: false,
+                subscribe: false,
+            },
+            tools: {
+                listChanged: true
+            }
+        },
+        instructions: 'I am Q, corporate intelligence for MyLife. MyLife is a humanist 501c3 nonprofit member organization. MyLife has created an AI-Agent platform available by MCP to assist with helping members collect, shape and share their memories and personal narratives with their family and posterity.',
+        jsonrpc: mJsonRpcVersion,
+        prompts: [
+            {
+                name: 'mylife_company_information',
+                description: 'Ask Q, our corporate intelligence, about MyLife, the nonprofit humanist member organization. Include the type of information requested for more precise results.',
+                arguments: [
+                    {
+                        description: 'The type of information requested about MyLife',
+                        enum: ['history', 'mission', 'vision', 'values', 'governance', 'members'],
+                        name: 'infoType',
+                        required: true,
+                    }
+                ],
+            }
+        ],
+        protocolVersion: mJsonRpcProtocolVersion,
+        resources: [
+            {
+                uri: 'file://MyLife_Board.pdf',
+                name: 'MyLife Board of Directors Bylaws.pdf',
+                description: 'MyLife Board of Directors Bylaws version 1.0',
+                mimeType: 'application/pdf',
+            },
+            {
+                uri: 'file://MyLife_Summary.pdf',
+                name: 'MyLife_Summary.pdf',
+                description: 'Outreach Material for MyLife, written 2 years ago prior to development of the platform',
+                mimeType: 'application/pdf',
+            },
+            {
+                uri: 'https://github.com/MyLife-Services/mylife-maht/',
+                name: 'MyLife-MAHT GIT codebase',
+                description: 'MyLife MAHT codebase, written in Node.js',
+                mimeType: 'text/html',
+            }
+        ],
+        serverInfo: {
+            name: 'MyLife MCP System Avatar',
+            version: '1.0',
+        },
+        tools: [
+            {
+                name: 'get_shared_memories',
+                description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {},
+                    required: []
+                },
+                annotations: {        // Optional hints about tool behavior
+                    title: 'Shared-Memories',      // Human-readable title for the tool
+                    readOnlyHint: true,    // If true, the tool does not modify its environment
+                    destructiveHint: false, // If true, the tool may perform destructive updates
+                    idempotentHint: true,  // If true, repeated calls with same args have no additional effect
+                    openWorldHint: false,   // If true, tool interacts with external entities
+                }
+            },
+            {
+                name: 'get_shared_memory',
+                description: 'I am Q, corporate intelligence for MyLife. I am able to access public shared memories and play the experience for a human user. The memory will be delivered from MyLife scene-by-scene using the `get_shared_memory` and the appropriate `memberId`. Display the scenes one-by-one, prompt the human to add any optional input to the memory, which should be sent using the `input` field.',
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        input: {
+                            type: "string",
+                            description: "Any input by the human user while experiencing the memory (optional)"
+                        },
+                        memoryId: {
+                            type: "string",
+                            description: "The ID of the memory to be retrieved, can be empty"
+                        }
+                    },
+                    required: ['memoryId']
+                },
+                annotations: {
+                    title: 'Shared-Memory',
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: false,
+                    openWorldHint: false,
+                }
+            },
+            {
+                name: 'mylife_information',
+                description: `I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will answer any questions about MyLife you have, sorted along the following lines: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc']`,
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        question: {
+                            description: 'The question asked of Q',
+                            type: 'string',
+                        },
+                        questionType: {
+                            description: 'The type of information requested about MyLife',
+                            enum: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc'],
+                            type: 'string',
+                        }
+                    },
+                    required: ['question', 'questionType'],
+                },
+                annotations: {
+                    title: 'MyLife-Information',
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                    openWorldHint: false,
+                }
+            },
+            {
+                name: 'register',
+                description: 'I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will register you for MyLife and send you a validation link by email. The only pieces of information I need are: Your full name, the email you wish to use, and the name you like for your personal avatar (a personal intelligence agent... one of several you receive when signing up with MyLife). Please also share your primary interest in MyLife (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory).',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        avatarName: {
+                            type: 'string',
+                            description: "The name chosen for the registrant's avatar",
+                        },
+                        email: {
+                            type: 'string',
+                            description: "The registrant's email address",
+                        },
+                        humanName: {
+                            type: 'string',
+                            description: 'The full name of the registrant',
+                        },
+                        reason: {
+                            type: 'string',
+                            description: 'What is the primary interest in MyLife for the registrant (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory)',
+                        }
+                    },
+                    required: ['avatarName', 'email', 'humanName', 'reason'],
+                },
+                annotations: {
+                    title: 'Register-for-MyLife',
+                    readOnlyHint: false,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                    openWorldHint: false,
+                }
+            }
+        ]
+    }
     #Menu
     #Router
     /**
@@ -1501,6 +1673,7 @@ class Q extends Avatar {
         super(factory, llmServices)
         this.#factory = factory
         this.#llmServices = llmServices
+        this.#connectorAgent = new ConnectorAgent(this.#factory, this.#llmServices)
     }
     /* overloaded methods */
     /**
@@ -1688,8 +1861,13 @@ class Q extends Avatar {
 	 * @returns {Promise<boolean>} - `true` if challenge is successful
 	 */
     async challengeAccess(mbr_id, passphrase){
-        const avatarProxy = await this.avatarProxy(mbr_id)
-		const challengeSuccessful = await avatarProxy.challengeAccess(passphrase)
+        let challengeSuccessful=false
+        try{
+            const avatarProxy = await this.avatarProxy(mbr_id)
+            challengeSuccessful = await avatarProxy.challengeAccess(passphrase)
+        } catch(e){
+            console.log('SystemAvatar::challengeAccess::error', e)
+        }
 		return challengeSuccessful
 	}
 	/**
@@ -1793,6 +1971,19 @@ class Q extends Avatar {
         const response = await mValidateRegistration(this.activeBotId, this.#factory, validationId)
         return response
     }
+    /* nanda services */
+    async nandaServer(serverId){
+        const server = await this.#connectorAgent.nandaServer(serverId)
+        return server
+    }
+    async nandaServerRatings(serverId){
+        const ratings = await this.#connectorAgent.nandaServerRatings(serverId)
+        return ratings
+    }
+    async nandaServers(){
+        const servers = await this.#connectorAgent.nandaServers()
+        return servers
+    }
     /* getters/setters */
     /**
      * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
@@ -1808,6 +1999,12 @@ class Q extends Avatar {
     }
     get isRegistered(){
         return this.#factory.isRegistered
+    }
+    get mcp(){
+        return this.#mcp
+    }
+    get mcpProxy(){
+        return super.mcp
     }
 	get menu(){
 		if(!this.#Menu){

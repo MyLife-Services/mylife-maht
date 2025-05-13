@@ -1,0 +1,31 @@
+{
+  	"annotations": {
+		"title": "MyLife-Change-Title",
+		"readOnlyHint": false,
+		"destructiveHint": true,
+		"idempotentHint": true,
+		"openWorldHint": false
+	},
+  "description": "I am able to change the title of a summary in the database for an itemId",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "itemId": {
+        "description": "itemId to update",
+        "type": "string"
+      },
+      "title": {
+        "description": "The new title for the summary",
+        "type": "string"
+      }
+    },
+    "required": [
+      "itemId",
+      "title"
+    ]
+  },
+  "mylife_bots": [
+    "any"
+  ],
+  "name": "change_title"
+}

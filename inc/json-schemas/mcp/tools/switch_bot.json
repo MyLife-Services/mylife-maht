@@ -1,0 +1,31 @@
+{
+    "annotations": {
+        "title": "MyLife-Switch-Bot",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+    },
+	"description": "I can switch you to a different active MyLife bot intelligence, given the bot function and team.",
+	"inputSchema": {
+        "type": "object",
+		"properties": {
+            "team": {
+                "default": "memory",
+				"description": "Team to which bot belongs, default is `memory`.",
+				"enum": ["unknown", "memory", "health", "career", "art", "other"],
+				"type": "string"
+			},
+			"type": {
+                "default": "avatar",
+				"description": "The type of bot to switch to",
+				"type": "string"
+			}
+		},
+		"required": ["team", "type"]
+	},
+    "name": "switch_bot",
+    "mylife_bots": [
+        "any"
+    ]
+}

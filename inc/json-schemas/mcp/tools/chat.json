@@ -1,0 +1,30 @@
+{
+	"annotations": {
+		"title": "MyLife-Chat",
+		"readOnlyHint": false,
+		"destructiveHint": true,
+		"idempotentHint": false,
+		"openWorldHint": true
+	},
+	"description": "Based on the active intelligence, I am here to chat and accomplish tasks with you.",
+	"inputSchema": {
+		"type": "object",
+		"properties": {
+			"itemId": {
+				"description": "The guid for an active story or data item",
+				"type": "string"
+			},
+			"message": {
+				"description": "Human message to bot",
+				"type": "string"
+			}
+		},
+		"required": [
+            "message"
+        ]
+	},
+	"mylife_bots": [
+        "any"
+    ],
+    "name": "chat"
+}

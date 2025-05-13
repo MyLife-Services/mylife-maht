@@ -71,11 +71,17 @@ import {
     validateShare,
 } from './controllers/memory-functions.mjs'
 import {
-    mcpCall,
+    mcpCallBot,
+    mcpCallSystem,
     mSessionInfo,
     mcpStream,
     mcpSystemInfo,
 } from './controllers/mcp-functions.mjs'
+import {
+    server,
+    serverRatings,
+    servers,
+} from './controllers/nanda-functions.mjs'
 import {
     mission,
     missionPlay,
@@ -86,7 +92,9 @@ import {
 const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
-const _mcpRouter = new Router()
+const _mcpBotRouter = new Router()
+const _mcpSystemAvatarRouter = new Router()
+const _nandaRouter = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 //	root routes
 _Router.get('/', index)
@@ -142,11 +150,11 @@ _apiRouter.post('/obscure/:mid', apiObscure)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
 /* mcp-api routes */
-_mcpRouter.use(protocolValidation)
-_mcpRouter.get('/', mcpSystemInfo)
-_mcpRouter.get('/sse', mcpStream)
-_mcpRouter.get('/message/:sid', mSessionInfo)
-_mcpRouter.post('/message', mcpCall)
+_mcpSystemAvatarRouter.use(mcpProtocolValidation)
+_mcpSystemAvatarRouter.get('/', mcpSystemInfo)
+_mcpSystemAvatarRouter.get('/sse', mcpStream)
+_mcpSystemAvatarRouter.get('/message/:sid', mSessionInfo)
+_mcpSystemAvatarRouter.post('/message', mcpCallSystem)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
@@ -193,10 +201,24 @@ _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
+/* mcp-bot-api routes */
+// currently only one bot; testing how "swapping" works; i.e., infusing a new toolset rather than new instructions (i.e., limiting need for new routes when bots are created, and could lend credence to universal member avatar)
+_mcpBotRouter.use(mcpProtocolValidation)
+_mcpBotRouter.get('/', mcpSystemInfo)
+_mcpBotRouter.get('/sse', mcpStream)
+_mcpBotRouter.get('/message/:sid', mSessionInfo)
+_mcpBotRouter.post('/message', mcpCallBot)
+/* Nanda routes */
+_nandaRouter.get('/mylife', server)
+_nandaRouter.get('/servers/:sid', server)
+_nandaRouter.get('/servers/:sid/ratings', serverRatings)
+_nandaRouter.get('/servers', servers)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
-_Router.use('/api/v2/mcp/system-avatar', _mcpRouter.routes(), _mcpRouter.allowedMethods())
+_Router.use('/api/v2/mcp/system-avatar', _mcpSystemAvatarRouter.routes(), _mcpSystemAvatarRouter.allowedMethods())
+_Router.use('/api/v2/mcp/bot', _mcpBotRouter.routes(), _mcpBotRouter.allowedMethods())
+_Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**
  * Connects the routes to the router
@@ -215,7 +237,7 @@ function connectRoutes(_Menu){
 async function memberValidation(ctx, next){
     const { locked=true, } = ctx.state
     ctx.state.dateNow = Date.now()
-    const redirectUrl = `/?type=select`
+    const redirectUrl = `/`
     if(locked){
         const isAjax = ctx.get('X-Requested-With') === 'XMLHttpRequest' || ctx.is('json')
         if(isAjax){
@@ -250,26 +272,55 @@ function status_signup(ctx){
  * Validates the MCP protocol request.
  * @param {Koa} ctx - Koa context object
  */
-async function protocolValidation(ctx, next){
+async function mcpProtocolValidation(ctx, next){
     switch(ctx.request.method.toUpperCase()){
         case 'GET':
             // @todo - only required when initiating session or every get (main page `/` for example)?
             const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
             const bypassAuth = true
             if(!bypassAuth && ctx.path.endsWith('/sse') && !mClientEntities?.[headerAuthorization])
-                ctx.throw(401, 'Unauthorized - Invalid or missing authorization token')
+                ctx.throw(401, 'Invalid or missing authorization token')
             break
         case 'POST':
             const { sessionId, } = ctx.request.query
             if(!sessionId)
-                ctx.throw(401, 'Unauthorized - Missing sessionId')
+                ctx.throw(401, 'Missing sessionId')
             ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
             const { sessionMeta, } = ctx.state
             if(!sessionMeta)
                 ctx.throw(401, `Session Unauthorized; sessionId=${ sessionId }`)
-            const { transportEntry, } = sessionMeta
+            const { sessionIdKoa, transportEntry, } = sessionMeta
             if(!transportEntry)
-                ctx.throw(401, 'Unauthorized or unknown session; cannot communicate with MCP')
+                ctx.throw(401, 'Unknown session; cannot communicate with MCP')
+            if(!sessionIdKoa?.length)
+                ctx.throw(401, 'Unknown session; cannot communicate with Koa')
+            /* validate Koa session */
+            const prefix = 'koa:sess:'
+            const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
+            if(!existingKoaSession)
+                ctx.throw(401, 'Unknown session; cannot find existing Koa session')
+            ctx.session = existingKoaSession
+			await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // 🧹 destroy temporary blank session created by Koa
+            // Koa server will have mis-assigned ctx.state
+            ctx.state.avatar = ctx.session.avatar
+            ctx.state.locked = ctx.session.locked
+            const { id: run_id, jsonrpc, method, params={}, } = ctx.request.body
+            const { arguments: args, capabilities, clientInfo, name, protocolVersion, _meta={}, } = params
+            const { progressToken, } = _meta
+            ctx.state.mcp = {
+                args,
+                capabilities,
+                clientInfo,
+                jsonrpc,
+                method,
+                name,
+                params,
+                progressToken,
+                protocolVersion,
+                run_id,
+                sessionId,
+                _meta,
+            }
             break
         default:
             break
