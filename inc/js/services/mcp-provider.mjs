@@ -15,14 +15,14 @@ class mcpProvider {
 	 * @param {object} llm_providers - The LLM providers object containing connection type, authentication, endpoint, and type.
 	 */
 	constructor(llm_provider){
-		const { _connectionType, authentication, endpoint, type='system-avatar', } = llm_provider
+		const { _connectionType, authentication, endpoint, toolName, type='system-avatar', } = llm_provider
 		if(_connectionType.toLowerCase()!=='mcp')
 			throw new Error('Connection type is not defined')
 		this.#endpoint = endpoint
 		this.#toolName = toolName
 		console.log('Connecting to MCP model server...')
 		const transport = new SSEClientTransport(new URL(endpoint))
-		this.#client = new Client({ name: `mylife-${ type }`, version: '1.0.0' })
+		this.#client = new Client({ name: `mylife-platform-${ type }`, version: '1.0.0' })
 		this.#client.connect(transport)
 			.then(()=>{
 				console.log('Connected to MCP model server')

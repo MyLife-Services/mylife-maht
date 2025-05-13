@@ -722,14 +722,14 @@ class BotAgent {
 					text: summary,
 					type: 'text',
 				}],
-				isError: true,
+				isError: false,
 			}
 			: {
 				content: [{
 					text: `No summary found for item id: ${ itemId }`,
 					type: 'text',
 				}],
-				isError: false,
+				isError: true,
 			}
 		return result
 	}
