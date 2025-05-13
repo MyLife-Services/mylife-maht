@@ -1,5 +1,3 @@
-import { error } from "console"
-
 /* module constants */
 const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
@@ -676,6 +674,30 @@ class BotAgent {
 		// @todo - search all bots?
 		throw new Error(`Function not found: ${ functionName }`)
 	}
+	async mcp_change_title(mcpdata){
+		const { itemId, title, } = mcpdata
+		if(!itemId?.length)
+			throw new Error('Item id required')
+		if(!title?.length)
+			throw new Error('Title required')
+		const { id, } = await this.#factory.updateItem({ id: itemId, title })
+		const result = !id?.length || id!==itemId
+			? {
+				content: [{
+					text: `Item title updated successfully: ${ itemId }`,
+					type: 'text',
+				}],
+				isError: false,
+			}
+			: {
+				content: [{
+					text: `Item title update failed: ${ itemId }`,
+					type: 'text',
+				}],
+				isError: true,
+			}
+		return result
+	}
 	async mcp_chat(mcpdata){
 		const { message, } = mcpdata
 		const Conversation = await this.activeBot.chat(message, message, true, this.avatar)
@@ -686,6 +708,29 @@ class BotAgent {
 			content,
 			isError: false,
 		}
+		return result
+	}
+	async mcp_get_summary(mcpdata){
+		const { itemId, } = mcpdata
+		if(!itemId?.length)
+			throw new Error('Item id required')
+		const { summary, } = await this.#factory.item(itemId)
+			?? {}
+		const result = summary?.length
+			? {
+				content: [{
+					text: summary,
+					type: 'text',
+				}],
+				isError: true,
+			}
+			: {
+				content: [{
+					text: `No summary found for item id: ${ itemId }`,
+					type: 'text',
+				}],
+				isError: false,
+			}
 		return result
 	}
 	async mcp_get_memories(mcpdata){
