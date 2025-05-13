@@ -5,10 +5,7 @@ import { fileURLToPath } from 'url'
 /* server imports */
 import Koa from 'koa'
 import { koaBody } from 'koa-body'
-import koaConnect from 'koa-connect'
-import mount from 'koa-mount'
 import render from 'koa-ejs'
-import Router from 'koa-router'
 import session from 'koa-generic-session'
 import serve from 'koa-static'
 /* misc imports */
@@ -16,7 +13,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.36'
+const version = '0.0.37'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
