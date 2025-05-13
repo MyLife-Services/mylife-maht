@@ -665,12 +665,12 @@ class BotAgent {
 	 */
 	async mcp_bot_function(functionName, mcpData){
 		functionName = functionName.replace('mylife_', 'mcp_')
-		if(typeof this[functionName]=== 'function')
+		if(typeof this[functionName]==='function')
 			return await this[functionName](mcpData)
-		if(typeof this.activeBot[functionName]=== 'function')
+		if(typeof this.activeBot[functionName]==='function')
 			return await this.activeBot[functionName](mcpData)
-		if(typeof this.avatar[functionName]=== 'function')
-			return await this.activeBot[functionName](mcpData)
+		if(typeof this.avatar[functionName]==='function')
+			return await this.avatar[functionName](mcpData)
 		// @todo - search all bots?
 		throw new Error(`Function not found: ${ functionName }`)
 	}
