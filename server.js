@@ -5,7 +5,10 @@ import { fileURLToPath } from 'url'
 /* server imports */
 import Koa from 'koa'
 import { koaBody } from 'koa-body'
+import koaConnect from 'koa-connect'
+import mount from 'koa-mount'
 import render from 'koa-ejs'
+import Router from 'koa-router'
 import session from 'koa-generic-session'
 import serve from 'koa-static'
 /* misc imports */
@@ -13,7 +16,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.35'
+const version = '0.0.36'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
@@ -96,35 +99,35 @@ app.context.SystemAvatar = _Maht
 app.context.Globals = _Maht.globals
 app.context.Globals.rootDirectory = __dirname
 app.context.menu = _Maht.menu
+app.context.MemoryStore = MemoryStore
 app.context.mcpSessionMeta ??= new Map()
 app.keys = [
 	process.env.MYLIFE_SESSION_KEY
 		?? `mylife-session-failsafe|${ _Maht.newGuid }`
 ]
-app.use(koaBody({
-    multipart: true,
-    formidable: {
-		keepExtensions: true, // keep file extension
-        maxFileSize: parseInt(process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760, // 10MB in bytes
-		uploadDir: uploadDir,
-		onFileBegin: (name, file) => {
-			const { filepath,  mimetype, newFilename, originalFilename, size, } = file
-			let extension = path.extname(originalFilename).toLowerCase()
-			if(!extension)
-				extension = mimeTypesToExtensions[mimetype]?.[0]
-			/* validate mimetypes */
-			const validFileType = mimeTypesToExtensions[mimetype]?.includes(extension)
-			if(!validFileType)
-				throw new Error('Invalid mime type')
-			/* mutate newFilename && filepath */
-			const { name: filename, } = path.parse(originalFilename)
-			const safeName = filename.replace(/[^a-z0-9.]/gi, '_').replace(/\s/g, '-').toLowerCase() + extension
-			/* @stub - create temp user sub-dir? */
-			file.newFilename = safeName
-			file.filepath = path.join(uploadDir, safeName)
+app.use(async (ctx, next) => {
+    await koaBody({
+      multipart: true,
+      formidable: {
+        keepExtensions: true,
+        maxFileSize: parseInt(process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760,
+        uploadDir: uploadDir,
+        onFileBegin: (name, file) => {
+          const { filepath, mimetype, newFilename, originalFilename, size } = file
+          let extension = path.extname(originalFilename).toLowerCase()
+          if (!extension)
+            extension = mimeTypesToExtensions[mimetype]?.[0]
+          const validFileType = mimeTypesToExtensions[mimetype]?.includes(extension)
+          if (!validFileType)
+            throw new Error('Invalid mime type')
+          const { name: filename } = path.parse(originalFilename)
+          const safeName = filename.replace(/[^a-z0-9.]/gi, '_').replace(/\s/g, '-').toLowerCase() + extension
+          file.newFilename = safeName
+          file.filepath = path.join(uploadDir, safeName)
         }
-    },
-}))
+      }
+    })(ctx, next)
+})
 	.use(serve(path.join(__dirname, 'views', 'assets')))
 	.use(
 		session(	//	session initialization
@@ -172,10 +175,12 @@ app.use(koaBody({
 //	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
 	.use(serverRouter.routes())	//	enable system routes
 	.use(serverRouter.allowedMethods())	//	enable system routes
-	.listen(port, () => {	//	start the server
-		console.log(chalk.greenBright('server available'))
-		console.log(chalk.yellow(`listening on port ${port}`))
-	})
+/* post-start server functions */
+/* server listens */
+app.listen(port, () => {	//	start the server
+	console.log(chalk.greenBright('server available'))
+	console.log(chalk.yellow(`listening on port ${port}`))
+})
 /** server functions **/
 function checkForLiveAlerts(){
 	_Maht.alerts()

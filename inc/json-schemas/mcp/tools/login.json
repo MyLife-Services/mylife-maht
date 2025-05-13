@@ -1,0 +1,31 @@
+{
+	"annotations": {
+		"title": "MyLife-Login",
+		"readOnlyHint": true,
+		"destructiveHint": false,
+		"idempotentHint": true,
+		"openWorldHint": false
+	},
+	"description": "I am the MyLife Member Login tool. I can log you into your MyLife account.",
+	"inputSchema": {
+		"type": "object",
+		"properties": {
+			"mbr_id": {
+				"description": "The guid for an active member",
+				"type": "string"
+			},
+			"passphrase": {
+				"description": "Human passphrase for login",
+				"type": "string"
+			}
+		},
+		"required": [
+            "mbr_id",
+            "passphrase"
+        ]
+	},
+	    "mylife_bots": [
+        "any"
+    ],
+    "name": "login"
+}

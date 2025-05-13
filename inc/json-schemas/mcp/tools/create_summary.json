@@ -1,0 +1,99 @@
+{
+    "annotations": {
+		"title": "MyLife-Create-Summary",
+		"readOnlyHint": false,
+		"destructiveHint": true,
+		"idempotentHint": true,
+		"openWorldHint": false
+	},
+    "description": "I generate a complete `item` summary with metadata elements and save it in the MyLife database. This summary should be as complete a summary as possible, including all relevant information from the `item` content. The summary should be a complete and coherent narrative that captures the essence of the member input.",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "content": {
+                "description": "Original Member chat content regarding `item`",
+                "type": "string"
+            },
+            "form": {
+                "description": "The form of the intelligence submitting the summary.",
+                "enum": [
+                    "biographer",
+                    "diary",
+                    "item",
+                    "journal"
+                ],
+                "type": "string"
+            },
+            "keywords": {
+                "description": "Keywords most relevant to `item`",
+                "items": {
+                    "description": "Keyword from `item` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "mood": {
+                "description": "Record member mood for summary as ascertained from `item` content and interactions",
+                "type": "string"
+            },
+            "phaseOfLife": {
+                "description": "Phase of life, if indicated by `item` content",
+                "enum": [
+                    "birth",
+                    "childhood",
+                    "adolescence",
+                    "teenage",
+                    "young-adult",
+                    "adulthood",
+                    "middle-age",
+                    "senior",
+                    "end-of-life",
+                    "past-life",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "relationships": {
+                "description": "Individuals (or pets) mentioned in `item` content",
+                "items": {
+                    "description": "Name of individual or pet in `item`",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "summary": {
+                "description": "A complete `item` summary composed of all salient points from member content",
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title for `item` based on content",
+                "type": "string"
+            },
+            "type": {
+                "description": "MyLife System type of `item`; currently supported types are `entry` and `memory`",
+                "enum": [
+                    "entry",
+                    "memory"
+                ],
+                "type": "string"
+            }
+        },
+        "required": [
+            "content",
+            "form",
+            "keywords",
+            "mood",
+            "phaseOfLife",
+            "relationships",
+            "summary",
+            "title",
+            "type"
+        ]
+    },
+    "name": "create_summary",
+    "mylife_bots": [
+        "biographer",
+        "diary",
+        "journal"
+    ]
+}

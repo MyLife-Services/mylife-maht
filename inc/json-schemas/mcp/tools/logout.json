@@ -1,0 +1,19 @@
+{
+	"annotations": {
+		"title": "MyLife-Logout",
+		"readOnlyHint": true,
+		"destructiveHint": false,
+		"idempotentHint": false,
+		"openWorldHint": false
+	},
+	"description": "I am the MyLife Member Logout tool. If logged in, I can log you out of your MyLife account.",
+	"inputSchema": {
+		"type": "object",
+		"properties": {},
+		"required": []
+	},
+	    "mylife_bots": [
+        "any"
+    ],
+    "name": "logout"
+}

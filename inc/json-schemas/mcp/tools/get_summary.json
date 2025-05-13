@@ -1,0 +1,29 @@
+{
+	"annotations": {
+		"title": "MyLife-Get-Summary",
+		"readOnlyHint": false,
+		"destructiveHint": true,
+		"idempotentHint": true,
+		"openWorldHint": false
+	},
+    "description": "I get an item's summary from the MyLife database by a given itemId",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Id of item summary to get",
+                "type": "string"
+            }
+        },
+        "required": [
+            "itemId"
+        ]
+    },
+    "name": "get_summary",
+    "mylife_bots": [
+        "avatar",
+        "biographer",
+        "diary",
+        "journal"
+    ]
+}
