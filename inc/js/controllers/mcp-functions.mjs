@@ -12,7 +12,9 @@ async function mcpCallBot(ctx){
     let { error, result, } = mcpInitializationChecks(ctx, 'bot')
     const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
     const { runs, transportEntry, } = sessionMeta
+    console.log(chalk.yellow('MCP BOT Call request'), mcp)
     const { args, jsonrpc, method, name, params, progressToken, protocolVersion, run_id, _meta, } = mcp
+    let id = run_id
     if(!(error ?? result)){
         const methodBase = method.split('/')[0]
         const methodAction = method.split('/').pop()
