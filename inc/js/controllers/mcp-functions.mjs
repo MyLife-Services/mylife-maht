@@ -12,7 +12,6 @@ async function mcpCallBot(ctx){
     let { error, result, } = mcpInitializationChecks(ctx, 'bot')
     const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
     const { runs, transportEntry, } = sessionMeta
-    console.log(chalk.yellow('MCP BOT Call request'), mcp)
     const { args, jsonrpc, method, name, params, progressToken, protocolVersion, run_id, _meta, } = mcp
     let id = run_id
     if(!(error ?? result)){
@@ -101,7 +100,7 @@ async function mcpCallBot(ctx){
             case 'prompts':
             case 'resources':
             default:
-                console.log(chalk.red('MCP BOT Call request - unhandled method'), method)
+                console.log(chalk.red('MCP BOT Call request - unhandled method'), method, mcp, mcp?.sessionId, sessionId ?? null)
                 error = {
                     code: 500,
                     data: {
@@ -435,7 +434,18 @@ async function mcpCallSystem(ctx){
                                                 })
                                             }, 1000)
                                         }
-                                        const registrationData = await Avatar.registerCandidate(signupPacket)
+                                        try {
+                                            const registrationData = await Avatar.registerCandidate(signupPacket)
+                                        } catch(error) {
+                                            result = {
+                                                content: [{
+                                                    text: `MyLife encountered an error while processing your registration request: ${ error.message || 'Unknown error' }`,
+                                                    type: 'text',
+                                                }],
+                                                isError: true,
+                                            }
+                                            break
+                                        }
                                         if(interval)
                                             clearInterval(interval)
                                         const { email: registeredEmail, } = registrationData
@@ -530,7 +540,7 @@ async function mcpCallSystem(ctx){
     mcpSendResponse(transportEntry, jsonrpc, error, run_id, result)
     ctx.status = 200
 }
-async function mSessionInfo(ctx) {
+async function mSessionInfo(ctx){
     const { sid: sessionId, } = ctx.params
     const { sessionMeta, } = ctx.state
     const transport = sessionMeta.get(sessionId)?.transportEntry
@@ -552,7 +562,7 @@ async function mSessionInfo(ctx) {
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<void>}
  */
-async function mcpStream(ctx) {
+async function mcpStream(ctx){
     ctx.respond = false
     const url = ctx.request.url.split('/')
     if(url[url.length - 1].toLowerCase()==='sse')
@@ -570,14 +580,13 @@ async function mcpStream(ctx) {
         sessionIdKoa: ctx.sessionId,
         transportEntry: sseTransport,
     })
-    console.log('✅ Connected Inspector SSE session:', sessionId, ctx.sessionId)
+    console.log('✅ Connected Inspector SSE session:', sessionId)
 }
 /**
  * Returns system information adhering to MCP protocol requirements.
  * @param {Koa} ctx - Koa context object
  */
-async function mcpSystemInfo(ctx) {
-    console.log(chalk.yellow('MCP System Info request'))
+async function mcpSystemInfo(ctx){
     ctx.status = 200
     ctx.body = {
         model: 'mylife-system-avatar',
@@ -599,7 +608,16 @@ function mcpInitializationChecks(ctx, requestType='system'){
     const { args, capabilities, clientInfo, jsonrpc, method, name, progressToken, protocolVersion, run_id, sessionId, _meta, } = mcp
     const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
     if(!transportEntry)
-        throw new error('Session not found', sessionId)
+        error = {
+            code: 403,
+            data: {
+                arguments: args,
+                id: run_id,
+                method,
+                sessionId,
+            },
+            message: 'Session not initialized\n1. use `method=initialize` to finalize handshake;\n2. use `method=notifications/initialized` to confirm initialization',
+        }
     let error,
         id=run_id,
         result

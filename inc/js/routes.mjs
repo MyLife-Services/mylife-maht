@@ -154,7 +154,9 @@ _mcpSystemAvatarRouter.use(mcpProtocolValidation)
 _mcpSystemAvatarRouter.get('/', mcpSystemInfo)
 _mcpSystemAvatarRouter.get('/sse', mcpStream)
 _mcpSystemAvatarRouter.get('/message/:sid', mSessionInfo)
+_mcpSystemAvatarRouter.get('/messages/:sid', mSessionInfo)
 _mcpSystemAvatarRouter.post('/message', mcpCallSystem)
+_mcpSystemAvatarRouter.post('/messages', mcpCallSystem)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
@@ -207,7 +209,9 @@ _mcpBotRouter.use(mcpProtocolValidation)
 _mcpBotRouter.get('/', mcpSystemInfo)
 _mcpBotRouter.get('/sse', mcpStream)
 _mcpBotRouter.get('/message/:sid', mSessionInfo)
+_mcpBotRouter.get('/messages/:sid', mSessionInfo)
 _mcpBotRouter.post('/message', mcpCallBot)
+_mcpBotRouter.post('/messages', mcpCallBot)
 /* Nanda routes */
 _nandaRouter.get('/mylife', server)
 _nandaRouter.get('/servers/:sid', server)
@@ -300,7 +304,7 @@ async function mcpProtocolValidation(ctx, next){
             if(!existingKoaSession)
                 ctx.throw(401, 'Unknown session; cannot find existing Koa session')
             ctx.session = existingKoaSession
-			await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // 🧹 destroy temporary blank session created by Koa
+			await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
             // Koa server will have mis-assigned ctx.state
             ctx.state.avatar = ctx.session.avatar
             ctx.state.locked = ctx.session.locked
@@ -311,6 +315,7 @@ async function mcpProtocolValidation(ctx, next){
                 args,
                 capabilities,
                 clientInfo,
+                id: run_id,
                 jsonrpc,
                 method,
                 name,
