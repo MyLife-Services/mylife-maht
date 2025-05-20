@@ -286,6 +286,7 @@ async function mcpProtocolValidation(ctx, next){
                 ctx.throw(401, 'Invalid or missing authorization token')
             break
         case 'POST':
+            // @todo - much of this is related to original SSE, can switch
             const { sessionId, } = ctx.request.query
             if(!sessionId)
                 ctx.throw(401, 'Missing sessionId')
@@ -308,24 +309,7 @@ async function mcpProtocolValidation(ctx, next){
             // Koa server will have mis-assigned ctx.state
             ctx.state.avatar = ctx.session.avatar
             ctx.state.locked = ctx.session.locked
-            const { id: run_id, jsonrpc, method, params={}, } = ctx.request.body
-            const { arguments: args, capabilities, clientInfo, name, protocolVersion, _meta={}, } = params
-            const { progressToken, } = _meta
-            ctx.state.mcp = {
-                args,
-                capabilities,
-                clientInfo,
-                id: run_id,
-                jsonrpc,
-                method,
-                name,
-                params,
-                progressToken,
-                protocolVersion,
-                run_id,
-                sessionId,
-                _meta,
-            }
+            ctx.state.mcp = ctx.request.body
             break
         default:
             break

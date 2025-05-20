@@ -1031,19 +1031,17 @@ class MyLifeFactory extends AgentFactory {
 			registration = await this.#dataservices.patch(registration.id, patches, 'registration')
 			// @todo - re-send email to candidate?
 		} else {
-			const id = this.globals.newGuid
-			const name = `${ avatarName ?? humanName ?? 'registerCandidate()' }-${ id }`
 			candidate = {
 				...candidate,
 				being,
-				id,
 				mbr_id: this.mbr_id,
-				name,
+				name: `${ avatarName }-${ email }-${ humanName}`,
 				reason,
 				type,
 			}
 			registration = await this.#dataservices.pushItem(candidate, 'registration')
-			const response = await mMailer.sendMail({
+			const { id, } = registration
+			await mMailer.sendMail({
 				from: `"MyLife Corporate Intelligence, Q" <${ process.env.MAHT_EMAIL }>`,
 				to: email,
 				subject: '✅ Welcome to MyLife! Validate your email, please',
@@ -1051,13 +1049,12 @@ class MyLifeFactory extends AgentFactory {
 					<p>Thank you for registering for MyLife, the nonprofit humanist member organization dedicated to helping you tell your personal narratives for posterity. To confirm your registration, please visit:</p>
 					<p><a href="https://humanremembranceproject.org/?vld=${ id }">Click here to validate your email</a></p>`
 			})
-			.then(info => {
+			.then(info=>{
 				console.log(chalk.green(`📧 Test email sent to ${ email }! Message ID:`), info.messageId)
 			})
-			.catch(error => {
+			.catch(error=>{
 				console.error(chalk.red('❌ Failed to send test email:'), error)
 			})
-			console.log(chalk.blueBright('Factory::registerCandidate()::email'), response)
 		}
 		this.#registrant = registration
 		return this.#registrant

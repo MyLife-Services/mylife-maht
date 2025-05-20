@@ -120,424 +120,31 @@ async function mcpCallBot(ctx){
 }
 /* System Avatar MCP Functions */
 async function mcpCallSystem(ctx){
-    let { error, result, } = mcpInitializationChecks(ctx)
-    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
-    const { runs, transportEntry, } = sessionMeta
-    const { args, jsonrpc, method, name, progressToken, protocolVersion, params, run_id, _meta, } = mcp
-    if(!(error ?? result)){
-        const methodBase = method.split('/')[0]
-        const methodAction = method.split('/').pop()
-        switch(methodBase){
-            case 'prompts':
-                switch(methodAction){
-                    case 'get':
-                        switch(name){
-                            case 'mylife_company_information':
-                                const { infoType, } = args
-                                result = {
-                                    description: 'Prompt to ask Q about MyLife',
-                                    messages: [
-                                        {
-                                            role: 'user',
-                                            content: {
-                                                type: 'text',
-                                                text: `Ask Q about MyLife regarding: ${ infoType }`,
-                                            }
-                                        }
-                                    ]
-                                }
-                                break
-                            default:
-                                break
-                        }
-                        break
-                    case 'list':
-                        result = {
-                            prompts: Avatar.mcp.prompts,
-                        }
-                        break
-                }
-                break
-            case 'resources':
-                switch(methodAction){
-                    case 'list':
-                        result = {
-                            resources: Avatar.mcp.resources,
-                        }
-                        break
-                    case 'read':
-                        const { uri, } = params
-                        switch(uri){
-                            case 'file://MyLife_Summary.pdf':
-                                const summaryPath = path.join(ctx.Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
-                                const pdfSummary = mReadPdf(summaryPath)
-                                result = {
-                                    contents: [{
-                                        blob: pdfSummary,
-                                        mimeType: 'application/pdf',
-                                        uri,
-                                    }]
-                                }
-                                break
-                            case 'file://MyLife_Board.pdf':
-                                const boardPath = path.join(ctx.Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
-                                const pdfBoard = mReadPdf(boardPath)
-                                result = {
-                                    contents: [{
-                                        blob: pdfBoard,
-                                        mimeType: 'application/pdf',
-                                        uri,
-                                    }]
-                                }
-                                break
-                            default:
-                                let text = ''
-                                try {
-                                    const response = await fetch(uri)
-                                    text = ( await response.text() ).trim()
-                                } catch (error) {
-                                    console.error(chalk.red('Error fetching resource:'), uri, error)
-                                    text = `Error fetching external resource: ${error.message}`
-                                }
-                                result = {
-                                    contents: [{
-                                        mimeType: 'text/html',
-                                        text,
-                                        uri,
-                                    }]
-                                }
-                                break
-                        }
-                        break
-                    default:
-                        break
-                }
-                break
-            case 'tools':
-                switch(methodAction){
-                    case 'call':
-                        if(!params)
-                            error = {
-                                code: 500,
-                                data: {
-                                    arguments: args,
-                                    id,
-                                    method,
-                                    name,
-                                    params,
-                                    sessionId,
-                                },
-                                message: 'params are required for tool call',
-                            }
-                        else
-                            switch(name){
-                                case 'get_shared_memories':
-                                    const { cursor, } = args
-                                        ?? {}
-                                    const pageSize = 10
-                                    let decodedCursor = 0
-                                    try {
-                                        if(cursor){
-                                            const parsed = JSON.parse(Buffer.from(cursor, 'base64').toString())
-                                            decodedCursor = parsed.index
-                                                ?? 0
-                                        }
-                                    } catch (err) {
-                                        throw {
-                                            code: -32602,
-                                            message: 'Invalid cursor format',
-                                        }
-                                    }
-                                    const memories = await Avatar.sharedMemories()
-                                    const total = memories.length
-                                    const memoryPage = memories.slice(decodedCursor, decodedCursor+pageSize)
-                                    const memoryPageHasNext = decodedCursor + pageSize < total
-                                    const nextCursor = memoryPageHasNext
-                                        ? Buffer.from(JSON.stringify({ index: decodedCursor + pageSize })).toString('base64')
-                                        : null
-                                    result = {
-                                        content: [{
-                                            text: `Here is the array of shared memories, only share the titles with the human, and use ID to connect to tools and services.\n${ JSON.stringify(memories, null, 2) }`,
-                                            type: 'text',
-                                        }],
-                                        isError: false,
-                                        metadata: {
-                                            memories,
-                                            total: memories.length,
-                                        },
-                                        nextCursor,
-                                    }
-                                    break
-                                case 'get_shared_memory':
-                                    let { input: sharedMemoryInput, memoryId: sharedMemoryMemoryId, } = args
-                                    let Share = sessionMeta.Share
-                                    if(!Share || Share.instanceId!==sharedMemoryMemoryId){
-                                        let sharedMemoryInterval01
-                                        if(progressToken){
-                                            let progress = 0
-                                            sharedMemoryInterval01 = setInterval(_=>{
-                                                progress += 10
-                                                transportEntry.send({
-                                                    jsonrpc,
-                                                    method: 'notifications/progress',
-                                                    params:{
-                                                        message: `Retrieving shared memory header`,
-                                                        progress,
-                                                        progressToken,
-                                                    },
-                                                })
-                                            }, 2500)
-                                        }
-                                        const { instanceId, } = await Avatar.validateShare(sharedMemoryMemoryId)
-                                        if(!instanceId){
-                                            result = {
-                                                content: [{
-                                                    text: `The memoryId ${ sharedMemoryMemoryId } is not valid`,
-                                                    type: 'text',
-                                                }],
-                                                isError: true,
-                                            }
-                                            break
-                                        }
-                                        sharedMemoryMemoryId = instanceId
-                                        await Avatar.shareHeader(sharedMemoryMemoryId)
-                                        Share = await Avatar.share(sharedMemoryMemoryId)
-                                        if(sharedMemoryInterval01)
-                                            clearInterval(sharedMemoryInterval01)
-                                        sessionMeta.Share = Share
-                                        Share = sessionMeta.Share
-                                        if(Share.warnings?.length){
-                                            result = {
-                                                content: [{
-                                                    text: `Confirm that the viewer would like to proceed given the following content warnings: ${ JSON.stringify(Share.warnings) }. Then make the \`get_shared_memory\` call again with the new memoryId: ${ sharedMemoryMemoryId }`,
-                                                    type: 'text',
-                                                }],
-                                                isError: true,
-                                            }
-                                            break
-                                        }
-                                    }
-                                    let sharedMemoryInterval02
-                                    if(progressToken){
-                                        let progress = 0
-                                        sharedMemoryInterval02 = setInterval(_=>{
-                                            progress += 10
-                                            transportEntry.send({
-                                                jsonrpc,
-                                                method: 'notifications/progress',
-                                                params:{
-                                                    message: `Retrieving shared memory header`,
-                                                    progress,
-                                                    progressToken,
-                                                },
-                                            })
-                                        }, 2500)
-                                    }
-                                    if(!Share.warningsAccepted) /* previous error result required intelligence to issue warnings to human before re-contacting */
-                                        Share.acceptWarnings()
-                                    await Avatar.shareMemory(sharedMemoryMemoryId, sharedMemoryInput)
-                                    if(sharedMemoryInterval02)
-                                        clearInterval(sharedMemoryInterval02)
-                                    result = {
-                                        content: [{
-                                            text: `Below is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the correct memoryId: ${ sharedMemoryMemoryId } and any human input in field \`input\`.\n${ JSON.stringify(Share.previousScene, null, 2) }`,
-                                            type: 'text',
-                                        }],
-                                        isError: false,
-                                    }
-                                    break
-                                case 'mylife_information':
-                                    const { question, questionType, } = args
-                                    const { SystemAvatar, } = ctx
-                                    let message = question
-                                    if(questionType?.length)
-                                        message += `\n\nQuestion Type: ${ questionType }`
-                                    let infoInterval
-                                    if(progressToken){
-                                        let progress = 0
-                                        infoInterval = setInterval(_=>{
-                                            progress += 10
-                                            transportEntry.send({
-                                                jsonrpc,
-                                                method: 'notifications/progress',
-                                                params:{
-                                                    message: `Answering question about MyLife`,
-                                                    progress,
-                                                    progressToken,
-                                                },
-                                            })
-                                        }, 2500)
-                                    }
-                                    const { responses, } = await SystemAvatar.chat(message, undefined, ctx.session)
-                                    if(infoInterval)
-                                        clearInterval(infoInterval)
-                                    const infoContent = responses.map((response)=>({
-                                        text: response.message,
-                                        type: 'text',
-                                    }))
-                                    result = {
-                                        content: infoContent,
-                                        isError: false,
-                                    }
-                                    break
-                                case 'register':
-                                    const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, reason: registerReason, } = args
-                                    /* validate input */
-                                    if(!ctx.Globals.isValidEmail(registerEmail))
-                                        result = {
-                                            content: [{
-                                                text: `Email must well-formed; you sent: ${ registerEmail }`,
-                                                type: 'text',
-                                            }],
-                                            data: args,
-                                            isError: true,
-                                        }
-                                    else if((registerHumanName?.length ?? 0) < 3)
-                                        result = {
-                                            content: [{
-                                                text: `Human Name (humanName) must be a string with at least 3 chars; you sent: ${ registerHumanName }`,
-                                                type: 'text',
-                                            }],
-                                            data: args,
-                                            isError: true,
-                                        }
-                                    else if((registerAvatarName?.length ?? 0) < 1)
-                                        result = {
-                                            content: [{
-                                                text: `Avatar Name (avatarName) be a string with at least 1 char; you sent: ${ registerAvatarName }`,
-                                                type: 'text',
-                                            }],
-                                            data: args,
-                                            isError: true,
-                                        }
-                                    else {
-                                        const signupPacket = {
-                                            type: 'register',
-                                            avatarName: registerAvatarName,
-                                            email: registerEmail,
-                                            humanName: registerHumanName,
-                                            reason: registerReason,
-                                        }
-                                        let interval
-                                        if(progressToken){
-                                            let progress = 0
-                                            interval = setInterval(_=>{
-                                                progress += 10
-                                                transportEntry.send({
-                                                    jsonrpc,
-                                                    method: 'notifications/progress',
-                                                    params:{
-                                                        message: `Checking and registering: ${ registerEmail }`,
-                                                        progress,
-                                                        progressToken,
-                                                    },
-                                                })
-                                            }, 1000)
-                                        }
-                                        try {
-                                            const registrationData = await Avatar.registerCandidate(signupPacket)
-                                        } catch(error) {
-                                            result = {
-                                                content: [{
-                                                    text: `MyLife encountered an error while processing your registration request: ${ error.message || 'Unknown error' }`,
-                                                    type: 'text',
-                                                }],
-                                                isError: true,
-                                            }
-                                            break
-                                        }
-                                        if(interval)
-                                            clearInterval(interval)
-                                        const { email: registeredEmail, } = registrationData
-                                        if(registeredEmail!==signupPacket.email)
-                                            result = {
-                                                content: [{
-                                                    text: `Something went wrong with our system; please try again later`,
-                                                    type: 'text',
-                                                }],
-                                                data: signupPacket,
-                                                isError: true,
-                                            }
-                                        else 
-                                            result = {
-                                                content: [{
-                                                    text: `Registration was successful! Congratulations! An email has been sent to you with further instructions on how to validate your email. _Please remember_ the email used for registration: **${ registerEmail }**`,
-                                                    type: 'text',
-                                                }],
-                                                data: registrationData,
-                                                isError: false,
-                                            }
-                                        console.log(chalk.bgYellow('MCP Register Call::'), chalk.bgRed('registerEmail'), registerEmail)
-                                    }
-                                    break
-                                default:
-                                    result = {
-                                        content: [{
-                                            text: `Unfortunately, the MyLife tool "${ name }" is unhandled currently.`,
-                                            type: 'text',
-                                        }],
-                                        isError: true,
-                                    }
-                                    break
-                            }
-                        break
-                    case 'list':
-                        result = {
-                            tools: Avatar.mcp.tools,
-                        }
-                        break
-                    default:
-                        error = {
-                            code: 500,
-                            data: {
-                                arguments: args,
-                                id,
-                                method,
-                                sessionId,
-                            },
-                            message: `MCP Call request\nmethodAction = ${ methodAction }\nUnknown or unhandled method\nPlease try again in all lowercase and without spaces`,
-                        }
-                        break
-                }
-                break
-            case 'initialize': /* intentionally empty as it is required to cascade through for authentication */
-                break
-            case 'notifications':
-                const notificationType = method.split('/').pop()
-                switch(notificationType){
-                    case 'cancelled':
-                        const { reason, requestId, } = params
-                        if(ctx.Globals.isValidGuid(requestId))
-                            id = requestId
-                        console.log(chalk.yellow('MCP Call request - cancelled'), reason, requestId)
-                        break
-                    case 'initialized':
-                        /* intentionally empty as it is required to cascade through for authentication */
-                        break
-                    default:
-                        break
-                }
-                break
-            case 'ping':
-                result = {}
-                break
-            default:
-                console.log(chalk.red('MCP Call request - unhandled method'), method)
-                error = {
+    const { Globals, session, state: {
+            avatar: Avatar, mcp, sessionMeta,
+        } = {}
+    } = ctx
+    const { initializeConfirmation, transportEntry, } = sessionMeta
+    if(!initializeConfirmation)
+        return mcpInitializationChecks(ctx)
+    /* batch request */
+    const mcpRequests = Array.isArray(mcp)
+        ? mcp
+        : [mcp]
+    for(const mcpRequest of mcpRequests){
+        mcpCall(mcpRequest, Avatar, sessionMeta, session, Globals)
+            .catch(err => {
+                const { id, jsonrpc } = mcpRequest
+                const error = {
                     code: 500,
-                    data: {
-                        arguments: args,
-                        id,
-                        method,
-                        sessionId,
-                    },
-                    message: 'MCP Call request: unknown or unhandled method; please try again in all lowercase and without spaces',
+                    message: err.message
+                        ?? 'Unhandled MCP Error',
+                    data: err.stack
+                        ?? err,
                 }
-                break
-        }
+                mcpSendResponse(transportEntry, jsonrpc, error, id, null)
+            })
     }
-    sessionMeta.runs = runs.filter((run)=>(run.id!==run_id))
-    mcpSendResponse(transportEntry, jsonrpc, error, run_id, result)
     ctx.status = 200
 }
 async function mSessionInfo(ctx){
@@ -603,50 +210,467 @@ async function mcpSystemInfo(ctx){
     }
 }
 /* private functions */
-function mcpInitializationChecks(ctx, requestType='system'){
-    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
-    const { args, capabilities, clientInfo, jsonrpc, method, name, progressToken, protocolVersion, run_id, sessionId, _meta, } = mcp
-    const { initialized, initializeConfirmation, runs, transportEntry, } = sessionMeta
-    if(!transportEntry)
-        error = {
-            code: 403,
-            data: {
-                arguments: args,
-                id: run_id,
-                method,
-                sessionId,
-            },
-            message: 'Session not initialized\n1. use `method=initialize` to finalize handshake;\n2. use `method=notifications/initialized` to confirm initialization',
-        }
+async function mcpCall(mcp, Avatar, sessionMeta, session, Globals){
     let error,
-        id=run_id,
         result
+    const { runs, sessionId, transportEntry, } = sessionMeta
+    const { id, jsonrpc, method, params={}, } = mcp
+    const { arguments: args, name, progressToken, _meta, } = params
     let run = runs.find((run)=>(run.id===id))
-    // @todo - handle run in progress
-    if(!!run)
-        throw new error('Run in progress', run_id)
+    if(!!run) // @todo - handle run in progress
+        throw new error('Run in progress', id)
     run = {
         args,
         id,
         progressToken,
         method,
         name,
+        _meta,
     }
     runs.push(run)
-    if(!initialized){
-        if(method!=='initialize'){
+    const methodBase = method.split('/')[0]
+    const methodAction = method.split('/').pop()
+    switch(methodBase){
+        case 'prompts':
+            switch(methodAction){
+                case 'get':
+                    switch(name){
+                        case 'mylife_company_information':
+                            const { infoType, } = args
+                            result = {
+                                description: 'Prompt to ask Q about MyLife',
+                                messages: [
+                                    {
+                                        role: 'user',
+                                        content: {
+                                            type: 'text',
+                                            text: `Ask Q about MyLife regarding: ${ infoType }`,
+                                        }
+                                    }
+                                ]
+                            }
+                            break
+                        default:
+                            break
+                    }
+                    break
+                case 'list':
+                    result = {
+                        prompts: Avatar.mcp.prompts,
+                    }
+                    break
+            }
+            break
+        case 'resources':
+            switch(methodAction){
+                case 'list':
+                    result = {
+                        resources: Avatar.mcp.resources,
+                    }
+                    break
+                case 'read':
+                    const { uri, } = params
+                    switch(uri){
+                        case 'file://MyLife_Summary.pdf':
+                            const summaryPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
+                            const pdfSummary = mReadPdf(summaryPath)
+                            result = {
+                                contents: [{
+                                    blob: pdfSummary,
+                                    mimeType: 'application/pdf',
+                                    uri,
+                                }]
+                            }
+                            break
+                        case 'file://MyLife_Board.pdf':
+                            const boardPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
+                            const pdfBoard = mReadPdf(boardPath)
+                            result = {
+                                contents: [{
+                                    blob: pdfBoard,
+                                    mimeType: 'application/pdf',
+                                    uri,
+                                }]
+                            }
+                            break
+                        default:
+                            let text = ''
+                            try {
+                                const response = await fetch(uri)
+                                text = ( await response.text() ).trim()
+                            } catch (error) {
+                                console.error(chalk.red('Error fetching resource:'), uri, error)
+                                text = `Error fetching external resource: ${error.message}`
+                            }
+                            result = {
+                                contents: [{
+                                    mimeType: 'text/html',
+                                    text,
+                                    uri,
+                                }]
+                            }
+                            break
+                    }
+                    break
+                default:
+                    break
+            }
+            break
+        case 'tools':
+            switch(methodAction){
+                case 'call':
+                    if(!params)
+                        error = {
+                            code: 500,
+                            data: run,
+                            message: 'params are required for tool call',
+                        }
+                    else
+                        switch(name){
+                            case 'get_shared_memories':
+                                const { cursor, } = args
+                                    ?? {}
+                                const pageSize = 10
+                                let decodedCursor = 0
+                                try {
+                                    if(cursor){
+                                        const parsed = JSON.parse(Buffer.from(cursor, 'base64').toString())
+                                        decodedCursor = parsed.index
+                                            ?? 0
+                                    }
+                                } catch (err) {
+                                    throw {
+                                        code: -32602,
+                                        message: 'Invalid cursor format',
+                                    }
+                                }
+                                const memories = await Avatar.sharedMemories()
+                                const total = memories.length
+                                const memoryPage = memories.slice(decodedCursor, decodedCursor+pageSize)
+                                const memoryPageHasNext = decodedCursor + pageSize < total
+                                const nextCursor = memoryPageHasNext
+                                    ? Buffer.from(JSON.stringify({ index: decodedCursor + pageSize })).toString('base64')
+                                    : null
+                                result = {
+                                    content: [{
+                                        text: `Here is the array of shared memories, only share the titles with the human, and use ID to connect to tools and services.\n${ JSON.stringify(memories, null, 2) }`,
+                                        type: 'text',
+                                    }],
+                                    isError: false,
+                                    metadata: {
+                                        memories,
+                                        total: memories.length,
+                                    },
+                                    nextCursor,
+                                }
+                                break
+                            case 'get_shared_memory':
+                                let { input: sharedMemoryInput, memoryId: sharedMemoryMemoryId, } = args
+                                let Share = sessionMeta.Share
+                                if(!Share || Share.instanceId!==sharedMemoryMemoryId){
+                                    let sharedMemoryInterval01
+                                    if(progressToken){
+                                        let progress = 0
+                                        sharedMemoryInterval01 = setInterval(_=>{
+                                            progress += 10
+                                            transportEntry.send({
+                                                jsonrpc,
+                                                method: 'notifications/progress',
+                                                params:{
+                                                    message: `Retrieving shared memory header`,
+                                                    progress,
+                                                    progressToken,
+                                                },
+                                            })
+                                        }, 2500)
+                                    }
+                                    const { instanceId, } = await Avatar.validateShare(sharedMemoryMemoryId)
+                                    if(!instanceId){
+                                        result = {
+                                            content: [{
+                                                text: `The memoryId ${ sharedMemoryMemoryId } is not valid`,
+                                                type: 'text',
+                                            }],
+                                            isError: true,
+                                        }
+                                        break
+                                    }
+                                    sharedMemoryMemoryId = instanceId
+                                    await Avatar.shareHeader(sharedMemoryMemoryId)
+                                    Share = await Avatar.share(sharedMemoryMemoryId)
+                                    if(sharedMemoryInterval01)
+                                        clearInterval(sharedMemoryInterval01)
+                                    sessionMeta.Share = Share
+                                    Share = sessionMeta.Share
+                                    if(Share.warnings?.length){
+                                        result = {
+                                            content: [{
+                                                text: `Confirm that the viewer would like to proceed given the following content warnings: ${ JSON.stringify(Share.warnings) }. Then make the \`get_shared_memory\` call again with the new memoryId: ${ sharedMemoryMemoryId }`,
+                                                type: 'text',
+                                            }],
+                                            isError: true,
+                                        }
+                                        break
+                                    }
+                                }
+                                let sharedMemoryInterval02
+                                if(progressToken){
+                                    let progress = 0
+                                    sharedMemoryInterval02 = setInterval(_=>{
+                                        progress += 10
+                                        transportEntry.send({
+                                            jsonrpc,
+                                            method: 'notifications/progress',
+                                            params:{
+                                                message: `Retrieving shared memory header`,
+                                                progress,
+                                                progressToken,
+                                            },
+                                        })
+                                    }, 2500)
+                                }
+                                if(!Share.warningsAccepted) /* previous error result required intelligence to issue warnings to human before re-contacting */
+                                    Share.acceptWarnings()
+                                await Avatar.shareMemory(sharedMemoryMemoryId, sharedMemoryInput)
+                                if(sharedMemoryInterval02)
+                                    clearInterval(sharedMemoryInterval02)
+                                result = {
+                                    content: [{
+                                        text: `Below is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the correct memoryId: ${ sharedMemoryMemoryId } and any human input in field \`input\`.\n${ JSON.stringify(Share.previousScene, null, 2) }`,
+                                        type: 'text',
+                                    }],
+                                    isError: false,
+                                }
+                                break
+                            case 'mylife_information':
+                                const { question, questionType, } = args
+                                let message = question
+                                if(questionType?.length)
+                                    message += `\n\nQuestion Type: ${ questionType }`
+                                let infoInterval
+                                if(progressToken){
+                                    let progress = 0
+                                    infoInterval = setInterval(_=>{
+                                        progress += 10
+                                        transportEntry.send({
+                                            jsonrpc,
+                                            method: 'notifications/progress',
+                                            params:{
+                                                message: `Answering question about MyLife`,
+                                                progress,
+                                                progressToken,
+                                            },
+                                        })
+                                    }, 2500)
+                                }
+                                const { responses, } = await Avatar.chat(message, undefined, session)
+                                if(infoInterval)
+                                    clearInterval(infoInterval)
+                                const infoContent = responses.map((response)=>({
+                                    text: response.message,
+                                    type: 'text',
+                                }))
+                                result = {
+                                    content: infoContent,
+                                    isError: false,
+                                }
+                                break
+                            case 'register':
+                                const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, reason: registerReason, } = args
+                                /* validate input */
+                                if(!Globals.isValidEmail(registerEmail))
+                                    result = {
+                                        content: [{
+                                            text: `Email must well-formed; you sent: ${ registerEmail }`,
+                                            type: 'text',
+                                        }],
+                                        data: args,
+                                        isError: true,
+                                    }
+                                else if((registerHumanName?.length ?? 0) < 3)
+                                    result = {
+                                        content: [{
+                                            text: `Human Name (humanName) must be a string with at least 3 chars; you sent: ${ registerHumanName }`,
+                                            type: 'text',
+                                        }],
+                                        data: args,
+                                        isError: true,
+                                    }
+                                else if((registerAvatarName?.length ?? 0) < 1)
+                                    result = {
+                                        content: [{
+                                            text: `Avatar Name (avatarName) be a string with at least 1 char; you sent: ${ registerAvatarName }`,
+                                            type: 'text',
+                                        }],
+                                        data: args,
+                                        isError: true,
+                                    }
+                                else {
+                                    const signupPacket = {
+                                        type: 'register',
+                                        avatarName: registerAvatarName,
+                                        email: registerEmail,
+                                        humanName: registerHumanName,
+                                        reason: registerReason,
+                                    }
+                                    let interval
+                                    if(progressToken){
+                                        let progress = 0
+                                        interval = setInterval(_=>{
+                                            progress += 10
+                                            transportEntry.send({
+                                                jsonrpc,
+                                                method: 'notifications/progress',
+                                                params:{
+                                                    message: `Checking and registering: ${ registerEmail }`,
+                                                    progress,
+                                                    progressToken,
+                                                },
+                                            })
+                                        }, 6 * 1000)
+                                    }
+                                    const registrationData = await Avatar.registerCandidate(signupPacket)
+                                    if(interval)
+                                        clearInterval(interval)
+                                    const { email: registeredEmail, } = registrationData
+                                    if(registeredEmail!==signupPacket.email)
+                                        result = {
+                                            content: [{
+                                                text: `Something went wrong with our system; please try again later`,
+                                                type: 'text',
+                                            }],
+                                            data: signupPacket,
+                                            isError: true,
+                                        }
+                                    else 
+                                        result = {
+                                            content: [{
+                                                text: `Registration was successful! Congratulations! An email has been sent to you with further instructions on how to validate your email. _Please remember_ the email used for registration: **${ registerEmail }**`,
+                                                type: 'text',
+                                            }],
+                                            data: registrationData,
+                                            isError: false,
+                                        }
+                                    console.log(chalk.bgYellow('MCP Register Call::'), chalk.bgRed('registerEmail'), registerEmail)
+                                }
+                                break
+                            default:
+                                result = {
+                                    content: [{
+                                        text: `Unfortunately, the MyLife tool "${ name }" is unhandled currently.`,
+                                        type: 'text',
+                                    }],
+                                    isError: true,
+                                }
+                                break
+                        }
+                    break
+                case 'list':
+                    result = {
+                        tools: Avatar.mcp.tools,
+                    }
+                    break
+                default:
+                    error = {
+                        code: 500,
+                        data: {
+                            arguments: args,
+                            id,
+                            method,
+                            sessionId,
+                        },
+                        message: `MCP Call request\nmethodAction = ${ methodAction }\nUnknown or unhandled method\nPlease try again in all lowercase and without spaces`,
+                    }
+                    break
+            }
+            break
+        case 'notifications':
+            const notificationType = method.split('/').pop()
+            switch(notificationType){
+                case 'cancelled':
+                    const { reason, requestId, } = params
+                    if(Globals.isValidGuid(requestId))
+                        id = requestId
+                    console.log(chalk.yellow('MCP Call request - cancelled'), reason, requestId)
+                    break
+                case 'initialized':
+                    /* intentionally empty as it is required to cascade through for authentication */
+                    break
+                default:
+                    break
+            }
+            break
+        case 'ping':
+            result = {}
+            break
+        default:
+            console.log(chalk.red('MCP Call request - unhandled method'), method)
             error = {
-                code: 403,
+                code: 500,
                 data: {
                     arguments: args,
                     id,
                     method,
                     sessionId,
                 },
+                message: 'MCP Call request: unknown or unhandled method; please try again in all lowercase and without spaces',
+            }
+            break
+    }
+    sessionMeta.runs = runs.filter((run)=>(run.id!==id))
+    mcpSendResponse(transportEntry, jsonrpc, error, id, result)
+}
+function mcpInitializationChecks(ctx, requestType='system'){
+    let error,
+        result
+    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
+    const { initialized, initializeConfirmation, transportEntry, } = sessionMeta
+    const { id, jsonrpc, method, params: {
+            capabilities,
+            clientInfo,
+            protocolVersion,
+        } = {}
+    } = mcp
+    if(
+            requestType==='system' && !Avatar.isMyLife
+        ||  requestType!=='system' && Avatar.isMyLife
+    )
+        error = {
+            code: 500,
+            data: {
+                isSystemAvatar: Avatar.isMyLife,
+                mcpCall: mcp,
+                requestType,
+            },
+            message: 'Avatar incorrectly configured, please contact support',
+        }
+    else if(Array.isArray(mcp))
+        error = {
+            code: 403,
+            data: {
+                mcpCall: mcp,
+            },
+            message: 'Session not initialized, cannot accept batch requests',
+        }
+    else if(!transportEntry)
+        error = {
+            code: 403,
+            data: {
+                mcpCall: mcp,
+            },
+            message: 'Session not initialized, cannot accept requests',
+        }
+    else if(!initialized){
+        if(method!=='initialize')
+            error = {
+                code: 403,
+                data: {
+                    mcpCall: mcp,
+                },
                 message: 'Session not initialized\n1. use `method=initialize` to finalize handshake;\n2. use `method=notifications/initialized` to confirm initialization',
             }
-        } else {
-            mTestMcpProtocols(jsonrpc, protocolVersion)
+        else {
+            mcpTestProtocol(jsonrpc, protocolVersion)
             result = Avatar.isMyLife && requestType!=='system'
                 ? Avatar.mcpProxy
                 : Avatar.mcp
@@ -656,24 +680,19 @@ function mcpInitializationChecks(ctx, requestType='system'){
             sessionMeta.initialized = true
         }
     } else if(!initializeConfirmation){
-        if(method!=='notifications/initialized'){
+        if(method!=='notifications/initialized')
             error = {
                 code: 403,
                 data: {
-                    arguments: args,
-                    id,
-                    method,
-                    sessionId,
+                    mcpCall: mcp,
                 },
                 message: 'Session initialization handshake failed\n1. use `method=notifications/initialized` to confirm initialization handshake',
             }
-        } else
+        else
             sessionMeta.initializeConfirmation = true
     }
-    return {
-        error,
-        result,
-    }
+    mcpSendResponse(transportEntry, jsonrpc, error, id, result)
+    ctx.status = 200
 }
 async function mcpLogin(ctx, transportEntry, args, jsonrpc){
     const { mbr_id: memberId, passphrase: memberPassphrase, } = args
@@ -723,6 +742,18 @@ function mcpSendNotification(transportEntry, jsonrpc, method){
     }
 }
 function mcpSendResponse(transportEntry, jsonrpc, error, id, result){
+    if(!error && !result)
+        return
+    if(!transportEntry)
+        error = {
+            code: 403,
+            data: {
+                error,
+                id,
+                result,
+            },
+            message: 'No SSE transport found',
+        }
     try{
         if(error)
             transportEntry.send({
@@ -740,7 +771,7 @@ function mcpSendResponse(transportEntry, jsonrpc, error, id, result){
         console.log(chalk.red('NO TRANSPORT SENT::most likely disconnected'), error)
     }
 }
-function mTestMcpProtocols(jsonrpc, protocolVersion){
+function mcpTestProtocol(jsonrpc, protocolVersion){
     if(!jsonrpc || parseFloat(jsonrpc) > parseFloat(mJsonRpcVersion))
         throw new Error('Bad Request - Invalid or Incompatible JSON-RPC version')
     if(!protocolVersion)
