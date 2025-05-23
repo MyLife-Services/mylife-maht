@@ -111,8 +111,8 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
         result
     const { runs, sessionId, transportEntry, } = sessionMeta
     const { id, jsonrpc, method, params={}, } = mcp
-    const { arguments: args, name, _meta, } = params
-    const { progressToken, } = _meta
+    const { arguments: args, name, _meta, } = params ?? {}
+    const { progressToken, } = _meta ?? {}
     /* identify run */
     let run = runs.find((run)=>(run.id===id))
     if(!!run) // @todo - handle run in progress
