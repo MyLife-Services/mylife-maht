@@ -203,6 +203,10 @@ _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
 /* mcp member-avatar routes */
+_mcpMemberRouter.use(async (ctx, next)=>{
+    ctx.state.requestType = 'member'
+    await next()
+})
 _mcpMemberRouter.use(mcpProtocolValidation)
 _mcpMemberRouter.get('/', mcpSystemInfo)
 _mcpMemberRouter.get('/sse', mcpStream)
@@ -273,18 +277,19 @@ function status_signup(ctx){
 /**
  * Validates the MCP protocol request.
  * @param {Koa} ctx - Koa context object
+ * @param {function} next - Koa next function
  */
 async function mcpProtocolValidation(ctx, next){
+    if(!ctx.state.requestType)
+        ctx.state.requestType = 'system'
     switch(ctx.request.method.toUpperCase()){
         case 'GET':
-            // @todo - only required when initiating session or every get (main page `/` for example)?
             const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
             const bypassAuth = true
             if(!bypassAuth && ctx.path.endsWith('/sse') && !mClientEntities?.[headerAuthorization])
                 ctx.throw(401, 'Invalid or missing authorization token')
             break
         case 'POST':
-            // @todo - much of this is related to original SSE, can switch
             const { sessionId, } = ctx.request.query
             if(!sessionId)
                 ctx.throw(401, 'Missing sessionId')

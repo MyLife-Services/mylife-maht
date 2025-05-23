@@ -1764,13 +1764,13 @@ class Q extends Avatar {
      * @returns {Promise<Object>} - The result of the function call: { error, instruction, preface, response, success, }; note instruction would be indication for frontend display request; currently not used in MCP context before related specification is complete.
      */
     async mcpFunction(functionName, mcpData, sessionMeta, transportEntry){
-        let error,
-            instruction,
-            preface,
-            response,
-            result,
-            success,
-            tool
+        let error, // MCP formatted error
+            instruction, // instruction for frontend display or input action
+            preface, // text preface when using response
+            response, // response from function call, not formatted for MCP
+            result, // result for MCP function call, formatted for MCP
+            success=false, // success of function call
+            tool // specification in development: follow-on MCP tool call
         switch(functionName){
             case 'get_shared_memories':
                 response = await this.sharedMemories()
@@ -1808,7 +1808,6 @@ class Q extends Avatar {
                     Share = await this.share(sharedMemoryId)
                     sessionMeta.Share = Share
                     Share = sessionMeta.Share
-                    console.log('Share', Share, Share.warnings)
                     if(Share.warnings?.length){
                         result = {
                             content: [{

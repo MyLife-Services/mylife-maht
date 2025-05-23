@@ -676,15 +676,25 @@ class BotAgent {
 	}
 	async mcp_change_title(mcpdata){
 		const { itemId, title, } = mcpdata
+		let error,
+			result
 		if(!itemId?.length)
-			throw new Error('Item id required')
+			error = {
+				code: -32602,
+				data: mcpdata,
+				message: '`itemId` parameter required'
+			}
 		if(!title?.length)
-			throw new Error('Title required')
-		const { id, } = await this.#factory.updateItem({ id: itemId, title })
-		const result = !id?.length || id!==itemId
+			error = {
+				code: -32602,
+				data: mcpdata,
+				message: '`title` parameter required'
+			}
+		const { id, title: newTitle, } = await this.#factory.updateItem({ id: itemId, title })
+		result = id?.length && id===itemId
 			? {
 				content: [{
-					text: `Item title updated successfully: ${ itemId }`,
+					text: `Item title updated successfully: ${ itemId } to ${ newTitle }`,
 					type: 'text',
 				}],
 				isError: false,
@@ -696,27 +706,32 @@ class BotAgent {
 				}],
 				isError: true,
 			}
-		return result
+		return { error, result, }
 	}
 	async mcp_chat(mcpdata){
 		const { message, } = mcpdata
 		const Conversation = await this.activeBot.chat(message, message, true, this.avatar)
 		const content = Conversation.getMessages()
 			.map(message=>({ text: message.content, type: 'text', }))
-			// @todo - looks as though Avatar and biographer both used thread_7cM3ujWethnmRSunWCJYHgw3 - was this fluke of error or is it a current bug?
 		const result = {
 			content,
 			isError: false,
 		}
-		return result
+		return { result, }
 	}
 	async mcp_get_summary(mcpdata){
 		const { itemId, } = mcpdata
+		let error,
+			result
 		if(!itemId?.length)
-			throw new Error('Item id required')
+			error = {
+				code: -32602,
+				data: mcpdata,
+				message: '`itemId` parameter required'
+			}
 		const { summary, } = await this.#factory.item(itemId)
 			?? {}
-		const result = summary?.length
+		result = summary?.length
 			? {
 				content: [{
 					text: summary,
@@ -731,7 +746,7 @@ class BotAgent {
 				}],
 				isError: true,
 			}
-		return result
+		return { error, result, }
 	}
 	async mcp_get_memories(mcpdata){
 		// route to biographer
@@ -739,11 +754,20 @@ class BotAgent {
 	}
 	async mcp_switch_bot(mcpdata){
 		const { team='memory', type, } = mcpdata
-		let result
+		let error,
+			result
         if(this.isMyLife)
-            throw new Error('MyLife avatar cannot switch bot.')
+			error = {
+				code: 403,
+				data: mcpdata,
+				message: 'MyLife System Avatar cannot switch bots'
+			}
         if(team!=='memory')
-            throw new Error('Only memory team available.')
+			error = {
+				code: -32602,
+				data: mcpdata,
+				message: 'Currently only the Memory Team is supported'
+			}
 		const Bot = this.bot(undefined, type)
 		if(this.activeBot.id===Bot.id)
 			result = {
@@ -764,7 +788,10 @@ class BotAgent {
 				notification: 'notifications/tools/list_changed'
 			}
 		}
-		return result
+		return {
+			error,
+			result,
+		}
 	}
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.

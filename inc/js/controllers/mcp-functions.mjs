@@ -10,74 +10,13 @@ const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mPageSize = process.env.MCP_PAGE_SIZE
         ?? 100
 /* public functions */
-async function mcpCallBot(ctx){
-    switch(true){
-        case 'tools':
-            switch(methodAction){
-                case 'call':
-                    if(!params)
-                        error = {
-                            code: 500,
-                            data: { arguments: args, id, method, name, params, sessionId, },
-                            message: '`params` field required for tool call',
-                        }
-                    else
-                        if(name==='mylife_login')
-                            result = await mcpLogin(ctx, transportEntry, args, jsonrpc)
-                        else {
-                            if(ctx.state.locked)
-                                error = {
-                                    code: 500,
-                                    data: { arguments: args, id, method, name, params, sessionId, },
-                                    message: 'session is locked',
-                                }
-                            else
-                                try {
-                                    result = await Avatar.mcpFunction(name, args)
-                                    if(result.notification?.length){
-                                        mcpSendNotification(transportEntry, jsonrpc, result.notification)
-                                        delete result.notification
-                                    }
-                                } catch (toolError) {
-                                    result = {
-                                        content: [{
-                                            text: `Error executing tool "${ name }": ${ toolError.message || 'Unknown error' }`,
-                                            type: 'text',
-                                        }],
-                                        isError: true,
-                                    }
-                                }
-                    }
-                    break
-                case 'list':
-                    result = {
-                        tools: Avatar.isMyLife
-                            ? Avatar.mcpProxy.tools
-                            : Avatar.mcp.tools,
-                    }
-                    break
-                default:
-                    error = {
-                        code: 500,
-                        data: {
-                            arguments: args,
-                            id,
-                            method,
-                            sessionId,
-                        },
-                        message: `MCP Call request\nmethodAction = ${ methodAction }\nUnknown or unhandled method\nPlease try again in all lowercase and without spaces`,
-                    }
-                    break
-            }
-            break
-        default:
-            break
-    }
-}
-/* System Avatar MCP Functions */
+/**
+ * Primary handler for an MCP request.
+ * @param {Koa} ctx - Koa context object
+ */
 async function mcpCall(ctx){
     const { Globals, session, state: {
-            avatar: Avatar, mcp, sessionMeta,
+            avatar: Avatar, mcp, requestType, sessionMeta,
         } = {}
     } = ctx
     const { initializeConfirmation, transportEntry, } = sessionMeta
@@ -88,7 +27,7 @@ async function mcpCall(ctx){
         ? mcp
         : [mcp]
     for(const mcpRequest of mcpRequests){
-        mMcpCall(mcpRequest, Avatar, sessionMeta, session, Globals)
+        mMcpCall(ctx, mcpRequest, Avatar, sessionMeta, session, Globals, requestType)
             .catch(err => {
                 console.log(chalk.red('MCP Call request - unhandled error'), err)
                 const { id, jsonrpc } = mcpRequest
@@ -167,7 +106,7 @@ async function mcpSystemInfo(ctx){
     }
 }
 /* private functions */
-async function mMcpCall(mcp, Avatar, sessionMeta, session, Globals){
+async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
     let error,
         result
     const { runs, sessionId, transportEntry, } = sessionMeta
@@ -331,6 +270,10 @@ async function mMcpCall(mcp, Avatar, sessionMeta, session, Globals){
                         }
                         break
                     }
+                    if(requestType!=='system' && name==='mylife_login'){
+                        result = await mcpLogin(ctx, transportEntry, args, jsonrpc)
+                        break
+                    }
                     let metadata,
                         nextCursor,
                         response,
@@ -377,7 +320,9 @@ async function mMcpCall(mcp, Avatar, sessionMeta, session, Globals){
                     break
                 case 'list':
                     result = {
-                        tools: Avatar.mcp.tools,
+                        tools: Avatar.isMyLife && requestType!=='system'
+                            ? Avatar.mcpProxy.tools
+                            : Avatar.mcp.tools,
                     }
                     break
                 default:
@@ -461,10 +406,10 @@ function mcpCursor(array, base64Cursor, pageSize=mPageSize){
         nextCursor,
     }
 }
-function mcpInitializationChecks(ctx, requestType='system'){
+function mcpInitializationChecks(ctx){
     let error,
         result
-    const { avatar: Avatar, mcp, sessionMeta, } = ctx.state
+    const { avatar: Avatar, mcp, requestType, sessionMeta, } = ctx.state
     const { initialized, initializeConfirmation, transportEntry, } = sessionMeta
     const { id, jsonrpc, method, params: {
             capabilities,
@@ -472,10 +417,8 @@ function mcpInitializationChecks(ctx, requestType='system'){
             protocolVersion,
         } = {}
     } = mcp
-    if(
-            requestType==='system' && !Avatar.isMyLife
-        ||  requestType!=='system' && Avatar.isMyLife
-    )
+    console.log('MCP Initialization Checks', requestType)
+    if(requestType==='system' && !Avatar.isMyLife)
         error = {
             code: 500,
             data: {
@@ -622,7 +565,6 @@ function mcpTestProtocol(jsonrpc, protocolVersion){
 }
 /* exports */
 export {
-    mcpCallBot,
     mcpCall,
     mSessionInfo,
     mcpStream,
