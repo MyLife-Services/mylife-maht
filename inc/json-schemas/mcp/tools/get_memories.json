@@ -1,0 +1,20 @@
+{
+    "annotations": {
+        "title": "MyLife-Get-Memories",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+    },
+	"description": "I retrieve the memories stored in the member's scrapbook",
+	"inputSchema": {
+        "type": "object",
+		"properties": {},
+		"required": []
+	},
+    "name": "get_memories",
+    "mylife_bots": [
+        "avatar",
+        "biographer"
+    ]
+}

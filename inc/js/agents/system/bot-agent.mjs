@@ -205,6 +205,10 @@ class Bot {
 		if(!type?.length){
 			type = this.type
 			switch(type){
+				case 'avatar':
+				case 'personal-avatar':
+					type='chat'
+					break
 				case 'diary':
 				case 'journal':
 				case 'journaler':
@@ -212,7 +216,7 @@ class Bot {
 					break
 				case 'biographer':
 				case 'personal-biographer':
-					type = 'memory'
+					type='memory'
 					break
 				default:
 					break
@@ -423,7 +427,6 @@ class Bot {
 				this.tools.forEach(tool=>{
 					if(tool.type!=='function')
 						return
-					console.log('mcpBot::tool', tool)
 					const { description, parameters, } = tool.function
 					let { name, } = tool.function
 					const inputSchema = {
@@ -749,8 +752,14 @@ class BotAgent {
 		return { error, result, }
 	}
 	async mcp_get_memories(mcpdata){
-		// route to biographer
-		// no need to activate bot
+		const preface = 'Here are the titles and ids (display only titles for human member) for the memories we have created together:\n'
+		const response = ( await this.bot(undefined, 'biographer').collections() )
+			.map(item=>({
+				id: item.id,
+				title: item.title,
+			}))
+		const success = response?.length > 0
+		return { preface, response, success, }
 	}
 	async mcp_switch_bot(mcpdata){
 		const { team='memory', type, } = mcpdata
