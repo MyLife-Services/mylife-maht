@@ -71,8 +71,7 @@ import {
     validateShare,
 } from './controllers/memory-functions.mjs'
 import {
-    mcpCallBot,
-    mcpCallSystem,
+    mcpCall,
     mSessionInfo,
     mcpStream,
     mcpSystemInfo,
@@ -92,8 +91,8 @@ import {
 const _Router = new Router()
 const _memberRouter = new Router()
 const _apiRouter = new Router()
-const _mcpBotRouter = new Router()
-const _mcpSystemAvatarRouter = new Router()
+const _mcpMemberRouter = new Router()
+const _mcpSystemRouter = new Router()
 const _nandaRouter = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 //	root routes
@@ -149,14 +148,14 @@ _apiRouter.post('/memory/:mid', memory)
 _apiRouter.post('/obscure/:mid', apiObscure)
 _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
-/* mcp-api routes */
-_mcpSystemAvatarRouter.use(mcpProtocolValidation)
-_mcpSystemAvatarRouter.get('/', mcpSystemInfo)
-_mcpSystemAvatarRouter.get('/sse', mcpStream)
-_mcpSystemAvatarRouter.get('/message/:sid', mSessionInfo)
-_mcpSystemAvatarRouter.get('/messages/:sid', mSessionInfo)
-_mcpSystemAvatarRouter.post('/message', mcpCallSystem)
-_mcpSystemAvatarRouter.post('/messages', mcpCallSystem)
+/* mcp system-avatar routes */
+_mcpSystemRouter.use(mcpProtocolValidation)
+_mcpSystemRouter.get('/', mcpSystemInfo)
+_mcpSystemRouter.get('/sse', mcpStream)
+_mcpSystemRouter.get('/message/:sid', mSessionInfo)
+_mcpSystemRouter.get('/messages/:sid', mSessionInfo)
+_mcpSystemRouter.post('/message', mcpCall)
+_mcpSystemRouter.post('/messages', mcpCall)
 /* member routes */
 _memberRouter.use(memberValidation)
 _memberRouter.delete('/bots/:bid', bots)
@@ -203,15 +202,14 @@ _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
 _memberRouter.put('/item/:iid', item)
-/* mcp-bot-api routes */
-// currently only one bot; testing how "swapping" works; i.e., infusing a new toolset rather than new instructions (i.e., limiting need for new routes when bots are created, and could lend credence to universal member avatar)
-_mcpBotRouter.use(mcpProtocolValidation)
-_mcpBotRouter.get('/', mcpSystemInfo)
-_mcpBotRouter.get('/sse', mcpStream)
-_mcpBotRouter.get('/message/:sid', mSessionInfo)
-_mcpBotRouter.get('/messages/:sid', mSessionInfo)
-_mcpBotRouter.post('/message', mcpCallBot)
-_mcpBotRouter.post('/messages', mcpCallBot)
+/* mcp member-avatar routes */
+_mcpMemberRouter.use(mcpProtocolValidation)
+_mcpMemberRouter.get('/', mcpSystemInfo)
+_mcpMemberRouter.get('/sse', mcpStream)
+_mcpMemberRouter.get('/message/:sid', mSessionInfo)
+_mcpMemberRouter.get('/messages/:sid', mSessionInfo)
+_mcpMemberRouter.post('/message', mcpCall)
+_mcpMemberRouter.post('/messages', mcpCall)
 /* Nanda routes */
 _nandaRouter.get('/mylife', server)
 _nandaRouter.get('/servers/:sid', server)
@@ -220,8 +218,8 @@ _nandaRouter.get('/servers', servers)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
-_Router.use('/api/v2/mcp/system-avatar', _mcpSystemAvatarRouter.routes(), _mcpSystemAvatarRouter.allowedMethods())
-_Router.use('/api/v2/mcp/bot', _mcpBotRouter.routes(), _mcpBotRouter.allowedMethods())
+_Router.use('/api/v2/mcp/system-avatar', _mcpSystemRouter.routes(), _mcpSystemRouter.allowedMethods())
+_Router.use('/api/v2/mcp/bot', _mcpMemberRouter.routes(), _mcpMemberRouter.allowedMethods())
 _Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**

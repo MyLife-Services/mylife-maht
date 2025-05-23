@@ -663,7 +663,7 @@ class BotAgent {
 	 * @param {object} mcpData - The MCP data to pass to the function
 	 * @returns {object} - The MCP-ready result of the function call
 	 */
-	async mcp_bot_function(functionName, mcpData){
+	async mcpFunction(functionName, mcpData){
 		functionName = functionName.replace('mylife_', 'mcp_')
 		if(typeof this[functionName]==='function')
 			return await this[functionName](mcpData)

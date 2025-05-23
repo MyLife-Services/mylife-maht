@@ -1076,7 +1076,8 @@ class MyLifeFactory extends AgentFactory {
 			'memory',
 		)
 		const shuffled = [...memories].sort(() => 0.5 - Math.random())
-		return shuffled.slice(0, limit)
+		const response = shuffled.slice(0, limit)
+		return response
 	}
 	async sharedMemory(sid){
 		const memory = sid?.length
