@@ -362,16 +362,6 @@ class Datamanager {
         return response
     }
     /**
-     * Fetches the hosted members from the server.
-     * @private
-     * @returns {Promise<MemberList[]>} - The response Member List { id, name, } array.
-     */
-    async hostedMembers(){
-        const url = `select`
-        const responses = await this.#fetch(url)
-        return responses
-    }
-    /**
      * Deletes the item from the server.
      * @param {Guid} itemId - The collection item id
      * @returns {Object} - The item object: { item, message, success, }

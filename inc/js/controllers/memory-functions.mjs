@@ -1,8 +1,3 @@
-/* imports */
-import { 
-	activateBot,
-	upload,
-} from './functions.mjs'
 /* module export functions */
 function acceptShareWarnings(ctx){
 	const { sid, } = ctx.params
@@ -47,6 +42,11 @@ async function getShares(ctx){
 	const { avatar: MemberAvatar, } = ctx.state
 	ctx.body = await MemberAvatar.getShares(iid)
 }
+/**
+ * Ends a memory session.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object>} - The result of ending the memory session
+ */
 async function endMemory(ctx){
 	const { iid, } = ctx.params
 	const { Globals, MyLife, } = ctx
