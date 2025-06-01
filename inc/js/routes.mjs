@@ -282,6 +282,8 @@ function status_signup(ctx){
 async function mcpProtocolValidation(ctx, next){
     if(!ctx.state.requestType)
         ctx.state.requestType = 'system'
+    // confirm bearer always
+    // POST create stream and sessionMeta
     switch(ctx.request.method.toUpperCase()){
         case 'GET':
             const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
