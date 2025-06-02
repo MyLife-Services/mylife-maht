@@ -136,7 +136,7 @@ app.use(async (ctx, next) => {
 				httpOnly: false,
 				signed: true,
 				rolling: false,
-				renew: false,
+				renew: true,
 				store: MemoryStore,
 			},
 			app

@@ -1763,7 +1763,7 @@ class Q extends Avatar {
      * @param {object} transportEntry - The transport entry object
      * @returns {Promise<Object>} - The result of the function call: { error, instruction, preface, response, success, }; note instruction would be indication for frontend display request; currently not used in MCP context before related specification is complete.
      */
-    async mcpFunction(functionName, mcpData, sessionMeta, transportEntry){
+    async mcpFunction(functionName, mcpData, sessionMeta, ctx){
         let error, // MCP formatted error
             instruction, // instruction for frontend display or input action
             preface, // text preface when using response
@@ -1773,15 +1773,24 @@ class Q extends Avatar {
             tool // specification in development: follow-on MCP tool call
         switch(functionName){
             case 'get_shared_memories':
-                response = await this.sharedMemories()
+                response = await this.sharedMemories(100)
                 success = response.length > 0
                 if(!success)
                     error = {
                         code: 500,
                         message: 'No shared memories found',
                     }
-                else
-                    preface = `Following is the shared memories array--present titles to human; use ID only to **initially** call \`get_shared_memory\`. **Note**: ID will change and be shared after initialization to identify your unique instance of the shared memory.`
+                else {
+                    const sharedMemoryList = response.map(memory=>`- [${ memory.title }](${ memory.id })`).join('\n')
+                    result = {
+                        content: [{
+                            text: `Following is the list of shared memories by id and title--present titles to human; use ID only to **initially** call \`get_shared_memory\`. **Note**: ID will change and be shared after initialization to identify your unique instance of the shared memory.\n${ sharedMemoryList }`,
+                            type: 'text',
+                        }],
+                        isError: false,
+                    }
+                }
+                response = undefined // reset response
                 break
             case 'get_shared_memory':
                 if(!sessionMeta){
@@ -1835,7 +1844,7 @@ class Q extends Avatar {
                 let message = question
                 if(questionType?.length)
                     message += `\nQuestion Type: ${ questionType }`
-                const { responses: mcpResponses, success: chatSuccess, } = await this.chat(message, undefined, session)
+                const { responses: mcpResponses, success: chatSuccess, } = await this.chat(message, undefined, ctx.session)
                 if(!chatSuccess)
                     response = 'Something went wrong while retrieving information about MyLife. Please try again.'
                 else
@@ -1898,6 +1907,7 @@ class Q extends Avatar {
                     code: 500,
                     message: `Function ${ functionName } not found in System Avatar.`,
                 }
+                break
         }
         return {
             error,
@@ -2092,7 +2102,8 @@ class Q extends Avatar {
      * @returns {Promise<Object[]>} - The list of shared memories
      */
     async sharedMemories(limit=10){
-        const memories = ( await this.#factory.sharedMemories(limit) )
+        let memories = await this.#factory.sharedMemories(limit)
+        memories = memories
             .map(memory=>({
                 id: memory.id,
                 title: memory.title,

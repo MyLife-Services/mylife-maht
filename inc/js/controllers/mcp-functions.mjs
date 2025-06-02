@@ -3,7 +3,9 @@ import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import { challenge, } from './functions.mjs'
+import { trace } from 'console'
 /* modular constants */
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
@@ -20,30 +22,54 @@ async function mcpCall(ctx){
         } = {}
     } = ctx
     const { initializeConfirmation, transportEntry, } = sessionMeta
-    if(!initializeConfirmation)
-        return mcpInitializationChecks(ctx)
-    /* batch request */
+        ?? {}
+    /* 2025-03-26 mcp batch request */
     const mcpRequests = Array.isArray(mcp)
         ? mcp
         : [mcp]
     for(const mcpRequest of mcpRequests){
-        mMcpCall(ctx, mcpRequest, Avatar, sessionMeta, session, Globals, requestType)
-            .catch(err => {
-                console.log(chalk.red('MCP Call request - unhandled error'), err)
-                const { id, jsonrpc } = mcpRequest
-                const error = {
-                    code: 500,
-                    message: err.message
-                        ?? 'Unhandled MCP Error',
-                    data: err.stack
-                        ?? err,
-                }
-                mcpSendResponse(transportEntry, jsonrpc, error, id, null)
-            })
+        try {
+            await mMcpCall(ctx, mcpRequest, Avatar, sessionMeta, requestType)
+        } catch (err) {
+            console.log(chalk.red('mcpCall()::error'), err)
+            const { id, jsonrpc } = mcpRequest
+            const error = {
+                code: 500,
+                message: err.message ?? 'Unhandled MCP Error',
+                data: err.stack ?? err,
+            }
+            if(!!transportEntry)
+                await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, undefined)
+        }
     }
-    ctx.status = 200
+    /* close transport */
+    if(transportEntry && transportEntry instanceof StreamableHTTPServerTransport){
+        /* 2025-03-26 protocol POST stream */
+        transportEntry.close()
+    } else if(transportEntry && transportEntry instanceof SSEServerTransport){
+        /* 2024-11-04 protocol SSE stream */
+    } else {
+        /* 2025-03-26 protocol POST singleton */
+        ctx.set('Content-Type', 'application/json')
+        ctx.body = {
+            jsonrpc: mJsonRpcVersion,
+            id: mcp?.id,
+            result: {},
+        }
+    }
 }
-async function mSessionInfo(ctx){
+/**
+ * Ends an MCP session.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<void>} - Status 204
+ */
+async function mcpSessionEnd(ctx){
+    const sessionId = ctx.get('Mcp-Session-Id')
+    if(sessionId?.length && ctx.mcpSessionMeta.has(sessionId))
+        ctx.mcpSessionMeta.delete(sessionId)
+    ctx.status = 204
+}
+async function mcpSessionInfo(ctx){
     const { sid: sessionId, } = ctx.params
     const { sessionMeta, } = ctx.state
     const transport = sessionMeta.get(sessionId)?.transportEntry
@@ -61,29 +87,63 @@ async function mSessionInfo(ctx){
     }
 }
 /**
- * Handles the System Avatar (Q) MCP request for streaming.
- * @param {Koa} ctx - Koa context object
- * @returns {Promise<void>}
+ * Creates a new MCP session metadata object.
+ * @param {Guid} sessionId - Unique session identifier
+ * @param {string} sessionIdKoa - Koa session identifier
+ * @param {object} transportEntry - Transport entry for the session (deprecated in MCP specification)
+ * @returns {object} - The MCP session metadata object
  */
-async function mcpStream(ctx){
-    ctx.respond = false
-    const url = ctx.request.url.split('/')
-    if(url[url.length - 1].toLowerCase()==='sse')
-        url.pop()
-    url.push('message')
-    const sseTransport = new SSEServerTransport(url.join('/'), ctx.res)
-    await sseTransport.start() // sends endpoint event
-    const { sessionId, } = sseTransport
-    ctx.mcpSessionMeta.set(sessionId, {
+function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
+    return sessionId?.length && sessionIdKoa?.length
+    ? {
         created: Date.now(),
         initialized: false,
         initializeConfirmation: false,
         runs: [],
         sessionId,
-        sessionIdKoa: ctx.sessionId,
-        transportEntry: sseTransport,
-    })
-    console.log('✅ Connected Inspector SSE session:', sessionId)
+        sessionIdKoa,
+        transportEntry,
+    }
+    : {}
+}
+/**
+ * Handles the System Avatar (Q) MCP request for streaming. Sets session metadata and starts the Stream (Streamable HTTP, SSE) transport.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<void>}
+ */
+async function mcpStream(ctx){
+    // @todo - decouple transferEntry in sessionMeta, since new model can have both
+    if(!ctx.request.headers['accept']?.includes('text/event-stream'))
+        return
+    ctx.respond = false // disable Koa's default response handling
+    switch(ctx.request.method){
+        case 'POST': /* 2025-03-26 protocol POST stream */
+            const streamableSessionId = ctx.Globals.newGuid
+            const streamableTransport = new StreamableHTTPServerTransport({
+                sessionIdGenerator: ()=>streamableSessionId,
+            })
+            ctx.mcpSessionMeta.set(streamableSessionId, mcpSessionMeta(streamableSessionId, ctx.sessionId, streamableTransport))
+            const sessionMeta = ctx.mcpSessionMeta.get(streamableSessionId)
+            ctx.state.sessionMeta = sessionMeta
+            await streamableTransport.start()
+            console.log(chalk.bgRed('mcpStream()::✅ Connected Streamable HTTP session'), streamableSessionId)
+            return
+        case 'GET': /* 2024-11-05 protocol SSE stream */
+            if(ctx.request.url.split('/').pop()!=='sse')
+                return
+            const url = ctx.request.url.split('/')
+            if(url[url.length - 1].toLowerCase()==='sse')
+                url.pop()
+            url.push('message')
+            const sseTransport = new SSEServerTransport(url.join('/'), ctx.res)
+            await sseTransport.start() // sends endpoint event
+            const { sessionId: sseSessionId, } = sseTransport
+            ctx.mcpSessionMeta.set(sseSessionId, mcpSessionMeta(sseSessionId, ctx.sessionId, sseTransport))
+            console.log(chalk.bgRed('mcpStream()::✅ Connected SSE session'), sseSessionId)
+            return
+        default:
+            ctx.throw(400, 'Bad Request - Unsupported method for MCP stream')
+    }
 }
 /**
  * Returns system information adhering to MCP protocol requirements.
@@ -106,10 +166,19 @@ async function mcpSystemInfo(ctx){
     }
 }
 /* private functions */
-async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
+/**
+ * 
+ * @param {Koa} ctx - Koa context object
+ * @param {object} mcp - MCP request object
+ * @param {Avatar} Avatar - Avatar instance
+ * @param {object} sessionMeta - Session metadata object
+ * @param {string} requestType - Type of request (enum: ['system', 'member'])
+ */
+async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
     let error,
         result
-    const { runs, sessionId, transportEntry, } = sessionMeta
+    const { Globals, } = ctx
+    const { capabilities, clientInfo, initializeConfirmation, protocolVersion, runs, sessionId, transportEntry, } = sessionMeta
     const { id, jsonrpc, method, params={}, } = mcp
     const { arguments: args, name, _meta, } = params ?? {}
     const { progressToken, } = _meta ?? {}
@@ -126,26 +195,40 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
         _meta,
     }
     runs.push(run)
+    if(!initializeConfirmation){
+        if(transportEntry instanceof StreamableHTTPServerTransport){
+            const { error, result, } = await mcpInitializationChecks(ctx)
+            await transportEntry.handleRequest(ctx.req, ctx.res, ctx.request.body)
+            await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+        } else if(transportEntry instanceof SSEServerTransport){
+            const { error, result, } = await mcpInitializationChecks(ctx)
+            await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+        }
+        return
+    }
     /* progress definition */
     let progress=0,
         progressInterval,
         progressIntervalDuration=6 * 1000
-    if(progressToken){
+    if(progressToken && !!transportEntry){
         progressInterval = setInterval(_=>{
             progress += 10
-            transportEntry.send({
-                jsonrpc,
-                method: 'notifications/progress',
-                params:{
-                    message: `MyLife is continuing to process your request`,
-                    progress,
-                    progressToken,
-                },
-            })
-        }, progressIntervalDuration)
+            if(transportEntry && !transportEntry?.closed)
+                transportEntry.send({
+                    jsonrpc,
+                    method: 'notifications/progress',
+                    params:{
+                        message: `MyLife is continuing to process your request`,
+                        progress,
+                        progressToken,
+                    },
+                })
+            }, progressIntervalDuration)
     }
     const methodBase = method.split('/')[0]
-    const methodAction = method.split('/').pop()
+    const methodAction = method.split('/')?.[1]
+        ?? methodBase
+    const methodPluck = method.split('/').pop()
     switch(methodBase){
         case 'prompts':
             switch(methodAction){
@@ -249,6 +332,10 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
                             break
                     }
                     break
+                case 'templates':
+                    // @todo - implement templates
+                    result = { resourceTemplates: [], }
+                    break
                 default:
                     break
             }
@@ -279,7 +366,7 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
                         response,
                         text='',
                         total
-                    const { error: mcpError, preface, response: mcpResponse, result: mcpResult, success=false, suffix, tool: mcpTool, } = await Avatar.mcpFunction(name, args, sessionMeta, transportEntry)
+                    const { error: mcpError, preface, response: mcpResponse, result: mcpResult, success=false, suffix, tool: mcpTool, } = await Avatar.mcpFunction(name, args, sessionMeta, ctx)
                     if(mcpError)
                         error = mcpError
                     else {
@@ -346,7 +433,7 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
                     const { reason, requestId, } = params
                     if(Globals.isValidGuid(requestId))
                         id = requestId
-                    console.log(chalk.yellow('MCP Call request - cancelled'), reason, requestId)
+                    console.log(chalk.yellow('mMcpCall()::cancelled'), reason, requestId)
                     break
                 case 'initialized':
                     /* intentionally empty as it is required to cascade through for authentication */
@@ -375,7 +462,11 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta, Globals, requestType){
     if(progressInterval)
         clearInterval(progressInterval)
     sessionMeta.runs = runs.filter((run)=>(run.id!==id))
-    mcpSendResponse(transportEntry, jsonrpc, error, id, result)
+    if(!!transportEntry){
+        if(transportEntry instanceof StreamableHTTPServerTransport)
+            await transportEntry.handleRequest(ctx.req, ctx.res, ctx.request.body)
+        await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+    }
 }
 /**
  * Paginate an array using a base64 encoded cursor.
@@ -406,18 +497,23 @@ function mcpCursor(array, base64Cursor, pageSize=mPageSize){
         nextCursor,
     }
 }
-function mcpInitializationChecks(ctx){
+/**
+ * Perform MCP initialization checks. Sets session metadata and returns result or error.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object>} - MCP Initialization result or generic error
+ */
+async function mcpInitializationChecks(ctx){
     let error,
-        result
-    const { avatar: Avatar, mcp, requestType, sessionMeta, } = ctx.state
+        result,
+        sessionMeta = ctx.state.sessionMeta
+    const { avatar: Avatar, mcp, requestType, } = ctx.state
     const { initialized, initializeConfirmation, transportEntry, } = sessionMeta
     const { id, jsonrpc, method, params: {
             capabilities,
             clientInfo,
             protocolVersion,
-        } = {}
-    } = mcp
-    console.log('MCP Initialization Checks', requestType)
+        } = {},
+    } = mcp ?? ctx.request.body
     if(requestType==='system' && !Avatar.isMyLife)
         error = {
             code: 500,
@@ -428,23 +524,7 @@ function mcpInitializationChecks(ctx){
             },
             message: 'Avatar incorrectly configured, please contact support',
         }
-    else if(Array.isArray(mcp))
-        error = {
-            code: 403,
-            data: {
-                mcpCall: mcp,
-            },
-            message: 'Session not initialized, cannot accept batch requests',
-        }
-    else if(!transportEntry)
-        error = {
-            code: 403,
-            data: {
-                mcpCall: mcp,
-            },
-            message: 'Session not initialized, cannot accept requests',
-        }
-    else if(!initialized){
+    if(!initialized){
         if(method!=='initialize')
             error = {
                 code: 403,
@@ -462,6 +542,7 @@ function mcpInitializationChecks(ctx){
             sessionMeta.capabilities = capabilities
             sessionMeta.clientInfo = clientInfo
             sessionMeta.initialized = true
+            sessionMeta.protocolVersion = result.protocolVersion
         }
     } else if(!initializeConfirmation){
         if(method!=='notifications/initialized')
@@ -472,11 +553,15 @@ function mcpInitializationChecks(ctx){
                 },
                 message: 'Session initialization handshake failed\n1. use `method=notifications/initialized` to confirm initialization handshake',
             }
-        else
+        else {
+            // @todo - disentangle sessionMeta and session
             sessionMeta.initializeConfirmation = true
+        }
     }
-    mcpSendResponse(transportEntry, jsonrpc, error, id, result)
-    ctx.status = 200
+    return {
+        error,
+        result,
+    }
 }
 async function mcpLogin(ctx, transportEntry, args, jsonrpc){
     const { mbr_id: memberId, passphrase: memberPassphrase, } = args
@@ -525,34 +610,22 @@ function mcpSendNotification(transportEntry, jsonrpc, method){
         console.log(chalk.red('NO TRANSPORT NOTIFICATION SENT::most likely disconnected'), error)
     }
 }
-function mcpSendResponse(transportEntry, jsonrpc, error, id, result){
-    if(!error && !result)
+async function mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result){
+    if(!error && !result){
+        if(!transportEntry)
+            ctx.status = 204
         return
-    if(!transportEntry)
-        error = {
-            code: 403,
-            data: {
-                error,
-                id,
-                result,
-            },
-            message: 'No SSE transport found',
-        }
-    try{
-        if(error)
-            transportEntry.send({
-                jsonrpc,
-                id,
-                error,
-            })
-        if(result)
-            transportEntry.send({
-                jsonrpc,
-                id,
-                result,
-            })
-    } catch(error){
-        console.log(chalk.red('NO TRANSPORT SENT::most likely disconnected'), error)
+    }
+    try {
+        if(transportEntry instanceof SSEServerTransport)
+            ctx.status = 200 // needed for SSE, irrelevant for Streamable HTTP
+        await transportEntry.send({
+            jsonrpc,
+            id,
+            ...(result ? { result } : { error }),
+        })
+    } catch(err) {
+        console.log(chalk.red('NO TRANSPORT AVAILABLE::disconnected'), err)
     }
 }
 function mcpTestProtocol(jsonrpc, protocolVersion){
@@ -566,7 +639,8 @@ function mcpTestProtocol(jsonrpc, protocolVersion){
 /* exports */
 export {
     mcpCall,
-    mSessionInfo,
+    mcpSessionEnd,
+    mcpSessionInfo,
     mcpStream,
     mcpSystemInfo,
 }
