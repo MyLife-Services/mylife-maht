@@ -98,6 +98,7 @@ class Datamanager {
 			return items
 		} catch(error){
 			console.log('mcpFunction::system-avatar::getItems()::error', error)
+			return []
 		}
 	}
 	/**
