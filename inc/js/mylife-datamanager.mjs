@@ -89,12 +89,17 @@ class Datamanager {
 			.read(options)
 		return retrievedItem
 	}
-	async getItems(_querySpec, containerId=this.containerDefault, _options=this.requestOptions ){
-		const { resources } = await this.#containers[containerId]
-			.items
-			.query(_querySpec, _options)
-			.fetchAll()
-		return resources
+	async getItems(_querySpec, containerId=this.containerDefault, _options=this.requestOptions){
+		try{
+			const { resources: items, } = await this.#containers[containerId]
+				.items
+				.query(_querySpec, _options)
+				.fetchAll()
+			return items
+		} catch(error){
+			console.log('mcpFunction::system-avatar::getItems()::error', error)
+			return []
+		}
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.

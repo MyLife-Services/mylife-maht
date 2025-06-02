@@ -72,7 +72,8 @@ import {
 } from './controllers/memory-functions.mjs'
 import {
     mcpCall,
-    mSessionInfo,
+    mcpSessionEnd,
+    mcpSessionInfo,
     mcpStream,
     mcpSystemInfo,
 } from './controllers/mcp-functions.mjs'
@@ -150,10 +151,13 @@ _apiRouter.post('/upload', upload)
 _apiRouter.post('/upload/:mid', upload)
 /* mcp system-avatar routes */
 _mcpSystemRouter.use(mcpProtocolValidation)
+_mcpSystemRouter.delete('/mcp', mcpSessionEnd)
 _mcpSystemRouter.get('/', mcpSystemInfo)
-_mcpSystemRouter.get('/sse', mcpStream)
-_mcpSystemRouter.get('/message/:sid', mSessionInfo)
-_mcpSystemRouter.get('/messages/:sid', mSessionInfo)
+_mcpSystemRouter.get('/mcp', mcpStream) // MCP 2025-03-26
+_mcpSystemRouter.get('/message/:sid', mcpSessionInfo)
+_mcpSystemRouter.get('/messages/:sid', mcpSessionInfo)
+_mcpSystemRouter.get('/sse')
+_mcpSystemRouter.post('/mcp', mcpCall) // MCP 2025-03-26
 _mcpSystemRouter.post('/message', mcpCall)
 _mcpSystemRouter.post('/messages', mcpCall)
 /* member routes */
@@ -208,10 +212,13 @@ _mcpMemberRouter.use(async (ctx, next)=>{
     await next()
 })
 _mcpMemberRouter.use(mcpProtocolValidation)
+_mcpMemberRouter.delete('/mcp', mcpSessionEnd)
 _mcpMemberRouter.get('/', mcpSystemInfo)
-_mcpMemberRouter.get('/sse', mcpStream)
-_mcpMemberRouter.get('/message/:sid', mSessionInfo)
-_mcpMemberRouter.get('/messages/:sid', mSessionInfo)
+_mcpMemberRouter.get('/mcp', mcpStream) // MCP 2025-03-26
+_mcpMemberRouter.get('/message/:sid', mcpSessionInfo)
+_mcpMemberRouter.get('/messages/:sid', mcpSessionInfo)
+_mcpMemberRouter.get('/sse')
+_mcpMemberRouter.post('/mcp', mcpCall) // MCP 2025-03-26
 _mcpMemberRouter.post('/message', mcpCall)
 _mcpMemberRouter.post('/messages', mcpCall)
 /* Nanda routes */
@@ -223,7 +230,7 @@ _nandaRouter.get('/servers', servers)
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
 _Router.use('/api/v2/mcp/system-avatar', _mcpSystemRouter.routes(), _mcpSystemRouter.allowedMethods())
-_Router.use('/api/v2/mcp/bot', _mcpMemberRouter.routes(), _mcpMemberRouter.allowedMethods())
+_Router.use('/api/v2/mcp/member-avatar', _mcpMemberRouter.routes(), _mcpMemberRouter.allowedMethods())
 _Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**
@@ -275,6 +282,35 @@ function status_signup(ctx){
 	ctx.body = ctx.session.signup
 }
 /**
+ * Validates the MCP authorization header.
+ * @param {string} authorizationHeader - The Authorization header from the request
+ * @throws {Error} Throws an error if the authorization header is missing, invalid, or the token is not found
+ */
+function mcpAuthorize(ctx){
+    const { headers } = ctx
+    if(!headers.authorization)
+        ctx.throw(403, 'Missing Authorization Header')
+    const [scheme, token] = headers.authorization.split(' ')
+    if(scheme !== 'Bearer' || !token?.length)
+        ctx.throw(403, 'Invalid Authorization Header')
+    if(!mClientEntities?.[token])
+        ctx.throw(403, 'Invalid or expired token')
+}
+/**
+ * Handles MCP errors by force-returning (as direct response, no stream) the response status and well-formed MCP `Error`.
+ */
+function mMcpError(ctx, errorCode=404, code=-32001, message='unknown failure', id){
+    ctx.status = errorCode
+    ctx.body = {
+        jsonrpc: '2.0',
+        id,
+        error: {
+            code,
+            message,
+        },
+    }
+}
+/**
  * Validates the MCP protocol request.
  * @param {Koa} ctx - Koa context object
  * @param {function} next - Koa next function
@@ -282,42 +318,76 @@ function status_signup(ctx){
 async function mcpProtocolValidation(ctx, next){
     if(!ctx.state.requestType)
         ctx.state.requestType = 'system'
-    switch(ctx.request.method.toUpperCase()){
-        case 'GET':
-            const headerAuthorization = ctx.header.authorization?.split(' ')?.pop()
-            const bypassAuth = true
-            if(!bypassAuth && ctx.path.endsWith('/sse') && !mClientEntities?.[headerAuthorization])
-                ctx.throw(401, 'Invalid or missing authorization token')
-            break
-        case 'POST':
-            const { sessionId, } = ctx.request.query
-            if(!sessionId)
-                ctx.throw(401, 'Missing sessionId')
-            ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
-            const { sessionMeta, } = ctx.state
-            if(!sessionMeta)
-                ctx.throw(401, `Session Unauthorized; sessionId=${ sessionId }`)
-            const { sessionIdKoa, transportEntry, } = sessionMeta
-            if(!transportEntry)
-                ctx.throw(401, 'Unknown session; cannot communicate with MCP')
-            if(!sessionIdKoa?.length)
-                ctx.throw(401, 'Unknown session; cannot communicate with Koa')
-            /* validate Koa session */
-            const prefix = 'koa:sess:'
-            const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
-            if(!existingKoaSession)
-                ctx.throw(401, 'Unknown session; cannot find existing Koa session')
-            ctx.session = existingKoaSession
-			await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
-            // Koa server will have mis-assigned ctx.state
-            ctx.state.avatar = ctx.session.avatar
-            ctx.state.locked = ctx.session.locked
-            ctx.state.mcp = ctx.request.body
-            break
-        default:
-            break
-    }
+    mcpValidateRequestOrigin(ctx) // confirm bearer always
+    mcpAuthorize(ctx) // confirm bearer always
+    ctx.state.mcp = ctx.request?.body
+    let sessionId
+    sessionId = ctx.request.query?.sessionId /* 2024-11-05 MCP Protocol Validation */
+        ?? ctx.get('Mcp-Session-Id') /* 2025-03-26 MCP Protocol Validation Header */
+    if(sessionId?.length){
+        ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
+        const { sessionMeta, } = ctx.state
+        if(!sessionMeta){
+            mMcpError(ctx, 404, -32001, `Session Unauthorized; sessionId=${ sessionId }`, ctx.state.mcp?.id)
+            return // not awaiting next() here
+        }
+        const { sessionIdKoa, } = sessionMeta
+        if(!sessionIdKoa?.length)
+            ctx.throw(404, 'Unknown session; cannot communicate with Koa')
+        /* validate Koa session */
+        const prefix = 'koa:sess:'
+        const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
+        if(!existingKoaSession)
+            ctx.throw(404, 'Unknown session; cannot find existing Koa session')
+        ctx.session = existingKoaSession
+        await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
+        // Koa server will have mis-assigned ctx.state in faux session
+        ctx.state.avatar = ctx.session.avatar
+        ctx.state.locked = ctx.session.locked
+            ?? true
+        ctx.state.menu = ctx.state.avatar?.menu
+        if(ctx.request.method==='GET'){
+            const { transportEntry, } = sessionMeta
+            await transportEntry.handleRequest(ctx.req, ctx.res)
+        }
+    } else
+        await mcpStream(ctx) // no session set if not streaming
     await next()
+}
+/**
+ * Handles unsupported MCP requests.
+ * @param {Koa} ctx - Koa context object
+ */
+function mcpUnsupported(ctx){
+    ctx.throw(405, 'Unsupported MCP request. Please use POST /mcp.')
+}
+/**
+ * Validates the request origin for MCP requests.
+ * @param {Koa} ctx - Koa context object
+ */
+function mcpValidateRequestOrigin(ctx){
+    // @todo - confirm that transport handles CORS headers correctly
+    const origin = ctx.headers.origin
+    if(!origin){
+        // console.log('No Origin Header')
+        return
+    }
+    const trustedOrigins = [
+        // 'http://good.com',
+    ]
+    const blockedOrigins = [
+        // 'http://evil.com',
+    ]
+    const isTrusted = trustedOrigins.includes(origin)
+    const isBlocked = blockedOrigins.includes(origin)
+    if(isBlocked){ // Block if explicitly blacklisted
+        console.log(`Blocked Origin: ${origin}`)
+        ctx.throw(403, `Access denied from origin: ${origin}`)
+    }
+    if(trustedOrigins.length > 0 && !isTrusted){
+        console.log(`Unrecognized Origin: ${origin}`)
+        ctx.throw(403, `Origin not allowed: ${origin}`)
+    }
 }
 /* exports */
 export default function init(_Menu) {
