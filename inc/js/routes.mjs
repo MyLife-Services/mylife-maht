@@ -283,10 +283,12 @@ function status_signup(ctx){
 }
 /**
  * Validates the MCP authorization header.
- * @param {string} authorizationHeader - The Authorization header from the request
+ * @param {Koa} ctx - Koa context object
  * @throws {Error} Throws an error if the authorization header is missing, invalid, or the token is not found
  */
 function mcpAuthorize(ctx){
+    // for now, given NANDA and Claude, ignore bearer token for time being
+    return
     const { headers } = ctx
     if(!headers.authorization)
         ctx.throw(403, 'Missing Authorization Header')
