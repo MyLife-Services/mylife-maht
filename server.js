@@ -5,10 +5,7 @@ import { fileURLToPath } from 'url'
 /* server imports */
 import Koa from 'koa'
 import { koaBody } from 'koa-body'
-import koaConnect from 'koa-connect'
-import mount from 'koa-mount'
 import render from 'koa-ejs'
-import Router from 'koa-router'
 import session from 'koa-generic-session'
 import serve from 'koa-static'
 /* misc imports */
@@ -16,7 +13,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.36'
+const version = '0.0.37'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
@@ -139,7 +136,7 @@ app.use(async (ctx, next) => {
 				httpOnly: false,
 				signed: true,
 				rolling: false,
-				renew: false,
+				renew: true,
 				store: MemoryStore,
 			},
 			app
@@ -181,6 +178,17 @@ app.listen(port, () => {	//	start the server
 	console.log(chalk.greenBright('server available'))
 	console.log(chalk.yellow(`listening on port ${port}`))
 })
+/** MCP session meta erasure **/
+const sessionCheckInterval = 10 * 60 * 1000 // every 10 minutes
+setInterval(async _=>{
+    for(const [sessionId, sessionIdKoa] of app.context.mcpSessionMeta){
+        const koaSess = await app.context.MemoryStore.get(`koa:sess:${sessionIdKoa}`)
+        if(!koaSess){
+            app.context.mcpSessionMeta.delete(sessionId)
+            console.log(`⏱️ Removed meta session for ${sessionId}`)
+        }
+    }
+}, sessionCheckInterval)
 /** server functions **/
 function checkForLiveAlerts(){
 	_Maht.alerts()
