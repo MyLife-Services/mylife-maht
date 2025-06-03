@@ -1771,6 +1771,16 @@ class Q extends Avatar {
             result, // result for MCP function call, formatted for MCP
             success=false, // success of function call
             tool // specification in development: follow-on MCP tool call
+        if(!sessionMeta){
+            error = {
+                code: 500,
+                message: 'Session failed when access a shared memory',
+            }
+            return {
+                error,
+                success,
+            }
+        }
         switch(functionName){
             case 'get_shared_memories':
                 response = await this.sharedMemories(100)
@@ -1793,13 +1803,6 @@ class Q extends Avatar {
                 response = undefined // reset response
                 break
             case 'get_shared_memory':
-                if(!sessionMeta){
-                    error = {
-                        code: 500,
-                        message: 'Session failed when access a shared memory',
-                    }
-                    break
-                }
                 let { input: sharedMemoryInput, memoryId: sharedMemoryId, } = mcpData
                 let Share = sessionMeta.Share
                 if(!Share || Share.instanceId!==sharedMemoryId){

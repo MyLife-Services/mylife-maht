@@ -44,7 +44,7 @@ async function mcpCall(ctx){
     /* close transport */
     if(transportEntry && transportEntry instanceof StreamableHTTPServerTransport){
         /* 2025-03-26 protocol POST stream */
-        transportEntry.close()
+        // no transportEntry.close(), shuts down stream, .end() in call is sufficient
     } else if(transportEntry && transportEntry instanceof SSEServerTransport){
         /* 2024-11-04 protocol SSE stream */
     } else {
@@ -204,35 +204,23 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
             await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
         }
         return
-    }
+    } else if(!!transportEntry && transportEntry instanceof StreamableHTTPServerTransport)
+            await transportEntry.handleRequest(ctx.req, ctx.res, ctx.request.body)
     /* progress definition */
     let progress=0,
         progressInterval,
-        progressIntervalDuration=6 * 1000
+        progressIntervalDuration=6 * 1000,
+        progressParams = {
+            message: 'MyLife is processing your request',
+            progressToken,
+            progress,
+        }
     if(progressToken && !!transportEntry){
         progressInterval = setInterval(async _=>{
-            progress += 10
-            if(!transportEntry)
-                return
-            // **note** could not break into subfunctions without losing transportEntry maps
-            const progressParameters = {
-                    message: `MyLife is processing your request`,
-                    progress,
-                    progressToken,
-                },
-                progressPayload = {
-                    jsonrpc,
-                    method: 'notifications/progress',
-                    params: progressParameters,
-                },
-                streamId = transportEntry?._requestToStreamMapping?.get(progressToken)
-                    ?? '_GET_stream'
-            const stream = transportEntry?._streamMapping?.get(streamId)
-                    ?? transportEntry?._sseResponse
-            if(stream?.writable){
-                stream.write(`data: ${ JSON.stringify(progressPayload) }\n\n`)
-            }
-            if(progress >= 200)
+            const notification = 'notifications/progress'
+            progressParams.progress += 10
+            mcpSendNotification(transportEntry, jsonrpc, notification, progressParams)
+            if(progressParams.progress >= 200)
                 clearInterval(progressInterval)
         }, progressIntervalDuration)
     }
@@ -369,7 +357,7 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                         break
                     }
                     if(requestType!=='system' && name==='mylife_login'){
-                        result = await mcpLogin(ctx, transportEntry, args, jsonrpc)
+                        result = await mcpLogin(ctx, transportEntry, args, jsonrpc, id)
                         break
                     }
                     let metadata,
@@ -473,11 +461,8 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
     if(progressInterval)
         clearInterval(progressInterval)
     sessionMeta.runs = runs.filter((run)=>(run.id!==id))
-    if(!!transportEntry){
-        if(transportEntry instanceof StreamableHTTPServerTransport)
-            await transportEntry.handleRequest(ctx.req, ctx.res, ctx.request.body)
+    if(!!transportEntry)
         await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
-    }
 }
 /**
  * Paginate an array using a base64 encoded cursor.
@@ -574,7 +559,7 @@ async function mcpInitializationChecks(ctx){
         result,
     }
 }
-async function mcpLogin(ctx, transportEntry, args, jsonrpc){
+async function mcpLogin(ctx, transportEntry, args, jsonrpc, id){
     const { mbr_id: memberId, passphrase: memberPassphrase, } = args
     try {
         await challenge(ctx, memberId, memberPassphrase)
@@ -601,27 +586,58 @@ async function mcpLogin(ctx, transportEntry, args, jsonrpc){
         isError: false,
     }
     const notification = 'notifications/tools/list_changed'
-    await mcpSendNotification(transportEntry, jsonrpc, notification)
+    mcpSendNotification(transportEntry, jsonrpc, notification)
     return result
 }
 function mReadPdf(filePath){
     const pdfBuffer = fs.readFileSync(filePath)
     return pdfBuffer.toString('base64')
 }
-async function mcpSendNotification(transportEntry, jsonrpc, method){
-    try{
-        if(method.split('/')[0]!=='notifications')
-            throw new Error('Invalid notification method')
-        await transportEntry.send({
-            jsonrpc,
-            method,
-            params,
-        })
-    } catch(error){
-        console.log(chalk.red('NO TRANSPORT NOTIFICATION SENT::most likely disconnected'), error)
+/**
+ * 
+ * @param {SSEServerTransport|StreamableHTTPServerTransport} transportEntry - transport entry for the session
+ * @param {string} jsonrpc - JSON-RPC version
+ * @param {string} method - MCP method to call
+ * @param {object} params - Parameters for the MCP method (optional)
+ * @param {string|number} id - Unique identifier for the request
+ * @returns 
+ */
+async function mcpSendNotification(transportEntry, jsonrpc, method, params, id) {
+    if(!transportEntry){
+        console.warn(chalk.red('❌ Invalid transport'))
+        return
+    }
+    if(method.split('/')[0]!=='notifications'){
+        console.warn(chalk.red('❌ Invalid method for notification, must start with "notifications/"'))
+        return
+    }
+    const message = {
+        jsonrpc,
+        method,
+        params,
+    }
+    try {
+        if(transportEntry instanceof SSEServerTransport){
+            transportEntry.send(message)
+            console.log(chalk.green('✅ Notification successful via send()'))
+        } else if(transportEntry instanceof StreamableHTTPServerTransport){
+            id = id ?? params?.progressToken
+            const streamId = transportEntry._requestToStreamMapping.get(id)
+                ?? '_GET_stream'
+            const stream = transportEntry._streamMapping.get(streamId)
+            console.log(chalk.blue('mcpSendNotification()::stream'), id, streamId, stream?.writable, transportEntry._streamMapping.keys(), transportEntry._requestToStreamMapping.keys())
+            if(stream?.writable){
+                stream.write(`event: message\ndata: ${JSON.stringify(message)}\n\n`)
+                console.log(chalk.green(`✅ Notification successful via POST stream.write(): ${ streamId }`))
+            }
+        }
+    } catch (err) {
+        console.warn(chalk.red('⚠️ Stream failed for notification'))
     }
 }
 async function mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result){
+    if(!transportEntry)
+        return
     if(!error && !result){
         if(!transportEntry)
             ctx.status = 204
