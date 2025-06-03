@@ -178,6 +178,17 @@ app.listen(port, () => {	//	start the server
 	console.log(chalk.greenBright('server available'))
 	console.log(chalk.yellow(`listening on port ${port}`))
 })
+/** MCP session meta erasure **/
+const sessionCheckInterval = 10 * 60 * 1000 // every 10 minutes
+setInterval(async _=>{
+    for(const [sessionId, sessionIdKoa] of app.context.mcpSessionMeta){
+        const koaSess = await app.context.MemoryStore.get(`koa:sess:${sessionIdKoa}`)
+        if(!koaSess){
+            app.context.mcpSessionMeta.delete(sessionId)
+            console.log(`⏱️ Removed meta session for ${sessionId}`)
+        }
+    }
+}, sessionCheckInterval)
 /** server functions **/
 function checkForLiveAlerts(){
 	_Maht.alerts()
