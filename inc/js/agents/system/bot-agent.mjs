@@ -800,6 +800,7 @@ class BotAgent {
 		return {
 			error,
 			result,
+			toolListChanged: true, // true for switching bots, as they have different skills
 		}
 	}
     /**

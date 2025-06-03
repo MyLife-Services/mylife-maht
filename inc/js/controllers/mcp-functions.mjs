@@ -175,14 +175,16 @@ async function mcpSystemInfo(ctx){
  */
 async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
     let error,
-        result
+        result,
+        run,
+        toolListChanged = false
     const { Globals, } = ctx
     const { capabilities, clientInfo, initializeConfirmation, protocolVersion, runs, sessionId, transportEntry, } = sessionMeta
     const { id, jsonrpc, method, params={}, } = mcp
     const { arguments: args, name, _meta, } = params ?? {}
     const { progressToken, } = _meta ?? {}
     /* identify run */
-    let run = runs.find((run)=>(run.id===id))
+    run = runs.find((run)=>(run.id===id))
     if(!!run) // @todo - handle run in progress
         throw new error('Run in progress', id)
     run = {
@@ -357,7 +359,16 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                         break
                     }
                     if(requestType!=='system' && name==='mylife_login'){
-                        result = await mcpLogin(ctx, transportEntry, args, jsonrpc, id)
+                        const { result: loginResult, toolListChanged: mcpLoginToolListChanged=false, } = await mcpLogin(ctx, transportEntry, args, jsonrpc, id)
+                        toolListChanged = mcpLoginToolListChanged
+                        if(loginResult)
+                            result = loginResult
+                        else
+                            error = {
+                                code: 500,
+                                data: { id, name, },
+                                message: `MCP Login failed, please review available tools via \`tools/list\``,
+                            }
                         break
                     }
                     let metadata,
@@ -365,7 +376,8 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                         response,
                         text='',
                         total
-                    const { error: mcpError, preface, response: mcpResponse, result: mcpResult, success=false, suffix, tool: mcpTool, } = await Avatar.mcpFunction(name, args, sessionMeta, ctx)
+                    const { error: mcpError, preface, response: mcpResponse, result: mcpResult, success=false, suffix, tool: mcpTool, toolListChanged: mcpToolListChanged=false, } = await Avatar.mcpFunction(name, args, sessionMeta, ctx)
+                    toolListChanged = mcpToolListChanged
                     if(mcpError)
                         error = mcpError
                     else {
@@ -461,8 +473,9 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
     if(progressInterval)
         clearInterval(progressInterval)
     sessionMeta.runs = runs.filter((run)=>(run.id!==id))
-    if(!!transportEntry)
-        await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+    await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+    if(toolListChanged)
+        mcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')    
 }
 /**
  * Paginate an array using a base64 encoded cursor.
@@ -561,33 +574,32 @@ async function mcpInitializationChecks(ctx){
 }
 async function mcpLogin(ctx, transportEntry, args, jsonrpc, id){
     const { mbr_id: memberId, passphrase: memberPassphrase, } = args
+    let result
     try {
         await challenge(ctx, memberId, memberPassphrase)
-    } catch(e) {
-        console.log(chalk.red('mylife_login::ERROR'), args, ctx.body, e)
-        ctx.body = false
-    }
-    const { avatar: Avatar, } = ctx.state
-    const loginSuccess = ctx.body===true && !Avatar.isMyLife
-    ctx.body = null
-    if(!loginSuccess)
-        return {
+        ctx.body = null
+        const { avatar: Avatar, } = ctx.state
+        result = {
             content: [{
-                text: `Unfortunately, the MyLife login failed with your credentials { mbr_id=${ memberId }, passphrase=${ memberPassphrase },}. Please try again.`,
+                text: `Welcome back, ${ Avatar.memberName }!\n It's me, ${ Avatar.name }.\nYou're now logged in to MyLife.`,
                 type: 'text',
             }],
-            isError: true,
+            isError: false,
         }
-    const result = {
-        content: [{
-            text: `Welcome back, ${ Avatar.memberName }!\n It's me, ${ Avatar.name }.\nYou're now logged in to MyLife.`,
-            type: 'text',
-        }],
-        isError: false,
+        if(Avatar.isMyLife){ /* fail */
+            result.isError = true
+            result.content = [{
+                text: `Unfortunately, the MyLife login failed with your credentials { mbr_id=${ memberId }, passphrase=${ memberPassphrase },}. Please try again.`,
+                type: 'text',
+            }]
+        }
+    } catch(e) {
+        console.log(chalk.red('mylife_login::ERROR'), args, ctx.body, e)
     }
-    const notification = 'notifications/tools/list_changed'
-    mcpSendNotification(transportEntry, jsonrpc, notification)
-    return result
+    return {
+        result,
+        toolListChanged: true,
+    }
 }
 function mReadPdf(filePath){
     const pdfBuffer = fs.readFileSync(filePath)
@@ -625,10 +637,9 @@ async function mcpSendNotification(transportEntry, jsonrpc, method, params, id) 
             const streamId = transportEntry._requestToStreamMapping.get(id)
                 ?? '_GET_stream'
             const stream = transportEntry._streamMapping.get(streamId)
-            console.log(chalk.blue('mcpSendNotification()::stream'), id, streamId, stream?.writable, transportEntry._streamMapping.keys(), transportEntry._requestToStreamMapping.keys())
             if(stream?.writable){
                 stream.write(`event: message\ndata: ${JSON.stringify(message)}\n\n`)
-                console.log(chalk.green(`✅ Notification successful via POST stream.write(): ${ streamId }`))
+                console.warn(chalk.green(`✅ Notification successful via stream.write(): ${ streamId }`))
             }
         }
     } catch (err) {
