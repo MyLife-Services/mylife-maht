@@ -210,19 +210,31 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
         progressInterval,
         progressIntervalDuration=6 * 1000
     if(progressToken && !!transportEntry){
-        progressInterval = setInterval(_=>{
+        progressInterval = setInterval(async _=>{
             progress += 10
-            if(transportEntry && !transportEntry?.closed)
-                transportEntry.send({
+            if(!transportEntry)
+                return
+            // **note** could not break into subfunctions without losing transportEntry maps
+            const progressParameters = {
+                    message: `MyLife is processing your request`,
+                    progress,
+                    progressToken,
+                },
+                progressPayload = {
                     jsonrpc,
                     method: 'notifications/progress',
-                    params:{
-                        message: `MyLife is continuing to process your request`,
-                        progress,
-                        progressToken,
-                    },
-                })
-            }, progressIntervalDuration)
+                    params: progressParameters,
+                },
+                streamId = transportEntry?._requestToStreamMapping?.get(progressToken)
+                    ?? '_GET_stream'
+            const stream = transportEntry?._streamMapping?.get(streamId)
+                    ?? transportEntry?._sseResponse
+            if(stream?.writable){
+                stream.write(`data: ${ JSON.stringify(progressPayload) }\n\n`)
+            }
+            if(progress >= 200)
+                clearInterval(progressInterval)
+        }, progressIntervalDuration)
     }
     const methodBase = method.split('/')[0]
     const methodAction = method.split('/')?.[1]
@@ -589,21 +601,21 @@ async function mcpLogin(ctx, transportEntry, args, jsonrpc){
         isError: false,
     }
     const notification = 'notifications/tools/list_changed'
-    mcpSendNotification(transportEntry, jsonrpc, notification)
+    await mcpSendNotification(transportEntry, jsonrpc, notification)
     return result
 }
 function mReadPdf(filePath){
     const pdfBuffer = fs.readFileSync(filePath)
     return pdfBuffer.toString('base64')
 }
-function mcpSendNotification(transportEntry, jsonrpc, method){
-    console.log(chalk.yellow('MCP Send Notification'), method)
+async function mcpSendNotification(transportEntry, jsonrpc, method){
     try{
         if(method.split('/')[0]!=='notifications')
             throw new Error('Invalid notification method')
-        transportEntry.send({
+        await transportEntry.send({
             jsonrpc,
             method,
+            params,
         })
     } catch(error){
         console.log(chalk.red('NO TRANSPORT NOTIFICATION SENT::most likely disconnected'), error)
