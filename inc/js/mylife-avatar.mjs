@@ -671,8 +671,8 @@ class Avatar extends EventEmitter {
     manifest(xid){
         return this.#experienceAgent.experienceManifest(xid)
     }
-    async mcp_bot_function(functionName, mcpData){
-        return await this.#botAgent.mcp_bot_function(functionName, mcpData)
+    async mcpFunction(functionName, mcpData){
+        return await this.#botAgent.mcpFunction(functionName, mcpData)
     }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
@@ -1681,13 +1681,11 @@ class Q extends Avatar {
      * @todo - shunt registration actions to different MA functions
      * @public
      * @param {string} message - The chat message content
-     * @param {Guid} itemId - The active collection-item id (optional)
-     * @param {Koa Session} session - The context session object to store guest conversation
+     * @param {Guid} itemId - The active collection-item id (unused in System Avatar)
+     * @param {object} session - The context Koa Session object to store guest conversation
      * @returns {Promise<Object[]>} - The response(s) to the chat request
     */
     async chat(message, itemId, session){
-        if(itemId?.length)
-            throw new Error('MyLife System Avatar cannot process chats with `itemId`.')
         let { Conversation, } = session
         if(!Conversation){
             Conversation = await this.conversationStart('chat', 'system-avatar')
@@ -1702,7 +1700,6 @@ class Q extends Avatar {
             message = `CONFIRM REGISTRATION PHASE: registrationId=${ this.registrationId }\n${ message }`
         if(this.isCreatingAccount)
             message = `CREATE ACCOUNT PHASE: ${ message }`
-        console.log('Q.chat', message)
 		Conversation.prompt = message
         const response = await this.chatAgentBypass(Conversation)
         return response
@@ -1758,7 +1755,173 @@ class Q extends Avatar {
             success,
         }
     }
-
+    /**
+     * OVERLOAD: Call a MyLife MCP system avatar function. This function elicits the last data decoration before returning to the client.
+     * @param {string} functionName - The name of the function to call
+     * @param {object} mcpData - The data object to pass to the function
+     * @param {object} sessionMeta - Relevant session metadata
+     * @param {object} transportEntry - The transport entry object
+     * @returns {Promise<Object>} - The result of the function call: { error, instruction, preface, response, success, }; note instruction would be indication for frontend display request; currently not used in MCP context before related specification is complete.
+     */
+    async mcpFunction(functionName, mcpData, sessionMeta, ctx){
+        let error, // MCP formatted error
+            instruction, // instruction for frontend display or input action
+            preface, // text preface when using response
+            response, // response from function call, not formatted for MCP
+            result, // result for MCP function call, formatted for MCP
+            success=false, // success of function call
+            tool // specification in development: follow-on MCP tool call
+        if(!sessionMeta){
+            error = {
+                code: 500,
+                message: 'Session failed when access a shared memory',
+            }
+            return {
+                error,
+                success,
+            }
+        }
+        switch(functionName){
+            case 'get_shared_memories':
+                response = await this.sharedMemories(100)
+                success = response.length > 0
+                if(!success)
+                    error = {
+                        code: 500,
+                        message: 'No shared memories found',
+                    }
+                else {
+                    const sharedMemoryList = response.map(memory=>`- [${ memory.title }](${ memory.id })`).join('\n')
+                    result = {
+                        content: [{
+                            text: `Following is the list of shared memories by id and title--present titles to human; use ID only to **initially** call \`get_shared_memory\`. **Note**: ID will change and be shared after initialization to identify your unique instance of the shared memory.\n${ sharedMemoryList }`,
+                            type: 'text',
+                        }],
+                        isError: false,
+                    }
+                }
+                response = undefined // reset response
+                break
+            case 'get_shared_memory':
+                let { input: sharedMemoryInput, memoryId: sharedMemoryId, } = mcpData
+                let Share = sessionMeta.Share
+                if(!Share || Share.instanceId!==sharedMemoryId){
+                    const { instanceId, } = await this.validateShare(sharedMemoryId)
+                    if(!instanceId){
+                        error = {
+                            code: -32602,
+                            data: mcpData,
+                            message: `The memoryId ${ sharedMemoryId } is not valid`,
+                        }
+                        break
+                    }
+                    sharedMemoryId = instanceId
+                    await this.shareHeader(sharedMemoryId)
+                    Share = await this.share(sharedMemoryId)
+                    sessionMeta.Share = Share
+                    Share = sessionMeta.Share
+                    if(Share.warnings?.length){
+                        result = {
+                            content: [{
+                                text: `Confirm that the viewer would like to proceed given the following content warnings: ${ JSON.stringify(Share.warnings) }. Then make the \`get_shared_memory\` call again using your personalized instance id for \`memoryId\`: ${ sharedMemoryId }`,
+                                type: 'text',
+                            }],
+                            isError: true,
+                        }
+                        break
+                    }
+                }
+                if(!Share.warningsAccepted) /* previous error result required intelligence to issue warnings to human before re-contacting */
+                    Share.acceptWarnings()
+                await this.shareMemory(sharedMemoryId, sharedMemoryInput)
+                result = {
+                    content: [{
+                        text: `Following is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the assigned instance id for \`memoryId\`: ${ sharedMemoryId }. Include human input using field \`input\`.\n${ JSON.stringify(Share.previousScene) }`,
+                        type: 'text',
+                    }],
+                    isError: false,
+                }
+                break
+            case 'mylife_information':
+                const { question, questionType, } = mcpData
+                let message = question
+                if(questionType?.length)
+                    message += `\nQuestion Type: ${ questionType }`
+                const { responses: mcpResponses, success: chatSuccess, } = await this.chat(message, undefined, ctx.session)
+                if(!chatSuccess)
+                    response = 'Something went wrong while retrieving information about MyLife. Please try again.'
+                else
+                    result = {
+                        content: mcpResponses.map(res=>({
+                            text: res.message,
+                            type: 'text',
+                        })),
+                        isError: false,
+                    }
+                break
+            case 'register':
+                const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, reason: registerReason, } = mcpData
+                /* validate input */
+                if(!this.globals.isValidEmail(registerEmail))
+                    error = {
+                        code: -32602,
+                        data: mcpData,
+                        message: `Email incorrectly formatted: ${ registerEmail }`,
+                    }
+                else if((registerHumanName?.length ?? 0) < 2)
+                    error = {
+                        code: -32602,
+                        data: mcpData,
+                        message: `Human Name (humanName) must be a string with at least 2 chars; you sent: ${ registerHumanName }`,
+                    }
+                else if((registerAvatarName?.length ?? 0) < 1)
+                    error = {
+                        code: -32602,
+                        data: mcpData,
+                        message: `Avatar Name (avatarName) be a string with at least 1 char; you sent: ${ registerAvatarName }`,
+                    }
+                else {
+                    const signupPacket = {
+                        type: 'register',
+                        avatarName: registerAvatarName,
+                        email: registerEmail,
+                        humanName: registerHumanName,
+                        reason: registerReason,
+                    }
+                    const registrationData = await this.registerCandidate(signupPacket)
+                    const { email: registeredEmail, } = registrationData
+                    if(registeredEmail!==signupPacket.email)
+                        error = {
+                            code: 500,
+                            data: signupPacket,
+                            message: `Something went wrong with our system; please try again later`,
+                        }
+                    else 
+                        result = {
+                            content: [{
+                                text: `Registration was successful! Congratulations! An email has been sent to you with further instructions on how to validate your email. Please remember the email used for registration: ${ registerEmail }`,
+                                type: 'text',
+                            }],
+                        }
+                }
+                break
+            default:
+                error = {
+                    code: 500,
+                    message: `Function ${ functionName } not found in System Avatar.`,
+                }
+                break
+        }
+        return {
+            error,
+            instruction,
+            preface,
+            response,
+            result,
+            success,
+            tool,
+        }
+    }
 	/**
 	 * OVERLOADED: Submits and returns the memory to MyLife via API.
 	 * @todo - consent check-in with spawned Member Avatar
@@ -1942,7 +2105,8 @@ class Q extends Avatar {
      * @returns {Promise<Object[]>} - The list of shared memories
      */
     async sharedMemories(limit=10){
-        const memories = ( await this.#factory.sharedMemories(limit) )
+        let memories = await this.#factory.sharedMemories(limit)
+        memories = memories
             .map(memory=>({
                 id: memory.id,
                 title: memory.title,
