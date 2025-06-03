@@ -97,7 +97,7 @@ class Datamanager {
 				.fetchAll()
 			return items
 		} catch(error){
-			console.log('mcpFunction::system-avatar::getItems()::error', error)
+			console.log('Datamanager::getItems()::error', error)
 			return []
 		}
 	}
