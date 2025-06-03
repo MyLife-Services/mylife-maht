@@ -231,6 +231,17 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
         ?? methodBase
     const methodPluck = method.split('/').pop()
     switch(methodBase){
+        case 'completion':
+            switch(methodAction){
+                case 'complete':
+                default:
+                    error = {
+                        code: -32602,
+                        data: { id, name, },
+                        message: `Completions not yet supported, please review available methods via \`tools/list\``,
+                    }
+            }
+            break
         case 'prompts':
             switch(methodAction){
                 case 'get':
@@ -334,8 +345,29 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                     }
                     break
                 case 'templates':
-                    // @todo - implement templates
-                    result = { resourceTemplates: [], }
+                    if(methodPluck==='list')
+                        result = {
+                            resourceTemplates: [
+                                {
+                                    uriTemplate: 'bio://{memberId}',
+                                    name: 'Board Member Biography',
+                                    description: 'Access bios MyLife board members',
+                                    mimeType: 'text/markdown',
+                                },
+                                {
+                                    uriTemplate: 'memory://{itemId}',
+                                    name: 'Memories',
+                                    description: 'Access memory from MyLife archives based on itemId; note: currently must be publicly shared',
+                                    mimeType: 'application/json',
+                                },
+                                {
+                                    uriTemplate: 'avatar://{memberId}',
+                                    name: 'Avatar Resource',
+                                    description: 'Access MyLife Member\'s exposed Personal Avatar',
+                                    mimeType: 'text/markdown',
+                                },
+                            ],
+                        }
                     break
                 default:
                     break
