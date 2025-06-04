@@ -1,5 +1,7 @@
 # MyLife Member Services Application
 
+![Verification Badge](http://nanda-registry.com/api/v1/verification/badge/fbbab90e-bfad-4150-b831-c9a579d0f3c6/)
+
 ## Overview
 
 [![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)

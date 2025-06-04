@@ -68,6 +68,10 @@ body {
 	margin-bottom: 0;
 	margin-left: auto;
 }
+.top-nav .navigation-version img {
+	height: 1rem;
+	width: auto;
+}
 a.login-btn {
 	background: #557a8b;
 	border: thin solid navy;
@@ -83,10 +87,15 @@ a.login-btn:hover {
 	background: #1d292f;
 }
 .navigation-version {
+    align-items: flex-end;
+	display: flex;
     color: rgb(232, 210, 255);
+	flex-direction: column;
 	font-size: 0.8rem;
 	font-style: italic;
+    justify-content: flex-end;
 	margin-left: 1rem;
+    text-align: right;
 }
 /* Hamburger Icon - Hidden on Desktop */
 .hamburger {
