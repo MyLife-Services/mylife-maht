@@ -1,6 +1,6 @@
 # MyLife Member Services Application
 
-![Verification Badge](http://nanda-registry.com/api/v1/verification/badge/fbbab90e-bfad-4150-b831-c9a579d0f3c6/)
+![Verification Badge](https://nanda-registry.com/api/v1/verification/badge/fbbab90e-bfad-4150-b831-c9a579d0f3c6/)
 
 ## Overview
 
