@@ -1,0 +1,48 @@
+{
+  "name": "getInterests",
+  "version": "1.0.0",
+  "description": "Returns the most recent and current interests of a member human. Supports filtering by type and pagination.",
+  "protocol": "http/1.1",
+  "agent": "nanda",
+  "input": {
+    "type": "object",
+    "properties": {
+      "interest_type": {
+        "type": "string",
+        "enum": ["all", "current", "personal", "professional"],
+        "default": "current"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 100
+      },
+      "mbr_id": {
+        "type": "string"
+      }
+    },
+    "required": ["limit", "mbr_id"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "mbr_id": { "type": "string" },
+      "interests": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "required": ["mbr_id", "interests"]
+  },
+  "preferredProviders": ["nanda", "mylife"],
+  "examples": {
+    "input": {
+      "mbr_id": "Squaz-gnocchi|b6f324da-3382-41b1-b80a-1b1421cf1d08",
+      "interest_type": "personal",
+      "limit": 25
+    },
+    "output": {
+      "mbr_id": "Squaz-gnocchi|b6f324da-3382-41b1-b80a-1b1421cf1d08",
+      "interests": ["storytelling", "restorative design", "interfaith rituals"]
+    }
+  }
+}
