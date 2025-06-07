@@ -1,5 +1,4 @@
 /* imports */
-import fs from 'fs/promises'
 import path from 'path'
 import EventEmitter from 'events'
 import { Marked } from 'marked'
@@ -22,7 +21,6 @@ const mAllowSave = JSON.parse(
     process.env.MYLIFE_DB_ALLOW_SAVE
         ?? 'false'
 )
-const mAvailableModes = ['standard', 'admin', 'evolution', 'experience', 'restoration']
 const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-schemas/routines/') + '/'
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
@@ -906,7 +904,7 @@ class Avatar extends EventEmitter {
                     break
             }
             filePath += `${ routine }.json`
-            const script = await fs.readFile(filePath, 'utf-8')
+            const script = await this.globals.readFile(filePath)
             if(!script?.length)
                 throw new Error('Routine empty')
             response.routine = mRoutine(script, this, this.#botAgent)

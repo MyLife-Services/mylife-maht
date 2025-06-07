@@ -305,7 +305,7 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                     switch(uri){
                         case 'file://MyLife_Summary.pdf':
                             const summaryPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
-                            const pdfSummary = mReadPdf(summaryPath)
+                            const pdfSummary = Globals.readPdf(summaryPath)
                             result = {
                                 contents: [{
                                     blob: pdfSummary,
@@ -316,7 +316,7 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                             break
                         case 'file://MyLife_Board.pdf':
                             const boardPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
-                            const pdfBoard = mReadPdf(boardPath)
+                            const pdfBoard = Globals.readPdf(boardPath)
                             result = {
                                 contents: [{
                                     blob: pdfBoard,
@@ -632,10 +632,6 @@ async function mcpLogin(ctx, transportEntry, args, jsonrpc, id){
         result,
         toolListChanged: true,
     }
-}
-function mReadPdf(filePath){
-    const pdfBuffer = fs.readFileSync(filePath)
-    return pdfBuffer.toString('base64')
 }
 /**
  * 

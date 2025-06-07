@@ -137,6 +137,31 @@ class Globals extends EventEmitter {
 			})
 	}
 	/**
+	 * Reads a text file and returns its content.
+	 * @param {string} filePath - The path to the text file
+	 * @returns {Promise<string|null>} - The content of the text file or null if an error occurs
+	 */
+	async readFile(filePath){
+		const file = await fs.readFile(filePath, 'utf-8')
+		return file
+	}
+	/**
+	 * Reads a PDF file and returns its content as a base64-encoded string.
+	 * @param {string} filePath - The path to the PDF file
+	 * @returns {Promise<string|null>} - The base64-encoded PDF content or null if an error occurs
+	 */
+	async readPdf(filePath){
+		try{
+			let pdfBuffer
+			pdfBuffer = await fs.readFile(filePath)
+			pdfBuffer = pdfBuffer.toString('base64')
+			return pdfBuffer
+		} catch(err){
+			console.error('Error reading PDF file:', err)
+			return null
+		}
+	}
+	/**
 	 * Sanitize an object by removing forbidden Cosmos fields and undefined/null values.
 	 * @param {object} obj - Object variables to sanitize
 	 * @param {Array} immutableFields - Fields that should not be altered, and are removed from update
