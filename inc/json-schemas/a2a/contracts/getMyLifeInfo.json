@@ -1,0 +1,69 @@
+{
+  "name": "getMyLifeInfo",
+  "description": "Returns current information about the MyLife system intelligence, available agents, and services.",
+  "examples": {
+    "input": {
+      "question": "What agents are available?",
+      "questionCategory": "agents"
+    },
+    "output": {
+      "agent": "q",
+      "agents": ["avatar", "biographer", "diary", "journaler"]
+    }
+  },
+  "input": {
+    "type": "object",
+    "properties": {
+      "question": {
+        "description": "A question to ask the MyLife system intelligence, if applicable.",
+        "type": "string"
+      },
+      "questionCategory": {
+        "default": "company",
+        "enum": ["agents", "board", "company", "executive", "human remembrance project", "intelligences", "interface", "membership", "platform", "q", "registration", "roadmap", "services", "technology"],
+        "type": "string"
+      }
+    },
+    "required": ["question"]
+  },
+  "metadata": {
+    "aliases": {
+      "getMyLifeAgents": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "agents" }
+      },
+      "getMembershipInfo": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "membership" }
+      },
+      "getRegistrationInfo": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "registration" }
+      },
+      "getHelpInfo": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "interface" }
+      }
+    }
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "agent": {
+        "description": "The system agent responding (e.g. 'q').",
+        "type": "string"
+      },
+      "responses": {
+        "description": "An array of responses from the MyLife system intelligence.",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": ["agent", "responses"]
+  },
+  "preferredProviders": ["internal"],
+  "protocol": "http/1.1",
+  "version": "1.0.0"
+}

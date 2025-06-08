@@ -1,0 +1,47 @@
+{
+  "capabilities": [
+    "activateAgent",
+    "describeCapabilities",
+    "getMyLifeInfo",
+    "introspectAvatar",
+    "listAgents",
+    "registerMember",
+    "resolveAgent"
+  ],
+  "contact": "technicalsupport@humanremembranceproject.org",
+  "contracts": {
+    "activateAgent": "/api/v2/a2a/contracts/activateAgent",
+    "describeCapabilities": "/api/v2/a2a/contracts/describeCapabilities",
+    "getMyLifeInfo": "/api/v2/a2a/contracts/getMyLifeInfo",
+    "introspectAvatar": "/api/v2/a2a/contracts/introspectAvatar",
+    "listAgents": "/api/v2/a2a/contracts/listAgents",
+    "registerMember": "/api/v2/a2a/contracts/register",
+    "resolveAgent": "/api/v2/a2a/contracts/resolveAgent",
+    "chat": null
+  },
+  "description": "I am the MyLife System Avatar agent responsible for information about the nonprofit MyLife, its services and technical system, other meta-knowledge, agent resolution capacity, and general orchestration for non-member (or non-validated member) interests.",
+  "documentation": "https://github.com/MyLife-Services/mylife-maht",
+  "endpoints": {
+    "invoke": "/api/v2/a2a/q",
+    "describe": "/api/v2/a2a/q"
+  },
+  "iconUrl": "https://humanremembranceproject.org/png/Q.png",
+  "id": "q",
+  "labels": [
+    "agent",
+    "corporate-intelligence",
+    "orchestration",
+    "system-avatar"
+  ],
+  "metadata": {
+    "a2aOnly": true,
+    "excludes": ["chat"],
+    "maintainer": "MyLife",
+    "origin": "internal",
+    "root": "https://humanremembranceproject.org",
+    "type": "system-avatar"
+  },
+  "name": "MyLife Corporate Intelligence, Q",
+  "protocolVersion": "1.0",
+  "version": "1.0.0"
+}
