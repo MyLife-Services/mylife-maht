@@ -49,6 +49,35 @@ const mcpTools = [
 			openWorldHint: false,
 		}
 	},
+	{
+		name: 'obscure',
+		description: 'I obscure a summary so that no human names are present. I remove all human name references and replace them with just the first letter of their name, capitalized. You may provide either a `guid` referencing the item to obscure or an `obscuredSummary` text. At least one must be present.',
+		inputSchema: {
+			type: "object",
+			properties: {
+				obscuredSummary: {
+					type: "string",
+					description: "The cleaned and obscured text content, e.g., 'John Doe is at Google' becomes: 'J is at Google'"
+				},
+				guid: {
+					type: "string",
+					format: "uuid",
+					description: "Optional GUID that references a content item to obscure. Required if `obscuredSummary` is not provided."
+				}
+			},
+			anyOf: [
+				{ required: ["obscuredSummary"] },
+				{ required: ["guid"] }
+			]
+		},
+		annotations: {
+			title: 'Obscure-Summary',
+			readOnlyHint: true,
+			destructiveHint: true,
+			idempotentHint: true,
+			openWorldHint: false
+		}
+	}
 ]
 const mcpTool_activateBot = {
 	name: 'mylife_switch_bot',
@@ -751,6 +780,127 @@ class BotAgent {
 			}
 		return { error, result, }
 	}
+
+	async mcp_obscure(mcpdata) {
+		const { obscuredSummary, guid } = mcpdata
+		let error, result
+	
+		if (!obscuredSummary?.length && !guid?.length) {
+			error = {
+				code: -32602,
+				data: mcpdata,
+				message: 'At least one of `obscuredSummary` or `guid` must be provided'
+			}
+			return { error, result: null }
+		}
+	
+		// Load avatar bot without altering active bot
+		const bot = await this.#factory.bot('avatar')
+		if (!bot) {
+			error = {
+				code: -32603,
+				data: mcpdata,
+				message: 'Unable to load avatar bot for obscuration'
+			}
+			return { error, result: null }
+		}
+	
+		let textToObscure = obscuredSummary
+		let contextSummary = null
+	
+		// === Case 1: guid only ===
+		if (guid?.length && !obscuredSummary?.length) {
+			const item = await this.#factory.item(guid)
+			const isOwned = item?.owner === this.memberId // hypothetical member ownership check
+			if (!item || !isOwned) {
+				// Frontend sampling request (if enforced by client)
+				if (this.client?.sampling === true) {
+					return {
+						error: null,
+						result: {
+							content: [{
+								type: 'tool-request',
+								text: `Sampling required for obscuration of ${guid}`,
+								tool: 'sampling',
+								params: { guid }
+							}],
+							isError: false
+						}
+					}
+				} else {
+					result = {
+						content: [{
+							text: `Item ${guid} not found or not accessible for this member`,
+							type: 'text',
+						}],
+						isError: true,
+					}
+					return { error: null, result }
+				}
+			}
+	
+			contextSummary = item.summary
+			if (!contextSummary?.length) {
+				result = {
+					content: [{
+						text: `No content found to obscure for GUID: ${guid}`,
+						type: 'text',
+					}],
+					isError: true,
+				}
+				return { error: null, result }
+			}
+			textToObscure = contextSummary
+		}
+	
+		// === Case 2: obscuredSummary only ===
+		if (obscuredSummary?.length && !guid?.length) {
+			// Lookup item beings for potential matches (memory, entry, etc.)
+			const match = await this.#factory.findItemByText(obscuredSummary) // hypothetical utility
+			if (!match) {
+				result = {
+					content: [{
+						text: 'Provided summary could not be validated against any known MyLife items',
+						type: 'text',
+					}],
+					isError: true,
+				}
+				return { error: null, result }
+			}
+		}
+	
+		// === Case 3: both guid and obscuredSummary present ===
+		if (guid?.length && obscuredSummary?.length) {
+			// Authoritative override: optionally write or log obscuration
+			await this.#factory.writeObscure(guid, obscuredSummary) // hypothetical write utility
+		}
+	
+		// === Obscure using avatar bot ===
+		const response = await bot.call('obscure', { obscuredSummary: textToObscure })
+		const obscured = response?.obscuredSummary
+	
+		if (!obscured?.length) {
+			result = {
+				content: [{
+					text: 'Obscuration failed. Avatar bot did not return valid output.',
+					type: 'text',
+				}],
+				isError: true,
+			}
+		} else {
+			result = {
+				content: [{
+					text: obscured,
+					type: 'text',
+				}],
+				isError: false,
+			}
+		}
+	
+		return { error, result }
+	}
+	
+	
 	async mcp_get_memories(mcpdata){
 		const preface = 'Here are the titles and ids (display only titles for human member) for the memories we have created together:\n'
 		const response = ( await this.bot(undefined, 'biographer').collections() )
