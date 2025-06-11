@@ -527,8 +527,8 @@ class Dataservices {
 					?	` where ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
 					:	` and ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
 		})
-		try{
-			return await this.datamanager.getItems(
+		try {
+			const items = await this.datamanager.getItems(
 				{ query: query, parameters: paramsArray },
 				container_id,
 				{
@@ -536,7 +536,8 @@ class Dataservices {
 					populateQuotaInfo: false, // set this to true to include quota information in the response headers
 				},
 			)
-		} catch(_error){
+			return items
+		} catch(_error) {
 			console.log('Dataservices::getItems()::error', _error, being, query, paramsArray, container_id,)
 		}
 	}

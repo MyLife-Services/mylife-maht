@@ -477,7 +477,7 @@ class Bot {
 				})
 			this.#mcp = mcp
 			if(!this.isMyLife)
-				this.update({ mcp, }) // @todo - save mcp to document when not .isMyLife (no await)
+				this.update({ mcp, }) // save mcp to document (no await)
 		}
 		return this.#mcp
 	}
@@ -950,6 +950,7 @@ class BotAgent {
 		return {
 			error,
 			result,
+			toolListChanged: true, // true for switching bots, as they have different skills
 		}
 	}
     /**
