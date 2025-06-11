@@ -15,15 +15,14 @@
           "type": "string",
           "example": "\"John Doe is at Google\" becomes: \"J is at Google\""
         },
-        "guid": {
+        "itemId": {
           "description": "An optional GUID that references a context in which the obscuration should be interpreted. Required if 'obscuredSummary' is not provided.",
           "type": "string",
           "format": "uuid"
         }
       },
-      "anyOf": [
-        { "required": ["obscuredSummary"] },
-        { "required": ["guid"] }
+      "required": [
+        "itemId"
       ]
     },
     "name": "obscure",
