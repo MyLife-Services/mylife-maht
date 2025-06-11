@@ -782,10 +782,10 @@ class BotAgent {
 	}
 
 	async mcp_obscure(mcpdata) {
-		const { obscuredSummary, guid } = mcpdata
+		const { obscuredSummary, itemId } = mcpdata
 		let error, result
 	
-		if (!obscuredSummary?.length && !guid?.length) {
+		if (!obscuredSummary?.length && !itemId?.length) {
 			error = {
 				code: -32602,
 				data: mcpdata,
@@ -809,10 +809,10 @@ class BotAgent {
 		let contextSummary = null
 	
 		// === Case 1: guid only ===
-		if (guid?.length && !obscuredSummary?.length) {
-			const item = await this.#factory.item(guid)
-			const isOwned = item?.owner === this.memberId // hypothetical member ownership check
-			if (!item || !isOwned) {
+		if (itemId?.length && !obscuredSummary?.length) {
+			const item = await this.#factory.item(itemId)
+			
+			if (!item) {
 				// Frontend sampling request (if enforced by client)
 				if (this.client?.sampling === true) {
 					return {
@@ -820,9 +820,9 @@ class BotAgent {
 						result: {
 							content: [{
 								type: 'tool-request',
-								text: `Sampling required for obscuration of ${guid}`,
+								text: `Sampling required for obscuration of ${itemId}`,
 								tool: 'sampling',
-								params: { guid }
+								params: { itemId }
 							}],
 							isError: false
 						}
@@ -830,7 +830,7 @@ class BotAgent {
 				} else {
 					result = {
 						content: [{
-							text: `Item ${guid} not found or not accessible for this member`,
+							text: `Item ${itemId} not found or not accessible for this member`,
 							type: 'text',
 						}],
 						isError: true,
@@ -843,7 +843,7 @@ class BotAgent {
 			if (!contextSummary?.length) {
 				result = {
 					content: [{
-						text: `No content found to obscure for GUID: ${guid}`,
+						text: `No content found to obscure for GUID: ${itemId}`,
 						type: 'text',
 					}],
 					isError: true,
@@ -854,7 +854,7 @@ class BotAgent {
 		}
 	
 		// === Case 2: obscuredSummary only ===
-		if (obscuredSummary?.length && !guid?.length) {
+		if (obscuredSummary?.length && !itemId?.length) {
 			// Lookup item beings for potential matches (memory, entry, etc.)
 			const match = await this.#factory.findItemByText(obscuredSummary) // hypothetical utility
 			if (!match) {
@@ -870,9 +870,9 @@ class BotAgent {
 		}
 	
 		// === Case 3: both guid and obscuredSummary present ===
-		if (guid?.length && obscuredSummary?.length) {
+		if (itemId?.length && obscuredSummary?.length) {
 			// Authoritative override: optionally write or log obscuration
-			await this.#factory.writeObscure(guid, obscuredSummary) // hypothetical write utility
+			await this.#factory.writeObscure(itemId, obscuredSummary) // hypothetical write utility
 		}
 	
 		// === Obscure using avatar bot ===
