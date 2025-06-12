@@ -133,6 +133,7 @@ _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
 /* a2a routes */
+_Router.get('/.well-known/agent.json', a2aCard)
 _a2aRouter.get('/:agentId', a2aCard)
 _a2aRouter.get('/contracts/:contractId', a2aContract)
 _a2aRouter.post('/:agentId', a2aCall)

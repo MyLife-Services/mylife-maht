@@ -574,15 +574,20 @@ class ShareAgent {
     async update(shareData){
         return await this.#factory.updateShare(shareData)
     }
+    /**
+     * Validates a share ID.
+     * @param {Guid} shareId - The ID of the share to validate
+     * @returns {Promise<string>} - The validated share ID
+     */
     async validateShare(shareId){
         if(!this.share(shareId)){ // protect in case instanceId sent
             const share = await this.#factory.getShare(shareId)
             if(!share)
-                throw new Error(`Share not found: ${ shareId }`)
+                return
             share.instanceId = this.#factory.newGuid
             const _Share = new Share(share)
             if(!_Share.mbr_id)
-                throw new Error('Invalid Share, no Member associated with content')
+                return
             shareId = _Share.instanceId
             this.#shares.push(_Share)
         }

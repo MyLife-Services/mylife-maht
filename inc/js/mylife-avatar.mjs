@@ -14,6 +14,7 @@ import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
+import { type } from 'os'
 /* module constants */
 // file services
 const __dirpath = fileURLToPath(import.meta.url)
@@ -1096,7 +1097,12 @@ class Avatar extends EventEmitter {
      * @returns {Promise<Object>} - Response object: { instanceId, }
      */
     async validateShare(shareId){
-        const instanceId = await this.#ShareAgent.validateShare(shareId)
+        let instanceId
+        try {
+            instanceId = await this.#ShareAgent.validateShare(shareId)
+        } catch (error) {
+            console.error('avatar::validateShare()::failed', error?.message)
+        }
         return {
             instanceId,
         }
@@ -1764,7 +1770,8 @@ class Q extends Avatar {
      * @returns {Promise<Object>} - The result of the function call: { error, instruction, preface, response, success, }; note instruction would be indication for frontend display request; currently not used in MCP context before related specification is complete.
      */
     async mcpFunction(functionName, mcpData, sessionMeta, ctx){
-        let error, // MCP formatted error
+        let data, // A2A data object (or could sneak function in sessionMeta)
+            error, // MCP formatted error
             instruction, // instruction for frontend display or input action
             preface, // text preface when using response
             response, // response from function call, not formatted for MCP
@@ -1799,8 +1806,11 @@ class Q extends Avatar {
                         }],
                         isError: false,
                     }
+                    if(typeof (response ?? null) === 'object'){ // transfer response to data
+                        data = response // a2a data part
+                        response = undefined // @todo - fix: currently triggers reset response for downstream MCP handlers
+                    }
                 }
-                response = undefined // reset response
                 break
             case 'get_shared_memory':
                 let { input: sharedMemoryInput, memoryId: sharedMemoryId, } = mcpData
@@ -1835,12 +1845,19 @@ class Q extends Avatar {
                     Share.acceptWarnings()
                 await this.shareMemory(sharedMemoryId, sharedMemoryInput)
                 result = {
-                    content: [{
-                        text: `Following is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the assigned instance id for \`memoryId\`: ${ sharedMemoryId }. Include human input using field \`input\`.\n${ JSON.stringify(Share.previousScene) }`,
-                        type: 'text',
-                    }],
+                    content: [
+                        {
+                            text: `Following is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the assigned instance id for \`memoryId\`: ${ sharedMemoryId }. Include human input using field \`input\`.`,
+                            type: 'text',
+                        },
+                        { // should transition to data part in A2A
+                            text: JSON.stringify(Share.previousScene),
+                            type: 'text',
+                        }
+                    ],
                     isError: false,
                 }
+                success = !!result
                 break
             case 'mylife_information':
                 const { question, questionType, } = mcpData
@@ -1858,6 +1875,7 @@ class Q extends Avatar {
                         })),
                         isError: false,
                     }
+                success = !(result?.isError ?? true)
                 break
             case 'register':
                 const { avatarName: registerAvatarName, email: registerEmail, humanName: registerHumanName, reason: registerReason, } = mcpData
@@ -1890,19 +1908,22 @@ class Q extends Avatar {
                     }
                     const registrationData = await this.registerCandidate(signupPacket)
                     const { email: registeredEmail, } = registrationData
-                    if(registeredEmail!==signupPacket.email)
-                        error = {
-                            code: 500,
-                            data: signupPacket,
-                            message: `Something went wrong with our system; please try again later`,
+                    result = registeredEmail!==signupPacket.email
+                        ? {
+                            content: [{
+                                text: 'Something went wrong with our system; please try again later, or use a different email.',
+                                type: 'text',
+                            }],
+                            isError: true,
                         }
-                    else 
-                        result = {
+                        : {
                             content: [{
                                 text: `Registration was successful! Congratulations! An email has been sent to you with further instructions on how to validate your email. Please remember the email used for registration: ${ registerEmail }`,
                                 type: 'text',
                             }],
+                            isError: false,
                         }
+                    success = !!result && !(result.isError ?? true)
                 }
                 break
             default:
@@ -1912,7 +1933,8 @@ class Q extends Avatar {
                 }
                 break
         }
-        return {
+        const responseObject = {
+            data,
             error,
             instruction,
             preface,
@@ -1921,6 +1943,11 @@ class Q extends Avatar {
             success,
             tool,
         }
+        Object.keys(responseObject).forEach(key=>{
+            if(responseObject[key] === undefined || responseObject[key] === null)
+                delete responseObject[key]
+        })
+        return responseObject
     }
 	/**
 	 * OVERLOADED: Submits and returns the memory to MyLife via API.
