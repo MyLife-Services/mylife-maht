@@ -198,6 +198,14 @@ async function a2aCard(ctx){
         card.endpoints.invoke = makeUrlAbsolute(card.endpoints.invoke)
     if(card?.endpoints?.describe && !card.endpoints.describe.startsWith('http'))
         card.endpoints.describe = makeUrlAbsolute(card.endpoints.describe)
+    if(card?.endpoints?.static){ /* NANDA */
+        const endpoints = card.endpoints.static
+        for(let i=0; i<endpoints.length; i++)
+            if(endpoints[i]?.length && !endpoints[i].startsWith('http'))
+                endpoints[i] = makeUrlAbsolute(endpoints[i])
+    }
+    if(card?.endpoints?.adaptive_resolver?.url && !card.endpoints.adaptive_resolver.url.startsWith('http'))
+        card.endpoints.adaptive_resolver.url = makeUrlAbsolute(card.endpoints.adaptive_resolver.url)
     if(card?.url && !card.url.startsWith('http'))
         card.url = makeUrlAbsolute(card.url)
     card.provider.url = process.env.MYLIFE_ORIGIN
@@ -505,7 +513,7 @@ function historyLogItem(ctx, messageId, data){
  * @returns {string} - The absolute URL
  */
 function makeUrlAbsolute(url){
-    if(!url.startsWith('http')){
+    if(url?.length && !url.startsWith('http')){
         const origin = process.env.MYLIFE_ORIGIN
             ?? 'https://humanremembranceproject.org'
         if(!origin.endsWith('/') && !url.startsWith('/'))
