@@ -5,10 +5,6 @@
     "input": {
       "question": "What agents are available?",
       "questionCategory": "agents"
-    },
-    "output": {
-      "agent": "q",
-      "agents": ["avatar", "biographer", "diary", "journaler"]
     }
   },
   "input": {
@@ -45,23 +41,6 @@
         "defaultInput": { "questionCategory": "interface" }
       }
     }
-  },
-  "output": {
-    "type": "object",
-    "properties": {
-      "agent": {
-        "description": "The system agent responding (e.g. 'q').",
-        "type": "string"
-      },
-      "responses": {
-        "description": "An array of responses from the MyLife system intelligence.",
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      }
-    },
-    "required": ["agent", "responses"]
   },
   "preferredProviders": ["internal"],
   "protocol": "http/1.1",

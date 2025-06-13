@@ -262,7 +262,9 @@ async function a2aHandler(ctx, params, skillId){
         const response = (typeof handler === 'string')
             ? await Avatar.mcpFunction(handler, params, sessionMeta, ctx)
             : await handler(ctx, params)
-        const parts = convertMCPToA2A(ctx, response)
+        const parts = Array.isArray(response)
+            ? response // already in A2A format
+            : convertMCPToA2A(ctx, response)
         return parts
     } catch (err) {
         console.error(chalk.redBright(`A2A::${skillId} failed`), err)
@@ -302,7 +304,7 @@ function agentCard(agentId){
  * @returns {object[]} - The converted A2A data
  */
 function convertMCPToA2A(ctx, mcpData){
-    const { data, error, instruction, preface, response, result, success, tool, } = mcpData
+    const { data, error, instruction, kind, preface, response, result, success, tool, } = mcpData
     if(!!error || result?.isError)
         return sendError(ctx, 500, -32603, (error?.message ?? result?.content?.[0]?.text ?? 'Error locating error message in MCP data'), { type: 'internal_error' })
     let a2aParts = []

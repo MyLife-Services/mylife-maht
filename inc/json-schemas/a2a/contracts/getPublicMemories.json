@@ -23,15 +23,26 @@
         "description": "The system agent responding (e.g. 'q').",
         "type": "string"
       },
-      "responses": {
-        "description": "An array of responses from the MyLife system intelligence.",
+      "memories": {
+        "description": "An array of memories from the MyLife system intelligence.",
         "type": "array",
         "items": {
-          "type": "string"
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "The unique identifier for the public memory.",
+              "type": "string"
+            },
+            "title": {
+              "description": "The title of the public memory.",
+              "type": "string"
+            }
+          },
+          "required": ["id", "title"]
         }
       }
     },
-    "required": ["agent", "responses"]
+    "required": ["agent", "memories"]
   },
   "preferredProviders": ["internal"],
   "protocol": "http/1.1",
