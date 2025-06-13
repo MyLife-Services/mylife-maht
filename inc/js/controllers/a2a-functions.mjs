@@ -176,18 +176,12 @@ async function a2aCall(ctx){
  * @returns {Promise<void>} - The agent card or an error response in `ctx.body`
  */
 async function a2aCard(ctx){
+    const { subdomain, } = ctx.state
+    if(!validateSubdomain(subdomain))
+        return sendError(ctx, 404, -32601, `Valid subdomain is required for A2A requests; subdomain: ${subdomain}`, { type: 'invalid_subdomain' })
     const agentId = resolveAgentId(ctx)
-    if(!agentId?.length){
-        ctx.status = 400
-        ctx.body = {
-            error: {
-                code: -32602,
-                message: 'Agent ID is required in the path: GET `/a2a/:agentId`',
-                data: { type: 'missing_parameter' }
-            }
-        }
-        return
-    }
+    if(!agentId?.length)
+        return sendError(ctx, 400, -32602, 'Agent ID is required in the path: GET `/a2a/:agentId`', { type: 'missing_parameter' })
     const card = agentCard(agentId)
     /* ensure URLs absolute */
     if(card?.documentationUrl && !card.documentationUrl.startsWith('http'))
@@ -211,11 +205,9 @@ async function a2aCard(ctx){
     card.provider.url = process.env.MYLIFE_ORIGIN
         ?? 'https://humanremembranceproject.org'
     ctx.set('Content-Type', 'application/json')
-    if(!card){
-        ctx.status = 404
-        ctx.body = { error: `Agent card not found: ${agentId}` }
-    } else
-        ctx.body = card
+    if(!card)
+        return sendError(ctx, 404, -32601, `Agent card not found: ${agentId}`, { type: 'not_found' })
+    ctx.body = card
 }
 /**
  * Validates and serves the A2A contract by id.
@@ -574,6 +566,17 @@ function sendError(ctx, status, code, message, data){
             data: data
         }
     }
+}
+/**
+ * Validates the subdomain.
+ * @param {String} subdomain - The subdomain to validate
+ * @returns {Boolean} - True if valid, false otherwise
+ */
+function validateSubdomain(subdomain){
+    if(!subdomain?.length)
+        return false
+    const validSubdomain = ['avatar', 'mylife', 'nanda', 'q'].includes(subdomain.toLowerCase()) // 'mylife' for ewj local dev :(
+    return validSubdomain
 }
 /* exports */
 export {

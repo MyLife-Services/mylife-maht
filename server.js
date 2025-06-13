@@ -162,6 +162,7 @@ app.use(async (ctx, next) => {
 		ctx.state.avatar = ctx.session.avatar
 		ctx.state.locked = ctx.session.locked
 		ctx.state.menu = ctx.SystemAvatar.menu
+		ctx.state.subdomain = ctx.hostname?.split('.')?.[0]
 		ctx.state.version = ctx.SystemAvatar.version
 		await next()
 	})
