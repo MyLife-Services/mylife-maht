@@ -120,7 +120,7 @@ async function a2aCall(ctx){
         return sendError(ctx, 400, -32602, 'Invalid request body: expected role to be "user"', { type: 'invalid_request' })
     const { parameters, skill, skillId, } = extractSkill(card, parts)
     if(!skillId?.length) // @todo - should there be more helpful defaults and hints from internal intelligence? A pointer to a primer on how to use the agent's a2a capabilities?
-        return sendError(ctx, 400, -32602, 'Invalid request body. Specifications: Agent Requests via A2A Message **MUST** contain a DataPart that specifies the skill (id) being requested and any associated parameters; example: `{ "id": "getMyLifeInfo", "parameters": { "question": "who\'s on board?", "questionType": "board" } }`.', { type: 'invalid_request' })
+        return sendError(ctx, 400, -32602, 'Invalid request body. Specifications: Agent Requests via A2A Message **MUST** contain a `DataPart` that specifies the skill (id) being requested and any associated parameters; example: `{ "id": "getMyLifeInfo", "parameters": { "question": "who\'s on board?", "questionType": "board" } }`.', { type: 'invalid_request' })
     try {
         historyLogItem(ctx, messageId, {
             skill: { parameters, skill, skillId, },

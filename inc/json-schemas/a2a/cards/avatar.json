@@ -34,10 +34,10 @@
       "url": "",
       "policies": []
     },
-    "describe": "/api/v2/a2a/avatar",
-    "invoke": "/api/v2/a2a/avatar",
+    "describe": "https://avatar.humanremembranceproject.org",
+    "invoke": "https://avatar.humanremembranceproject.org",
     "static": [
-      "/api/v2/a2a/avatar"
+      "https://avatar.humanremembranceproject.org"
     ]
   },
   "evaluations": {
@@ -131,6 +131,6 @@
     }
   ],
   "supportsAuthenticatedExtendedCards": true,
-  "url": "/api/v2/a2a/avatar",
+  "url": "https://avatar.humanremembranceproject.org",
   "version": "1.0.0"
 }

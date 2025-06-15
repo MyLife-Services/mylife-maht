@@ -135,7 +135,7 @@ _Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
-// _Router.post('/', chat)
+_Router.post('/', chat)
 _Router.post('/alphadog/mission/:mid', missionPlay)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
@@ -420,9 +420,9 @@ function mcpValidateRequestOrigin(ctx){
  */
 async function routeSubdomain(ctx, next){
     const isExempt = ['localhost', 'mylife.ngrok.app', '127.0.0.1'].includes(ctx.hostname.toLowerCase())
-    let agentId = ctx?.hostname?.split('.')?.[0]
-    if(isExempt && ctx.query?.agentId?.length)
-        agentId = ctx.query.agentId
+    const agentId = (isExempt)
+        ? ctx.query?.agentId
+        : ctx?.hostname?.split('.')?.[0]
     if(!agentId || agentId.toLowerCase() === 'www')
         return await next() // no subdomain, forward to standard routes
     /* subdomain routing */
