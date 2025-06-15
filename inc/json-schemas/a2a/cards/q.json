@@ -34,10 +34,10 @@
       "url": "",
       "policies": []
     },
-    "invoke": "/api/v2/a2a/q",
-    "describe": "/api/v2/a2a/q",
+    "invoke": "https://q.humanremembranceproject.org",
+    "describe": "https://q.humanremembranceproject.org",
     "static": [
-      "/api/v2/a2a/q"
+      "https://q.humanremembranceproject.org"
     ]
   },
   "evaluations": {
@@ -214,7 +214,7 @@
       "tags": ["mylife", "register", "board", "technology"]
     }
   ],
-  "supportsAuthenticatedExtendedCards": true,
+  "supportsAuthenticatedExtendedCards": false,
   "telemetry": {
     "enabled": false,
     "retention": "7d",

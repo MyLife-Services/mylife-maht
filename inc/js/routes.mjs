@@ -102,7 +102,16 @@ const _memberRouter = new Router()
 const _nandaRouter = new Router()
 const _Router = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
-//	root routes
+const mAgentRouters = {
+    'avatar': _a2aRouter,
+    'mcp': _mcpSystemRouter,
+    'mcp-member': _mcpMemberRouter,
+    'mcp-q': _mcpSystemRouter,
+    'nanda': _nandaRouter,
+    'q': _a2aRouter, // 'q' is a2a for now, but could be used for other purposes
+}
+/* router middleware */
+_Router.use(routeSubdomain) // catch all for subdomain routing
 _Router.get('/', index)
 _Router.get('/about', about)
 _Router.get('/alerts', alerts)
@@ -126,7 +135,7 @@ _Router.get('/shadows', shadows)
 _Router.get('/signup', status_signup)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
-_Router.post('/', chat)
+// _Router.post('/', chat)
 _Router.post('/alphadog/mission/:mid', missionPlay)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
@@ -134,9 +143,9 @@ _Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
 /* a2a routes */
 _Router.get('/.well-known/agent.json', a2aCard)
-_a2aRouter.get('/:agentId', a2aCard)
+_a2aRouter.get('/', a2aCard)
 _a2aRouter.get('/contracts/:contractId', a2aContract)
-_a2aRouter.post('/:agentId', a2aCall)
+_a2aRouter.post('/', a2aCall)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
@@ -273,7 +282,7 @@ async function memberValidation(ctx, next){
                 redirectUrl
             }
         } else
-            ctx.redirect(redirectUrl)
+            await ctx.redirect(redirectUrl)
     } else
         await next() // Proceed to the next middleware if authorized
 }
@@ -402,6 +411,28 @@ function mcpValidateRequestOrigin(ctx){
         console.log(`Unrecognized Origin: ${origin}`)
         ctx.throw(403, `Origin not allowed: ${origin}`)
     }
+}
+/**
+ * Routes external requests based on subdomain.
+ * @param {Koa} ctx - Koa context object
+ * @param {function} next - Koa next function
+ * @returns {function} Koa next function or redirect
+ */
+async function routeSubdomain(ctx, next){
+    const isExempt = ['localhost', 'mylife.ngrok.app', '127.0.0.1'].includes(ctx.hostname.toLowerCase())
+    let agentId = ctx?.hostname?.split('.')?.[0]
+    if(isExempt && ctx.query?.agentId?.length)
+        agentId = ctx.query.agentId
+    if(!agentId || agentId.toLowerCase() === 'www')
+        return await next() // no subdomain, forward to standard routes
+    /* subdomain routing */
+    const alternateRouter = mAgentRouters?.[agentId]
+    /* faulty routes */
+    if(!alternateRouter)
+        ctx.throw(404, `Unrecognized subdomain: ${ agentId }`)
+    const router = await alternateRouter.routes()
+    ctx.state.a2aAgentId = agentId
+    return await router(ctx, next)
 }
 /* exports */
 export default function init(_Menu) {

@@ -1,9 +1,24 @@
 {
+  "agent_name": "MyLife Member Avatar",
   "capabilities": {
+    "authentication": {
+      "methods": [],
+      "requiredScopes": []
+    },
+    "batch": false,
     "extensions": [],
+    "modalities": [
+      "text"
+    ],
     "pushNotifications": false,
-    "stateTransitionHistory": false,
+    "stateTransitionHistory": true,
     "streaming": false
+  },
+  "certification": {
+    "level": "verified",
+    "issuer": "NANDA",
+    "issuanceDate": "2025-06-12",
+    "expirationDate": "2026-06-12"
   },
   "defaultInputModes": [
     "application/json",
@@ -15,11 +30,26 @@
   "description": "I am a MyLife Member Avatar agent responsible for providing a point of access to information about a MyLife Member, as consented by them. I am the primary interface for interacting with a membership and its associated agents, such as biographers, diary keepers, and journalers. I govern the access and orchestration according to the Member's preferences, natural language consents and privacy settings.",
   "documentationUrl": "https://github.com/MyLife-Services/mylife-maht",
   "endpoints": {
+    "adaptive_resolver": {
+      "url": "",
+      "policies": []
+    },
+    "describe": "/api/v2/a2a/avatar",
     "invoke": "/api/v2/a2a/avatar",
-    "describe": "/api/v2/a2a/avatar"
+    "static": [
+      "/api/v2/a2a/avatar"
+    ]
+  },
+  "evaluations": {
+    "performanceScore": 0,
+    "availability90d": "",
+    "lastAudited": "",
+    "auditTrail": "",
+    "auditorID": ""
   },
   "iconUrl": "/png/personal-avatar-thumb-02.png",
-  "id": "avatar",
+  "id": "avatar.mylife",
+  "label": "MyLife Member Avatar",
   "labels": [
     "agent",
     "member-intelligence",
@@ -75,6 +105,29 @@
         }
       ],
       "tags": ["agent", "activation", "activate"]
+    },
+    {
+      "description": "Logs in a MyLife Member for session.",
+      "examples": ["Log me in to MyLife", "Get my MyLife Avatar"],
+      "id": "login",
+      "inputs": [
+        {
+          "id": "memberId",
+          "description": "The unique identifier of the MyLife Member.",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "id": "passphrase",
+          "description": "The passphrase for the MyLife Avatar.",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "inputModes": ["application/json", "text/plain"],
+      "name": "Login to MyLife",
+      "outputModes": ["application/json"],
+      "tags": ["mylife", "avatar", "concierge", "guardian", "caretaker", "assistant", "portrayer"]
     }
   ],
   "supportsAuthenticatedExtendedCards": true,

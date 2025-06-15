@@ -106,19 +106,16 @@ try {
 */
 /* public functions */
 async function a2aCall(ctx){
-    const agentId = resolveAgentId(ctx)
-    const { avatar: Agent, } = ctx.state
+    const { a2aAgentId, } = ctx.state
     ctx.set('Content-Type', 'application/json')
-    if(agentId==='q' && !Agent?.isMyLife)
-        return sendError(ctx, 403, -32601, 'Incorrect Avatar is being requested from avatar is in use. Please contact technical support.', { type: 'forbidden' })
-    const card = agentCard(agentId)
+    const card = agentCard(a2aAgentId)
     const { kind, messageId, metadata={}, parts, role, } = ctx.request.body
     if(kind!=='message')
         return sendError(ctx, 400, -32602, 'Invalid request body: expected kind to be "message"', { type: 'invalid_request' })
     if(!messageId?.length)
-        return sendError(ctx, 400, -32602, 'Message ID is required in the body for tracking: POST `/a2a/:agentId`', { type: 'missing_parameter' })
+        return sendError(ctx, 400, -32602, 'Message ID is required in the body', { type: 'missing_parameter' })
     if(!parts?.length)
-        return sendError(ctx, 400, -32602, 'Message parts are required in the body for tracking: POST `/a2a/:agentId`', { type: 'missing_parameter' })
+        return sendError(ctx, 400, -32602, 'Message parts are required in the body', { type: 'missing_parameter' })
     if(role!=='user')
         return sendError(ctx, 400, -32602, 'Invalid request body: expected role to be "user"', { type: 'invalid_request' })
     const { parameters, skill, skillId, } = extractSkill(card, parts)
@@ -128,7 +125,7 @@ async function a2aCall(ctx){
         historyLogItem(ctx, messageId, {
             skill: { parameters, skill, skillId, },
         })
-        const parts = await a2aHandler(ctx, parameters, skillId),
+        const parts = await a2aHandler(ctx, a2aAgentId, skillId, parameters),
             role = 'agent'
         if(ctx.body?.error)
             return historyLogItem(ctx, messageId, {
@@ -140,7 +137,7 @@ async function a2aCall(ctx){
                 error: ctx.body.error,
             })
         }
-        metadata.agentId = agentId
+        metadata.agentId = a2aAgentId
         metadata.agentName = card?.name
         metadata.agentDescription = card?.description
         metadata.iconUrl = card?.iconUrl
@@ -176,13 +173,11 @@ async function a2aCall(ctx){
  * @returns {Promise<void>} - The agent card or an error response in `ctx.body`
  */
 async function a2aCard(ctx){
-    const { subdomain, } = ctx.state
-    if(!validateSubdomain(subdomain))
-        return sendError(ctx, 404, -32601, `Valid subdomain is required for A2A requests; subdomain: ${subdomain}`, { type: 'invalid_subdomain' })
-    const agentId = resolveAgentId(ctx)
-    if(!agentId?.length)
-        return sendError(ctx, 400, -32602, 'Agent ID is required in the path: GET `/a2a/:agentId`', { type: 'missing_parameter' })
-    const card = agentCard(agentId)
+    const { a2aAgentId, } = ctx.state
+    const card = agentCard(a2aAgentId)
+    ctx.set('Content-Type', 'application/json')
+    if(!card)
+        return sendError(ctx, 404, -32601, `Agent card not found: ${ a2aAgentId }`, { type: 'not_found' })
     /* ensure URLs absolute */
     if(card?.documentationUrl && !card.documentationUrl.startsWith('http'))
         card.documentationUrl = makeUrlAbsolute(card.documentationUrl)
@@ -204,9 +199,6 @@ async function a2aCard(ctx){
         card.url = makeUrlAbsolute(card.url)
     card.provider.url = process.env.MYLIFE_ORIGIN
         ?? 'https://humanremembranceproject.org'
-    ctx.set('Content-Type', 'application/json')
-    if(!card)
-        return sendError(ctx, 404, -32601, `Agent card not found: ${agentId}`, { type: 'not_found' })
     ctx.body = card
 }
 /**
@@ -250,7 +242,15 @@ async function a2aContract(ctx){
     }
 }
 /* private functions */
-async function a2aHandler(ctx, params, skillId){
+/**
+ * Handles the A2A request for a specific agent and skill.
+ * @param {Koa} ctx - Koa context
+ * @param {String} agentId - The ID of the agent
+ * @param {String} skillId - The ID of the skill
+ * @param {Object} params - The parameters for the request
+ * @returns {Promise<Parts[]>} - The A2A response parts
+ */
+async function a2aHandler(ctx, agentId, skillId, params){
     const handler = mHandlers[skillId]
     if(!handler)
         return sendError(ctx, 501, -32601, `Handler not implemented for capability: ${skillId}`, { type: 'not_implemented' })
@@ -534,21 +534,6 @@ function reduceDataArray(dataArray){
    return data
 }
 /**
- * Resolves the agent ID.
- * @private
- * @param {Koa} ctx - Koa context
- * @returns {string} - The resolved agent ID
- */
-function resolveAgentId(ctx){
-    let { agentId, } = ctx.params
-    if(!agentId){
-        agentId = ctx.state.avatar?.isMyLife
-            ? 'q'
-            : ctx.state.avatar?.id
-    }
-    return agentId
-}
-/**
  * Sends an error response in the Koa context.
  * @param {Koa} ctx - Koa context
  * @param {number} status - HTTP status code
@@ -566,17 +551,6 @@ function sendError(ctx, status, code, message, data){
             data: data
         }
     }
-}
-/**
- * Validates the subdomain.
- * @param {String} subdomain - The subdomain to validate
- * @returns {Boolean} - True if valid, false otherwise
- */
-function validateSubdomain(subdomain){
-    if(!subdomain?.length)
-        return false
-    const validSubdomain = ['avatar', 'mylife', 'nanda', 'q'].includes(subdomain.toLowerCase()) // 'mylife' for ewj local dev :(
-    return validSubdomain
 }
 /* exports */
 export {
