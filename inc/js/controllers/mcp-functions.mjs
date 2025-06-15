@@ -609,7 +609,8 @@ async function mcpLogin(ctx, transportEntry, args, jsonrpc, id){
     let result
     try {
         await challenge(ctx, memberId, memberPassphrase)
-        ctx.body = null
+        if(ctx.body)
+            ctx.body = undefined // reset body to avoid double response
         const { avatar: Avatar, } = ctx.state
         result = {
             content: [{
@@ -630,7 +631,7 @@ async function mcpLogin(ctx, transportEntry, args, jsonrpc, id){
     }
     return {
         result,
-        toolListChanged: true,
+        toolListChanged: !(result?.isError ?? true),
     }
 }
 /**
@@ -705,6 +706,7 @@ function mcpTestProtocol(jsonrpc, protocolVersion){
 /* exports */
 export {
     mcpCall,
+    mcpLogin,
     mcpSessionEnd,
     mcpSessionInfo,
     mcpStream,

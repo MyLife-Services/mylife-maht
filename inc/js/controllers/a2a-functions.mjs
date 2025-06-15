@@ -2,7 +2,7 @@
 import chalk from 'chalk'
 import fs from 'fs/promises'
 import path from 'path'
-import { challenge, } from './functions.mjs'
+import { mcpLogin, } from './mcp-functions.mjs'
 /* constants */
 const mA2AProviders = [
     {
@@ -82,6 +82,28 @@ const mAgentCards = {},
         },
         getPublicMemory: 'get_shared_memory',
         getPublicMemories: "get_shared_memories",
+        mylifeLogin: async (ctx, params)=>{
+            const { avatar: Avatar, } = ctx.state
+            if(!Avatar?.isMyLife)
+                return sendError(ctx, 403, -32601, 'Incorrect Avatar is being requested from avatar is in use. Please contact technical support.', { type: 'forbidden' })
+            const { memberId: mbr_id, passphrase, } = params
+            if(!mbr_id?.length || !passphrase?.length)
+                return sendError(ctx, 400, -32602, 'Member ID and passphrase are required', { type: 'invalid_request' })
+            const { result: { content: results, isError, }, toolListChanged, } = await mcpLogin(ctx, undefined, {
+                mbr_id,
+                passphrase,
+            })
+            let parts = results?.map(result=>{
+                const { text, type, } = result
+                if(type === 'text')
+                    return {
+                        kind: 'text',
+                        text,
+                    }
+            })
+                ?? []
+            return parts
+        },
         registerForMyLifeMembership: "register",
     }
 /* load agent cards */

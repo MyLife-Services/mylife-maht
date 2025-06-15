@@ -109,7 +109,7 @@
     {
       "description": "Logs in a MyLife Member for session.",
       "examples": ["Log me in to MyLife", "Get my MyLife Avatar"],
-      "id": "login",
+      "id": "mylifeLogin",
       "inputs": [
         {
           "id": "memberId",
