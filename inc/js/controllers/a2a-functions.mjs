@@ -104,6 +104,7 @@ const mAgentCards = {},
                 ?? []
             return parts
         },
+        mylifeLogout: "logout",
         registerForMyLifeMembership: "register",
     }
 /* load agent cards */
