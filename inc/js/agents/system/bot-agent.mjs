@@ -5,148 +5,6 @@ const mDefaultBotType = mDefaultBotTypeArray[0]
 const mDefaultGreeting = 'avatar' // greeting routine
 const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
 const mDefaultTeam = 'memory'
-const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
-    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
-const mcpTools = [
-	{
-		name: 'mylife_login',
-		description: 'I am a version of your avatar, and I can log you in to MyLife, given your member id and your passphrase.',
-		inputSchema: {
-			type: "object",
-			properties: {
-				mbr_id: {
-					type: "string",
-					description: "mbr_id of the member to log in to MyLife, provided by human"
-				},
-				passphrase: {
-					type: "string",
-					description: "The passphrase associated with the mbr_id, provided by human: capitalization and spacing MUST BE EXACTLY as provided."
-				}
-			},
-			required: ['mbr_id', 'passphrase']
-		},
-		annotations: { // Optional hints about tool behavior
-			title: 'MyLife-Login', // Human-readable title for the tool
-			readOnlyHint: false, // If true, the tool does not modify its environment
-			destructiveHint: true, // If true, the tool may perform destructive updates
-			idempotentHint: true, // If true, repeated calls with same args have no additional effect
-			openWorldHint: false, // If true, tool interacts with external entities
-		}
-	},
-	{
-		name: 'mylife_logout',
-		description: 'I am a version of your avatar, and I can log you out of MyLife.',
-		inputSchema: {
-			properties: {},
-			required: [],
-			type: "object",
-		},
-		annotations: {
-			title: 'MyLife-Logout',
-			readOnlyHint: false,
-			destructiveHint: true,
-			idempotentHint: true,
-			openWorldHint: false,
-		}
-	},
-	{
-		name: 'obscure',
-		description: 'I obscure a summary so that no human names are present. I remove all human name references and replace them with just the first letter of their name, capitalized. You may provide either a `guid` referencing the item to obscure or an `obscuredSummary` text. At least one must be present.',
-		inputSchema: {
-			type: "object",
-			properties: {
-				obscuredSummary: {
-					type: "string",
-					description: "The cleaned and obscured text content, e.g., 'John Doe is at Google' becomes: 'J is at Google'"
-				},
-				guid: {
-					type: "string",
-					format: "uuid",
-					description: "Optional GUID that references a content item to obscure. Required if `obscuredSummary` is not provided."
-				}
-			},
-			anyOf: [
-				{ required: ["obscuredSummary"] },
-				{ required: ["guid"] }
-			]
-		},
-		annotations: {
-			title: 'Obscure-Summary',
-			readOnlyHint: true,
-			destructiveHint: true,
-			idempotentHint: true,
-			openWorldHint: false
-		}
-	}
-]
-const mcpTool_activateBot = {
-	name: 'mylife_switch_bot',
-	description: 'I can switch you to a different active MyLife bot intelligence, given the bot function and team.',
-	inputSchema: {
-		type: "object",
-		properties: {
-			team: {
-				default: 'memory',
-				description: 'Team to which bot belongs',
-				enum: ['unknown', 'memory', 'health', 'career', 'art', 'other'],
-				type: 'string',
-			},
-			type: {
-				default: 'avatar',
-				description: "The type of bot to switch to",
-				type: "string",
-			}
-		},
-		required: ['team', 'type']
-	},
-	annotations: {
-		title: 'MyLife-Switch-Bot',
-		readOnlyHint: false,
-		destructiveHint: true,
-		idempotentHint: true,
-		openWorldHint: false,
-	}
-}
-const mcpTool_chat = {
-	name: 'mylife_chat',
-	description: 'Based on the active intelligence, I am here to chat and accomplish tasks with you.',
-	inputSchema: {
-		type: "object",
-		properties: {
-			itemId: {
-				description: "The guid for an active story or data item",
-				type: "string",
-			},
-			message: {
-				description: 'Human message to bot',
-				type: 'string',
-			},
-		},
-		required: ['message']
-	},
-	annotations: {
-		title: 'MyLife-Chat',
-		readOnlyHint: false,
-		destructiveHint: true,
-		idempotentHint: false,
-		openWorldHint: true,
-	}
-}
-const mcpBot = {
-	capabilities: {
-		tools: {
-			listChanged: true
-		}
-	},
-	instructions: 'I am a version of your avatar, and I can log you in to MyLife. Once logged in, we can work together as intended, or I can switch you to a different MyLife bot.',
-	jsonrpc: mJsonRpcVersion,
-	protocolVersion: mJsonRpcProtocolVersion,
-	serverInfo: {
-		name: 'MyLife MCP Bot',
-		version: '1.0',
-	},
-	tools: mcpTools,
-}
 const mRequiredBotTypes = ['personal-avatar']
 const mTeams = [
 	{
@@ -178,7 +36,7 @@ class Bot {
 	#greetings
 	#instructionNodes = new Set()
 	#llm
-    #mcp
+	#mcpTools = []
 	#type
 	constructor(botData, llm, factory){
 		this.#factory = factory
@@ -378,7 +236,7 @@ class Bot {
 	}
 	/* getters/setters */
 	get accessed(){
-		return !this.unaccessed
+		return !this.#firstAccess
 	}
 	set accessed(accessed=true){
 		if(accessed){
@@ -444,49 +302,31 @@ class Bot {
 	get isMyLife(){
 		return this.#factory.isMyLife
 	}
-	get mcp(){
-		if(!this.#mcp){
-			const mcp = mcpBot
-			if(!this.isMyLife){
-				mcp.tools.push(mcpTool_activateBot)
-				mcp.tools.push(mcpTool_chat)
-			}
-			// @todo - update tools from database
-			if(this.tools?.length)
-				this.tools.forEach(tool=>{
-					if(tool.type!=='function')
-						return
-					const { description, parameters, } = tool.function
-					let { name, } = tool.function
-					const inputSchema = {
-						type: 'object',
-						properties: {},
-						required: [],
-					}
-					if(parameters?.properties)
-						inputSchema.properties = parameters.properties
-					if(parameters?.required?.length)
-						inputSchema.required.push(...parameters.required)
-					name = 'mylife_' + name.replace(/[A-Z]/g, match=>`_${ match.toLowerCase() }`)
-					const _tool = {
-						name,
-						description,
-						inputSchema,
-					}
-					mcp.tools.push(_tool)
-				})
-			this.#mcp = mcp
-			if(!this.isMyLife)
-				this.update({ mcp, }) // save mcp to document (no await)
-		}
-		return this.#mcp
-	}
-	set mcp(mcp){
-		if(!mcp?.tools?.length)
-			throw new Error('MCP tools required')
-		if(!mcp?.instructions?.length)
-			throw new Error('MCP instructions required')
-		this.#mcp = mcp
+	get mcpTools(){
+		if(!this.isAvatar && !this.#mcpTools.length && this.tools?.length)
+			this.tools.forEach(tool=>{ // create mcp from openai function tools
+				if(tool.type!=='function')
+					return
+				const { description, parameters, } = tool.function
+				let { name, } = tool.function
+				const inputSchema = {
+					type: 'object',
+					properties: {},
+					required: [],
+				}
+				if(parameters?.properties)
+					inputSchema.properties = parameters.properties
+				if(parameters?.required?.length)
+					inputSchema.required.push(...parameters.required)
+				name = name.replace(/[A-Z]/g, match=>`_${ match.toLowerCase() }`)
+				const _tool = {
+					name,
+					description,
+					inputSchema,
+				}
+				this.#mcpTools.push(_tool)
+			})
+		return this.#mcpTools
 	}
 	get name(){
 		return this.bot_name
@@ -688,270 +528,6 @@ class BotAgent {
 			: message
 		await mCallLLM(Conversation, false, this.#llm, this.#factory, Avatar)
 		return livingMemory
-	}
-	/**
-	 * Passthrough to call a function on the active bot or avatar, passing the MCP data to it.
-	 * @param {string} functionName - The function name to call
-	 * @param {object} mcpData - The MCP data to pass to the function
-	 * @returns {object} - The MCP-ready result of the function call
-	 */
-	async mcpFunction(functionName, mcpData){
-		functionName = functionName.replace('mylife_', 'mcp_')
-		if(typeof this[functionName]==='function')
-			return await this[functionName](mcpData)
-		if(typeof this.activeBot[functionName]==='function')
-			return await this.activeBot[functionName](mcpData)
-		if(typeof this.avatar[functionName]==='function')
-			return await this.avatar[functionName](mcpData)
-		// @todo - search all bots?
-		throw new Error(`Function not found: ${ functionName }`)
-	}
-	async mcp_change_title(mcpdata){
-		const { itemId, title, } = mcpdata
-		let error,
-			result
-		if(!itemId?.length)
-			error = {
-				code: -32602,
-				data: mcpdata,
-				message: '`itemId` parameter required'
-			}
-		if(!title?.length)
-			error = {
-				code: -32602,
-				data: mcpdata,
-				message: '`title` parameter required'
-			}
-		const { id, title: newTitle, } = await this.#factory.updateItem({ id: itemId, title })
-		result = id?.length && id===itemId
-			? {
-				content: [{
-					text: `Item title updated successfully: ${ itemId } to ${ newTitle }`,
-					type: 'text',
-				}],
-				isError: false,
-			}
-			: {
-				content: [{
-					text: `Item title update failed: ${ itemId }`,
-					type: 'text',
-				}],
-				isError: true,
-			}
-		return { error, result, }
-	}
-	async mcp_chat(mcpdata){
-		const { message, } = mcpdata
-		const Conversation = await this.activeBot.chat(message, message, true, this.avatar)
-		const content = Conversation.getMessages()
-			.map(message=>({ text: message.content, type: 'text', }))
-		const result = {
-			content,
-			isError: false,
-		}
-		return { result, }
-	}
-	async mcp_get_summary(mcpdata){
-		const { itemId, } = mcpdata
-		let error,
-			result
-		if(!itemId?.length)
-			error = {
-				code: -32602,
-				data: mcpdata,
-				message: '`itemId` parameter required'
-			}
-		const { summary, } = await this.#factory.item(itemId)
-			?? {}
-		result = summary?.length
-			? {
-				content: [{
-					text: summary,
-					type: 'text',
-				}],
-				isError: false,
-			}
-			: {
-				content: [{
-					text: `No summary found for item id: ${ itemId }`,
-					type: 'text',
-				}],
-				isError: true,
-			}
-		return { error, result, }
-	}
-
-	async mcp_obscure(mcpdata) {
-		const { obscuredSummary, itemId } = mcpdata
-		let error, result
-	
-		if (!obscuredSummary?.length && !itemId?.length) {
-			error = {
-				code: -32602,
-				data: mcpdata,
-				message: 'At least one of `obscuredSummary` or `guid` must be provided'
-			}
-			return { error, result: null }
-		}
-	
-		// Load avatar bot without altering active bot
-		const bot = await this.#factory.bot('avatar')
-		if (!bot) {
-			error = {
-				code: -32603,
-				data: mcpdata,
-				message: 'Unable to load avatar bot for obscuration'
-			}
-			return { error, result: null }
-		}
-	
-		let textToObscure = obscuredSummary
-		let contextSummary = null
-	
-		// === Case 1: guid only ===
-		if (itemId?.length && !obscuredSummary?.length) {
-			const item = await this.#factory.item(itemId)
-			
-			if (!item) {
-				// Frontend sampling request (if enforced by client)
-				if (this.client?.sampling === true) {
-					return {
-						error: null,
-						result: {
-							content: [{
-								type: 'tool-request',
-								text: `Sampling required for obscuration of ${itemId}`,
-								tool: 'sampling',
-								params: { itemId }
-							}],
-							isError: false
-						}
-					}
-				} else {
-					result = {
-						content: [{
-							text: `Item ${itemId} not found or not accessible for this member`,
-							type: 'text',
-						}],
-						isError: true,
-					}
-					return { error: null, result }
-				}
-			}
-	
-			contextSummary = item.summary
-			if (!contextSummary?.length) {
-				result = {
-					content: [{
-						text: `No content found to obscure for GUID: ${itemId}`,
-						type: 'text',
-					}],
-					isError: true,
-				}
-				return { error: null, result }
-			}
-			textToObscure = contextSummary
-		}
-	
-		// === Case 2: obscuredSummary only ===
-		if (obscuredSummary?.length && !itemId?.length) {
-			// Lookup item beings for potential matches (memory, entry, etc.)
-			const match = await this.#factory.findItemByText(obscuredSummary) // hypothetical utility
-			if (!match) {
-				result = {
-					content: [{
-						text: 'Provided summary could not be validated against any known MyLife items',
-						type: 'text',
-					}],
-					isError: true,
-				}
-				return { error: null, result }
-			}
-		}
-	
-		// === Case 3: both guid and obscuredSummary present ===
-		if (itemId?.length && obscuredSummary?.length) {
-			// Authoritative override: optionally write or log obscuration
-			await this.#factory.writeObscure(itemId, obscuredSummary) // hypothetical write utility
-		}
-	
-		// === Obscure using avatar bot ===
-		const response = await bot.call('obscure', { obscuredSummary: textToObscure })
-		const obscured = response?.obscuredSummary
-	
-		if (!obscured?.length) {
-			result = {
-				content: [{
-					text: 'Obscuration failed. Avatar bot did not return valid output.',
-					type: 'text',
-				}],
-				isError: true,
-			}
-		} else {
-			result = {
-				content: [{
-					text: obscured,
-					type: 'text',
-				}],
-				isError: false,
-			}
-		}
-	
-		return { error, result }
-	}
-	
-	
-	async mcp_get_memories(mcpdata){
-		const preface = 'Here are the titles and ids (display only titles for human member) for the memories we have created together:\n'
-		const response = ( await this.bot(undefined, 'biographer').collections() )
-			.map(item=>({
-				id: item.id,
-				title: item.title,
-			}))
-		const success = response?.length > 0
-		return { preface, response, success, }
-	}
-	async mcp_switch_bot(mcpdata){
-		const { team='memory', type, } = mcpdata
-		let error,
-			result
-        if(this.isMyLife)
-			error = {
-				code: 403,
-				data: mcpdata,
-				message: 'MyLife System Avatar cannot switch bots'
-			}
-        if(team!=='memory')
-			error = {
-				code: -32602,
-				data: mcpdata,
-				message: 'Currently only the Memory Team is supported'
-			}
-		const Bot = this.bot(undefined, type)
-		if(this.activeBot.id===Bot.id)
-			result = {
-				content: [{
-					text: `System already using ${ type } bot`,
-					type: 'text',
-				}],
-				isError: true,
-			}
-		else {
-			const activeBot = await this.setActiveBot(Bot.id, false)
-			result = {
-				content: [{
-					text: `Successfully switched active intelligence to type: ${ type }; activeBot: ${ JSON.stringify(activeBot) }`,
-					type: 'text',
-				}],
-				isError: false,
-				notification: 'notifications/tools/list_changed'
-			}
-		}
-		return {
-			error,
-			result,
-			toolListChanged: true, // true for switching bots, as they have different skills
-		}
 	}
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
@@ -1166,14 +742,6 @@ class BotAgent {
 	 */
 	get isMyLife(){
 		return this.#factory.isMyLife
-	}
-	/**
-	 * Returns MCP definition for the bot, including tools.
-	 * @getter
-	 * @returns {object} - The MCP definition for the bot
-	 */
-	get mcp(){
-		return this.activeBot.mcp
 	}
 	/**
 	 * Retrieves list of available MyLife Teams.

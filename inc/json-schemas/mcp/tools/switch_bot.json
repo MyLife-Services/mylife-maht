@@ -6,7 +6,7 @@
         "idempotentHint": true,
         "openWorldHint": false
     },
-	"description": "I can switch you to a different active MyLife bot intelligence, given the bot function and team.",
+	"description": "I can switch you to a different active MyLife bot intelligence, given the bot function.",
 	"inputSchema": {
         "type": "object",
 		"properties": {
@@ -22,7 +22,9 @@
 				"type": "string"
 			}
 		},
-		"required": ["team", "type"]
+		"required": [
+            "type"
+        ]
 	},
     "name": "switch_bot",
     "mylife_bots": [

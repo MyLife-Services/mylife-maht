@@ -1,6 +1,11 @@
 /* imports */
 import Router from 'koa-router'
 import {
+    a2aCard,
+    a2aCall,
+    a2aContract,
+} from './controllers/a2a-functions.mjs'
+import {
     availableExperiences,
     entry,
     experience,
@@ -89,12 +94,13 @@ import {
     missionsAvailable,
 } from './controllers/testing-functions.mjs'
 /* module constants */
-const _Router = new Router()
-const _memberRouter = new Router()
+const _a2aRouter = new Router()
 const _apiRouter = new Router()
 const _mcpMemberRouter = new Router()
 const _mcpSystemRouter = new Router()
+const _memberRouter = new Router()
 const _nandaRouter = new Router()
+const _Router = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 //	root routes
 _Router.get('/', index)
@@ -126,6 +132,11 @@ _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)
+/* a2a routes */
+_Router.get('/.well-known/agent.json', a2aCard)
+_a2aRouter.get('/:agentId', a2aCard)
+_a2aRouter.get('/contracts/:contractId', a2aContract)
+_a2aRouter.post('/:agentId', a2aCall)
 /* api webhook routes */
 _apiRouter.use(tokenValidation)
 _apiRouter.get('/alerts', alerts)
@@ -231,6 +242,7 @@ _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
 _Router.use('/api/v2/mcp/system-avatar', _mcpSystemRouter.routes(), _mcpSystemRouter.allowedMethods())
 _Router.use('/api/v2/mcp/member-avatar', _mcpMemberRouter.routes(), _mcpMemberRouter.allowedMethods())
+_Router.use('/api/v2/a2a', _a2aRouter.routes(), _a2aRouter.allowedMethods())
 _Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**
@@ -330,6 +342,8 @@ async function mcpProtocolValidation(ctx, next){
         ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
         const { sessionMeta, } = ctx.state
         if(!sessionMeta){
+            if(ctx.request.method==='DELETE') // MCP DELETE disconnects the session; here via next() (`mcpSessionEnd()`)
+                return await next()
             mMcpError(ctx, 404, -32001, `Session Unauthorized; sessionId=${ sessionId }`, ctx.state.mcp?.id)
             return // not awaiting next() here
         }

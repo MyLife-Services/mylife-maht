@@ -27,10 +27,7 @@
     },
     "name": "obscure",
     "mylife_bots": [
-      "avatar",
-      "biographer",
-      "diary",
-      "journal"
+      "any"
     ]
   }
   
