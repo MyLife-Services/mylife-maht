@@ -1,6 +1,5 @@
 /* imports */
 import chalk from 'chalk'
-import fs from 'fs'
 import path from 'path'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
@@ -8,19 +7,19 @@ import { challenge, } from './functions.mjs'
 /* constants */
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
-    mPageSize = process.env.MCP_PAGE_SIZE
-        ?? 100
+    mMaxSamplingTokens = process.env.MCP_SAMPLING_TOKEN_MAX ?? 1000,
+    mPageSize = process.env.MCP_PAGE_SIZE ?? 100
 /* public functions */
 /**
  * Primary handler for an MCP request.
  * @param {Koa} ctx - Koa context object
  */
 async function mcpCall(ctx){
-    const { Globals, session, state: {
+    const { Globals, state: {
             avatar: Avatar, mcp, requestType, sessionMeta,
         } = {}
     } = ctx
-    const { initializeConfirmation, transportEntry, } = sessionMeta
+    const { initializeConfirmation, requests, runs, transportEntry, } = sessionMeta
         ?? {}
     /* 2025-03-26 mcp batch request */
     const mcpRequests = Array.isArray(mcp)
@@ -56,6 +55,62 @@ async function mcpCall(ctx){
             result: {},
         }
     }
+}
+/**
+ * Handles MCP sampling requests.
+ * @documentation https://modelcontextprotocol.io/specification/2025-03-26/client/sampling
+ * @param {Koa} ctx - Koa context object
+ * @param {object} sessionMeta - Session metadata object
+ * @param {string} request - MCP request string
+ * @param {string} instructions - Additional instructions for the sample (optional)
+ * @param {string} id - Unique identifier for the sample (optional)
+ * @returns {Promise<object>} - Request
+ */
+async function mcpSample(ctx, sessionMeta, request, instructions, id){
+    const { Globals, } = ctx
+    if(!Globals.isValidGuid(id))
+        id = Globals.newGuid
+    if(!sessionMeta)
+        return {
+            error: {
+                code: -32000,
+                data: { id, request, },
+                message: `sessionMeta not found for request`,
+            },
+        }
+    const { protocolVersion, requests, transportEntry, } = sessionMeta
+    if(!transportEntry)
+        return {}
+    const { body: clientBody, } = ctx.request
+    const serverRequest = {
+        id,
+        jsonrpc: mJsonRpcVersion,
+        method: 'sampling/createMessage',
+        params: {
+            messages: [
+                {
+                    role: 'user',
+                    content: {
+                        type: 'text',
+                        text: request,
+                    },
+                },
+            ],
+            modelPreferences: {
+                systemPrompt: instructions
+                    ?? 'You are a helpful assistant.',
+                maxTokens: mMaxSamplingTokens,
+            },
+        },
+    }
+    const sampling = {
+        id,
+        clientBody,
+        protocolVersion,
+        serverRequest,
+    }
+    await sendSamplingRequest(ctx, transportEntry, serverRequest, id)
+    return sampling
 }
 /**
  * Full disconnect that ends an MCP session.
@@ -103,6 +158,7 @@ function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
         created: Date.now(),
         initialized: false,
         initializeConfirmation: false,
+        requests: [], // current MCP client tool requests
         runs: [],
         sessionId,
         sessionIdKoa,
@@ -729,6 +785,7 @@ function mcpTestProtocol(jsonrpc, protocolVersion){
 /* exports */
 export {
     mcpCall,
+    mcpSample,
     mcpSessionEnd,
     mcpSessionInfo,
     mcpStream,

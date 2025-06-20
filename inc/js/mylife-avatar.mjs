@@ -14,6 +14,7 @@ import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
+import { mcpSample, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const __dirpath = fileURLToPath(import.meta.url)
 const mAllowSave = JSON.parse(
@@ -2640,13 +2641,22 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
         }
     else if(!obscuredSummary?.length) /* no `obscuredSummary` provided */
         if(sessionMeta.capabilities?.sampling){
-            // if sampling is enabled, request sampling
-            result = {
-                content: [{
-                    type: 'text',
-                    text: `Sampling required for obscuration of ${itemId}`,
-                }],
-                isError: true,
+            const { summary, } = item
+            const explanation_sampling = `Obscuration for itemId: ${ itemId } requires sampling response.\nProcess this sample request and respond message text field being the complete obscured summary.\nSUMMARY:\n${ item.summary }`
+            const explanation_tool = `Obscuration for itemId: ${ itemId } requires tool response.\ncreate an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nSUMMARY:\n${ summary }.\nWhen finished, I run the obscure tool again with the obscured summary as the \`obscuredSummary\` parameter and continue to include itemId: \`${ itemId }.\`` // **note**: Explanation _should_ be usable and used in lieu of sampling with most clients
+            const instructions = 'I am given a text summary, and I create an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nWhen finished, I respond to the request with the message text field being the complete obscured summary.'
+            const sampleRequest = await mcpSample(ctx, sessionMeta, explanation_sampling, instructions)
+            const { id, } = sampleRequest
+            if(id?.length){
+                sessionMeta.requests.push(sampleRequest)
+                result = {
+                    content: [{
+                        text: `Sampling request sent, id: ${ id }. Please follow request instructions and respond.`,
+                        type: 'text',
+                    }],
+                    isError: true,
+                }
+                success = true
             }
         } else {
             const { responses, success=false, } = await avatar.obscure(itemId)
