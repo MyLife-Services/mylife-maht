@@ -1937,6 +1937,17 @@ class Q extends Avatar {
                     success = !!result && !(result.isError ?? true)
                 }
                 break
+            case 'logout':
+            case 'mylife_logout':
+                this.logout(ctx)
+                result = {
+                    content: [{
+                        text: 'Logout successful. You have been logged out.',
+                        type: 'text',
+                    }],
+                    isError: false,
+                }
+                break
             default:
                 error = {
                     code: 500,
