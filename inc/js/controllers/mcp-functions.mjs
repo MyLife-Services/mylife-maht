@@ -58,15 +58,20 @@ async function mcpCall(ctx){
     }
 }
 /**
- * Ends an MCP session.
+ * Full disconnect that ends an MCP session.
  * @param {Koa} ctx - Koa context object
- * @returns {Promise<void>} - Status 204
+ * @returns {Promise<void>} - returns status 204
  */
 async function mcpSessionEnd(ctx){
-    const sessionId = ctx.get('Mcp-Session-Id')
-    if(sessionId?.length && ctx.mcpSessionMeta.has(sessionId))
-        ctx.mcpSessionMeta.delete(sessionId)
     ctx.status = 204
+    const { avatar: Avatar, sessionMeta, } = ctx.state
+    if(!Avatar || !sessionMeta)
+        return
+    const { sessionId, } = sessionMeta
+    Avatar.logout(ctx)
+    if(ctx.mcpSessionMeta.has(sessionId))
+        ctx.mcpSessionMeta.delete(sessionId)
+    ctx.session = null
 }
 async function mcpSessionInfo(ctx){
     const { sid: sessionId, } = ctx.params
@@ -390,7 +395,7 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                         }
                         break
                     }
-                    if(requestType!=='system' && name==='mylife_login'){
+                    if(requestType!=='system' && ['mylife_login', 'login'].includes(name)){
                         const { result: loginResult, toolListChanged: mcpLoginToolListChanged=false, } = await mcpLogin(ctx, transportEntry, args, jsonrpc, id)
                         toolListChanged = mcpLoginToolListChanged
                         if(loginResult)
@@ -409,6 +414,7 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                         text='',
                         total
                     const { error: mcpError, preface, response: mcpResponse, result: mcpResult, success=false, suffix, tool: mcpTool, toolListChanged: mcpToolListChanged=false, } = await Avatar.mcpFunction(name, args, sessionMeta, ctx)
+                        ?? {}
                     toolListChanged = mcpToolListChanged
                     if(mcpError)
                         error = mcpError
@@ -449,10 +455,28 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                     }
                     break
                 case 'list':
+                    let toolsList = []
+                    const isMyLife = Avatar.isMyLife && requestType!=='system'
+                    // @todo - handle tool list modulation when ctx.state.locked = true
+                    toolsList = isMyLife
+                        ? Avatar.mcpProxy.tools
+                        : Avatar.mcp.tools
+                    toolsList = toolsList
+                        .filter(tool=>( // @todo - push to security layer or avatar
+                                !ctx.state.locked && (tool.mylife_auth_required ?? true)===true
+                            ||  (ctx.state.locked && tool.mylife_auth_required===false)
+                        ))
+                        .map(tool=>{ // @todo - send to function, should validate mcp `message`
+                            const rest = Object.keys(tool)
+                                .reduce((acc, key)=>{
+                                    if(!key.startsWith('mylife'))
+                                        acc[key] = tool[key]
+                                    return acc
+                                }, {})
+                            return rest
+                        })
                     result = {
-                        tools: Avatar.isMyLife && requestType!=='system'
-                            ? Avatar.mcpProxy.tools
-                            : Avatar.mcp.tools,
+                        tools: toolsList,
                     }
                     break
                 default:

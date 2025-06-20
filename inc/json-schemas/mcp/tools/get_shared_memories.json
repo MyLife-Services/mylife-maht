@@ -1,0 +1,17 @@
+{
+    "annotations": {
+        "title": "MyLife-Get-Shared-Memories",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+    },
+    "description": "I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.",
+    "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+    },
+    "name": "get_shared_memories",
+    "mylife_system_access": true
+}

@@ -342,6 +342,8 @@ async function mcpProtocolValidation(ctx, next){
         ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
         const { sessionMeta, } = ctx.state
         if(!sessionMeta){
+            if(ctx.request.method==='DELETE') // MCP DELETE disconnects the session; here via next() (`mcpSessionEnd()`)
+                return await next()
             mMcpError(ctx, 404, -32001, `Session Unauthorized; sessionId=${ sessionId }`, ctx.state.mcp?.id)
             return // not awaiting next() here
         }
