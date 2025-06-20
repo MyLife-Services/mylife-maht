@@ -2621,7 +2621,7 @@ async function mcp_get_summary(mcpdata, sessionMeta, ctx, factory){
  * @param {Koa} ctx - The context object
  * @returns {Promise<object>} - The result of the obscuration process
  */
-async function mcp_obscure(mcpdata, sessionMeta, ctx, factory){
+async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
     const { itemId, obscuredSummary, } = mcpdata
     let error,
         result
@@ -2633,79 +2633,42 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory){
         }
     const item = await factory.item(itemId)
     if(!item)
-        result = {
-            content: [{
-                text: `\`itemId\`: ${ itemId } not found or inaccessible to this member`,
-                type: 'text',
-            }],
-            isError: true,
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: `\`itemId\`: ${ itemId } not found or inaccessible to this member`,
         }
-    else if(!obscuredSummary?.length){
-        // if sampling is enabled, request sampling
-        // otherwise, return isError
-        // alternative: could run obscure, but trigger?
-        console.warn(`\`itemId\` found: ${ itemId }; requesting sampling if enabled`, sessionMeta)
-        throw new Error(`Obscured summary not provided for itemId: ${ itemId }`)
-            if(this.client?.sampling === true){
-                return {
-                    error: null,
-                    result: {
-                        content: [{
-                            type: 'tool-request',
-                            text: `Sampling required for obscuration of ${itemId}`,
-                            tool: 'sampling',
-                            params: { itemId }
-                        }],
-                        isError: false
-                    }
-                }
-            } else {
-                result = {
-                    content: [{
-                        text: `Item ${itemId} not found or not accessible for this member`,
-                        type: 'text',
-                    }],
-                    isError: true,
-                }
-            }
-        }
-        contextSummary = item.summary
-        if (!contextSummary?.length) {
+    else if(!obscuredSummary?.length) /* no `obscuredSummary` provided */
+        if(sessionMeta.capabilities?.sampling){
+            // if sampling is enabled, request sampling
             result = {
                 content: [{
-                    text: `No content found to obscure for GUID: ${itemId}`,
                     type: 'text',
+                    text: `Sampling required for obscuration of ${itemId}`,
                 }],
                 isError: true,
             }
-            return { error: null, result }
+        } else {
+            const { responses, success=false, } = await avatar.obscure(itemId)
+            const text = responses?.[0]?.message
+                ?? `itemId: ${ itemId } not found or not accessible for this member`
+            result = {
+                content: [{
+                    text,
+                    type: 'text',
+                }],
+                isError: !success,
+            }
         }
-        textToObscure = contextSummary
-    // Load avatar bot without altering active bot
-    const bot = await factory.bot('avatar')
-    if (!bot) {
-        error = {
-            code: -32603,
-            data: mcpdata,
-            message: 'Unable to load avatar bot for obscuration'
-        }
-    }
-    // === Obscure using avatar bot ===
-    const response = await bot.call('obscure', { obscuredSummary, })
-    const obscured = response?.obscuredSummary
-
-    if (!obscured?.length) {
+    else {
+        const { summary, } = await factory.updateItem({
+            id: itemId,
+            summary: obscuredSummary,
+        })
+        const text = `Successfully updated to obscured content.\n` + summary
         result = {
             content: [{
-                text: 'Obscuration failed. Avatar bot did not return valid output.',
-                type: 'text',
-            }],
-            isError: true,
-        }
-    } else {
-        result = {
-            content: [{
-                text: obscured,
+                text,
                 type: 'text',
             }],
             isError: false,
