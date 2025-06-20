@@ -50,7 +50,7 @@ class LLMServices {
      * @returns {Promise<Object>} - OpenAI `vectorstore` object.
      */
     async createVectorstore(mbr_id){
-        const vectorstore = await this.openai.beta.vectorStores.create({
+        const vectorstore = await this.openai.vectorStores.create({
             name: mbr_id,
         })
         return vectorstore
@@ -465,18 +465,19 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'createaccount':
                             case 'create_account':
                             case 'create account':
-                                console.log('mRunFunctions()::createAccount', toolArguments, factory.candidate)
-                                const { birthdate, id, passphrase, } = toolArguments
+                                console.log('mRunFunctions()::createAccount::start', toolArguments)
+                                const { birthdate, passphrase, } = toolArguments
                                 action = `error setting basics for member: `
                                 if(!birthdate)
                                     action += 'birthdate missing, elicit birthdate; '
                                 if(!passphrase)
                                     action += 'passphrase missing, elicit passphrase; '
                                 try {
-                                    success = await avatar.createAccount(birthdate, passphrase)
-                                    action = success
+                                    const { success: createAccountSuccess, } = await avatar.createAccount(birthdate, passphrase, factory.candidate)
+                                    action = createAccountSuccess
                                         ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and explain that once the system processes their membership they will be able to use the login button at the top right.`
                                         : action + 'server failure for `factory.createAccount()`'
+                                    success = createAccountSuccess
                                 } catch(error){
                                     action += '__ERROR: ' + error.message
                                 }
