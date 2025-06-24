@@ -5,8 +5,8 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import { challenge, } from './functions.mjs'
 /* constants */
-const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
-    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
+const mJsonRpcVersion = process.env.MCP_JSONRPC_Version ?? '2.0',
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol ?? '2025-03-26',
     mMaxSamplingTokens = process.env.MCP_SAMPLING_TOKEN_MAX ?? 1000,
     mPageSize = process.env.MCP_PAGE_SIZE ?? 100
 /* public functions */
@@ -15,7 +15,7 @@ const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
  * @param {Koa} ctx - Koa context object
  */
 async function mcpCall(ctx){
-    const { Globals, state: {
+    const { state: {
             avatar: Avatar, mcp, requestType, sessionMeta,
         } = {}
     } = ctx
@@ -29,7 +29,7 @@ async function mcpCall(ctx){
         try {
             await mMcpCall(ctx, mcpRequest, Avatar, sessionMeta, requestType)
         } catch (err) {
-            console.log(chalk.red('mcpCall()::error'), err)
+            console.log(chalk.red('mcpCall()::error'), err, mcpRequest)
             const { id, jsonrpc } = mcpRequest
             const error = {
                 code: 500,
@@ -59,57 +59,69 @@ async function mcpCall(ctx){
 /**
  * Handles MCP sampling requests.
  * @documentation https://modelcontextprotocol.io/specification/2025-03-26/client/sampling
- * @param {Koa} ctx - Koa context object
- * @param {object} sessionMeta - Session metadata object
- * @param {string} request - MCP request string
+ * @param {Globals} Globals - Globals instance for utility functions
+ * @param {SSEServerTransport|StreamableHTTPServerTransport} transport - transport for the session
+ * @param {object} originalRequest - Original request object
+ * @param {string} serverRequest - MyLife request string
  * @param {string} instructions - Additional instructions for the sample (optional)
  * @param {string} id - Unique identifier for the sample (optional)
- * @returns {Promise<object>} - Request
+ * @returns {Promise<object>} - Request Envelope
  */
-async function mcpSample(ctx, sessionMeta, request, instructions, id){
-    const { Globals, } = ctx
-    if(!Globals.isValidGuid(id))
-        id = Globals.newGuid
-    if(!sessionMeta)
+async function mcpSample(Globals, transport, originalRequest, serverRequest, instructions, id){
+    if(!transport)
         return {
             error: {
                 code: -32000,
                 data: { id, request, },
-                message: `sessionMeta not found for request`,
+                message: `No transport available for sampling request.`,
             },
         }
-    const { protocolVersion, requests, transportEntry, } = sessionMeta
-    if(!transportEntry)
-        return {}
-    const { body: clientBody, } = ctx.request
-    const serverRequest = {
+    if(!originalRequest || !serverRequest)
+        return {
+            error: {
+                code: -32000,
+                data: { id, request: originalRequest, },
+                message: 'Invalid sampling request, `originalRequest` and `serverRequest` are required.',
+            },
+        }
+    id = Globals.isValidGuid(id) ? id : Globals.newGuid
+    const mcpRequest = {
         id,
         jsonrpc: mJsonRpcVersion,
         method: 'sampling/createMessage',
         params: {
+            maxTokens: mMaxSamplingTokens,
             messages: [
                 {
                     role: 'user',
                     content: {
                         type: 'text',
-                        text: request,
+                        text: serverRequest,
                     },
                 },
             ],
             modelPreferences: {
-                systemPrompt: instructions
-                    ?? 'You are a helpful assistant.',
-                maxTokens: mMaxSamplingTokens,
+                hints: [],
+                intelligencePriority: 0.8,
+                speedPriority: 0.2,
             },
+            systemPrompt: instructions
+                ?? 'I enact the instructions provided in each request.',
         },
     }
+    await sendSamplingRequest(transport, mcpRequest)
     const sampling = {
+        externalId: originalRequest?.id,
         id,
-        clientBody,
-        protocolVersion,
-        serverRequest,
+        request: {
+            mcp: mcpRequest,
+            mylife: serverRequest,
+            original: originalRequest,
+            protocolVersion: mJsonRpcProtocolVersion,
+            type: 'mcp',
+        },
     }
-    await sendSamplingRequest(ctx, transportEntry, serverRequest, id)
+    console.log(chalk.bgBlue('mcpSample()::✅ Sampling Request sent'), id, mcpRequest)
     return sampling
 }
 /**
@@ -772,6 +784,29 @@ async function mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result){
         })
     } catch(err) {
         console.log(chalk.red('NO TRANSPORT AVAILABLE::disconnected'), err)
+    }
+}
+/**
+ * Sends a sampling request via the specified transport.
+ * @param {SSEServerTransport|StreamableHTTPServerTransport} transport - transport for the session
+ * @param {object} serverRequest - The server request object to send
+ * @returns {Promise<void>} - resolves when the request is sent
+ */
+async function sendSamplingRequest(transport, serverRequest){
+    try {
+        if(transport instanceof SSEServerTransport){
+            await transport.send(serverRequest)
+            console.log(chalk.green('✅ Sampling Request successful via SSEServerTransport'))
+        } else if(transport instanceof StreamableHTTPServerTransport){
+            const stream = transport._streamMapping.get('_GET_stream')
+            if(stream?.writable){
+                await stream.write(`event: message\ndata: ${JSON.stringify(serverRequest)}\n\n`)
+                console.log(chalk.green(`✅ Sampling Request successful via "_GET_stream"`))
+            }
+        } else
+            console.warn(chalk.red('❌ Invalid transport for Sampling Request'))
+    } catch (err) {
+        console.warn(chalk.red('⚠️ Stream failed for Sampling Request'))
     }
 }
 function mcpTestProtocol(jsonrpc, protocolVersion){

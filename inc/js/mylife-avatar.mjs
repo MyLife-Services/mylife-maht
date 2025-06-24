@@ -2625,7 +2625,8 @@ async function mcp_get_summary(mcpdata, sessionMeta, ctx, factory){
 async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
     const { itemId, obscuredSummary, } = mcpdata
     let error,
-        result
+        result,
+        success = false
     if(!itemId?.length)
         error = {
             code: -32602,
@@ -2645,16 +2646,17 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
             const explanation_sampling = `Obscuration for itemId: ${ itemId } requires sampling response.\nProcess this sample request and respond message text field being the complete obscured summary.\nSUMMARY:\n${ item.summary }`
             const explanation_tool = `Obscuration for itemId: ${ itemId } requires tool response.\ncreate an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nSUMMARY:\n${ summary }.\nWhen finished, I run the obscure tool again with the obscured summary as the \`obscuredSummary\` parameter and continue to include itemId: \`${ itemId }.\`` // **note**: Explanation _should_ be usable and used in lieu of sampling with most clients
             const instructions = 'I am given a text summary, and I create an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nWhen finished, I respond to the request with the message text field being the complete obscured summary.'
-            const sampleRequest = await mcpSample(ctx, sessionMeta, explanation_sampling, instructions)
-            const { id, } = sampleRequest
+            const { transportEntry: transport, } = sessionMeta
+            const samplingRequest = await mcpSample(factory.globals, transport, ctx.request?.body, explanation_sampling, instructions)
+            const { id, request, } = samplingRequest
             if(id?.length){
-                sessionMeta.requests.push(sampleRequest)
+                sessionMeta.requests.push(samplingRequest)
                 result = {
                     content: [{
-                        text: `Sampling request sent, id: ${ id }. Please follow request instructions and respond.`,
+                        text: `Sampling request sent via stream, id: ${ id }. Please follow request instructions and respond.`,
                         type: 'text',
                     }],
-                    isError: true,
+                    isError: false,
                 }
                 success = true
             }
@@ -2687,6 +2689,7 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
     return {
         error,
         result,
+        success,
     }
 }
 async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
