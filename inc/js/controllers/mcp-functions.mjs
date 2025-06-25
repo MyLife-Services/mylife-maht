@@ -71,7 +71,7 @@ async function mcpSessionEnd(ctx){
     Avatar.logout(ctx)
     if(ctx.mcpSessionMeta.has(sessionId)){
         ctx.mcpSessionMeta.delete(sessionId)
-        console.log(chalk.bgRed('mcpSessionEnd()::✅ Session ended'), sessionId)
+        console.log(chalk.bgRed('✅ mcpSessionEnd()::Session ended'), sessionId)
     }
     ctx.session = null
 }
