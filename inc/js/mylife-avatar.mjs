@@ -2650,8 +2650,6 @@ async function mcp_get_summary(mcpdata, sessionMeta, ctx, factory){
  * @returns {Promise<object>} - The result of the obscuration process
  */
 async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
-    if(typeof mcpdata==='string')
-        console.log(`mcp_obscure::${ mcpdata }`)
     const { forceServer=false, itemId, obscuredSummary, } = mcpdata
     let error,
         result,
