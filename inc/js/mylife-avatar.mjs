@@ -2219,8 +2219,6 @@ class Q extends Avatar {
      * @returns {object} - The MyLife MCP self-definition package
      */
     get mcp(){
-        if(this.isMyLife)
-            return this.mcpProxy
         const mcp = this.#mcp
         if(!mcp?.tools?.length)
             this.#mcp.tools = mMcpTools.filter(tool=>tool.mylife_system_access === true)

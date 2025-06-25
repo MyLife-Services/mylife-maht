@@ -16,19 +16,15 @@ const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
  * @param {Koa} ctx - Koa context object
  */
 async function mcpCall(ctx){
-    const { Globals, session, state: {
-            avatar: Avatar, mcp, requestType, sessionMeta,
-        } = {}
-    } = ctx
+    const { mcp={}, sessionMeta={}, } = ctx.state
     const { initializeConfirmation, transportEntry, } = sessionMeta
-        ?? {}
     /* 2025-03-26 mcp batch request */
     const mcpRequests = Array.isArray(mcp)
         ? mcp
         : [mcp]
     for(const mcpRequest of mcpRequests){
         try {
-            await mMcpCall(ctx, mcpRequest, Avatar, sessionMeta, requestType)
+            await mMcpCall(ctx, mcpRequest)
         } catch (err) {
             console.log(chalk.red('mcpCall()::error'), err)
             const { id, jsonrpc } = mcpRequest
@@ -173,23 +169,24 @@ async function mcpSystemInfo(ctx){
 }
 /* private functions */
 /**
- * 
+ * Handles an MCP call request, processes the method, and sends response or notifications.
  * @param {Koa} ctx - Koa context object
  * @param {object} mcp - MCP request object
- * @param {Avatar} Avatar - Avatar instance
- * @param {object} sessionMeta - Session metadata object
- * @param {string} requestType - Type of request (enum: ['system', 'member'])
+ * @returns {Promise<void>} - sends response and notifications
  */
-async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
+async function mMcpCall(ctx, mcp){
     let error,
         result,
         run,
         toolListChanged = false
-    const { Globals, } = ctx
+    const { Globals, state, } = ctx
+    const { avatar: Avatar, locked, sessionMeta={}, requestType='system', } = state
     const { capabilities, clientInfo, initializeConfirmation, protocolVersion, runs, sessionId, transportEntry, } = sessionMeta
     const { id, jsonrpc, method, params={}, } = mcp
-    const { arguments: args, name, _meta, } = params ?? {}
-    const { progressToken, } = _meta ?? {}
+    const { arguments: args, name, _meta, } = params
+        ?? {}
+    const { progressToken, } = _meta
+        ?? {}
     /* identify run */
     run = runs.find((run)=>(run.id===id))
     if(!!run) // @todo - handle run in progress
@@ -458,15 +455,15 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
                     break
                 case 'list':
                     let toolsList = []
-                    const isMyLife = Avatar.isMyLife && requestType!=='system'
-                    // @todo - handle tool list modulation when ctx.state.locked = true
-                    toolsList = isMyLife
+                    const isSystem = requestType==='system'
+                    toolsList = Avatar.isMyLife && !isSystem
                         ? Avatar.mcpProxy.tools
                         : Avatar.mcp.tools
                     toolsList = toolsList
                         .filter(tool=>( // @todo - push to security layer or avatar
-                                !ctx.state.locked && (tool.mylife_auth_required ?? true)===true
-                            ||  (ctx.state.locked && tool.mylife_auth_required===false)
+                                isSystem
+                            ||  !locked && (tool.mylife_auth_required ?? true)===true
+                            ||  (locked && tool.mylife_auth_required===false)
                         ))
                         .map(tool=>{ // @todo - send to function, should validate mcp `message`
                             const rest = Object.keys(tool)
