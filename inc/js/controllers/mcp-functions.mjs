@@ -7,8 +7,8 @@ import { challenge, } from './functions.mjs'
 /* constants */
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version ?? '2.0',
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol ?? '2025-03-26',
-    mMaxSamplingTokens = process.env.MCP_SAMPLING_TOKEN_MAX ?? 1000,
-    mPageSize = process.env.MCP_PAGE_SIZE ?? 100
+    mMaxSamplingTokens = parseInt(process.env.MCP_SAMPLING_TOKEN_MAX) ?? 1000,
+    mPageSize = parseInt(process.env.MCP_PAGE_SIZE) ?? 100
 /* public functions */
 /**
  * Primary handler for an MCP request.
@@ -64,10 +64,11 @@ async function mcpCall(ctx){
  * @param {object} originalRequest - Original request object
  * @param {string} serverRequest - MyLife request string
  * @param {string} instructions - Additional instructions for the sample (optional)
- * @param {string} id - Unique identifier for the sample (optional)
- * @returns {Promise<object>} - Request Envelope
+ * @param {string} id - Unique identifier for the sample (optional, will generate if not provided)
+ * @param {function|object|string} callback - Callback function to handle the sampling response (optional)
+ * @returns {Promise<object>} - Request Envelope `{ externalId, id, request: { callback, mcp, mylife, original, protocolVersion, type } }`
  */
-async function mcpSample(Globals, transport, originalRequest, serverRequest, instructions, id){
+async function mcpSample(Globals, transport, originalRequest, serverRequest, instructions, id, callback){
     if(!transport)
         return {
             error: {
@@ -84,7 +85,9 @@ async function mcpSample(Globals, transport, originalRequest, serverRequest, ins
                 message: 'Invalid sampling request, `originalRequest` and `serverRequest` are required.',
             },
         }
-    id = Globals.isValidGuid(id) ? id : Globals.newGuid
+    id = Globals.isValidGuid(id)
+        ? id
+        : Globals.newGuid
     const mcpRequest = {
         id,
         jsonrpc: mJsonRpcVersion,
@@ -114,6 +117,7 @@ async function mcpSample(Globals, transport, originalRequest, serverRequest, ins
         externalId: originalRequest?.id,
         id,
         request: {
+            callback,
             mcp: mcpRequest,
             mylife: serverRequest,
             original: originalRequest,
@@ -121,7 +125,6 @@ async function mcpSample(Globals, transport, originalRequest, serverRequest, ins
             type: 'mcp',
         },
     }
-    console.log(chalk.bgBlue('mcpSample()::✅ Sampling Request sent'), id, mcpRequest)
     return sampling
 }
 /**
@@ -170,7 +173,7 @@ function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
         created: Date.now(),
         initialized: false,
         initializeConfirmation: false,
-        requests: [], // current MCP client tool requests
+        requests: new Map(),
         runs: [],
         sessionId,
         sessionIdKoa,
@@ -210,7 +213,8 @@ async function mcpStream(ctx){
             const sseTransport = new SSEServerTransport(url.join('/'), ctx.res)
             await sseTransport.start() // sends endpoint event
             const { sessionId: sseSessionId, } = sseTransport
-            ctx.mcpSessionMeta.set(sseSessionId, mcpSessionMeta(sseSessionId, ctx.sessionId, sseTransport))
+            const sessionMetaResponse = mcpSessionMeta(sseSessionId, ctx.sessionId, sseTransport)
+            ctx.mcpSessionMeta.set(sseSessionId, sessionMetaResponse)
             console.log(chalk.bgRed('mcpStream()::✅ Connected SSE session'), sseSessionId)
             return
         default:
@@ -239,7 +243,7 @@ async function mcpSystemInfo(ctx){
 }
 /* private functions */
 /**
- * 
+ * Modular MCP call handler that processes MCP requests and responses, sending notifications, results and errors. Everything is drawn from the session metadata to connect to the session transport. The MCP specification originally required, then allowed for, multiple transports wedded into one session; specifically, one for JSON-RPC message POSTing and the other for SSE streaming.
  * @param {Koa} ctx - Koa context object
  * @param {object} mcp - MCP request object
  * @param {Avatar} Avatar - Avatar instance
@@ -252,8 +256,8 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
         run,
         toolListChanged = false
     const { Globals, } = ctx
-    const { capabilities, clientInfo, initializeConfirmation, protocolVersion, runs, sessionId, transportEntry, } = sessionMeta
-    const { id, jsonrpc, method, params={}, } = mcp
+    const { capabilities, clientInfo, initializeConfirmation, protocolVersion, requests, runs, sessionId, transportEntry, } = sessionMeta
+    const { id, jsonrpc, method, params={}, result: mcpResult, } = mcp
     const { arguments: args, name, _meta, } = params ?? {}
     const { progressToken, } = _meta ?? {}
     /* identify run */
@@ -298,6 +302,44 @@ async function mMcpCall(ctx, mcp, Avatar, sessionMeta={}, requestType){
             if(progressParams.progress >= 200)
                 clearInterval(progressInterval)
         }, progressIntervalDuration)
+    }
+    /* process `sampling` or `elicitation` responses */
+    if(!!mcpResult && id?.length){
+        const request = requests.get(id)
+        if(!request)
+            return
+        const { externalId, request: {
+            callback, itemId, mcp, mylife, original: {
+                params: {
+                    arguments: originalArgs,
+                }={},
+            }={}, protocolVersion, type,
+        } } = request
+        const { content: { text, }, model, role, stopReason='endTurn', } = mcpResult
+        if(stopReason!== 'endTurn')
+            console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request needs further processing with non-endTurn stopReason'), id, mcpResult)
+        if(role!=='assistant')
+            console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request has no role or role is not assistant'), id, mcpResult)
+        if(!text?.length)
+            console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request has no text content'), id, mcpResult)
+        if(callback){
+            if(typeof callback==='function')
+                await callback(text)
+            else if(typeof callback==='object' && !Array.isArray(callback)){
+                console.log(chalk.bgBlue('mcpCall()::Sampling Request `string`'), callback, text)
+                // look to original request for itemId (or possibly assign in sample data)
+                const { error, result, success, } = await Avatar.mcpFunctionResponse('sampling', callback, text, sessionMeta, ctx)
+                console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request callback result'), error, result, success)
+            // @todo - run should NOT have been "finished" (i.e., removed from `runs`) until now
+            // @todo - change `runs` and `requests` arrays to Sets
+            }
+        } else {
+            requests.delete(id)
+            console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved without callback'))
+        }
+        if(externalId)
+            console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with externalId'), externalId)
+        return
     }
     const methodBase = method.split('/')[0]
     const methodAction = method.split('/')?.[1]

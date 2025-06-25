@@ -6,19 +6,24 @@
       "idempotentHint": true,
       "openWorldHint": false
     },
-    "description": "Foundational instructions for how obscuration is interpreted by MyLife. This function obscures a summary so that no human names are present. It consumes text content and removes human name references, replacing them with the first letter of the name capitalized. At least one of 'obscuredSummary' or 'guid' must be provided.",
+    "description": "Foundational instructions for how obscuration is interpreted by MyLife. This function obscures a summary so that no human names are present. It consumes text content and removes human name references, replacing them with the first letter of the name capitalized. At least one of 'obscuredSummary' or 'itemId' must be provided.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "obscuredSummary": {
-          "description": "The cleaned and obscured text content, e.g., 'John Doe is at Google' becomes: 'J is at Google'",
-          "type": "string",
-          "example": "\"John Doe is at Google\" becomes: \"J is at Google\""
+        "forceServer": {
+          "default": false,
+          "description": "If true, forces the use of the server for obscuration, leave `obscuredSummary` blank.",
+          "type": "boolean"
         },
         "itemId": {
           "description": "An optional GUID that references a context in which the obscuration should be interpreted. Required if 'obscuredSummary' is not provided.",
-          "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "type": "string"
+        },
+        "obscuredSummary": {
+          "description": "The cleaned and obscured text content, e.g., 'John Doe is at Google' becomes: 'J is at Google'",
+          "example": "\"John Doe is at Google\" becomes: \"J is at Google\"",
+          "type": "string"
         }
       },
       "required": [
