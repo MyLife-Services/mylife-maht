@@ -14,6 +14,7 @@ import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
+import { mcpSample, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const __dirpath = fileURLToPath(import.meta.url)
 const mAllowSave = JSON.parse(
@@ -775,12 +776,37 @@ class Avatar extends EventEmitter {
      * Calls a specific MCP function with the provided data and session metadata.
      * @param {string} functionName - The name of the MCP function to call
      * @param {object} mcpData - The data to pass to the MCP function
-     * @param {*} sessionMeta - The session metadata (optional)
-     * @param {*} ctx - The Koa context object (optional)
+     * @param {object} sessionMeta - The session metadata (optional)
+     * @param {Koa} ctx - The Koa context object (optional)
      * @returns {Promise<object>} - The result of the MCP function call
      */
     async mcpFunction(functionName, mcpData, sessionMeta, ctx){
         return await mMcpFunction(functionName, mcpData, sessionMeta, ctx, this.#factory, this)
+    }
+    /**
+     * Handles the response from an MCP Client Tool `sampling` or `elicitation`.
+     * @param {string} type - The type of MCP function response, defaults to `sampling`
+     * @param {object} callback - The name of the MCP function to call { _function, _replace, ...args }
+     * @param {string|object} mcpData - The data to pass to the MCP function
+     * @param {object} sessionMeta - The session metadata
+     * @param {Koa} ctx - The Koa context object
+     */
+    async mcpFunctionResponse(type='sampling', callback, mcpData={}, sessionMeta, ctx){
+        const { _function: functionName, _replace, ...callbackData } = callback
+        const replace = (typeof _replace === 'string')
+            ? [_replace]
+            : !Array.isArray(_replace)
+                ? Object.keys(_replace)
+                : _replace
+        if(replace?.length)
+            replace.forEach(r=>{
+                if(typeof mcpData === 'string')
+                    callbackData[r] = mcpData
+                else if(typeof mcpData === 'object')
+                    Object.assign(callbackData, mcpData)
+            })
+        const response = await this.mcpFunction(functionName, callbackData, sessionMeta, ctx)
+        return response
     }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
@@ -2495,6 +2521,8 @@ function mItem(item, avatar, llmServices){
  * @returns {object} - The MCP-ready result of the function call
  */
 async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, avatar){
+    if(functionName==='obscure')
+        console.log('mMcpFunction::functionName', functionName, mcpData)
     if(!functionName?.length)
         return
     const mcpFunctions = {
@@ -2621,10 +2649,11 @@ async function mcp_get_summary(mcpdata, sessionMeta, ctx, factory){
  * @param {Koa} ctx - The context object
  * @returns {Promise<object>} - The result of the obscuration process
  */
-async function mcp_obscure(mcpdata, sessionMeta, ctx, factory){
-    const { itemId, obscuredSummary, } = mcpdata
+async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
+    const { forceServer=false, itemId, obscuredSummary, } = mcpdata
     let error,
-        result
+        result,
+        success = false
     if(!itemId?.length)
         error = {
             code: -32602,
@@ -2633,79 +2662,60 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory){
         }
     const item = await factory.item(itemId)
     if(!item)
-        result = {
-            content: [{
-                text: `\`itemId\`: ${ itemId } not found or inaccessible to this member`,
-                type: 'text',
-            }],
-            isError: true,
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: `\`itemId\`: ${ itemId } not found or inaccessible to this member`,
         }
-    else if(!obscuredSummary?.length){
-        // if sampling is enabled, request sampling
-        // otherwise, return isError
-        // alternative: could run obscure, but trigger?
-        console.warn(`\`itemId\` found: ${ itemId }; requesting sampling if enabled`, sessionMeta)
-        throw new Error(`Obscured summary not provided for itemId: ${ itemId }`)
-            if(this.client?.sampling === true){
-                return {
-                    error: null,
-                    result: {
-                        content: [{
-                            type: 'tool-request',
-                            text: `Sampling required for obscuration of ${itemId}`,
-                            tool: 'sampling',
-                            params: { itemId }
-                        }],
-                        isError: false
-                    }
-                }
-            } else {
+    else if(!obscuredSummary?.length) /* no `obscuredSummary` provided */
+        if(!forceServer && sessionMeta.capabilities?.sampling){
+            const { summary, } = item
+            const explanation_sampling = `Obscuration for itemId: ${ itemId } requires sampling response.\nProcess this sample request and respond with text field being the complete obscured summary.\nSUMMARY:\n${ item.summary }`
+            const explanation_elicitation = `Obscuration for itemId: ${ itemId } requires elicitation response.\nProcess this request and respond with the complete obscured summary.\nSUMMARY:\n${ item.summary }`
+            const explanation_tool = `Obscuration for itemId: ${ itemId } requires tool response.\ncreate an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nSUMMARY:\n${ summary }.\nWhen finished, I run the obscure tool again with the obscured summary as the \`obscuredSummary\` parameter and continue to include itemId: \`${ itemId }.\`` // **note**: Explanation _should_ be usable and used in lieu of sampling with most clients
+            const instructions = 'I am given a text summary, and I create an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nWhen finished, I respond to the request with the message text field being the complete obscured summary.'
+            const { requests, transportEntry: transport, } = sessionMeta
+            const callback = {
+                forceServer: false,
+                itemId,
+                _function: 'obscure',
+                _replace: 'obscuredSummary',
+            }
+            const samplingRequest = await mcpSample(factory.globals, transport, ctx.request?.body, explanation_sampling, instructions, factory.newGuid, callback)
+            const { id, } = samplingRequest
+            if(id?.length){
+                requests.set(id, samplingRequest)
                 result = {
                     content: [{
-                        text: `Item ${itemId} not found or not accessible for this member`,
+                        text: `Sampling request sent via stream, id: ${ id }. Please follow request instructions and respond.`,
                         type: 'text',
                     }],
-                    isError: true,
+                    isError: false,
                 }
+                success = true
             }
-        }
-        contextSummary = item.summary
-        if (!contextSummary?.length) {
+        } else {
+            const { responses, success=false, } = await avatar.obscure(itemId)
+            const text = responses?.[0]?.message
+                ?? `itemId: ${ itemId } not found or not accessible for this member`
             result = {
                 content: [{
-                    text: `No content found to obscure for GUID: ${itemId}`,
+                    text,
                     type: 'text',
                 }],
-                isError: true,
+                isError: !success,
             }
-            return { error: null, result }
         }
-        textToObscure = contextSummary
-    // Load avatar bot without altering active bot
-    const bot = await factory.bot('avatar')
-    if (!bot) {
-        error = {
-            code: -32603,
-            data: mcpdata,
-            message: 'Unable to load avatar bot for obscuration'
-        }
-    }
-    // === Obscure using avatar bot ===
-    const response = await bot.call('obscure', { obscuredSummary, })
-    const obscured = response?.obscuredSummary
-
-    if (!obscured?.length) {
+    else {
+        const { summary, } = await factory.updateItem({
+            id: itemId,
+            summary: obscuredSummary,
+        })
+        // check for ownership error
+        const text = `Successfully updated to obscured content.\n` + summary
         result = {
             content: [{
-                text: 'Obscuration failed. Avatar bot did not return valid output.',
-                type: 'text',
-            }],
-            isError: true,
-        }
-    } else {
-        result = {
-            content: [{
-                text: obscured,
+                text,
                 type: 'text',
             }],
             isError: false,
@@ -2714,6 +2724,7 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory){
     return {
         error,
         result,
+        success,
     }
 }
 async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){

@@ -1396,8 +1396,9 @@ async function mLoadSchemas(){
  */
 async function mObscure(summary, bot){
     const prompt = `OBSCURE:\n${summary}`
-    const response = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt, undefined, bot)
-	return response?.obscuredSummary
+    const responses = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt, undefined, bot)
+	return responses?.[0]?.obscuredSummary
+		?? responses?.obscuredSummary
 		?? summary
 }
 async function mPopulateBotInstructions(){
