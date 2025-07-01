@@ -181,12 +181,13 @@ app.listen(port, () => {	//	start the server
 /** MCP session meta erasure **/
 const sessionCheckInterval = 10 * 60 * 1000 // every 10 minutes
 setInterval(async _=>{
-    for(const [sessionId, sessionIdKoa] of app.context.mcpSessionMeta){
-        const koaSess = await app.context.MemoryStore.get(`koa:sess:${sessionIdKoa}`)
+    for(const [sessionId, sessionMeta] of app.context.mcpSessionMeta){
+		const { sessionIdKoa, } = sessionMeta
+        const koaSess = await app.context.MemoryStore.get(`koa:sess:${ sessionIdKoa }`)
         if(!koaSess){
-            app.context.mcpSessionMeta.delete(sessionId)
-            console.log(`⏱️ Removed meta session for ${sessionId}`)
-        }
+			app.context.mcpSessionMeta.delete(sessionId)
+			console.log(`⏱️ Removed meta session for ${ sessionId }`, sessionIdKoa)
+		}
     }
 }, sessionCheckInterval)
 /** server functions **/

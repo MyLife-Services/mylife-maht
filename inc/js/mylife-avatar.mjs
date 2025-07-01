@@ -1826,6 +1826,21 @@ class Q extends Avatar {
             }
         }
         switch(functionName){
+            case 'chat':
+                const { itemId: mcpChatItemId, message: mcpChatMessage } = mcpData
+                const { responses: mcpChatResponses, success: mcpChatSuccess, } = await this.chat(mcpChatMessage, mcpChatItemId, ctx.session)
+                if(!mcpChatSuccess)
+                    response = 'Something went wrong while retrieving information about MyLife. Please try again.'
+                else
+                    result = {
+                        content: mcpChatResponses.map(response=>({
+                            text: response.message,
+                            type: 'text',
+                        })),
+                        isError: false,
+                    }
+                success = !(result?.isError ?? true)
+                break
             case 'get_shared_memories':
                 response = await this.sharedMemories(100)
                 success = response.length > 0
@@ -1901,12 +1916,12 @@ class Q extends Avatar {
                 let message = question
                 if(questionType?.length)
                     message += `\nQuestion Type: ${ questionType }`
-                const { responses: mcpResponses, success: chatSuccess, } = await this.chat(message, undefined, ctx.session)
-                if(!chatSuccess)
+                const { responses: mcpInfoResponses, success: mcpInfoSuccess, } = await this.chat(message, undefined, ctx.session)
+                if(!mcpInfoSuccess)
                     response = 'Something went wrong while retrieving information about MyLife. Please try again.'
                 else
                     result = {
-                        content: mcpResponses.map(res=>({
+                        content: mcpInfoResponses.map(res=>({
                             text: res.message,
                             type: 'text',
                         })),
@@ -2245,8 +2260,6 @@ class Q extends Avatar {
      * @returns {object} - The MyLife MCP self-definition package
      */
     get mcp(){
-        if(this.isMyLife)
-            return this.mcpProxy
         const mcp = this.#mcp
         if(!mcp?.tools?.length)
             this.#mcp.tools = mMcpTools.filter(tool=>tool.mylife_system_access === true)
@@ -2711,14 +2724,22 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
             id: itemId,
             summary: obscuredSummary,
         })
-        // check for ownership error
-        const text = `Successfully updated to obscured content.\n` + summary
-        result = {
-            content: [{
-                text,
-                type: 'text',
-            }],
-            isError: false,
+        if(!summary?.length)
+            error = {
+                code: -32602,
+                data: mcpdata,
+                message: `Failed to update itemId: ${ itemId } with obscured summary`,
+            }
+        else {
+            const text = `Successfully updated to obscured content.\n` + summary
+            result = {
+                content: [{
+                    text,
+                    type: 'text',
+                }],
+                isError: false,
+            }
+            success = true
         }
     }
     return {
