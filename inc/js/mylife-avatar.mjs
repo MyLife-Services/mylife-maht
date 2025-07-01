@@ -2534,6 +2534,8 @@ function mItem(item, avatar, llmServices){
  * @returns {object} - The MCP-ready result of the function call
  */
 async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, avatar){
+    if(functionName==='obscure')
+        console.log('mMcpFunction::functionName', functionName, mcpData)
     if(!functionName?.length)
         return
     const mcpFunctions = {

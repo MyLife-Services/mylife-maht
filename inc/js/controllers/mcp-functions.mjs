@@ -15,8 +15,12 @@ const mJsonRpcVersion = process.env.MCP_JSONRPC_Version ?? '2.0',
  * @param {Koa} ctx - Koa context object
  */
 async function mcpCall(ctx){
-    const { mcp={}, sessionMeta={}, } = ctx.state
-    const { initializeConfirmation, transportEntry, } = sessionMeta
+    const { state: {
+            avatar: Avatar, mcp, requestType, sessionMeta,
+        } = {}
+    } = ctx
+    const { initializeConfirmation, requests, runs, transportEntry, } = sessionMeta
+        ?? {}
     /* 2025-03-26 mcp batch request */
     const mcpRequests = Array.isArray(mcp)
         ? mcp
@@ -241,7 +245,7 @@ async function mcpSystemInfo(ctx){
 }
 /* private functions */
 /**
- * Handles an MCP call request, processes the method, and sends response or notifications.
+ * Modular MCP call handler that processes MCP requests and responses, sending notifications, results and errors. Everything is drawn from the session metadata to connect to the session transport. The MCP specification originally required, then allowed for, multiple transports wedded into one session; specifically, one for JSON-RPC message POSTing and the other for SSE streaming.
  * @param {Koa} ctx - Koa context object
  * @param {object} mcp - MCP request object
  * @returns {Promise<void>} - sends response and notifications
@@ -325,13 +329,17 @@ async function mMcpCall(ctx, mcp){
             if(typeof callback==='function')
                 await callback(text)
             else if(typeof callback==='object' && !Array.isArray(callback)){
+                console.log(chalk.bgBlue('mcpCall()::Sampling Request `string`'), callback, text)
                 // look to original request for itemId (or possibly assign in sample data)
                 const { error, result, success, } = await Avatar.mcpFunctionResponse('sampling', callback, text, sessionMeta, ctx)
+                console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request callback result'), error, result, success)
             // @todo - run should NOT have been "finished" (i.e., removed from `runs`) until now
             // @todo - change `runs` and `requests` arrays to Sets
             }
-        } else
+        } else {
             requests.delete(id)
+            console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved without callback'))
+        }
         if(externalId)
             console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with externalId'), externalId)
         return
