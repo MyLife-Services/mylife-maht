@@ -24,7 +24,8 @@ const mAllowSave = JSON.parse(
 )
 const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-schemas/routines/') + '/'
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
-    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
+    mMcpConstant = 'mylife-constant.'
 const mMcpMap = {
     changeTitle: { /* no implicit call for this in Avatar instance */
         args: ['itemId', 'title', 'factory'],
@@ -44,6 +45,35 @@ const mMcpMap = {
                 success,
             }
         },
+    },
+    createSummary: { /* no implicit call for this in Avatar instance */
+        args: ['mcpData', `${ mMcpConstant }POST`],
+        fx: 'item',
+        fxCallback: (responseObject)=>{
+            const result = { content: [], isError: true, }
+            const { instruction, item, responses, success, } = responseObject
+            result.isError = !success
+            if(!!item && success){
+                result.content.push({
+                    text: JSON.stringify(item),
+                    type: 'text',
+                })
+                result.structuredContent = item
+            } else if(responses?.length)
+                result.content = responses.map(response=>({
+                    text: response?.message
+                        ?? response?.content
+                        ?? JSON.stringify(response),
+                    type: 'text',
+                }))
+            else
+                result.content.push({
+                    text: `No item created from summary`,
+                    type: 'text',
+                })
+
+            return { result, success, }
+        }
     },
     getMemories: { /* no implicit call for this in Avatar instance */
         args: ['avatar'],
@@ -2565,8 +2595,10 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
     if(mcpFunctions[mcpFunctionName]) // fx from local map
         return await mcpFunctions[mcpFunctionName](mcpData, sessionMeta, ctx, factory, avatar)
     const jsFunctionName = functionName.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
-    const { fx, args=[], } = ( mMcpMap[jsFunctionName] ?? {} )
+    const { fx, args=[], fxCallback, } = ( mMcpMap[jsFunctionName] ?? {} )
     const fxArgs = args.map(arg=>{
+        if(arg.startsWith(mMcpConstant))
+            return arg.split('.').slice(1).join('.')
         switch(arg.toLowerCase()){
             case 'avatar':
                 return avatar
@@ -2574,6 +2606,9 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
                 return ctx
             case 'factory':
                 return factory
+            case 'mcpdata':
+            case 'mcp_data':
+                return mcpData
             case 'sessionmeta':
             case 'session_meta':
                 return sessionMeta
@@ -2584,9 +2619,12 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
     const avatarFunction = typeof fx === 'string'
         ? avatar[fx]
         : fx // fx is already a function
-    if(typeof avatarFunction === 'function')
-        return await avatarFunction(...fxArgs)
-    else
+    if(typeof avatarFunction === 'function'){
+        const functionResponse = await avatarFunction.bind(avatar)(...fxArgs)
+        return typeof fxCallback === 'function'
+            ? fxCallback(functionResponse)
+            : functionResponse
+    } else
         return {
             result: {
                 content: [{ text: `Function "${ functionName }" not available`, type: 'text' }],

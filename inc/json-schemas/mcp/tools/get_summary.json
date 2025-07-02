@@ -15,9 +15,7 @@
                 "type": "string"
             }
         },
-        "required": [
-            "itemId"
-        ]
+        "required": ["itemId"]
     },
     "mylife_bots": [
         "avatar",
@@ -25,15 +23,5 @@
         "diary",
         "journal"
     ],
-    "name": "get_summary",
-    "outputSchema": {
-        "type": "object",
-        "properties": {
-            "summary": {
-                "description": "Summary of the item",
-                "type": "string"
-            }
-        },
-        "required": ["summary"]
-    }
+    "name": "get_summary"
 }
