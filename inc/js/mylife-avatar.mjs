@@ -14,7 +14,7 @@ import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
-import { mcpSample, } from './controllers/mcp-functions.mjs'
+import { mcpClientAllowsDirectory, mcpClientAllowsRequest, mcpClientRequest, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const __dirpath = fileURLToPath(import.meta.url)
 const mAllowSave = JSON.parse(
@@ -792,6 +792,7 @@ class Avatar extends EventEmitter {
      * @param {Koa} ctx - The Koa context object
      */
     async mcpFunctionResponse(type='sampling', callback, mcpData={}, sessionMeta, ctx){
+        // @todo - remove type param if possible
         const { _function: functionName, _replace, ...callbackData } = callback
         const replace = (typeof _replace === 'string')
             ? [_replace]
@@ -2534,8 +2535,6 @@ function mItem(item, avatar, llmServices){
  * @returns {object} - The MCP-ready result of the function call
  */
 async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, avatar){
-    if(functionName==='obscure')
-        console.log('mMcpFunction::functionName', functionName, mcpData)
     if(!functionName?.length)
         return
     const mcpFunctions = {
@@ -2575,7 +2574,7 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
     else
         return {
             result: {
-                content: [{ text: `Function "${functionName}" not available`, type: 'text' }],
+                content: [{ text: `Function "${ functionName }" not available`, type: 'text' }],
                 isError: true
             },
             success: false,
@@ -2681,12 +2680,28 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
             message: `\`itemId\`: ${ itemId } not found or inaccessible to this member`,
         }
     else if(!obscuredSummary?.length) /* no `obscuredSummary` provided */
-        if(!forceServer && sessionMeta.capabilities?.sampling){
+        if(!forceServer && mcpClientAllowsRequest(sessionMeta.capabilities)){
             const { summary, } = item
-            const explanation_sampling = `Obscuration for itemId: ${ itemId } requires sampling response.\nProcess this sample request and respond with text field being the complete obscured summary.\nSUMMARY:\n${ item.summary }`
-            const explanation_elicitation = `Obscuration for itemId: ${ itemId } requires elicitation response.\nProcess this request and respond with the complete obscured summary.\nSUMMARY:\n${ item.summary }`
+            const example = 'Ex. "Joseph works at MyLife." becomes "J. works at MyLife."'
+            const explanation = {
+                elicitation: `Create an OBSCURED version of the provided summary for itemId: ${ itemId } and confirm with human.\n${ example }\nSUMMARY:\n${ item.summary }`,
+                sampling: `Obscuration for itemId: ${ itemId } requires sampling response.\nProcess this sample request and respond with text field being the complete obscured summary.\nSUMMARY:\n${ item.summary }`,
+            }
+            const instructions = {
+                elicitation: { /* elicitation response schema becomes the instructions */
+                    type: 'object',
+                    properties: {
+                        obscuredSummary: {
+                            description: 'Human-confirmed version of an intelligence-generated obscuration of the original text summary. Example: "Joseph works at MyLife." becomes "J. works at MyLife."',
+                            title: 'Obscured Summary',
+                            type: 'string',
+                        },
+                    },
+                    required: ['obscuredSummary'],
+                },
+                sampling: 'I am given a text summary, and I create an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nWhen finished, I respond to the request with the message text field being the complete obscured summary.',
+            }
             const explanation_tool = `Obscuration for itemId: ${ itemId } requires tool response.\ncreate an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nSUMMARY:\n${ summary }.\nWhen finished, I run the obscure tool again with the obscured summary as the \`obscuredSummary\` parameter and continue to include itemId: \`${ itemId }.\`` // **note**: Explanation _should_ be usable and used in lieu of sampling with most clients
-            const instructions = 'I am given a text summary, and I create an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nWhen finished, I respond to the request with the message text field being the complete obscured summary.'
             const { requests, transportEntry: transport, } = sessionMeta
             const callback = {
                 forceServer: false,
@@ -2694,13 +2709,15 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
                 _function: 'obscure',
                 _replace: 'obscuredSummary',
             }
-            const samplingRequest = await mcpSample(factory.globals, transport, ctx.request?.body, explanation_sampling, instructions, factory.newGuid, callback)
-            const { id, } = samplingRequest
+            const { error: mcpError, mcpRequest, } = await mcpClientRequest(sessionMeta.capabilities, factory.globals, transport, ctx.request?.body, explanation, instructions, undefined, callback)
+            if(mcpError)
+                return { error: mcpError, success, }
+            const { id, } = mcpRequest
             if(id?.length){
-                requests.set(id, samplingRequest)
+                requests.set(id, mcpRequest)
                 result = {
                     content: [{
-                        text: `Sampling request sent via stream, id: ${ id }. Please follow request instructions and respond.`,
+                        text: `Accompanying \`elicitation\` (or \`sampling\`) request sent via stream with id: ${ id }. Please fulfill server request.`,
                         type: 'text',
                     }],
                     isError: false,
