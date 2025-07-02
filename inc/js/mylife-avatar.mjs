@@ -2631,8 +2631,9 @@ async function mcp_change_title(mcpdata, sessionMeta, ctx, factory){
 async function mcp_chat(mcpdata, sessionMeta, ctx, factory, avatar){
     const { message, } = mcpdata
     const Conversation = await avatar.chat(message, message, true, avatar.avatar)
-    const content = Conversation.getMessages()
-        .map(message=>({ text: message.content, type: 'text', }))
+    const content = Conversation?.responses?.length
+        ? Conversation.responses.map(response=>({ text: response.message, type: 'text', }))
+        : Conversation.getMessages().map(message=>({ text: message.content, type: 'text', }))
     const result = {
         content,
         isError: false,

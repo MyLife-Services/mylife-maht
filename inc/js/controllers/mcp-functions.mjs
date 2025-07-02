@@ -349,6 +349,7 @@ async function mMcpCall(ctx, mcp){
                     }
                     break
                 case 'cancel':
+                case 'decline':
                 case 'reject':
                 default:
                     break
