@@ -422,10 +422,13 @@ function mcpValidateRequestOrigin(ctx){
  */
 async function routeSubdomain(ctx, next){
     const isExempt = ['localhost', 'mylife.ngrok.app', '127.0.0.1'].includes(ctx.hostname.toLowerCase())
+    const domainParts = ctx.hostname.split('.')
     const agentId = (isExempt)
-        ? ctx.query?.agentId
-        : ctx?.hostname?.split('.')?.[0]
-    if(!agentId || agentId.toLowerCase() === 'www')
+        ? ctx.query?.agentId?.toLowerCase()
+        : domainParts.length < 2
+            ? null
+            : domainParts[0].toLowerCase()
+    if(!agentId || agentId === 'www')
         return await next() // no subdomain, forward to standard routes
     /* subdomain routing */
     const alternateRouter = mAgentRouters?.[agentId]
