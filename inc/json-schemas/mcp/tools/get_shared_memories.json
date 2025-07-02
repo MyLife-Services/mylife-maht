@@ -1,25 +1,26 @@
 {
     "annotations": {
-        "title": "MyLife-Get-Memories",
+        "title": "MyLife-Get-Shared-Memories",
         "readOnlyHint": true,
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
     },
-	"description": "I retrieve the memories stored in the member's scrapbook, and include an `explanation on how to use them ",
-	"inputSchema": {
+    "description": "I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.",
+    "inputSchema": {
         "type": "object",
-		"properties": {},
-		"required": []
-	},
-    "mylife_bots": [
-        "avatar",
-        "biographer"
-    ],
-    "name": "get_memories",
+        "properties": {},
+        "required": []
+    },
+    "mylife_system_access": true,
+    "name": "get_shared_memories",
     "outputSchema": {
         "type": "object",
         "properties": {
+            "explanation": {
+                "type": "string",
+                "description": "Explanation of how to interpret memories"
+            },
             "memories": {
                 "type": "array",
                 "items": {
@@ -38,6 +39,6 @@
                 }
             }
         },
-        "required": ["memories"]
+        "required": ["explanation", "memories"]
     }
 }

@@ -171,14 +171,15 @@ async function keyValidation(ctx){
     }
 }
 /**
- * Logout function for member.
+ * Logout function for member. Sets `ctx.body: { success: true, }`.
  * @param {Koa} ctx - Koa Context object
- * @returns 
+ * @returns {Promise<void>}
  */
 async function logout(ctx){
-    ctx.session = null
+    const { avatar: Avatar, } = ctx.state
+    await Avatar.logout(ctx)
     ctx.status = 200
-    ctx.body = { success: true }
+    ctx.body = { success: true, }
 }
 /**
  * Functionality around story contributions.

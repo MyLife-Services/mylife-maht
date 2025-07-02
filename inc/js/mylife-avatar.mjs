@@ -3,6 +3,7 @@ import path from 'path'
 import EventEmitter from 'events'
 import { Marked } from 'marked'
 import { fileURLToPath } from 'url'
+import fs from 'fs/promises'
 import initRouter from './routes.mjs'
 import AlphaDog from './agents/project/alpha-dog.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
@@ -13,17 +14,113 @@ import { Entry, Memory, } from './mylife-models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
+import { mcpClientAllowsDirectory, mcpClientAllowsRequest, mcpClientRequest, } from './controllers/mcp-functions.mjs'
+import { str } from 'ajv'
 /* module constants */
-// file services
 const __dirpath = fileURLToPath(import.meta.url)
-// MyLife
 const mAllowSave = JSON.parse(
     process.env.MYLIFE_DB_ALLOW_SAVE
         ?? 'false'
 )
 const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-schemas/routines/') + '/'
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
-    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
+    mMcpConstant = 'mylife-constant.'
+const mMcpMap = {
+    changeTitle: { /* no implicit call for this in Avatar instance */
+        args: ['itemId', 'title', 'factory'],
+        fx: async (itemId, title, factory)=>{
+            const { id, title: newTitle, } = ( await factory.updateItem({ id: itemId, title }) ?? {} )
+            const success = id===itemId && newTitle===title
+            const text = success
+                ? `TITLE for id: \`${ itemId }\` has been updated successfully: "${ newTitle }"`
+                : `FAILED to update TITLE from "${ title }" to "${ newTitle }" for id: (${ itemId })`
+            const type = 'text'
+            const result = {
+                content: [{ text, type, }],
+                isError: !success,
+            }
+            return {
+                result,
+                success,
+            }
+        },
+    },
+    createSummary: { /* no implicit call for this in Avatar instance */
+        args: ['mcpData', `${ mMcpConstant }POST`],
+        fx: 'item',
+        fxCallback: (responseObject)=>{
+            const result = { content: [], isError: true, }
+            const { instruction, item, responses, success, } = responseObject
+            result.isError = !success
+            if(!!item && success){
+                result.content.push({
+                    text: JSON.stringify(item),
+                    type: 'text',
+                })
+                result.structuredContent = item
+            } else if(responses?.length)
+                result.content = responses.map(response=>({
+                    text: response?.message
+                        ?? response?.content
+                        ?? JSON.stringify(response),
+                    type: 'text',
+                }))
+            else
+                result.content.push({
+                    text: `No item created from summary`,
+                    type: 'text',
+                })
+
+            return { result, success, }
+        }
+    },
+    getMemories: { /* no implicit call for this in Avatar instance */
+        args: ['avatar'],
+        fx: async (avatar)=>{
+            const preface = 'Here are the titles and ids (display only titles for human member) for the memories we have created together:\n'
+            const response = ( await avatar.bot(undefined, 'biographer').collections() )
+                .map(item=>({
+                    id: item.id,
+                    title: item.title,
+                }))
+            const success = response?.length > 0
+            const responseArrayName = 'memories'
+            return {
+                preface,
+                response,
+                responseArrayName,
+                success,
+            }
+        },
+    },
+    endReliving: {
+        args: [],
+        fx: 'endMemory',
+    },
+    logout: {
+        args: ['ctx', 'avatar'],
+        fx: (ctx, avatar)=>{
+            avatar.logout(ctx)
+            // @todo - close any open runs? or push this to `mcp-functions.mjs` as `import`?
+            return {
+                result: {
+                    content: [{
+                        text: 'You have been successfully logged out of MyLife.',
+                        type: 'text',
+                    }],
+                },
+                success: true,
+                toolListChanged: true,
+            }
+        },
+    },
+    // add mappings as needed
+}
+const mMcpTools = await mInitializeExternalTools(
+    'mcp',
+    path.resolve(path.dirname(__dirpath), '..', 'json-schemas/mcp/tools/')
+)
 /**
  * @class - Avatar
  * @extends EventEmitter
@@ -53,6 +150,20 @@ class Avatar extends EventEmitter {
     #livingExperience
     #livingMemory
     #llmServices
+    #mcp = {
+        capabilities: {
+            tools: {
+                listChanged: true
+            }
+        },
+        instructions: 'I am a version of your avatar, and I can log you in to MyLife. Once logged in, we can work together as intended, or I can switch you to a different MyLife bot.',
+        jsonrpc: mJsonRpcVersion,
+        protocolVersion: mJsonRpcProtocolVersion,
+        serverInfo: {
+            name: 'MyLife MCP Member Avatar',
+            version: '1.1',
+        },
+    }
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as g/setter is "complex"
     #setupComplete
@@ -151,14 +262,14 @@ class Avatar extends EventEmitter {
 			})
 		return experiences
 	}
-    /**
-     * Get a Bot instance by id.
-     * @public
-     * @param {Guid} bot_id - The bot id
-     * @returns {Promise<Bot>} - The bot object from memory
-     */
-    bot(bot_id){
-        const Bot = this.#botAgent.bot(bot_id)
+	/**
+	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
+	 * @param {Guid} bot_id - The Bot id (optional, defaults to avatar)
+	 * @param {String} botType - The Bot type (optional, defaults to avatar)
+	 * @returns {Promise<Bot>} - The Bot instance
+	 */
+    bot(bot_id, botType){
+        const Bot = this.#botAgent.bot(bot_id, botType)
         return Bot
     }
     /**
@@ -527,6 +638,22 @@ class Avatar extends EventEmitter {
             .map(conversation=>(mPruneConversation(conversation)))
     }
     /**
+     * Get MCP tools for bot.
+     * @todo - convert "mylife_" nodes into one "mylife" node with sub-objects
+     * @param {string} type - The type of tools to retrieve, defaults to `avatar`
+     * @param {boolean} allowAny - Whether to allow tools of type `any`, defaults to `true`
+     * @returns {Array} - The array of MCP tools
+     */
+    getMcpTools(type=this.activeBot.type, allowAny=true){
+        type = type.split('-').pop()
+        const mcpTools = mMcpTools
+            .filter(tool=>
+                    tool.mylife_bots?.includes(type)
+                || ( allowAny && tool.mylife_bots?.includes('any'))
+            )
+        return mcpTools
+    }
+    /**
      * Get a static or dynamic greeting from active bot.
      * @param {boolean} dynamic - Whether to use LLM for greeting
      * @returns {Object} - The greeting Response object: { instruction, responses, routine, success, }
@@ -666,11 +793,54 @@ class Avatar extends EventEmitter {
     async itemUpdate(item){
         return await this.#factory.updateItem(item)
     }
+    /**
+     * Logs out the current session, removing relevant MyLife session artifacts.
+     * @param {Koa} ctx - The Koa context object
+     * @returns {Promise<void>}
+     */
+    logout(ctx){
+        ctx.session.avatar = ctx.SystemAvatar // reset to SystemAvatar
+        ctx.session.locked = true // lock session
+    }
     manifest(xid){
         return this.#experienceAgent.experienceManifest(xid)
     }
-    async mcpFunction(functionName, mcpData){
-        return await this.#botAgent.mcpFunction(functionName, mcpData)
+    /**
+     * Calls a specific MCP function with the provided data and session metadata.
+     * @param {string} functionName - The name of the MCP function to call
+     * @param {object} mcpData - The data to pass to the MCP function
+     * @param {object} sessionMeta - The session metadata (optional)
+     * @param {Koa} ctx - The Koa context object (optional)
+     * @returns {Promise<object>} - The result of the MCP function call
+     */
+    async mcpFunction(functionName, mcpData, sessionMeta, ctx){
+        return await mMcpFunction(functionName, mcpData, sessionMeta, ctx, this.#factory, this)
+    }
+    /**
+     * Handles the response from an MCP Client Tool `sampling` or `elicitation`.
+     * @param {string} type - The type of MCP function response, defaults to `sampling`
+     * @param {object} callback - The name of the MCP function to call { _function, _replace, ...args }
+     * @param {string|object} mcpData - The data to pass to the MCP function
+     * @param {object} sessionMeta - The session metadata
+     * @param {Koa} ctx - The Koa context object
+     */
+    async mcpFunctionResponse(type='sampling', callback, mcpData={}, sessionMeta, ctx){
+        // @todo - remove type param if possible
+        const { _function: functionName, _replace, ...callbackData } = callback
+        const replace = (typeof _replace === 'string')
+            ? [_replace]
+            : !Array.isArray(_replace)
+                ? Object.keys(_replace)
+                : _replace
+        if(replace?.length)
+            replace.forEach(r=>{
+                if(typeof mcpData === 'string')
+                    callbackData[r] = mcpData
+                else if(typeof mcpData === 'object')
+                    Object.assign(callbackData, mcpData)
+            })
+        const response = await this.mcpFunction(functionName, callbackData, sessionMeta, ctx)
+        return response
     }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
@@ -1367,7 +1537,13 @@ class Avatar extends EventEmitter {
      * @returns {object} - The mcp self-definition package
      */
     get mcp(){
-        return this.#botAgent.mcp
+        this.#mcp.tools = [] // reset tools each call
+        const botTools = this.getMcpTools()
+        botTools.forEach(tool=>{
+            if(!this.#mcp.tools?.some(t=>t.name===tool.name))
+                this.#mcp.tools.push(tool)
+        })
+        return this.#mcp
     }
     /**
      * Gets first name of member from `#factory`.
@@ -1560,109 +1736,7 @@ class Q extends Avatar {
             name: 'MyLife MCP System Avatar',
             version: '1.0',
         },
-        tools: [
-            {
-                name: 'get_shared_memories',
-                description: 'I am Q, corporate intelligence for MyLife. When asked for shared memories, I return a random array (max 10) of MyLife public memories { id, title, } that can be experienced. Show the human the title list, there is no need to display ids. Ask human what Memory they want to experience and then use the get_shared_memory tool to retrieve the memory using the underlying id.',
-                inputSchema: {
-                    type: 'object',
-                    properties: {},
-                    required: []
-                },
-                annotations: {        // Optional hints about tool behavior
-                    title: 'Shared-Memories',      // Human-readable title for the tool
-                    readOnlyHint: true,    // If true, the tool does not modify its environment
-                    destructiveHint: false, // If true, the tool may perform destructive updates
-                    idempotentHint: true,  // If true, repeated calls with same args have no additional effect
-                    openWorldHint: false,   // If true, tool interacts with external entities
-                }
-            },
-            {
-                name: 'get_shared_memory',
-                description: 'I am Q, corporate intelligence for MyLife. I am able to access public shared memories and play the experience for a human user. The memory will be delivered from MyLife scene-by-scene using the `get_shared_memory` and the appropriate `memberId`. Display the scenes one-by-one, prompt the human to add any optional input to the memory, which should be sent using the `input` field.',
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        input: {
-                            type: "string",
-                            description: "Any input by the human user while experiencing the memory (optional)"
-                        },
-                        memoryId: {
-                            type: "string",
-                            description: "The ID of the memory to be retrieved, can be empty"
-                        }
-                    },
-                    required: ['memoryId']
-                },
-                annotations: {
-                    title: 'Shared-Memory',
-                    readOnlyHint: true,
-                    destructiveHint: false,
-                    idempotentHint: false,
-                    openWorldHint: false,
-                }
-            },
-            {
-                name: 'mylife_information',
-                description: `I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will answer any questions about MyLife you have, sorted along the following lines: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc']`,
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        question: {
-                            description: 'The question asked of Q',
-                            type: 'string',
-                        },
-                        questionType: {
-                            description: 'The type of information requested about MyLife',
-                            enum: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc'],
-                            type: 'string',
-                        }
-                    },
-                    required: ['question', 'questionType'],
-                },
-                annotations: {
-                    title: 'MyLife-Information',
-                    readOnlyHint: true,
-                    destructiveHint: false,
-                    idempotentHint: true,
-                    openWorldHint: false,
-                }
-            },
-            {
-                name: 'register',
-                description: 'I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will register you for MyLife and send you a validation link by email. The only pieces of information I need are: Your full name, the email you wish to use, and the name you like for your personal avatar (a personal intelligence agent... one of several you receive when signing up with MyLife). Please also share your primary interest in MyLife (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory).',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        avatarName: {
-                            type: 'string',
-                            description: "The name chosen for the registrant's avatar",
-                        },
-                        email: {
-                            type: 'string',
-                            description: "The registrant's email address",
-                        },
-                        humanName: {
-                            type: 'string',
-                            description: 'The full name of the registrant',
-                        },
-                        reason: {
-                            type: 'string',
-                            description: 'What is the primary interest in MyLife for the registrant (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory)',
-                        }
-                    },
-                    required: ['avatarName', 'email', 'humanName', 'reason'],
-                },
-                annotations: {
-                    title: 'Register-for-MyLife',
-                    readOnlyHint: false,
-                    destructiveHint: false,
-                    idempotentHint: true,
-                    openWorldHint: false,
-                }
-            }
-        ]
-    }
+    } /* **Note**: `tools` array is managed as decoration in `get mcp()` */
     #Menu
     #Router
     /**
@@ -1786,6 +1860,21 @@ class Q extends Avatar {
             }
         }
         switch(functionName){
+            case 'chat':
+                const { itemId: mcpChatItemId, message: mcpChatMessage } = mcpData
+                const { responses: mcpChatResponses, success: mcpChatSuccess, } = await this.chat(mcpChatMessage, mcpChatItemId, ctx.session)
+                if(!mcpChatSuccess)
+                    response = 'Something went wrong while retrieving information about MyLife. Please try again.'
+                else
+                    result = {
+                        content: mcpChatResponses.map(response=>({
+                            text: response.message,
+                            type: 'text',
+                        })),
+                        isError: false,
+                    }
+                success = !(result?.isError ?? true)
+                break
             case 'get_shared_memories':
                 response = await this.sharedMemories(100)
                 success = response.length > 0
@@ -1795,13 +1884,17 @@ class Q extends Avatar {
                         message: 'No shared memories found',
                     }
                 else {
-                    const sharedMemoryList = response.map(memory=>`- [${ memory.title }](${ memory.id })`).join('\n')
+                    const structuredContent = {
+                        explanation: `The \`memories\` array is the list of shared memories by id and title--present titles to human; use ID only to **initially** call \`get_shared_memory\`. **Note**: ID will change and be shared after initialization to identify your unique instance of the shared memory.`,
+                        memories: response,
+                    }
                     result = {
                         content: [{
-                            text: `Following is the list of shared memories by id and title--present titles to human; use ID only to **initially** call \`get_shared_memory\`. **Note**: ID will change and be shared after initialization to identify your unique instance of the shared memory.\n${ sharedMemoryList }`,
+                            text: JSON.stringify(structuredContent),
                             type: 'text',
                         }],
                         isError: false,
+                        structuredContent,
                     }
                     if(typeof (response ?? null) === 'object'){ // transfer response to data
                         data = response // a2a data part
@@ -1828,9 +1921,15 @@ class Q extends Avatar {
                     sessionMeta.Share = Share
                     Share = sessionMeta.Share
                     if(Share.warnings?.length){
+                        const structuredContent = {
+                            explanation: `Confirm that the viewer would like to proceed given the warnings included. On confirmation make the \`get_shared_memory\` call again using this personalized instance id for \`memoryId\`.`,
+                            memoryId: sharedMemoryId,
+                            scene: Share.previousScene,
+                            warnings: Share.warnings,
+                        }
                         result = {
                             content: [{
-                                text: `Confirm that the viewer would like to proceed given the following content warnings: ${ JSON.stringify(Share.warnings) }. Then make the \`get_shared_memory\` call again using your personalized instance id for \`memoryId\`: ${ sharedMemoryId }`,
+                                text: JSON.stringify(structuredContent),
                                 type: 'text',
                             }],
                             isError: true,
@@ -1841,18 +1940,20 @@ class Q extends Avatar {
                 if(!Share.warningsAccepted) /* previous error result required intelligence to issue warnings to human before re-contacting */
                     Share.acceptWarnings()
                 await this.shareMemory(sharedMemoryId, sharedMemoryInput)
+                const structuredContent = {
+                    explanation: `The \`scene\` object is the current scene of the shared memory. The \`input\` field is the human input to be added to the shared memory. Call \`shareMemory\` with the \`memoryId\` to add the input to the shared memory.`,
+                    memoryId: sharedMemoryId,
+                    scene: Share.previousScene,
+                }
                 result = {
                     content: [
                         {
-                            text: `Following is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the assigned instance id for \`memoryId\`: ${ sharedMemoryId }. Include human input using field \`input\`.`,
-                            type: 'text',
-                        },
-                        { // should transition to data part in A2A
-                            text: JSON.stringify(Share.previousScene),
+                            text: JSON.stringify(structuredContent),
                             type: 'text',
                         }
                     ],
                     isError: false,
+                    structuredContent,
                 }
                 success = !!result
                 break
@@ -1861,12 +1962,12 @@ class Q extends Avatar {
                 let message = question
                 if(questionType?.length)
                     message += `\nQuestion Type: ${ questionType }`
-                const { responses: mcpResponses, success: chatSuccess, } = await this.chat(message, undefined, ctx.session)
-                if(!chatSuccess)
+                const { responses: mcpInfoResponses, success: mcpInfoSuccess, } = await this.chat(message, undefined, ctx.session)
+                if(!mcpInfoSuccess)
                     response = 'Something went wrong while retrieving information about MyLife. Please try again.'
                 else
                     result = {
-                        content: mcpResponses.map(res=>({
+                        content: mcpInfoResponses.map(res=>({
                             text: res.message,
                             type: 'text',
                         })),
@@ -1921,6 +2022,17 @@ class Q extends Avatar {
                             isError: false,
                         }
                     success = !!result && !(result.isError ?? true)
+                }
+                break
+            case 'logout':
+            case 'mylife_logout':
+                this.logout(ctx)
+                result = {
+                    content: [{
+                        text: 'Logout successful. You have been logged out.',
+                        type: 'text',
+                    }],
+                    isError: false,
                 }
                 break
             default:
@@ -2188,11 +2300,21 @@ class Q extends Avatar {
     get isRegistered(){
         return this.#factory.isRegistered
     }
+    /**
+     * Get the MyLife MCP self-definition package. Note that it will populate the internal memory for this avatar, so tool updates will only be reflected on server restart.
+     * @getter
+     * @returns {object} - The MyLife MCP self-definition package
+     */
     get mcp(){
-        return this.#mcp
+        const mcp = this.#mcp
+        if(!mcp?.tools?.length)
+            this.#mcp.tools = mMcpTools.filter(tool=>tool.mylife_system_access === true)
+        return mcp
     }
     get mcpProxy(){
-        return super.mcp
+        const mcp = super.mcp
+        mcp.tools = mcp.tools.filter(tool=>tool.mylife_auth_required===false)
+        return mcp
     }
 	get menu(){
 		if(!this.#Menu){
@@ -2362,6 +2484,40 @@ async function mInit(factory, llmServices, Avatar, botAgent, assetAgent){
     Avatar.experiencesLived = await factory.experiencesLived(false)
 }
 /**
+ * Initializes MCP tools from the JSON schema directory.
+ * @todo - create external toolType variants (A2A)
+ * @param {string} mcpToolsPath - The path to the MCP tools directory
+ * @returns {Promise<Array>} - Returns the MCP tools array
+ */
+async function mInitializeExternalTools(toolType='mcp', toolsPath){
+    const tools = [],
+        toolsFiles = []
+    try { /* directory and file access */
+        toolsFiles.push(...await fs.readdir(toolsPath))
+    } catch(err) {
+        console.warn(`Error loading ${ toolsPath } tools: ${ err.message }`, err)
+    }
+    try { /* populate skills */
+        if(toolsFiles.length)
+            for(const file of toolsFiles)
+                if(file.endsWith('.json'))
+                    try {
+                        const fileContent = await fs.readFile(path.resolve(toolsPath, file), 'utf8')
+                        const toolData = JSON.parse(fileContent)
+                        toolData.name = toolData.name
+                            ?? file.replace('.json', '')
+                        tools.push(toolData)
+                    } catch(parseErr) {
+                        console.error(`Error parsing  ${ toolType } tool file: ${parseErr.message}`, file)
+                    }
+        else
+            console.warn(`No ${ toolType } tools found in ${ toolsPath } directory.`)
+    } catch(err){
+        console.warn(`Error initializing ${ toolType } tools: ${ err.message }`, err)
+    }
+    return tools
+}
+/**
  * Instantiates a new item and returns the item object.
  * @param {object} item - The item data
  * @param {Avatar} avatar - The avatar instance
@@ -2412,6 +2568,345 @@ function mItem(item, avatar, llmServices){
         console.log('mIitem()::error', error)
     }
     return Item
+}
+/**
+ * Passthrough to call a function on the active bot or avatar, passing the MCP data to it.
+ * @param {string} functionName - The function name to call
+ * @param {object} mcpData - The MCP data to pass to the function
+ * @param {object} sessionMeta - The session metadata
+ * @param {Koa} ctx - The context object
+ * @param {object} factory - The factory object to use for the call
+ * @param {Avatar} avatar - The avatar instance
+ * @returns {object} - The MCP-ready result of the function call
+ */
+async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, avatar){
+    if(!functionName?.length)
+        return
+    const mcpFunctions = {
+        mcp_change_title,
+        mcp_chat,
+        mcp_get_summary,
+        mcp_obscure,
+        mcp_switch_bot,
+    }
+    functionName = functionName.replace('mylife_', '')
+    functionName = functionName.replace('mcp_', '')
+    const mcpFunctionName = 'mcp_' + functionName
+    if(mcpFunctions[mcpFunctionName]) // fx from local map
+        return await mcpFunctions[mcpFunctionName](mcpData, sessionMeta, ctx, factory, avatar)
+    const jsFunctionName = functionName.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
+    const { fx, args=[], fxCallback, } = ( mMcpMap[jsFunctionName] ?? {} )
+    const fxArgs = args.map(arg=>{
+        if(arg.startsWith(mMcpConstant))
+            return arg.split('.').slice(1).join('.')
+        switch(arg.toLowerCase()){
+            case 'avatar':
+                return avatar
+            case 'ctx':
+                return ctx
+            case 'factory':
+                return factory
+            case 'mcpdata':
+            case 'mcp_data':
+                return mcpData
+            case 'sessionmeta':
+            case 'session_meta':
+                return sessionMeta
+            default:
+                return mcpData[arg]
+        }
+    })
+    const avatarFunction = typeof fx === 'string'
+        ? avatar[fx]
+        : fx // fx is already a function
+    if(typeof avatarFunction === 'function'){
+        const functionResponse = await avatarFunction.bind(avatar)(...fxArgs)
+        return typeof fxCallback === 'function'
+            ? fxCallback(functionResponse)
+            : functionResponse
+    } else
+        return {
+            result: {
+                content: [{ text: `Function "${ functionName }" not available`, type: 'text' }],
+                isError: true
+            },
+            success: false,
+        }
+}
+async function mcp_change_title(mcpdata, sessionMeta, ctx, factory){
+    const { itemId, title, } = mcpdata
+    let error,
+        result
+    if(!itemId?.length)
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: '`itemId` parameter required'
+        }
+    if(!title?.length)
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: '`title` parameter required'
+        }
+    const { id, title: newTitle, } = await factory.updateItem({ id: itemId, title })
+    result = id?.length && id===itemId
+        ? {
+            content: [{
+                text: `Item title updated successfully: ${ itemId } to ${ newTitle }`,
+                type: 'text',
+            }],
+            isError: false,
+        }
+        : {
+            content: [{
+                text: `Item title update failed: ${ itemId }`,
+                type: 'text',
+            }],
+            isError: true,
+        }
+    return { error, result, }
+}
+async function mcp_chat(mcpdata, sessionMeta, ctx, factory, avatar){
+    const { message, } = mcpdata
+    const Conversation = await avatar.chat(message, message, true, avatar.avatar)
+    const content = Conversation?.responses?.length
+        ? Conversation.responses.map(response=>({ text: response.message, type: 'text', }))
+        : Conversation.getMessages().map(message=>({ text: message.content, type: 'text', }))
+    const result = {
+        content,
+        isError: false,
+    }
+    return { result, }
+}
+async function mcp_get_summary(mcpdata, sessionMeta, ctx, factory){
+    const { itemId, } = mcpdata
+    let error,
+        result
+    if(!itemId?.length)
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: '`itemId` parameter required'
+        }
+    const { summary, } = await factory.item(itemId)
+        ?? {}
+    result = summary?.length
+        ? {
+            content: [{
+                text: summary,
+                type: 'text',
+            }],
+            isError: false,
+        }
+        : {
+            content: [{
+                text: `No summary found for item id: ${ itemId }`,
+                type: 'text',
+            }],
+            isError: true,
+        }
+    return { error, result, }
+}
+/**
+ * Obscures a summary or item content using the avatar bot.
+ * @param {object} mcpdata - The MCP data object containing `itemId` and optional `obscuredSummary`
+ * @param {object} sessionMeta - The session metadata
+ * @param {Koa} ctx - The context object
+ * @returns {Promise<object>} - The result of the obscuration process
+ */
+async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
+    const { forceServer=false, itemId, obscuredSummary, } = mcpdata
+    let error,
+        result,
+        success = false
+    if(!itemId?.length)
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: 'Parameter `itemId` required for obscuration'
+        }
+    const item = await factory.item(itemId)
+    if(!item)
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: `\`itemId\`: ${ itemId } not found or inaccessible to this member`,
+        }
+    else if(!obscuredSummary?.length) /* no `obscuredSummary` provided */
+        if(!forceServer && mcpClientAllowsRequest(sessionMeta.capabilities)){
+            const { summary, } = item
+            const example = 'Ex. "Joseph works at MyLife." becomes "J. works at MyLife."'
+            const explanation = {
+                elicitation: `Create an OBSCURED version of the provided summary for itemId: ${ itemId } and confirm with human.\n${ example }\nSUMMARY:\n${ item.summary }`,
+                sampling: `Obscuration for itemId: ${ itemId } requires sampling response.\nProcess this sample request and respond with text field being the complete obscured summary.\nSUMMARY:\n${ item.summary }`,
+            }
+            const instructions = {
+                elicitation: { /* elicitation response schema becomes the instructions */
+                    type: 'object',
+                    properties: {
+                        obscuredSummary: {
+                            description: 'Human-confirmed version of an intelligence-generated obscuration of the original text summary. Example: "Joseph works at MyLife." becomes "J. works at MyLife."',
+                            title: 'Obscured Summary',
+                            type: 'string',
+                        },
+                    },
+                    required: ['obscuredSummary'],
+                },
+                sampling: 'I am given a text summary, and I create an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nWhen finished, I respond to the request with the message text field being the complete obscured summary.',
+            }
+            const explanation_tool = `Obscuration for itemId: ${ itemId } requires tool response.\ncreate an obscured version where no human names are present. I remove direct references to human names, replacing them with the capitalized first letter of the name.\nSUMMARY:\n${ summary }.\nWhen finished, I run the obscure tool again with the obscured summary as the \`obscuredSummary\` parameter and continue to include itemId: \`${ itemId }.\`` // **note**: Explanation _should_ be usable and used in lieu of sampling with most clients
+            const { requests, transportEntry: transport, } = sessionMeta
+            const callback = {
+                forceServer: false,
+                itemId,
+                _function: 'obscure',
+                _replace: 'obscuredSummary',
+            }
+            const { error: mcpError, mcpRequest, } = await mcpClientRequest(sessionMeta.capabilities, factory.globals, transport, ctx.request?.body, explanation, instructions, undefined, callback)
+            if(mcpError)
+                return { error: mcpError, success, }
+            const { id, } = mcpRequest
+            if(id?.length){
+                requests.set(id, mcpRequest)
+                result = {
+                    content: [{
+                        text: `Accompanying \`elicitation\` (or \`sampling\`) request sent via stream with id: ${ id }. Please fulfill server request.`,
+                        type: 'text',
+                    }],
+                    isError: false,
+                }
+                success = true
+            }
+        } else {
+            const { responses, success=false, } = await avatar.obscure(itemId)
+            const text = responses?.[0]?.message
+                ?? `itemId: ${ itemId } not found or not accessible for this member`
+            result = {
+                content: [{
+                    text,
+                    type: 'text',
+                }],
+                isError: !success,
+            }
+        }
+    else {
+        const { summary, } = await factory.updateItem({
+            id: itemId,
+            summary: obscuredSummary,
+        })
+        if(!summary?.length)
+            error = {
+                code: -32602,
+                data: mcpdata,
+                message: `Failed to update itemId: ${ itemId } with obscured summary`,
+            }
+        else {
+            const text = `Successfully updated to obscured content.\n` + summary
+            result = {
+                content: [{
+                    text,
+                    type: 'text',
+                }],
+                isError: false,
+            }
+            success = true
+        }
+    }
+    return {
+        error,
+        result,
+        success,
+    }
+}
+async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
+    const { team='memory', type, } = mcpdata
+    let { id=avatar.bot(undefined, type)?.id, } = mcpdata
+    let error,
+        result
+    if(avatar.isMyLife)
+        error = {
+            code: 403,
+            data: mcpdata,
+            message: 'MyLife System Avatar cannot switch bots'
+        }
+    else if(team!=='memory')
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: 'Currently only the Memory Team is supported'
+        }
+    else if(!type?.length)
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: '`type` parameter required for switching bots'
+        }
+    else if(!id?.length)
+        result = {
+            content: [{
+                text: `No bot found for type: ${ type }`,
+                type: 'text',
+            }],
+            isError: true,
+        }
+    else if(avatar.activeBot.id===id)
+        result = {
+            content: [{
+                text: `Bot type "${ type }" already currently active`,
+                type: 'text',
+            }],
+            isError: true,
+        }
+    else {
+        const { bot_id, responses, success, } = await avatar.setActiveBot(id, false)
+        if(!success || bot_id!==id)
+            result = {
+                content: [{
+                    text: `Failed to switch bot to ${ type }`,
+                    type: 'text',
+                }],
+                isError: true,
+            }
+        else {
+            const { bot_name: name, description, id: activeBotId, provider, type, welcome } = avatar.activeBot
+            const activeBot = {
+                description,
+                id: activeBotId,
+                name,
+                provider,
+                type,
+                welcome: welcome ?? responses?.[0],
+            }
+            const availableAgents = avatar.bots
+                .map(bot=>({
+                    description: bot.description,
+                    id: bot.id,
+                    name: bot.bot_name,
+                    type: bot.type,
+                }))
+            const explanation = `Successfully switched active bot`
+            const structuredContent = {
+                activeBot,
+                availableAgents,
+                explanation,
+            }
+            result = {
+                content: [{
+                    text: JSON.stringify(structuredContent),
+                    type: 'text',
+                }],
+                isError: false,
+                notification: 'notifications/tools/list_changed',
+                structuredContent,
+            }
+        }
+    }
+    return {
+        error,
+        result,
+        toolListChanged: true, // true for switching bots, as they have different skills
+    }
 }
 function mPruneConversation(conversation){
     const { bot_id, form, id, name, type, } = conversation
