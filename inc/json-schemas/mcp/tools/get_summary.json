@@ -15,15 +15,13 @@
                 "type": "string"
             }
         },
-        "required": [
-            "itemId"
-        ]
+        "required": ["itemId"]
     },
-    "name": "get_summary",
     "mylife_bots": [
         "avatar",
         "biographer",
         "diary",
         "journal"
-    ]
+    ],
+    "name": "get_summary"
 }

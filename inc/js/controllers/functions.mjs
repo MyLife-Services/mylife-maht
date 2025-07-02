@@ -229,8 +229,16 @@ async function item(ctx){
 	delete avatar.frontendInstruction
 	ctx.body = response
 }
+/**
+ * Logout the member from the system.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {void} - Redirects to the home page
+ */
 async function logout(ctx){
-	ctx.session = null
+	const { avatar: Avatar, } = ctx.state
+	if(!Avatar?.isMyLife ?? true)
+		ctx.throw(400, `cannot logout from system avatar`)
+	await Avatar.logout(ctx)
 	ctx.redirect('/')
 }
 /**

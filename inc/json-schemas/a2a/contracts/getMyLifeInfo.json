@@ -1,0 +1,48 @@
+{
+  "name": "getMyLifeInfo",
+  "description": "Returns current information about the MyLife system intelligence, available agents, and services.",
+  "examples": {
+    "input": {
+      "question": "What agents are available?",
+      "questionCategory": "agents"
+    }
+  },
+  "input": {
+    "type": "object",
+    "properties": {
+      "question": {
+        "description": "A question to ask the MyLife system intelligence, if applicable.",
+        "type": "string"
+      },
+      "questionCategory": {
+        "default": "company",
+        "enum": ["agents", "board", "company", "executive", "human remembrance project", "intelligences", "interface", "membership", "platform", "q", "registration", "roadmap", "services", "technology"],
+        "type": "string"
+      }
+    },
+    "required": ["question"]
+  },
+  "metadata": {
+    "aliases": {
+      "getMyLifeAgents": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "agents" }
+      },
+      "getMembershipInfo": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "membership" }
+      },
+      "getRegistrationInfo": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "registration" }
+      },
+      "getHelpInfo": {
+        "proxyFor": "getMyLifeInfo",
+        "defaultInput": { "questionCategory": "interface" }
+      }
+    }
+  },
+  "preferredProviders": ["internal"],
+  "protocol": "http/1.1",
+  "version": "1.0.0"
+}

@@ -90,10 +90,88 @@
             "type"
         ]
     },
-    "name": "create_summary",
     "mylife_bots": [
         "biographer",
         "diary",
         "journal"
-    ]
+    ],
+    "name": "create_summary",
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "form": {
+                "description": "The form of the intelligence submitting the summary.",
+                "enum": [
+                    "biographer",
+                    "diary",
+                    "item",
+                    "journal"
+                ],
+                "type": "string"
+            },
+            "keywords": {
+                "description": "Keywords most relevant to `item`",
+                "items": {
+                    "description": "Keyword from `item` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "mood": {
+                "description": "Record member mood for summary as ascertained from `item` content and interactions",
+                "type": "string"
+            },
+            "phaseOfLife": {
+                "description": "Phase of life, if indicated by `item` content",
+                "enum": [
+                    "birth",
+                    "childhood",
+                    "adolescence",
+                    "teenage",
+                    "young-adult",
+                    "adulthood",
+                    "middle-age",
+                    "senior",
+                    "end-of-life",
+                    "past-life",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "relationships": {
+                "description": "Individuals (or pets) mentioned in `item` content",
+                "items": {
+                    "description": "Name of individual or pet in `item`",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "summary": {
+                "description": "A complete `item` summary composed of all salient points from member content",
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title for `item` based on content",
+                "type": "string"
+            },
+            "type": {
+                "description": "MyLife System type of `item`; currently supported types are `entry` and `memory`",
+                "enum": [
+                    "entry",
+                    "memory"
+                ],
+                "type": "string"
+            }
+        },
+        "required": [
+            "form",
+            "keywords",
+            "mood",
+            "phaseOfLife",
+            "relationships",
+            "summary",
+            "title",
+            "type"
+        ]
+    }
 }
