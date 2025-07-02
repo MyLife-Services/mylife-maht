@@ -4,11 +4,15 @@ import path from 'path'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import { challenge, } from './functions.mjs'
-/* constants */
-const mJsonRpcVersion = process.env.MCP_JSONRPC_Version ?? '2.0',
-    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol ?? '2025-03-26',
-    mMaxSamplingTokens = parseInt(process.env.MCP_SAMPLING_TOKEN_MAX) ?? 1000,
-    mPageSize = parseInt(process.env.MCP_PAGE_SIZE) ?? 100
+/* modular constants */
+const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol,
+    mMaxSamplingTokens = parseInt(process.env.MCP_SAMPLING_TOKEN_MAX)
+        ?? 1000,
+    mMcpClientTools = process.env.MCP_CLIENT_TOOLS?.split(',')?.map(tool => tool.trim()) // convert string to array
+        ?? ['elicitation', 'sampling', 'roots'],
+    mPageSize = process.env.MCP_PAGE_SIZE
+        ?? 100
 /* public functions */
 /**
  * Primary handler for an MCP request.
@@ -19,7 +23,7 @@ async function mcpCall(ctx){
             avatar: Avatar, mcp, requestType, sessionMeta,
         } = {}
     } = ctx
-    const { initializeConfirmation, requests, runs, transportEntry, } = sessionMeta
+    const { transportEntry, } = sessionMeta
         ?? {}
     /* 2025-03-26 mcp batch request */
     const mcpRequests = Array.isArray(mcp)
@@ -57,75 +61,85 @@ async function mcpCall(ctx){
     }
 }
 /**
- * Handles MCP sampling requests.
- * @documentation https://modelcontextprotocol.io/specification/2025-03-26/client/sampling
- * @param {Globals} Globals - Globals instance for utility functions
- * @param {SSEServerTransport|StreamableHTTPServerTransport} transport - transport for the session
- * @param {object} originalRequest - Original request object
- * @param {string} serverRequest - MyLife request string
- * @param {string} instructions - Additional instructions for the sample (optional)
- * @param {string} id - Unique identifier for the sample (optional, will generate if not provided)
- * @param {function|object|string} callback - Callback function to handle the sampling response (optional)
- * @returns {Promise<object>} - Request Envelope `{ externalId, id, request: { callback, mcp, mylife, original, protocolVersion, type } }`
+ * Checks if the MCP client allows directory access.
+ * @param {object} capabilities - MCP client capabilities
+ * @returns {boolean} - Whether directory access is allowed
  */
-async function mcpSample(Globals, transport, originalRequest, serverRequest, instructions, id, callback){
+function mcpClientAllowsDirectory(capabilities){
+    const allowsDirectory = ( capabilities?.roots && mMcpClientTools.includes('roots') )
+        ?? false
+    return allowsDirectory
+}
+/**
+ * Checks if the MCP client allows sampling or elicitation requests.
+ * @param {object} capabilities - MCP client capabilities
+ * @returns {boolean} - Whether the MCP client allows sampling or elicitation requests
+ */
+function mcpClientAllowsRequest(capabilities){
+    const allowsRequest = ( capabilities?.sampling && mMcpClientTools.includes('sampling') )
+        ?? ( capabilities?.elicitation && mMcpClientTools.includes('elicitation') )
+        ?? false
+    return allowsRequest
+}
+/**
+ * Handles MCP client requests.
+ * @param {object} capabilities - MCP client capabilities
+ * @param {object} Globals - Global variables
+ * @param {object} transport - Transport object
+ * @param {object} originalRequest - Original request object
+ * @param {object} explanation - Server request object
+ * @param {object} instructions - Instructions for the request
+ * @param {string} id - Request ID (optional)
+ * @param {function} callback - Callback function (optional)
+ * @returns {Promise<object>} - The result of the MCP client request: { error, mcpRequest, }
+ */
+async function mcpClientRequest(capabilities, Globals, transport, originalRequest, explanation, instructions, id, callback){
+    let error,
+        mcpRequest,
+        type
     if(!transport)
-        return {
-            error: {
-                code: -32000,
-                data: { id, request, },
-                message: `No transport available for sampling request.`,
-            },
+        error = {
+            code: -32000,
+            data: { id, originalRequest, },
+            message: `No transport found for client request.`,
         }
-    if(!originalRequest || !serverRequest)
-        return {
-            error: {
-                code: -32000,
-                data: { id, request: originalRequest, },
-                message: 'Invalid sampling request, `originalRequest` and `serverRequest` are required.',
-            },
+    if(!originalRequest || !explanation)
+        error = {
+            code: -32000,
+            data: { id, request: originalRequest, explanation, },
+            message: 'Invalid client request, `originalRequest` and `explanation` are required.',
         }
-    id = Globals.isValidGuid(id)
-        ? id
-        : Globals.newGuid
-    const mcpRequest = {
-        id,
-        jsonrpc: mJsonRpcVersion,
-        method: 'sampling/createMessage',
-        params: {
-            maxTokens: mMaxSamplingTokens,
-            messages: [
-                {
-                    role: 'user',
-                    content: {
-                        type: 'text',
-                        text: serverRequest,
-                    },
-                },
-            ],
-            modelPreferences: {
-                hints: [],
-                intelligencePriority: 0.8,
-                speedPriority: 0.2,
-            },
-            systemPrompt: instructions
-                ?? 'I enact the instructions provided in each request.',
-        },
+    if(mcpClientAllowsRequest(capabilities)){
+        id = Globals.isValidGuid(id)
+            ? id
+            : Globals.newGuid
+        if(capabilities?.elicitation){ /* 2025-06-18 protocol POST elicitation */
+            const { elicitation: elicitationExplanation, } = explanation
+            const { elicitation: elicitationInstructions, } = instructions
+            type = 'elicitation'
+            const mcpElicitation = mMcpElicit(originalRequest, elicitationExplanation, elicitationInstructions, id, callback)
+            if(!!mcpElicitation)
+                mcpRequest = mcpElicitation
+        } else if(capabilities?.sampling){ /* 2025-03-26 protocol POST sampling */
+            const { sampling: samplingExplanation, } = explanation
+            const { sampling: samplingInstructions, } = instructions
+            type = 'sampling'
+            const mcpSampling = mMcpSample(originalRequest, samplingExplanation, samplingInstructions, id, callback)
+            if(!!mcpSampling)
+                mcpRequest = mcpSampling
+        } else
+            error = {
+                code: -32602,
+                data: { id, request: originalRequest, supportedClientTools: mMcpClientTools, },
+                message: `MCP Server requests responses available only for \`data.supportedClientTools\`.`,
+            }
     }
-    await sendSamplingRequest(transport, mcpRequest)
-    const sampling = {
-        externalId: originalRequest?.id,
-        id,
-        request: {
-            callback,
-            mcp: mcpRequest,
-            mylife: serverRequest,
-            original: originalRequest,
-            protocolVersion: mJsonRpcProtocolVersion,
-            type: 'mcp',
-        },
+    if(!!mcpRequest.request?.mcp)
+        await mMcpSendClientRequest(transport, mcpRequest.request.mcp, type) // @todo - can await be removed?
+    return {
+        error,
+        mcpRequest,
     }
-    return sampling
 }
 /**
  * Full disconnect that ends an MCP session.
@@ -176,7 +190,7 @@ function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
         initialized: false,
         initializeConfirmation: false,
         requests: new Map(),
-        runs: [],
+        runs: new Map(),
         sessionId,
         sessionIdKoa,
         transportEntry,
@@ -258,13 +272,13 @@ async function mMcpCall(ctx, mcp){
     const { Globals, state, } = ctx
     const { avatar: Avatar, locked, sessionMeta={}, requestType='system', } = state
     const { capabilities, clientInfo, initializeConfirmation, protocolVersion, requests, runs, sessionId, transportEntry, } = sessionMeta
-    const { id, jsonrpc, method, params={}, result: mcpResult, } = mcp
+    const { error: mcpError, id, jsonrpc, method, params={}, result: mcpResult, } = mcp
     const { arguments: args, name, _meta, } = params
         ?? {}
     const { progressToken, } = _meta
         ?? {}
     /* identify run */
-    run = runs.find((run)=>(run.id===id))
+    run = runs.get(id)
     if(!!run) // @todo - handle run in progress
         throw new error('Run in progress', id)
     run = {
@@ -275,16 +289,17 @@ async function mMcpCall(ctx, mcp){
         name,
         _meta,
     }
-    runs.push(run)
+    runs.set(id, run)
     if(!initializeConfirmation){
         if(transportEntry instanceof StreamableHTTPServerTransport){
-            const { error, result, } = await mcpInitializationChecks(ctx)
+            const { error, result, } = await mMcpInitializationChecks(ctx)
             await transportEntry.handleRequest(ctx.req, ctx.res, ctx.request.body)
             await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
         } else if(transportEntry instanceof SSEServerTransport){
-            const { error, result, } = await mcpInitializationChecks(ctx)
+            const { error, result, } = await mMcpInitializationChecks(ctx)
             await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
         }
+        runs.delete(id)
         return
     } else if(!!transportEntry && transportEntry instanceof StreamableHTTPServerTransport)
             await transportEntry.handleRequest(ctx.req, ctx.res, ctx.request.body)
@@ -306,6 +321,12 @@ async function mMcpCall(ctx, mcp){
                 clearInterval(progressInterval)
         }, progressIntervalDuration)
     }
+    /* client error response */
+    if(!!mcpError){
+        requests.delete(id)
+        console.log(chalk.bgRed('mcpCall()::❌ MCP Error'), id, mcpError)
+        return
+    }
     /* process `sampling` or `elicitation` responses */
     if(!!mcpResult && id?.length){
         const request = requests.get(id)
@@ -316,32 +337,43 @@ async function mMcpCall(ctx, mcp){
                 params: {
                     arguments: originalArgs,
                 }={},
-            }={}, protocolVersion, type,
+            }={}, protocolVersion, tool, type,
         } } = request
-        const { content: { text, }, model, role, stopReason='endTurn', } = mcpResult
-        if(stopReason!== 'endTurn')
-            console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request needs further processing with non-endTurn stopReason'), id, mcpResult)
-        if(role!=='assistant')
-            console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request has no role or role is not assistant'), id, mcpResult)
-        if(!text?.length)
-            console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request has no text content'), id, mcpResult)
-        if(callback){
-            if(typeof callback==='function')
-                await callback(text)
-            else if(typeof callback==='object' && !Array.isArray(callback)){
-                console.log(chalk.bgBlue('mcpCall()::Sampling Request `string`'), callback, text)
-                // look to original request for itemId (or possibly assign in sample data)
-                const { error, result, success, } = await Avatar.mcpFunctionResponse('sampling', callback, text, sessionMeta, ctx)
-                console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request callback result'), error, result, success)
-            // @todo - run should NOT have been "finished" (i.e., removed from `runs`) until now
-            // @todo - change `runs` and `requests` arrays to Sets
+        const { action, content: data={}, model, role, stopReason='endTurn', } = mcpResult
+        if(tool==='elicitation' && action?.length){ /* 2025-06-18 action */
+            switch(action.toLowerCase()){
+                case 'accept':
+                    if(callback){
+                        const { error, result, success, } = await Avatar.mcpFunctionResponse('elicitation', callback, data, sessionMeta, ctx)
+                        console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with callback'), id, result)
+                    }
+                    break
+                case 'cancel':
+                case 'reject':
+                default:
+                    break
             }
-        } else {
-            requests.delete(id)
-            console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved without callback'))
+        } else { /* 2025-03-26 sampling */
+            const { text, } = data
+            if(stopReason!== 'endTurn')
+                console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request needs further processing with non-endTurn stopReason'), id, mcpResult)
+            if(role!=='assistant')
+                console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request has no role or role is not assistant'), id, mcpResult)
+            if(!text?.length)
+                console.log(chalk.yellow('mcpCall()::⚠️ Sampling Request has no text content'), id, mcpResult)
+            if(callback){
+                if(typeof callback==='function')
+                    await callback(text)
+                else if(typeof callback==='object' && !Array.isArray(callback)){
+                    // look to original request for itemId (or possibly assign in sample data)
+                    const { error, result, success, } = await Avatar.mcpFunctionResponse('sampling', callback, text, sessionMeta, ctx)
+                    console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with callback'), id, result)
+                }
+            }
         }
+        requests.delete(id)
         if(externalId)
-            console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with externalId'), externalId)
+            runs.delete(externalId)
         return
     }
     const methodBase = method.split('/')[0]
@@ -509,7 +541,7 @@ async function mMcpCall(ctx, mcp){
                         break
                     }
                     if(requestType!=='system' && ['mylife_login', 'login'].includes(name)){
-                        const { result: loginResult, toolListChanged: mcpLoginToolListChanged=false, } = await mcpLogin(ctx, transportEntry, args, jsonrpc, id)
+                        const { result: loginResult, toolListChanged: mcpLoginToolListChanged=false, } = await mMcpLogin(ctx, transportEntry, args, jsonrpc, id)
                         toolListChanged = mcpLoginToolListChanged
                         if(loginResult)
                             result = loginResult
@@ -641,7 +673,7 @@ async function mMcpCall(ctx, mcp){
     }
     if(progressInterval)
         clearInterval(progressInterval)
-    sessionMeta.runs = runs.filter((run)=>(run.id!==id))
+    runs.delete(id)
     await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
     if(toolListChanged)
         mcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')    
@@ -676,11 +708,46 @@ function mcpCursor(array, base64Cursor, pageSize=mPageSize){
     }
 }
 /**
+ * Sends an MCP `elicitation` response back to the client.
+ * @param {object} originalRequest - Original request object
+ * @param {string} explanation - MyLife request string
+ * @param {string} instructions - Additional instructions for the sample (optional)
+ * @param {string} id - Unique identifier for the sample (optional, will generate if not provided)
+ * @param {function|object|string} callback - Callback function to handle the sampling response (optional)
+ * @returns {Promise<object>} - Request Envelope `{ externalId, id, request: { callback, mcp, mylife, original, protocolVersion, type } }`
+ */
+function mMcpElicit(originalRequest, message, requestedSchema, id, callback){
+    const mcpRequest = {
+        id,
+        jsonrpc: mJsonRpcVersion,
+        method: 'elicitation/create',
+        params: {
+            message: message,
+            requestedSchema,
+        }
+    }
+    const elicit = {
+        externalId: originalRequest?.id,
+        id,
+        mcpRequest,
+        request: {
+            callback,
+            mcp: mcpRequest,
+            mylife: message,
+            original: originalRequest,
+            protocolVersion: mJsonRpcProtocolVersion,
+            tool: 'elicitation',
+            type: 'mcp',
+        },
+    }
+    return elicit
+}
+/**
  * Perform MCP initialization checks. Sets session metadata and returns result or error.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<object>} - MCP Initialization result or generic error
  */
-async function mcpInitializationChecks(ctx){
+async function mMcpInitializationChecks(ctx){
     let error,
         result,
         sessionMeta = ctx.state.sessionMeta
@@ -741,7 +808,7 @@ async function mcpInitializationChecks(ctx){
         result,
     }
 }
-async function mcpLogin(ctx, transportEntry, args, jsonrpc, id){
+async function mMcpLogin(ctx, transportEntry, args, jsonrpc, id){
     const { mbr_id: memberId, passphrase: memberPassphrase, } = args
     let result
     try {
@@ -769,6 +836,57 @@ async function mcpLogin(ctx, transportEntry, args, jsonrpc, id){
         result,
         toolListChanged: true,
     }
+}
+/**
+ * Handles MCP sampling requests.
+ * @documentation https://modelcontextprotocol.io/specification/2025-03-26/client/sampling
+ * @param {object} originalRequest - Original request object
+ * @param {string} explanation - MyLife request string
+ * @param {string} instructions - Additional instructions for the sample (optional)
+ * @param {string} id - Unique identifier for the sample (optional, will generate if not provided)
+ * @param {function|object|string} callback - Callback function to handle the sampling response (optional)
+ * @returns {Promise<object>} - Request Envelope `{ externalId, id, request: { callback, mcp, mylife, original, protocolVersion, type } }`
+ */
+function mMcpSample(originalRequest, explanation, instructions, id, callback){
+    const mcpRequest = {
+        id,
+        jsonrpc: mJsonRpcVersion,
+        method: 'sampling/createMessage',
+        params: {
+            maxTokens: mMaxSamplingTokens,
+            messages: [
+                {
+                    role: 'user',
+                    content: {
+                        type: 'text',
+                        text: explanation,
+                    },
+                },
+            ],
+            modelPreferences: {
+                hints: [],
+                intelligencePriority: 0.8,
+                speedPriority: 0.2,
+            },
+            systemPrompt: instructions
+                ?? 'I enact the instructions provided in each request.',
+        },
+    }
+    const sampling = {
+        externalId: originalRequest?.id,
+        id,
+        mcpRequest,
+        request: {
+            callback,
+            mcp: mcpRequest,
+            mylife: explanation,
+            original: originalRequest,
+            protocolVersion: mJsonRpcProtocolVersion,
+            tool: 'sampling',
+            type: 'mcp',
+        },
+    }
+    return sampling
 }
 /**
  * 
@@ -837,7 +955,7 @@ async function mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result){
  * @param {object} serverRequest - The server request object to send
  * @returns {Promise<void>} - resolves when the request is sent
  */
-async function sendSamplingRequest(transport, serverRequest){
+async function mMcpSendClientRequest(transport, serverRequest){
     try {
         if(transport instanceof SSEServerTransport){
             await transport.send(serverRequest)
@@ -865,7 +983,9 @@ function mcpTestProtocol(jsonrpc, protocolVersion){
 /* exports */
 export {
     mcpCall,
-    mcpSample,
+    mcpClientAllowsDirectory,
+    mcpClientAllowsRequest,
+    mcpClientRequest,
     mcpSessionEnd,
     mcpSessionInfo,
     mcpStream,
