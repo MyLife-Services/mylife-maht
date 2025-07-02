@@ -6,7 +6,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { challenge, } from './functions.mjs'
 /* modular constants */
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
-    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
+    mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol,
     mMaxSamplingTokens = parseInt(process.env.MCP_SAMPLING_TOKEN_MAX)
         ?? 1000,
     mMcpClientTools = process.env.MCP_CLIENT_TOOLS?.split(',')?.map(tool => tool.trim()) // convert string to array
