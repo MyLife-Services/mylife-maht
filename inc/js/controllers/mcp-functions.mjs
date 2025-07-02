@@ -148,6 +148,17 @@ async function mcpLogin(ctx){
     return loginResult
 }
 /**
+ * Handles a MCP login request.
+ * @param {Koa} ctx - Koa context object
+ * @returns {Promise<object>} - The result of the login request { error, result, toolListChanged, }
+ */
+async function mcpLogin(ctx){
+    const { Globals, request: { body: { id, jsonrpc, params, }={}, }, state, } = ctx
+    const { avatar: Avatar, sessionMeta, } = state
+    const loginResult = await mMcpLogin(ctx, sessionMeta?.transportEntry, params, jsonrpc, id)
+    return loginResult
+}
+/**
  * Full disconnect that ends an MCP session.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<void>} - returns status 204
@@ -824,7 +835,16 @@ async function mMcpInitializationChecks(ctx){
         result,
     }
 }
-async function mMcpLogin(ctx, transportEntry, args, jsonrpc, id){
+/**
+ * Handles a MCP login request.
+ * @param {Koa} ctx - Koa context object
+ * @param {SSEServerTransport|StreamableHTTPServerTransport} transport - Transport entry for the session
+ * @param {object} args - Arguments for the login request
+ * @param {string} jsonrpc - JSON-RPC version
+ * @param {string|number} id - Unique identifier for the request
+ * @returns {Promise<object>} - The result of the login request
+ */
+async function mMcpLogin(ctx, transport, args, jsonrpc, id){
     const { mbr_id: memberId, passphrase: memberPassphrase, } = args
     let result
     try {
