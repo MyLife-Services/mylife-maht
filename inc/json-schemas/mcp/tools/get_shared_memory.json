@@ -21,6 +21,29 @@
         },
         "required": ["memoryId"]
     },
+    "mylife_system_access": true,
     "name": "get_shared_memory",
-    "mylife_system_access": true
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "explanation": {
+                "description": "A brief explanation of how to treat the scene of the memory being experienced",
+                "type": "string"
+            },
+            "memoryId": {
+                "description": "The id of the memory being initially retrieved, or the id of the sharing instance",
+                "format": "uuid",
+                "type": "string"
+            },
+            "scene": {
+                "description": "The text content of the current scene of the memory being experienced",
+                "type": "string"
+            },
+            "warnings": {
+                "description": "Comma-separated list of warnings that should be presented to the human user before proceeding with the memory (see `explanation` for details)",
+                "type": "string"
+            }
+        },
+        "required": ["explanation", "memoryId", "scene"]
+    }
 }

@@ -54,9 +54,11 @@ const mMcpMap = {
                     title: item.title,
                 }))
             const success = response?.length > 0
+            const responseArrayName = 'memories'
             return {
                 preface,
                 response,
+                responseArrayName,
                 success,
             }
         },
@@ -1851,13 +1853,17 @@ class Q extends Avatar {
                         message: 'No shared memories found',
                     }
                 else {
-                    const sharedMemoryList = response.map(memory=>`- [${ memory.title }](${ memory.id })`).join('\n')
+                    const structuredContent = {
+                        explanation: `The \`memories\` array is the list of shared memories by id and title--present titles to human; use ID only to **initially** call \`get_shared_memory\`. **Note**: ID will change and be shared after initialization to identify your unique instance of the shared memory.`,
+                        memories: response,
+                    }
                     result = {
                         content: [{
-                            text: `Following is the list of shared memories by id and title--present titles to human; use ID only to **initially** call \`get_shared_memory\`. **Note**: ID will change and be shared after initialization to identify your unique instance of the shared memory.\n${ sharedMemoryList }`,
+                            text: JSON.stringify(structuredContent),
                             type: 'text',
                         }],
                         isError: false,
+                        structuredContent,
                     }
                     if(typeof (response ?? null) === 'object'){ // transfer response to data
                         data = response // a2a data part
@@ -1884,9 +1890,15 @@ class Q extends Avatar {
                     sessionMeta.Share = Share
                     Share = sessionMeta.Share
                     if(Share.warnings?.length){
+                        const structuredContent = {
+                            explanation: `Confirm that the viewer would like to proceed given the warnings included. On confirmation make the \`get_shared_memory\` call again using this personalized instance id for \`memoryId\`.`,
+                            memoryId: sharedMemoryId,
+                            scene: Share.previousScene,
+                            warnings: Share.warnings,
+                        }
                         result = {
                             content: [{
-                                text: `Confirm that the viewer would like to proceed given the following content warnings: ${ JSON.stringify(Share.warnings) }. Then make the \`get_shared_memory\` call again using your personalized instance id for \`memoryId\`: ${ sharedMemoryId }`,
+                                text: JSON.stringify(structuredContent),
                                 type: 'text',
                             }],
                             isError: true,
@@ -1897,18 +1909,20 @@ class Q extends Avatar {
                 if(!Share.warningsAccepted) /* previous error result required intelligence to issue warnings to human before re-contacting */
                     Share.acceptWarnings()
                 await this.shareMemory(sharedMemoryId, sharedMemoryInput)
+                const structuredContent = {
+                    explanation: `The \`scene\` object is the current scene of the shared memory. The \`input\` field is the human input to be added to the shared memory. Call \`shareMemory\` with the \`memoryId\` to add the input to the shared memory.`,
+                    memoryId: sharedMemoryId,
+                    scene: Share.previousScene,
+                }
                 result = {
                     content: [
                         {
-                            text: `Following is the current scene to present to the user for this memory. Ask user if they have any content to add. Call \`get_shared_memory\` again with the assigned instance id for \`memoryId\`: ${ sharedMemoryId }. Include human input using field \`input\`.`,
-                            type: 'text',
-                        },
-                        { // should transition to data part in A2A
-                            text: JSON.stringify(Share.previousScene),
+                            text: JSON.stringify(structuredContent),
                             type: 'text',
                         }
                     ],
                     isError: false,
+                    structuredContent,
                 }
                 success = !!result
                 break

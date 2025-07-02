@@ -6,15 +6,38 @@
         "idempotentHint": true,
         "openWorldHint": false
     },
-	"description": "I retrieve the memories stored in the member's scrapbook",
+	"description": "I retrieve the memories stored in the member's scrapbook, and include an `explanation on how to use them ",
 	"inputSchema": {
         "type": "object",
 		"properties": {},
 		"required": []
 	},
-    "name": "get_memories",
     "mylife_bots": [
         "avatar",
         "biographer"
-    ]
+    ],
+    "name": "get_memories",
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "memories": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Unique identifier for the memory"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Title of the memory"
+                        }
+                    },
+                    "required": ["id", "title"]
+                }
+            }
+        },
+        "required": ["memories"]
+    }
 }

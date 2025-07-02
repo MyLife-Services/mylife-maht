@@ -12,6 +12,33 @@
         "properties": {},
         "required": []
     },
+    "mylife_system_access": true,
     "name": "get_shared_memories",
-    "mylife_system_access": true
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "explanation": {
+                "type": "string",
+                "description": "Explanation of how to interpret memories"
+            },
+            "memories": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Unique identifier for the memory"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Title of the memory"
+                        }
+                    },
+                    "required": ["id", "title"]
+                }
+            }
+        },
+        "required": ["explanation", "memories"]
+    }
 }

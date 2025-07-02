@@ -19,11 +19,21 @@
             "itemId"
         ]
     },
-    "name": "get_summary",
     "mylife_bots": [
         "avatar",
         "biographer",
         "diary",
         "journal"
-    ]
+    ],
+    "name": "get_summary",
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "summary": {
+                "description": "Summary of the item",
+                "type": "string"
+            }
+        },
+        "required": ["summary"]
+    }
 }

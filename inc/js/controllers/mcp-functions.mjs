@@ -553,49 +553,58 @@ async function mMcpCall(ctx, mcp){
                             }
                         break
                     }
-                    let metadata,
+                    let explanation='',
+                        metadata,
                         nextCursor,
                         response,
-                        text='',
+                        structuredContent={},
                         total
-                    const { error: mcpError, preface, response: mcpResponse, result: mcpResult, success=false, suffix, tool: mcpTool, toolListChanged: mcpToolListChanged=false, } = await Avatar.mcpFunction(name, args, sessionMeta, ctx)
+                    const { error: mcpError, preface: mcpPreface, response: mcpResponse, responseArrayName: mcpResponseArrayName=name+'Array', result: mcpResult, success: mcpSuccess=false, mcpSuffix, tool: mcpTool, toolListChanged: mcpToolListChanged=false, } = await Avatar.mcpFunction(name, args, sessionMeta, ctx)
                         ?? {}
                     toolListChanged = mcpToolListChanged
                     if(mcpError)
                         error = mcpError
                     else {
-                        /* formed MCP `result` returned from sub-function */
+                        /* well-formed MCP `result` returned from sub-function */
                         if(mcpResult){
                             result = mcpResult
                             break
                         }
                         /* tool response requires assessment and compilation */
-                        if(Array.isArray(mcpResponse) && (args?.cursor || mcpResponse.length > mPageSize)){
-                            const { mcpArray, nextCursor: mcpNextCursor, } = mcpCursor(mcpResponse, args?.cursor)
-                            total = mcpResponse.length
-                            metadata = { total, }
-                            response = mcpArray
-                            nextCursor = mcpNextCursor
-                        }
-                        else
-                            response = mcpResponse
-                        if(preface?.length)
-                            text += preface + (
-                                preface.endsWith('\n')
+                        if(Array.isArray(mcpResponse)){
+                            if(args?.cursor || mcpResponse.length > mPageSize){
+                                const { mcpArray, nextCursor: mcpNextCursor, } = mcpCursor(mcpResponse, args?.cursor)
+                                total = mcpResponse.length
+                                metadata = { total, }
+                                response = mcpArray
+                                nextCursor = mcpNextCursor
+                            }
+                            structuredContent[mcpResponseArrayName] = response
+                                ?? mcpResponse
+                        } else
+                            structuredContent = mcpResponse
+                        if(mcpPreface?.length)
+                            explanation += mcpPreface + (
+                                mcpPreface.endsWith('\n')
                                     ? ''
                                     : '\n'
                             )
-                        text += JSON.stringify(response)
-                        if(suffix?.length)
-                            text += '\n' + suffix
+                        if(mcpSuffix?.length)
+                            explanation += explanation.endsWith('\n')
+                                ? mcpSuffix
+                                : '\n' + mcpSuffix
+                        if(explanation?.trim()?.length)
+                            structuredContent.explanation = explanation.trim()
+                        const text = JSON.stringify(structuredContent)
                         result = {
                             content: [{
                                 text,
                                 type: 'text',
                             }],
-                            isError: !success,
+                            isError: !mcpSuccess,
                             metadata,
                             nextCursor,
+                            structuredContent,
                         }
                     }
                     break
