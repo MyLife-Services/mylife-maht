@@ -2,7 +2,7 @@
 import chalk from 'chalk'
 import fs from 'fs/promises'
 import path from 'path'
-import { challenge, } from './functions.mjs'
+import { mcpLogin, } from './mcp-functions.mjs'
 /* constants */
 const mA2AProviders = [
     {
@@ -82,6 +82,29 @@ const mAgentCards = {},
         },
         getPublicMemory: 'get_shared_memory',
         getPublicMemories: "get_shared_memories",
+        mylifeLogin: async (ctx, params)=>{
+            const { avatar: Avatar, } = ctx.state
+            if(!Avatar?.isMyLife)
+                return sendError(ctx, 403, -32601, 'Incorrect Avatar is being requested from avatar is in use. Please contact technical support.', { type: 'forbidden' })
+            const { memberId: mbr_id, passphrase, } = params
+            if(!mbr_id?.length || !passphrase?.length)
+                return sendError(ctx, 400, -32602, 'Member ID and passphrase are required', { type: 'invalid_request' })
+            const { result: { content: results, isError, }, toolListChanged, } = await mcpLogin(ctx, undefined, {
+                mbr_id,
+                passphrase,
+            })
+            let parts = results?.map(result=>{
+                const { text, type, } = result
+                if(type === 'text')
+                    return {
+                        kind: 'text',
+                        text,
+                    }
+            })
+                ?? []
+            return parts
+        },
+        mylifeLogout: "logout",
         registerForMyLifeMembership: "register",
     }
 /* load agent cards */
@@ -106,29 +129,26 @@ try {
 */
 /* public functions */
 async function a2aCall(ctx){
-    const agentId = resolveAgentId(ctx)
-    const { avatar: Agent, } = ctx.state
+    const { a2aAgentId, } = ctx.state
     ctx.set('Content-Type', 'application/json')
-    if(agentId==='q' && !Agent?.isMyLife)
-        return sendError(ctx, 403, -32601, 'Incorrect Avatar is being requested from avatar is in use. Please contact technical support.', { type: 'forbidden' })
-    const card = agentCard(agentId)
+    const card = agentCard(a2aAgentId)
     const { kind, messageId, metadata={}, parts, role, } = ctx.request.body
     if(kind!=='message')
         return sendError(ctx, 400, -32602, 'Invalid request body: expected kind to be "message"', { type: 'invalid_request' })
     if(!messageId?.length)
-        return sendError(ctx, 400, -32602, 'Message ID is required in the body for tracking: POST `/a2a/:agentId`', { type: 'missing_parameter' })
+        return sendError(ctx, 400, -32602, 'Message ID is required in the body', { type: 'missing_parameter' })
     if(!parts?.length)
-        return sendError(ctx, 400, -32602, 'Message parts are required in the body for tracking: POST `/a2a/:agentId`', { type: 'missing_parameter' })
+        return sendError(ctx, 400, -32602, 'Message parts are required in the body', { type: 'missing_parameter' })
     if(role!=='user')
         return sendError(ctx, 400, -32602, 'Invalid request body: expected role to be "user"', { type: 'invalid_request' })
     const { parameters, skill, skillId, } = extractSkill(card, parts)
     if(!skillId?.length) // @todo - should there be more helpful defaults and hints from internal intelligence? A pointer to a primer on how to use the agent's a2a capabilities?
-        return sendError(ctx, 400, -32602, 'Invalid request body. Specifications: Agent Requests via A2A Message **MUST** contain a DataPart that specifies the skill (id) being requested and any associated parameters; example: `{ "id": "getMyLifeInfo", "parameters": { "question": "who\'s on board?", "questionType": "board" } }`.', { type: 'invalid_request' })
+        return sendError(ctx, 400, -32602, 'Invalid request body. Specifications: Agent Requests via A2A Message **MUST** contain a `DataPart` that specifies the skill (id) being requested and any associated parameters; example: `{ "id": "getMyLifeInfo", "parameters": { "question": "who\'s on board?", "questionType": "board" } }`.', { type: 'invalid_request' })
     try {
         historyLogItem(ctx, messageId, {
             skill: { parameters, skill, skillId, },
         })
-        const parts = await a2aHandler(ctx, parameters, skillId),
+        const parts = await a2aHandler(ctx, a2aAgentId, skillId, parameters),
             role = 'agent'
         if(ctx.body?.error)
             return historyLogItem(ctx, messageId, {
@@ -140,7 +160,7 @@ async function a2aCall(ctx){
                 error: ctx.body.error,
             })
         }
-        metadata.agentId = agentId
+        metadata.agentId = a2aAgentId
         metadata.agentName = card?.name
         metadata.agentDescription = card?.description
         metadata.iconUrl = card?.iconUrl
@@ -176,19 +196,11 @@ async function a2aCall(ctx){
  * @returns {Promise<void>} - The agent card or an error response in `ctx.body`
  */
 async function a2aCard(ctx){
-    const agentId = resolveAgentId(ctx)
-    if(!agentId?.length){
-        ctx.status = 400
-        ctx.body = {
-            error: {
-                code: -32602,
-                message: 'Agent ID is required in the path: GET `/a2a/:agentId`',
-                data: { type: 'missing_parameter' }
-            }
-        }
-        return
-    }
-    const card = agentCard(agentId)
+    const { a2aAgentId, } = ctx.state
+    const card = agentCard(a2aAgentId)
+    ctx.set('Content-Type', 'application/json')
+    if(!card)
+        return sendError(ctx, 404, -32601, `Agent card not found: ${ a2aAgentId }`, { type: 'not_found' })
     /* ensure URLs absolute */
     if(card?.documentationUrl && !card.documentationUrl.startsWith('http'))
         card.documentationUrl = makeUrlAbsolute(card.documentationUrl)
@@ -198,16 +210,19 @@ async function a2aCard(ctx){
         card.endpoints.invoke = makeUrlAbsolute(card.endpoints.invoke)
     if(card?.endpoints?.describe && !card.endpoints.describe.startsWith('http'))
         card.endpoints.describe = makeUrlAbsolute(card.endpoints.describe)
+    if(card?.endpoints?.static){ /* NANDA */
+        const endpoints = card.endpoints.static
+        for(let i=0; i<endpoints.length; i++)
+            if(endpoints[i]?.length && !endpoints[i].startsWith('http'))
+                endpoints[i] = makeUrlAbsolute(endpoints[i])
+    }
+    if(card?.endpoints?.adaptive_resolver?.url && !card.endpoints.adaptive_resolver.url.startsWith('http'))
+        card.endpoints.adaptive_resolver.url = makeUrlAbsolute(card.endpoints.adaptive_resolver.url)
     if(card?.url && !card.url.startsWith('http'))
         card.url = makeUrlAbsolute(card.url)
     card.provider.url = process.env.MYLIFE_ORIGIN
         ?? 'https://humanremembranceproject.org'
-    ctx.set('Content-Type', 'application/json')
-    if(!card){
-        ctx.status = 404
-        ctx.body = { error: `Agent card not found: ${agentId}` }
-    } else
-        ctx.body = card
+    ctx.body = card
 }
 /**
  * Validates and serves the A2A contract by id.
@@ -250,7 +265,15 @@ async function a2aContract(ctx){
     }
 }
 /* private functions */
-async function a2aHandler(ctx, params, skillId){
+/**
+ * Handles the A2A request for a specific agent and skill.
+ * @param {Koa} ctx - Koa context
+ * @param {String} agentId - The ID of the agent
+ * @param {String} skillId - The ID of the skill
+ * @param {Object} params - The parameters for the request
+ * @returns {Promise<Parts[]>} - The A2A response parts
+ */
+async function a2aHandler(ctx, agentId, skillId, params){
     const handler = mHandlers[skillId]
     if(!handler)
         return sendError(ctx, 501, -32601, `Handler not implemented for capability: ${skillId}`, { type: 'not_implemented' })
@@ -505,7 +528,7 @@ function historyLogItem(ctx, messageId, data){
  * @returns {string} - The absolute URL
  */
 function makeUrlAbsolute(url){
-    if(!url.startsWith('http')){
+    if(url?.length && !url.startsWith('http')){
         const origin = process.env.MYLIFE_ORIGIN
             ?? 'https://humanremembranceproject.org'
         if(!origin.endsWith('/') && !url.startsWith('/'))
@@ -532,21 +555,6 @@ function reduceDataArray(dataArray){
         return acc
     }, {})
    return data
-}
-/**
- * Resolves the agent ID.
- * @private
- * @param {Koa} ctx - Koa context
- * @returns {string} - The resolved agent ID
- */
-function resolveAgentId(ctx){
-    let { agentId, } = ctx.params
-    if(!agentId){
-        agentId = ctx.state.avatar?.isMyLife
-            ? 'q'
-            : ctx.state.avatar?.id
-    }
-    return agentId
 }
 /**
  * Sends an error response in the Koa context.

@@ -141,6 +141,12 @@ async function mcpClientRequest(capabilities, Globals, transport, originalReques
         mcpRequest,
     }
 }
+async function mcpLogin(ctx){
+    const { Globals, request: { body: { id, jsonrpc, params, }={}, }, state, } = ctx
+    const { avatar: Avatar, sessionMeta, } = state
+    const loginResult = await mMcpLogin(ctx, sessionMeta?.transportEntry, params, jsonrpc, id)
+    return loginResult
+}
 /**
  * Full disconnect that ends an MCP session.
  * @param {Koa} ctx - Koa context object
@@ -823,7 +829,8 @@ async function mMcpLogin(ctx, transportEntry, args, jsonrpc, id){
     let result
     try {
         await challenge(ctx, memberId, memberPassphrase)
-        ctx.body = null
+        if(ctx.body)
+            ctx.body = undefined // reset body to avoid double response
         const { avatar: Avatar, } = ctx.state
         result = {
             content: [{
@@ -844,7 +851,7 @@ async function mMcpLogin(ctx, transportEntry, args, jsonrpc, id){
     }
     return {
         result,
-        toolListChanged: true,
+        toolListChanged: !(result?.isError ?? true),
     }
 }
 /**
@@ -996,6 +1003,7 @@ export {
     mcpClientAllowsDirectory,
     mcpClientAllowsRequest,
     mcpClientRequest,
+    mcpLogin,
     mcpSessionEnd,
     mcpSessionInfo,
     mcpStream,

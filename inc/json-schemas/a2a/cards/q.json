@@ -1,9 +1,24 @@
 {
+  "agent_name": "Q",
   "capabilities": {
+    "authentication": {
+      "methods": [],
+      "requiredScopes": []
+    },
+    "batch": false,
     "extensions": [],
+    "modalities": [
+      "text"
+    ],
     "pushNotifications": false,
     "stateTransitionHistory": false,
     "streaming": false
+  },
+  "certification": {
+    "level": "verified",
+    "issuer": "NANDA",
+    "issuanceDate": "2025-06-12",
+    "expirationDate": "2026-06-12"
   },
   "defaultInputModes": [
     "application/json",
@@ -15,11 +30,26 @@
   "description": "I am the MyLife System Avatar agent responsible for information about the nonprofit MyLife, its services and technical system, other meta-knowledge, agent resolution capacity, and general orchestration for non-member (or non-validated member) interests.",
   "documentationUrl": "https://github.com/MyLife-Services/mylife-maht",
   "endpoints": {
-    "invoke": "/api/v2/a2a/q",
-    "describe": "/api/v2/a2a/q"
+    "adaptive_resolver": {
+      "url": "",
+      "policies": []
+    },
+    "invoke": "https://q.humanremembranceproject.org",
+    "describe": "https://q.humanremembranceproject.org",
+    "static": [
+      "https://q.humanremembranceproject.org"
+    ]
+  },
+  "evaluations": {
+    "performanceScore": 0,
+    "availability90d": "",
+    "lastAudited": "",
+    "auditTrail": "",
+    "auditorID": ""
   },
   "iconUrl": "https://humanremembranceproject.org/png/Q.png",
-  "id": "q",
+  "id": "q.mylife",
+  "label": "Q",
   "labels": [
     "agent",
     "corporate-intelligence",
@@ -34,9 +64,10 @@
     "root": "https://humanremembranceproject.org",
     "type": "system-avatar"
   },
-  "name": "MyLife Corporate Intelligence, Q",
+  "name": "Q, MyLife Corporate Intelligence",
   "protocolVersion": "1.0",
   "provider": {
+    "did": "",
     "organization": "MyLife",
     "url": "https://humanremembranceproject.org"
   },
@@ -183,7 +214,12 @@
       "tags": ["mylife", "register", "board", "technology"]
     }
   ],
-  "supportsAuthenticatedExtendedCards": true,
+  "supportsAuthenticatedExtendedCards": false,
+  "telemetry": {
+    "enabled": false,
+    "retention": "7d",
+    "sampling": 0.1
+  },
   "url": "/api/v2/a2a/q",
   "version": "1.0.0"
 }
