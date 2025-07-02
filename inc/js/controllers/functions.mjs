@@ -238,7 +238,7 @@ async function logout(ctx){
 	const { avatar: Avatar, } = ctx.state
 	if(!Avatar?.isMyLife ?? true)
 		ctx.throw(400, `cannot logout from system avatar`)
-	await Avatar.logout()
+	await Avatar.logout(ctx)
 	ctx.redirect('/')
 }
 /**
