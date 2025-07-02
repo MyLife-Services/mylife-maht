@@ -141,12 +141,6 @@ async function mcpClientRequest(capabilities, Globals, transport, originalReques
         mcpRequest,
     }
 }
-async function mcpLogin(ctx){
-    const { Globals, request: { body: { id, jsonrpc, params, }={}, }, state, } = ctx
-    const { avatar: Avatar, sessionMeta, } = state
-    const loginResult = await mMcpLogin(ctx, sessionMeta?.transportEntry, params, jsonrpc, id)
-    return loginResult
-}
 /**
  * Handles a MCP login request.
  * @param {Koa} ctx - Koa context object
