@@ -15,6 +15,7 @@ import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './mylife-llm-services.mjs'
 import { mcpClientAllowsDirectory, mcpClientAllowsRequest, mcpClientRequest, } from './controllers/mcp-functions.mjs'
+import { str } from 'ajv'
 /* module constants */
 const __dirpath = fileURLToPath(import.meta.url)
 const mAllowSave = JSON.parse(
@@ -2782,6 +2783,7 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
 }
 async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
     const { team='memory', type, } = mcpdata
+    let { id=avatar.bot(undefined, type)?.id, } = mcpdata
     let error,
         result
     if(avatar.isMyLife)
@@ -2790,30 +2792,76 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
             data: mcpdata,
             message: 'MyLife System Avatar cannot switch bots'
         }
-    if(team!=='memory')
+    else if(team!=='memory')
         error = {
             code: -32602,
             data: mcpdata,
             message: 'Currently only the Memory Team is supported'
         }
-    const Bot = avatar.bot(undefined, type)
-    if(avatar.activeBot.id===Bot.id)
+    else if(!type?.length)
+        error = {
+            code: -32602,
+            data: mcpdata,
+            message: '`type` parameter required for switching bots'
+        }
+    else if(!id?.length)
         result = {
             content: [{
-                text: `System already using ${ type } bot`,
+                text: `No bot found for type: ${ type }`,
+                type: 'text',
+            }],
+            isError: true,
+        }
+    else if(avatar.activeBot.id===id)
+        result = {
+            content: [{
+                text: `Bot type "${ type }" already currently active`,
                 type: 'text',
             }],
             isError: true,
         }
     else {
-        const activeBot = await avatar.setActiveBot(Bot.id, false)
-        result = {
-            content: [{
-                text: `Successfully switched active intelligence to type: ${ type }; activeBot: ${ JSON.stringify(activeBot) }`,
-                type: 'text',
-            }],
-            isError: false,
-            notification: 'notifications/tools/list_changed'
+        const { bot_id, responses, success, } = await avatar.setActiveBot(id, false)
+        if(!success || bot_id!==id)
+            result = {
+                content: [{
+                    text: `Failed to switch bot to ${ type }`,
+                    type: 'text',
+                }],
+                isError: true,
+            }
+        else {
+            const { bot_name: name, description, id: activeBotId, provider, type, welcome } = avatar.activeBot
+            const activeBot = {
+                description,
+                id: activeBotId,
+                name,
+                provider,
+                type,
+                welcome: welcome ?? responses?.[0],
+            }
+            const availableAgents = avatar.bots
+                .map(bot=>({
+                    description: bot.description,
+                    id: bot.id,
+                    name: bot.bot_name,
+                    type: bot.type,
+                }))
+            const explanation = `Successfully switched active bot`
+            const structuredContent = {
+                activeBot,
+                availableAgents,
+                explanation,
+            }
+            result = {
+                content: [{
+                    text: JSON.stringify(structuredContent),
+                    type: 'text',
+                }],
+                isError: false,
+                notification: 'notifications/tools/list_changed',
+                structuredContent,
+            }
         }
     }
     return {

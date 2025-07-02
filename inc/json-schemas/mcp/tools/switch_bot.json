@@ -10,6 +10,11 @@
 	"inputSchema": {
         "type": "object",
 		"properties": {
+            "id": {
+                "description": "Unique identifier for the bot to switch to; **note** use this property when known",
+                "format": "uuid",
+                "type": "string"
+            },
             "team": {
                 "default": "memory",
 				"description": "Team to which bot belongs, default is `memory`.",
@@ -22,12 +27,77 @@
 				"type": "string"
 			}
 		},
-		"required": [
-            "type"
-        ]
+		"required": ["type"]
 	},
-    "name": "switch_bot",
     "mylife_bots": [
         "any"
-    ]
+    ],
+    "name": "switch_bot",
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "activeBot": {
+                "description": "Data for the newly active bot",
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "description": "Description of the bot",
+                        "type": "string"
+                    },
+                    "id": {
+                        "description": "Unique identifier for the bot",
+                        "type": "string"
+                    },
+                    "name": {
+                        "description": "Name of the bot",
+                        "type": "string"
+                    },
+                    "provider": {
+                        "description": "Provider of the bot",
+                        "type": "string"
+                    },
+                    "type": {
+                        "description": "Type of the bot",
+                        "type": "string"
+                    },
+                    "welcome": {
+                        "description": "Welcome message from the bot",
+                        "type": "string"
+                    }
+                },
+                "required": ["id", "name", "type"]
+            },
+            "availableAgents": {
+                "default": ["avatar", "biographer"],
+                "description": "List of available bots that can be switched to",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "description": {
+                            "type": "string",
+                            "description": "Description of the bot"
+                        },
+                        "id": {
+                            "type": "string",
+                            "description": "Unique identifier for the bot"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the bot"
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "Type of the bot"
+                        }
+                    },
+                    "required": ["id", "name", "type"]
+                },
+                "type": "array"
+            },
+            "explanation": {
+                "type": "string"
+            }
+        },
+        "required": ["activeBot", "explanation"]
+    }
 }
