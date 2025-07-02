@@ -100,7 +100,7 @@ async function mcpClientRequest(capabilities, Globals, transport, originalReques
     if(!transport)
         error = {
             code: -32000,
-            data: { id, request, },
+            data: { id, originalRequest, },
             message: `No transport found for client request.`,
         }
     if(!originalRequest || !explanation)
