@@ -425,7 +425,7 @@ async function routeSubdomain(ctx, next){
     const domainParts = ctx.hostname.split('.')
     const agentId = (isExempt)
         ? ctx.query?.agentId?.toLowerCase()
-        : domainParts.length < 2
+        : domainParts.length < 3
             ? null
             : domainParts[0].toLowerCase()
     if(!agentId || agentId === 'www')
