@@ -1,0 +1,50 @@
+{
+  "name": "getPublicMemories",
+  "description": "Returns a list of public memories { id, title, } available to experience (using A2A `getPublicMemory()`) in the MyLife system.",
+  "examples": {
+    "input": {},
+    "output": {
+      "agent": "q",
+      "memories": [
+        { "id": "290f916d-d7e8-44e1-a792-e7459b495420", "title": "Trip to the Sea" },
+        { "id": "d0156118-9fe3-4eeb-9d09-3c1989bde91b", "title": "My Daughter's Birth" }
+      ]
+    }
+  },
+  "input": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "agent": {
+        "description": "The system agent responding (e.g. 'q').",
+        "type": "string"
+      },
+      "memories": {
+        "description": "An array of memories from the MyLife system intelligence.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "The unique identifier for the public memory.",
+              "type": "string"
+            },
+            "title": {
+              "description": "The title of the public memory.",
+              "type": "string"
+            }
+          },
+          "required": ["id", "title"]
+        }
+      }
+    },
+    "required": ["agent", "memories"]
+  },
+  "preferredProviders": ["internal"],
+  "protocol": "http/1.1",
+  "version": "1.0.0"
+}

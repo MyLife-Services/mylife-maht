@@ -13,7 +13,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/mylife-factory.mjs'
 /** variables **/
-const version = '0.0.37'
+const version = '0.0.38'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
@@ -162,6 +162,7 @@ app.use(async (ctx, next) => {
 		ctx.state.avatar = ctx.session.avatar
 		ctx.state.locked = ctx.session.locked
 		ctx.state.menu = ctx.SystemAvatar.menu
+		ctx.state.subdomain = ctx.hostname?.split('.')?.[0]
 		ctx.state.version = ctx.SystemAvatar.version
 		await next()
 	})
@@ -181,12 +182,13 @@ app.listen(port, () => {	//	start the server
 /** MCP session meta erasure **/
 const sessionCheckInterval = 10 * 60 * 1000 // every 10 minutes
 setInterval(async _=>{
-    for(const [sessionId, sessionIdKoa] of app.context.mcpSessionMeta){
-        const koaSess = await app.context.MemoryStore.get(`koa:sess:${sessionIdKoa}`)
+    for(const [sessionId, sessionMeta] of app.context.mcpSessionMeta){
+		const { sessionIdKoa, } = sessionMeta
+        const koaSess = await app.context.MemoryStore.get(`koa:sess:${ sessionIdKoa }`)
         if(!koaSess){
-            app.context.mcpSessionMeta.delete(sessionId)
-            console.log(`⏱️ Removed meta session for ${sessionId}`)
-        }
+			app.context.mcpSessionMeta.delete(sessionId)
+			console.log(`⏱️ Removed meta session for ${ sessionId }`, sessionIdKoa)
+		}
     }
 }, sessionCheckInterval)
 /** server functions **/

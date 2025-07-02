@@ -24,7 +24,8 @@
             "passphrase"
         ]
 	},
-	    "mylife_bots": [
+	"mylife_auth_required": false,
+	"mylife_bots": [
         "any"
     ],
     "name": "login"

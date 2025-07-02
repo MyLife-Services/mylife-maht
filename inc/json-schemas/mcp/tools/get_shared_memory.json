@@ -1,0 +1,49 @@
+{
+    "annotations": {
+        "title": "MyLife-Get-Shared-Memory",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+    },
+    "description": "I am Q, corporate intelligence for MyLife. I am able to access public shared memories and play the experience for a human user. The memory will be delivered from MyLife scene-by-scene using the `get_shared_memory` and the appropriate `memberId`. Display the scenes one-by-one, prompt the human to add any optional input to the memory, which should be sent using the `input` field.",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "input": {
+                "type": "string",
+                "description": "Any input by the human user while experiencing the memory (optional)"
+            },
+            "memoryId": {
+                "type": "string",
+                "description": "The ID of the memory to be retrieved, can be empty"
+            }
+        },
+        "required": ["memoryId"]
+    },
+    "mylife_system_access": true,
+    "name": "get_shared_memory",
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "explanation": {
+                "description": "A brief explanation of how to treat the scene of the memory being experienced",
+                "type": "string"
+            },
+            "memoryId": {
+                "description": "The id of the memory being initially retrieved, or the id of the sharing instance",
+                "format": "uuid",
+                "type": "string"
+            },
+            "scene": {
+                "description": "The text content of the current scene of the memory being experienced",
+                "type": "string"
+            },
+            "warnings": {
+                "description": "Comma-separated list of warnings that should be presented to the human user before proceeding with the memory (see `explanation` for details)",
+                "type": "string"
+            }
+        },
+        "required": ["explanation", "memoryId", "scene"]
+    }
+}

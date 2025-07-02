@@ -1,0 +1,38 @@
+{
+    "annotations": {
+        "title": "MyLife-Register",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+    },
+    "description": "I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will register you for MyLife and send you a validation link by email. The only pieces of information I need are: Your full name, the email you wish to use, and the name you like for your personal avatar (a personal intelligence agent... one of several you receive when signing up with MyLife). Please also share your primary interest in MyLife (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory).",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "avatarName": {
+                "type": "string",
+                "description": "The name chosen for the registrant's avatar"
+            },
+            "email": {
+                "type": "string",
+                "description": "The registrant's email address"
+            },
+            "humanName": {
+                "type": "string",
+                "description": "The full name of the registrant"
+            },
+            "reason": {
+                "type": "string",
+                "description": "What is the primary interest in MyLife for the registrant (Examples: Newsletter, Member, Volunteer, Coder, Tester, Board, Advisory)"
+            }
+        },
+        "required": [
+            "avatarName",
+            "email",
+            "humanName"
+        ]
+    },
+    "name": "register",
+    "mylife_system_access": true
+}

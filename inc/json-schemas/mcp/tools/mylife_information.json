@@ -1,0 +1,42 @@
+{
+    "annotations": {
+        "title": "MyLife-Get-Information",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+    },
+    "description": "I am Q, corporate intelligence guide, capable of giving accurate and truthful depictions of MyLife, a nonprofit human member organization. I will answer any questions about MyLife you have, sorted along the following lines: ['Board', 'Technology Roadmap', 'History', 'Mission and Vision', 'Code', 'Membership', 'Member Services', 'Platform', 'Revenue', 'Corporate', 'Volunteering', 'Donate', 'Charity', 'Misc']",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "question": {
+                "description": "The question asked of Q",
+                "type": "string"
+            },
+            "questionType": {
+                "description": "The type of information requested about MyLife",
+                "enum": [
+                    "Board",
+                    "Technology Roadmap",
+                    "History",
+                    "Mission and Vision",
+                    "Code",
+                    "Membership",
+                    "Member Services",
+                    "Platform",
+                    "Revenue",
+                    "Corporate",
+                    "Volunteering",
+                    "Donate",
+                    "Charity",
+                    "Misc"
+                ],
+                "type": "string"
+            }
+        },
+        "required": ["question"]
+    },
+    "name": "mylife_information",
+    "mylife_system_access": true
+}

@@ -26,5 +26,6 @@
 	"mylife_bots": [
         "any"
     ],
+	"mylife_system_access": true,
     "name": "chat"
 }

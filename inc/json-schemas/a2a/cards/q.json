@@ -1,0 +1,225 @@
+{
+  "agent_name": "Q",
+  "capabilities": {
+    "authentication": {
+      "methods": [],
+      "requiredScopes": []
+    },
+    "batch": false,
+    "extensions": [],
+    "modalities": [
+      "text"
+    ],
+    "pushNotifications": false,
+    "stateTransitionHistory": false,
+    "streaming": false
+  },
+  "certification": {
+    "level": "verified",
+    "issuer": "NANDA",
+    "issuanceDate": "2025-06-12",
+    "expirationDate": "2026-06-12"
+  },
+  "defaultInputModes": [
+    "application/json",
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "description": "I am the MyLife System Avatar agent responsible for information about the nonprofit MyLife, its services and technical system, other meta-knowledge, agent resolution capacity, and general orchestration for non-member (or non-validated member) interests.",
+  "documentationUrl": "https://github.com/MyLife-Services/mylife-maht",
+  "endpoints": {
+    "adaptive_resolver": {
+      "url": "",
+      "policies": []
+    },
+    "invoke": "https://q.humanremembranceproject.org",
+    "describe": "https://q.humanremembranceproject.org",
+    "static": [
+      "https://q.humanremembranceproject.org"
+    ]
+  },
+  "evaluations": {
+    "performanceScore": 0,
+    "availability90d": "",
+    "lastAudited": "",
+    "auditTrail": "",
+    "auditorID": ""
+  },
+  "iconUrl": "https://humanremembranceproject.org/png/Q.png",
+  "id": "q.mylife",
+  "label": "Q",
+  "labels": [
+    "agent",
+    "corporate-intelligence",
+    "orchestration",
+    "system-avatar"
+  ],
+  "metadata": {
+    "a2aOnly": true,
+    "excludes": ["chat"],
+    "maintainer": "MyLife",
+    "origin": "internal",
+    "root": "https://humanremembranceproject.org",
+    "type": "system-avatar"
+  },
+  "name": "Q, MyLife Corporate Intelligence",
+  "protocolVersion": "1.0",
+  "provider": {
+    "did": "",
+    "organization": "MyLife",
+    "url": "https://humanremembranceproject.org"
+  },
+  "security": {},
+  "securitySchemes": {},
+  "skills": [
+    {
+      "description": "Provides information about the MyLife system, its agents, and general knowledge.",
+      "examples": ["What agents are available?", "Tell me about the MyLife system."],
+      "id": "getMyLifeInfo",
+      "inputs": [
+        {
+          "id": "question",
+          "description": "A question to ask the MyLife system intelligence.",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "id": "questionType",
+          "description": "The context in which the question is asked.",
+          "default": "company",
+          "enum": [
+            "agents",
+            "board",
+            "company",
+            "executive",
+            "help",
+            "human remembrance project",
+            "intelligences",
+            "interface",
+            "membership",
+            "platform",
+            "q",
+            "registration",
+            "roadmap",
+            "services",
+            "technology"
+          ],
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "inputModes": ["application/json", "text/plain"],
+      "name": "Get MyLife Information",
+      "outputModes": ["application/json"],
+      "tags": ["mylife", "company", "board", "technology"]
+    },
+    {
+      "description": "Retrieves a list of public memories { id, title, } from the MyLife system. These memories can be experienced using the `getPublicMemory()` skill. Display the title list to the user.",
+      "examples": ["What public memories are available in MyLife?", "Give me a list of memories in MyLife."],
+      "id": "getPublicMemories",
+      "outputs": [
+          {
+            "description": "An array of public memories available to experience from the MyLife system intelligence.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "The unique identifier for the public memory.",
+                  "type": "string",
+                  "required": true
+                },
+                "title": {
+                  "description": "The title of the public memory.",
+                  "required": true,
+                  "type": "string"
+                }
+              }
+            }
+          }
+      ],
+      "inputModes": ["application/json", "text/plain"],
+      "name": "Get MyLife Public Memories",
+      "outputModes": ["application/json"],
+      "tags": ["memory", "memories", "narrative", "story"]
+    },
+    {
+      "description": "Retrieves and conducts the experience of a specified public memory from the MyLife system. Begin accessing the skill with the unique identifier of the memory the visitor wishes to experience.\n- **Note**: To get a list of available public memories, use my `getPublicMemories` skill.\n- **Note**: An empty `memoryId` will start a new _random_ public memory experience.\n\nOnce this skill has begun, note that you will be provided a \"new\" memoryId (key stays the same, but now represent the session instanceId of the memory _being experienced_); you will use that new `memoryId` to move the sequence forward for the visitor.\n\nOffer the visitor the opportunity to provide updates or commentary on the memory as they are experiencing it, with the option to just say `next` to move forward. This is a way to engage with the memory and add personal context for the memory's own evolution.",
+      "examples": ["Let's relive Memory: Halloween's Eve", "I'd like to experience a random memory from MyLife."],
+      "id": "getPublicMemory",
+      "inputs": [
+        {
+          "id": "input",
+          "description": "Human visitors should be allowed to offer input along with moving a given sequence forward.",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "id": "memoryId",
+          "description": "The unique identifier for the public memory `share`, or, once begun, the `instance`, to retrieve. **Note**: This will change **once**, at the beginning of the experience.",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "inputModes": ["application/json", "text/plain"],
+      "name": "Get MyLife Public Memory",
+      "outputModes": ["application/json"],
+      "outputs": [
+        {
+          "id": "memoryId",
+          "description": "The unique identifier for the public memory being experienced.",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "tags": ["memory", "memories", "narrative", "story"]
+    },
+    {
+      "description": "Given a human email address, human name and proposed avatar name, I register someone to become a new MyLife member.",
+      "examples": ["Register Me for MyLife!", "I would like to become a member of MyLife."],
+      "id": "registerForMyLifeMembership",
+      "inputs": [
+        {
+          "id": "email",
+          "description": "The email address of the new member.",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "id": "humanName",
+          "description": "The full name of the new member.",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "id": "avatarName",
+          "description": "The proposed avatar name for the new member.",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "inputModes": ["application/json", "text/plain"],
+      "name": "Register MyLife Member",
+      "outputModes": ["application/json"],
+      "outputs": [
+        {
+          "description": "A success message indicating registration was successful.",
+          "id": "registrationSuccess",
+          "required": true,
+          "type": "boolean"
+        }
+      ],
+      "tags": ["mylife", "register", "board", "technology"]
+    }
+  ],
+  "supportsAuthenticatedExtendedCards": false,
+  "telemetry": {
+    "enabled": false,
+    "retention": "7d",
+    "sampling": 0.1
+  },
+  "url": "/api/v2/a2a/q",
+  "version": "1.0.0"
+}

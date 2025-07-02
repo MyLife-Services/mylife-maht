@@ -12,7 +12,7 @@
 		"properties": {},
 		"required": []
 	},
-	    "mylife_bots": [
+	"mylife_bots": [
         "any"
     ],
     "name": "logout"
