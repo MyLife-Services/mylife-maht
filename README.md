@@ -169,7 +169,7 @@ MyLife itself is an open-source project and, aside from LLM technologies at the 
    - OpenAI's GPT-3 model is integrated for generating responses and interacting with users through bots, as observed in the `mylife-avatar.mjs` and `mylife-factory.mjs` files.
 
 4. **Session Management**
-   - Managed through the `MylifeMemberSession` class, handling user sessions, consents, and alerts.
+   - Managed through the Koa Session, for extensibility, an app managed variable: `app.context.mcpSessionMeta` contains all of the active transports and unique information to connect multiple streams to one session.
    - Utilizes EventEmitter for managing and emitting custom events.
 
 5. **Routing and API Handling**
