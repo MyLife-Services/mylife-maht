@@ -114,6 +114,14 @@ const mMcpMap = {
             }
         },
     },
+    sharedMemorySearch: {
+        args: ['anonymous', 'guessable', 'keyword', 'phase', 'title'],
+        fx: 'sharedMemorySearch',
+        fxCallback: (values)=>{
+            const returnValues = values.map(value=>value.title.trim())
+            return returnValues
+        }
+    }
     // add mappings as needed
 }
 const mMcpTools = await mInitializeExternalTools(
@@ -803,6 +811,19 @@ class Avatar extends EventEmitter {
     }
     manifest(xid){
         return this.#experienceAgent.experienceManifest(xid)
+    }
+    /**
+     * Handles the MCP completion process.
+     * @param {string} type - The type of the MCP completion, i.e., `prompt`, `resource`
+     * @param {object} reference - The reference object for the MCP completion { name, uri, }
+     * @param {object} argument - The argument object containing the MCP completion data { name, value, }
+     * @param {object} contextArguments - The `context.arguments` object for the MCP completion { ...each node is key/value pair for context history }
+     * @param {object} sessionMeta - The session metadata for the MCP completion
+     * @param {Koa} ctx - The Koa context object
+     * @returns {Promise<object>} - The result of the MCP completion: { error, result, }
+     */
+    async mcpCompletion(type, reference, argument, contextArguments, sessionMeta, ctx){
+        return await mMcpCompletion(type, reference, argument, contextArguments, sessionMeta, ctx, this.#factory, this)
     }
     /**
      * Calls a specific MCP function with the provided data and session metadata.
@@ -1683,6 +1704,7 @@ class Q extends Avatar {
     #llmServices // ref _could_ differ from Avatar, but for now, same
     #mcp={
         capabilities: {
+            completions: {},
             prompts: {
                 listChanged: false,
             },
@@ -1707,6 +1729,46 @@ class Q extends Avatar {
                         name: 'infoType',
                         required: true,
                     }
+                ],
+            },
+            {
+                name: 'mylife_shared_memory_search',
+                description: 'Let Q help you find MyLife shared public memories to experience.',
+                arguments: [
+                    {
+                        description: 'Whether to search for anonymous memories; do not send if not intending to filter by anonymous',
+                        name: 'anonymous',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    {
+                        description: 'Whether to search for guessable memories; do not send if not intending to filter  by guessable',
+                        name: 'guessable',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    /*
+                    {
+                        default: '',
+                        description: 'A keyword(s) or topic to search for in MyLife shared public memory bank',
+                        name: 'keyword',
+                        required: true,
+                        type: 'string',
+                    },
+                    {
+                        description: 'A Phase of Life to search for in MyLife shared public memory bank',
+                        enum: ['birth', 'childhood', 'adolescence', 'teenage', 'young-adult', 'adulthood', 'middle-age', 'senior', 'end-of-life', 'past-life', 'unknown'],
+                        name: 'phase',
+                        required: false,
+                        type: 'string',
+                    },
+                    */
+                    {
+                        description: 'Title of the MyLife shared public memory to search for',
+                        name: 'title',
+                        required: false,
+                        type: 'string',
+                    },
                 ],
             }
         ],
@@ -2249,6 +2311,24 @@ class Q extends Avatar {
         return memories
     }
     /**
+     * Search for shared memories based on keyword, phase of life, and/or title.
+	 * @param {boolean} anonymous - Whether to search for anonymous memories
+	 * @param {boolean} guessable - Whether to search for guessable memories
+     * @param {string} keyword - The keyword to search for in shared memories
+     * @param {string} phaseOfLife - The phase of life to filter memories by
+     * @param {string} title - The title to filter memories by
+     * @returns {Promise<Object[]>} - The list of matching shared memories
+     */
+    async sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title){
+        const memories = await this.#factory.sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title)
+        const results = memories
+            .map(memory=>({
+                id: memory.id,
+                title: memory.title,
+            }))
+        return results
+    }
+    /**
      * OVERLOAD: Share a memory with the MyLife system. If no shareId is provided, the first shared memory will be used.
      * @param {Guid} shareId - The share id
      * @param {Object} input - The input object to share
@@ -2569,6 +2649,130 @@ function mItem(item, avatar, llmServices){
     return Item
 }
 /**
+ * Handles the MCP completion process.
+ * @param {string} type - The type of the MCP completion, i.e., `prompt`, `resource`
+ * @param {string} reference - The reference--name [for prompt] or uri [for resource]--for the MCP completion
+ * @param {object} argument - The argument object containing the MCP completion data { name, value, }
+ * @param {object} contextArguments - The `context.arguments` object for the MCP completion { ...each node is key/value pair for context history }
+ * @param {object} sessionMeta - The session metadata for the MCP completion
+ * @param {Koa} ctx - The Koa context object
+ * @returns {Promise<object>} - The result of the MCP completion: { error, result, }
+ */
+async function mMcpCompletion(type, reference, argument, contextArguments, sessionMeta, ctx, factory, avatar){
+    const completeLimit=100,
+        data = { argument, contextArguments, reference, },
+        values = []
+    switch(type){
+        case 'prompt':
+            const promptName = reference
+            const { name: completionName, value: completionValue, } = argument
+                ?? {}
+            if(!completionName?.length)
+                return {
+                    error: {
+                        code: -32602,
+                        message: '`name` parameter required for MCP prompt completion',
+                        data,
+                    }
+                }
+            const promptArguments = avatar.mcp.prompts
+                ?.find(p=>p.name === promptName)
+                ?.arguments
+                    ?? []
+            if(!promptArguments.length)
+                return {
+                    error: {
+                        code: -32603,
+                        message: `No arguments found for prompt "${ promptName }"`,
+                        data,
+                    }
+                }
+            const promptArgument = promptArguments.find(arg=>arg.name === completionName)
+            if(!promptArgument)
+                return {
+                    error: {
+                        code: -32603,
+                        message: `Prompt argument "${ completionName }" not found for "${ promptName }" in MCP prompts`,
+                        data,
+                    }
+                }
+            const { enum: promptArgumentEnum, name: promptArgumentName, required: promptArgumentRequired, type: promptArgumentType='string', } = promptArgument
+            if(!promptArgumentName?.length)
+                return {
+                    error: {
+                        code: -32603,
+                        message: `Prompt argument "${ completionName }" not found for "${ promptName }" in MCP prompts`,
+                        data,
+                    }
+                }
+            switch(promptArgumentType){
+                case 'boolean':
+                    values.push('true', 'false', 'null')
+                    break
+                case 'number':
+                case 'string':
+                default:
+                    if(promptArgumentEnum?.length)
+                        values.push(...promptArgumentEnum) // use enum values if available
+                    else {
+                        const cleanPromptName = promptName
+                            .replace(/^mcp_/, '')
+                            .replace(/^mylife_/, '')
+                        const functionName = ( cleanPromptName?.split('_')?.length ?? [] ) > 1
+                            ? factory.globals.jsFunctionName(cleanPromptName)
+                            : cleanPromptName
+                        const { args=[], fx, fxCallback, } = mMcpMap[functionName]
+                            ?? {}
+                        if(!fx)
+                            return {
+                                error: {
+                                    code: -32602,
+                                    message: `Function "${ functionName }" not found in MCP map`,
+                                    data,
+                                }
+                            }
+                        const activeArgs = args.map(arg=>{
+                            // @todo - mcp inspector **not** correctly passing contextArguments; from spec: "For prompts or URI templates with multiple arguments, clients should include **previous completions** in the context.arguments object to provide context for subsequent requests." [emphasis mine]
+                            return arg===promptArgumentName
+                                ? completionValue
+                                : ( contextArguments?.[arg] ?? null ) /* multiple-context level */
+                        })
+                        let completeValues = []
+                        if(typeof fx === 'string')
+                            completeValues.push(...await avatar[fx](...activeArgs))
+                        else if(typeof fx === 'function')
+                            completeValues.push(...await fx(...activeArgs))
+                        if(fxCallback)
+                            completeValues = await fxCallback(completeValues)
+                        values.push(...completeValues)
+                    }
+                    break
+            }
+            break
+        case 'resource': /* resource need not support arguments, embed in uri */
+            const uri = reference
+            const { values: resourceValues=[], } = sessionMeta?.completions?.get(uri)
+            values.push(...resourceValues)
+            break
+        default:
+            return {
+                error: {
+                    code: -32601,
+                    message: `MCP completion type "${ type }" not supported`,
+                    data,
+                }
+            }
+    }
+    const result = {
+        completion: {
+            hasMore: values.length > completeLimit,
+            total: values.length,
+            values: values.slice(0, completeLimit),
+        }
+    }
+    return { result, }
+}
+/**
  * Passthrough to call a function on the active bot or avatar, passing the MCP data to it.
  * @param {string} functionName - The function name to call
  * @param {object} mcpData - The MCP data to pass to the function
@@ -2593,7 +2797,7 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
     const mcpFunctionName = 'mcp_' + functionName
     if(mcpFunctions[mcpFunctionName]) // fx from local map
         return await mcpFunctions[mcpFunctionName](mcpData, sessionMeta, ctx, factory, avatar)
-    const jsFunctionName = functionName.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
+    const jsFunctionName = mJsFunctionName(functionName)
     const { fx, args=[], fxCallback, } = ( mMcpMap[jsFunctionName] ?? {} )
     const fxArgs = args.map(arg=>{
         if(arg.startsWith(mMcpConstant))

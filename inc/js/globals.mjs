@@ -116,6 +116,14 @@ class Globals extends EventEmitter {
 		return typeof version === 'string' && regex.test(version)
 	}
 	/**
+	 * Converts a snake_case function name to camelCase.
+	 * @param {string} functionName - The snake_case function name
+	 * @returns {string} - The camelCase function name
+	 */
+	jsFunctionName(functionName){
+		return functionName.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
+	}
+	/**
 	 * Populate an object with data, alters in place the incoming class instance.
 	 * @param {object} obj - Object to populate
 	 * @param {object} data - Data to populate object with

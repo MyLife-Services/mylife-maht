@@ -1085,6 +1085,34 @@ class MyLifeFactory extends AgentFactory {
 			: (await this.sharedMemories(1))?.[0]
 		return memory
 	}
+    /**
+     * Search for shared memories based on keyword, phase of life, and/or title.
+	 * @todo - implement keyword, phaseOfLife, and title dynamic search
+	 * @param {boolean} anonymous - Whether to search for anonymous memories
+	 * @param {boolean} guessable - Whether to search for guessable memories
+     * @param {string} keyword - The keyword to search for in shared memories
+     * @param {string} phaseOfLife - The phase of life to filter memories by
+     * @param {string} title - The title to filter memories by
+     * @returns {Promise<Object[]>} - The list of matching shared memories
+     */
+    async sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title){
+		const being='share',
+			fields = [{ name: '@scope', value: 'public', }]
+		if(typeof anonymous === 'boolean')
+			fields.push({ name: '@anonymous', value: anonymous, })
+		if(typeof guessable === 'boolean')
+			fields.push({ name: '@guessable', value: guessable, })
+		/* not yet implemented on `write` (i.e., not in db record yet, could filter on current results)
+		if(keyword?.length)
+			fields.push({ name: '@summary', value: keyword, })
+		if(phaseOfLife?.length)
+			fields.push({ name: '@phaseOfLife', value: phaseOfLife, })
+		*/
+		if(title?.length)
+			fields.push({ name: '@title', type: 'contains', value: title, })
+        const memories = await mDataservices.getItemsByFields(being, fields, 'shares', 'memory') // shareType is key column
+        return memories
+    }
 	updateItem(){
 		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))
 	}

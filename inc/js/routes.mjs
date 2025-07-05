@@ -77,6 +77,7 @@ import {
 } from './controllers/memory-functions.mjs'
 import {
     mcpCall,
+    mcpProtocolValidation,
     mcpSessionEnd,
     mcpSessionInfo,
     mcpStream,
@@ -301,118 +302,6 @@ function status(ctx){ //	currently returns reverse "locked" status, could send o
  */
 function status_signup(ctx){
 	ctx.body = ctx.session.signup
-}
-/**
- * Validates the MCP authorization header.
- * @param {Koa} ctx - Koa context object
- * @throws {Error} Throws an error if the authorization header is missing, invalid, or the token is not found
- */
-function mcpAuthorize(ctx){
-    // for now, given NANDA and Claude, ignore bearer token for time being
-    return
-    const { headers } = ctx
-    if(!headers.authorization)
-        ctx.throw(403, 'Missing Authorization Header')
-    const [scheme, token] = headers.authorization.split(' ')
-    if(scheme !== 'Bearer' || !token?.length)
-        ctx.throw(403, 'Invalid Authorization Header')
-    if(!mClientEntities?.[token])
-        ctx.throw(403, 'Invalid or expired token')
-}
-/**
- * Handles MCP errors by force-returning (as direct response, no stream) the response status and well-formed MCP `Error`.
- */
-function mMcpError(ctx, errorCode=404, code=-32001, message='unknown failure', id){
-    ctx.status = errorCode
-    ctx.body = {
-        jsonrpc: '2.0',
-        id,
-        error: {
-            code,
-            message,
-        },
-    }
-}
-/**
- * Validates the MCP protocol request.
- * @param {Koa} ctx - Koa context object
- * @param {function} next - Koa next function
- */
-async function mcpProtocolValidation(ctx, next){
-    if(!ctx.state.requestType)
-        ctx.state.requestType = 'system'
-    mcpValidateRequestOrigin(ctx) // confirm bearer always
-    mcpAuthorize(ctx) // confirm bearer always
-    ctx.state.mcp = ctx.request?.body
-    let sessionId
-    sessionId = ctx.request.query?.sessionId /* 2024-11-05 MCP Protocol Validation */
-        ?? ctx.get('Mcp-Session-Id') /* 2025-03-26 MCP Protocol Validation Header */
-    if(sessionId?.length){
-        ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
-        const { sessionMeta, } = ctx.state
-        if(!sessionMeta){
-            if(ctx.request.method==='DELETE') // MCP DELETE disconnects the session; here via next() (`mcpSessionEnd()`)
-                return await next()
-            mMcpError(ctx, 404, -32001, `Session Unauthorized; sessionId=${ sessionId }`, ctx.state.mcp?.id)
-            return // not awaiting next() here
-        }
-        const { sessionIdKoa, } = sessionMeta
-        if(!sessionIdKoa?.length)
-            ctx.throw(404, 'Unknown session; cannot communicate with Koa')
-        /* validate Koa session */
-        const prefix = 'koa:sess:'
-        const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
-        if(!existingKoaSession)
-            ctx.throw(404, 'Unknown session; cannot find existing Koa session')
-        ctx.session = existingKoaSession
-        await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
-        // Koa server will have mis-assigned ctx.state in faux session
-        ctx.state.avatar = ctx.session.avatar
-        ctx.state.locked = ctx.session.locked
-            ?? true
-        ctx.state.menu = ctx.state.avatar?.menu
-        if(ctx.request.method==='GET'){
-            const { transportEntry, } = sessionMeta
-            await transportEntry.handleRequest(ctx.req, ctx.res)
-        }
-    } else
-        await mcpStream(ctx) // no session set if not streaming
-    await next()
-}
-/**
- * Handles unsupported MCP requests.
- * @param {Koa} ctx - Koa context object
- */
-function mcpUnsupported(ctx){
-    ctx.throw(405, 'Unsupported MCP request. Please use POST /mcp.')
-}
-/**
- * Validates the request origin for MCP requests.
- * @param {Koa} ctx - Koa context object
- */
-function mcpValidateRequestOrigin(ctx){
-    // @todo - confirm that transport handles CORS headers correctly
-    const origin = ctx.headers.origin
-    if(!origin){
-        // console.log('No Origin Header')
-        return
-    }
-    const trustedOrigins = [
-        // 'http://good.com',
-    ]
-    const blockedOrigins = [
-        // 'http://evil.com',
-    ]
-    const isTrusted = trustedOrigins.includes(origin)
-    const isBlocked = blockedOrigins.includes(origin)
-    if(isBlocked){ // Block if explicitly blacklisted
-        console.log(`Blocked Origin: ${origin}`)
-        ctx.throw(403, `Access denied from origin: ${origin}`)
-    }
-    if(trustedOrigins.length > 0 && !isTrusted){
-        console.log(`Unrecognized Origin: ${origin}`)
-        ctx.throw(403, `Origin not allowed: ${origin}`)
-    }
 }
 /**
  * Routes external requests based on subdomain.
