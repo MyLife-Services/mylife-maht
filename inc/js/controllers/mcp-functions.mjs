@@ -251,9 +251,11 @@ function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
         initialized: false,
         initializeConfirmation: false,
         requests: new Map(),
+        resources: new Map(),
         runs: new Map(),
         sessionId,
         sessionIdKoa,
+        shares: new Map(),
         subscriptions: new Map(),
         transportEntry,
     }
@@ -345,9 +347,10 @@ function mMcpAuthorize(ctx){
  */
 async function mMcpCall(ctx, mcp){
     let error,
+        resourceListChanged=false,
         result,
         run,
-        toolListChanged = false
+        toolListChanged=false
     const { Globals, state, } = ctx
     const { avatar: Avatar, locked, sessionMeta={}, requestType='system', } = state
     const { capabilities, clientInfo, initializeConfirmation, protocolVersion, requests, runs, sessionId, transportEntry, } = sessionMeta
@@ -423,8 +426,8 @@ async function mMcpCall(ctx, mcp){
             switch(action.toLowerCase()){
                 case 'accept':
                     if(callback){
-                        const { error, result, success, } = await Avatar.mcpFunctionResponse('elicitation', callback, data, sessionMeta, ctx)
-                        console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with callback'), id, result)
+                        const { error, result, success, } = await Avatar.mcpFunctionRequest('elicitation', callback, data, sessionMeta, ctx)
+                        console.log(chalk.bgBlue('mcpCall()::✅ Elicitation Request resolved with callback'), id, result)
                     }
                     break
                 case 'cancel':
@@ -446,7 +449,7 @@ async function mMcpCall(ctx, mcp){
                     await callback(text)
                 else if(typeof callback==='object' && !Array.isArray(callback)){
                     // look to original request for itemId (or possibly assign in sample data)
-                    const { error, result, success, } = await Avatar.mcpFunctionResponse('sampling', callback, text, sessionMeta, ctx)
+                    const { error, result, success, } = await Avatar.mcpFunctionRequest('sampling', callback, text, sessionMeta, ctx)
                     console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with callback'), id, result)
                 }
             }
@@ -470,7 +473,8 @@ async function mMcpCall(ctx, mcp){
                             uri: referenceUri,
                         }={}, } = params
                     const promptType = referenceType?.split('/')?.[1]
-                    const { error: completeError, result: completeResult } = await Avatar.mcpCompletion(promptType, referenceName, argument, contextArguments, sessionMeta, ctx)
+                    const reference = ( referenceName ?? referenceUri )?.trim()
+                    const { error: completeError, result: completeResult } = await Avatar.mcpCompletionRequest(promptType, reference, argument, contextArguments, sessionMeta, ctx)
                     if(completeError)
                         error = completeError
                     else
@@ -605,83 +609,86 @@ async function mMcpCall(ctx, mcp){
                     if(!Avatar.isMyLife)
                         break
                     result = {
-                        resources: Avatar.mcp.resources,
+                        resources: [...Avatar.mcp.resources, ...Array.from(sessionMeta.resources.values())],
                     }
                     break
                 case 'read':
                     if(!Avatar.isMyLife)
                         break
-                    const { uri, } = params
-                    switch(uri){
-                        case 'file://MyLife_Summary.pdf':
-                            const summaryPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
-                            const pdfSummary = Globals.readPdf(summaryPath)
-                            result = {
-                                contents: [{
-                                    blob: pdfSummary,
-                                    mimeType: 'application/pdf',
-                                    uri,
-                                }]
+                    const { uri: resourceUri, } = params
+                    const resourceType = Avatar.globals.jsFunctionName(resourceUri.split('://')[0])
+                    const resourceName = resourceUri.split('://')[1]
+                    switch(resourceType){
+                        case 'file':
+                            switch(resourceName){
+                                case 'MyLife_Summary.pdf':
+                                    const summaryPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
+                                    const pdfSummary = Globals.readPdf(summaryPath)
+                                    result = {
+                                        contents: [{
+                                            blob: pdfSummary,
+                                            mimeType: 'application/pdf',
+                                            uri,
+                                        }]
+                                    }
+                                    break
+                                case 'MyLife_Board.pdf':
+                                    const boardPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
+                                    const pdfBoard = Globals.readPdf(boardPath)
+                                    result = {
+                                        contents: [{
+                                            blob: pdfBoard,
+                                            mimeType: 'application/pdf',
+                                            uri,
+                                        }]
+                                    }
+                                    break
+                                default:
+                                    let text = ''
+                                    try {
+                                        const response = await fetch(uri)
+                                        text = ( await response.text() ).trim()
+                                    } catch (error) {
+                                        console.error(chalk.red('Error fetching resource:'), uri, error)
+                                        text = `Error fetching external resource: ${error.message}`
+                                    }
+                                    result = {
+                                        contents: [{
+                                            mimeType: 'text/html',
+                                            text,
+                                            uri,
+                                        }]
+                                    }
+                                    break
                             }
                             break
-                        case 'file://MyLife_Board.pdf':
-                            const boardPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
-                            const pdfBoard = Globals.readPdf(boardPath)
-                            result = {
-                                contents: [{
-                                    blob: pdfBoard,
-                                    mimeType: 'application/pdf',
-                                    uri,
-                                }]
-                            }
-                            break
-                        default:
-                            let text = ''
-                            try {
-                                const response = await fetch(uri)
-                                text = ( await response.text() ).trim()
-                            } catch (error) {
-                                console.error(chalk.red('Error fetching resource:'), uri, error)
-                                text = `Error fetching external resource: ${error.message}`
-                            }
-                            result = {
-                                contents: [{
-                                    mimeType: 'text/html',
-                                    text,
-                                    uri,
-                                }]
-                            }
+                        default: /* synthetic resource */
+                            const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await Avatar.mcpResourceRequest(resourceUri, sessionMeta, ctx)
+                            if(requestError)
+                                error = requestError
+                            else if(requestResult)
+                                result = requestResult
+                            else
+                                error = {
+                                    code: -32603,
+                                    data: { id, name, },
+                                    message: `MCP Resource Call yielded no result, please review available resources via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
+                                }
+                            resourceListChanged = requestResourceListChanged
                             break
                     }
                     break
                 case 'templates':
-                    if(methodPluck==='list')
-                        result = {
-                            resourceTemplates: [
-                                {
-                                    uriTemplate: 'bio://{memberId}',
-                                    name: 'Board Member Biography',
-                                    description: 'Access bios MyLife board members',
-                                    mimeType: 'text/markdown',
-                                },
-                                {
-                                    uriTemplate: 'public-memory://{itemId}?a={anonymous}&g={guessable}&k={keyword}&p={phase}&t={title}',
-                                    name: 'MyLife Public Memories',
-                                    description: 'Access memory from MyLife archives based on itemId; note: currently must be publicly shared',
-                                    mimeType: 'application/json',
-                                },
-                                {
-                                    uriTemplate: 'avatar://{memberId}',
-                                    name: 'Avatar Resource',
-                                    description: 'Access MyLife Member\'s exposed Personal Avatar',
-                                    mimeType: 'text/markdown',
-                                },
-                            ],
-                        }
-                    // in the middle of resource completions regarding dynamic resource templates; does send arguments for bracketed elements, can handle multiple vars/args
-                    // deal with vars
-                    // brainstorm which you can double-purpose
-                    // then enhance resource /read
+                    if(!Avatar.isMyLife)
+                        break
+                    switch(methodPluck){
+                        case 'list':
+                            const resourceTemplates = Avatar.mcp.resourceTemplates
+                            result = { resourceTemplates, }
+                            break
+                        default:
+                            break
+                    }
                     break
                 default:
                     break
@@ -690,7 +697,7 @@ async function mMcpCall(ctx, mcp){
                 error = {
                     code: -32602,
                     data: { id, name, },
-                    message: `MCP Resources not found, please review available prompts via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
+                    message: `MCP Resources not found, please review available resources via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
                 }
             break
         case 'tools':
@@ -848,8 +855,10 @@ async function mMcpCall(ctx, mcp){
         clearInterval(progressInterval)
     runs.delete(id)
     await mMcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+    if(resourceListChanged)
+        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/resources/list_changed')
     if(toolListChanged)
-        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')    
+        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')
 }
 /**
  * Paginate an array using a base64 encoded cursor.

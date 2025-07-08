@@ -1062,20 +1062,32 @@ class MyLifeFactory extends AgentFactory {
     /**
      * Get a list of publicly shared memories.
      * @param {Number} limit - The max number of memories to return
+     * @param {Object} filterArgs - Optional filter arguments for shared memories
      * @returns {Promise<Object[]>} - The list of shared memories
      */
-    async sharedMemories(limit=10){
-		if(limit<0)
-			limit = 1
-		if(limit>25)
-			limit = 25
+    async sharedMemories(limit=10, filterArgs={}, shuffle=true){
+		limit = limit <= 0 /* test limits */
+			? 1
+			: (limit>1000)
+				? 1000
+				: limit
+		const fields = [{ name: '@scope', value: 'public', }]
+		const { anonymous, guessable, id, title, } = filterArgs
+		if(typeof guessable === 'boolean')
+			fields.push({ name: '@guessable', value: guessable, })
+		if(typeof anonymous === 'boolean')
+			fields.push({ name: '@anonymous', value: anonymous, })
+		if(id?.length)
+			fields.push({ name: '@id', type: 'contains', value: id, })
+		if(title?.length)
+			fields.push({ name: '@title', type: 'contains', value: title, })
 		const memories = await this.dataservices.getItemsByFields(
 			'share',
-			[{ name: '@scope', value: 'public' }],
+			fields,
 			'shares',
 			'memory',
 		)
-		const shuffled = [...memories].sort(() => 0.5 - Math.random())
+		const shuffled = shuffle ? [...memories].sort(() => 0.5 - Math.random()) : memories
 		const response = shuffled.slice(0, limit)
 		return response
 	}

@@ -121,7 +121,10 @@ class Globals extends EventEmitter {
 	 * @returns {string} - The camelCase function name
 	 */
 	jsFunctionName(functionName){
-		return functionName.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
+		return functionName
+			.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
+			.replace(/-(\w)/g, (_, letter)=>letter.toUpperCase())
+			.replace(/^\w/, c=>c.toLowerCase()) // ensure first character is lowercase
 	}
 	/**
 	 * Populate an object with data, alters in place the incoming class instance.
