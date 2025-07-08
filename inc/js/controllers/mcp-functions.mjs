@@ -616,50 +616,68 @@ async function mMcpCall(ctx, mcp){
                     if(!Avatar.isMyLife)
                         break
                     const { uri: resourceUri, } = params
-                    const resourceType = Avatar.globals.jsFunctionName(resourceUri.split('://')[0])
+                    const resourceType = Globals.jsFunctionName(resourceUri.split('://')[0])
                     const resourceName = resourceUri.split('://')[1]
                     switch(resourceType){
                         case 'file':
                             switch(resourceName){
                                 case 'MyLife_Summary.pdf':
                                     const summaryPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
-                                    const pdfSummary = Globals.readPdf(summaryPath)
+                                    const pdfSummary = await Globals.readPdf(summaryPath)
                                     result = {
                                         contents: [{
                                             blob: pdfSummary,
                                             mimeType: 'application/pdf',
-                                            uri,
+                                            name: resourceName,
+                                            title: 'MyLife Summary',
+                                            uri: resourceUri,
                                         }]
                                     }
                                     break
                                 case 'MyLife_Board.pdf':
                                     const boardPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
-                                    const pdfBoard = Globals.readPdf(boardPath)
+                                    const pdfBoard = await Globals.readPdf(boardPath)
+                                    console.log(chalk.bgBlue('mMcpCall()::resource::read'), boardPath)
                                     result = {
                                         contents: [{
                                             blob: pdfBoard,
                                             mimeType: 'application/pdf',
-                                            uri,
+                                            name: resourceName,
+                                            title: 'MyLife Board of Directors Bylaws',
+                                            uri: resourceUri,
                                         }]
                                     }
                                     break
                                 default:
-                                    let text = ''
-                                    try {
-                                        const response = await fetch(uri)
-                                        text = ( await response.text() ).trim()
-                                    } catch (error) {
-                                        console.error(chalk.red('Error fetching resource:'), uri, error)
-                                        text = `Error fetching external resource: ${error.message}`
-                                    }
-                                    result = {
-                                        contents: [{
-                                            mimeType: 'text/html',
-                                            text,
-                                            uri,
-                                        }]
+                                    error = {
+                                        code: -32602,
+                                        data: { id, name, },
+                                        message: `MCP Resource File call yielded no result, please review available resources via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
                                     }
                                     break
+                            }
+                            break
+                        case 'git':
+                        case 'https':
+                            const name = ( resourceName.endsWith('/') ? resourceName.slice(0, -1) : resourceName )
+                                .split('/').pop().split('.')[0]
+                            const title = Globals.jsFunctionName(name)
+                            let text = 'Error fetching external resource'
+                            try {
+                                const response = await fetch(resourceUri)
+                                text = ( await response.text() ).trim()
+                            } catch (error) {
+                                console.error(chalk.red('Error fetching resource:'), resourceUri, error)
+                                text += `: ${ error.message }`
+                            }
+                            result = {
+                                contents: [{
+                                    mimeType: 'application/pdf',
+                                    name,
+                                    text,
+                                    title,
+                                    uri: resourceUri,
+                                }]
                             }
                             break
                         default: /* synthetic resource */

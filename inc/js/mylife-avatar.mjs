@@ -125,6 +125,21 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
             },
         },
     },
+    publicBots:{
+        completion: {
+            fx: function (){ /* must be return array */
+                const typeEnum = ['avatar', 'biographer', 'diary', 'journaler']
+                return typeEnum
+            }
+        },
+        resource: {
+            args: ['type'],
+            fx: async function (type='avatar'){
+                const bot = await this.genericBot(type)
+                console.log( 'mcpMap.publicBots::bot', bot, typeof this.genericBot)
+            }
+        }
+    },
     publicMemory: { /* resource version */
         completion: {
             args: ['itemId'],
@@ -282,7 +297,6 @@ const mMcpTools = await mInitializeExternalTools(
  * @class - Avatar
  * @extends EventEmitter
  * @description An avatar is a digital self proxy of Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The Avatar is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
- * @todo - deprecate `factory` getter
  */
 class Avatar extends EventEmitter {
     #alertsShown = [] // array of alert ids
@@ -737,6 +751,10 @@ class Avatar extends EventEmitter {
         const feedback = await this.activeBot.feedback(message_id, isPositive, message)
         const { success, } = feedback
         return success
+    }
+    async genericBot(botType='avatar'){
+        const bot = await this.#botAgent.genericBot(botType)
+        return bot
     }
     /**
      * Specified by id, returns the pruned Bot.
@@ -1935,32 +1953,35 @@ class Q extends Avatar {
         protocolVersion: mJsonRpcProtocolVersion,
         resources: [
             {
-                uri: 'file://MyLife_Board.pdf',
-                name: 'MyLife Board of Directors Bylaws.pdf',
-                description: 'MyLife Board of Directors Bylaws version 1.0',
-                mimeType: 'application/pdf',
-            },
-            {
-                uri: 'file://MyLife_Summary.pdf',
-                name: 'MyLife_Summary.pdf',
                 description: 'Outreach Material for MyLife, written 2 years ago prior to development of the platform',
                 mimeType: 'application/pdf',
+                name: 'mylife-basics',
+                title: 'MyLife Summary',
+                uri: 'file://MyLife_Summary.pdf',
             },
             {
-                uri: 'https://github.com/MyLife-Services/mylife-maht/',
-                name: 'MyLife-MAHT GIT codebase',
-                description: 'MyLife MAHT codebase, written in Node.js',
+                description: 'MyLife Board of Directors Bylaws version 1.0',
+                mimeType: 'application/pdf',
+                name: 'mylife-bylaws',
+                title: 'MyLife Bylaws',
+                uri: 'file://MyLife_Board.pdf',
+            },
+            {
+                description: 'MyLife open-source codebase, written for Node.js and NoSQL db',
                 mimeType: 'text/html',
-            }
+                name: 'mylife-codebase',
+                title: 'MyLife Codebase',
+                uri: 'https://github.com/MyLife-Services/mylife-maht',
+            },
+            {
+                description: 'MyLife Homepage: Human Remembrance Project for our Digital Legacy',
+                mimeType: 'text/html',
+                name: 'mylife-homepage',
+                title: 'MyLife Homepage',
+                uri: 'https://humanremembranceproject.org',
+            },
         ],
         resourceTemplates: [
-            {
-                description: 'Come meet the core MyLife assistive intelligences! We offer these configurable intelligences free as a courtesy to all members!',
-                mimeType: 'application/json',
-                name: 'mylife-intelligences',
-                title: 'Meet the MyLife Intelligences',
-                uriTemplate: 'public-bots://{botType}',
-            },
             {
                 description: 'Access memory from MyLife archives based on itemId; **note**: must be publicly shared',
                 mimeType: 'text/markdown',
@@ -1975,6 +1996,7 @@ class Q extends Avatar {
                 title: 'Search MyLife Public Memories',
                 uriTemplate: 'public-memories://search?a={anonymous}&g={guessable}&k={keyword}&p={phase}&t={title}',
             },
+            /* In Development
             {
                 description: 'Access MyLife Member\'s exposed Personal Avatar',
                 mimeType: 'application/json',
@@ -1982,6 +2004,14 @@ class Q extends Avatar {
                 title: 'Connect with a MyLife Member Avatar',
                 uriTemplate: 'public-avatar://{memberId}',
             },
+            {
+                description: 'Come meet the core MyLife assistive intelligences! We offer these configurable intelligences free as a courtesy to all members!',
+                mimeType: 'application/json',
+                name: 'mylife-intelligences',
+                title: 'Meet the MyLife Intelligences',
+                uriTemplate: 'public-bots://{botType}',
+            },
+            */
         ],
         serverInfo: {
             name: 'MyLife MCP System Avatar',
