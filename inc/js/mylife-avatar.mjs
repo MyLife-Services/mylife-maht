@@ -160,12 +160,11 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
                     resourceContent=sessionMeta.resources.get(requestId),
                     resourceListChanged=false,
                     result,
-                    share=sessionMeta.shares.get(requestId),
                     success=false,
                     text,
                     title='MyLife Public Memory',
                     uri='public-memory://' + requestId
-                if(!resourceContent){
+                if(!resourceContent){ /* create proxy resource */
                     sessionMeta.resources.set(requestId, {
                         mimeType,
                         name,
@@ -174,10 +173,9 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
                         uri,
                     }) /* imprint accessible via shareId resource */
                     resourceListChanged = true
-                }
-                if(!share){ /* create share */
+                    /* create share */
                     const shareHeader = await this.shareMemory(requestId) /* `shareMemory()` returns header */
-                    const { anonymous, guessable, id, itemId: shareItemId, shareId, title, type, warnings, } = shareHeader
+                    const { anonymous, guessable, id, itemId: shareItemId, shareId, title: shareTitle, type, warnings, } = shareHeader
                     if(!id?.length)
                         return { 
                             error: {
@@ -191,10 +189,12 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
                     sessionMeta.shares.set(id, shareHeader)
                     const newUri = `public-memory://${ id }`
                     const resourceContentShareVersion = sessionMeta.resources.get(requestId)
+                    resourceContentShareVersion.id = id
+                    resourceContentShareVersion.shareId = requestId
                     resourceContentShareVersion.text = `Share instance found at new uri: \`${ newUri }\``
-                    resourceContentShareVersion.title = `Experience MyLife Shared Memory: ${ title } [${ shareId }]`
+                    resourceContentShareVersion.title = `Experience MyLife Shared Memory: ${ shareTitle } [${ shareId }]`
                     /* create new resource content for instance */
-                    text = `I have created a Share instance for: "${ title }" (id: ${ id })\n`
+                    text = `I have created a Share instance for: "${ shareTitle }" (id: ${ id })\n`
                     if(warnings?.length)
                         text += `**Content Warnings** were found for this shared memory: ${ warnings }; please share these triggers with the human. If they wish to proceed after acknowledging, follow the standard instructions below.\n`
                     text += `## Instructions\nThis shared memory has already been divided up into scenes. The new resource will provide each scene in sequence when its personal and protected instance is requested: \`${ newUri }\` (note: intentionally a new uuid from the one in this call for privacy and security reasons).\nShare each text content scene with your human operator (feel free to flourish, if that is part of your functionality). After sharing the scene, allow the human operator to respond with any insights, additions or alterations. This \`human-operator-input\` content can be appended to the uri as an \`input\` query parameter as: \`${ newUri }?input=human-operator-input\`\n.`
@@ -206,7 +206,7 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
                         mimeType,
                         name,
                         text,
-                        title: `Experience MyLife Shared Memory: ${ title } [${ shareId }]`,
+                        title: `Experience MyLife Shared Memory: "${ shareTitle }" [${ shareId }]`,
                         uri: newUri,
                     }
                     sessionMeta.resources.set(id, resourceContent) /* instance accessible via shareId resource */
@@ -221,13 +221,24 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
                         success,
                     }
                 }
-                let Share = await this.share(share.id)
+                const share = sessionMeta.shares.get(requestId)
+                    ?? sessionMeta.shares.get(resourceContent?.id) /* route proxy `shareId` resource */
+                if(!share)
+                    return {
+                        error: {
+                            code: -32603,
+                            data: { requestId, resourceContent, },
+                            message: `This share was not able to be established, please check the share id: ${ requestId } and try again. If the problem persists, please contact support.`,
+                        }
+                    }
+                /* Share instance */
+                const Share = await this.share(share.id)
                 if(share.unconfirmed){ /* start share */
                     if(!Share)
                         return {
                             error: {
                                 code: -32603,
-                                data: { requestId, },
+                                data: { id: Share.instanceId, requestId, },
                                 message: `This share was not able to be established, please check the share id: ${ share.id } and try again. If the problem persists, please contact support.`,
                             }
                         }
@@ -235,9 +246,9 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
                         Share.acceptWarnings()
                     share.unconfirmed = false
                 }
-                await this.shareMemory(requestId) // modifies Share internally
-                const { id, previousScene, } = Share
-                resourceContent.text = `Continuing Share: "${ title }" (id: ${ id })\nShare each text content scene with your human operator (feel free to flourish, if that is part of your functionality). After sharing the scene, allow the human operator to respond with any insights, additions or alterations. This \`human-operator-input\` content can be appended to the uri as an \`input\` query parameter as: \`${ uri }?input=human-operator-input\`.\n## SCENE\n${ JSON.stringify(previousScene) }`
+                await this.shareMemory(Share.instanceId) // modifies Share internally
+                const { id, previousScene, title: shareTitle, } = Share
+                resourceContent.text = `## Continuing Share: "${ shareTitle }" (id: ${ id })\nShare each text content scene with your human operator (feel free to flourish, if that is part of your functionality). After sharing the scene, allow the human operator to respond with any insights, additions or alterations. This \`human-operator-input\` content can be appended to the uri as an \`input\` query parameter as: \`${ uri }?input=human-operator-input\`.\n## SCENE\n${ JSON.stringify(previousScene) }`
                 result = {
                     contents: [sessionMeta.resources.get(requestId)],
                 }
