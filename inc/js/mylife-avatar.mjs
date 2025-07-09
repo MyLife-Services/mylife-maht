@@ -2601,6 +2601,18 @@ class Q extends Avatar {
 		return isValidated
 	}
     /**
+     * Subscribe to a resource for the MCP session.
+     * @param {string} uri - The resource URI to subscribe to
+     * @param {object} sessionMeta - The session metadata
+     * @returns {Promise<boolean>} - Whether the subscription was successful
+     */
+    async mcpResourceSubscribe(uri, sessionMeta){
+        if(!uri?.length)
+            return false
+        sessionMeta.resourceSubscriptions.add(uri)
+        return true
+    }
+    /**
      * Creates a member instance for logged in session.
      * @param {String} mbr_id - The member id
      * @returns {Promise<Member>} - The Member Avatar instance

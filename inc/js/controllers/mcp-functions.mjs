@@ -252,6 +252,7 @@ function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
         initializeConfirmation: false,
         requests: new Map(),
         resources: new Map(),
+        resourceSubscriptions: new Set(),
         runs: new Map(),
         sessionId,
         sessionIdKoa,
@@ -355,7 +356,7 @@ async function mMcpCall(ctx, mcp){
     const { avatar: Avatar, locked, sessionMeta={}, requestType='system', } = state
     const { capabilities, clientInfo, initializeConfirmation, protocolVersion, requests, runs, sessionId, transportEntry, } = sessionMeta
     const { error: mcpError, id, jsonrpc, method, params={}, result: mcpResult, } = mcp
-    const { arguments: args, name, _meta, } = params
+    const { arguments: args, name, _meta, uri, } = params
         ?? {}
     const { progressToken, } = _meta
         ?? {}
@@ -609,6 +610,11 @@ async function mMcpCall(ctx, mcp){
                             resourceListChanged = requestResourceListChanged
                             break
                     }
+                    break
+                case 'subscribe': // no response
+                    if(!Avatar.isMyLife)
+                        break
+                    await Avatar.mcpResourceSubscribe(uri, sessionMeta)
                     break
                 case 'templates':
                     if(!Avatar.isMyLife)
