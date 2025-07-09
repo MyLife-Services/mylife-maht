@@ -151,25 +151,43 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
         },
         resource: {
             args: ['anonymous', 'guessable', 'title', 'sessionMeta'],
-            fx: async function (anonymous, guessable, title, sessionMeta){
-                // make save format commensurate with prompt search
-                const uri = `public-memory://anonymous=${ title }`
+            fx: async function (anonymous, guessable, titleSearch, sessionMeta){
+                anonymous = anonymous===null || anonymous==='' ? undefined : anonymous
+                guessable = guessable===null || guessable==='' ? undefined : guessable
+                titleSearch = titleSearch===null || !titleSearch?.length ? undefined : titleSearch
+                const uri = `public-memory://search?anonymous=${ anonymous }&guessable=${ guessable }&title=${ titleSearch }`
                 let error,
                     resourceContent=sessionMeta.resources.get(uri),
                     resourceListChanged=false,
                     result,
                     success=false
-                const memories = await this.sharedMemorySearch(anonymous, guessable, undefined, undefined, title)
+                const memories = await this.sharedMemorySearch(anonymous, guessable, undefined, undefined, titleSearch)
                 if(!memories?.length)
                     return {
                         error: {
                             code: -32603,
-                            data: { title, },
-                            message: `No public memories contain the string: "${ title }".`,
+                            data: { titleSearch, },
+                            message: `No public memories contain the string: "${ titleSearch }".`,
                         },
                         success: false,
                     }
-                console.log( 'mcpMap.publicMemories::memories', memories)
+                if(!resourceContent){ /* create proxy resource */
+                    const mimeType = 'application/json'
+                    const name = 'mylife-shared-memory-search-results'
+                    const text = JSON.stringify(memories)
+                    const title = `MyLife Public Memory Search Results (anonymous=${ anonymous }&guessable=${ guessable }&title=${ titleSearch })`
+                    sessionMeta.resources.set(uri,
+                        {
+                            mimeType,
+                            name,
+                            text,
+                            title,
+                            uri,
+                        })
+                    resourceContent = sessionMeta.resources.get(uri)
+                    resourceListChanged = true
+                }
+                result = { contents: [resourceContent], isError: false, }
                 return {
                     error,
                     resourceListChanged,
@@ -3118,6 +3136,7 @@ async function mMcpPromptCompletion(promptName, promptArgumentName, completionVa
  */
 async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avatar){
     let error,
+        resourceListChanged = false,
         result
     switch(name){
         case 'mylife_company_information':
@@ -3147,7 +3166,7 @@ async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avat
                 searchAnonymous = searchAnonymous.trim().length
                     ? searchAnonymous.trim().length==='null'
                         ? null
-                        :  searchAnonymous
+                        : searchAnonymous
                     : null
             if(typeof searchGuessable === 'string')
                 searchGuessable = searchGuessable.trim().length
@@ -3165,13 +3184,12 @@ async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avat
                 searchTitle = null
             const searchResults = await avatar.sharedMemorySearch(searchAnonymous, searchGuessable, searchKeyword, searchPhase, searchTitle)
             const resourceText = JSON.stringify(searchResults)
-            const searchResourceUri = `public-memories://search?anonymous=${searchAnonymous}&guessable=${searchGuessable}&title=${searchTitle}` /* todo - same as research template, should reference instead of hard-coding */
-            console.log('mMcpCall()::prompts::get', searchResourceUri, resourceText, args)
+            const searchResourceUri = `public-memories://search?anonymous=${ searchAnonymous }&guessable=${ searchGuessable }&title=${ searchTitle }` /* todo - same as research template, should reference instead of hard-coding */
             sessionMeta.resources.set(searchResourceUri,
                 {
                     uri: searchResourceUri,
                     name: 'mylife-shared-memory-search-results',
-                    title: `MyLife Public Memory Search Results (anonymous=${searchAnonymous}&guessable=${searchGuessable}&title=${searchTitle})`,
+                    title: `MyLife Public Memory Search Results (anonymous=${ searchAnonymous }&guessable=${ searchGuessable }&title=${ searchTitle })`,
                     mimeType: 'application/json',
                     text: resourceText,
                 })
@@ -3202,6 +3220,7 @@ async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avat
     }
     return {
         error,
+        resourceListChanged,
         result,
     }
 }
