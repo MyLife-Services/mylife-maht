@@ -25,92 +25,322 @@ const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-sc
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
     mMcpConstant = 'mylife-constant.'
-const mMcpMap = {
+const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, }; **note**: values are new pseudo-primitivefor completion arrays */
     changeTitle: { /* no implicit call for this in Avatar instance */
-        args: ['itemId', 'title', 'factory'],
-        fx: async (itemId, title, factory)=>{
-            const { id, title: newTitle, } = ( await factory.updateItem({ id: itemId, title }) ?? {} )
-            const success = id===itemId && newTitle===title
-            const text = success
-                ? `TITLE for id: \`${ itemId }\` has been updated successfully: "${ newTitle }"`
-                : `FAILED to update TITLE from "${ title }" to "${ newTitle }" for id: (${ itemId })`
-            const type = 'text'
-            const result = {
-                content: [{ text, type, }],
-                isError: !success,
-            }
-            return {
-                result,
-                success,
-            }
+        function: {
+            args: ['itemId', 'title', 'factory'],
+            fx: async (itemId, title, factory)=>{
+                const { id, title: newTitle, } = ( await factory.updateItem({ id: itemId, title }) ?? {} )
+                const success = id===itemId && newTitle===title
+                const text = success
+                    ? `TITLE for id: \`${ itemId }\` has been updated successfully: "${ newTitle }"`
+                    : `FAILED to update TITLE from "${ title }" to "${ newTitle }" for id: (${ itemId })`
+                const type = 'text'
+                const result = {
+                    content: [{ text, type, }],
+                    isError: !success,
+                }
+                return {
+                    result,
+                    success,
+                }
+            },
         },
     },
     createSummary: { /* no implicit call for this in Avatar instance */
-        args: ['mcpData', `${ mMcpConstant }POST`],
-        fx: 'item',
-        fxCallback: (responseObject)=>{
-            const result = { content: [], isError: true, }
-            const { instruction, item, responses, success, } = responseObject
-            result.isError = !success
-            if(!!item && success){
-                result.content.push({
-                    text: JSON.stringify(item),
-                    type: 'text',
-                })
-                result.structuredContent = item
-            } else if(responses?.length)
-                result.content = responses.map(response=>({
-                    text: response?.message
-                        ?? response?.content
-                        ?? JSON.stringify(response),
-                    type: 'text',
-                }))
-            else
-                result.content.push({
-                    text: `No item created from summary`,
-                    type: 'text',
-                })
+        function: {
+            args: ['mcpData', `${ mMcpConstant }POST`],
+            fx: 'item',
+            fxCallback: (responseObject)=>{
+                const result = { content: [], isError: true, }
+                const { instruction, item, responses, success, } = responseObject
+                result.isError = !success
+                if(!!item && success){
+                    result.content.push({
+                        text: JSON.stringify(item),
+                        type: 'text',
+                    })
+                    result.structuredContent = item
+                } else if(responses?.length)
+                    result.content = responses.map(response=>({
+                        text: response?.message
+                            ?? response?.content
+                            ?? JSON.stringify(response),
+                        type: 'text',
+                    }))
+                else
+                    result.content.push({
+                        text: `No item created from summary`,
+                        type: 'text',
+                    })
 
-            return { result, success, }
-        }
+                return { result, success, }
+            },
+        },
     },
     getMemories: { /* no implicit call for this in Avatar instance */
-        args: ['avatar'],
-        fx: async (avatar)=>{
-            const preface = 'Here are the titles and ids (display only titles for human member) for the memories we have created together:\n'
-            const response = ( await avatar.bot(undefined, 'biographer').collections() )
-                .map(item=>({
-                    id: item.id,
-                    title: item.title,
-                }))
-            const success = response?.length > 0
-            const responseArrayName = 'memories'
-            return {
-                preface,
-                response,
-                responseArrayName,
-                success,
-            }
+        function: {
+            fx: async function (){
+                console.log( 'mcpMap.getMemories::avatar', this)
+                const preface = 'Here are the titles and ids (display only titles for human member) for the memories we have created together:\n'
+                const response = ( await this.bot(undefined, 'biographer').collections() )
+                    .map(item=>({
+                        id: item.id,
+                        title: item.title,
+                    }))
+                const success = response?.length > 0
+                const responseArrayName = 'memories'
+                return {
+                    preface,
+                    response,
+                    responseArrayName,
+                    success,
+                }
+            },
         },
     },
     endReliving: {
-        args: [],
-        fx: 'endMemory',
+        function: {
+            args: [],
+            fx: 'endMemory',
+        },
     },
     logout: {
-        args: ['ctx', 'avatar'],
-        fx: (ctx, avatar)=>{
-            avatar.logout(ctx)
-            // @todo - close any open runs? or push this to `mcp-functions.mjs` as `import`?
-            return {
-                result: {
-                    content: [{
-                        text: 'You have been successfully logged out of MyLife.',
-                        type: 'text',
-                    }],
-                },
-                success: true,
-                toolListChanged: true,
+        function: {
+            args: ['ctx', 'avatar'],
+            fx: (ctx, avatar)=>{
+                avatar.logout(ctx)
+                // @todo - close any open runs? or push this to `mcp-functions.mjs` as `import`?
+                // @todo - use sessionMeta to remove any lingering app-level datasets
+                return {
+                    result: {
+                        content: [{
+                            text: 'You have been successfully logged out of MyLife.',
+                            type: 'text',
+                        }],
+                    },
+                    success: true,
+                    toolListChanged: true,
+                }
+            },
+        },
+    },
+    publicBots:{
+        completion: {
+            fx: function (){ /* must be return array */
+                const typeEnum = ['avatar', 'biographer', 'diary', 'journaler']
+                return typeEnum
+            }
+        },
+        resource: {
+            args: ['type'],
+            fx: async function (type='avatar'){
+                const bot = await this.genericBot(type)
+                console.log( 'mcpMap.publicBots::bot', bot, typeof this.genericBot)
+            }
+        }
+    },
+    publicMemories: { /* resource version */
+        completion: {
+            args: ['title'],
+            fx: async function (title){
+                let memories = await this.sharedMemories(100, { title, })
+                memories = memories.map(memory=>memory.title)
+                return memories
+            }
+        },
+        resource: {
+            args: ['anonymous', 'guessable', 'title', 'sessionMeta'],
+            fx: async function (anonymous, guessable, titleSearch, sessionMeta){
+                anonymous = anonymous===null || anonymous==='' ? undefined : anonymous
+                guessable = guessable===null || guessable==='' ? undefined : guessable
+                titleSearch = titleSearch===null || !titleSearch?.length ? undefined : titleSearch
+                const uri = `public-memory://search?anonymous=${ anonymous }&guessable=${ guessable }&title=${ titleSearch }`
+                let error,
+                    resourceContent=sessionMeta.resources.get(uri),
+                    resourceListChanged=false,
+                    result,
+                    success=false
+                const memories = await this.sharedMemorySearch(anonymous, guessable, undefined, undefined, titleSearch)
+                if(!memories?.length)
+                    return {
+                        error: {
+                            code: -32603,
+                            data: { titleSearch, },
+                            message: `No public memories contain the string: "${ titleSearch }".`,
+                        },
+                        success: false,
+                    }
+                if(!resourceContent){ /* create proxy resource */
+                    const mimeType = 'application/json'
+                    const name = 'mylife-shared-memory-search-results'
+                    const text = JSON.stringify(memories)
+                    const title = `MyLife Public Memory Search Results (anonymous=${ anonymous }&guessable=${ guessable }&title=${ titleSearch })`
+                    sessionMeta.resources.set(uri,
+                        {
+                            mimeType,
+                            name,
+                            text,
+                            title,
+                            uri,
+                        })
+                    resourceContent = sessionMeta.resources.get(uri)
+                    resourceListChanged = true
+                }
+                result = { contents: [resourceContent], isError: false, }
+                return {
+                    error,
+                    resourceListChanged,
+                    result,
+                    success,
+                }
+            }
+        }
+    },
+    publicMemory: { /* resource version */
+        completion: {
+            args: ['itemId'],
+            fx: async function (itemId){ /* must be return array */
+                const searchObject = { id: itemId, }
+                let memories = await this.sharedMemories(100, searchObject)
+                memories = memories.map(memory=>memory.id)
+                return memories
+            }
+        },
+        function: {
+            args: ['itemId'],
+            fx: 'sharedMemory',
+            fxCallback: async function (responseObjects){
+                const { responses, success=false, } = responseObjects?.[0]
+                    ?? {}
+                if(!responses?.length) /* sharedMemory compelled into array */
+                    return []
+                return responses.map(response=>
+                    response?.message
+                        ?? response?.content
+                        ?? response?.title
+                        ?? response
+                )
+            }
+        },
+        resource: {
+            args: ['itemId', 'sessionMeta'],
+            fx: async function (requestId, sessionMeta){
+                let error,
+                    mimeType = 'text/markdown',
+                    name = 'mylife-public-memory',
+                    resourceContent=sessionMeta.resources.get(requestId),
+                    resourceListChanged=false,
+                    result,
+                    success=false,
+                    text,
+                    title='MyLife Public Memory',
+                    uri='public-memory://' + requestId
+                if(!resourceContent){ /* create proxy resource */
+                    sessionMeta.resources.set(requestId, {
+                        mimeType,
+                        name,
+                        text,
+                        title,
+                        uri,
+                    })
+                    resourceListChanged = true
+                    /* create share */
+                    const shareHeader = await this.shareMemory(requestId) /* `shareMemory()` returns header */
+                    const { anonymous, guessable, id, itemId: shareItemId, shareId, title: shareTitle, type, warnings, } = shareHeader
+                    if(!id?.length)
+                        return { 
+                            error: {
+                                code: -32603,
+                                data: { requestId, },
+                                message: `This share was not able to be established, please check the share itemId: ${ shareItemId } and try again. If the problem persists, please contact support.`,
+                            }
+                        }
+                    /* update sessionMeta */
+                    shareHeader.unconfirmed = true
+                    sessionMeta.shares.set(id, shareHeader)
+                    const newUri = `public-memory://${ id }`
+                    const resourceContentShareVersion = sessionMeta.resources.get(requestId)
+                    resourceContentShareVersion.id = id
+                    resourceContentShareVersion.shareId = requestId
+                    resourceContentShareVersion.text = `Share instance found at new uri: \`${ newUri }\``
+                    resourceContentShareVersion.title = `Experience MyLife Shared Memory: ${ shareTitle } [${ shareId }]`
+                    /* create new resource content for instance */
+                    text = `I have created a Share instance for: "${ shareTitle }" (id: ${ id })\n`
+                    if(warnings?.length)
+                        text += `**Content Warnings** were found for this shared memory: ${ warnings }; please share these triggers with the human. If they wish to proceed after acknowledging, follow the standard instructions below.\n`
+                    text += `## Instructions\nThis shared memory has already been divided up into scenes. The new resource will provide each scene in sequence when its personal and protected instance is requested: \`${ newUri }\` (note: intentionally a new uuid from the one in this call for privacy and security reasons).\nShare each text content scene with your human operator (feel free to flourish, if that is part of your functionality). After sharing the scene, allow the human operator to respond with any insights, additions or alterations. This \`human-operator-input\` content can be appended to the uri as an \`input\` query parameter as: \`${ newUri }?input=human-operator-input\`\n.`
+                    if(anonymous)
+                        text += `\n\n**Note**: This share is anonymous, so the human operator will not be able to see who created it.`
+                    if(guessable)
+                        text += `\n\n**Note**: This share is guessable, so the human operator can choose at any time to guess the identity of the creator; offer the human operator the opportunity to makes such a guess, and their guess can be included as a query parameter: \`${ uri }?guess=human-operator-guess\`. *Be Aware*: A guess will NOT move the scene forward *unless* an \`input\` query parameter is *also* provided.`
+                    resourceContent = {
+                        mimeType,
+                        name,
+                        text,
+                        title: `Experience MyLife Shared Memory: "${ shareTitle }" [${ shareId }]`,
+                        uri: newUri,
+                    }
+                    sessionMeta.resources.set(id, resourceContent) /* instance accessible via shareId resource */
+                    resourceListChanged = true
+                    success = true
+                    return {
+                        error,
+                        resourceListChanged,
+                        result: {
+                            contents: [sessionMeta.resources.get(id)],
+                        },
+                        success,
+                    }
+                }
+                const share = sessionMeta.shares.get(requestId)
+                    ?? sessionMeta.shares.get(resourceContent?.id) /* route proxy `shareId` resource */
+                if(!share)
+                    return {
+                        error: {
+                            code: -32603,
+                            data: { requestId, resourceContent, },
+                            message: `This share was not able to be established, please check the share id: ${ requestId } and try again. If the problem persists, please contact support.`,
+                        }
+                    }
+                /* Share instance */
+                const Share = await this.share(share.id)
+                if(share.unconfirmed){ /* start share */
+                    if(!Share)
+                        return {
+                            error: {
+                                code: -32603,
+                                data: { id: Share.instanceId, requestId, },
+                                message: `This share was not able to be established, please check the share id: ${ share.id } and try again. If the problem persists, please contact support.`,
+                            }
+                        }
+                    if(share.warnings?.length)
+                        Share.acceptWarnings()
+                    share.unconfirmed = false
+                }
+                await this.shareMemory(Share.instanceId) // modifies Share internally
+                const { id, previousScene, title: shareTitle, } = Share
+                resourceContent.text = `## Continuing Share: "${ shareTitle }" (id: ${ id })\nShare each text content scene with your human operator (feel free to flourish, if that is part of your functionality). After sharing the scene, allow the human operator to respond with any insights, additions or alterations. This \`human-operator-input\` content can be appended to the uri as an \`input\` query parameter as: \`${ uri }?input=human-operator-input\`.\n## SCENE\n${ JSON.stringify(previousScene) }`
+                result = {
+                    contents: [sessionMeta.resources.get(requestId)],
+                }
+                success = true
+                return {
+                    error,
+                    resourceListChanged,
+                    result,
+                    success,
+                }
+            }
+        }
+    },
+    sharedMemorySearch: { /* prompt version */
+        completion: {
+            args: ['anonymous', 'guessable', 'keyword', 'phase', 'title'],
+            fx: 'sharedMemorySearch',
+            fxCallback: (values)=>{
+                const returnValues = values.map(value=>value.title.trim())
+                return returnValues
             }
         },
     },
@@ -124,7 +354,6 @@ const mMcpTools = await mInitializeExternalTools(
  * @class - Avatar
  * @extends EventEmitter
  * @description An avatar is a digital self proxy of Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The Avatar is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
- * @todo - deprecate `factory` getter
  */
 class Avatar extends EventEmitter {
     #alertsShown = [] // array of alert ids
@@ -580,6 +809,10 @@ class Avatar extends EventEmitter {
         const { success, } = feedback
         return success
     }
+    async genericBot(botType='avatar'){
+        const bot = await this.#botAgent.genericBot(botType)
+        return bot
+    }
     /**
      * Specified by id, returns the pruned Bot.
      * @param {Guid} id - The Bot id
@@ -805,6 +1038,19 @@ class Avatar extends EventEmitter {
         return this.#experienceAgent.experienceManifest(xid)
     }
     /**
+     * Handles the MCP completion process.
+     * @param {string} type - The type of the MCP completion, i.e., `prompt`, `resource`
+     * @param {object} reference - The reference object for the MCP completion { name, uri, }
+     * @param {object} argument - The argument object containing the MCP completion data { name, value, }
+     * @param {object} contextArguments - The `context.arguments` object for the MCP completion { ...each node is key/value pair for context history }
+     * @param {object} sessionMeta - The session metadata for the MCP completion
+     * @param {Koa} ctx - The Koa context object
+     * @returns {Promise<object>} - The result of the MCP completion: { error, result, }
+     */
+    async mcpCompletionRequest(type, reference, argument, contextArguments, sessionMeta, ctx){
+        return await mMcpCompletionRequest(type, reference, argument, contextArguments, sessionMeta, ctx, this.#factory, this)
+    }
+    /**
      * Calls a specific MCP function with the provided data and session metadata.
      * @param {string} functionName - The name of the MCP function to call
      * @param {object} mcpData - The data to pass to the MCP function
@@ -823,7 +1069,7 @@ class Avatar extends EventEmitter {
      * @param {object} sessionMeta - The session metadata
      * @param {Koa} ctx - The Koa context object
      */
-    async mcpFunctionResponse(type='sampling', callback, mcpData={}, sessionMeta, ctx){
+    async mcpFunctionRequest(type='sampling', callback, mcpData={}, sessionMeta, ctx){
         // @todo - remove type param if possible
         const { _function: functionName, _replace, ...callbackData } = callback
         const replace = (typeof _replace === 'string')
@@ -840,6 +1086,28 @@ class Avatar extends EventEmitter {
             })
         const response = await this.mcpFunction(functionName, callbackData, sessionMeta, ctx)
         return response
+    }
+    /**
+     * Handles an MCP prompt request.
+     * @param {string} id - The ID of the MCP prompt
+     * @param {string} name - The name of the MCP prompt
+     * @param {object} args - The arguments for the MCP prompt
+     * @param {object} sessionMeta - The session metadata for the MCP prompt
+     * @param {Koa} ctx - The Koa context object
+     * @returns {Promise<object>} - The result of the MCP prompt request: { error, result, }
+     */
+    async mcpPromptRequest(id, name, args, sessionMeta, ctx){
+        return await mMcpPromptRequest(id, name, args, sessionMeta, ctx, this.#factory, this)
+    }
+    /**
+     * Handles an MCP resource request.
+     * @param {string} uri - The URI of the MCP resource to request
+     * @param {object} sessionMeta - The session metadata for the MCP resource request
+     * @param {Koa} ctx - The Koa context object
+     * @returns {Promise<object>} - The result of the MCP resource request: { error, result, }
+     */
+    async mcpResourceRequest(uri, sessionMeta, ctx){
+        return await mMcpResourceRequest(uri, sessionMeta, ctx, this.#factory, this)
     }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
@@ -1132,7 +1400,7 @@ class Avatar extends EventEmitter {
 	 * Execute a memory `Share`; currently only shared publicly with non-MyLife members via Q.
 	 * @param {Guid} sid - Share id
      * @param {String} input - Text from recipient
-     * @returns {Promise<Share>} - The Share response object { error, instruction, responses, success, warnings, }
+     * @returns {Promise<Share|object>} - The initial share header --or, afterwards, upon acceptance-- Share Instance
 	 */
 	async shareMemory(sid, input){
         const Share = await this.#ShareAgent.play(sid, input)
@@ -1683,6 +1951,7 @@ class Q extends Avatar {
     #llmServices // ref _could_ differ from Avatar, but for now, same
     #mcp={
         capabilities: {
+            completions: {},
             prompts: {
                 listChanged: false,
             },
@@ -1703,33 +1972,139 @@ class Q extends Avatar {
                 arguments: [
                     {
                         description: 'The type of information requested about MyLife',
-                        enum: ['history', 'mission', 'vision', 'values', 'governance', 'members'],
+                        enum: ['history', 'mission', 'vision', 'values', 'governance', 'members', 'other'],
                         name: 'infoType',
+                        required: false,
+                    },
+                    {
+                        description: 'The question to ask of our System Avatar, Q',
+                        disallowCompletion: true,
+                        name: 'question',
                         required: true,
-                    }
+                    },
+                ],
+            },
+            {
+                name: 'mylife_shared_memory_search',
+                description: 'Let Q help you find MyLife shared public memories to experience.',
+                arguments: [
+                    {
+                        description: 'Whether to search for anonymous memories; do not send if not intending to filter by anonymous',
+                        name: 'anonymous',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    {
+                        description: 'Whether to search for guessable memories; do not send if not intending to filter  by guessable',
+                        name: 'guessable',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    /*
+                    {
+                        default: '',
+                        description: 'A keyword(s) or topic to search for in MyLife shared public memory bank',
+                        name: 'keyword',
+                        required: true,
+                        type: 'string',
+                    },
+                    {
+                        description: 'A Phase of Life to search for in MyLife shared public memory bank',
+                        enum: ['birth', 'childhood', 'adolescence', 'teenage', 'young-adult', 'adulthood', 'middle-age', 'senior', 'end-of-life', 'past-life', 'unknown'],
+                        name: 'phase',
+                        required: false,
+                        type: 'string',
+                    },
+                    */
+                    {
+                        description: 'Title of the MyLife shared public memory to search for',
+                        name: 'title',
+                        required: false,
+                        type: 'string',
+                    },
                 ],
             }
         ],
         protocolVersion: mJsonRpcProtocolVersion,
         resources: [
             {
-                uri: 'file://MyLife_Board.pdf',
-                name: 'MyLife Board of Directors Bylaws.pdf',
-                description: 'MyLife Board of Directors Bylaws version 1.0',
-                mimeType: 'application/pdf',
-            },
-            {
-                uri: 'file://MyLife_Summary.pdf',
-                name: 'MyLife_Summary.pdf',
                 description: 'Outreach Material for MyLife, written 2 years ago prior to development of the platform',
                 mimeType: 'application/pdf',
+                name: 'mylife-basics',
+                title: 'MyLife Summary',
+                uri: 'file://MyLife_Summary.pdf',
             },
             {
-                uri: 'https://github.com/MyLife-Services/mylife-maht/',
-                name: 'MyLife-MAHT GIT codebase',
-                description: 'MyLife MAHT codebase, written in Node.js',
+                description: 'MyLife Board of Directors Bylaws version 1.0',
+                mimeType: 'application/pdf',
+                name: 'mylife-bylaws',
+                title: 'MyLife Bylaws',
+                uri: 'file://MyLife_Board.pdf',
+            },
+            {
+                description: 'MyLife open-source codebase, written for Node.js and NoSQL db',
                 mimeType: 'text/html',
-            }
+                name: 'mylife-codebase',
+                title: 'MyLife Codebase',
+                uri: 'https://github.com/MyLife-Services/mylife-maht',
+            },
+            {
+                description: 'MyLife Homepage: Human Remembrance Project for our Digital Legacy',
+                mimeType: 'text/html',
+                name: 'mylife-homepage',
+                title: 'MyLife Homepage',
+                uri: 'https://humanremembranceproject.org',
+            },
+        ],
+        resourceTemplates: [
+            {
+                description: 'Access memory from MyLife archives based on itemId; **note**: must be publicly shared',
+                mimeType: 'text/markdown',
+                name: 'mylife-public-memory',
+                title: 'Experience a MyLife Shared Memory',
+                uriTemplate: 'public-memory://{itemId}',
+            },
+            {
+                arguments: {
+                    anonymous: {
+                        description: 'Whether to search for anonymous memories; do not send if not intending to filter by anonymous',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    guessable: {
+                        description: 'Whether to search for guessable memories',
+                        enum: [true, false, null],
+                        required: false,
+                        type: 'boolean',
+                    },
+                    title: {
+                        description: 'Title of the MyLife shared public memory to search for',
+                        required: false,
+                        type: 'string',
+                    },
+                },
+                description: 'Search MyLife Public Memories; note: currently must be publicly shared',
+                mimeType: 'application/json',
+                name: 'mylife-public-memory-search',
+                title: 'Search MyLife Public Memories',
+                uriTemplate: 'public-memories://search?anonymous={anonymous}&guessable={guessable}&title={title}',
+            },
+            /* In Development
+            {
+                description: 'Access MyLife Member\'s exposed Personal Avatar',
+                mimeType: 'application/json',
+                name: 'mylife-avatar',
+                title: 'Connect with a MyLife Member Avatar',
+                uriTemplate: 'public-avatar://{memberId}',
+            },
+            {
+                description: 'Come meet the core MyLife assistive intelligences! We offer these configurable intelligences free as a courtesy to all members!',
+                mimeType: 'application/json',
+                name: 'mylife-intelligences',
+                title: 'Meet the MyLife Intelligences',
+                uriTemplate: 'public-bots://{botType}',
+            },
+            */
         ],
         serverInfo: {
             name: 'MyLife MCP System Avatar',
@@ -2226,6 +2601,18 @@ class Q extends Avatar {
 		return isValidated
 	}
     /**
+     * Subscribe to a resource for the MCP session.
+     * @param {string} uri - The resource URI to subscribe to
+     * @param {object} sessionMeta - The session metadata
+     * @returns {Promise<boolean>} - Whether the subscription was successful
+     */
+    async mcpResourceSubscribe(uri, sessionMeta){
+        if(!uri?.length)
+            return false
+        sessionMeta.resourceSubscriptions.add(uri)
+        return true
+    }
+    /**
      * Creates a member instance for logged in session.
      * @param {String} mbr_id - The member id
      * @returns {Promise<Member>} - The Member Avatar instance
@@ -2237,16 +2624,40 @@ class Q extends Avatar {
     /**
      * Get a list of publicly shared memories.
      * @param {Number} limit - The max number of memories to return
+     * @param {Object} filterArgs - Optional filter arguments for shared memories
      * @returns {Promise<Object[]>} - The list of shared memories
      */
-    async sharedMemories(limit=10){
-        let memories = await this.#factory.sharedMemories(limit)
+    async sharedMemories(limit=10, filterArgs={}){
+        let memories = await this.#factory.sharedMemories(limit, filterArgs)
         memories = memories
             .map(memory=>({
                 id: memory.id,
                 title: memory.title,
             }))
         return memories
+    }
+    async sharedMemory(itemId){
+        const publicMemory = await this.#factory.sharedMemory(itemId)
+        console.log('SystemAvatar::sharedMemory()::publicMemory', publicMemory?.id)
+        return publicMemory
+    }
+    /**
+     * Search for shared memories based on keyword, phase of life, and/or title.
+	 * @param {boolean} anonymous - Whether to search for anonymous memories
+	 * @param {boolean} guessable - Whether to search for guessable memories
+     * @param {string} keyword - The keyword to search for in shared memories
+     * @param {string} phaseOfLife - The phase of life to filter memories by
+     * @param {string} title - The title to filter memories by
+     * @returns {Promise<Object[]>} - The list of matching shared memories
+     */
+    async sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title){
+        const memories = await this.#factory.sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title)
+        const results = memories
+            .map(memory=>({
+                id: memory.id,
+                title: memory.title,
+            }))
+        return results
     }
     /**
      * OVERLOAD: Share a memory with the MyLife system. If no shareId is provided, the first shared memory will be used.
@@ -2569,6 +2980,360 @@ function mItem(item, avatar, llmServices){
     return Item
 }
 /**
+ * Handles the MCP completion process.
+ * @param {string} type - The type of the MCP completion, i.e., `prompt`, `resource`
+ * @param {string} reference - The reference--name [for prompt] or uri [for resource]--for the MCP completion
+ * @param {object} argument - The argument object containing the MCP completion data { name, value, }
+ * @param {object} contextArguments - The `context.arguments` object for the MCP completion { ...each node is key/value pair for context history }
+ * @param {object} sessionMeta - The session metadata for the MCP completion
+ * @param {Koa} ctx - The Koa context object
+ * @returns {Promise<object>} - The result of the MCP completion: { error, result, }
+ */
+async function mMcpCompletionRequest(type, reference, argument, contextArguments, sessionMeta, ctx, factory, avatar){
+    const completeLimit=100,
+        values = []
+    switch(type){
+        case 'prompt':
+            const promptName = reference
+            if(!!argument && !argument.name?.length)
+                argument = { name: Object.keys(argument)[0], value: argument[Object.keys(argument)[0]] }
+            const { name: completionName, value: completionValue, } = ( argument ?? {} )
+            if(!completionName?.length)
+                return {
+                    error: {
+                        code: -32602,
+                        message: '`name` parameter required for MCP prompt completion',
+                        data,
+                    }
+                }
+            const promptArguments = avatar.mcp.prompts
+                ?.find(p=>p.name === promptName)
+                ?.arguments
+                    ?? []
+            if(!promptArguments.length)
+                return {
+                    error: {
+                        code: -32603,
+                        message: `No arguments found for prompt "${ promptName }"`,
+                        data,
+                    }
+                }
+            const promptArgument = promptArguments.find(arg=>arg.name === completionName)
+            if(!promptArgument)
+                return {
+                    error: {
+                        code: -32603,
+                        message: `Prompt argument "${ completionName }" not found for "${ promptName }" in MCP prompts`,
+                        data,
+                    }
+                }
+            const { disallowCompletion=false, enum: promptArgumentEnum, name: promptArgumentName, required: promptArgumentRequired=false, type: promptArgumentType='string', } = promptArgument
+            if(!promptArgumentName?.length || disallowCompletion)
+                break
+            if(promptArgumentEnum?.length)
+                values.push(...promptArgumentEnum) // use enum values
+            else if(promptArgumentType==='boolean')
+                values.push('true', 'false', 'null') // boolean values
+            else
+                values.push(...await mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, avatar))
+            break
+        case 'resource': /* arguments embedded in uri */
+            reference = reference?.trim()
+            if(!reference?.length)
+                return {
+                    error: {
+                        code: -32602,
+                        message: `Invalid resource URI: ${ reference }`,
+                        data,
+                    }
+                }
+            const uri = {
+                argument,
+                contextArguments,
+                path: reference.split('://')[1].split('?')[0],
+                queryString: reference.split('?')?.[1],
+                root: reference.split('://')[0], // may need to add prefix at some point
+                uri: reference,
+            }
+            const { name: resourceName, value: resourceValue, } = uri.argument
+                ?? {}
+            const resourceArgument = avatar.mcp.resourceTemplates
+                ?.find(t=>t.uriTemplate === reference)
+                ?.arguments
+                ?.[resourceName]
+                    ?? {}
+            if(!!resourceArgument){
+                if(resourceArgument.enum?.length)
+                    values.push(...resourceArgument.enum.map(value =>String(value))) // use enum values
+                else 
+                    switch(resourceArgument.type){
+                        case 'boolean':
+                            values.push('true', 'false', 'null')
+                            break
+                        case 'number':
+                        case 'string':
+                        default:
+                            const completionData = {
+                                [`${ resourceName }`]: resourceValue,
+                            }
+                            const resourceRoot = factory.globals.jsFunctionName(uri.root)
+                            let dropdownArray = await mMcpRequestResponse('completion', resourceRoot, completionData, contextArguments, sessionMeta, ctx, factory, avatar)
+                                ?? []
+                            dropdownArray = dropdownArray?.result
+                                ?? dropdownArray?.responses
+                                ?? dropdownArray?.values
+                                ?? dropdownArray
+                                ?? []
+                            if(Array.isArray(dropdownArray))
+                                values.push(...dropdownArray)
+                            else
+                                console.log('mMcpCompletionRequest()::resource: unexpected dropdownArray:', dropdownArray)
+                            break
+                    }
+            }
+            break
+        default:
+            return {
+                error: {
+                    code: -32601,
+                    message: `MCP completion type "${ type }" not supported`,
+                    data,
+                }
+            }
+    }
+    const result = {
+        completion: {
+            hasMore: values.length > completeLimit,
+            total: values.length,
+            values: values.slice(0, completeLimit),
+        }
+    }
+    return { result, }
+}
+/**
+ * Completes an MCP prompt argument type.
+ * @param {string} promptName - The name of the MCP prompt to complete
+ * @param {string} promptArgumentName - The name of the argument to complete
+ * @param {string|object} completionValue - The value to use for completion (optional)
+ * @param {AgentFactory|MyLifeFactory} factory - The factory object
+ * @returns {Promise<Array>} - The array of completion values
+ */
+async function mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, avatar){
+    const cleanPromptName = promptName.replace(/^mcp_/, '').replace(/^mylife_/, ''),
+        completionData = { [`${ promptArgumentName }`]: completionValue },
+        functionName = factory.globals.jsFunctionName(cleanPromptName),
+        values = []
+    let dropdownArray = await mMcpRequestResponse('completion', functionName, completionData, undefined, sessionMeta, ctx, factory, avatar)
+    if(typeof dropdownArray === 'object'){
+        if(!Array.isArray(dropdownArray)) /* attempt conversion to array */
+            dropdownArray = dropdownArray?.result
+                ?? dropdownArray?.responses
+                ?? dropdownArray?.values
+                ?? []
+        if(Array.isArray(dropdownArray) && dropdownArray.length)
+            values.push(...dropdownArray)
+    }
+    return values
+}
+/**
+ * Handles the MCP prompt request.
+ * @param {string} id - The request ID
+ * @param {string} name - The prompt name
+ * @param {object} args - The prompt arguments
+ * @param {object} sessionMeta - The session metadata for the MCP prompt request
+ * @param {Koa} ctx - The Koa context object
+ * @param {AgentFactory|MyLifeFactory} factory - The factory object to use for the MCP prompt request
+ * @param {Avatar} avatar - The avatar object to use for the MCP prompt request
+ * @returns {Promise<object>} - The result of the MCP prompt request: { description, messages, }
+ */
+async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avatar){
+    let error,
+        resourceListChanged = false,
+        result
+    switch(name){
+        case 'mylife_company_information':
+            const { infoType, question, } = args
+            result = {
+                description: `Ask MyLife's corporate intelligence, _Q_, a tailored question about our nonprofit organization.`,
+                messages: [
+                    {
+                        role: 'user',
+                        content: {
+                            type: 'text',
+                            text: `I have a question to submit about MyLife regarding its: "${ infoType }."\n## Question:\n${ question }`,
+                        }
+                    }
+                ]
+            }
+            break
+        case 'mylife_shared_memory_search':
+            let {
+                anonymous: searchAnonymous,
+                guessable: searchGuessable,
+                keyword: searchKeyword,
+                phase: searchPhase,
+                title: searchTitle,
+            } = args
+            if(typeof searchAnonymous === 'string')
+                searchAnonymous = searchAnonymous.trim().length
+                    ? searchAnonymous.trim().length==='null'
+                        ? null
+                        : searchAnonymous
+                    : null
+            if(typeof searchGuessable === 'string')
+                searchGuessable = searchGuessable.trim().length
+                    ? searchGuessable.trim().length==='null'
+                        ? null
+                        :  searchGuessable
+                    : null
+            /*
+            if(!searchKeyword?.trim()?.length)
+                searchKeyword = null
+            if(!searchPhase?.trim()?.length)
+                searchPhase = null
+            */
+            if(!searchTitle?.trim()?.length)
+                searchTitle = null
+            const searchResults = await avatar.sharedMemorySearch(searchAnonymous, searchGuessable, searchKeyword, searchPhase, searchTitle)
+            const resourceText = JSON.stringify(searchResults)
+            const searchResourceUri = `public-memories://search?anonymous=${ searchAnonymous }&guessable=${ searchGuessable }&title=${ searchTitle }` /* todo - same as research template, should reference instead of hard-coding */
+            sessionMeta.resources.set(searchResourceUri,
+                {
+                    uri: searchResourceUri,
+                    name: 'mylife-shared-memory-search-results',
+                    title: `MyLife Public Memory Search Results (anonymous=${ searchAnonymous }&guessable=${ searchGuessable }&title=${ searchTitle })`,
+                    mimeType: 'application/json',
+                    text: resourceText,
+                })
+            resourceListChanged = true
+            const resource = sessionMeta.resources.get(searchResourceUri)
+            result = {
+                description: `Stored search results in session for ${ resource.name }, a quick access function MyLife's public memories searches.\nStored search results can be accessed via a newly created resource for this session: "${ resource.uri }" and can be accessed in future requests.`,
+                messages: [
+                    {
+                        role: 'user',
+                        content: {
+                            type: 'text',
+                            text: `Once human operator has reduced list to one item or selected it through an available interface, call the tool: "get_shared_memory" including the \`itemId\` of the indicated memory from this search, found on the server for this session duration at: ${ resource.uri }`,
+                        }
+                    },
+                    {
+                        role: 'assistant',
+                        content: {
+                            type: 'resource',
+                            resource,
+                        }
+                    },
+                ],
+            }
+            break
+        default:
+            break
+    }
+    return {
+        error,
+        resourceListChanged,
+        result,
+    }
+}
+/**
+ * Completes an MCP request via prompts, completions or resources.
+ * @todo - gate number of successive db calls to prevent abuse
+ * @param {string} type - The type of the MCP completion; enum: [`completion`, `function`, `resource`]
+ * @param {string} functionName - The name of the function to call for the MCP completion
+ * @param {string|object} data - The object containing key/value pairs to inform the completion
+ * @param {object} contextArguments - The context arguments to be used
+ * @param {object} sessionMeta - The session metadata for the MCP completion
+ * @param {Koa} ctx - The Koa context object
+ * @param {AgentFactory|MyLifeFactory} factory - The factory object to use for the call
+ * @param {Avatar|Q} avatar - The avatar instance
+ * @returns {Array} - The array of arguments to be used for the MCP completion in place
+ */
+async function mMcpRequestResponse(type='function', functionName, data, contextArguments, sessionMeta, ctx, factory, avatar){
+    const { fx, args=[], fxCallback, } = ( mMcpMap[functionName]?.[type] ?? {} )
+    let error,
+        resourceListChanged,
+        result,
+        success=false
+    if(!fx)
+        return {
+            result:  {
+                content: [{ text: `Function "${ functionName }" not found`, type: 'text' }],
+                isError: true,
+            }
+        }
+    const fxArgs = mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory, avatar)
+    const avatarFunction = typeof fx === 'string'
+        ? avatar[fx]
+        : fx
+    if(typeof avatarFunction === 'function'){
+        let functionResponse = await avatarFunction.bind(avatar)(...fxArgs)
+        if(typeof fxCallback === 'function')
+            functionResponse = await fxCallback.bind(avatar)(functionResponse)
+        result = functionResponse?.result
+            ?? functionResponse
+        error = functionResponse?.error
+        resourceListChanged = functionResponse?.resourceListChanged
+        success = functionResponse?.success
+            ?? true
+    } else
+        error = {
+            code: -32603,
+            data: { functionName, fx, args, },
+            message: `Function "${ functionName }" is not callable`,
+        }
+    return {
+        error,
+        resourceListChanged,
+        result,
+        success,
+    }
+}
+/**
+ * Creates the MCP completion arguments based on the provided arguments, completion name, and value.
+ * @todo - mcp inspector **not** correctly passing contextArguments; from spec: "For prompts or URI templates with multiple arguments, clients should include **previous completions** in the context.arguments object to provide context for subsequent requests." [emphasis mine]
+ * @todo - gate number of db calls to prevent abuse
+ * @param {object} args - The arguments object containing the MCP completion data
+ * @param {string|object} data - The object containing key/value pairs to inform the completion
+ * @param {string} contextArguments - The context arguments to be used
+ * @param {object} sessionMeta - The session metadata for the MCP completion
+ * @param {Koa} ctx - The Koa context object
+ * @param {AgentFactory|MyLifeFactory} factory - The factory object to use for the call
+ * @param {Avatar|Q} avatar - The avatar instance
+ * @returns {Array} - The array of arguments to be used for the MCP completion in place
+ */
+function mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory, avatar){
+    const requestArguments = args.map(arg=>{
+        if(arg.startsWith(mMcpConstant))
+            return arg.split('.').slice(1).join('.')
+        switch(arg.toLowerCase()){
+            case 'avatar':
+                return avatar
+            case 'ctx':
+                return ctx
+            case 'factory':
+                return factory
+            case 'mcpdata':
+            case 'mcp_data':
+                return mcpData
+            case 'sessionmeta':
+            case 'session_meta':
+                return sessionMeta
+            default:
+                return typeof data === 'string'
+                    ? data
+                    : data?.[arg]
+        }
+    })
+    switch(typeof contextArguments){
+        case 'string':
+            break
+        case 'object':
+            break
+    }
+    return requestArguments
+}
+/**
  * Passthrough to call a function on the active bot or avatar, passing the MCP data to it.
  * @param {string} functionName - The function name to call
  * @param {object} mcpData - The MCP data to pass to the function
@@ -2593,44 +3358,58 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
     const mcpFunctionName = 'mcp_' + functionName
     if(mcpFunctions[mcpFunctionName]) // fx from local map
         return await mcpFunctions[mcpFunctionName](mcpData, sessionMeta, ctx, factory, avatar)
-    const jsFunctionName = functionName.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
-    const { fx, args=[], fxCallback, } = ( mMcpMap[jsFunctionName] ?? {} )
-    const fxArgs = args.map(arg=>{
-        if(arg.startsWith(mMcpConstant))
-            return arg.split('.').slice(1).join('.')
-        switch(arg.toLowerCase()){
-            case 'avatar':
-                return avatar
-            case 'ctx':
-                return ctx
-            case 'factory':
-                return factory
-            case 'mcpdata':
-            case 'mcp_data':
-                return mcpData
-            case 'sessionmeta':
-            case 'session_meta':
-                return sessionMeta
-            default:
-                return mcpData[arg]
-        }
-    })
-    const avatarFunction = typeof fx === 'string'
-        ? avatar[fx]
-        : fx // fx is already a function
-    if(typeof avatarFunction === 'function'){
-        const functionResponse = await avatarFunction.bind(avatar)(...fxArgs)
-        return typeof fxCallback === 'function'
-            ? fxCallback(functionResponse)
-            : functionResponse
-    } else
+    const { error, result, } = await mMcpRequestResponse('function', factory.globals.jsFunctionName(functionName), mcpData, undefined, sessionMeta, ctx, factory, avatar)
+    return { error, result, }
+}
+/**
+ * Handles MCP resource requests, such as fetching resources based on the provided URI and any arguments/context.
+ * @todo - query params should be passed to function
+ * @param {string} uri - The URI of the MCP resource request
+ * @param {object} sessionMeta - The session metadata
+ * @param {Koa} ctx - The context object
+ * @param {AgentFactory|MyLifeFactory} factory - The factory object
+ * @param {Avatar|Q} avatar - The avatar instance
+ * @return {Promise<object>} - The result of the MCP resource request { error, resourceListChanged, result, }
+ */
+async function mMcpResourceRequest(uri, sessionMeta, ctx, factory, avatar){
+    if(sessionMeta.resources.has(uri))
+        return { result: { contents: [sessionMeta.resources.get(uri)] }, }
+    const resourcePath = uri.split('://')[1].split('?')[0]
+    const resourceQueryParams = ( uri.split('?')?.[1]?.split('&') ?? [] )
+    const resourceType = uri.split('://')[0]
+    const resourceVariable = resourcePath.split('/').filter(Boolean).pop()
+    const sessionResources = Array.from(sessionMeta.resources.values()).flat()
+    const avatarResources = [...avatar.mcp.resources, ...avatar.mcp.resourceTemplates, ...sessionResources]
+    const { description, mimeType, name, title, uri: avatarUri, uriTemplate, } = avatarResources
+        .find(resource=>((resource.uri ?? resource.uriTemplate)?.split('://')?.[0])===resourceType)
+    const renderedUri = resourceQueryParams?.length
+        ? uri /* requires query params to be passed to function */
+        : uriTemplate
+            ?? avatarUri
+    if(!renderedUri?.length)
         return {
-            result: {
-                content: [{ text: `Function "${ functionName }" not available`, type: 'text' }],
-                isError: true
-            },
-            success: false,
+            error: {
+                code: -32603,
+                message: `Resource "${ renderedUri }" not found in MCP resources`,
+                data: { uri, resourceVariable, },
+            }
         }
+    const data = resourceQueryParams.length
+        ? resourceQueryParams.reduce((acc, param)=>{
+                const [key, value] = param.split('=')
+                acc[key] = value === ''
+                    ? null
+                    : value
+                return acc
+            }, {})
+        : resourceVariable
+    let contextArguments // @todo - any context that makes sense here?
+    const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await mMcpRequestResponse('resource', factory.globals.jsFunctionName(resourceType), data, contextArguments, sessionMeta, ctx, factory, avatar)
+    return {
+        error: requestError,
+        resourceListChanged: requestResourceListChanged,
+        result: requestResult,
+    }
 }
 async function mcp_change_title(mcpdata, sessionMeta, ctx, factory){
     const { itemId, title, } = mcpdata

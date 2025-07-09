@@ -471,6 +471,9 @@ class BotAgent {
         const response = await this.#factory.evaluate(itemId, this.avatar.llm_id)
 		return response
 	}
+	async genericBot(botType='avatar'){
+		return avatar 
+	}
 	/**
 	 * Gets the correct bot for the item type and form.
 	 * @todo - deprecate

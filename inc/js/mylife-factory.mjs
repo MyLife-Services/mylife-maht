@@ -1062,20 +1062,32 @@ class MyLifeFactory extends AgentFactory {
     /**
      * Get a list of publicly shared memories.
      * @param {Number} limit - The max number of memories to return
+     * @param {Object} filterArgs - Optional filter arguments for shared memories
      * @returns {Promise<Object[]>} - The list of shared memories
      */
-    async sharedMemories(limit=10){
-		if(limit<0)
-			limit = 1
-		if(limit>25)
-			limit = 25
+    async sharedMemories(limit=10, filterArgs={}, shuffle=true){
+		limit = limit <= 0 /* test limits */
+			? 1
+			: (limit>1000)
+				? 1000
+				: limit
+		const fields = [{ name: '@scope', value: 'public', }]
+		const { anonymous, guessable, id, title, } = filterArgs
+		if(typeof guessable === 'boolean')
+			fields.push({ name: '@guessable', value: guessable, })
+		if(typeof anonymous === 'boolean')
+			fields.push({ name: '@anonymous', value: anonymous, })
+		if(id?.length)
+			fields.push({ name: '@id', type: 'contains', value: id, })
+		if(title?.length)
+			fields.push({ name: '@title', type: 'contains', value: title, })
 		const memories = await this.dataservices.getItemsByFields(
 			'share',
-			[{ name: '@scope', value: 'public' }],
+			fields,
 			'shares',
 			'memory',
 		)
-		const shuffled = [...memories].sort(() => 0.5 - Math.random())
+		const shuffled = shuffle ? [...memories].sort(() => 0.5 - Math.random()) : memories
 		const response = shuffled.slice(0, limit)
 		return response
 	}
@@ -1085,6 +1097,34 @@ class MyLifeFactory extends AgentFactory {
 			: (await this.sharedMemories(1))?.[0]
 		return memory
 	}
+    /**
+     * Search for shared memories based on keyword, phase of life, and/or title.
+	 * @todo - implement keyword, phaseOfLife, and title dynamic search
+	 * @param {boolean} anonymous - Whether to search for anonymous memories
+	 * @param {boolean} guessable - Whether to search for guessable memories
+     * @param {string} keyword - The keyword to search for in shared memories
+     * @param {string} phaseOfLife - The phase of life to filter memories by
+     * @param {string} title - The title to filter memories by
+     * @returns {Promise<Object[]>} - The list of matching shared memories
+     */
+    async sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title){
+		const being='share',
+			fields = [{ name: '@scope', value: 'public', }]
+		if(typeof anonymous === 'boolean')
+			fields.push({ name: '@anonymous', value: anonymous, })
+		if(typeof guessable === 'boolean')
+			fields.push({ name: '@guessable', value: guessable, })
+		/* not yet implemented on `write` (i.e., not in db record yet, could filter on current results)
+		if(keyword?.length)
+			fields.push({ name: '@summary', value: keyword, })
+		if(phaseOfLife?.length)
+			fields.push({ name: '@phaseOfLife', value: phaseOfLife, })
+		*/
+		if(title?.length)
+			fields.push({ name: '@title', type: 'contains', value: title, })
+        const memories = await mDataservices.getItemsByFields(being, fields, 'shares', 'memory') // shareType is key column
+        return memories
+    }
 	updateItem(){
 		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))
 	}

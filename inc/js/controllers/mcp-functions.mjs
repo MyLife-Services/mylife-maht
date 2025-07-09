@@ -41,7 +41,7 @@ async function mcpCall(ctx){
                 data: err.stack ?? err,
             }
             if(!!transportEntry)
-                await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, undefined)
+                await mMcpSendResponse(ctx, transportEntry, jsonrpc, error, id, undefined)
         }
     }
     /* close transport */
@@ -153,6 +153,55 @@ async function mcpLogin(ctx){
     return loginResult
 }
 /**
+ * Validates the MCP protocol request.
+ * @param {Koa} ctx - Koa context object
+ * @param {function} next - Koa next function
+ */
+async function mcpProtocolValidation(ctx, next){
+    if(!ctx.state.requestType)
+        ctx.state.requestType = 'system'
+    mMcpValidateRequestOrigin(ctx) // confirm bearer always
+    mMcpAuthorize(ctx) // confirm bearer always
+    ctx.state.mcp = ctx.request?.body
+    let sessionId
+    sessionId = ctx.request.query?.sessionId /* 2024-11-05 MCP Protocol Validation */
+        ?? ctx.get('Mcp-Session-Id') /* 2025-03-26 MCP Protocol Validation Header */
+    const protocolVersion = ctx.get('Mcp-Protocol-Version') /* 2025-06-18 MCP Protocol Validation Header */
+    if(sessionId?.length){
+        ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
+        const { sessionMeta, } = ctx.state
+        if(!sessionMeta){
+            if(ctx.request.method==='DELETE') // MCP DELETE disconnects the session; here via next() (`mcpSessionEnd()`)
+                return await next()
+            mMcpError(ctx, 404, -32001, `Session Unauthorized; sessionId=${ sessionId }`, ctx.state.mcp?.id)
+            return // not awaiting next() here
+        }
+        const { protocolVersion: sessionProtocolVersion, sessionIdKoa, } = sessionMeta
+        if(protocolVersion && sessionProtocolVersion !== protocolVersion)
+            console.log(`"Special Request" - MCP Protocol Version Mismatch: ${ sessionProtocolVersion } != ${ protocolVersion }`)
+        if(!sessionIdKoa?.length)
+            ctx.throw(404, 'Unknown session; cannot communicate with Koa')
+        /* validate Koa session */
+        const prefix = 'koa:sess:'
+        const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
+        if(!existingKoaSession)
+            ctx.throw(404, 'Unknown session; cannot find existing Koa session')
+        ctx.session = existingKoaSession
+        await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
+        // Koa server will have mis-assigned ctx.state in faux session
+        ctx.state.avatar = ctx.session.avatar
+        ctx.state.locked = ctx.session.locked
+            ?? true
+        ctx.state.menu = ctx.state.avatar?.menu
+        if(ctx.request.method==='GET'){
+            const { transportEntry, } = sessionMeta
+            await transportEntry.handleRequest(ctx.req, ctx.res)
+        }
+    } else
+        await mcpStream(ctx) // no session set if not streaming
+    await next()
+}
+/**
  * Full disconnect that ends an MCP session.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<void>} - returns status 204
@@ -197,13 +246,18 @@ async function mcpSessionInfo(ctx){
 function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
     return sessionId?.length && sessionIdKoa?.length
     ? {
+        completions: new Map(),
         created: Date.now(),
         initialized: false,
         initializeConfirmation: false,
         requests: new Map(),
+        resources: new Map(),
+        resourceSubscriptions: new Set(),
         runs: new Map(),
         sessionId,
         sessionIdKoa,
+        shares: new Map(),
+        subscriptions: new Map(),
         transportEntry,
     }
     : {}
@@ -270,6 +324,23 @@ async function mcpSystemInfo(ctx){
 }
 /* private functions */
 /**
+ * Validates the MCP authorization header.
+ * @param {Koa} ctx - Koa context object
+ * @throws {Error} Throws an error if the authorization header is missing, invalid, or the token is not found
+ */
+function mMcpAuthorize(ctx){
+    // for now, given NANDA and Claude, ignore bearer token for time being
+    return
+    const { headers } = ctx
+    if(!headers.authorization)
+        ctx.throw(403, 'Missing Authorization Header')
+    const [scheme, token] = headers.authorization.split(' ')
+    if(scheme !== 'Bearer' || !token?.length)
+        ctx.throw(403, 'Invalid Authorization Header')
+    if(!mClientEntities?.[token])
+        ctx.throw(403, 'Invalid or expired token')
+}
+/**
  * Modular MCP call handler that processes MCP requests and responses, sending notifications, results and errors. Everything is drawn from the session metadata to connect to the session transport. The MCP specification originally required, then allowed for, multiple transports wedded into one session; specifically, one for JSON-RPC message POSTing and the other for SSE streaming.
  * @param {Koa} ctx - Koa context object
  * @param {object} mcp - MCP request object
@@ -277,14 +348,15 @@ async function mcpSystemInfo(ctx){
  */
 async function mMcpCall(ctx, mcp){
     let error,
+        resourceListChanged=false,
         result,
         run,
-        toolListChanged = false
+        toolListChanged=false
     const { Globals, state, } = ctx
     const { avatar: Avatar, locked, sessionMeta={}, requestType='system', } = state
     const { capabilities, clientInfo, initializeConfirmation, protocolVersion, requests, runs, sessionId, transportEntry, } = sessionMeta
     const { error: mcpError, id, jsonrpc, method, params={}, result: mcpResult, } = mcp
-    const { arguments: args, name, _meta, } = params
+    const { arguments: args, name, _meta, uri, } = params
         ?? {}
     const { progressToken, } = _meta
         ?? {}
@@ -305,10 +377,10 @@ async function mMcpCall(ctx, mcp){
         if(transportEntry instanceof StreamableHTTPServerTransport){
             const { error, result, } = await mMcpInitializationChecks(ctx)
             await transportEntry.handleRequest(ctx.req, ctx.res, ctx.request.body)
-            await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+            await mMcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
         } else if(transportEntry instanceof SSEServerTransport){
             const { error, result, } = await mMcpInitializationChecks(ctx)
-            await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+            await mMcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
         }
         runs.delete(id)
         return
@@ -327,7 +399,7 @@ async function mMcpCall(ctx, mcp){
         progressInterval = setInterval(async _=>{
             const notification = 'notifications/progress'
             progressParams.progress += 10
-            mcpSendNotification(transportEntry, jsonrpc, notification, progressParams)
+            mMcpSendNotification(transportEntry, jsonrpc, notification, progressParams)
             if(progressParams.progress >= 200)
                 clearInterval(progressInterval)
         }, progressIntervalDuration)
@@ -355,8 +427,8 @@ async function mMcpCall(ctx, mcp){
             switch(action.toLowerCase()){
                 case 'accept':
                     if(callback){
-                        const { error, result, success, } = await Avatar.mcpFunctionResponse('elicitation', callback, data, sessionMeta, ctx)
-                        console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with callback'), id, result)
+                        const { error, result, success, } = await Avatar.mcpFunctionRequest('elicitation', callback, data, sessionMeta, ctx)
+                        console.log(chalk.bgBlue('mcpCall()::✅ Elicitation Request resolved with callback'), id, result)
                     }
                     break
                 case 'cancel':
@@ -378,7 +450,7 @@ async function mMcpCall(ctx, mcp){
                     await callback(text)
                 else if(typeof callback==='object' && !Array.isArray(callback)){
                     // look to original request for itemId (or possibly assign in sample data)
-                    const { error, result, success, } = await Avatar.mcpFunctionResponse('sampling', callback, text, sessionMeta, ctx)
+                    const { error, result, success, } = await Avatar.mcpFunctionRequest('sampling', callback, text, sessionMeta, ctx)
                     console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with callback'), id, result)
                 }
             }
@@ -396,9 +468,25 @@ async function mMcpCall(ctx, mcp){
         case 'completion':
             switch(methodAction){
                 case 'complete':
+                    const {
+                        argument,
+                        context: { arguments: contextArguments, }={},
+                        ref: {
+                            name: referenceName,
+                            type: referenceType,
+                            uri: referenceUri,
+                        }={},
+                    } = params
+                    const promptType = referenceType?.split('/')?.[1]
+                    const reference = ( referenceName ?? referenceUri )?.trim()
+                    const { error: completeError, result: completeResult } = await Avatar.mcpCompletionRequest(promptType, reference, argument, contextArguments, sessionMeta, ctx)
+                    if(completeError)
+                        error = completeError
+                    else
+                        result = completeResult /* can be left undefined */
                 default:
                     error = {
-                        code: -32602,
+                        code: -32601,
                         data: { id, name, },
                         message: `Completions not yet supported, please review available methods via \`tools/list\``,
                     }
@@ -409,32 +497,11 @@ async function mMcpCall(ctx, mcp){
                 case 'get':
                     if(!Avatar.isMyLife)
                         break
-                    switch(name){
-                        case 'mylife_company_information':
-                            const { infoType, } = args
-                            result = {
-                                description: `Ask MyLife's corporate intelligence, _Q_, about our nonprofit organization.`,
-                                messages: [
-                                    {
-                                        role: 'user',
-                                        content: {
-                                            type: 'text',
-                                            text: `Ask Q about MyLife regarding: ${ infoType }`,
-                                        }
-                                    },
-                                    {
-                                        role: 'user',
-                                        content: {
-                                            type: 'text',
-                                            text: `When was MyLife founded?`,
-                                        }
-                                    }
-                                ]
-                            }
-                            break
-                        default:
-                            break
-                    }
+                    const { error: promptError, result: promptResult, } = await Avatar.mcpPromptRequest(id, name, args, sessionMeta, ctx)
+                    if(promptError)
+                        error = promptError
+                    else if(promptResult)
+                        result = promptResult
                     break
                 case 'list':
                     if(!Avatar.isMyLife)
@@ -457,79 +524,109 @@ async function mMcpCall(ctx, mcp){
                     if(!Avatar.isMyLife)
                         break
                     result = {
-                        resources: Avatar.mcp.resources,
+                        resources: [...Avatar.mcp.resources, ...Array.from(sessionMeta.resources.values())],
                     }
                     break
                 case 'read':
                     if(!Avatar.isMyLife)
                         break
-                    const { uri, } = params
-                    switch(uri){
-                        case 'file://MyLife_Summary.pdf':
-                            const summaryPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
-                            const pdfSummary = Globals.readPdf(summaryPath)
-                            result = {
-                                contents: [{
-                                    blob: pdfSummary,
-                                    mimeType: 'application/pdf',
-                                    uri,
-                                }]
+                    const { uri: resourceUri, } = params
+                    const resourceType = Globals.jsFunctionName(resourceUri.split('://')[0])
+                    const resourceName = resourceUri.split('://')[1]
+                    switch(resourceType){
+                        case 'file':
+                            switch(resourceName){
+                                case 'MyLife_Summary.pdf':
+                                    const summaryPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Summary.pdf")
+                                    const pdfSummary = await Globals.readPdf(summaryPath)
+                                    result = {
+                                        contents: [{
+                                            blob: pdfSummary,
+                                            mimeType: 'application/pdf',
+                                            name: resourceName,
+                                            title: 'MyLife Summary',
+                                            uri: resourceUri,
+                                        }]
+                                    }
+                                    break
+                                case 'MyLife_Board.pdf':
+                                    const boardPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
+                                    const pdfBoard = await Globals.readPdf(boardPath)
+                                    console.log(chalk.bgBlue('mMcpCall()::resource::read'), boardPath)
+                                    result = {
+                                        contents: [{
+                                            blob: pdfBoard,
+                                            mimeType: 'application/pdf',
+                                            name: resourceName,
+                                            title: 'MyLife Board of Directors Bylaws',
+                                            uri: resourceUri,
+                                        }]
+                                    }
+                                    break
+                                default:
+                                    error = {
+                                        code: -32602,
+                                        data: { id, name, },
+                                        message: `MCP Resource File call yielded no result, please review available resources via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
+                                    }
+                                    break
                             }
                             break
-                        case 'file://MyLife_Board.pdf':
-                            const boardPath = path.join(Globals.rootDirectory, "views", "assets", "pdf", "MyLife_Board.pdf")
-                            const pdfBoard = Globals.readPdf(boardPath)
-                            result = {
-                                contents: [{
-                                    blob: pdfBoard,
-                                    mimeType: 'application/pdf',
-                                    uri,
-                                }]
-                            }
-                            break
-                        default:
-                            let text = ''
+                        case 'git':
+                        case 'https':
+                            const httpsName = ( resourceName.endsWith('/') ? resourceName.slice(0, -1) : resourceName )
+                                .split('/').pop().split('.')[0]
+                            const httpsTitle = Globals.jsFunctionName(httpsName)
+                            let text = 'Error fetching external resource'
                             try {
-                                const response = await fetch(uri)
+                                const response = await fetch(resourceUri)
                                 text = ( await response.text() ).trim()
                             } catch (error) {
-                                console.error(chalk.red('Error fetching resource:'), uri, error)
-                                text = `Error fetching external resource: ${error.message}`
+                                console.error(chalk.red('Error fetching resource:'), resourceUri, error)
+                                text += `: ${ error.message }`
                             }
                             result = {
                                 contents: [{
-                                    mimeType: 'text/html',
+                                    mimeType: 'application/pdf',
+                                    name: httpsName,
                                     text,
-                                    uri,
+                                    title: httpsTitle,
+                                    uri: resourceUri,
                                 }]
                             }
+                            break
+                        default: /* synthetic resource */
+                            const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await Avatar.mcpResourceRequest(resourceUri, sessionMeta, ctx)
+                            if(requestError)
+                                error = requestError
+                            else if(requestResult)
+                                result = requestResult
+                            else
+                                error = {
+                                    code: -32603,
+                                    data: { id, name, },
+                                    message: `MCP Resource Call yielded no result, please review available resources via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
+                                }
+                            resourceListChanged = requestResourceListChanged
                             break
                     }
                     break
+                case 'subscribe': // no response
+                    if(!Avatar.isMyLife)
+                        break
+                    await Avatar.mcpResourceSubscribe(uri, sessionMeta)
+                    break
                 case 'templates':
-                    if(methodPluck==='list')
-                        result = {
-                            resourceTemplates: [
-                                {
-                                    uriTemplate: 'bio://{memberId}',
-                                    name: 'Board Member Biography',
-                                    description: 'Access bios MyLife board members',
-                                    mimeType: 'text/markdown',
-                                },
-                                {
-                                    uriTemplate: 'memory://{itemId}',
-                                    name: 'Memories',
-                                    description: 'Access memory from MyLife archives based on itemId; note: currently must be publicly shared',
-                                    mimeType: 'application/json',
-                                },
-                                {
-                                    uriTemplate: 'avatar://{memberId}',
-                                    name: 'Avatar Resource',
-                                    description: 'Access MyLife Member\'s exposed Personal Avatar',
-                                    mimeType: 'text/markdown',
-                                },
-                            ],
-                        }
+                    if(!Avatar.isMyLife)
+                        break
+                    switch(methodPluck){
+                        case 'list':
+                            const resourceTemplates = Avatar.mcp.resourceTemplates
+                            result = { resourceTemplates, }
+                            break
+                        default:
+                            break
+                    }
                     break
                 default:
                     break
@@ -538,7 +635,7 @@ async function mMcpCall(ctx, mcp){
                 error = {
                     code: -32602,
                     data: { id, name, },
-                    message: `MCP Resources not found, please review available prompts via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
+                    message: `MCP Resources not found, please review available resources via \`resources/list\`; Currently only our System Avatar _Q_ supports this functionality`,
                 }
             break
         case 'tools':
@@ -585,7 +682,7 @@ async function mMcpCall(ctx, mcp){
                         /* tool response requires assessment and compilation */
                         if(Array.isArray(mcpResponse)){
                             if(args?.cursor || mcpResponse.length > mPageSize){
-                                const { mcpArray, nextCursor: mcpNextCursor, } = mcpCursor(mcpResponse, args?.cursor)
+                                const { mcpArray, nextCursor: mcpNextCursor, } = mMcpCursor(mcpResponse, args?.cursor)
                                 total = mcpResponse.length
                                 metadata = { total, }
                                 response = mcpArray
@@ -695,9 +792,11 @@ async function mMcpCall(ctx, mcp){
     if(progressInterval)
         clearInterval(progressInterval)
     runs.delete(id)
-    await mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+    await mMcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
+    if(resourceListChanged)
+        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/resources/list_changed')
     if(toolListChanged)
-        mcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')    
+        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')
 }
 /**
  * Paginate an array using a base64 encoded cursor.
@@ -706,7 +805,7 @@ async function mMcpCall(ctx, mcp){
  * @param {number} pageSize - number of items per page
  * @returns {Object} - paginated array and next cursor string
  */
-function mcpCursor(array, base64Cursor, pageSize=mPageSize){
+function mMcpCursor(array, base64Cursor, pageSize=mPageSize){
     if(!Array.isArray(array))
         return { mcpArray: array, }
     let startIndex=0
@@ -764,6 +863,20 @@ function mMcpElicit(originalRequest, message, requestedSchema, id, callback){
     return elicit
 }
 /**
+ * Handles MCP errors by force-returning (as direct response, no stream) the response status and well-formed MCP `Error`.
+ */
+function mMcpError(ctx, errorCode=404, code=-32001, message='unknown failure', id){
+    ctx.status = errorCode
+    ctx.body = {
+        jsonrpc: '2.0',
+        id,
+        error: {
+            code,
+            message,
+        },
+    }
+}
+/**
  * Perform MCP initialization checks. Sets session metadata and returns result or error.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<object>} - MCP Initialization result or generic error
@@ -800,7 +913,7 @@ async function mMcpInitializationChecks(ctx){
                 message: 'Session not initialized\n1. use `method=initialize` to finalize handshake;\n2. use `method=notifications/initialized` to confirm initialization',
             }
         else {
-            mcpTestProtocol(jsonrpc, protocolVersion)
+            mMcpTestProtocol(jsonrpc, protocolVersion)
             result = Avatar.isMyLife && requestType!=='system'
                 ? Avatar.mcpProxy
                 : Avatar.mcp
@@ -928,7 +1041,7 @@ function mMcpSample(originalRequest, explanation, instructions, id, callback){
  * @param {string|number} id - Unique identifier for the request
  * @returns 
  */
-async function mcpSendNotification(transportEntry, jsonrpc, method, params, id) {
+async function mMcpSendNotification(transportEntry, jsonrpc, method, params, id) {
     if(!transportEntry){
         console.warn(chalk.red('❌ Invalid transport'))
         return
@@ -960,7 +1073,7 @@ async function mcpSendNotification(transportEntry, jsonrpc, method, params, id) 
         console.warn(chalk.red('⚠️ Stream failed for notification'))
     }
 }
-async function mcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result){
+async function mMcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result){
     if(!transportEntry)
         return
     if(!error && !result){
@@ -1003,13 +1116,41 @@ async function mMcpSendClientRequest(transport, serverRequest){
         console.warn(chalk.red('⚠️ Stream failed for Sampling Request'))
     }
 }
-function mcpTestProtocol(jsonrpc, protocolVersion){
+function mMcpTestProtocol(jsonrpc, protocolVersion){
     if(!jsonrpc || parseFloat(jsonrpc) > parseFloat(mJsonRpcVersion))
         throw new Error('Bad Request - Invalid or Incompatible JSON-RPC version')
     if(!protocolVersion)
         throw new Error('Bad Request - Missing protocolVersion')
     if(mJsonRpcProtocolVersion && new Date(protocolVersion) > new Date(mJsonRpcProtocolVersion))
         throw new Error('Bad Request - Incompatible protocol version (too new)')
+}
+/**
+ * Validates the request origin for MCP requests.
+ * @param {Koa} ctx - Koa context object
+ */
+function mMcpValidateRequestOrigin(ctx){
+    // @todo - confirm that transport handles CORS headers correctly
+    const origin = ctx.headers.origin
+    if(!origin){
+        // console.log('No Origin Header')
+        return
+    }
+    const trustedOrigins = [
+        // 'http://good.com',
+    ]
+    const blockedOrigins = [
+        // 'http://evil.com',
+    ]
+    const isTrusted = trustedOrigins.includes(origin)
+    const isBlocked = blockedOrigins.includes(origin)
+    if(isBlocked){ // Block if explicitly blacklisted
+        console.log(`Blocked Origin: ${origin}`)
+        ctx.throw(403, `Access denied from origin: ${origin}`)
+    }
+    if(trustedOrigins.length > 0 && !isTrusted){
+        console.log(`Unrecognized Origin: ${origin}`)
+        ctx.throw(403, `Origin not allowed: ${origin}`)
+    }
 }
 /* exports */
 export {
@@ -1018,6 +1159,7 @@ export {
     mcpClientAllowsRequest,
     mcpClientRequest,
     mcpLogin,
+    mcpProtocolValidation,
     mcpSessionEnd,
     mcpSessionInfo,
     mcpStream,
