@@ -492,101 +492,11 @@ async function mMcpCall(ctx, mcp){
                 case 'get':
                     if(!Avatar.isMyLife)
                         break
-                    switch(name){
-                        case 'mylife_company_information':
-                            const { infoType, } = args
-                            result = {
-                                description: `Ask MyLife's corporate intelligence, _Q_, about our nonprofit organization.`,
-                                messages: [
-                                    {
-                                        role: 'user',
-                                        content: {
-                                            type: 'text',
-                                            text: `Ask Q about MyLife regarding: ${ infoType }`,
-                                        }
-                                    },
-                                    {
-                                        role: 'user',
-                                        content: {
-                                            type: 'text',
-                                            text: `When was MyLife founded?`,
-                                        }
-                                    },
-                                    {
-                                        role: 'user',
-                                        content: {
-                                            type: 'text',
-                                            text: `Who is on the board of MyLife?`,
-                                        }
-                                    }
-                                ]
-                            }
-                            break
-                        case 'mylife_shared_memory_search':
-                            let {
-                                anonymous: searchAnonymous,
-                                guessable: searchGuessable,
-                                keyword: searchKeyword,
-                                phase: searchPhase,
-                                title: searchTitle,
-                            } = args
-                            if(typeof searchAnonymous === 'string')
-                                searchAnonymous = searchAnonymous.trim().length
-                                    ? searchAnonymous.trim().length==='null'
-                                        ? null
-                                        :  searchAnonymous
-                                    : null
-                            if(typeof searchGuessable === 'string')
-                                searchGuessable = searchGuessable.trim().length
-                                    ? searchGuessable.trim().length==='null'
-                                        ? null
-                                        :  searchGuessable
-                                    : null
-                            if(!searchKeyword?.trim()?.length)
-                                searchKeyword = null
-                            if(!searchPhase?.trim()?.length)
-                                searchPhase = null
-                            if(!searchTitle?.trim()?.length)
-                                searchTitle = null
-                            const searchResults = await Avatar.sharedMemorySearch(searchAnonymous, searchGuessable, searchKeyword, searchPhase, searchTitle)
-                            const resourceText = JSON.stringify(searchResults)
-                            const uri = `public-memories://search-results/${ sessionId }/${ id }`
-                            const completion = {
-                                arguments: args,
-                                searchResults,
-                                uri,
-                                values: searchResults.map(item=>item.title),
-                            }
-                            sessionMeta.completions.set(uri, completion)
-                            result = {
-                                description: `Refined Search for MyLife's shared memory`,
-                                messages: [
-                                    {
-                                        role: 'user',
-                                        content: {
-                                            type: 'text',
-                                            text: `Once human operator has reduced list to one item or selected it through an available interface, call the tool: "get_shared_memory" including the \`itemId\` of the indicated memory from this search, found on the server for this session duration at: ${ uri }`,
-                                        }
-                                    },
-                                    {
-                                        role: 'assistant',
-                                        content: {
-                                            type: 'resource',
-                                            resource: {
-                                                uri,
-                                                name: 'Search Results',
-                                                title: 'MyLife Public Memory Search Results',
-                                                mimeType: 'application/json',
-                                                text: resourceText,
-                                            }
-                                        }
-                                    },
-                                ],
-                            }
-                            break
-                        default:
-                            break
-                    }
+                    const { error: promptError, result: promptResult, } = await Avatar.mcpPromptRequest(id, name, args, sessionMeta, ctx)
+                    if(promptError)
+                        error = promptError
+                    else if(promptResult)
+                        result = promptResult
                     break
                 case 'list':
                     if(!Avatar.isMyLife)
@@ -659,9 +569,9 @@ async function mMcpCall(ctx, mcp){
                             break
                         case 'git':
                         case 'https':
-                            const name = ( resourceName.endsWith('/') ? resourceName.slice(0, -1) : resourceName )
+                            const httpsName = ( resourceName.endsWith('/') ? resourceName.slice(0, -1) : resourceName )
                                 .split('/').pop().split('.')[0]
-                            const title = Globals.jsFunctionName(name)
+                            const httpsTitle = Globals.jsFunctionName(httpsName)
                             let text = 'Error fetching external resource'
                             try {
                                 const response = await fetch(resourceUri)
@@ -673,9 +583,9 @@ async function mMcpCall(ctx, mcp){
                             result = {
                                 contents: [{
                                     mimeType: 'application/pdf',
-                                    name,
+                                    name: httpsName,
                                     text,
-                                    title,
+                                    title: httpsTitle,
                                     uri: resourceUri,
                                 }]
                             }
