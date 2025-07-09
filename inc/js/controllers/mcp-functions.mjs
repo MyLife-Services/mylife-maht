@@ -467,11 +467,15 @@ async function mMcpCall(ctx, mcp){
         case 'completion':
             switch(methodAction){
                 case 'complete':
-                    const { argument, context: { arguments: contextArguments, }={}, ref: {
+                    const {
+                        argument,
+                        context: { arguments: contextArguments, }={},
+                        ref: {
                             name: referenceName,
                             type: referenceType,
                             uri: referenceUri,
-                        }={}, } = params
+                        }={},
+                    } = params
                     const promptType = referenceType?.split('/')?.[1]
                     const reference = ( referenceName ?? referenceUri )?.trim()
                     const { error: completeError, result: completeResult } = await Avatar.mcpCompletionRequest(promptType, reference, argument, contextArguments, sessionMeta, ctx)

@@ -141,9 +141,42 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
         }
     },
     publicMemories: { /* resource version */
+        completion: {
+            args: ['title'],
+            fx: async function (title){
+                let memories = await this.sharedMemories(100, { title, })
+                memories = memories.map(memory=>memory.title)
+                return memories
+            }
+        },
         resource: {
-            args: ['sessionMeta'],
-            fx: async function (sessionMeta){}
+            args: ['anonymous', 'guessable', 'title', 'sessionMeta'],
+            fx: async function (anonymous, guessable, title, sessionMeta){
+                // make save format commensurate with prompt search
+                const uri = `public-memory://anonymous=${ title }`
+                let error,
+                    resourceContent=sessionMeta.resources.get(uri),
+                    resourceListChanged=false,
+                    result,
+                    success=false
+                const memories = await this.sharedMemorySearch(anonymous, guessable, undefined, undefined, title)
+                if(!memories?.length)
+                    return {
+                        error: {
+                            code: -32603,
+                            data: { title, },
+                            message: `No public memories contain the string: "${ title }".`,
+                        },
+                        success: false,
+                    }
+                console.log( 'mcpMap.publicMemories::memories', memories)
+                return {
+                    error,
+                    resourceListChanged,
+                    result,
+                    success,
+                }
+            }
         }
     },
     publicMemory: { /* resource version */
@@ -192,7 +225,7 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
                         text,
                         title,
                         uri,
-                    }) /* imprint accessible via shareId resource */
+                    })
                     resourceListChanged = true
                     /* create share */
                     const shareHeader = await this.shareMemory(requestId) /* `shareMemory()` returns header */
@@ -2014,6 +2047,24 @@ class Q extends Avatar {
                 uriTemplate: 'public-memory://{itemId}',
             },
             {
+                arguments: {
+                    anonymous: {
+                        description: 'Whether to search for anonymous memories; do not send if not intending to filter by anonymous',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    guessable: {
+                        description: 'Whether to search for guessable memories',
+                        enum: [true, false, null],
+                        required: false,
+                        type: 'boolean',
+                    },
+                    title: {
+                        description: 'Title of the MyLife shared public memory to search for',
+                        required: false,
+                        type: 'string',
+                    },
+                },
                 description: 'Search MyLife Public Memories; note: currently must be publicly shared',
                 mimeType: 'application/json',
                 name: 'mylife-public-memory-search',
@@ -2910,13 +2961,13 @@ function mItem(item, avatar, llmServices){
  */
 async function mMcpCompletionRequest(type, reference, argument, contextArguments, sessionMeta, ctx, factory, avatar){
     const completeLimit=100,
-        data = { argument, contextArguments, reference, },
         values = []
     switch(type){
         case 'prompt':
             const promptName = reference
-            const { name: completionName, value: completionValue, } = argument
-                ?? {}
+            if(!!argument && !argument.name?.length)
+                argument = { name: Object.keys(argument)[0], value: argument[Object.keys(argument)[0]] }
+            const { name: completionName, value: completionValue, } = ( argument ?? {} )
             if(!completionName?.length)
                 return {
                     error: {
@@ -2946,38 +2997,15 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
                         data,
                     }
                 }
-            const { disallowCompletion, enum: promptArgumentEnum, name: promptArgumentName, required: promptArgumentRequired, type: promptArgumentType='string', } = promptArgument
+            const { disallowCompletion=false, enum: promptArgumentEnum, name: promptArgumentName, required: promptArgumentRequired=false, type: promptArgumentType='string', } = promptArgument
             if(!promptArgumentName?.length || disallowCompletion)
                 break
-            switch(promptArgumentType){
-                case 'boolean':
-                    values.push('true', 'false', 'null')
-                    break
-                case 'number':
-                case 'string':
-                default:
-                    if(promptArgumentEnum?.length)
-                        values.push(...promptArgumentEnum) // use enum values
-                    else {
-                        const cleanPromptName = promptName
-                            .replace(/^mcp_/, '')
-                            .replace(/^mylife_/, '')
-                        const functionName = factory.globals.jsFunctionName(cleanPromptName)
-                        const completionData = {
-                            [`${ promptArgumentName }`]: completionValue,
-                        }
-                        let dropdownArray = await mMcpRequestResponse('completion', functionName, completionData, contextArguments, sessionMeta, ctx, factory, avatar)
-                        if(typeof dropdownArray === 'object'){
-                            if(!Array.isArray(dropdownArray)) /* convert to array */
-                                dropdownArray = dropdownArray?.result
-                                    ?? dropdownArray?.responses
-                                    ?? dropdownArray?.values
-                                    ?? []
-                            values.push(...dropdownArray)
-                        }
-                    }
-                    break
-            }
+            if(promptArgumentEnum?.length)
+                values.push(...promptArgumentEnum) // use enum values
+            else if(promptArgumentType==='boolean')
+                values.push('true', 'false', 'null') // boolean values
+            else
+                values.push(...await mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, avatar))
             break
         case 'resource': /* arguments embedded in uri */
             reference = reference?.trim()
@@ -2999,19 +3027,40 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
             }
             const { name: resourceName, value: resourceValue, } = uri.argument
                 ?? {}
-            const completionData = {
-                [`${ resourceName }`]: resourceValue,
+            const resourceArgument = avatar.mcp.resourceTemplates
+                ?.find(t=>t.uriTemplate === reference)
+                ?.arguments
+                ?.[resourceName]
+                    ?? {}
+            if(!!resourceArgument){
+                if(resourceArgument.enum?.length)
+                    values.push(...resourceArgument.enum.map(value =>String(value))) // use enum values
+                else 
+                    switch(resourceArgument.type){
+                        case 'boolean':
+                            values.push('true', 'false', 'null')
+                            break
+                        case 'number':
+                        case 'string':
+                        default:
+                            const completionData = {
+                                [`${ resourceName }`]: resourceValue,
+                            }
+                            const resourceRoot = factory.globals.jsFunctionName(uri.root)
+                            let dropdownArray = await mMcpRequestResponse('completion', resourceRoot, completionData, contextArguments, sessionMeta, ctx, factory, avatar)
+                                ?? []
+                            dropdownArray = dropdownArray?.result
+                                ?? dropdownArray?.responses
+                                ?? dropdownArray?.values
+                                ?? dropdownArray
+                                ?? []
+                            if(Array.isArray(dropdownArray))
+                                values.push(...dropdownArray)
+                            else
+                                console.log('mMcpCompletionRequest()::resource: unexpected dropdownArray:', dropdownArray)
+                            break
+                    }
             }
-            const data = { resourceName, resourceValue, uri, }
-            const resourceRoot = factory.globals.jsFunctionName(uri.root)
-            let dropdownArray = await mMcpRequestResponse('completion', resourceRoot, completionData, contextArguments, sessionMeta, ctx, factory, avatar)
-                ?? []
-            dropdownArray = dropdownArray?.result
-                ?? dropdownArray?.responses
-                ?? dropdownArray?.values
-                ?? dropdownArray
-                ?? []
-            values.push(...dropdownArray)
             break
         default:
             return {
@@ -3030,6 +3079,31 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
         }
     }
     return { result, }
+}
+/**
+ * Completes an MCP prompt argument type.
+ * @param {string} promptName - The name of the MCP prompt to complete
+ * @param {string} promptArgumentName - The name of the argument to complete
+ * @param {string|object} completionValue - The value to use for completion (optional)
+ * @param {AgentFactory|MyLifeFactory} factory - The factory object
+ * @returns {Promise<Array>} - The array of completion values
+ */
+async function mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, avatar){
+    const cleanPromptName = promptName.replace(/^mcp_/, '').replace(/^mylife_/, ''),
+        completionData = { [`${ promptArgumentName }`]: completionValue },
+        functionName = factory.globals.jsFunctionName(cleanPromptName),
+        values = []
+    let dropdownArray = await mMcpRequestResponse('completion', functionName, completionData, undefined, sessionMeta, ctx, factory, avatar)
+    if(typeof dropdownArray === 'object'){
+        if(!Array.isArray(dropdownArray)) /* attempt conversion to array */
+            dropdownArray = dropdownArray?.result
+                ?? dropdownArray?.responses
+                ?? dropdownArray?.values
+                ?? []
+        if(Array.isArray(dropdownArray) && dropdownArray.length)
+            values.push(...dropdownArray)
+    }
+    return values
 }
 /**
  * Handles the MCP prompt request.
@@ -3092,7 +3166,7 @@ async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avat
             const searchResults = await avatar.sharedMemorySearch(searchAnonymous, searchGuessable, searchKeyword, searchPhase, searchTitle)
             const resourceText = JSON.stringify(searchResults)
             const searchResourceUri = `public-memories://search?anonymous=${searchAnonymous}&guessable=${searchGuessable}&title=${searchTitle}` /* todo - same as research template, should reference instead of hard-coding */
-            console.log(chalk.bgBlue('mMcpCall()::prompts::get'), searchResourceUri, resourceText, args)
+            console.log('mMcpCall()::prompts::get', searchResourceUri, resourceText, args)
             sessionMeta.resources.set(searchResourceUri,
                 {
                     uri: searchResourceUri,
@@ -3136,7 +3210,7 @@ async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avat
  * @todo - gate number of successive db calls to prevent abuse
  * @param {string} type - The type of the MCP completion; enum: [`completion`, `function`, `resource`]
  * @param {string} functionName - The name of the function to call for the MCP completion
- * @param {object} data - The object containing key/value pairs to inform the completion
+ * @param {string|object} data - The object containing key/value pairs to inform the completion
  * @param {object} contextArguments - The context arguments to be used
  * @param {object} sessionMeta - The session metadata for the MCP completion
  * @param {Koa} ctx - The Koa context object
@@ -3189,7 +3263,7 @@ async function mMcpRequestResponse(type='function', functionName, data, contextA
  * @todo - mcp inspector **not** correctly passing contextArguments; from spec: "For prompts or URI templates with multiple arguments, clients should include **previous completions** in the context.arguments object to provide context for subsequent requests." [emphasis mine]
  * @todo - gate number of db calls to prevent abuse
  * @param {object} args - The arguments object containing the MCP completion data
- * @param {object} data - The object containing key/value pairs to inform the completion
+ * @param {string|object} data - The object containing key/value pairs to inform the completion
  * @param {string} contextArguments - The context arguments to be used
  * @param {object} sessionMeta - The session metadata for the MCP completion
  * @param {Koa} ctx - The Koa context object
@@ -3198,7 +3272,7 @@ async function mMcpRequestResponse(type='function', functionName, data, contextA
  * @returns {Array} - The array of arguments to be used for the MCP completion in place
  */
 function mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory, avatar){
-    return args.map(arg=>{
+    const requestArguments = args.map(arg=>{
         if(arg.startsWith(mMcpConstant))
             return arg.split('.').slice(1).join('.')
         switch(arg.toLowerCase()){
@@ -3220,6 +3294,13 @@ function mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory
                     : data?.[arg]
         }
     })
+    switch(typeof contextArguments){
+        case 'string':
+            break
+        case 'object':
+            break
+    }
+    return requestArguments
 }
 /**
  * Passthrough to call a function on the active bot or avatar, passing the MCP data to it.
@@ -3263,7 +3344,7 @@ async function mMcpResourceRequest(uri, sessionMeta, ctx, factory, avatar){
     if(sessionMeta.resources.has(uri))
         return { result: { contents: [sessionMeta.resources.get(uri)] }, }
     const resourcePath = uri.split('://')[1].split('?')[0]
-    const resourceQueryParams = uri.split('?')?.[1]?.split('&')
+    const resourceQueryParams = ( uri.split('?')?.[1]?.split('&') ?? [] )
     const resourceType = uri.split('://')[0]
     const resourceVariable = resourcePath.split('/').filter(Boolean).pop()
     const sessionResources = Array.from(sessionMeta.resources.values()).flat()
@@ -3282,7 +3363,17 @@ async function mMcpResourceRequest(uri, sessionMeta, ctx, factory, avatar){
                 data: { uri, resourceVariable, },
             }
         }
-    const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await mMcpRequestResponse('resource', factory.globals.jsFunctionName(resourceType), resourceVariable, renderedUri, sessionMeta, ctx, factory, avatar)
+    const data = resourceQueryParams.length
+        ? resourceQueryParams.reduce((acc, param)=>{
+                const [key, value] = param.split('=')
+                acc[key] = value === ''
+                    ? null
+                    : value
+                return acc
+            }, {})
+        : resourceVariable
+    let contextArguments // @todo - any context that makes sense here?
+    const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await mMcpRequestResponse('resource', factory.globals.jsFunctionName(resourceType), data, contextArguments, sessionMeta, ctx, factory, avatar)
     return {
         error: requestError,
         resourceListChanged: requestResourceListChanged,
