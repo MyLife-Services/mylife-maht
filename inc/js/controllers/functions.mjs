@@ -90,36 +90,6 @@ async function bots(ctx){
 	}
 }
 /**
- * Challenge the member session with a passphrase.
- * @public
- * @async
- * @param {Koa} ctx - Koa Context object
- * @param {string} memberId - The member id to challenge
- * @param {string} memberPassphrase - The passphrase to challenge with
- * @returns {boolean} - Whether or not the challenge was successful
- */
-async function challenge(ctx, memberId, memberPassphrase){
-	const { passphrase=memberPassphrase, } = ctx.request.body
-	if(!passphrase?.length)
-		ctx.throw(400, `challenge request requires passphrase`)
-	const { mid=memberId, } = ctx.params
-	if(!mid?.length)
-		ctx.throw(400, `challenge request requires member id`)
-	if(!ctx.state.locked)
-		return true
-	const { avatar: Avatar, } = ctx.state
-	const challengeSuccessful = await Avatar.challengeAccess(mid, passphrase)
-	if(challengeSuccessful){
-		const { Conversation, } = ctx.session
-		ctx.session.locked = false
-		ctx.session.avatar = await Avatar.mylifeMember(mid)
-		ctx.state.avatar = ctx.session.avatar
-		if(Conversation)
-			await Avatar.deleteChat(Conversation)
-	}
-	ctx.body = !ctx.session.locked
-}
-/**
  * Chat with the Member or System Avatar's intelligence.
  * @public
  * @async
@@ -228,29 +198,6 @@ async function item(ctx){
 	const response = await avatar.item(item, method)
 	delete avatar.frontendInstruction
 	ctx.body = response
-}
-/**
- * Logout the member from the system.
- * @param {Koa} ctx - Koa Context object
- * @returns {void} - Redirects to the home page
- */
-async function logout(ctx){
-	const { avatar: Avatar, } = ctx.state
-	if(!Avatar?.isMyLife ?? true)
-		ctx.throw(400, `cannot logout from system avatar`)
-	await Avatar.logout(ctx)
-	ctx.redirect('/')
-}
-/**
- * Returns a member list for selection.
- * @todo: should obscure and hash ids in session.mjs
- * @todo: set and read long-cookies for seamless login
- * @param {Koa} ctx - Koa Context object
- * @returns {Object[]} - List of hosted members available for login.
- */
-async function loginSelect(ctx){
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.hostedMembers(process.env.MYLIFE_HOSTING_KEY)
 }
 async function members(ctx){ // members home
 	await ctx.render('members')
@@ -444,7 +391,6 @@ export {
 	activateBot,
 	alerts,
 	bots,
-	challenge,
 	chat,
 	collections,
 	createBot,
@@ -454,8 +400,6 @@ export {
 	help,
 	index,
 	item,
-	logout,
-	loginSelect,
 	members,
     migrateBot,
     migrateChat,

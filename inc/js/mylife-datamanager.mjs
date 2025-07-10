@@ -36,8 +36,7 @@ class Datamanager {
 		}
 	}
 	/* initialize */
-	async init() {
-		//	assign core
+	async init(){
 		this.#core = await this.#containers['members']
 			.item(
 				this.#coreId,
@@ -122,14 +121,54 @@ class Datamanager {
             query: sql,
             parameters: []
         }
-        const { resources: documents } = await this.#containers['members']
+        const { resources: members } = await this.#containers['members']
             .items
             .query(querySpec, { enableCrossPartitionQuery: true })
             .fetchAll()
-		if(!documents?.length)
+		if(!members?.length)
 			throw new Error('No hosted members found')
-		return documents
+		return members
 	}
+    /**
+     * Looks up a member by their email and external id.
+     * @todo - generalize, currently customized for google case
+     * @param {string} provider - The OAuth provider (e.g. "google")
+     * @param {string} email - The email address of the member
+     * @param {string} sub - The external id of the member
+     * @returns {Promise<string>} - The member id if found, otherwise null
+     */
+    async memberLookup(provider, email, sub){
+		const query = {
+			query: "SELECT * FROM c WHERE c.being = 'core' AND (c.email = @email OR c.sub = @sub)",
+			parameters: [
+				{ name: "@email", value: email },
+				{ name: "@sub", value: sub }
+			]
+		}
+		const { resources: members } = await this.#containers['members']
+            .items
+            .query(query, { enableCrossPartitionQuery: true })
+            .fetchAll()
+		if(!members.length) /* unknown member */
+			return
+		if(members.length > 1) /* hyper-members */
+			return console.warn('Datamanager::memberLookup()::**multiple members found** for email/sub', email, sub, members.map(m=>m.mbr_id))
+		const { id, mbr_id, sub: memberSub } = members[0]
+		if(!mbr_id?.length)
+			return
+		console.log('Datamanager::memberLookup()::found member', mbr_id, id, sub, memberSub)
+		if(!memberSub?.length || memberSub !== sub)
+			await this.patchItem(id, { op: 'add', path: '/sub', value: sub }, this.containerDefault, mbr_id)
+		return mbr_id
+    }
+	/**
+	 * Patches or updates an item in a container.
+	 * @param {Guid} id - The item id to patch or update
+	 * @param {object|Array} item - The item node (or nodes) to update { op: 'add', path, value, }
+	 * @param {string} container_id - The container id
+	 * @param {string} partitionId - The partition id
+	 * @returns {Promise<object>} - The updated document JSON item
+	 */
 	async patchItem(id, item, container_id=this.containerDefault, partitionId=this.#partitionId){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		// [Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(item))

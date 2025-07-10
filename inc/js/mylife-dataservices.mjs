@@ -577,6 +577,18 @@ class Dataservices {
 	async hostedMembers(validations){
 		return await this.datamanager.hostedMembers(validations)
 	}
+    /**
+     * Looks up a member by their email and external id.
+     * @todo - generalize, currently customized for google case
+     * @param {string} provider - The OAuth provider (e.g. "google")
+     * @param {string} email - The email address of the member
+     * @param {string} sub - The external id of the member
+     * @returns {Promise<string>} - The member id if found, otherwise null
+     */
+    async memberLookup(provider, email, sub){
+        const mbr_id = await this.datamanager.memberLookup(provider, email, sub)
+        return mbr_id
+    }
 	/**
 	 * Patches an item by its ID with the provided data.
 	 * @async

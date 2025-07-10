@@ -2601,6 +2601,18 @@ class Q extends Avatar {
 		return isValidated
 	}
     /**
+     * Looks up a member by their email and external id.
+     * @todo - generalize, currently customized for google case
+     * @param {string} provider - The OAuth provider (e.g. "google")
+     * @param {string} email - The email address of the member
+     * @param {string} sub - The external id of the member
+     * @returns {Promise<string>} - The member id if found, otherwise null
+     */
+    async memberLookup(provider, email, sub){
+        const mbr_id = await this.#factory.memberLookup(provider, email, sub)
+        return mbr_id
+    }
+    /**
      * Subscribe to a resource for the MCP session.
      * @param {string} uri - The resource URI to subscribe to
      * @param {object} sessionMeta - The session metadata

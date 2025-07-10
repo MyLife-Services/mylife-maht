@@ -24,6 +24,9 @@ import {
     tokenValidation,
 } from './controllers/api-functions.mjs'
 import {
+    challenge,
+    logout,
+    loginSelect,
     oAuth,
     oAuthCallback,
 } from './controllers/auth-functions.mjs'
@@ -32,7 +35,6 @@ import {
     activateBot,
     alerts,
     bots,
-    challenge,
     chat,
     collections,
     createBot,
@@ -42,8 +44,6 @@ import {
     help,
     index,
     item,
-    logout,
-    loginSelect,
     members,
     migrateBot,
     migrateChat,

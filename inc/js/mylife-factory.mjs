@@ -1010,6 +1010,18 @@ class MyLifeFactory extends AgentFactory {
 	async hostedMembers(validations){
 		return await this.#dataservices.hostedMembers(validations)
 	}
+    /**
+     * Looks up a member by their email and external id.
+     * @todo - generalize, currently customized for google case
+     * @param {string} provider - The OAuth provider (e.g. "google")
+     * @param {string} email - The email address of the member
+     * @param {string} sub - The external id of the member
+     * @returns {Promise<string>} - The member id if found, otherwise null
+     */
+    async memberLookup(provider, email, sub){
+        const mbr_id = await mDataservices.memberLookup(provider, email, sub)
+        return mbr_id
+    }
 	/**
 	 * Registers a new MyLife registrant. This represents the intial contact with the MyLife system by a human candidate. The registration process is a three-step process. The first step is to 1) register the candidate; 2) validate the registration; and 3) creating a new Member account from their inputs.
 	 * @public
