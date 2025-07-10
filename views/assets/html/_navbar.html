@@ -11,6 +11,9 @@
     <% }) %>
     <% if(!locked){ %>
         <li><a id="navigation-logout" class="login-btn">Logout</a></li>
+    <% } else { %>
+        <li><a id="navigation-login" class="login-btn">Login</a></li>
+        <li><a href="/auth/google" style="text-decoration: none;"><img src="https://developers.google.com/identity/images/btn_google_signin_dark_normal_web.png" alt="Sign in with Google" style="height: 40px" /></a></li>
     <% } %>
 </ul>
 <div id="navigation-version" class="navigation-version"><img src="https://nanda-registry.com/api/v1/verification/badge/fbbab90e-bfad-4150-b831-c9a579d0f3c6/" alt="Verified MCP Server" /><div><%= version ? `v.${ version }` : '' %></div></div>

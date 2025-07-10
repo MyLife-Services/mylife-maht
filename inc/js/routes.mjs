@@ -24,6 +24,10 @@ import {
     tokenValidation,
 } from './controllers/api-functions.mjs'
 import {
+    oAuth,
+    oAuthCallback,
+} from './controllers/auth-functions.mjs'
+import {
     about,
     activateBot,
     alerts,
@@ -247,6 +251,9 @@ _nandaRouter.get('/mylife', server)
 _nandaRouter.get('/servers/:sid', server)
 _nandaRouter.get('/servers/:sid/ratings', serverRatings)
 _nandaRouter.get('/servers', servers)
+/* OAuth2 routes */
+_Router.get('/auth/:provider', oAuth)
+_Router.get('/auth/:provider/callback', oAuthCallback)
 // Mount the subordinate routers along respective paths
 _Router.use('/members', _memberRouter.routes(), _memberRouter.allowedMethods())
 _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
