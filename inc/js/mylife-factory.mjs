@@ -7,7 +7,7 @@ import util from 'util'
 import vm from 'vm'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import { Avatar, Q, } from './mylife-avatar.mjs'
-import Dataservices from './mylife-dataservices.mjs'
+import { Dataservices, } from './mylife-dataservices.mjs'
 import {
 	extendClass_consent,
     extendClass_conversation,
@@ -1058,6 +1058,25 @@ class MyLifeFactory extends AgentFactory {
 		}
 		this.#registrant = registration
 		return this.#registrant
+	}
+	/**
+	 * Retrieves a list of registries based on the provided options.
+	 * @param {Object} options - The options to filter the registries
+     * @returns {Promise<Array>} - The list of registries by string: ['reg1Name', 'reg2Name']
+	 */
+	async registries(options={}){
+		const registries = await this.#dataservices.registries(options)
+		return registries
+	}
+	/**
+	 * Retrieves a registry object by id.
+	 * @param {Guid} registryId - The registry id
+	 * @returns {Promise<Object>} - The registry object
+	 */
+	async registry(registryId){
+		const registry = await this.#dataservices.getItems('registry', undefined, [{ name:
+			'@mbr_id', value: mbr_id, }], 'system')
+		return registry
 	}
     /**
      * Get a list of publicly shared memories.

@@ -84,6 +84,8 @@ import {
     mcpSystemInfo,
 } from './controllers/mcp-functions.mjs'
 import {
+    registries,
+    registry,
     server,
     serverRatings,
     servers,
@@ -100,7 +102,8 @@ const _apiRouter = new Router()
 const _mcpMemberRouter = new Router()
 const _mcpSystemRouter = new Router()
 const _memberRouter = new Router()
-const _nandaRouter = new Router()
+const _nandaRouter = new Router({ prefix: '/nanda' })
+const _registryRouter = new Router()
 const _Router = new Router()
 const mClientEntities = JSON.parse(process.env.OPENAI_JWT_SECRETS)
 const mAgentRouters = {
@@ -242,6 +245,9 @@ _mcpMemberRouter.get('/sse')
 _mcpMemberRouter.post('/mcp', mcpCall) // MCP 2025-03-26
 _mcpMemberRouter.post('/message', mcpCall)
 _mcpMemberRouter.post('/messages', mcpCall)
+/* registry routes */
+_registryRouter.get('/registry/:registryId', registry)
+_registryRouter.get('/registries', registries)
 /* Nanda routes */
 _nandaRouter.get('/mylife', server)
 _nandaRouter.get('/servers/:sid', server)
@@ -253,7 +259,8 @@ _Router.use('/api/v1', _apiRouter.routes(), _apiRouter.allowedMethods())
 _Router.use('/api/v2/mcp/system-avatar', _mcpSystemRouter.routes(), _mcpSystemRouter.allowedMethods())
 _Router.use('/api/v2/mcp/member-avatar', _mcpMemberRouter.routes(), _mcpMemberRouter.allowedMethods())
 _Router.use('/api/v2/a2a', _a2aRouter.routes(), _a2aRouter.allowedMethods())
-_Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
+_Router.use(_nandaRouter.routes(), _nandaRouter.allowedMethods())
+_Router.use(_registryRouter.routes(), _registryRouter.allowedMethods())
 /* modular functions */
 /**
  * Connects the routes to the router

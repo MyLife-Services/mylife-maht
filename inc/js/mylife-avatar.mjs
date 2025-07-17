@@ -2622,6 +2622,26 @@ class Q extends Avatar {
         return Avatar
     }
     /**
+     * Get a list of available registries.
+     * @param {object} options - Optional parameters for fetching registries
+     * @returns {Promise<Registry[]>} - The list of registries
+     */
+    async registries(options={}){
+        let registries = await this.#factory.registries(options)
+        registries = registries
+            .map(registry=>mPruneDataObject(registry))
+        return registries
+    }
+    /**
+     * Get a specific registry by id.
+     * @param {Guid} registryId - The registry id to fetch
+     * @returns {Promise<Object>} - The registry object { id, name, description, items, }
+     */
+    async registry(registryId){
+        const registry = await this.#factory.registry(registryId)
+        return registry
+    }
+    /**
      * Get a list of publicly shared memories.
      * @param {Number} limit - The max number of memories to return
      * @param {Object} filterArgs - Optional filter arguments for shared memories
@@ -3695,6 +3715,20 @@ function mPruneConversation(conversation){
         name,
         type,
     }
+}
+/**
+ * Prunes a data object by removing keys that start with certain characters; currently: [`_`, `$`].
+ * @param {object} dataObject - The data object to prune
+ * @returns {object} - The pruned data object
+ */
+function mPruneDataObject(dataObject){
+    const dataRemovalChars = ['_', '$']
+    const prunedDataObject = {}
+    for(const [key, value] of Object.entries(dataObject)){
+        if(!dataRemovalChars.some(char=>key.startsWith(char)))
+            prunedDataObject[key] = value
+    }
+    return prunedDataObject
 }
 function mPruneEvent(Event, sid){
     const { action, character, dialog, id, input, order, stage, title, type, } = Event

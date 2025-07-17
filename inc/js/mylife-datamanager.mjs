@@ -1,35 +1,33 @@
 /* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
-import Config from './mylife-datasource-config.mjs'
+import { Config, } from './mylife-datasource-config.mjs'
 import Globals from './globals.mjs'
 /* module constants */
 const mGlobals = new Globals()
-//	define class
-class Datamanager {
-	#containers
+/* exports */
+export class Datamanager {
+	#databases={}
 	#core = null
 	#coreId
-	#partitionId
-	//	constructor
-	constructor(_mbr_id) {
-		const _config = new Config(_mbr_id)
-		const _options = {
-			endpoint: _config.endpoint,
-			key: _config.rw_id,
+	#partitionId // 
+	constructor(mbr_id) {
+		const config = new Config(mbr_id)
+		const options = {
+			endpoint: config.endpoint,
+			key: config.rw_id,
 			userAgentSuffix: 'mylife-services',
-			//	aadCredentials: new DefaultAzureCredential()
+			// aadCredentials: new DefaultAzureCredential()
 		}
-		const _client = new CosmosClient(_options)
-		this.database = _client.database(_config.members.id)
-		this.#partitionId = _config.members.container.partitionId
-		this.#coreId = _config.members.container?.coreId ?? this.#partitionId.split('|')[1]
-		this.#containers = {
-			members: this.database.container(_config.members.container.id),
-			registration: this.database.container(_config.registration.container.id),
-			shares: this.database.container(_config.shares.container.id),
-			system: this.database.container(_config.system.container.id),
-		}
+		const client = new CosmosClient(options)
+		this.#databases = config.databases
+		// for every entry in config.databases, set client
+		Object.values(this.#databases).forEach(db=>{
+			db.client = client.database(db.id)
+		})
+		console.log('Datamanager::constructor()', this.#databases.membership.client.containers, this.containers)
+		this.#partitionId = config.members.container.partitionId
+		this.#coreId = this.#partitionId.split('|')?.[1]
 		this.requestOptions = {
 			partitionKey: this.#partitionId,
 			populateQuotaInfo: false, // set this to true to include quota information in the response headers
@@ -38,12 +36,13 @@ class Datamanager {
 	/* initialize */
 	async init() {
 		//	assign core
-		this.#core = await this.#containers['members']
+		this.#core = await this.containers['members']
 			.item(
 				this.#coreId,
 				this.#partitionId
 			)
 			.read()
+		console.log('Datamanager::init()', this.#core)
 		return this
 	}
 	/* public functions */
@@ -55,7 +54,7 @@ class Datamanager {
 	 * @returns {Promise<boolean>} - `true` if challenge is successful
 	 */
 	async challengeAccess(mbr_id, passphrase, caseInsensitive=false){
-		const { resource: result } = await this.#containers['members']
+		const { resource: result } = await this.containers['members']
 			.scripts
 			.storedProcedure('checkMemberPassphrase')
 			.execute(mbr_id, passphrase, caseInsensitive)
@@ -69,7 +68,7 @@ class Datamanager {
 	 * @returns {Boolean} - Whether operation was successful and item was deleted, i.e., has no resource
 	 */
 	async deleteItem(id, containerId=this.containerDefault, partitionId=this.#partitionId){
-		const { resource } = await this.#containers[containerId]
+		const { resource } = await this.containers[containerId]
 			.item(id, partitionId)
 			.delete()
 		return !resource
@@ -84,16 +83,16 @@ class Datamanager {
 	async getItem(id, containerId=this.containerDefault, options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
 		const partitionKey = options?.partitionKey
 			?? this.#partitionId
-		const { resource: retrievedItem } = await this.#containers[containerId]
+		const { resource: retrievedItem } = await this.containers[containerId]
 			.item(id, partitionKey)
 			.read(options)
 		return retrievedItem
 	}
-	async getItems(_querySpec, containerId=this.containerDefault, _options=this.requestOptions){
+	async getItems(_querySpec, containerId=this.containerDefault, options=this.requestOptions){
 		try{
-			const { resources: items, } = await this.#containers[containerId]
+			const { resources: items, } = await this.containers[containerId]
 				.items
-				.query(_querySpec, _options)
+				.query(_querySpec, options)
 				.fetchAll()
 			return items
 		} catch(error){
@@ -122,7 +121,7 @@ class Datamanager {
             query: sql,
             parameters: []
         }
-        const { resources: documents } = await this.#containers['members']
+        const { resources: documents } = await this.containers['members']
             .items
             .query(querySpec, { enableCrossPartitionQuery: true })
             .fetchAll()
@@ -135,7 +134,7 @@ class Datamanager {
 		if(!Array.isArray(item))
 			item = [item]
 		try{
-			const { resource: update, } = await this.#containers[container_id]
+			const { resource: update, } = await this.containers[container_id]
 				.item(id, partitionId)
 				.patch(item) //	see below for filter-patch example
 			return update
@@ -159,7 +158,7 @@ class Datamanager {
 			item.id = this.globals.newGuid
 		if(!mbr_id?.length)
 			item.mbr_id = this.#partitionId
-		const { resource: doc } = await this.#containers[containerId]
+		const { resource: doc } = await this.containers[containerId]
 			.items
 			.upsert(item)
 		return doc
@@ -170,7 +169,7 @@ class Datamanager {
 	 * @returns {object} - The share object from database with Item in-built
 	 */
 	async share(sid){
-		const { resource: shareItem } = await this.#containers['shares']
+		const { resource: shareItem } = await this.containers['shares']
 			.item(sid, 'memory')
 			.read()
 		return shareItem
@@ -181,7 +180,7 @@ class Datamanager {
 	 * @param {object} _candidate { 'avatarName': string, 'email': string, 'humanName': string, }
 	 */
 	async registerCandidate(_candidate){
-		const { resource: doc } = await this.#containers['registration']
+		const { resource: doc } = await this.containers['registration']
 			.items
 			.upsert(_candidate)
 		return doc
@@ -192,22 +191,23 @@ class Datamanager {
 	 * @returns {boolean} - `true` if partition key is active, `false` otherwise.
 	 */
 	async testPartitionKey(mbr_id){
-		const { resource: result } = await this.#containers['members']
+		const { resource: result } = await this.containers['members']
 			.scripts
 			.storedProcedure('testPartitionKey')
 			.execute(mbr_id)
 		return result
 	}
 	/* getters/setters */
-	/**
-	 * Returns container default for MyLife data.
-	*/
 	get containerDefault(){
 		return 'members'
 	}
-	/**
-	 * Returns datacore.
-	*/
+	get containers(){
+		const containers = Object.values(this.#databases)
+			.reduce((acc, db) => {
+				return { ...acc, ...db.client.containers }
+			}, {})
+		return containers
+	}
 	get core(){
 		return this.#core?.resource
 	}
@@ -219,8 +219,6 @@ class Datamanager {
 			?? this.#partitionId
 	}
 }
-//	exports
-export default Datamanager
 /*
 COLLECTION PATCH:
 Body itself is the array of operations, second parameter is options, for configuration and filter?

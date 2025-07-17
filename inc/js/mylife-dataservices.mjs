@@ -1,16 +1,83 @@
+/* imports */
+import { Datamanager, } from "./mylife-datamanager.mjs"
+import { NandaRegistry, } from 'nanda-sdk'
+/* modular functions */
 /**
- * @fileOverview This file contains the Dataservices class, which manages data interactions for the MyLife platform.
- * It includes functionality for handling avatars, chats, items, and other core elements of the platform's data.
- * @version 1.0.0
+ * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
+ * @module
+ * @param {object} core - Datacore object, required properties below:
+ * @property {Guid} avatarId - Avatar id
+ * @property {Guid} id - Member core id
+ * @property {string} mbr_id - Member id
+ * @param {object} globals - Globals object
+ * @returns {object} - Avatar property data package
  */
-//	imports
-import Datamanager from "./mylife-datamanager.mjs"
+function mAvatarProperties(core, globals){
+	const {
+		avatarId: id,
+		avatarName,
+		id: coreId,
+		mbr_id,
+		names=['default-name-error'],
+		...avatarProperties
+	} = core
+	const being = 'avatar'
+	const nickname = avatarName
+		?? globals.sysName(mbr_id)
+	const name = `avatar_${ nickname }_${ id }`
+	const object_id = id
+	const parent_id = object_id
+	const proxyBeing = 'human'
+	const stripProperties = [
+		'assistant',
+		'assistant_id',
+		'avatarId',
+		'avatarName',
+		'birth',
+		'bot_id',
+		'bots',
+		'command_word',
+		'conversations',
+		"email",
+		'form',
+		'format',
+		'llm_id',
+		'messages',
+		'metadata',
+		'names',
+		'passphrase',
+		'thread',
+		'thread_id',
+		'validation',
+		'validations',
+	]
+	const type = 'openai_gpt'
+	stripProperties.forEach(prop=>{
+		delete avatarProperties[prop]
+	})
+	return {
+		...avatarProperties,
+		being,
+		id,
+		mbr_id,
+		name,
+		names,
+		nickname,
+		object_id,
+		parent_id,
+		proxyBeing,
+		setupComplete: false,
+		type,
+	}
+}
+/* module exports */
+// class exports
 /**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
  * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
  */
-class Dataservices {
+export class Dataservices {
 	/**
 	 * Identifies currently available selection sub-types (i.e., `being`=@var) for the data service.
 	 * @private
@@ -504,45 +571,45 @@ class Dataservices {
 	}
 	/**
 	 * Retrieves items based on specified parameters.
-	 * @async
-	 * @public
+	 * @todo: incorporate date range functionality into this.getItems()
 	 * @param {string} being - The type of items to retrieve.
 	 * @param {array} [selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [paramsArray=[]] - Additional query parameters.
 	 * @param {string} container_id - The container name to use, overriding default.
-	 * @param {string} _mbr_id - The member id to use, overriding default.
+	 * @param {string} mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Array>} An array of items matching the query parameters.
 	 */
-	async getItems(being, selects=[], paramsArray=[], container_id, _mbr_id=this.mbr_id) {	//	paramsArray is array of objects { name: '${varName}' }
-		// @todo: incorporate date range functionality into this.getItems()
+	async getItems(being, selects=[], paramsArray=[], container_id, mbr_id=this.mbr_id) {	//	paramsArray is array of objects { name: '${varName}' }
 		const prefix = 'u'
-		paramsArray.unshift({ name: '@being', value: being, })	//	add primary parameter to array at beginning
-		const _selectFields = (selects.length)
+		const queryOptions = { populateQuotaInfo: false, } // true includes quota information in res headers
+		const selectFields = (selects.length)
 			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${prefix}.`+field)).join(',')
 			:	'*'
-		let query = `select ${ _selectFields } from ${ prefix }`	//	@being is required
-		paramsArray /* iterate array of parameters */
-			.forEach((param, index)=>{
-				const { name, type, value=null,  } = param
-				let dbName = name
-				if(!dbName?.length || ( dbName.length===1 && dbName==='@' ))
-					return
-				if(!dbName.startsWith('@'))
-					dbName = '@' + dbName
-				query += ` ${ index === 0 ? 'where' : 'and' } `
-				const appendValue = type==='contains'
-					? `contains(lower(${ prefix }.${ dbName.slice(1) }), lower(${ dbName }))`
-					: `${ prefix }.${ dbName.slice(1) }=${ dbName }`
-				query += appendValue
-		})
+		let query = `select ${ selectFields } from ${ prefix }`
+		if(being?.length){
+			paramsArray.unshift({ name: '@being', value: being, })	//	add primary parameter to array at beginning
+			queryOptions.partitionKey = mbr_id
+		}
+		if(paramsArray?.length)
+			paramsArray /* iterate array of parameters */
+				.forEach((param, index)=>{
+					const { name, type, value=null,  } = param
+					let dbName = name
+					if(!dbName?.length || ( dbName.length===1 && dbName==='@' ))
+						return
+					if(!dbName.startsWith('@'))
+						dbName = '@' + dbName
+					query += ` ${ index === 0 ? 'where' : 'and' } `
+					const appendValue = type==='contains'
+						? `contains(lower(${ prefix }.${ dbName.slice(1) }), lower(${ dbName }))`
+						: `${ prefix }.${ dbName.slice(1) }=${ dbName }`
+					query += appendValue
+				})
 		try {
-			const items = await this.datamanager.getItems(
+			let items = await this.datamanager.getItems(
 				{ query: query, parameters: paramsArray, },
 				container_id,
-				{
-					partitionKey: _mbr_id,
-					populateQuotaInfo: false, // set this to true to include quota information in the response headers
-				},
+				queryOptions,
 			)
 			return items
 		} catch(_error) {
@@ -624,6 +691,18 @@ class Dataservices {
 	async pushItem(data, containerId){
 		return await this.datamanager.pushItem(data, containerId)
 	}
+	/**
+	 * Retrieves a list of registries based on the provided options.
+	 * @todo - implement options filtering
+	 * @todo - implement class definition and object return for `Registry`
+	 * @param {Object} options - The options to filter the registries
+     * @returns {Promise<Registry[]>} - The list of registries
+	 */
+	async registries(options={}){
+		const registries = await this.getItems(undefined, undefined, undefined, 'registry')
+		console.log('Dataservices::registries()::registries', registries)
+		return registries
+	}
     /**
      * Allows member to reset passphrase.
      * @param {string} passphrase 
@@ -702,74 +781,3 @@ class Dataservices {
 		return candidate
 	}
 }
-/* modular functions */
-/**
- * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
- * @module
- * @param {object} core - Datacore object, required properties below:
- * @property {Guid} avatarId - Avatar id
- * @property {Guid} id - Member core id
- * @property {string} mbr_id - Member id
- * @param {object} globals - Globals object
- * @returns {object} - Avatar property data package
- */
-function mAvatarProperties(core, globals){
-	const {
-		avatarId: id,
-		avatarName,
-		id: coreId,
-		mbr_id,
-		names=['default-name-error'],
-		...avatarProperties
-	} = core
-	const being = 'avatar'
-	const nickname = avatarName
-		?? globals.sysName(mbr_id)
-	const name = `avatar_${ nickname }_${ id }`
-	const object_id = id
-	const parent_id = object_id
-	const proxyBeing = 'human'
-	const stripProperties = [
-		'assistant',
-		'assistant_id',
-		'avatarId',
-		'avatarName',
-		'birth',
-		'bot_id',
-		'bots',
-		'command_word',
-		'conversations',
-		"email",
-		'form',
-		'format',
-		'llm_id',
-		'messages',
-		'metadata',
-		'names',
-		'passphrase',
-		'thread',
-		'thread_id',
-		'validation',
-		'validations',
-	]
-	const type = 'openai_gpt'
-	stripProperties.forEach(prop=>{
-		delete avatarProperties[prop]
-	})
-	return {
-		...avatarProperties,
-		being,
-		id,
-		mbr_id,
-		name,
-		names,
-		nickname,
-		object_id,
-		parent_id,
-		proxyBeing,
-		setupComplete: false,
-		type,
-	}
-}
-/* exports */
-export default Dataservices
