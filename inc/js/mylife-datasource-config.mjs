@@ -23,7 +23,8 @@ const mDatabases = {
 				partitionId: null,
 				partitionKey: 'mbr_id',
 			},
-		}
+		},
+		name: 'membership',
 	},
 	nanda: {
 		client: null,
@@ -36,9 +37,10 @@ const mDatabases = {
 			registry: {
 				id: 'registry',
 				partitionId: null,
-				partitionKey: 'mbr_id',
+				partitionKey: 'agent_id',
 			},
-		}
+		},
+		name: 'nanda',
 	},
 }
 const mConfigOptions = {

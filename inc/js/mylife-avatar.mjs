@@ -2023,6 +2023,42 @@ class Q extends Avatar {
                         type: 'string',
                     },
                 ],
+            },
+            {
+                name: 'mylife_shared_memory_search',
+                description: 'Let Q help you find MyLife shared public memories to experience.',
+                arguments: [
+                    {
+                        description: 'Whether to search for anonymous memories; do not send if not intending to filter by anonymous',
+                        name: 'anonymous',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    {
+                        description: 'Whether to search for guessable memories; do not send if not intending to filter  by guessable',
+                        name: 'guessable',
+                        required: false,
+                        type: 'boolean',
+                    },
+                    {
+                        default: '',
+                        description: 'A keyword(s) or topic to search for in MyLife shared public memory bank',
+                        name: 'keyword',
+                        required: true,
+                    },
+                    {
+                        default: '',
+                        description: 'A Phase of Life to search for in MyLife shared public memory bank',
+                        enum: ['birth', 'childhood', 'adolescence', 'teenage', 'young-adult', 'adulthood', 'middle-age', 'senior', 'end-of-life', 'past-life', 'unknown'],
+                        required: true,
+                    },
+                    {
+                        default: '',
+                        description: 'Title of the MyLife shared public memory to search for',
+                        name: 'title',
+                        required: true,
+                    },
+                ],
             }
         ],
         protocolVersion: mJsonRpcProtocolVersion,
@@ -2660,6 +2696,24 @@ class Q extends Avatar {
         const publicMemory = await this.#factory.sharedMemory(itemId)
         console.log('SystemAvatar::sharedMemory()::publicMemory', publicMemory?.id)
         return publicMemory
+    }
+    /**
+     * Search for shared memories based on keyword, phase of life, and/or title.
+	 * @param {boolean} anonymous - Whether to search for anonymous memories
+	 * @param {boolean} guessable - Whether to search for guessable memories
+     * @param {string} keyword - The keyword to search for in shared memories
+     * @param {string} phaseOfLife - The phase of life to filter memories by
+     * @param {string} title - The title to filter memories by
+     * @returns {Promise<Object[]>} - The list of matching shared memories
+     */
+    async sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title){
+        const memories = await this.#factory.sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title)
+        const results = memories
+            .map(memory=>({
+                id: memory.id,
+                title: memory.title,
+            }))
+        return results
     }
     /**
      * Search for shared memories based on keyword, phase of life, and/or title.

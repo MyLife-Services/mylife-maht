@@ -4,13 +4,16 @@ import { CosmosClient } from '@azure/cosmos'
 import { Config, } from './mylife-datasource-config.mjs'
 import Globals from './globals.mjs'
 /* module constants */
+const mDefaultDatabase = 'membership'
 const mGlobals = new Globals()
 /* exports */
 export class Datamanager {
+	#containers={}
 	#databases={}
-	#core = null
+	#defaultDatabase
+	#defaultPartitionId
+	#core=null
 	#coreId
-	#partitionId // 
 	constructor(mbr_id) {
 		const config = new Config(mbr_id)
 		const options = {
@@ -21,28 +24,33 @@ export class Datamanager {
 		}
 		const client = new CosmosClient(options)
 		this.#databases = config.databases
-		// for every entry in config.databases, set client
-		Object.values(this.#databases).forEach(db=>{
-			db.client = client.database(db.id)
-		})
-		console.log('Datamanager::constructor()', this.#databases.membership.client.containers, this.containers)
-		this.#partitionId = config.members.container.partitionId
-		this.#coreId = this.#partitionId.split('|')?.[1]
+		if(this.#databases[mDefaultDatabase])
+			this.#defaultDatabase = this.#databases[mDefaultDatabase]
+		Object.entries(this.#databases)
+			.forEach(([dbName, db])=>{
+				db.client = client.database(db.name ?? dbName)
+				Object.entries(db?.containers ?? {})
+					.forEach(([containerName, container])=>{
+						container.id = container?.id ?? containerName
+						container.partitionId = container?.partitionId ?? mbr_id
+						this.#containers[containerName] = db.client.container(container.id)
+					})
+			})
+		this.#defaultPartitionId = this.#defaultDatabase.containers.members.partitionId
+		this.#coreId = this.#defaultPartitionId.split('|')?.[1]
 		this.requestOptions = {
-			partitionKey: this.#partitionId,
+			partitionKey: this.#defaultPartitionId,
 			populateQuotaInfo: false, // set this to true to include quota information in the response headers
 		}
 	}
 	/* initialize */
-	async init() {
-		//	assign core
+	async init(){
 		this.#core = await this.containers['members']
 			.item(
 				this.#coreId,
-				this.#partitionId
+				this.#defaultPartitionId
 			)
 			.read()
-		console.log('Datamanager::init()', this.#core)
 		return this
 	}
 	/* public functions */
@@ -67,11 +75,19 @@ export class Datamanager {
 	 * @param {object} options - The request options, defaults to `this.requestOptions`
 	 * @returns {Boolean} - Whether operation was successful and item was deleted, i.e., has no resource
 	 */
-	async deleteItem(id, containerId=this.containerDefault, partitionId=this.#partitionId){
+	async deleteItem(id, containerId=this.containerDefault, partitionId){
 		const { resource } = await this.containers[containerId]
 			.item(id, partitionId)
 			.delete()
 		return !resource
+	}
+	/**
+	 * Retrieves a specific container by name.
+	 * @param {string} containerName - The name of the container to retrieve
+	 * @returns {object} The container object
+	 */
+	getContainer(containerName){
+		return this.#containers?.[containerName]
 	}
 	/**
 	 * Retreives specific item from container.
@@ -82,7 +98,7 @@ export class Datamanager {
 	 */
 	async getItem(id, containerId=this.containerDefault, options=this.requestOptions){	//	quick, inexpensive read; otherwise use getItems
 		const partitionKey = options?.partitionKey
-			?? this.#partitionId
+			?? this.#defaultPartitionId
 		const { resource: retrievedItem } = await this.containers[containerId]
 			.item(id, partitionKey)
 			.read(options)
@@ -129,7 +145,7 @@ export class Datamanager {
 			throw new Error('No hosted members found')
 		return documents
 	}
-	async patchItem(id, item, container_id=this.containerDefault, partitionId=this.#partitionId){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+	async patchItem(id, item, container_id=this.containerDefault, partitionId=this.#defaultPartitionId){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		// [Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(item))
 			item = [item]
@@ -157,7 +173,7 @@ export class Datamanager {
 		if(!id?.length)
 			item.id = this.globals.newGuid
 		if(!mbr_id?.length)
-			item.mbr_id = this.#partitionId
+			item.mbr_id = this.#defaultPartitionId
 		const { resource: doc } = await this.containers[containerId]
 			.items
 			.upsert(item)
@@ -202,11 +218,7 @@ export class Datamanager {
 		return 'members'
 	}
 	get containers(){
-		const containers = Object.values(this.#databases)
-			.reduce((acc, db) => {
-				return { ...acc, ...db.client.containers }
-			}, {})
-		return containers
+		return this.#containers
 	}
 	get core(){
 		return this.#core?.resource
@@ -216,7 +228,7 @@ export class Datamanager {
 	}
 	get mbr_id(){
 		return this.core.mbr_id
-			?? this.#partitionId
+			?? this.#defaultPartitionId
 	}
 }
 /*

@@ -1,6 +1,6 @@
 /* imports */
 import { Datamanager, } from "./mylife-datamanager.mjs"
-import { NandaRegistry, } from 'nanda-sdk'
+import { NandaIndex, } from 'nanda-sdk'
 /* modular functions */
 /**
  * Creates new avatar property data package to be consumed by Avatar class `constructor`. Defines critical avatar fields as: ["being", "id", "mbr_id", "name", "names", "nickname", "proxyBeing", "type"].
@@ -591,22 +591,22 @@ export class Dataservices {
 			queryOptions.partitionKey = mbr_id
 		}
 		if(paramsArray?.length)
-			paramsArray /* iterate array of parameters */
-				.forEach((param, index)=>{
-					const { name, type, value=null,  } = param
-					let dbName = name
-					if(!dbName?.length || ( dbName.length===1 && dbName==='@' ))
-						return
-					if(!dbName.startsWith('@'))
-						dbName = '@' + dbName
-					query += ` ${ index === 0 ? 'where' : 'and' } `
-					const appendValue = type==='contains'
+		paramsArray /* iterate array of parameters */
+			.forEach((param, index)=>{
+				const { name, type, value=null,  } = param
+				let dbName = name
+				if(!dbName?.length || ( dbName.length===1 && dbName==='@' ))
+					return
+				if(!dbName.startsWith('@'))
+					dbName = '@' + dbName
+				query += ` ${ index === 0 ? 'where' : 'and' } `
+				const appendValue = type==='contains'
 						? `contains(lower(${ prefix }.${ dbName.slice(1) }), lower(${ dbName }))`
-						: `${ prefix }.${ dbName.slice(1) }=${ dbName }`
-					query += appendValue
-				})
+					: `${ prefix }.${ dbName.slice(1) }=${ dbName }`
+				query += appendValue
+		})
 		try {
-			let items = await this.datamanager.getItems(
+			const items = await this.datamanager.getItems(
 				{ query: query, parameters: paramsArray, },
 				container_id,
 				queryOptions,

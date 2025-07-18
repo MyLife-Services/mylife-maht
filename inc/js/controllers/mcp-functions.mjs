@@ -468,22 +468,32 @@ async function mMcpCall(ctx, mcp){
         case 'completion':
             switch(methodAction){
                 case 'complete':
-                    const {
-                        argument,
-                        context: { arguments: contextArguments, }={},
-                        ref: {
-                            name: referenceName,
-                            type: referenceType,
-                            uri: referenceUri,
-                        }={},
-                    } = params
-                    const promptType = referenceType?.split('/')?.[1]
-                    const reference = ( referenceName ?? referenceUri )?.trim()
-                    const { error: completeError, result: completeResult } = await Avatar.mcpCompletionRequest(promptType, reference, argument, contextArguments, sessionMeta, ctx)
-                    if(completeError)
-                        error = completeError
-                    else
-                        result = completeResult /* can be left undefined */
+                    const { argument, context, ref: {
+                        name: referenceName,
+                        type: referenceType,
+                        uri: referenceUri,
+                    }={}, } = params
+                    const values = []
+                    let hasMore,
+                        total
+                    if(referenceType==='ref/prompt' && referenceName?.length){
+                        console.log(chalk.yellow('mcpCall()::⚠️ MCP Completion Call with prompt reference'), id, referenceName, Avatar.mcp.prompts)
+                    } else if(referenceType==='ref/resource' && referenceUri?.length){
+                        console.log(chalk.yellow('mcpCall()::⚠️ MCP Completion Call with resource reference'), id, referenceUri, Avatar.mcp.resources)
+                    } else
+                        error = {
+                            code: -32602,
+                            data: { argument, context, id, name, referenceName, referenceType, referenceUri, },
+                            message: `MCP Completion Call requires a valid reference type`,
+                        }
+                    result = {
+                        completion: {
+                            values,
+                            total,
+                            hasMore, /* Maximum 100 items per response */
+                        }
+                    }
+                    break
                 default:
                     error = {
                         code: -32601,
@@ -497,11 +507,69 @@ async function mMcpCall(ctx, mcp){
                 case 'get':
                     if(!Avatar.isMyLife)
                         break
-                    const { error: promptError, result: promptResult, } = await Avatar.mcpPromptRequest(id, name, args, sessionMeta, ctx)
-                    if(promptError)
-                        error = promptError
-                    else if(promptResult)
-                        result = promptResult
+                    switch(name){
+                        case 'mylife_company_information':
+                            const { infoType, } = args
+                            result = {
+                                description: `Ask MyLife's corporate intelligence, _Q_, about our nonprofit organization.`,
+                                messages: [
+                                    {
+                                        role: 'user',
+                                        content: {
+                                            type: 'text',
+                                            text: `Ask Q about MyLife regarding: ${ infoType }`,
+                                        }
+                                    },
+                                    {
+                                        role: 'user',
+                                        content: {
+                                            type: 'text',
+                                            text: `When was MyLife founded?`,
+                                        }
+                                    },
+                                    {
+                                        role: 'user',
+                                        content: {
+                                            type: 'text',
+                                            text: `Who is on the board of MyLife?`,
+                                        }
+                                    }
+                                ]
+                            }
+                            break
+                        case 'mylife_shared_memory_search':
+                            const { anonymous, guessable, keyword, phase, title, } = args
+                            const searchResults = await Avatar.sharedMemorySearch(anonymous, guessable, keyword, phase, title)
+                            console.log(chalk.bgBlue('mcpCall()::✅ MCP GET Prompt Search Results'), searchResults, args)
+                            result = {
+                                description: `Refined Search for MyLife's shared memory`,
+                                messages: [
+                                    {
+                                        role: 'user',
+                                        content: {
+                                            type: 'text',
+                                            text: `Once human has reduced list to one item or selected it through an interface, call the \`get_shared_memory\` tool with the \`itemId\` of the indicated memory.`,
+                                        }
+                                    },
+                                    {
+                                        role: 'assistant',
+                                        content: {
+                                            type: 'resource',
+                                            resource: {
+                                                uri: `memory://search-results/${ sessionMeta.sessionId }`,
+                                                name: 'Search Results',
+                                                title: 'Memory Search Results',
+                                                mimeType: 'application/json',
+                                                text: JSON.stringify(searchResults)
+                                            }
+                                        }
+                                    },
+                                ],
+                            }
+                            break
+                        default:
+                            break
+                    }
                     break
                 case 'list':
                     if(!Avatar.isMyLife)
@@ -509,6 +577,7 @@ async function mMcpCall(ctx, mcp){
                     result = {
                         prompts: Avatar.mcp.prompts,
                     }
+                    console.log(chalk.bgBlue('mcpCall()::✅ MCP Prompts List'), result.prompts)
                     break
             }
             if(!result)
@@ -793,10 +862,8 @@ async function mMcpCall(ctx, mcp){
         clearInterval(progressInterval)
     runs.delete(id)
     await mMcpSendResponse(ctx, transportEntry, jsonrpc, error, id, result)
-    if(resourceListChanged)
-        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/resources/list_changed')
     if(toolListChanged)
-        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')
+        mMcpSendNotification(transportEntry, jsonrpc, 'notifications/tools/changed')    
 }
 /**
  * Paginate an array using a base64 encoded cursor.
