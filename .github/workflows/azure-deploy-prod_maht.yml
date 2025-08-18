@@ -3,7 +3,7 @@ name: Build and deploy Node.js app to Azure Web App - maht
 on:
   push:
     branches:
-      - azure-deploy-prod
+      - dandelion-deploy-prod
   workflow_dispatch:
 
 jobs:
