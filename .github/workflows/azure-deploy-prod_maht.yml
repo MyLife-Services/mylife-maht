@@ -3,7 +3,7 @@ name: Build and deploy Node.js app to Azure Web App - maht
 on:
   push:
     branches:
-      - dandelion-deploy-prod
+      - azure-deploy-prod
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: 'npm'
 
       - name: Install dependencies
@@ -55,4 +55,3 @@ jobs:
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_26F02C701C9B4CA8BBAA805CA936B215 }}
           package: .
-
