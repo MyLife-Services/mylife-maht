@@ -1071,12 +1071,17 @@ class MyLifeFactory extends AgentFactory {
 	/**
 	 * Retrieves a registry object by id.
 	 * @param {Guid} registryId - The registry id
-	 * @returns {Promise<Object>} - The registry object
+	 * @returns {Promise<Registry>} - The registry object
 	 */
 	async registry(registryId){
-		const registry = await this.#dataservices.getItems('registry', undefined, [{ name:
-			'@mbr_id', value: mbr_id, }], 'system')
-		return registry
+		if(this.globals.isValidGuid(registryId))
+			return await this.#dataservices.getItem(registryId, 'registries')
+		if(registryId?.length)
+			return await this.#dataservices.getItemByField(undefined, 'registry_id', registryId, 'registries', registryId)
+				?? this.#dataservices.getItemByField(undefined, 'name', registryId, 'registries', registryId)
+				?? {}
+		console.log(chalk.blueBright('MyLifeFactory::registry()::error'), chalk.bgRed('registryId is not a valid Guid or string'))
+		return {}
 	}
     /**
      * Get a list of publicly shared memories.

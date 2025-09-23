@@ -7,6 +7,11 @@ export async function registries(ctx){
     const options = {}
     ctx.body = await Avatar.registries(options)
 }
+/**
+ * Get a specific registry (mylife, nanda, etc.).
+ * @param {Koa} ctx - The Koa context
+ * @returns {Registry[]} - The registry objects available
+ */
 export async function registry(ctx){
     const { registryId='mylife', } = ctx.params
     const { avatar: Avatar, } = ctx.state

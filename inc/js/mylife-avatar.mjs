@@ -2670,7 +2670,7 @@ class Q extends Avatar {
     }
     /**
      * Get a specific registry by id.
-     * @param {Guid} registryId - The registry id to fetch
+     * @param {string} registryId - The registry id/name to fetch
      * @returns {Promise<Object>} - The registry object { id, name, description, items, }
      */
     async registry(registryId){

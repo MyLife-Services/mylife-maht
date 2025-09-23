@@ -508,22 +508,22 @@ export class Dataservices {
 	}
 	/**
 	 * Retrieves a specific item by its ID.
-	 * @async
-	 * @public
+	 * @todo - remove hard-coding, instead ensure mbr_id is sent in when determinant
 	 * @param {string} id - The unique identifier for the item.
 	 * @param {string} container_id - The container to use, overriding default: `Members`.
 	 * @param {string} mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(id, container_id, mbr_id=this.mbr_id) {
+	async getItem(id, container_id, mbr_id){
 		if(!id)
 			return null
 		try{
-			return await this.datamanager.getItem(
-				id,
-				container_id,
-				{ partitionKey: mbr_id, populateQuotaInfo: false, },
-			)
+			console.log('Dataservices::getItem()::id', id, mbr_id, container_id)
+			const options = ['registries'].includes(container_id)
+				? { enableCrossPartitionQuery: true }
+				: { partitionKey: mbr_id ?? this.mbr_id, populateQuotaInfo: false }
+			const item = await this.datamanager.getItem(id, container_id, options)
+			return item
 		}
 		catch(error){
 			console.log('Dataservices::getItem()::error', error, id, mbr_id, container_id,)
@@ -699,8 +699,7 @@ export class Dataservices {
      * @returns {Promise<Registry[]>} - The list of registries
 	 */
 	async registries(options={}){
-		const registries = await this.getItems(undefined, undefined, undefined, 'registry')
-		console.log('Dataservices::registries()::registries', registries)
+		const registries = await this.getItems(undefined, undefined, undefined, 'registries')
 		return registries
 	}
     /**
