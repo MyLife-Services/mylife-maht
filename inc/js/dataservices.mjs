@@ -4,7 +4,7 @@
  * @version 1.0.0
  */
 //	imports
-import Datamanager from "./mylife-datamanager.mjs"
+import Datamanager from "./datamanager.mjs"
 /**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.

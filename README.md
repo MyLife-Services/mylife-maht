@@ -161,12 +161,12 @@ MyLife itself is an open-source project and, aside from LLM technologies at the 
    - Utilizes Koa.js, a web framework for Node.js, which is known for its lightweight and modular nature. Koa's middleware stack flows in a stack-like manner, allowing for more expressive and robust server-side development.
 
 2. **Data Handling and Services**
-   - The application uses Azure Cosmos DB and PostgreSQL databases for data management, as indicated in the `mylife-dataservices.mjs` file.
+   - The application uses Azure Cosmos DB and PostgreSQL databases for data management, as indicated in the `dataservices.mjs` file.
    - It employs a data service layer (`Dataservices` class) to manage interactions with the data layers, offering methods for CRUD operations, handling avatars, bots, alerts, and other core elements.
 
 3. **Bot Functionality and Intelligence Management**
    - The application features a sophisticated bot system, capable of creating and managing different types of bots like personal assistants, biographers, health bots, etc.
-   - OpenAI's GPT-3 model is integrated for generating responses and interacting with users through bots, as observed in the `mylife-avatar.mjs` and `mylife-factory.mjs` files.
+   - OpenAI's GPT-3 model is integrated for generating responses and interacting with users through bots, as observed in the `avatar.mjs` and `factory.mjs` files.
 
 4. **Session Management**
    - Managed through the Koa Session, for extensibility, an app managed variable: `app.context.mcpSessionMeta` contains all of the active transports and unique information to connect multiple streams to one session.
