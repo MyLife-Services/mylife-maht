@@ -1134,6 +1134,7 @@ async function mCreateTeamMember(event){
     const { value: type, } = this
     if(!type)
         throw new Error(`no team member type selected`)
+    if(type==='proxy'){}
     const data = {
         id: mActiveTeam.id,
         type,
@@ -1156,7 +1157,7 @@ async function mCreateTeamMember(event){
  * @returns {void}
  */
 function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
-    const { allowCustom, allowedTypes, } = mActiveTeam
+    const { allowCustom=false, allowProxy=false, allowedTypes, } = mActiveTeam
     mTeamPopup.style.visibility = 'hidden'
     mTeamPopup.innerHTML = '' // clear existing
     const teamPopup = document.createElement('div')
@@ -1186,14 +1187,22 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
                 memberOption.value = type
                 memberSelect.appendChild(memberOption)
             })
-            if(allowCustom){
+            if(allowCustom || allowProxy){
                 const divider = document.createElement('optgroup')
                 divider.label = "-----------------"
                 memberSelect.appendChild(divider)
-                const memberOptionCustom = document.createElement('option')
-                memberOptionCustom.value = 'custom'
-                memberOptionCustom.textContent = 'Create a custom team member...'
-                memberSelect.appendChild(memberOptionCustom)
+                if(allowCustom){
+                    const memberOptionCustom = document.createElement('option')
+                    memberOptionCustom.value = 'custom'
+                    memberOptionCustom.textContent = 'Create a custom team member'
+                    memberSelect.appendChild(memberOptionCustom)
+                }
+                if(allowProxy){
+                    const memberOptionProxy = document.createElement('option')
+                    memberOptionProxy.value = 'proxy'
+                    memberOptionProxy.textContent = 'Link an external agent'
+                    memberSelect.appendChild(memberOptionProxy)
+                }
             }
             memberSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
             memberSelect.addEventListener('change', mCreateTeamMember, { once: true })

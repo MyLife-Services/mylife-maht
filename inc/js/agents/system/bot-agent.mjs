@@ -10,6 +10,7 @@ const mTeams = [
 	{
 		active: true,
 		allowCustom: true,
+		allowProxy: true,
 		allowedTypes: ['diary', 'journaler', 'personal-biographer',],
 		defaultActiveType: 'personal-biographer',
 		defaultTypes: ['personal-biographer',],

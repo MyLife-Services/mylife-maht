@@ -33,6 +33,7 @@ class ConnectorAgent {
         return this
     }
     // init() would come on `login`
+    async checkProxyConnection(proxyUrl){}
     /** nanda-registry */
     async nandaServer(serverId){
         if(!this.globals.isValidGuid(serverId))
