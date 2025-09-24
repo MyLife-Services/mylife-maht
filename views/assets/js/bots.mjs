@@ -1139,7 +1139,18 @@ async function mCreateTeamMember(event){
         id: mActiveTeam.id,
         type,
     }
-    const bot = await globals.datamanager.botCreate(data)
+    if(type==='proxy'){
+        const endpoint = window.prompt(
+            'Enter the external agent URL (A2A/NANDA endpoint):',
+            'https://list39.org/@'
+        )
+        if(!endpoint?.length)
+            throw new Error('External proxy bot requires a valid URL')
+        data.url = endpoint.trim()
+    }
+    const bot = type==='proxy'
+        ? await globals.datamanager.botProxy(data)
+        : await globals.datamanager.botCreate(data)
     if(!bot)
         throw new Error(`no bot created for team member`)
     const { description, id, teams, } = bot

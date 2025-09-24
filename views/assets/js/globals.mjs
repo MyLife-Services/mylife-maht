@@ -138,6 +138,18 @@ class Datamanager {
         const response = this.#fetch(url, options)
         return response
     }
+    async botProxy(botData){
+        const url = `/members/bots/proxy`
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(botData)
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
     async botRetire(bot_id){
         const url = `/members/bots/${ bot_id }`
         const options = {

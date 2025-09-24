@@ -361,6 +361,7 @@ class Avatar extends EventEmitter {
     #assetAgent
     #botAgent
     #collectionsAgent
+    #connectorAgent // connector agent for external proxy agents
     #evolver
     #experienceAgent
     #experienceGenericVariables = {
@@ -409,6 +410,7 @@ class Avatar extends EventEmitter {
         this.#assetAgent = new AssetAgent(this.#factory, this.#llmServices)
         this.#botAgent = new BotAgent(this.#factory, this.#llmServices)
         this.#collectionsAgent = new CollectionsAgent(this.#factory, this.#llmServices)
+        this.#connectorAgent = new ConnectorAgent(this.#factory, this.#llmServices)
         this.#ShareAgent = new ShareAgent({ instanceStartTime: Date.now() }, this, this.#factory, this.#llmServices)
     }
     /**
@@ -499,6 +501,18 @@ class Avatar extends EventEmitter {
     bot(bot_id, botType){
         const Bot = this.#botAgent.bot(bot_id, botType)
         return Bot
+    }
+    /**
+     * Creates a proxy bot for external A2A agent interaction. Currently for NANDA test.
+     * @param {object} botData - The bot data object
+     * @returns {Promise<object>} - The response object
+     */
+    async botProxy(botData){
+        const { id: teamId, ...data } = botData
+        const proxyBot = await this.#connectorAgent.createProxy(data)
+        if(!proxyBot?.success)
+            throw new Error('Proxy bot creation failed, please review: ' + ( proxyBot?.error ?? 'unknown error' ))
+        return proxyBot
     }
     /**
      * Processes and executes incoming chat request.
@@ -2127,6 +2141,14 @@ class Q extends Avatar {
         this.#connectorAgent = new ConnectorAgent(this.#factory, this.#llmServices)
     }
     /* overloaded methods */
+    /**
+     * OVERLOADED: MyLife must refuse to create proxies for external agents.
+     * @public
+     * @throws {Error} - System avatar cannot create proxies.
+     */
+    async botProxy(){
+        throw new Error('System avatar cannot link to external agents.')
+    }
     /**
      * OVERLOADED: Processes and executes incoming chat request.
      * @todo - shunt registration actions to different MA functions

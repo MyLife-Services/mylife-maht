@@ -14,6 +14,7 @@ class ConnectorAgent {
     #nandaEmail
     #nandaPassword
     #nandaRegistry
+    /* constructor and init */
     constructor(factory, llm){
         this.#factory = factory
         this.#llm = llm
@@ -21,7 +22,6 @@ class ConnectorAgent {
         this.#nandaPassword = mNandaRegistryPassword
         this.#nandaRegistry = mNandaRegistry
     }
-    /* public functions */
     async init(nandaEmail=this.#nandaEmail, nandaPassword=this.#nandaPassword){
         if(nandaEmail?.length && nandaPassword?.length){
             this.#nandaEmail = nandaEmail
@@ -32,8 +32,20 @@ class ConnectorAgent {
         }
         return this
     }
-    // init() would come on `login`
-    async checkProxyConnection(proxyUrl){}
+    /* public functions */
+    async createProxy(botData){
+        const { url, } = botData
+        if(!url?.length || !this.globals.isValidUrl(url))
+            return { error: 'Invalid or missing bot URL', success: false, }
+        const agentFacts = await this.#agentCard(url) // expect and read agent facts/card
+        if(!agentFacts)
+            return { error: 'Failed to fetch agent facts', success: false, ...botData, }
+        // write to database, returning botID, agentFacts => card.agentFacts
+        return {
+            success: true,
+            ...agentFacts,
+        }
+    }
     /** nanda-registry */
     async nandaServer(serverId){
         if(!this.globals.isValidGuid(serverId))
@@ -74,6 +86,36 @@ class ConnectorAgent {
     }
     get nandaRegistry(){
         return this.#nandaRegistry
+    }
+    /* private functions */
+    async #agentCard(endpoint){
+        const response = await fetch(endpoint)
+        if(!response.ok)
+            return
+        try {
+            const cardData = await response.json()
+            if(typeof cardData!=='object')
+                throw new Error('External agent did not return valid JSON card')
+            const { additionalInterfaces, capabilities: { extensions, pushNotifications, stateTransitionHistory, streaming, }, defaultInputModes, defaultOutputModes, description, documentationUrl, iconUrl, name: cardName, preferredTransport, protocolVersion='0.3.0', provider: {  organization: providerOrganization, url: providerUrl, }, security, securitySchemes, signatures, skills, supportsAuthenticatedExtendedCard, url: cardUrl, version, } = cardData // agent card (A2A)
+            const { agent_name, capabilities: { authentication, batch, modalities, }, certification, created_at, endpoints: { adaptive_resolver, static: urlArray, }, evaluations: { auditorID, auditTrail, availability90d, lastAudited, performanceScore, }, id, jurisdiction, label, provider: { did, name: providerName, }, telemetry, updated_at, } = cardData // agent facts (NANDA)
+            if(!description?.length)
+                throw new Error('No agent description found in card')
+            if(!Array.isArray(skills) || !skills.length)
+                throw new Error('No valid agent skills found in card, aborting')
+            const url = cardUrl ?? urlArray?.[0]
+            if(!url?.length)
+                throw new Error('No agent endpoint found in card')
+            const name = cardName ?? agent_name
+            if(!name?.length)
+                throw new Error('No agent name found in card')
+            const organization = providerOrganization ?? providerName
+            if(!organization?.length)
+                throw new Error('No valid agent provider organization found in card')
+            cardData.name = name
+            cardData.provider.organization = organization
+            cardData.url = url
+            return cardData
+        } catch(error) { console.error('Agent Facts/Card Fetch error:', error) }
     }
 }
 class nandaRegistry {

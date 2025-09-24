@@ -416,6 +416,9 @@ class BotAgent {
 		const success = await mBotDelete(bot_id, this, this.#llm, this.#factory)
 		return success
 	}
+	async botProxyCreate(proxyBotData){
+		// Implement proxy bot creation logic here
+	}
 	/**
 	 * Chat with the active bot.
 	 * @param {Conversation} Conversation - The Conversation instance

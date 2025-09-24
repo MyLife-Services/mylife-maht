@@ -320,6 +320,14 @@ function agentCard(agentId){
     const agentCard = mAgentCards[agentId]
     return agentCard
 }
+async function botProxy(ctx){
+    const { avatar: Avatar, } = ctx.state
+    const { type, ...data } = ctx.request.body
+    if(type!=='proxy')
+        ctx.throw(500, 'Invalid request body: expected type to be `proxy')
+    const response = await Avatar.botProxy(data)
+    ctx.body = response
+}
 /**
  * Converts MCP data to A2A data.
  * @param {Koa} ctx - Koa context
@@ -580,4 +588,5 @@ export {
     a2aCall,
     a2aCard,
     a2aContract,
+    botProxy,
 }

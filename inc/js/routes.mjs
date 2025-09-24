@@ -4,6 +4,7 @@ import {
     a2aCard,
     a2aCall,
     a2aContract,
+    botProxy,
 } from './controllers/a2a-functions.mjs'
 import {
     availableExperiences,
@@ -209,8 +210,9 @@ _memberRouter.patch('/memory/end/:iid', endMemory)
 _memberRouter.patch('/share/:sid', shareUpdate)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
-_memberRouter.post('/bots/create', createBot)
 _memberRouter.post('/bots/activate/:bid', activateBot)
+_memberRouter.post('/bots/create', createBot)
+_memberRouter.post('/bots/proxy', botProxy)
 _memberRouter.post('/evaluate/:iid', evaluate)
 _memberRouter.post('/feedback', feedback)
 _memberRouter.post('/feedback/:mid', feedback)
