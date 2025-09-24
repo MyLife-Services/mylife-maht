@@ -13,6 +13,7 @@ const mForbiddenValues = [undefined, null, NaN]
 const mGuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i	//	regex for GUID validation
 const mOpenAIBotModel = process.env.OPENAI_MODEL_CORE_BOT
 	?? 'gpt-4o'
+const mUrlRegex = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)(:[0-9]{1,5})?(\/\S*)?$/
 /**
  * Globals class holds all of the sensitive data and functionality. It exists as a singleton.
  * @class
@@ -110,6 +111,11 @@ class Globals extends EventEmitter {
 	}
 	isValidGuid(text){
 		return typeof text === 'string' && mGuidRegex.test(text)
+	}
+	isValidUrl(url){
+		if(typeof url==='string' && !/^https?:\/\//i.test(url))
+			url = 'http://' + url
+		return typeof url==='string' && mUrlRegex.test(url)
 	}
 	isValidVersion(version) {
 		const regex = /^\d+\.\d+\.\d+$/
