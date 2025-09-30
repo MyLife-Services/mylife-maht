@@ -256,7 +256,7 @@ class Bot {
 	 * @getter
 	 */
 	get bot() {
-		const { description, flags, id, interests, name, purpose, type, url, version='1.0', } = this
+		const { card, description, flags, id, interests, name, purpose, type, url, version, } = this
 		const bot = {
 			description,
 			flags,
@@ -266,7 +266,9 @@ class Bot {
 			purpose,
 			type,
 			url,
-			version,
+			version: version
+				?? card?.version
+				?? '1.0',
 		}
 		return bot
 	}
