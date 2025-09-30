@@ -509,7 +509,7 @@ class Avatar extends EventEmitter {
      */
     async botProxyCreate(botData){
         const { id: teamId, ...data } = botData
-        data.object_id = this.avatar.id
+        data.object_id = this.id
         const proxyBot = await this.#connectorAgent.createProxy(data)
         if(!proxyBot?.id?.length)
             throw new Error('Proxy bot creation failed, please review: ' + ( proxyBot?.error ?? 'unknown error' ))
