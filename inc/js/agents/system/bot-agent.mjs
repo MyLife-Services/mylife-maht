@@ -256,7 +256,7 @@ class Bot {
 	 * @getter
 	 */
 	get bot() {
-		const { description, flags, id, interests, name, purpose, type, version } = this
+		const { description, flags, id, interests, name, purpose, type, url, version='1.0', } = this
 		const bot = {
 			description,
 			flags,
@@ -265,6 +265,7 @@ class Bot {
 			name,
 			purpose,
 			type,
+			url,
 			version,
 		}
 		return bot
@@ -728,7 +729,7 @@ class BotAgent {
 	/**
 	 * Gets the Biographer bot for the BotAgent.
 	 * @getter
-	 * @returns {Bot} - The Biographer Bot instance
+	 * @returns {Bot} - The Biographer Bot instancebot()
 	 */
 	get biographer(){
 		const Biographer = this.#bots.find(bot=>bot.isBiographer)
