@@ -166,8 +166,12 @@ class Bot {
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
 	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last'){
-		if(!this.llm_id)
-			throw new Error('Bot initialized incorrectly: missing `llm_id` from database')
+		if(this.type!=='proxy' && !this.llm_id)
+			return {
+				error: 'Bot llm_id not set',
+				responses: ['I currently have no connection with my foundational intelligence, so my greeting is generic'],
+				success: false,
+			}
 		let greeting,
 			responses=[],
 			routine
@@ -356,6 +360,7 @@ class BotAgent {
     #factory
 	#fileConversation
 	#llm
+	#teams = mTeams
 	#vectorstoreId
     constructor(factory, llm){
         this.#factory = factory
@@ -380,6 +385,13 @@ class BotAgent {
 		return this
     }
 	/* public functions */
+	addProxy(botData, teamId){
+		if(this.#bots.some(bot=>bot.id===botData.id))
+			return
+		const proxyBot = new Bot(botData, undefined, this.#factory)
+		this.#bots.push(proxyBot)
+		this.setActiveBot(proxyBot.id)
+	}
 	/**
 	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
 	 * @param {Guid} bot_id - The Bot id
@@ -387,9 +399,11 @@ class BotAgent {
 	 * @returns {Promise<Bot>} - The Bot instance
 	 */
 	bot(bot_id, botType){
-		const Bot = botType?.length
-			? this.#bots.find(bot=>[botType, `personal-${ botType }`].includes(bot.type))
-			: this.#bots.find(bot=>bot.id===bot_id)
+		const Bot = (
+			botType?.length
+				? this.#bots.find(bot=>[botType, `personal-${ botType }`].includes(bot.type)) /* returns first match */
+				: this.#bots.find(bot=>bot.id===bot_id)
+			)
 			?? this.avatar
 		return Bot
 	}
@@ -415,9 +429,6 @@ class BotAgent {
 			return false
 		const success = await mBotDelete(bot_id, this, this.#llm, this.#factory)
 		return success
-	}
-	async botProxyCreate(proxyBotData){
-		// Implement proxy bot creation logic here
 	}
 	/**
 	 * Chat with the active bot.
@@ -756,7 +767,7 @@ class BotAgent {
 	 * @returns {object[]} - The array of MyLife Teams
 	 */
 	get teams(){
-        return mTeams
+        return this.#teams
 	}
 	/**
 	 * Returns the Vectorstore id for the BotAgent.
@@ -843,8 +854,8 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	validBotData.llm_id = llm_id
 	validBotData.thread_id = thread_id
 	botData = await factory.createBot(validBotData) // repurposed incoming botData
-	const _Bot = new Bot(botData, llm, factory)
-	return _Bot
+	const newBot = new Bot(botData, llm, factory)
+	return newBot
 }
 /**
  * Creates bot and returns associated `bot` object.
@@ -1273,6 +1284,10 @@ function mGetBotTypes(isMyLife=false, teamName=mDefaultTeam){
 	const team = mTeams
 		.find(team=>team.name===teamName)
 	const botTypes = [...mRequiredBotTypes, ...isMyLife ? [] : team?.defaultTypes ?? []]
+	if(team.allowProxy)
+		botTypes.push('proxy', 'external')
+	if(team.allowCustom)
+		botTypes.push('custom')
 	return botTypes
 }
 /**

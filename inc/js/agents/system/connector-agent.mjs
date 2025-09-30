@@ -33,18 +33,42 @@ class ConnectorAgent {
         return this
     }
     /* public functions */
+    /**
+     * Create a proxy bot from external agent card URL.
+     * @param {object} botData - The bot data
+     * @property {object} auth - The authentication data, if required
+     * @property {string} id - The teamId agent is assigned to
+     * @property {string} type - only 'proxy' supported
+     * @property {string} url - The external A2A *agent card* URL
+     * @returns {Promise<object>} - The created proxy bot data
+     */
     async createProxy(botData){
         const { url, } = botData
+        let proxyBot
         if(!url?.length || !this.globals.isValidUrl(url))
             return { error: 'Invalid or missing bot URL', success: false, }
-        const agentFacts = await this.#agentCard(url) // expect and read agent facts/card
-        if(!agentFacts)
+        proxyBot = await this.#factory.bot(undefined, 'proxy', undefined, url) // check if url already exists for member
+        if(!!proxyBot)
+            return proxyBot
+        botData.card = await this.#agentCard(url) // expect and read agent facts/card
+        if(!botData.card)
             return { error: 'Failed to fetch agent facts', success: false, ...botData, }
-        // write to database, returning botID, agentFacts => card.agentFacts
-        return {
-            success: true,
-            ...agentFacts,
-        }
+        botData.allowMultiple = true // allow multiple proxy bots from different sources
+        botData.bot_id = null
+        botData.bot_name = botData.name
+            ?? botData.card.name
+            ?? botData.card.agent_name
+            ?? 'Proxy Agent'
+        botData.description = botData.card.description
+        botData.greeting = `Hello, I am external agent ${ botData.bot_name }. My role is: ${ botData.description }. How can I help?`
+        botData.id = null /* ensure new id */
+        botData.name = `bot_${ botData.bot_name }_${ url }`.slice(0, 250)
+        botData.provider = 'external'
+        botData.purpose = botData.description
+        botData.skills = botData.card.skills
+        botData.type = 'proxy' /* proxy bot */
+        proxyBot = await this.#factory.createBot(botData)
+        return proxyBot
     }
     /** nanda-registry */
     async nandaServer(serverId){
@@ -83,6 +107,9 @@ class ConnectorAgent {
     /* getters/setters */
     get globals(){
         return this.#factory.globals
+    }
+    get mbr_id(){
+        return this.#factory.mbr_id
     }
     get nandaRegistry(){
         return this.#nandaRegistry

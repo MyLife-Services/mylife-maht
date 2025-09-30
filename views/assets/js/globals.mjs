@@ -138,7 +138,17 @@ class Datamanager {
         const response = this.#fetch(url, options)
         return response
     }
+    /**
+     * Request bot proxy be created on server.
+     * @param {object} botData - bot data { auth, id, type, url, }
+     * @property {object} auth - The authentication data, if required
+     * @property {string} id - The teamId agent is assigned to
+     * @property {string} type - only 'proxy' supported
+     * @property {string} url - The external A2A *agent card* URL
+     * @returns {object} - Bot object from server
+     */
     async botProxy(botData){
+        botData.type = 'proxy' // enforce type
         const url = `/members/bots/proxy`
         const options = {
             method: 'POST',

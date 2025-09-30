@@ -322,10 +322,16 @@ function agentCard(agentId){
 }
 async function botProxy(ctx){
     const { avatar: Avatar, } = ctx.state
+    const data = ctx.request.body
+    const response = await Avatar.botProxy(data)
+    ctx.body = response
+}
+async function botProxyCreate(ctx){
+    const { avatar: Avatar, } = ctx.state
     const { type, ...data } = ctx.request.body
     if(type!=='proxy')
         ctx.throw(500, 'Invalid request body: expected type to be `proxy')
-    const response = await Avatar.botProxy(data)
+    const response = await Avatar.botProxyCreate(data)
     ctx.body = response
 }
 /**
@@ -589,4 +595,5 @@ export {
     a2aCard,
     a2aContract,
     botProxy,
+    botProxyCreate,
 }

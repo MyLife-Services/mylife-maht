@@ -507,11 +507,13 @@ class Avatar extends EventEmitter {
      * @param {object} botData - The bot data object
      * @returns {Promise<object>} - The response object
      */
-    async botProxy(botData){
+    async botProxyCreate(botData){
         const { id: teamId, ...data } = botData
+        data.object_id = this.avatar.id
         const proxyBot = await this.#connectorAgent.createProxy(data)
-        if(!proxyBot?.success)
+        if(!proxyBot?.id?.length)
             throw new Error('Proxy bot creation failed, please review: ' + ( proxyBot?.error ?? 'unknown error' ))
+        this.#botAgent.addProxy(proxyBot, teamId)
         return proxyBot
     }
     /**
@@ -2146,7 +2148,7 @@ class Q extends Avatar {
      * @public
      * @throws {Error} - System avatar cannot create proxies.
      */
-    async botProxy(){
+    async botProxyCreate(){
         throw new Error('System avatar cannot link to external agents.')
     }
     /**

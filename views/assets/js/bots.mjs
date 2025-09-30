@@ -1155,8 +1155,8 @@ async function mCreateTeamMember(event){
         throw new Error(`no bot created for team member`)
     const { description, id, teams, } = bot
     mBots.push(bot)
-    setActiveBot(id)
-    updatePageBots(mBots, true, true)
+    setActiveBot(id, true)
+    updatePageBots(mBots, false, true)
 }
 /**
  * Create a team new popup.
