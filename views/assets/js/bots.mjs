@@ -314,6 +314,7 @@ function updateTitle(event){
  * @returns {void}
  */
 async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
+    console.log(`updatePageBots::bots`, bots)
     if(!bots?.length)
         throw new Error(`No bots provided to update page.`)
     if(mBots!==bots)
@@ -381,6 +382,10 @@ function mBotIcon(type){
         case 'personal-biographer':
         case 'biographer':
             image+='biographer-thumb.png'
+            break
+        case 'proxy':
+        case 'proxy-agent':
+            image+='Q.png'
             break
         case 'resume':
             image+='resume-thumb.png'
@@ -479,6 +484,76 @@ function mCreateCollectionItemSummarize(type, id, name){
     itemSummarize.name = `collection-item-summary-${ type }`
     itemSummarize.addEventListener('click', mSummarize, { once: true })
     return itemSummarize
+}
+function mCreateProxyBotContainer(proxyAgent){
+    const { description, id, name, url='A2A', } = proxyAgent
+    /* container [begin] */
+    const proxyContainer = document.createElement('div')
+    proxyContainer.classList.add('bot-container', 'proxy-container')
+    proxyContainer.id = id
+    /* status [begin] */
+    const proxyStatus = document.createElement('div')
+    proxyStatus.classList.add('bot-status', 'proxy-status')
+    proxyStatus.id = `${ id }-status`
+    /* icon */
+    const proxyIcon = document.createElement('div')
+    proxyIcon.classList.add('bot-icon')
+    proxyIcon.id = `${ id }-icon`
+    const proxyIconImage = document.createElement('img')
+    proxyIconImage.alt = `I am External Agent: ${ name } (${ url })`
+    proxyIconImage.classList.add('bot-image')
+    proxyIconImage.id = `${ id }-image`
+    proxyIconImage.src = mBotIcon('proxy')
+    proxyIconImage.title = description
+    proxyIcon.appendChild(proxyIconImage)
+    /* title */
+    const proxyTitle = document.createElement('div')
+    proxyTitle.classList.add('bot-title')
+    const proxyTitleType = document.createElement('div')
+    proxyTitleType.classList.add('bot-title-type', 'proxy-title-type')
+    proxyTitleType.id = `${ id }-title-type`
+    const proxyTitleName = document.createElement('div')
+    proxyTitleName.id = `${ id }-title-name`
+    proxyTitleName.classList.add('bot-title-name', 'proxy-title-name')
+    const proxyTitleVersion = document.createElement('div')
+    proxyTitleVersion.id = `${ id }-title-version`
+    proxyTitleVersion.classList.add('bot-title-version', 'proxy-title-version')
+    proxyTitle.appendChild(proxyTitleType)
+    proxyTitle.appendChild(proxyTitleName)
+    proxyTitle.appendChild(proxyTitleVersion)
+    /* dropdown caret */
+    const proxyDropdown = document.createElement('div')
+    proxyDropdown.classList.add('bot-options-dropdown', 'proxy-options-dropdown')
+    proxyDropdown.id = `${ id }-options-dropdown`
+    /* status [end] */
+    proxyStatus.appendChild(proxyIcon)
+    proxyStatus.appendChild(proxyTitle)
+    proxyStatus.appendChild(proxyDropdown)
+    /* options [begin] */
+    const proxyOptions = document.createElement('div')
+    proxyOptions.classList.add('bot-options', 'hidden', 'proxy-options')
+    proxyOptions.id = `${ id }-options`
+    /* name */
+    const proxyName = document.createElement('div')
+    proxyName.classList.add('input-group', 'proxy-inputs')
+    proxyName.id = `${ id }-bot_name`
+    /* - name label */
+    const proxyNameLabel = document.createElement('label')
+    proxyNameLabel.htmlFor = `${ id }-input-bot_name`
+    proxyNameLabel.textContent = `Agent Name:`
+    /* - name input */
+    const proxyNameInput = document.createElement('input')
+    proxyNameInput.classList.add('bot-input', 'bot-name', 'proxy-input', 'proxy-bot-name')
+    proxyNameInput.id = `${ id }-input-bot_name`
+    proxyNameInput.maxLength = 256
+    proxyName.appendChild(proxyNameLabel)
+    proxyName.appendChild(proxyNameInput)
+    /* options [end] */
+    proxyOptions.appendChild(proxyName)
+    /* container [end] */
+    proxyContainer.appendChild(proxyStatus)
+    proxyContainer.appendChild(proxyOptions)
+    return proxyContainer
 }
 /**
  * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
@@ -1568,7 +1643,7 @@ async function mRetireChat(event){
 function mSetAttributes(bot=mActiveBot, botContainer){
     const {
         activated=[],
-        activeFirst,
+        activeFirst=true,
         bot_name='Anonymous',
         dob,
         flags,
@@ -1579,7 +1654,8 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         privacy,
         type,
         updates,
-        version
+        url,
+        version='1.0',
     } = bot
     /* attributes */
     const botName = name
@@ -1607,11 +1683,15 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         attributes.push({ name: 'privacy', value: privacy })
     if(updates)
         attributes.push({ name: 'updates', value: updates })
+    if(url)
+        attributes.push({ name: 'url', value: url })
     attributes.forEach(attribute=>{
         const { name, value, } = attribute
         botContainer.dataset[name] = value
-        const element = document.getElementById(`${ type }-${ name }`)
+        const valueType = type==='proxy' ? bot_id : type
+        const element = document.getElementById(`${ valueType }-${ name }`)
         if(element){
+            console.log(`setting ${ valueType }-${ name } to ${ value }`)
             const botInput = element.querySelector('input')
             if(botInput)
                 botInput.value = botContainer.getAttribute(`data-${ name }`)
@@ -1629,7 +1709,8 @@ function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
     const { id, type, version, } = dataset
     const { id: botId, name, type: botType, version: botVersion, } = bot
-    const botStatusBar = document.getElementById(`${ type }-status`)
+    const containerIdentifier = botType==='proxy' ? botId : type
+    const botStatusBar = document.getElementById(`${ containerIdentifier }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
     const response = {
@@ -1638,8 +1719,8 @@ function mSetStatusBar(bot, botContainer){
         type: type.split('-').pop(),
     }
     /* status icon */
-    const botIcon = document.getElementById(`${ type }-icon`)
-    const botThumb = document.getElementById(`${ type }-thumb`)
+    const botIcon = document.getElementById(`${ containerIdentifier }-icon`)
+    const botThumb = document.getElementById(`${ containerIdentifier }-thumb`)
     switch(true){
         case ( mActiveBot?.id==id ): // activated
             botIcon.classList.remove('online', 'offline', 'error')
@@ -1659,18 +1740,18 @@ function mSetStatusBar(bot, botContainer){
     }
     botContainer.dataset.status = response.status
     /* title-type */
-    const botTitleType = document.getElementById(`${ type }-title-type`)
+    const botTitleType = document.getElementById(`${ containerIdentifier }-title-type`)
     if(botTitleType){
         response.type = response.type.charAt(0).toUpperCase()
             + response.type.slice(1)
         botTitleType.textContent = response.type
     }
     /* title-name */
-    const botTitleName = document.getElementById(`${ type }-title-name`)
+    const botTitleName = document.getElementById(`${ containerIdentifier }-title-name`)
     if(botTitleName)
         botTitleName.textContent = response.name
     /* version */
-    const botVersionElement = document.getElementById(`${ type }-title-version`)
+    const botVersionElement = document.getElementById(`${ containerIdentifier }-title-version`)
     if(botVersionElement)
         botVersionElement.textContent = mVersion(version)
 }
@@ -2357,12 +2438,22 @@ function mUpdateBotBar(){
  */
 function mUpdateBotContainers(includePersonalAvatar=true){
     if(!mBots?.length)
-        throw new Error(`mBots not populated.`)
+        throw new Error(`mBots not populated`)
     const botContainers = Array.from(document.querySelectorAll('.bot-container'))
     if(!botContainers.length)
         throw new Error(`No bot containers found on page`)
     botContainers
         .forEach(botContainer=>mUpdateBotContainer(botContainer, includePersonalAvatar))
+    const proxyAgents = mBots.filter(bot=>bot.type==='proxy')
+    if(proxyAgents.length){
+        const collectionsContainer = document.getElementById('collections-container')
+        proxyAgents.forEach(proxyAgent=>{
+            const proxyContainer = mCreateProxyBotContainer(proxyAgent)
+            collectionsContainer.parentNode.insertBefore(proxyContainer, collectionsContainer)
+            console.log('proxyContainer:', proxyContainer)
+            mUpdateBotContainer(proxyContainer)
+        })
+    }
 }
 /**
  * Updates the bot container with specifics.
@@ -2729,7 +2820,7 @@ async function mUpdateTeams(identifier=mDefaultTeam){
         if(activeTeam)
             mActiveTeam = activeTeam
     }
-    const { allowedTypes, description, id, name, title, } = team
+    const { allowCustom, allowProxy, allowedTypes, description, id, name, title, } = team
     mTeamName.dataset.id = id
     mTeamName.dataset.description = description
     mTeamName.textContent = `${ title ?? name } Team`
