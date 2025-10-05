@@ -53,22 +53,23 @@ class ConnectorAgent {
         botData.card = await this.#agentCard(url) // expect and read agent facts/card
         if(!botData.card)
             return { error: 'Failed to fetch agent facts', success: false, ...botData, }
-        botData.allowMultiple = true // allow multiple proxy bots from different sources
-        botData.bot_id = null
-        botData.bot_name = botData.name
-            ?? botData.card.name
-            ?? botData.card.agent_name
-            ?? 'Proxy Agent'
-        botData.description = botData.card.description
-        botData.greeting = `Hello, I am external agent ${ botData.bot_name }. My role is: ${ botData.description }. How can I help?`
+        this.#updateProxyByCard(botData)
         botData.id = null /* ensure new id */
-        botData.name = `bot_${ botData.bot_name }_${ url }`.slice(0, 250)
-        botData.provider = 'external'
-        botData.purpose = botData.description
-        botData.skills = botData.card.skills
-        botData.type = 'proxy' /* proxy bot */
         proxyBot = await this.#factory.createBot(botData)
         return proxyBot
+    }
+    /**
+     * Refresh a proxy bot's data from external agent card URL.
+     * @param {string} url - The external A2A *agent card* URL
+     * @returns {Promise<object>} - The refreshed bot data
+     */
+    async refreshProxy(url){
+        if(!this.globals.isValidUrl(url))
+            return { error: 'Invalid bot data', success: false, }
+        const botData = {}
+        botData.card = await this.#agentCard(url)
+        this.#updateProxyByCard(botData, false, false, false) // description, greeting, and bot name are member-assigned; **note**: updates botData in place
+        return botData
     }
     /** nanda-registry */
     async nandaServer(serverId){
@@ -143,6 +144,35 @@ class ConnectorAgent {
             cardData.url = url
             return cardData
         } catch(error) { console.error('Agent Facts/Card Fetch error:', error) }
+    }
+    /**
+     * Update botData in place from agent card data.
+     * @param {object|Bot} botData - The bot data to update (can be Bot instance)
+     * @param {boolean} updateDescription - Whether to update the description, default: true
+     * @param {boolean} updateGreeting - Whether to update the greeting, default: true
+     * @param {boolean} updateName - Whether to update the name, default: true
+     * @returns {void} - botData is updated in place
+     */
+    #updateProxyByCard(botData, updateDescription=true, updateGreeting=true, updateName=true){
+        botData.allowMultiple = true // allow multiple proxy bots from different sources
+        botData.provider = 'external'
+        if(botData.card?.skills?.length)
+            botData.skills = botData.card.skills
+        if(!botData?.type)
+            botData.type = 'proxy'
+        if(updateDescription && botData.card?.description?.length)
+            botData.description = botData.card.description
+        if(updateDescription && botData.description?.length)
+            botData.purpose = botData.description
+        if(updateName){
+            botData.bot_name = botData.name
+                ?? botData.card.name
+                ?? botData.card.agent_name
+                ?? 'Proxy Agent'
+            botData.name = `bot_${ botData.bot_name }_${ botData.url ?? 'unknown-agent-endpoint' }`.slice(0, 250)
+        }
+        if(updateGreeting)
+            botData.greeting = `Hello, I am external agent ${ botData.bot_name }. My role is: ${ botData.description }. How can I help?`
     }
 }
 class nandaRegistry {

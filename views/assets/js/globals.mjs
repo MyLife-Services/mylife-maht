@@ -160,6 +160,11 @@ class Datamanager {
         const response = await this.#fetch(url, options)
         return response
     }
+    async botProxyRefresh(botId){
+        const url = `/members/bots/proxy/${ botId }/refresh`
+        const response = await this.#fetch(url)
+        return response
+    }
     async botRetire(bot_id){
         const url = `/members/bots/${ bot_id }`
         const options = {

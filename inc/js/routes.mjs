@@ -6,6 +6,7 @@ import {
     a2aContract,
     botProxy,
     botProxyCreate,
+    botProxyRefresh,
 } from './controllers/a2a-functions.mjs'
 import {
     availableExperiences,
@@ -191,6 +192,7 @@ _memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
+_memberRouter.get('/bots/proxy/:bid/refresh', botProxyRefresh)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)
 _memberRouter.get('/experiences', experiences)

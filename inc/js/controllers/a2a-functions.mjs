@@ -334,6 +334,18 @@ async function botProxyCreate(ctx){
     const response = await Avatar.botProxyCreate(data)
     ctx.body = response
 }
+async function botProxyRefresh(ctx){
+    const { avatar: Avatar, } = ctx.state
+    const { bid, } = ctx.params
+    const { botId, bot_id, } = ctx.request.body
+    const agentId = bid
+        ?? botId
+        ?? bot_id
+    if(!agentId?.length)
+        ctx.throw(400, 'Bot ID is required in the path or body')
+    const response = await Avatar.botProxyRefresh(agentId)
+    ctx.body = response
+}
 /**
  * Converts MCP data to A2A data.
  * @param {Koa} ctx - Koa context
@@ -596,4 +608,5 @@ export {
     a2aContract,
     botProxy,
     botProxyCreate,
+    botProxyRefresh,
 }

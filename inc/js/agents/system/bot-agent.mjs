@@ -211,16 +211,13 @@ class Bot {
 	 * @returns {Promise<Bot>} - The updated Bot instance
 	 */
 	async update(botData, botOptions={}){
-		/* validate request */
 		this.globals.sanitize(botData)
-		/* execute request */
 		botOptions.instructions = botOptions.instructions
 			?? Object.keys(botData).some(key=>this.#instructionNodes.has(key))
 		const { feedback, id, mbr_id, type, ...updatedNodes } = await mBotUpdate(botData, botOptions, this, this.#llm, this.#factory)
 		Object.assign(this, updatedNodes)
 		if(botOptions.instructions)
 			await this.migrateChat()
-		/* respond request */
 		return this
 	}
 	/**
@@ -309,6 +306,9 @@ class Bot {
 	}
 	get isMyLife(){
 		return this.#factory.isMyLife
+	}
+	get isProxy(){
+		return this.type==='proxy'
 	}
 	get mcpTools(){
 		if(!this.isAvatar && !this.#mcpTools.length && this.tools?.length)

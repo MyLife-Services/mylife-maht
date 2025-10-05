@@ -516,6 +516,23 @@ class Avatar extends EventEmitter {
         this.#botAgent.addProxy(proxyBot, teamId)
         return proxyBot
     }
+    async botProxyRefresh(botId){
+        const Bot = this.#botAgent.bot(botId)
+        if(!Bot)
+            return {
+                error: 'Bot does not exist, cannot refresh endpoint.',
+                success: false,
+            }
+        const { isProxy=false, url, } = Bot
+        if(!isProxy)
+            return {
+                error: 'Bot is not a proxy bot, cannot refresh endpoint.',
+                success: false,
+            }
+        const botData = await this.#connectorAgent.refreshProxy(url) // mutates Bot in place
+        botData.id = botId
+        return this.updateBot(botData)
+    }
     /**
      * Processes and executes incoming chat request.
      * @public
@@ -1508,7 +1525,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Update a specific bot.
-     * @async
      * @param {Object} botData - Bot data to set
      * @returns {Promise<Object>} - The updated bot
      */
@@ -1518,7 +1534,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Update instructions for bot-assistant based on type. Default updates all LLM pertinent properties.
-     * @async
      * @param {string} id - The id of bot to update
      * @param {boolean} migrateThread - Whether to migrate the thread to the new bot, defaults to `true`
      * @returns {object} - The updated bot object

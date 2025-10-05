@@ -548,8 +548,32 @@ function mCreateProxyBotContainer(proxyAgent){
     proxyNameInput.maxLength = 256
     proxyName.appendChild(proxyNameLabel)
     proxyName.appendChild(proxyNameInput)
+    /* endpoint */
+    const proxyUrl = document.createElement('div')
+    proxyUrl.classList.add('input-group', 'proxy-inputs')
+    proxyUrl.id = `${ id }-url`
+    /* - endpoint label */
+    const proxyUrlLabel = document.createElement('label')
+    proxyUrlLabel.htmlFor = `${ id }-input-url`
+    proxyUrlLabel.textContent = `Endpoint:`
+    /* - endpoint input */
+    const proxyUrlInput = document.createElement('input')
+    proxyUrlInput.classList.add('bot-input', 'proxy-input', 'proxy-url')
+    proxyUrlInput.enabled = false
+    proxyUrlInput.id = `${ id }-input-url`
+    /* - endpoint refresh */
+    const proxyUrlRefresh = document.createElement('span')
+    proxyUrlRefresh.classList.add('fas', 'fa-arrows-rotate', 'proxy-refresh')
+    proxyUrlRefresh.dataset.id = id
+    proxyUrlRefresh.id = `${ id }-refresh`
+    proxyUrlRefresh.title = `Refresh Endpoint`
+    proxyUrlRefresh.addEventListener('click', mRefreshProxyUrl, { once: true }) // re-add after refresh successful
+    proxyUrl.appendChild(proxyUrlLabel)
+    proxyUrl.appendChild(proxyUrlInput)
+    proxyUrl.appendChild(proxyUrlRefresh)
     /* options [end] */
     proxyOptions.appendChild(proxyName)
+    proxyOptions.appendChild(proxyUrl)
     /* container [end] */
     proxyContainer.appendChild(proxyStatus)
     proxyContainer.appendChild(proxyOptions)
@@ -1519,6 +1543,19 @@ async function mRefreshCollection(type, collectionList){
         throw new Error(`No collection list found for refresh request.`)
     const collection = await globals.datamanager.collections(type)
     mUpdateCollection(type, collectionList, collection)
+}
+/**
+ * Refresh the proxy URL for the proxy agent.
+ * @param {Event} e - The event object
+ * @returns {void}
+ */
+async function mRefreshProxyUrl(e){
+    e.preventDefault()
+    e.stopPropagation()
+    const id = e.target.dataset.id
+        ?? e.target.id.remove('-refresh')
+    const response = await globals.datamanager.botProxyRefresh(id)
+    console.log('Proxy URL refreshed:', response)
 }
 async function mReliveMemory(event){
     event.preventDefault()
