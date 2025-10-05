@@ -68,7 +68,7 @@ class ConnectorAgent {
             return { error: 'Invalid bot data', success: false, }
         const botData = {}
         botData.card = await this.#agentCard(url)
-        this.#updateProxyByCard(botData, false, false, false) // description, greeting, and bot name are member-assigned; **note**: updates botData in place
+        this.#updateProxyByCard(botData, false) // avoid member-assigned updates; **note**: updates botData in place
         return botData
     }
     /** nanda-registry */
@@ -148,30 +148,27 @@ class ConnectorAgent {
     /**
      * Update botData in place from agent card data.
      * @param {object|Bot} botData - The bot data to update (can be Bot instance)
-     * @param {boolean} updateDescription - Whether to update the description, default: true
-     * @param {boolean} updateGreeting - Whether to update the greeting, default: true
-     * @param {boolean} updateName - Whether to update the name, default: true
+     * @param {boolean} allUpdates - Whether to update bot name, purpose and greeting; default: true
      * @returns {void} - botData is updated in place
      */
-    #updateProxyByCard(botData, updateDescription=true, updateGreeting=true, updateName=true){
-        botData.allowMultiple = true // allow multiple proxy bots from different sources
+    #updateProxyByCard(botData, allUpdates=true){
+        botData.allowMultiple = true
+        botData.description = botData?.card?.description
+            ?? 'No description provided'
         botData.provider = 'external'
+        botData.type = 'proxy'
         if(botData.card?.skills?.length)
             botData.skills = botData.card.skills
-        if(!botData?.type)
-            botData.type = 'proxy'
-        if(updateDescription && botData.card?.description?.length)
-            botData.description = botData.card.description
-        if(updateDescription && botData.description?.length)
+        if(allUpdates && botData.description?.length)
             botData.purpose = botData.description
-        if(updateName){
+        if(allUpdates){
             botData.bot_name = botData.name
                 ?? botData.card.name
                 ?? botData.card.agent_name
                 ?? 'Proxy Agent'
             botData.name = `bot_${ botData.bot_name }_${ botData.url ?? 'unknown-agent-endpoint' }`.slice(0, 250)
         }
-        if(updateGreeting)
+        if(allUpdates)
             botData.greeting = `Hello, I am external agent ${ botData.bot_name }. My role is: ${ botData.description }. How can I help?`
     }
 }
