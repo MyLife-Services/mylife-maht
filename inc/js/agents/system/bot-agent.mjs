@@ -650,9 +650,14 @@ class BotAgent {
 	 * @returns {Promise<Bot>} - The updated Bot instance
 	 */
 	async updateBot(botData, botOptions){
-		const { id, } = botData
+		const { bot_name, id, name, } = botData
 		if(!this.globals.isValidGuid(id))
 			throw new Error('`id` parameter required')
+		if(typeof name==='string' && name.trim().length){ // name cannot be modified, convert to bot_name, if bot_name not already set
+			if(typeof bot_name!=='string' || !bot_name.trim().length)
+				botData.bot_name = name.trim()
+			delete botData.name
+		}
 		const Bot = this.#bots.find(bot=>bot.id===id)
 		if(!Bot)
 			throw new Error(`Bot not found with id: ${ id }`)
