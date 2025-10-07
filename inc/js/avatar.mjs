@@ -503,6 +503,17 @@ class Avatar extends EventEmitter {
         return Bot
     }
     /**
+     * Grants or revokes access to a proxy Agent for a specific MyLife bot.
+     * @param {Guid} proxyId - The proxy Agent id
+     * @param {Guid} botId - The Bot id
+     * @param {Boolean} grant - Whether to grant or revoke access
+     * @returns {Promise<Boolean>} - Whether the operation was successful
+     */
+    async botProxyAccess(proxyId, botId, grant){
+        const result = this.#botAgent.proxyAccess(proxyId, botId, grant)
+        return result
+    }
+    /**
      * Creates a proxy bot for external A2A agent interaction. Currently for NANDA test.
      * @param {object} botData - The bot data object
      * @returns {Promise<object>} - The response object
@@ -510,27 +521,28 @@ class Avatar extends EventEmitter {
     async botProxyCreate(botData){
         const { id: teamId, ...data } = botData
         data.object_id = this.id
+        data.access = [this.avatar.id] // avatar always has access
         const proxyBot = await this.#connectorAgent.createProxy(data)
         if(!proxyBot?.id?.length)
-            throw new Error('Proxy bot creation failed, please review: ' + ( proxyBot?.error ?? 'unknown error' ))
+            throw new Error('Proxy Agent creation failed, please review: ' + ( proxyBot?.error ?? 'unknown error' ))
         this.#botAgent.addProxy(proxyBot, teamId)
         return proxyBot
     }
-    async botProxyRefresh(botId){
-        const Bot = this.#botAgent.bot(botId)
-        if(!Bot)
+    async botProxyRefresh(proxyId){
+        const Proxy = this.#botAgent.bot(proxyId)
+        if(!Proxy)
             return {
-                error: 'Bot does not exist, cannot refresh endpoint.',
+                error: 'Proxy Agent does not exist, cannot refresh endpoint.',
                 success: false,
             }
-        const { isProxy=false, url, } = Bot
+        const { isProxy=false, url, } = Proxy
         if(!isProxy)
             return {
-                error: 'Bot is not a proxy bot, cannot refresh endpoint.',
+                error: 'Proxy Agent is not a proxy bot, cannot refresh endpoint.',
                 success: false,
             }
-        const botData = await this.#connectorAgent.refreshProxy(url) // mutates Bot in place
-        botData.id = botId
+        const botData = await this.#connectorAgent.refreshProxy(url) // mutates Proxy in place
+        botData.id = proxyId
         return this.updateBot(botData)
     }
     /**

@@ -1,0 +1,30 @@
+{
+  "name": "callExternalAgent",
+  "description": "Call an external agent with the provided parameters",
+  "strict": true,
+  "parameters": {
+    "additionalProperties": false,
+    "type": "object",
+    "properties": {
+      "agentId": {
+        "description": "The MyLife UUID of the external agent to call",
+        "format": "uuid",
+        "type": "string"
+      },
+      "skillId": {
+        "default": "chat",
+        "description": "The skill ID to call",
+        "type": "string"
+      },
+      "title": {
+        "description": "The new title for the summary",
+        "type": "string"
+      }
+    },
+    "required": [
+      "agentId",
+      "skillId",
+      "title"
+    ]
+  }
+}

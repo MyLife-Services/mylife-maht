@@ -156,11 +156,10 @@ class ConnectorAgent {
         botData.description = botData?.card?.description
             ?? 'No description provided'
         botData.provider = 'external'
+        botData.purpose = ''
         botData.type = 'proxy'
         if(botData.card?.skills?.length)
             botData.skills = botData.card.skills
-        if(allUpdates && botData.description?.length)
-            botData.purpose = botData.description
         if(allUpdates){
             botData.bot_name = botData.name
                 ?? botData.card.name

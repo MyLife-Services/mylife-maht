@@ -322,8 +322,16 @@ function agentCard(agentId){
 }
 async function botProxy(ctx){
     const { avatar: Avatar, } = ctx.state
+    const { pid, } = ctx.params
     const data = ctx.request.body
-    const response = await Avatar.botProxy(data)
+    const response = await Avatar.botProxy(pid, data)
+    ctx.body = response
+}
+async function botProxyAccess(ctx){
+    const { avatar: Avatar, } = ctx.state
+    const { pid, } = ctx.params
+    const { botId, grant=true, } = ctx.request.body
+    const response = await Avatar.botProxyAccess(pid, botId, grant)
     ctx.body = response
 }
 async function botProxyCreate(ctx){
@@ -336,9 +344,9 @@ async function botProxyCreate(ctx){
 }
 async function botProxyRefresh(ctx){
     const { avatar: Avatar, } = ctx.state
-    const { bid, } = ctx.params
+    const { pid, } = ctx.params
     const { botId, bot_id, } = ctx.request.body
-    const agentId = bid
+    const agentId = pid
         ?? botId
         ?? bot_id
     if(!agentId?.length)
@@ -607,6 +615,7 @@ export {
     a2aCard,
     a2aContract,
     botProxy,
+    botProxyAccess,
     botProxyCreate,
     botProxyRefresh,
 }

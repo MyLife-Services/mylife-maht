@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 /* module constants */
-const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
+const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_MAX_INSTRUCTIONS_LENGTH, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
+const mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000
 const mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890
 const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 /* class definition */
@@ -840,6 +841,8 @@ function mValidateAssistantData(data){
         ?? gptName
     metadata.id = id
     metadata.updated = `${ Date.now() }` // metadata nodes must be strings
+    if(instructions?.length > mMaxInstructionsLength)
+        instructions = instructions.substring(0, mMaxInstructionsLength)
     const assistantData = {
         description,
         instructions,
@@ -849,10 +852,9 @@ function mValidateAssistantData(data){
         tools,
         tool_resources,
     }
-    Object.keys(assistantData).forEach(key => {
-        if (assistantData[key] === undefined) {
+    Object.keys(assistantData).forEach(key =>{
+        if(assistantData[key] === undefined)
             delete assistantData[key]
-        }
     })
     return assistantData
 }

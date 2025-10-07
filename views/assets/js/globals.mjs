@@ -160,8 +160,20 @@ class Datamanager {
         const response = await this.#fetch(url, options)
         return response
     }
-    async botProxyRefresh(botId){
-        const url = `/members/bots/proxy/${ botId }/refresh`
+    async botProxyAccess(proxyId, botId, grant){
+        const url = `/members/bots/proxy/${ proxyId }/access`
+        const options = {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ botId, grant, })
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async botProxyRefresh(proxyId){
+        const url = `/members/bots/proxy/${ proxyId }/refresh`
         const response = await this.#fetch(url)
         return response
     }

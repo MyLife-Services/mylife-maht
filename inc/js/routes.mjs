@@ -5,6 +5,7 @@ import {
     a2aCall,
     a2aContract,
     botProxy,
+    botProxyAccess,
     botProxyCreate,
     botProxyRefresh,
 } from './controllers/a2a-functions.mjs'
@@ -192,7 +193,7 @@ _memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
-_memberRouter.get('/bots/proxy/:bid/refresh', botProxyRefresh)
+_memberRouter.get('/bots/proxy/:pid/refresh', botProxyRefresh)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)
 _memberRouter.get('/experiences', experiences)
@@ -205,7 +206,8 @@ _memberRouter.get('/share/delete/:sid', deleteShare)
 _memberRouter.get('/shares', getShares)
 _memberRouter.get('/shares/:iid', getShares)
 _memberRouter.get('/teams', teams)
-_memberRouter.patch('/bots/proxy', botProxy)
+_memberRouter.patch('/bots/proxy/:pid', botProxy)
+_memberRouter.patch('/bots/proxy/:pid/access', botProxyAccess)
 _memberRouter.patch('/experience/:xid', experience)
 _memberRouter.patch('/experience/:xid/end', experienceEnd)
 _memberRouter.patch('/experience/:xid/manifest', experienceManifest)
