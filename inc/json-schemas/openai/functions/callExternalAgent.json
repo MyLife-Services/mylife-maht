@@ -1,6 +1,6 @@
 {
   "name": "callExternalAgent",
-  "description": "Call an external agent with the provided parameters",
+  "description": "Call an external agent for response to member question",
   "strict": true,
   "parameters": {
     "additionalProperties": false,
@@ -11,20 +11,20 @@
         "format": "uuid",
         "type": "string"
       },
+      "request": {
+        "description": "The request for response to send to the external agent",
+        "type": "string"
+      },
       "skillId": {
         "default": "chat",
         "description": "The skill ID to call",
-        "type": "string"
-      },
-      "title": {
-        "description": "The new title for the summary",
         "type": "string"
       }
     },
     "required": [
       "agentId",
-      "skillId",
-      "title"
+      "request",
+      "skillId"
     ]
   }
 }
