@@ -422,7 +422,7 @@ async function mBotNameChange(e){
         if(!name?.length)
             nameInput.value = bot_name
         else {
-            const botTitleName = document.getElementById(`${ type==='proxy' ? id : type }-title-name`)
+            const botTitleName = document.getElementById(`${ globals.isProxy(type) ? id : type }-title-name`)
             botTitleName && (botTitleName.textContent = name)
             nameInput.container.bot_name = name
             /* update mBot */
@@ -592,6 +592,7 @@ function mCreateProxyBotContainer(proxyAgent){
     proxyOptions.appendChild(mProxySkills(id, skills))
     proxyOptions.appendChild(mProxyPurpose(id, purpose))
     proxyOptions.appendChild(mProxyAccess(id, access))
+    proxyOptions.appendChild(mProxyRetire(id))
     /* options [end] */
     proxyContainer.appendChild(proxyStatus)
     proxyContainer.appendChild(proxyOptions)
@@ -663,7 +664,7 @@ function mProxyAccess(id, accessList){
     const proxyAccess = document.createElement('div')
     proxyAccess.classList.add('input-group', 'proxy-access')
     proxyAccess.id = `${ id }-access`
-    mBots.filter(bot=>bot.type!=='proxy' && bot.id!==id)
+    mBots.filter(bot=>!globals.isProxy(bot.type) && bot.id!==id)
         .forEach(bot=>{
             const { id: botId, type, name, } = bot
             const botAccess = document.createElement('div')
@@ -828,45 +829,60 @@ function mProxyName(id, name){
  */
 function mProxyPurpose(id, purpose){
     const purposeFragment = document.createDocumentFragment()
-    if(purpose?.length){
-        const purposeMaxLength = 1024
-        purpose = purpose.trim().substring(0, purposeMaxLength)
-        const proxyPurpose = document.createElement('div')
-        proxyPurpose.classList.add('input-group', 'proxy-inputs')
-        proxyPurpose.id = `${ id }-purpose`
-        /* - purpose label */
-        const proxyPurposeLabel = document.createElement('label')
-        proxyPurposeLabel.id = `${ id }-label-purpose`
-        proxyPurposeLabel.htmlFor = `${ id }-input-purpose`
-        proxyPurposeLabel.textContent = `Purpose:`
-        /* - purpose input */
-        const proxyPurposeInput = document.createElement('textarea')
-        proxyPurposeInput.addEventListener('change', mProxyPurposeInput, { once: false })
-        proxyPurposeInput.classList.add('bot-input', 'proxy-input', 'proxy-purpose')
-        proxyPurposeInput.id = `${ id }-input-purpose`
-        proxyPurposeInput.maxLength = purposeMaxLength
-        proxyPurposeInput.originalValue = purpose
-        proxyPurposeInput.placeholder = `Define the purpose of this agent, which will be used when applying instructions to other bots that have been given access to this agent. Example: "This agent is familiar with my current calendar schedule."`
-        proxyPurposeInput.value = purpose
-        /* appends */
-        proxyPurpose.appendChild(proxyPurposeLabel)
-        proxyPurpose.appendChild(proxyPurposeInput)
-        purposeFragment.appendChild(proxyPurpose)
-    }
+    const purposeMaxLength = 1024
+    purpose = purpose?.trim().substring(0, purposeMaxLength)
+    const proxyPurpose = document.createElement('div')
+    proxyPurpose.classList.add('input-group', 'proxy-inputs')
+    proxyPurpose.id = `${ id }-purpose`
+    /* - purpose label */
+    const proxyPurposeLabel = document.createElement('label')
+    proxyPurposeLabel.id = `${ id }-label-purpose`
+    proxyPurposeLabel.htmlFor = `${ id }-input-purpose`
+    proxyPurposeLabel.textContent = `Purpose:`
+    /* - purpose input */
+    const proxyPurposeInput = document.createElement('textarea')
+    proxyPurposeInput.addEventListener('change', mProxyPurposeInput, { once: false })
+    proxyPurposeInput.classList.add('bot-input', 'proxy-input', 'proxy-purpose')
+    proxyPurposeInput.id = `${ id }-input-purpose`
+    proxyPurposeInput.maxLength = purposeMaxLength
+    proxyPurposeInput.originalValue = purpose
+    proxyPurposeInput.placeholder = `Define the purpose of this agent, which will be used when applying instructions to other bots that have been given access to this agent. Example: "This agent is familiar with my current calendar schedule."`
+    proxyPurposeInput.proxyId = id
+    proxyPurposeInput.value = purpose
+    /* appends */
+    proxyPurpose.appendChild(proxyPurposeLabel)
+    proxyPurpose.appendChild(proxyPurposeInput)
+    purposeFragment.appendChild(proxyPurpose)
     return purposeFragment
 }
-function mProxyPurposeInput(event){
-    const { target, } = event
-    const { id, value, } = target
+async function mProxyPurposeInput(e){
+    const { target, } = e
+    const { proxyId, value, } = target
     if(!confirm(`By updating the purpose for this proxy agent, you will be changing the instructions for any MyLife intelligences utilizing this agent. Are you sure you want to proceed?`))
         target.value = target.originalValue
     else {
-        globals.datamanager.botProxyPurpose(id.split('-')[0], value)
+        const test = await globals.datamanager.botUpdate({ id: proxyId, purpose: value, })
+        console.log(`mProxyPurposeInput::test`, proxyId, value, test)
         target.originalValue = value
     }
-    console.log(`mProxyPurposeInput::id`, id, value, test)
-    const proxyId = id.split('-')[0]
-    const proxyBot = mBots.find(bot=>bot.id===proxyId)
+}
+function mProxyRetire(id){
+    const retireFragment = document.createDocumentFragment()
+    const proxyRetire = document.createElement('div')
+    proxyRetire.classList.add('retire-container', 'proxy-retire')
+    proxyRetire.id = `${ id }-retire`
+    const proxyRetireText = document.createElement('div')
+    proxyRetireText.classList.add('retire-text', 'proxy-retire-text')
+    proxyRetireText.id = `${ id }-retire-text`
+    proxyRetireText.textContent = `Retire this Agent:`
+    const proxyRetireBot = document.createElement('span')
+    proxyRetireBot.classList.add('fas', 'fa-user-large-slash', 'retire-icon', 'retire-bot', 'proxy-retire-bot')
+    proxyRetireBot.id = `${ id }-retire-bot`
+    proxyRetireBot.title = `Retire this external Agent. This action is permanent and cannot be undone. Agent will have to be recreated.`
+    proxyRetire.appendChild(proxyRetireText)
+    proxyRetire.appendChild(proxyRetireBot)
+    retireFragment.appendChild(proxyRetire)
+    return retireFragment
 }
 /**
  * Creates a proxy agent skills element.
@@ -1529,12 +1545,12 @@ async function mCreateTeamMember(event){
     const { value: type, } = this
     if(!type)
         throw new Error(`no team member type selected`)
-    if(type==='proxy'){}
+    if(globals.isProxy(type)){}
     const data = {
         id: mActiveTeam.id,
         type,
     }
-    if(type==='proxy'){
+    if(globals.isProxy(type)){
         const endpoint = window.prompt(
             'Enter the external agent URL (A2A/NANDA endpoint):',
             'https://list39.org/@'
@@ -1543,7 +1559,7 @@ async function mCreateTeamMember(event){
             throw new Error('External proxy bot requires a valid URL')
         data.url = endpoint.trim()
     }
-    const bot = type==='proxy'
+    const bot = globals.isProxy(type)
         ? await globals.datamanager.botProxy(data)
         : await globals.datamanager.botCreate(data)
     if(!bot)
@@ -1935,16 +1951,18 @@ async function mReliveMemory(e){
 async function mRetireBot(e){
     e.stopPropagation()
     try {
-        const { dataset, id, } = e.target
-        const { botId, type, } = dataset
+        const { id, type, } = e.target.container
+        console.log(`Attempting to retire bot: ${ id }`, e.target.container)
+        if(globals.isProxy(type) && !confirm("Retiring a proxy bot will not notify the external agent. Are you sure?"))
+            return
         /* reset active bot */
-        if(mActiveBot.id===botId)
+        if(mActiveBot.id===id)
             setActiveBot()
-        const response = await globals.datamanager.botRetire(botId)
+        const response = await globals.datamanager.botRetire(id)
         addMessages(response.responses, 'avatar')
     } catch(err) {
         console.log('Error posting bot data:', err)
-        addMessage(`Error posting bot data: ${err.message}`, 'error')
+        addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
 }
 /**
@@ -1955,13 +1973,12 @@ async function mRetireBot(e){
 async function mRetireChat(e){
     e.stopPropagation()
     try {
-        const { dataset, id, } = e.target
-        const { botId, type, } = dataset
-        const response = await globals.datamanager.chatRetire(botId)
+        const { id, type, } = e.target.container
+        const response = await globals.datamanager.chatRetire(id)
         addMessages(response.responses, mActiveBot.type)
     } catch(err) {
         console.log('Error posting bot data:', err)
-        addMessage(`Error posting bot data: ${err.message}`, 'error')
+        addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
 }
 /**
@@ -2021,7 +2038,7 @@ function mSetAttributes(bot=mActiveBot, botContainer){
     attributes.forEach(attribute=>{
         const { name, value, } = attribute
         botContainer.dataset[name] = value
-        const element = document.getElementById(`${ type==='proxy' ? bot_id : type }-${ name }`)
+        const element = document.getElementById(`${ globals.isProxy(type) ? bot_id : type }-${ name }`)
         if(element){
             const botInput = element.querySelector('input')
             if(botInput)
@@ -2040,7 +2057,7 @@ function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
     const { id, type, version, } = dataset
     const { id: botId, name, type: botType, version: botVersion, } = bot
-    const containerIdentifier = botType==='proxy' ? botId : type
+    const containerIdentifier = globals.isProxy(botType) ? botId : type
     const botStatusBar = document.getElementById(`${ containerIdentifier }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
@@ -2771,7 +2788,7 @@ function mUpdateBotContainers(includePersonalAvatar=true){
         throw new Error(`No bot containers found on page`)
     botContainers
         .forEach(botContainer=>mUpdateBotContainer(botContainer, includePersonalAvatar))
-    const proxyAgents = mBots.filter(bot=>bot.type==='proxy')
+    const proxyAgents = mBots.filter(bot=>globals.isProxy(bot.type))
     if(proxyAgents.length){
         const collectionsContainer = document.getElementById('collections-container')
         proxyAgents.forEach(proxyAgent=>{
@@ -2813,7 +2830,7 @@ function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
  */
 function mUpdateBotContainerAddenda(botContainer){
     const { bot_name, id, type, } = botContainer.dataset
-    const nameInput = document.getElementById(`${ type==='proxy' ? id : type }-input-bot_name`)
+    const nameInput = document.getElementById(`${ globals.isProxy(type) ? id : type }-input-bot_name`)
     if(nameInput){
         nameInput.container = botContainer.dataset
         nameInput.addEventListener('change', mBotNameChange, { once: true })
@@ -2834,17 +2851,16 @@ function mUpdateBotContainerAddenda(botContainer){
         }
     }
     /* retirements */
-    const retireChatButton = document.getElementById(`${ type }-retire-chat`)
+    const retireChatButton = document.getElementById(`${ globals.isProxy(type) ? id : type }-retire-chat`)
     if(retireChatButton){
         retireChatButton.dataset.botId = id
         retireChatButton.dataset.type = type
         retireChatButton.addEventListener('click', mRetireChat)
     }
-    const retireBotButton = document.getElementById(`${ type }-retire-bot`)
+    const retireBotButton = document.getElementById(`${ globals.isProxy(type) ? id : type }-retire-bot`)
     if(retireBotButton){
-        retireBotButton.dataset.botId = id
-        retireBotButton.dataset.type = type
-        retireBotButton.addEventListener('click', mRetireBot)
+        retireBotButton.container = botContainer.dataset
+        retireBotButton.addEventListener('click', mRetireBot, { once: true })
     }
     switch(type){
         case 'avatar':

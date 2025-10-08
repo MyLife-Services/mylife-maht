@@ -1110,6 +1110,14 @@ class Globals {
         }
     }
     /**
+     * Determines whether the bot is a `proxy agent` given `type`.
+     * @param {string} type - The type to check
+     * @returns {boolean} - Whether the bot is a `proxy agent`
+     */
+    isProxy(type){
+        return type=='proxy'
+    }
+    /**
      * Remove an element from the DOM based upon its class name of `input-disappear`.
      * @returns {void}
      */

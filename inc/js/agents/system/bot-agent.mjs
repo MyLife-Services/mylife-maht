@@ -73,6 +73,19 @@ class Bot {
 	}
 	/* public functions */
 	/**
+	 * Adds a tool to the bot's tool list if available from Globals.GPTJavascriptFunctions and not already present.
+	 * @param {string} toolName - Name of function/tool to 
+	 * @returns {boolean} - Whether the tool was added/available
+	 */
+	addTool(toolName){
+		if(this.hasTool(toolName))
+			return true
+		const tool = this.globals.getGPTJavascriptFunction(toolName)
+		if(!!tool)
+			this.tools.push(tool)
+		return !!tool
+	}
+	/**
 	 * Chat with the active bot.
 	 * @todo - deprecate avatar in favor of either botAgent or `this`
 	 * @param {String} message - The member request
@@ -210,6 +223,14 @@ class Bot {
 			success: true,
 		}
 	}
+	/**
+	 * Checks if the bot has a specific tool by name in { function: name, }; **note**: ignores capitalization.
+	 * @param {string} toolName - The name of the tool to check for
+	 * @returns {boolean} - Whether the bot has the specified tool
+	 */
+	hasTool(toolName){
+		return this.tools?.some(tool=>tool?.function?.name.toLowerCase()===toolName.toLowerCase())
+	}
     /**
      * Migrates Conversation from an old thread to a newly-created destination thread, observable in `this.Conversation`.
      * @returns {void}
@@ -257,11 +278,23 @@ class Bot {
 			}
 		} else
 			this.#agentInstructions = this.#agentInstructions.filter(agent=>agent.id!==proxyId)
-		this.update({ agentInstructions: this.#agentInstructions, }, { instructions: true, tools: true, }) // update even when removes
+		!this.#agentInstructions.length && !this.isAvatar
+			? this.removeTool('callExternalAgent')
+			: this.addTool('callExternalAgent')
+		this.update({ agentInstructions: this.#agentInstructions, }, { writeTools: !this.isAvatar, }) // update even when removes
 		return {
 			instructions: this.#agentInstructions,
 			success: true,
+			tools: this.tools,
 		}
+	}
+	/**
+	 * Removes a tool from the bot's tool list. Irrelevant if doesn't exist, no error thrown or return.
+	 * @param {string} toolName - The name of the tool to remove
+	 * @returns {void}
+	 */
+	removeTool(toolName){
+		this.tools = this.tools?.filter(tool=>tool?.function?.name.toLowerCase()!==toolName.toLowerCase())
 	}
 	/**
 	 * Updates a Bot instance's data.
@@ -321,7 +354,6 @@ class Bot {
 		const { access, card, description, flags, id, interests, name, purpose, skills, type, url, version, } = this
 		const bot = {
 			access,
-			card,
 			description,
 			flags,
 			id,
@@ -461,7 +493,9 @@ class BotAgent {
 			return
 		const proxyBot = new Bot(botData, undefined, this.#factory)
 		this.#bots.push(proxyBot)
-		this.setActiveBot(proxyBot.id)
+		const { id, } = proxyBot
+		this.proxyAccess(id, this.avatarId, true)
+		this.setActiveBot(id)
 	}
 	/**
 	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
@@ -749,7 +783,7 @@ class BotAgent {
 	 * @returns {Promise<Bot>} - The updated Bot instance
 	 */
 	async updateBot(botData, botOptions){
-		const { bot_name, id, name, } = botData
+		const { bot_name, id, name, purpose, } = botData
 		if(!this.globals.isValidGuid(id))
 			throw new Error('`id` parameter required')
 		if(typeof name==='string' && name.trim().length){ // name cannot be modified, convert to bot_name, if bot_name not already set
@@ -760,7 +794,9 @@ class BotAgent {
 		const Bot = this.#bots.find(bot=>bot.id===id)
 		if(!Bot)
 			throw new Error(`Bot not found with id: ${ id }`)
-		await Bot.update(botData, botOptions)
+		const { access, isProxy, } = await Bot.update(botData, botOptions)
+		if(isProxy && access?.length && purpose?.length) // update instructions if proxy and there are bots assigned access
+			access.forEach(botId=>this.proxyAccess(id, botId, true)) // no await needed
 		return Bot
 	}
 	/**
@@ -988,30 +1024,28 @@ async function mBotCreateLLM(botData, llm){
 	}
 }
 /**
- * Deletes the bot requested from avatar memory and from all long-term storage.
- * @param {Guid} bot_id - The bot id to delete
+ * Deletes the bot requested from bot-agent memory, all long-term storage, and any proxy instructions.
+ * @param {Guid} botId - The bot id to delete
  * @param {BotAgent} BotAgent - BotAgent instance
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - The Factory instance
  * @returns {Promise<Boolean>} - Whether or not operation was successful
  */
-async function mBotDelete(bot_id, BotAgent, llm, factory){
-	const Bot = BotAgent.bot(bot_id)
-	const { bot_id: _llm_id, id, type, thread_id, } = Bot
-	const { llm_id=_llm_id, } = Bot
+async function mBotDelete(botId, BotAgent, llm, factory){
+	const Bot = BotAgent.bot(botId)
+	const { access, bot_id, id, type, thread_id, } = Bot
+	const { llm_id=bot_id, } = Bot
     const cannotRetire = ['actor', 'system', 'personal-avatar']
     if(cannotRetire.includes(type))
         return false
-    /* delete from memory */
-	const { bots, } = BotAgent
-	const botIndex = bots.findIndex(bot=>bot.id===id)
-    bots.splice(botIndex, 1)
-    /* delete bot from Cosmos */
-    await factory.deleteItem(id)
-    /* delete thread and bot from LLM */
-	if(llm_id?.length)
+	if(Bot.isProxy()) /* delete proxy agent instructions */
+		if(access?.length)
+			access.forEach(async accessBot=>await BotAgent.proxyAccess(id, accessBot.id, false))
+	BotAgent.bots = BotAgent.bots.filter(bot=>bot.id!==id) /* delete from memory */
+    await factory.deleteItem(id) /* delete bot from Cosmos */
+	if(llm_id?.length) /* delete bot from LLM provider */
     	await llm.deleteBot(llm_id)
-	if(thread_id?.length)
+	if(thread_id?.length) /* delete thread from LLM provider */
 	    await llm.deleteThread(thread_id)
 	return true
 }
@@ -1158,7 +1192,6 @@ function mBotInstructions(factory, botData={}){
  * @returns {Promise<Object>} - Allowed (and written) bot data object (dynamic construction): { id, type, ...anyNonRequired }
  */
 async function mBotUpdate(botData, options={}, Bot, llm, factory){
-	/* validate request */
 	if(!Bot)
 		throw new Error('Bot instance required to update bot')
 	const { bot_id, id, llm_id, metadata={}, type, vectorstoreId: bot_vectorstore_id, } = Bot
@@ -1177,6 +1210,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 			model: updateModel=false,
 			tools: updateTools=false,
 			vectorstoreId=bot_vectorstore_id,
+			writeTools=false, // whether to allow discardtools
 		} = options
 		if(updateInstructions){
 			const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
@@ -1201,6 +1235,8 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 			allowedBotData.llm_id = _llm_id
 			await llm.updateBot(allowedBotData)
 		}
+		if(writeTools)
+			allowedBotData.tools = discardTools
 	}
 	allowedBotData.id = id
 	allowedBotData.type = type
@@ -1352,6 +1388,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'personal-assistant':
 		case 'personal-avatar':
 			tools.push(
+				globals.getGPTJavascriptFunction('callExternalAgent'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
 			)

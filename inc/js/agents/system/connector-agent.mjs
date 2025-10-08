@@ -148,7 +148,7 @@ class ConnectorAgent {
     /**
      * Update botData in place from agent card data.
      * @param {object|Bot} botData - The bot data to update (can be Bot instance)
-     * @param {boolean} allUpdates - Whether to update bot name, purpose and greeting; default: true
+     * @param {boolean} allUpdates - Whether to update bot name and greeting; default: true
      * @returns {void} - botData is updated in place
      */
     #updateProxyByCard(botData, allUpdates=true){

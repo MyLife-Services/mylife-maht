@@ -94,12 +94,11 @@ class Globals extends EventEmitter {
 	 * @returns {object} - {type: 'function', function, } - the function object.
 	 */
 	getGPTJavascriptFunction(name){
-		if(!name?.length)
-			throw new Error('getGPTJavascriptFunction() expects a function name as parameter')
-		return {
-			type: 'function',
-			function: this.GPTJavascriptFunctions[name]
-		}
+		let response
+		const gptFunction = this.GPTJavascriptFunctions?.[name]
+		if(gptFunction)
+			response = { type: 'function', function: gptFunction, }
+		return response
 	}
 	getRegExp(text, isGlobal=false) {
 		if (typeof text !== 'string' || !text.length)
