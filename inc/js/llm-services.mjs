@@ -484,6 +484,66 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 }
                                 confirmation.output = JSON.stringify({ action, success, })
                                 return confirmation
+                            case 'callexternalagent':
+                            case 'call_external_agent':
+                            case 'call external agent':
+                                console.log('mRunFunctions()::callExternalAgent::start', toolArguments)
+                                const { proxyId, skillId, request, } = toolArguments
+                                action = `error calling external agent: `
+                                if(!proxyId?.length)
+                                    action += 'proxyId missing; '
+                                if(!skillId?.length)
+                                    action += 'skillId missing; '
+                                if(!request)
+                                    action += 'request missing; '
+                                if(!proxyId?.length || !skillId?.length || !request){
+                                    confirmation.output = JSON.stringify({ action, success, })
+                                    return confirmation
+                                }
+                                try {
+                                    // Look up bot by proxyId from database
+                                    const bot = await factory.bot(proxyId)
+                                    if(!bot){
+                                        action = `Bot with proxyId ${ proxyId } not found`
+                                        confirmation.output = JSON.stringify({ action, success, })
+                                        return confirmation
+                                    }
+                                    // Get the card from the bot (NANDA protocol)
+                                    const { card, } = bot
+                                    if(!card?.endpoints?.static?.[0]){
+                                        action = `Bot ${ proxyId } does not have a valid NANDA card endpoint`
+                                        confirmation.output = JSON.stringify({ action, success, })
+                                        return confirmation
+                                    }
+                                    // Make HTTP POST call to the external agent
+                                    const endpoint = card.endpoints.static[0]
+                                    console.log('mRunFunctions()::callExternalAgent::endpoint', endpoint)
+                                    const response = await fetch(endpoint, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({
+                                            skillId,
+                                            request,
+                                        }),
+                                    })
+                                    const responseData = await response.json()
+                                    success = response.ok
+                                    action = success
+                                        ? `External agent call successful`
+                                        : `External agent call failed with status: ${ response.status }`
+                                    confirmation.output = JSON.stringify({
+                                        action,
+                                        success,
+                                        response: responseData,
+                                    })
+                                } catch(error){
+                                    action += '__ERROR: ' + error.message
+                                    confirmation.output = JSON.stringify({ action, success, })
+                                }
+                                console.log('mRunFunctions()::callExternalAgent::complete', success)
+                                return confirmation
                             case 'endreliving':
                             case 'end_reliving':
                             case 'end reliving':
