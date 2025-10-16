@@ -281,7 +281,7 @@ class Bot {
 		!this.#agentInstructions.length && !this.isAvatar
 			? this.removeTool('callExternalAgent')
 			: this.addTool('callExternalAgent')
-		this.update({ agentInstructions: this.#agentInstructions, }, { writeTools: !this.isAvatar, }) // update even when removes
+		this.update({ agentInstructions: this.#agentInstructions, tools: this.tools, }, { writeTools: !this.isAvatar, }) // update even when removes
 		return {
 			instructions: this.#agentInstructions,
 			success: true,
