@@ -1,4 +1,6 @@
 import OpenAI from 'openai'
+import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
+import { mcpCall, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_MAX_INSTRUCTIONS_LENGTH, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
 const mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000
@@ -411,6 +413,22 @@ async function mRunFunctions(openai, run, factory, avatar){
                         toolArguments.thread_id = thread_id // deprecate?
                         const { itemId, } = toolArguments
                         switch(name.toLowerCase()){
+                            case 'callexternalagent':
+                            case 'call_external_agent':
+                            case 'call external agent':
+                                const { agentId, messageId, request, skillId, } = toolArguments
+                                console.log('mRunFunctions()::callExternalAgent::start', agentId, skillId, request, messageId)
+                                avatar.backupResponse = {
+                                    message: `I could not communicate effectively with our external agent. I cannot determine if this is a temporary issue or a persistent one. Please try again later or contact support if the issue continues.`,
+                                    type: 'system',
+                                }
+                                const agent = avatar.getBot(agentId, true)
+                                const response = await a2aExternalRequest(messageId, skillId, request, agent.agentEndpoint)
+                                if(response?.success)
+                                    delete avatar.backupResponse
+                                confirmation.output = JSON.stringify({ action: 'Response from Agent call:\n' + response.response, success: response?.success ?? false, })
+                                console.log('mRunFunctions()::callExternalAgent::end', confirmation)
+                                return confirmation
                             case 'changetitle':
                             case 'change_title':
                             case 'change title':

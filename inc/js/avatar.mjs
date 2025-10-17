@@ -861,11 +861,14 @@ class Avatar extends EventEmitter {
     /**
      * Specified by id, returns the pruned Bot.
      * @param {Guid} id - The Bot id
+     * @param {boolean} returnClassInstance - Whether to return the full Bot class instance, defaults to `false`
      * @returns {object} - The pruned Bot object
      */
-    getBot(bot_id){
-        const bot = this.#botAgent.bot(bot_id)?.bot
-        return bot
+    getBot(bot_id, returnClassInstance=false){
+        const bot = this.#botAgent.bot(bot_id)
+        return !returnClassInstance && !!bot
+            ? bot.bot
+            : bot
     }
     /**
      * Returns pruned Bots for Member Avatar.

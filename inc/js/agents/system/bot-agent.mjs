@@ -1,3 +1,5 @@
+/* imports */
+import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
 const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
@@ -340,7 +342,22 @@ class Bot {
 			this.#firstAccess = false
 		}
 	}
-	/** Gets the agent instructions.
+	/**
+	 * Gets the agent card.
+	 * @getter
+	 */
+	get agentCard(){
+		return this.isProxy ? standardizeA2ACard(this.card) : null
+	}
+	/**
+	 * Gets the agent endpoint.
+	 * @getter
+	 */
+	get agentEndpoint(){
+		return this.agentCard?.url
+	}
+	/**
+	 * Gets the agent instructions.
 	 * @getter
 	 */
 	get agentInstructions(){
@@ -1230,13 +1247,13 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 			allowedBotData.model = factory.globals.currentOpenAIBotModel
 		const _llm_id = llm_id
 			?? bot_id // @stub - deprecate bot_id
+		if(writeTools)
+			allowedBotData.tools = discardTools
 		if(_llm_id?.length && (allowedBotData.instructions || allowedBotData.bot_name?.length || allowedBotData.tools)){
 			allowedBotData.model = factory.globals.currentOpenAIBotModel // not dynamic
 			allowedBotData.llm_id = _llm_id
 			await llm.updateBot(allowedBotData)
 		}
-		if(writeTools)
-			allowedBotData.tools = discardTools
 	}
 	allowedBotData.id = id
 	allowedBotData.type = type
