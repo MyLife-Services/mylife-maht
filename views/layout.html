@@ -15,35 +15,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet" />
 	<!-- load correct script for logged in status -->
-	<script type="module" src="/js/<%= locked ? 'guests' : 'members' %>.mjs"></script>
-	<title>MyLife Member Services</title>
+	<script type="module" src="/js/visitor.mjs"></script>
+	<title>Citizens for Rational Government</title>
 </head>
 <body>
 	<div id="page-loader" class="loader-container">
 		<div id="page-loader-icon" class="loader"></div>
-		<div id="page-loader-text" class="loader-text">Loading...<br /><i>MyLife Member Platform</i></div>
+		<div id="page-loader-text" class="loader-text">Loading...<br /><i>Citizens for Rational Government Platform</i></div>
 	</div>
 	<div id="page-header" class="header hide">
-		<div id="experience-transport" class="experience-transport hide">
-			<div id="experience-close" class="experience-transport-item" title="End and Close Experience">
-				<i class="fa fa-times" aria-hidden="true"></i>
-			</div>
-			<div id="experience-breadcrumb" class="experience-transport-item">
-				<!-- Breadcrumb items will be dynamically inserted here -->
-			</div>
-			<!--
-			<div id="experience-skip" class="experience-transport-item" title="Skip to Next Scene">
-				<i class="fa fa-forward" aria-hidden="true"></i>
-			</div>
-			-->
-		</div>
-		<div id="experience-modal" class="experience-modal hide"><% include assets/html/_experience %></div><!--- modal experience screen -->
-		<div id="experience-continue" class="experience-continue hide">
-            <div id="experience-continue-text" class="experience-continue-text"></div>
-            <div id="experience-continue-click-text" class="experience-continue-click-text pulse">
-                ...click anywhere to continue...
-            </div>
-        </div><!-- growing button until bright, and then alpha occluding to cover entire screen except for dialog, if any... -->
 		<nav id="navigation-container" class="top-nav">
 			<% include assets/html/_navbar %>
 		</nav>
@@ -56,17 +36,12 @@
 			<%- body %><!-- koa-ejs body inclusion -->
 			<!-- sidebar area -->
 			<div id="sidebar" class="sidebar hide">
-				<% if(locked) { %>
-					<% include assets/html/_sidebar %>
-				<% } else { %>
-					<% include assets/html/_bots %>
-				<% } %>
+				<% include assets/html/_sidebar %>
 			</div>
 		</div>
 	</div>
-    <!-- Page Footer -->
-    <footer>
-		<p>&copy; 2025 MyLife. All rights reserved.</p>
+    <footer><!-- Page Footer -->
+		<p>&copy; 2026 Citizens for Rational Government. All rights reserved.</p>
 	</footer>
 </body>
 </html>
