@@ -84,7 +84,6 @@ input, select, textarea {
 
 	body {
 		background: #252122;
-		background-image: url("images/bg02.png");
 	}
 
 		body.is-preload *, body.is-preload *:before, body.is-preload *:after {
@@ -149,6 +148,7 @@ input, select, textarea {
 
 	h3 {
 		font-size: 1.35em;
+		margin-bottom: 1.25em;
 	}
 
 	a {
@@ -173,6 +173,15 @@ input, select, textarea {
 
 	p, ul, ol, dl, table {
 		margin-bottom: 2em;
+	}
+	p {
+		font-weight: 500;
+		text-align: left;
+	}
+	ul.left, ol.left {
+		font-weight: 500;
+		margin-left: 2em;
+		text-align: left;
 	}
 
 /* Container */
@@ -2065,10 +2074,10 @@ input, select, textarea {
 /* Header */
 
 	#header {
-		position: relative;
 		background: #ffffff;
 		border-bottom: solid 1px #ccc;
-		padding: 5em 0 4em 0;
+		padding: 2em 0 0 0;
+		position: relative;
 		text-align: center;
 	}
 
@@ -2083,7 +2092,7 @@ input, select, textarea {
 /* Nav */
 
 	#nav {
-		margin: 2.5em 0 0 0;
+		margin: 1.35em 0;
 	}
 
 		#nav > ul {
@@ -2268,8 +2277,8 @@ input, select, textarea {
 
 	#main {
 		position: relative;
-		background: #f7f7f7 url("images/bg02.png");
-		padding: 4em 0 4em 0;
+		background: #f7f7f7;
+		padding: 1.25em 0;
 	}
 
 		#main:before {
@@ -2278,14 +2287,16 @@ input, select, textarea {
 			top: 0;
 			left: 0;
 			width: 100%;
-			background: url("images/bg01.png");
 			background-size: 100% 100%;
 			z-index: 0;
 			opacity: 0.1;
 		}
-
+		#main img {
+			display: block;
+			margin: 0 auto;
+		}
 		#main .major h2 {
-			background: #f7f7f7 url("images/bg02.png");
+			background: #f7f7f7;
 		}
 
 /* Footer */
@@ -2293,7 +2304,7 @@ input, select, textarea {
 	#footer {
 		position: relative;
 		color: #858484;
-		padding: 4em 0;
+		padding: 1.25em 0;
 	}
 
 		#footer:before {
@@ -2302,7 +2313,6 @@ input, select, textarea {
 			top: 0;
 			left: 0;
 			width: 100%;
-			background: url("images/bg01.png");
 			background-size: 100% 100%;
 			z-index: 0;
 			opacity: 0.5;
@@ -2339,16 +2349,15 @@ input, select, textarea {
 
 	#copyright {
 		text-align: center;
-		margin: 3em 0 2em 0;
 	}
 
 		#copyright ul.links {
-			display: inline-block;
+			display: block;
 			background: #2C2929;
 			background: rgba(255, 255, 255, 0.05);
 			border-radius: 5px;
-			margin: 0;
-			padding: 0.85em 2.25em 0.85em 2.25em;
+			margin: 1.25em 12em;
+			padding: 0.75em 0;
 		}
 
 /* XLarge */
@@ -2389,11 +2398,7 @@ input, select, textarea {
 				margin: 0 0 0.25em 0.75em;
 			}
 
-		/* Header */
-
-			#header {
-				padding: 4em 0 3em 0;
-			}
+		/* Header -- no changes */
 
 		/* Banner */
 
@@ -2422,15 +2427,7 @@ input, select, textarea {
 
 		/* Main */
 
-			#main {
-				padding: 30px 0;
-			}
-
 		/* Footer */
-
-			#footer {
-				padding: 3em 0;
-			}
 
 				#footer:before {
 					height: 2.5em;
@@ -2446,12 +2443,7 @@ input, select, textarea {
 
 		/* Copyright */
 
-			#copyright {
-				margin: 0;
-			}
-
 	}
-
 /* Medium */
 
 	#navPanel, #titleBar {
@@ -2482,11 +2474,10 @@ input, select, textarea {
 				}
 
 		/* Header */
-
 			#header {
-				padding: 3.5em 0 3em 0;
+				text-align: center;
+				padding: 2em 0 2em 0;
 			}
-
 		/* Nav */
 
 			#nav {
@@ -2529,14 +2520,10 @@ input, select, textarea {
 
 		/* Main */
 
-			#main {
-				padding: 40px 0;
-			}
-
 		/* Copyright */
 
 			#copyright ul.links {
-				display: block;
+				
 			}
 
 		/* Nav */
@@ -2633,7 +2620,6 @@ input, select, textarea {
 				width: 275px;
 				z-index: 10002;
 				color: #858484;
-				background-image: url("images/bg02.png");
 				box-shadow: inset -3px 0px 5px 0px rgba(0, 0, 0, 0.35);
 			}
 
@@ -2847,7 +2833,7 @@ input, select, textarea {
 
 			#header {
 				text-align: center;
-				padding: 2em 0;
+				padding: 2em 0 2em 0;
 			}
 
 				#header h1 {
@@ -2897,14 +2883,6 @@ input, select, textarea {
 
 		/* Main */
 
-			#main {
-				padding: 20px 0;
-			}
-
 		/* Footer */
-
-			#footer {
-				padding: 40px 0 20px 0;
-			}
 
 	}
