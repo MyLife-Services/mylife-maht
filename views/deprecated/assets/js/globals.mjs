@@ -1,3 +1,5 @@
+/* imports */
+import crypto from 'crypto'
 /* module constants */
 const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
 const mAudioRecording = `<div><b>MyLife is listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`

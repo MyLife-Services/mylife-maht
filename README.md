@@ -1,10 +1,28 @@
-# MyLife Member Services Application
-
-![Verification Badge](https://nanda-registry.com/api/v1/verification/badge/fbbab90e-bfad-4150-b831-c9a579d0f3c6/)
+# Citizens for Rational Government
 
 ## Overview
 
-[![Build and deploy Node.js app to Azure Web App - maht](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml/badge.svg?branch=azure-deploy-prod)](https://github.com/MyLife-Services/mylife-maht/actions/workflows/azure-deploy-prod_maht.yml)
+_Citizens for Rational Government_ is a grassroots Political Action Committee (PAC) trying to raise awareness and promote education about rational, non-extremist choices for how we govern our society and promote democracy in the U.S. We are licensed in Texas.
+
+## Core Beliefs
+
+- We think our current system encourages extremism in both parties
+- We think the majority of Americans want a stable, rational government that focuses on real problems and solutions, not in extreme positions
+- We believe most Americans agree on balanced, rational solutions to most of our problems, and we are not as divided a populace as our current politicians imply
+- We think there are good ideas on both the Republican and Democratic side of the aisle, as well as many Independent positions
+- We think the radicalized direction of the country in the early-21st-century is unsustainable, unless the majority of Americans speak up and demand change
+
+## Website
+
+- Dive DEEPER into our philosophy and see what we are doing to further our mission
+- See who we endorse in upcoming Primaries and General Elections for both political parties
+  - These candidates may not reflect all of your political values or priorities, but in our opinion they are rational in their decision making and do not take the extreme positions of their party just to get attention or rile up their base
+- Discuss and debate with our _Majoritarian Candidate_, an intelligence trained on the major issues facing America with a focus on rational and actionable platform positions that data shows the majority of Americans support -- see what truly independent candidate could do for our country
+- Send us your email so we can send you additional information on our activities, or so you can ask us a question
+
+## Web Platform
+
+_Citizens for Rational Government_ leverages the _MyLife_ intelligent platform to both explain its corporate identity and include various intelligences that help visitors understand more about the political landscape they operate in, and what majoritarian views truly exist and allow them to debate and educate.
 
 ### MyLife: Preserving Member Stories for Posterity
 
@@ -68,31 +86,18 @@ The MyLife platform offers a comprehensive suite of services that leverage advan
    - and many more!
    - These bots can be customized and are capable of evolving with the member's needs.
 
-3. **My Indiverse**:
-   - A creative platform where members can bring their imaginations to life.
-   - Members can create intelligent objects or art and design virtual worlds.
-   - This service encourages creativity and interaction within the MyLife network.
-
-4. **Protected Web-Browsing**:
+3. **Protected Web-Browsing**:
    - Features a DOM-Agent that intelligently re-renders external assets based on consent preferences.
    - Enhances online security and privacy for members.
 
-5. **Full-Spectrum Permissioning**:
+4. **Full-Spectrum Permissioning**:
    - Utilizes natural language processing to develop an array of consents and preferences.
    - Allows members to control their public and private online presence.
 
-6. **Technical Assistance Services**:
+5. **Technical Assistance Services**:
    - Offers hosting opportunities for personalized digital spaces.
    - Enables members to create themed networks or partner platforms.
    - Members can extend the functionality of MyLife and contribute to the community.
-
-7. **Contribution to My Indiverse**:
-   - A platform for members to showcase their creativity and contributions.
-   - Encourages fun, learning, and innovation.
-
-8. **Platform Improvement Suggestions**:
-   - MyLife values member input for platform enhancement.
-   - Members can suggest improvements, reflecting the diverse needs of the community.
 
 In summary, MyLife's Member Services are designed to provide a rich, interactive, and personalized digital experience, leveraging AI technology to meet a wide range of member needs and preferences. The platform's focus on creativity, customization, and member contribution makes it a unique space for personal and community growth.
 
