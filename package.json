@@ -1,7 +1,7 @@
 {
-  "name": "mylife-maht",
-  "version": "1.0.0",
-  "description": "Maht is a an openai model trained on MyLife corporate private and public materials to assist the Board of Directors for MyLife in governance and growth of the organization in ethical, honest, transparent and impactful ways",
+  "name": "c4rg-intelligent-platform",
+  "version": "0.1.0",
+  "description": "This codebase, taken from MyLife's Platform servver, has been adapted for Citizens for Rational Government (C4RG) to create an intelligent platform that leverages AI technologies to engage visitors with: 1) Information about the organization, 2) express and debate majoritarian positions held by the preponderance of American citizens.",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -29,51 +29,49 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MyLife-Services/mylife-maht.git"
+    "url": "git+https://github.com/Citizens-for-Rational-Government/C4RG-intelligent-platform.git"
   },
   "keywords": [
     "ai",
     "governance",
-    "mylife",
-    "hrp",
+    "citizens for rational government",
     "board",
     "directors",
     "executive",
     "assistant",
-    "agent",
-    "maht"
+    "agent"
   ],
-  "author": "MyLife",
+  "author": "Citizens for Rational Government",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/MyLife-Services/mylife-maht/issues"
+    "url": "https://github.com/Citizens-for-Rational-Government/C4RG-intelligent-platform/issues"
   },
-  "homepage": "https://github.com/MyLife-Services/mylife-maht#readme",
+  "homepage": "https://github.com/Citizens-for-Rational-Government/C4RG-intelligent-platform#readme",
   "dependencies": {
+    "koa": "^2.16.0",
+    "koa-static": "^5.0.0"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^8.0.0",
+    "nodemon": "^3.1.9"
+  },
+  "disabledDependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@azure/cosmos": "^4.2.0",
     "@azure/identity": "^4.8.0",
     "@koa/cors": "^5.0.0",
     "@modelcontextprotocol/sdk": "^1.9.0",
     "ajv": "^8.17.1",
-    "chalk": "^5.4.1",
-    "crypto": "^1.0.1",
     "form-data": "^4.0.2",
     "js-guid": "^1.0.2",
-    "koa": "^2.16.0",
     "koa-body": "^6.0.1",
     "koa-connect": "^2.1.0",
     "koa-ejs": "^4.3.0",
     "koa-generic-session": "^2.3.1",
     "koa-mount": "^4.0.0",
     "koa-router": "^13.0.1",
-    "koa-static": "^5.0.0",
     "marked": "^15.0.7",
     "nodemailer": "^6.10.1",
     "openai": "^4.87.3"
-  },
-  "devDependencies": {
-    "dotenv-cli": "^8.0.0",
-    "nodemon": "^3.1.9"
   }
 }
