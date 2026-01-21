@@ -1697,7 +1697,11 @@ input, select, textarea {
 		}
 
 /* Image */
-
+	img {
+		max-width: 100%;
+		height: auto;
+	}
+	
 	.image {
 		display: inline-block;
 		outline: 0;
@@ -2521,10 +2525,6 @@ input, select, textarea {
 		/* Main */
 
 		/* Copyright */
-
-			#copyright ul.links {
-				
-			}
 
 		/* Nav */
 
