@@ -1,7 +1,7 @@
 /* imports */
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
-import Config from './mylife-datasource-config.mjs'
+import Config from './datasource-config.mjs'
 import Globals from './globals.mjs'
 /* module constants */
 const mGlobals = new Globals()

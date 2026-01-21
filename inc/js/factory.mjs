@@ -6,15 +6,15 @@ import nodemailer from 'nodemailer'
 import util from 'util'
 import vm from 'vm'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
-import { Avatar, Q, } from './mylife-avatar.mjs'
-import Dataservices from './mylife-dataservices.mjs'
+import { Avatar, Q, } from './avatar.mjs'
+import Dataservices from './dataservices.mjs'
 import {
 	extendClass_consent,
     extendClass_conversation,
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
-import LLMServices from './mylife-llm-services.mjs'
+import LLMServices from './llm-services.mjs'
 import Menu from './menu.mjs'
 /* module constants */
 const {

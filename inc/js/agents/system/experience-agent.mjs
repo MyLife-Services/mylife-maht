@@ -1,5 +1,5 @@
 import BotAgent from "./bot-agent.mjs"
-import { Share, } from '../../mylife-models.mjs'
+import { Share, } from '../../models.mjs'
 import { Marked } from 'marked'
 /* module constants */
 const mAvailableEventActionMap = {
