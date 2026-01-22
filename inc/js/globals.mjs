@@ -3,7 +3,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import EventEmitter from 'events'
-import { Guid } from 'js-guid'
+import { randomUUID } from 'crypto'
 /* constants */
 const mAiJsFunctions = await mParseFunctions()
 const mMCPFunctions = await mParseFunctions('/mcp/tools')
@@ -202,7 +202,7 @@ class Globals extends EventEmitter {
 		return mMCPFunctions
 	}
 	get newGuid(){	//	this.newGuid
-		return Guid.newGuid().toString()
+		return randomUUID()
 	}
 	get uploadPath(){
 		return './.uploads/.tmp/'
