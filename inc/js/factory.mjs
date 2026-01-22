@@ -15,7 +15,6 @@ import {
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
 import LLMServices from './llm-services.mjs'
-import Menu from './menu.mjs'
 /* module constants */
 const {
 	MAHT_EMAIL,
@@ -132,7 +131,6 @@ const mAlerts = {
 const mSchemas = {
 	...await mLoadSchemas(),
 	dataservices: Dataservices,
-	menu: Menu,
 }
 /* module construction functions */
 mConfigureSchemaPrototypes()

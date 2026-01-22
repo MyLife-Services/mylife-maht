@@ -1736,7 +1736,6 @@ class Q extends Avatar {
             version: '1.0',
         },
     } /* **Note**: `tools` array is managed as decoration in `get mcp()` */
-    #Menu
     #Router
     /**
      * @constructor
@@ -2315,15 +2314,9 @@ class Q extends Avatar {
         mcp.tools = mcp.tools.filter(tool=>tool.mylife_auth_required===false)
         return mcp
     }
-	get menu(){
-		if(!this.#Menu){
-			this.#Menu = new (this.schemas.menu)(this).menu
-		}
-		return this.#Menu
-	}
     get router(){
         if(!this.#Router)
-            this.#Router = initRouter(new (this.schemas.menu)(this))
+            this.#Router = initRouter()
         return this.#Router
     }
 	get schemas(){

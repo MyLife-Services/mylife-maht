@@ -42,7 +42,6 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mNavigationHamburger,
     mNavigationHelp,
     mNavigationHelpIcon,
-    mNavigationMenu,
     mPage,
     mPlaceholder,
     mRecognition,
@@ -725,7 +724,6 @@ class Globals {
             mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
-            mNavigationMenu = document.getElementById('navigation-menu')
             mPage = document.getElementById('page-header')
             mSidebar = document.getElementById('sidebar')
                 ?? document.getElementById('bot-container')
@@ -811,8 +809,6 @@ class Globals {
                     this.hide(mChatAudioPopup)})
             }, 5000)
         }
-        if(mNavigationHamburger && mNavigationMenu)
-            mNavigationHamburger.addEventListener('click', _=>mNavigationMenu.classList.toggle('show'))
         if(mLogoutButton)
             mLogoutButton.addEventListener('click', mLogout, { once: true })
         /* fetch data */
