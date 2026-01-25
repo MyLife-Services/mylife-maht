@@ -75,22 +75,6 @@ const serverRouter = await C4RG_Intelligence.router
 console.log(chalk.bgBlue('created-system-avatar:', chalk.bgRedBright('C4RG_Intelligence'), chalk.bgGreenBright(C4RG_Intelligence.version)))
 /** RESERVED: test harness **/
 /** application startup **/
-render(app, {
-	root: path.join(__dirname, 'views'),
-	layout: 'layout',
-	viewExt: 'html',
-	cache: false,
-	debug: false,
-})
-setInterval(
-	checkForLiveAlerts,
-	JSON.parse(process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL ?? '60000')
-)
-/* upload directory */
-const uploadDir = path.join(__dirname, '.tmp')
-if(!fs.existsSync(uploadDir)){
-	fs.mkdirSync(uploadDir, { recursive: true })
-}
 app.context.SystemAvatar = C4RG_Intelligence
 app.context.Globals = C4RG_Intelligence.globals
 app.context.Globals.rootDirectory = __dirname
@@ -100,30 +84,8 @@ app.keys = [
 	process.env.MYLIFE_SESSION_KEY
 		?? `mylife-session-failsafe|${ C4RG_Intelligence.newGuid }`
 ]
-app.use(async (ctx, next) => {
-    await koaBody({
-      multipart: true,
-      formidable: {
-        keepExtensions: true,
-        maxFileSize: parseInt(process.env.MYLIFE_EMBEDDING_SERVER_FILESIZE_LIMIT_ADMIN) || 10485760,
-        uploadDir: uploadDir,
-        onFileBegin: (name, file) => {
-          const { filepath, mimetype, newFilename, originalFilename, size } = file
-          let extension = path.extname(originalFilename).toLowerCase()
-          if (!extension)
-            extension = mimeTypesToExtensions[mimetype]?.[0]
-          const validFileType = mimeTypesToExtensions[mimetype]?.includes(extension)
-          if (!validFileType)
-            throw new Error('Invalid mime type')
-          const { name: filename } = path.parse(originalFilename)
-          const safeName = filename.replace(/[^a-z0-9.]/gi, '_').replace(/\s/g, '-').toLowerCase() + extension
-          file.newFilename = safeName
-          file.filepath = path.join(uploadDir, safeName)
-        }
-      }
-    })(ctx, next)
-})
-  .use(serve(path.join(__dirname, 'views'))) // Serve everything inside /views as static files
+app
+	.use(serve(path.join(__dirname, 'views'))) // Serve everything inside /views as static files
 	.use(
 		session(	//	session initialization
 			{
@@ -188,8 +150,17 @@ setInterval(async _=>{
       }
     }
 }, sessionCheckInterval)
-/** server functions 
+/** server functions
+setInterval(
+	checkForLiveAlerts,
+	JSON.parse(process.env.MYLIFE_SYSTEM_ALERT_CHECK_INTERVAL ?? '60000')
+)
 function checkForLiveAlerts(){
 	C4RG_Intelligence.alerts()
+}
+// upload directory
+const uploadDir = path.join(__dirname, '.tmp')
+if(!fs.existsSync(uploadDir)){
+	fs.mkdirSync(uploadDir, { recursive: true })
 }
 **/

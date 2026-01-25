@@ -59,7 +59,7 @@ class Dataservices {
 	async init(){
 		this.#Datamanager = new Datamanager(this.#partitionId)
 		await this.#Datamanager.init()	//	init datamanager
-		const _excludeProperties = { '_none':true }	//	populate if exclusions are required
+		const _excludeProperties = { '_none': true, }	//	populate if exclusions are required
 		const core = Object.entries(this.datamanager.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']
@@ -67,11 +67,13 @@ class Dataservices {
 						(_prop[0] in _excludeProperties)
 					||	!(_charExlusions.indexOf(_prop[0].charAt()))
 				)
-				})
+			})
 			.map(_prop=>{	//	map to object
 				return { [_prop[0]]:_prop[1] }
 			})
-		this.#core = Object.assign({},...core)	//	init core
+		if(!core)
+			throw new Error('Dataservices::init()::No core data found for member', this.#partitionId)
+		this.#core = Object.assign({}, ...core)	//	init core
 		return this
 	}
 	//	getters/setters
