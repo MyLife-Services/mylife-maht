@@ -5,6 +5,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <link rel="stylesheet" href="assets/css/main.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+		integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+		crossorigin="anonymous" referrerpolicy="no-referrer">
   </head>
   <body>
     <div id="page-wrapper">
@@ -22,10 +25,22 @@
       </section>
       <section id="main">
         <div class="container">
-          <h3>Contact Us</h3>
-          <p>
-            <a href="mailto:info@citizensforrationalgovernment.org?subject=User%20Contact%20From%20Site&body=Your%20message...">Send us your <u>email</u></a> so we can send you additional information on our activities, or so you can ask us a question.
-          </p>
+          <div id="main-content">
+            <div id="chat-container" class="chat-container">
+              <div id="chat-system" class="chat-section">
+                <!-- Agent and User messages will be added via innerHTML here -->
+              </div>
+              <div id="chat-separator" class="chat-separator"><!-- hide but to display audio action and status -->
+                <div id="audio-popup" class="audio-popup"></div>
+              </div>
+              <div id="chat-input-container" class="chat-input-container">
+                <div id="audio-icon" class="label fas fa-microphone-lines audio-icon"></div>
+                <label for="chat-input-text" class="hide"></label>
+                <textarea id="chat-input-text" class="chat-input-text" title="input"></textarea>
+                <button id="chat-input-submit" class="button chat-submit" type="button" disabled>Submit</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
       <!-- Footer -->
@@ -39,5 +54,6 @@
     <script src="assets/js/util.js"></script>
     <script src="assets/js/main.js"></script>
     <script src="assets/js/footer.js"></script>
+    <script type="module" src="assets/js/visitors.mjs"></script>
   </body>
 </html>

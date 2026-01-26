@@ -128,6 +128,12 @@ app
 	.use(async(ctx,next) => { // alert check
 		await next()
 	})
+	.use(koaBody({	//	body parser
+		json: true,
+		multipart: false,
+		text: true,
+		urlencoded: true,
+	}))
 //	.use(MyLifeMemberRouter.routes())	//	enable member routes
 //	.use(MyLifeMemberRouter.allowedMethods())	//	enable member routes
 	.use(serverRouter.routes())	//	enable system routes

@@ -6,15 +6,16 @@ const mGlobals = new Globals()
 const hide = mGlobals.hide
 const retract = mGlobals.retract
 const show = mGlobals.show
-window.about = about
-window.privacyPolicy = privacyPolicy
 /* variables */
-let mChallengeMemberId,
+let mAvatarIcon='C4-PAC.png',
+    mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultPauseDelay = 5, // in seconds
     mDefaultTypeDelay = 10,
+    mIconDirectory= 'images/icons/',
     mMissionId,
     mPageType = null,
+    mPersonalAvatarIcon='avatar.png',
     mRecognition,
     mRecognizingSpeech = false,
     mSignupType = 'newsletter',
@@ -92,21 +93,17 @@ async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, c
     const messageThumb = document.createElement('img')
     messageThumb.id = `message-thumb-${ mChatBubbleCount }`
     switch(role){
+        case 'agent':
         case 'share':
         case 'system':
         case 'warning':
-            messageThumb.src = 'png/Q.png'
-            messageThumb.alt = `Q, MyLife's Corporate Intelligence`
-            messageThumb.title = `Hi, I'm Q, MyLife's Corporate Synthetic Intelligence. I am designed to help you better understand MyLife's organization, membership, services and vision.`        
-            break
-        case 'agent':
-            messageThumb.src = 'png/Q-alt.png'
-            messageThumb.alt = `Q, MyLife's Corporate Intelligence`
-            messageThumb.title = `Hi, I'm Q, MyLife's Corporate Synthetic Intelligence. I am designed to help you better understand MyLife's organization, membership, services and vision.`        
+            messageThumb.src = mIconDirectory + mAvatarIcon
+            messageThumb.alt = `C4-PAC, Citizens for Rational Government's PAC Intelligence`
+            messageThumb.title = `Hi, I'm C4-PAC, Citizens for Rational Government's Corporate Synthetic Intelligence. I am designed to help you better understand our organization, services and vision.`        
             break
         default:
             messageThumb.classList.add('chat-message-thumb-small')
-            messageThumb.src = 'png/personal-avatar-thumb.png'
+            messageThumb.src = mIconDirectory + mPersonalAvatarIcon
             messageThumb.alt = `Default Individual Avatar`
             messageThumb.title = `I represent the individual speaking or typing.`
             break
@@ -260,12 +257,10 @@ async function mFetchStart(){
  * @returns {void}
  */
 function mInitializeListeners(){
-    const chatSubmit = document.getElementById('chat-input-submit')
-    if(chatSubmit)
-        chatSubmit.addEventListener('click', mAddUserMessage)
-    signupButton.addEventListener('click', mSubmitSignup)
-    signupEmailInputField.addEventListener('input', mUpdateFormState)
-    signupHumanNameInput.addEventListener('input', mUpdateFormState)
+    document.getElementById('chat-input-submit')?.addEventListener('click', mAddUserMessage)
+    signupButton?.addEventListener('click', mSubmitSignup)
+    signupEmailInputField?.addEventListener('input', mUpdateFormState)
+    signupHumanNameInput?.addEventListener('input', mUpdateFormState)
 }
 /**
  * Determines page type and loads data.
@@ -275,6 +270,8 @@ function mInitializeListeners(){
 async function mLoadStart(){
     /* assign page div variables */
     mainContent = mGlobals.mainContent
+    if(!mainContent)
+        throw new Error('mLoadStart: mainContent element not found')
     navigation = mGlobals.navigation
     pageLoader = document.getElementById('page-loader')
     privacyContainer = document.getElementById('privacy-container')
@@ -286,7 +283,8 @@ async function mLoadStart(){
     signupHumanNameInput = document.getElementById('input-name')
     signupSuccess = document.getElementById('signup-success')
     /* load page */
-    signupButton.disabled = true
+    if(signupButton)
+        signupButton.disabled = true
     mChallengeMemberId = new URLSearchParams(window.location.search).get('mbr')
     mMissionId = new URLSearchParams(window.location.search).get('mid')
     mPageType = new URLSearchParams(window.location.search).get('type')
@@ -477,8 +475,10 @@ async function mShareStop(activeShareId){
  */
 function mShowPage(hideChat=false){
     /* DOM elements */
-    signupEmailInputField.tabIndex = 1
-    signupHumanNameInput.tabIndex = 2
+    if(signupEmailInputField)
+        signupEmailInputField.tabIndex = 1
+    if(signupHumanNameInput)
+        signupHumanNameInput.tabIndex = 2
     /* assign listeners */
     mInitializeListeners()
     /* display elements */

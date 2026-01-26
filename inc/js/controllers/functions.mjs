@@ -129,6 +129,7 @@ async function challenge(ctx, memberId, memberPassphrase){
  * @property {Object[]} responses - Response messages from Avatar intelligence
  */
 async function chat(ctx){
+	console.log('chat() called with body:', ctx.request.body)
 	const { botId: bot_id, itemId, message, } = ctx.request.body
 		?? {} /* body nodes sent by fe */
 	if(!message?.length)
