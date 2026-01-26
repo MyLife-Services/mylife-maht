@@ -1505,34 +1505,76 @@ input, select, textarea {
 	}
 
 /* Tables */
-
 	table {
 		width: 100%;
 	}
 
 		table tr {
-			border-top: solid 1px #dddddd;
+			border-top: solid 1px #aaa;
 		}
-
-			table tr:first-child {
-				border-top: 0;
-			}
-
 		table td {
 			padding: 0.5em 1em 0.5em 1em;
 		}
-
 		table th {
 			text-align: left;
 			padding: 0.5em 1em 0.5em 1em;
-			font-weight: 700;
+			font-size: 1.2em;
+			font-weight: 600;
 			margin: 0 0 1em 0;
 		}
-
-		table thead {
-			border-bottom: solid 2px #dddddd;
+		table thead tr {
+			border-bottom: solid 2px #333;
+			border-top: none;
 		}
-
+		table thead tr:first-child {
+			border-bottom: none;
+			margin: 0;
+		}
+		table thead tr:first-child th:first-child {
+			font-size: 1.8em;
+			font-variant:small-caps;
+			font-weight: 700;
+			padding-bottom: 1.0em;
+			text-align: center;
+		}
+		table tbody tr a {
+			color: navy;
+			text-decoration: underline;
+		}
+		table tbody tr a:visited {
+			color: darkolivegreen;
+		}
+		table tbody tr td:first-child {
+			font-weight: 550;
+			font-size: 1.1em;
+		}
+		table tbody tr td:not(:first-child) {
+			font-weight: 400;
+			font-size: 1.0em;
+		}
+		table tbody tr td[colspan]:not([colspan="1"]) {
+			text-align: center;
+		}
+		table .blue {
+			background-color: #d6eaff;
+		}
+		table .green {
+			background-color: #d6ffdf;
+		}
+		table .yellow {
+			background-color: #ffffd6;
+		}
+		table .magenta {
+			background-color: #fad6ff;
+		}
+		table .republican {
+			background-color: #e11414;
+			color: #fff;
+		}
+		table .democrat {
+			background-color: #1144e1;
+			color: #fff;
+		}
 /* Section/Article */
 
 	section, article {
