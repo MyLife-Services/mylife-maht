@@ -57,8 +57,8 @@ function extendClass_conversation(originClass, referencesObject){
         constructor(obj, factory, bot_id, llm_id, thread){
             const {
                 form='system-avatar',
-                id=this.#factory.newGuid,
-                mbr_id=this.#factory.mbr_id,
+                id,
+                mbr_id,
                 type='chat',
                 ..._obj
             } = obj
@@ -68,8 +68,10 @@ function extendClass_conversation(originClass, referencesObject){
             this.#bot_id = bot_id
             this.#form = form
             this.#id = id
+                ?? this.#factory.newGuid
             this.#llm_id = llm_id
             this.#mbr_id = mbr_id
+                ?? this.#factory.mbr_id
             this.name = `conversation_${ this.#mbr_id }`
             this.#type = type
         }
