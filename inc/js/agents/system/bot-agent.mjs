@@ -219,13 +219,13 @@ class Bot {
 		return this
 	}
 	/**
-	 * Sets the thread id for the bot.
+	 * Sets the thread id (external conversation id) for the internal bot data.
 	 * @param {String} thread_id - The thread id
 	 * @returns {Promise<void>}
 	 */
 	async setThread(thread_id){
 		if(!thread_id?.length)
-			thread_id = ( await mThread(this.#llm) ).id
+			thread_id = ( await this.#llm.conversation() ).id
 		const { id, } = this
 		this.thread_id = thread_id
 		const bot = {
@@ -1143,7 +1143,7 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
  * @module
  * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, system, etc.; defaults to `chat`
  * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
- * @param {string} thread_id - The openai thread id
+ * @param {string} conversation_id - The openai conversation id
  * @param {string} llm_id - The id for the llm agent
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object
@@ -1152,16 +1152,17 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
  * @param {String} mbr_id_Override - The member id to use for conversation (optional)
  * @returns {Conversation} - The conversation object
  */
-async function mConversationStart(type='chat', form='system', bot_id, thread_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
+async function mConversationStart(type='chat', form='system', bot_id, conversation_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
 	const metadata = {
 			bot_id,
 			conversation_id: id,
+			llm_id,
 		},
 		processStartTime = Date.now(),
-		thread = await mThread(llm, thread_id, messages, metadata)
+		thread = await llm.conversation(conversation_id, messages, metadata)
 	const Conversation = new (factory.conversation)(
 		{
 			form,
@@ -1174,7 +1175,7 @@ async function mConversationStart(type='chat', form='system', bot_id, thread_id,
 		factory,
 		bot_id,
 		llm_id,
-		thread
+		thread,
 	)
 	return Conversation
 }
@@ -1449,18 +1450,6 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     Bot.setThread(newThread.id) // autosaves `thread_id`, no `await`
 	llm.deleteThread(thread_id)
 	console.log(`chat migrated::from ${ thread_id } to ${ newThread.id }`, botType )
-}
-/**
- * Gets or creates a new thread in LLM provider.
- * @param {LLMServices} llm - The LLMServices instance
- * @param {String} thread_id - The thread id (optional)
- * @param {Messages[]} messages - The array of messages to seed the thread (optional)
- * @param {Object} metadata - The metadata object (optional)
- * @returns {Promise<Object>} - The thread object
- */
-async function mThread(llm, thread_id, messages, metadata){
-	const thread = await llm.thread(thread_id, messages, metadata)
-	return thread
 }
 /* exports */
 export default BotAgent

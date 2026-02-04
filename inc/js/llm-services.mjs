@@ -122,17 +122,19 @@ class LLMServices {
     }
     /**
      * Given member input, get a response from the specified LLM service.
-     * @example - `run` object: { assistant_id, id, model, provider, required_action, status, usage }
-     * @todo - confirm that reason for **factory** is to run functions as responses from LLM; #botAgent if possible, Avatar if not
-     * @todo - cancel run on: 400 Can't add messages to `thread_...` while a run `run_...` is active.
-     * @param {string} thread_id - Thread id
-     * @param {string} llm_id - GPT-Assistant/Bot id
-     * @param {string} prompt - Member input
+     * @param {string} conversation_id - Conversation id (from thread id)
+     * @param {string} prompt_id - Prompt id in OpenAI (from assistant id)
+     * @param {string} prompt - Member input text
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} avatar - Avatar object
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(thread_id, llm_id, prompt, factory, avatar){
+    async getLLMResponse(conversation_id, prompt_id, prompt, factory, avatar){
+        conversation_id ??= ( await mConversation(this.openai, undefined, prompt) ).id
+        console.log('LLMServices::getLLMResponse()::conversation_id', conversation_id)
+        const response = await mResponse(this.openai, conversation_id, prompt_id, prompt)
+        console.log('LLMServices::getLLMResponse()::response', response)
+        /*
         if(!thread_id?.length)
             thread_id = ( await mThread(this.openai) ).id
         try{
@@ -180,6 +182,7 @@ class LLMServices {
             llmMessages = messages.filter(message=>message.role=='assistant' && message.run_id==run_id)
         }
         return llmMessages
+        */
     }
     /**
      * Given member request for help, get response from specified bot assistant.
@@ -204,15 +207,15 @@ class LLMServices {
         return messages
     }
     /**
-     * Create a new OpenAI thread.
-     * @param {string} thread_id - thread id
-     * @param {Message[]} messages - array of messages (optional)
+     * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
+     * @param {string} conversation_id - conversation id
+     * @param {string} message - array of messages (optional)
      * @param {object} metadata - metadata object (optional)
-     * @returns {Promise<Object>} - openai thread object
+     * @returns {Promise<Object>} - openai conversation object
      */
-    async thread(thread_id, messages=[], metadata){
-        const thread = await mThread(this.openai, thread_id, messages, metadata)
-        return thread
+    async conversation(conversation_id, messages=[], metadata){
+        const conversation = await mConversation(this.openai, conversation_id, messages, metadata)
+        return conversation
     }
     /**
      * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
@@ -285,6 +288,31 @@ async function mAssignRequestToThread(openai, threadId, request){
     return messageObject
 }
 /**
+ * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
+ * @param {OpenAI} openai - openai object
+ * @param {string} conversation_id - conversation id
+ * @param {string} messageText - message text (optional)
+ * @param {object} metadata - metadata object (optional)
+ * @returns {object} - openai `conversation` object
+ */
+async function mConversation(openai, conversation_id, messageText, metadata){
+    let conversation
+    if(conversation_id?.length)
+        conversation =  await openai.conversations.retrieve(conversation_id)
+    else {
+        const conversationOptions = { metadata, }
+        if(messageText?.length)
+            conversationOptions.items = [{
+                type: "message",
+                role: "user",
+                content: messageText,
+            }]
+        conversation = await openai.conversations.create(conversationOptions)
+        console.log('mConversation()::new conversation created', conversation)
+    }
+    return conversation
+}
+/**
  * Gets message from OpenAI thread.
  * @module
  * @async
@@ -324,6 +352,26 @@ async function mMessages(openai, threadId){
     const messages = await openai.beta.threads.messages
         .list(threadId)
     return messages
+}
+/**
+ * Creates an OpenAI request with member input. Appends to Conversation in OpenAI.
+ * @param {*} openai - openai object
+ * @param {string} conversation_id - Conversation id (from thread id)
+ * @param {string} prompt_id  - Prompt id in OpenAI (from assistant id)
+ * @param {string} prompt - Member input text
+ * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
+ */
+async function mResponse(openai, conversation_id, prompt_id, prompt){
+    const response = await openai.responses.create({
+        conversation: conversation_id,
+        include: ['web_search_call.action.sources', 'file_search_call.results', 'message.output_text.logprobs'],
+        input: prompt,
+        max_output_tokens: 1024,
+        metadata: {},
+        // model: "gpt-4.1", // only use if overriding prompt default
+        prompt: { id: prompt_id, },
+    })
+    return response
 }
 async function mRunCancel(openai, threadId, runId, deleteThread=false){
     try {
@@ -770,16 +818,16 @@ async function mRunTrigger(openai, llm_id, threadId, factory, avatar){
  * @todo - create case for failure in thread creation/retrieval
  * @module
  * @param {OpenAI} openai - openai object
- * @param {string} thread_id - thread id
+ * @param {string} conversation_id - conversation id (from thread id)
  * @param {Message[]} messages - array of messages (optional)
  * @param {object} metadata - metadata object (optional)
  * @returns {Promise<Object>} - openai thread object
  */
-async function mThread(openai, thread_id, messages=[], metadata){
-    if(thread_id?.length)
-        return await openai.beta.threads.retrieve(thread_id)
+async function mThread(openai, conversation_id, messages=[], metadata){
+    if(conversation_id?.length)
+        return await openai.beta.threads.retrieve(conversation_id)
     else
-        return mThreadCreate(openai, messages, metadata)
+        return await mThreadCreate(openai, messages, metadata)
 }
 /**
  * Create an OpenAI thread.
