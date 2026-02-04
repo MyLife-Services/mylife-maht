@@ -5,17 +5,16 @@ import EventEmitter from 'events'
 import nodemailer from 'nodemailer'
 import util from 'util'
 import vm from 'vm'
-import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
-import { Avatar, Q, } from './mylife-avatar.mjs'
-import Dataservices from './mylife-dataservices.mjs'
+import Globals from './globals.mjs'
+import { Avatar, Q, } from './avatar.mjs'
+import Dataservices from './dataservices.mjs'
 import {
 	extendClass_consent,
     extendClass_conversation,
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
-import LLMServices from './mylife-llm-services.mjs'
-import Menu from './menu.mjs'
+import LLMServices from './llm-services.mjs'
 /* module constants */
 const {
 	MAHT_EMAIL,
@@ -48,7 +47,6 @@ const mMailer = nodemailer.createTransport({
         pass: MAHT_EMAIL_PASSWORD,   // App-specific password or OAuth token
     }
 })
-const mNewGuid = ()=>Guid.newGuid().toString()
 const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
 const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
@@ -133,7 +131,6 @@ const mAlerts = {
 const mSchemas = {
 	...await mLoadSchemas(),
 	dataservices: Dataservices,
-	menu: Menu,
 }
 /* module construction functions */
 mConfigureSchemaPrototypes()
@@ -542,7 +539,7 @@ class BotFactory extends EventEmitter{
 			?? this.mbr_name
 	}
 	get newGuid(){
-		return mNewGuid()
+		return Globals.newGuid
 	}
 }
 class AgentFactory extends BotFactory {
@@ -1166,9 +1163,9 @@ function assignClassPropertyValues(propertyDefinition){
 					switch (propertyDefinition?.format) {
 						case 'date':
 						case 'date-time':
-							return `'${new Date().toDateString()}'`
+							return `'${ new Date().toDateString() }'`
 						case 'uuid':
-							return `'${Guid.newGuid().toString()}'`
+							return `'${ Globals.newGuid }'`
 						case 'email':
 						case 'uri':
 						default:

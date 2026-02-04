@@ -1298,6 +1298,7 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
 async function mInit(BotAgent, bots, Avatar, factory, llm){
 	const { vectorstoreId, } = BotAgent
 	bots.push(...await mInitBots(vectorstoreId, Avatar, factory, llm))
+	console.log(`BotAgent initialized with ${ bots.length } bots for Avatar: ${ Avatar.nickname } (${ Avatar.id })`)
 	BotAgent.setActiveBot(undefined, false)
 }
 /**

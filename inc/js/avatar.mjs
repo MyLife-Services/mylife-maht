@@ -10,10 +10,10 @@ import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
 import ConnectorAgent from './agents/system/connector-agent.mjs'
-import { Entry, Memory, } from './mylife-models.mjs'
+import { Entry, Memory, } from './models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
-import LLMServices from './mylife-llm-services.mjs'
+import LLMServices from './llm-services.mjs'
 import { mcpClientAllowsDirectory, mcpClientAllowsRequest, mcpClientRequest, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const __dirpath = fileURLToPath(import.meta.url)
@@ -250,7 +250,7 @@ class Avatar extends EventEmitter {
 	 */
 	async availableExperiences(){
 		const experiences = ( await this.#factory.availableExperiences(this.mbr_id) )
-			.map(experience=>{ // map to display versions [from `mylife-avatar.mjs`]
+			.map(experience=>{ // map to display versions [from `avatar.mjs`]
 				const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
 				return {
 					description,
@@ -1736,7 +1736,6 @@ class Q extends Avatar {
             version: '1.0',
         },
     } /* **Note**: `tools` array is managed as decoration in `get mcp()` */
-    #Menu
     #Router
     /**
      * @constructor
@@ -2315,15 +2314,9 @@ class Q extends Avatar {
         mcp.tools = mcp.tools.filter(tool=>tool.mylife_auth_required===false)
         return mcp
     }
-	get menu(){
-		if(!this.#Menu){
-			this.#Menu = new (this.schemas.menu)(this).menu
-		}
-		return this.#Menu
-	}
     get router(){
         if(!this.#Router)
-            this.#Router = initRouter(new (this.schemas.menu)(this))
+            this.#Router = initRouter()
         return this.#Router
     }
 	get schemas(){

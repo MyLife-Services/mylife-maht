@@ -256,10 +256,9 @@ _Router.use('/nanda', _nandaRouter.routes(), _nandaRouter.allowedMethods())
 /* modular functions */
 /**
  * Connects the routes to the router
- * @param {object} _Menu Menu object
  * @returns {object} Koa router object
  */
-function connectRoutes(_Menu){
+function connectRoutes(){
 	return _Router
 }
 /**
@@ -370,7 +369,6 @@ async function mcpProtocolValidation(ctx, next){
         ctx.state.avatar = ctx.session.avatar
         ctx.state.locked = ctx.session.locked
             ?? true
-        ctx.state.menu = ctx.state.avatar?.menu
         if(ctx.request.method==='GET'){
             const { transportEntry, } = sessionMeta
             await transportEntry.handleRequest(ctx.req, ctx.res)
@@ -440,7 +438,7 @@ async function routeSubdomain(ctx, next){
     return await router(ctx, next)
 }
 /* exports */
-export default function init(_Menu) {
-	connectRoutes(_Menu)
+export default function init() {
+	connectRoutes()
 	return _Router
 }
