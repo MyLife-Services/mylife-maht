@@ -395,13 +395,13 @@ class BotFactory extends EventEmitter{
 	 * Proxy for modular mHelp() function.
 	 * @public
      * @param {string} thread_id - The thread id.
-     * @param {string} bot_id - The bot id.
+     * @param {string} botId - The bot id.
      * @param {string} helpRequest - The help request string.
 	 * @param {Avatar} avatar - The avatar instance.
 	 * @returns {Promise<Object>} - openai `message` objects.
 	 */
-	async help(thread_id, bot_id, helpRequest, avatar){
-		return await mHelp(thread_id, bot_id, helpRequest, this, avatar)
+	async help(thread_id, botId, helpRequest, avatar){
+		return await mHelp(thread_id, botId, helpRequest, this, avatar)
 	}
     /**
      * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
@@ -1338,14 +1338,14 @@ function mGenerateClassFromSchema(_schema) {
  * Take help request about MyLife and consults appropriate engine for response.
  * @requires mLLMServices - equivalent of default MyLife dataservices/factory
  * @param {string} thread_id - The thread id.
- * @param {string} bot_id - The bot id.
+ * @param {string} botId - The bot id.
  * @param {string} helpRequest - The help request string.
  * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation.
  * @param {Avatar} avatar - The avatar instance.
  * @returns {Promise<Object>} - openai `message` objects.
  */
-async function mHelp(thread_id, bot_id, helpRequest, factory, avatar){
-	const response = await mLLMServices.help(thread_id, bot_id, helpRequest, factory, avatar)
+async function mHelp(thread_id, botId, helpRequest, factory, avatar){
+	const response = await mLLMServices.help(thread_id, botId, helpRequest, factory, avatar)
 	return response
 }
 /**

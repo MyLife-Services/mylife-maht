@@ -263,12 +263,12 @@ class Avatar extends EventEmitter {
 	}
 	/**
 	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
-	 * @param {Guid} bot_id - The Bot id (optional, defaults to avatar)
+	 * @param {Guid} botId - The Bot id (optional, defaults to avatar)
 	 * @param {String} botType - The Bot type (optional, defaults to avatar)
 	 * @returns {Promise<Bot>} - The Bot instance
 	 */
-    bot(bot_id, botType){
-        const Bot = this.#botAgent.bot(bot_id, botType)
+    bot(botId, botType){
+        const Bot = this.#botAgent.bot(botId, botType)
         return Bot
     }
     /**
@@ -483,14 +483,14 @@ class Avatar extends EventEmitter {
         if(!this.#livingMemory)
             return
         const { Conversation, id, item, } = this.#livingMemory
-        const { bot_id, } = Conversation
+        const { bot_id: botId, } = Conversation
         if(mAllowSave)
             await Conversation.save()
         const instruction = {
             command: `endMemory`,
             itemId: item.id,
         }
-        const responses = [mCreateSystemMessage(bot_id, `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
+        const responses = [mCreateSystemMessage(botId, `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
         const response = {
             instruction,
             responses,
@@ -582,11 +582,11 @@ class Avatar extends EventEmitter {
     }
     /**
      * Specified by id, returns the pruned Bot.
-     * @param {Guid} id - The Bot id
+     * @param {Guid} botId - The Bot id
      * @returns {object} - The pruned Bot object
      */
-    getBot(bot_id){
-        const bot = this.#botAgent.bot(bot_id)?.bot
+    getBot(botId){
+        const bot = this.#botAgent.bot(botId)?.bot
         return bot
     }
     /**
@@ -601,13 +601,13 @@ class Avatar extends EventEmitter {
     /**
      * Gets Conversation object. If no thread id, creates new conversation.
      * @param {string} thread_id - openai thread id (optional)
-     * @param {Guid} bot_id - The bot id (optional)
+     * @param {Guid} botId - The bot id (optional)
      * @returns {Conversation} - The conversation object.
      */
-    getConversation(thread_id, bot_id){
+    getConversation(thread_id, botId){
         const conversation = this.conversations
-            .filter(c=>(thread_id?.length && c.thread_id===thread_id) || (bot_id?.length && c.bot_id===bot_id))
-            ?.[0]
+            .filter(c=>(thread_id?.length && c.thread_id===thread_id) || (botId?.length && c.botId===botId))
+                ?.[0]
         return conversation
     }
     /**
@@ -682,11 +682,11 @@ class Avatar extends EventEmitter {
         // @stub - force-type into enum?
         helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
         const { thread_id, } = this.activeBot
-        const { bot_id, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
+        const { botId, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
             ?? this.helpBots?.[0]
             ?? this.activeBot
         const conversation = this.getConversation(thread_id)
-        const helpResponseArray = await this.factory.help(thread_id, bot_id, helpRequest)
+        const helpResponseArray = await this.factory.help(thread_id, botId, helpRequest)
         conversation.addMessages(helpResponseArray)
         if(mAllowSave)
             conversation.save()
@@ -843,11 +843,11 @@ class Avatar extends EventEmitter {
     }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
-     * @param {Guid} bot_id - The bot id
+     * @param {Guid} botId - The bot id
      * @returns {Promise<Bot>} - The migrated Bot instance
      */
-    async migrateBot(bot_id){
-        const migration = await this.#botAgent.migrateBot(bot_id)
+    async migrateBot(botId){
+        const migration = await this.#botAgent.migrateBot(botId)
         return migration
     }
     /**
@@ -855,8 +855,8 @@ class Avatar extends EventEmitter {
      * @param {string} thread_id - Conversation thread id in OpenAI
      * @returns {Conversation} - The migrated conversation object
      */
-    async migrateChat(bot_id){
-        const success = await this.#botAgent.migrateChat(bot_id)
+    async migrateChat(botId){
+        const success = await this.#botAgent.migrateChat(botId)
         const response = {
             responses: [success
                 ? {
@@ -987,17 +987,17 @@ class Avatar extends EventEmitter {
     }
     /**
      * Member request to retire a bot.
-     * @param {Guid} bot_id - The id of Bot to retire
+     * @param {Guid} botId - The id of Bot to retire
      * @returns {object} - The Response object: { instruction, responses, success, }
      */
-    async retireBot(bot_id){
-        const success = await this.#botAgent.botDelete(bot_id)
+    async retireBot(botId){
+        const success = await this.#botAgent.botDelete(botId)
         const response = {
             instruction: {
                 command: success
                     ? 'removeBot'
                     : 'error',
-                id: bot_id,
+                id: botId,
             },
             responses: [success
                 ? {
@@ -1019,11 +1019,11 @@ class Avatar extends EventEmitter {
     }
     /**
      * Currently only proxy for `migrateChat`.f
-     * @param {string} bot_id - Bot id with Conversation to retire
+     * @param {string} botId - Bot id with Conversation to retire
      * @returns {object} - The response object { instruction, responses, success, }
      */
-    async retireChat(bot_id){
-        const success = await this.#botAgent.migrateChat(bot_id)
+    async retireChat(botId){
+        const success = await this.#botAgent.migrateChat(botId)
         /* respond request */
         const response = success
             ? { /* @todo - add frontend instructions to remove migrateChat button */
@@ -1098,12 +1098,12 @@ class Avatar extends EventEmitter {
     }
     /**
      * Activate a specific Bot.
-     * @param {Guid} bot_id - The bot id
-     * @returns {object} - Activated Response object: { bot_id, greeting, success, version, versionUpdate, }
+     * @param {Guid} botId - The bot id
+     * @returns {object} - Activated Response object: { botId, greeting, success, version, versionUpdate, }
      */
-    async setActiveBot(bot_id){
+    async setActiveBot(botId){
         const dynamic = false
-        const response = await this.#botAgent.setActiveBot(bot_id, dynamic)
+        const response = await this.#botAgent.setActiveBot(botId, dynamic)
         return response
     }
     /**
@@ -1239,8 +1239,8 @@ class Avatar extends EventEmitter {
      * @param {boolean} migrateThread - Whether to migrate the thread to the new bot, defaults to `true`
      * @returns {object} - The updated bot object
      */
-    async updateBotInstructions(bot_id=this.activeBot.id){
-        const Bot = await this.#botAgent.updateBotInstructions(bot_id)
+    async updateBotInstructions(botId=this.activeBot.id){
+        const Bot = await this.#botAgent.updateBotInstructions(botId)
         return Bot.bot
     }
     /**
@@ -2375,19 +2375,16 @@ async function mCast(factory, cast){
             case 'actor': // system actor
             case 'system':
                 actor.bot = await factory.actorGeneric
-                actor.bot_id = actor.bot.id
                 break
             case 'mylife': // Q
             case 'q':
                 actor.bot = await factory.actorQ
-                actor.bot_id = actor.bot.id
                 break
             case 'bot': // identified member-specific bot
             case 'member':
             case 'member-bot':
             default:
                 actor.bot = await factory.bot() // should be new-member safe, but check
-                actor.bot_id = actor.bot.id
                 break
         }
         return actor
@@ -2396,12 +2393,12 @@ async function mCast(factory, cast){
 }
 /**
  * Creates frontend system message from message String/Object.
- * @param {Guid} bot_id - The bot id
+ * @param {Guid} botId - The bot id
  * @param {String|Message} message - The message to be pruned
  * @param {messageClassDefinition} messageClassDefinition - The message class definition
  * @returns 
  */
-function mCreateSystemMessage(bot_id, message, messageClassDefinition){
+function mCreateSystemMessage(botId, message, messageClassDefinition){
     if(!(message instanceof messageClassDefinition)){
         const content = message?.content
             ?? message?.message
@@ -2413,7 +2410,7 @@ function mCreateSystemMessage(bot_id, message, messageClassDefinition){
             type: 'system'
         })
     }
-    message = mPruneMessage(bot_id, message, 'system')
+    message = mPruneMessage(botId, message, 'system')
     return message
 }
 /**
@@ -2851,8 +2848,8 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
             isError: true,
         }
     else {
-        const { bot_id, responses, success, } = await avatar.setActiveBot(id, false)
-        if(!success || bot_id!==id)
+        const { id: botId, responses, success, } = await avatar.setActiveBot(id, false)
+        if(!success || botId!==id)
             result = {
                 content: [{
                     text: `Failed to switch bot to ${ type }`,
@@ -3027,15 +3024,15 @@ function mPruneMessage(activeBotId, message, type='chat', processStartTime=Date.
 }
 /**
  * Prune an array of Messages and return.
- * @param {Guid} bot_id - The Active Bot id property
+ * @param {Guid} botId - The Active Bot id property
  * @param {Object[]} messageArray - The array of messages to prune
  * @param {string} type - The type of message, defaults to chat
  * @param {number} processStartTime - The time the process started, defaults to function call
  * @returns {Object[]} - Concatenated message object
  */
-function mPruneMessages(bot_id, messageArray, type='chat', processStartTime=Date.now()){
+function mPruneMessages(botId, messageArray, type='chat', processStartTime=Date.now()){
     messageArray = messageArray
-        .map(message=>mPruneMessage(bot_id, message, type, processStartTime))
+        .map(message=>mPruneMessage(botId, message, type, processStartTime))
     return messageArray
 }
 /**
@@ -3056,7 +3053,7 @@ async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
     let response
     if(!Avatar.actionCallback?.length){
         const { Conversation, item: livingMemoryItem, } = Avatar.livingMemory
-        const { bot_id, type, } = Conversation
+        const { bot_id: botId, type, } = Conversation
         const endpoint = `/members/memory/end/${ livingMemoryItem.id }`
         const defaultInstruction = {
             command: 'createInput',
@@ -3074,7 +3071,7 @@ async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
             ? Avatar.frontendInstruction
             : defaultInstruction
         const responses = Conversation.getMessages()
-            .map(message=>mPruneMessage(bot_id, message, type))
+            .map(message=>mPruneMessage(botId, message, type))
         response = {
             instruction,
             item: mPruneItem(item),
@@ -3144,12 +3141,12 @@ function mRoutine(script, Avatar, BotAgent){
 /**
  * Validate provided registration id.
  * @private
- * @param {object} bot_id - The active bot object.
+ * @param {object} botId - The active bot object.
  * @param {AgentFactory} factory - AgentFactory object.
  * @param {Guid} validationId - The registration id.
  * @returns {Promise<Object>} - The validation result: { registrationData, responses, success, }.
  */
-async function mValidateRegistration(bot_id, factory, validationId){
+async function mValidateRegistration(botId, factory, validationId){
     /* validate request */
     if(!factory.globals.isValidGuid(validationId))
         throw new Error('FAILURE::validateRegistration()::Invalid validation id.')
@@ -3170,7 +3167,7 @@ async function mValidateRegistration(bot_id, factory, validationId){
             && factory.globals.isValidEmail(registrationEmail)
         if(eligible){
             const successMessage = `Hello and _thank you_ for your registration, ${ humanName }!\nI'm Q, the ai-representative for MyLife, and I'm excited to help you get started, so let's do the following:\n\n1. Verify your email address\n2. set up your account\n3. get you started with your first MyLife experience!\n\nLet me walk you through the process.\n\nIn the chat below, please enter the email you registered with and hit the **submit** button!`
-            message = mCreateSystemMessage(bot_id, successMessage, factory.message)
+            message = mCreateSystemMessage(botId, successMessage, factory.message)
             registrationData.avatarName = avatarName
                 ?? humanName
                 ?? 'My AI-Agent'
@@ -3179,7 +3176,7 @@ async function mValidateRegistration(bot_id, factory, validationId){
         }
     }
     message = message
-        ?? mCreateSystemMessage(bot_id, failureMessage, factory.message)
+        ?? mCreateSystemMessage(botId, failureMessage, factory.message)
     responses.push(message)
     return {
         registrationData,

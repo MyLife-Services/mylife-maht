@@ -39,8 +39,6 @@ function extendClass_conversation(originClass, referencesObject){
         #llm_id
         #mbr_id
         #messages = []
-        #run_id
-        #runs = new Set()
         #saved = false
         #thread
         #threads = new Set()
@@ -49,12 +47,12 @@ function extendClass_conversation(originClass, referencesObject){
          * Constructor for Conversation class.
          * @param {Object} obj - Data object for construction
          * @param {AgentFactory} factory - The factory instance
-         * @param {Guid} bot_id - The initial active bot MyLife `id`
+         * @param {Guid} botId - The initial active bot MyLife `id`
          * @param {String} llm_id - The initial active LLM `id`
          * @param {Object} thread - The related thread instance
          * @returns {Conversation} - The constructed conversation instance
          */
-        constructor(obj, factory, bot_id, llm_id, thread){
+        constructor(obj, factory, botId, llm_id, thread){
             const {
                 form='system-avatar',
                 id,
@@ -65,7 +63,7 @@ function extendClass_conversation(originClass, referencesObject){
             super(_obj)
             this.#factory = factory
             this.#thread = thread
-            this.#bot_id = bot_id
+            this.#bot_id = botId
             this.#form = form
             this.#id = id
                 ?? this.#factory.newGuid
@@ -105,17 +103,6 @@ function extendClass_conversation(originClass, referencesObject){
             return this.messages
         }
         /**
-         * Adds a run/execution/receipt id to the conversation archive.
-         * @param {String} run_id - The run id to add
-         * @returns {void}
-         */
-        addRun(run_id){
-            if(run_id?.length){
-                this.#runs.add(run_id)
-                this.#run_id = run_id
-            }
-        }
-        /**
          * Adds a thread id to the conversation archive
          * @param {string} thread_id - The thread id to add
          * @returns {void}
@@ -139,14 +126,13 @@ function extendClass_conversation(originClass, referencesObject){
          * Get the messages for the conversation.
          * @public
          * @param {boolean} agentOnly - Whether or not to get only agent messages
-         * @param {string} run_id - The run id to get messages for
          * @param {string} thread_id - The thread id to get messages for (optional)
          * @returns {Message[]} - The messages array
          */
-        getMessages(agentOnly=true, run_id=this.run_id, thread_id){
+        getMessages(agentOnly=true, thread_id){
             let messages = thread_id?.length
                 ? this.#messages.filter(message=>message.thread_id===thread_id)
-                : this.#messages.filter(message=>message.run_id===run_id)
+                : this.#messages
             if(agentOnly)
                 messages = messages.filter(message => ['member', 'user'].indexOf(message.role) < 0)
             return messages
@@ -180,24 +166,19 @@ function extendClass_conversation(originClass, referencesObject){
             this.#saved = await mSaveConversation(this, this.#factory)
         }
         //  public getters/setters
-        /**
-         * Get the id {Guid} of the conversation's active bot.
-         * @getter
-         * @returns {Guid} - The bot id.
-         */
         get bot_id(){
             return this.#bot_id
         }
-        /**
-         * Set the id {Guid} of the conversation's active bot.
-         * @setter
-         * @param {Guid} bot_id - The bot id.
-         * @returns {void}
-         */
-        set bot_id(bot_id){
-            if(!this.#factory.globals.isValidGuid(bot_id))
-                throw new Error(`Invalid bot_id: ${ bot_id }`)
-            this.#bot_id = bot_id
+        set bot_id(botId){
+            if(!this.#factory.globals.isValidGuid(botId))
+                throw new Error(`Invalid bot id: ${ botId }`)
+            this.#bot_id = botId
+        }
+        get botId(){
+            return this.bot_id
+        }
+        set botId(botId){
+            this.bot_id = botId
         }
         get form(){
             return this.#form
@@ -246,9 +227,6 @@ function extendClass_conversation(originClass, referencesObject){
          */
         get mostRecentDialog(){
             return this.message.content
-        }
-        get run_id(){
-            return this.#run_id
         }
         get thread(){
             return this.#thread

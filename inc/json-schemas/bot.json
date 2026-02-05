@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/bot.json",
-	"required": ["allowedBeings", "allowMultiple", "being", "bot_id", "id", "instructions",  "mbr_id", "model", "provider", "purpose", "type"],
+	"required": ["allowedBeings", "allowMultiple", "being", "id", "instructions", "llm_id", "mbr_id", "model", "provider", "purpose", "type"],
 	"type": "object",
 	"name": "Bot",
 	"properties": {
@@ -25,11 +25,6 @@
 			"description": "root constructor for bot in MyLife",
 			"type": "string"
 		},
-        "bot_id": {
-            "description": "gpt-assistant id",
-            "type": "string",
-            "$comment": "bot_id comes from openai specification specifically, @todo: move into provider-schema"
-        },
         "greeting": {
             "description": "greeting for bot",
             "type": "string",
@@ -46,6 +41,10 @@
             "maxLength": 2048,
             "type": "string",
             "$comment": "Essentially, have a prepackaged instruction set for bot type with direct specifics for individual; if we do not have version of instructions in db for `being` then we ask for it from an LLM and tag for human review"
+        },
+        "llm_id": {
+            "description": "external assistant id",
+            "type": "string"
         },
 		"mbr_id": {
 			"description": "root member id: [sysName|id]",

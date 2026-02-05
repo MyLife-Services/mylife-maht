@@ -139,14 +139,14 @@ class Bot {
 		return this
 	}
 	/**
-	 * Retrieves the Conversation instance for this bot, creating a new one if .
-	 * @param {String} message - The member request (optional)
+	 * Retrieves the Conversation instance for this bot, creating a new one if not extant.
+	 * @param {string} message - The member request (optional)
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
 	async getConversation(message){
 		if(!this.#conversation){
-			const { bot_id: _llm_id, id, type, } = this
-			let { llm_id=_llm_id, thread_id, } = this // @stub - deprecate bot_id
+			const { id, llm_id, type, } = this
+			let { thread_id, } = this
 			this.#conversation = await mConversationStart('chat', type, id, thread_id, llm_id, this.#llm, this.#factory, message)
 			if(!thread_id?.length){
 				thread_id = this.#conversation.thread_id
@@ -160,7 +160,7 @@ class Bot {
 	}
 	/**
 	 * Retrieves a greeting message from the active bot.
-	 * @param {Boolean} dynamic - Whether to use dynamic greetings (`true`) or static (`false`)
+	 * @param {boolean} dynamic - Whether to use dynamic greetings (`true`) or static (`false`)
 	 * @param {string} greetingPrompt - The prompt for the dynamic greeting
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
@@ -381,14 +381,14 @@ class BotAgent {
 	/* public functions */
 	/**
 	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
-	 * @param {Guid} bot_id - The Bot id
+	 * @param {Guid} botId - The Bot id
 	 * @param {String} botType - The Bot type
 	 * @returns {Promise<Bot>} - The Bot instance
 	 */
-	bot(bot_id, botType){
+	bot(botId, botType){
 		const Bot = botType?.length
 			? this.#bots.find(bot=>[botType, `personal-${ botType }`].includes(bot.type))
-			: this.#bots.find(bot=>bot.id===bot_id)
+			: this.#bots.find(bot=>bot.id===botId)
 			?? this.avatar
 		return Bot
 	}
@@ -406,13 +406,13 @@ class BotAgent {
 	/**
 	 * Deletes a bot instance.
 	 * @async
-	 * @param {Guid} bot_id - The Bot id
+	 * @param {Guid} botId - The Bot id
 	 * @returns {Promise<Boolean>} - Whether or not operation was successful
 	 */
-	async botDelete(bot_id){
+	async botDelete(botId){
 		if(this.#factory.isMyLife)
 			return false
-		const success = await mBotDelete(bot_id, this, this.#llm, this.#factory)
+		const success = await mBotDelete(botId, this, this.#llm, this.#factory)
 		return success
 	}
 	/**
@@ -508,15 +508,14 @@ class BotAgent {
 		const livingMemory = Avatar.livingMemory
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
-			const { bot_id: _llm_id, id: bot_id, type, } = biographer
-			const { llm_id=_llm_id, } = biographer
+			const { id: botId, llm_id, type, } = biographer
 			const messages = []
 			messages.push({
 				content: `## MEMORY SUMMARY Reference for id: ${ item.id }\n### FOR REFERENCE ONLY\n${ item.summary }\n`,
 				role: 'user',
 			})
 			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, MEMORY SUMMARY starts this conversation`
-			const Conversation = await mConversationStart('memory', type, bot_id, undefined, llm_id, this.#llm, this.#factory, memberInput, messages)
+			const Conversation = await mConversationStart('memory', type, botId, undefined, llm_id, this.#llm, this.#factory, memberInput, messages)
 			Conversation.action = 'living'
 			livingMemory.Conversation = Conversation
 			livingMemory.id = this.#factory.newGuid
@@ -531,22 +530,22 @@ class BotAgent {
 	}
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
-     * @param {Guid} bot_id - The bot id
+     * @param {Guid} botId - The bot id
      * @returns {Promise<Bot>} - The migrated Bot instance
      */
-    async migrateBot(bot_id){
+    async migrateBot(botId){
 		throw new Error('migrateBot() not yet implemented')
     }
     /**
      * Migrates a chat conversation from an old thread to a newly created (or identified) destination thread.
-     * @param {Guid} bot_id - Bot id whose Conversation is to be migrated
+     * @param {Guid} botId - Bot id whose Conversation is to be migrated
      * @returns {Boolean} - Whether or not operation was successful
      */
-    async migrateChat(bot_id){
+    async migrateChat(botId){
 		/* validate request */
 		if(this.#factory.isMyLife)
 			throw new Error('Chats with Q cannot be migrated.')
-		const Bot = this.bot(bot_id)
+		const Bot = this.bot(botId)
 		if(!Bot)
 			return false
         /* execute request */
@@ -557,31 +556,31 @@ class BotAgent {
 	/**
 	 * Sets the active bot for the BotAgent.
 	 * @async
-	 * @param {Guid} bot_id - The Bot id
+	 * @param {Guid} botId - The Bot id
 	 * @param {Boolean} dynamic - Whether to use dynamic greetings, defaults to `false`
-     * @returns {object} - Activated Response object: { bot_id, greeting, success, version, versionUpdate, }
+     * @returns {object} - Activated Response object: { botId, greeting, success, version, versionUpdate, }
 	 */
-	async setActiveBot(bot_id=this.avatar?.id, dynamic=false){
+	async setActiveBot(botId=this.avatar?.id, dynamic=false){
 		let success=false,
 			version=0.0,
 			versionUpdate=0.0
-		const Bot = this.#bots.find(bot=>bot.id===bot_id)
+		const Bot = this.#bots.find(bot=>bot.id===botId)
 		success = !!Bot
 		if(!success)
 			return
 		this.#activeBot = Bot
 		dynamic = dynamic && !this.#factory.isMyLife
 		if(this.#factory.isMyLife)
-			bot_id = null
+			botId = null
 		else {
 			const { id, type, version: versionCurrent, } = Bot
-			bot_id = id
+			botId = id
 			version = versionCurrent
 			versionUpdate = this.#factory.botInstructionsVersion(type)
 		}
 		const { responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
 		return {
-			bot_id,
+			id: botId,
 			responses,
 			routine,
 			success,
@@ -640,18 +639,17 @@ class BotAgent {
 	}
 	/**
 	 * Updates bot instructions and migrates thread by default.
-	 * @param {Guid} bot_id - The bot id
+	 * @param {Guid} botId - The bot id
 	 * @param {Boolean} migrateThread - Whether to migrate the thread, defaults to `true`
 	 * @returns {Bot} - The updated Bot instance
 	 */
-	async updateBotInstructions(bot_id, migrateThread=true){
-		const Bot = this.bot(bot_id)
+	async updateBotInstructions(botId, migrateThread=true){
+		const Bot = this.bot(botId)
 		const { type, version=1.0, } = Bot
         /* check version */
         const newestVersion = this.#factory.botInstructionsVersion(type)
         if(newestVersion!=version){
-			const { bot_id: _llm_id, id, } = Bot
-			const { llm_id=_llm_id, } = Bot
+			const { id, llm_id, } = Bot
             const _bot = { id, llm_id, type, }
             const botOptions = {
                 instructions: true,
@@ -855,16 +853,15 @@ async function mBotCreateLLM(botData, llm){
 }
 /**
  * Deletes the bot requested from avatar memory and from all long-term storage.
- * @param {Guid} bot_id - The bot id to delete
+ * @param {Guid} botId - The bot id to delete
  * @param {BotAgent} BotAgent - BotAgent instance
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - The Factory instance
  * @returns {Promise<Boolean>} - Whether or not operation was successful
  */
-async function mBotDelete(bot_id, BotAgent, llm, factory){
-	const Bot = BotAgent.bot(bot_id)
-	const { bot_id: _llm_id, id, type, thread_id, } = Bot
-	const { llm_id=_llm_id, } = Bot
+async function mBotDelete(botId, BotAgent, llm, factory){
+	const Bot = BotAgent.bot(botId)
+	const { id, llm_id, thread_id, type, } = Bot
     const cannotRetire = ['actor', 'system', 'personal-avatar']
     if(cannotRetire.includes(type))
         return false
@@ -1023,9 +1020,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 	/* validate request */
 	if(!Bot)
 		throw new Error('Bot instance required to update bot')
-	const { bot_id, id, llm_id, metadata={}, type, vectorstoreId: bot_vectorstore_id, } = Bot
-	const _llm_id = llm_id
-		?? bot_id // @stub - deprecate bot_id
+	const { id, llm_id, metadata={}, type, vectorstoreId: bot_vectorstore_id, } = Bot
 	const {
 		instructions: discardInstructions,
 		mbr_id, // no modifications allowed
@@ -1059,10 +1054,10 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 	allowedBotData.id = id
 	allowedBotData.type = type
 	/* execute request */
-	if(_llm_id?.length && (allowedBotData.instructions || allowedBotData.bot_name?.length || allowedBotData.tools)){
+	if(llm_id?.length && (allowedBotData.instructions || allowedBotData.bot_name?.length || allowedBotData.tools)){
 		allowedBotData.model = factory.globals.currentOpenAIBotModel // not dynamic
-		allowedBotData.llm_id = _llm_id
-		await llm.updateBot(allowedBotData)			
+		allowedBotData.llm_id = llm_id
+		await llm.updateBot(allowedBotData)
 	}
 	await factory.updateBot(allowedBotData)
 	return allowedBotData
@@ -1072,7 +1067,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
  * @todo - create actor-bot for internal chat? Concern is that API-assistants are only a storage vehicle, ergo not an embedded fine tune as I thought (i.e., there still may be room for new fine-tuning exercise); i.e., micro-instructionsets need to be developed for most. Unclear if direct thread/message instructions override or ADD, could check documentation or gpt, but...
  * @todo - would dynamic event dialog be handled more effectively with a callback routine function, I think so, and would still allow for avatar to vet, etc.
  * @module
- * @param {Conversation} Conversation - Conversation instance
+ * @param {Conversation} Conversation - MyLife Conversation instance
  * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object required for function execution
@@ -1084,56 +1079,22 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
 	if(!llm_id?.length)
 		throw new Error('No `llm_id` intelligence id found in Conversation for `mCallLLM`.')
     if(!thread_id?.length)
-        throw new Error('No `thread_id` found in Conversation for `mCallLLM`.')
+        throw new Error('No Conversation found for `mCallLLM`.')
 	if(!prompt?.length)
 		throw new Error('No `prompt` found in Conversation for `mCallLLM`.')
-    const botResponses = await llm.getLLMResponse(thread_id, llm_id, prompt, factory, avatar)
-	if(!botResponses?.length)
+    const responses = await llm.getLLMResponse(thread_id, llm_id, prompt, factory, avatar)
+	if(!responses?.length)
 		return
-	const { run_id, } = botResponses[0]
-	if(botResponses[0]?.cancelResponse===true){
-		botResponses.splice(1, botResponses.length-1) // remove any additional botResponses when canceled
-		const { function: callbackFunction } = botResponses[0]
-		// can sort by functions here
-		switch(callbackFunction){
-			case 'updateSummary':
-				botResponses[0] = {
-					content: `I was able to update our summary based on your feedback`,
-					created_at: processStartTime,
-					role: 'assistant',
-					run_id,
-					thread_id,
-				}
-				break
-			case 'changeTitle':
-				const { title, } = botResponses[0]
-				botResponses[0] = {
-					content: `I was able to change the title of this entry to "${ title }"`,
-					created_at: processStartTime,
-					role: 'assistant',
-					run_id,
-					thread_id,
-				}
-				break
-			default:
-				break
-		}			
-	}
-	Conversation.addRun(run_id)
-	if(!Conversation.run_id?.length)
-		throw new Error('No `run_id` found in botResponses for `mCallLLM`.')
-    botResponses
-		.filter(botResponse=>botResponse?.run_id===Conversation.run_id)
+    responses
 		.sort((mA, mB)=>(mB.created_at-mA.created_at))
 	Conversation.addMessage({
 		content: prompt,
 		created_at: processStartTime,
 		originalPrompt,
 		role: 'member',
-		run_id,
 		thread_id,
 	})
-	Conversation.addMessages(botResponses)
+	Conversation.addMessages(responses)
 	if(allowSave)
 		Conversation.save() // no `await`
 }
@@ -1143,7 +1104,8 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
  * @module
  * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, system, etc.; defaults to `chat`
  * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
- * @param {string} conversation_id - The openai conversation id
+ * @param {string} botId - The bot id
+ * @param {string} thread_id - The openai thread id
  * @param {string} llm_id - The id for the llm agent
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object
@@ -1152,12 +1114,12 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
  * @param {String} mbr_id_Override - The member id to use for conversation (optional)
  * @returns {Conversation} - The conversation object
  */
-async function mConversationStart(type='chat', form='system', bot_id, conversation_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
+async function mConversationStart(type='chat', form='system', botId, conversation_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
 	const metadata = {
-			bot_id,
+			bot_id: botId,
 			conversation_id: id,
 			llm_id,
 		},
@@ -1173,7 +1135,7 @@ async function mConversationStart(type='chat', form='system', bot_id, conversati
 			type,
 		},
 		factory,
-		bot_id,
+		botId,
 		llm_id,
 		thread,
 	)
@@ -1347,7 +1309,7 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm){
  */
 async function mMigrateChat(Bot, llm, saveConversation=false){
     /* constants and variables */
-	const { conversation, id: bot_id, thread_id, type: botType, } = Bot
+	const { conversation, id: botId, thread_id, type: botType, } = Bot
 	if(!thread_id?.length)
 		return false
     let messages = await llm.messages(thread_id) // @todo - limit to 25 messages or modify request
@@ -1396,7 +1358,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
         .join(',')
         .slice(0, 512) // limit for metadata string
     const metadata = {
-        bot_id: bot_id,
+        bot_id: botId,
     }
     /* prune messages source material */
     messages = messages
