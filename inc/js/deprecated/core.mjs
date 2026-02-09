@@ -163,7 +163,6 @@ class Member extends EventEmitter {
 	}
 }
 class Organization extends Member {	//	form=organization
-	#Menu
 	#Router
 	constructor(Factory){
 		super(Factory)
@@ -191,12 +190,6 @@ class Organization extends Member {	//	form=organization
 	get membership(){
 		return this.core.membership
 	}
-	get menu(){
-		if(!this.#Menu){
-			this.#Menu = new (this.schemas.menu)(this).menu
-		}
-		return this.#Menu
-	}
 	get mission(){
 		return this.core.mission
 	}
@@ -213,9 +206,8 @@ class Organization extends Member {	//	form=organization
 		return this.core.roadmap
 	}
 	get router(){
-		if(!this.#Router){
-			this.#Router = initRouter(new (this.schemas.menu)(this))
-		}
+		if(!this.#Router)
+			this.#Router = initRouter()
 		return this.#Router
 	}
 	get security(){
@@ -255,7 +247,7 @@ class MyLife extends Organization {	// form=server
 	 */
 	async availableExperiences(){
 		const experiences = ( await this.#factory.availableExperiences() )
-			.map(experience=>{ // map to display versions [from `mylife-avatar.mjs`]
+			.map(experience=>{ // map to display versions [from `avatar.mjs`]
 				const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
 				return {
 					description,
