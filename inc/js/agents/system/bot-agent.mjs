@@ -436,17 +436,17 @@ class BotAgent {
 	 * @param {String} prompt - The prompt for the conversation (optional)
 	 * @param {Guid} scriptAdvisorLlmId - The script advisor llm id (optional)
 	 * @param {String} mbr_id - The member id to use for conversation (optional)
+	 * @param {Boolean} useActive - Whether to use the active bot or the avatar bot, defaults to `true`
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id){
-		let { id, llm_id, } = this.avatar
+	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id, useActive=true){
+		const bot = useActive && !!this.activeBot ? this.activeBot : this.avatar
+		let { id, llm_id, } = bot
 		if(type==='experience'){
 			id = this.#factory.actor.id
 			llm_id = this.#factory.actor.llm_id
-		} else if(type==='script'){
-			// use  member avatar?
+		} else if(type==='script')
 			llm_id = scriptAdvisorLlmId
-		}
     	const Conversation = await mConversationStart(type, form, id, undefined, llm_id, this.#llm, this.#factory, prompt, undefined, mbr_id)
 		return Conversation
 	}
@@ -570,7 +570,7 @@ class BotAgent {
 			return
 		this.#activeBot = Bot
 		dynamic = dynamic && !this.#factory.isMyLife
-		if(this.#factory.isMyLife)
+		if(this.#factory.isMyLife && botId===this.avatar?.id)
 			botId = null
 		else {
 			const { id, type, version: versionCurrent, } = Bot

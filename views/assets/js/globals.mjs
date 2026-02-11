@@ -109,8 +109,8 @@ class Datamanager {
         const responses = await this.#fetch(url)
         return responses
     }
-    async botActivate(botId){
-        const url = `/members/bots/activate/${ botId }`
+    async botActivate(botId, system=false){
+        const url = `${ !system ? '/members' : '' }/bots/activate/${ botId }`
         const options = {
             method: 'POST',
             headers: {
@@ -693,7 +693,7 @@ class Globals {
         if(!mLoaded){
             /* constants */
             mAvatarName = this.getAvatar()?.name
-                ?? 'C4-PAC'
+                ?? 'Majoritarian Candidate'
             mPlaceholder = `Type your message to ${ mAvatarName }...`
             /* elements */
             mChatAudioIcon = document.getElementById('audio-icon')

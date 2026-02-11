@@ -2080,14 +2080,6 @@ class Q extends Avatar {
         return updatedSummary
     }
     /* overload rejections */
-    /**
-     * OVERLOADED: Q refuses to execute.
-     * @public
-     * @throws {Error} - MyLife avatar cannot upload files.
-     */
-    async setActiveBot(){
-        throw new Error('MyLife System Avatars cannot be externally set')
-    }
     summarize(){
         throw new Error('MyLife System Avatar cannot summarize files')
     }

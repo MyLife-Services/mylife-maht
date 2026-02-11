@@ -181,7 +181,7 @@ class LLMServices {
                     llmMessages.append(mMessageConvert(this.provider, output_text))
                 else
                     llmMessages.append(mMessageConvert(this.provider, 'No LLM response was parseable; please try your request again.'))
-                console.log('LLMServices::getLLMResponse()::success', output, output_text, usage)
+                console.log(`LLMServices::getLLMResponse()::success::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
                 break
             case 'in_progress':
             case 'queued':
