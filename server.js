@@ -1,6 +1,6 @@
 /** conditional imports */
 if(process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING?.trim()
-	&& process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING !== 'disabled')
+	&& process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING.trim() !== 'disabled')
 	await importMSAI(process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING.trim())
 /** imports **/
 import fs from 'fs'
