@@ -17,7 +17,7 @@ async function mSaveConversation(Conversation, factory){
         thread,
         type,
     } = Conversation
-    let { messages, } = Conversation
+    let messages = Conversation.getMessages(false, true)
     messages = messages
         .map(_msg=>_msg.micro)
     if(!isSaved){

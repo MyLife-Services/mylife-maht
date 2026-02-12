@@ -300,8 +300,7 @@ class Avatar extends EventEmitter {
                     + summary
         }
         const Conversation = await this.activeBot.chat(message, originalMessage, mAllowSave, this)
-        // no active run_id in Conversation, so make sure to include it
-        responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, Conversation.run_id) ?? [], 'chat', Conversation.processStartTime)
+        responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true) ?? [], 'chat', Conversation.processStartTime)
         const { actionCallback, frontendInstruction, } = this
         if(!responses.length)
             responses.push(this.backupResponse)
@@ -363,27 +362,6 @@ class Avatar extends EventEmitter {
         delete this.actionCallback
         delete this.backupResponse
         delete this.frontendInstruction
-        return response
-    }
-    /**
-     * Chat with an open agent, bypassing specific or active bot.
-     * @param {Conversation} Conversation - The conversation instance
-     * @returns {Promise<Object>} - Response object: { instruction, responses, success, }
-     * @note - Conversation instance is altered in place
-     */
-    async chatAgentBypass(Conversation){
-        if(!this.isMyLife)
-            throw new Error('Agent bypass only available for MyLife avatar.')
-		await this.#botAgent.chat(Conversation, mAllowSave, this)
-        const responses = mPruneMessages(this.activeBotId, Conversation.getMessages(), 'chat', Conversation?.processStartTime)
-        /* respond request */
-        const response = {
-            instruction: this.frontendInstruction,
-            responses,
-            success: true,
-        }
-        delete this.frontendInstruction
-        delete this.backupResponse
         return response
     }
     /**
@@ -1349,6 +1327,14 @@ class Avatar extends EventEmitter {
             ?? this.core.birth?.[0]?.place
     }
     /**
+     * Get the bot agent if avatar is MyLife, member bot-agents are securitized
+     * @getter
+     * @returns {BotAgent|null} - The bot agent if avatar is MyLife, otherwise null
+     */
+    get botAgent(){
+        return this.isMyLife ? this.#botAgent : null
+    }
+    /**
      * Returns Member Avatar's Bot instances.
      * @getter
      * @returns {Bot[]} - Array of Bot instances
@@ -1776,7 +1762,16 @@ class Q extends Avatar {
         if(this.isCreatingAccount)
             message = `CREATE ACCOUNT PHASE: ${ message }`
 		Conversation.prompt = message
-        const response = await this.chatAgentBypass(Conversation)
+		await this.botAgent.chat(Conversation, mAllowSave, this) // call bot-agent, **not** bot explicitly when system avatar
+        const responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true), 'chat', Conversation?.processStartTime)
+        /* respond request */
+        const response = {
+            instruction: this.frontendInstruction,
+            responses,
+            success: true,
+        }
+        delete this.frontendInstruction
+        delete this.backupResponse
         return response
     }
     /**
@@ -2653,7 +2648,7 @@ async function mcp_chat(mcpdata, sessionMeta, ctx, factory, avatar){
     const Conversation = await avatar.chat(message, message, true, avatar.avatar)
     const content = Conversation?.responses?.length
         ? Conversation.responses.map(response=>({ text: response.message, type: 'text', }))
-        : Conversation.getMessages().map(message=>({ text: message.content, type: 'text', }))
+        : Conversation.getMessages(null, true).map(message=>({ text: message.content, type: 'text', }))
     const result = {
         content,
         isError: false,

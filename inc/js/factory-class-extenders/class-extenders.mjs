@@ -32,8 +32,10 @@ function extendClass_consent(originClass, referencesObject) {
  */
 function extendClass_conversation(originClass, referencesObject){
     class Conversation extends originClass {
+        #activeExchangeId
         #bot_id
         #factory
+        #exchanges = new Set()   //  utilized for tracking exchanges related to conversation
         #form
         #id
         #llm_id
@@ -55,7 +57,6 @@ function extendClass_conversation(originClass, referencesObject){
         constructor(obj, factory, botId, llm_id, thread){
             const {
                 form='system-avatar',
-                id,
                 mbr_id,
                 type='chat',
                 ..._obj
@@ -65,8 +66,7 @@ function extendClass_conversation(originClass, referencesObject){
             this.#thread = thread
             this.#bot_id = botId
             this.#form = form
-            this.#id = id
-                ?? this.#factory.newGuid
+            this.#id = this.#factory.newGuid
             this.#llm_id = llm_id
             this.#mbr_id = mbr_id
                 ?? this.#factory.mbr_id
@@ -86,8 +86,10 @@ function extendClass_conversation(originClass, referencesObject){
                 return this.messages
             if(!(message instanceof this.#factory.message)){
                 if(typeof message!=='object')
-                    message = { content: message }
+                    message = { content: message, }
                 message = new (this.#factory.message)(message)
+                if(this.exchangeId?.length)
+                    message.exchangeId = this.exchangeId
             }
             this.#messages = [message, ...this.messages]
             return this.messages
@@ -103,12 +105,21 @@ function extendClass_conversation(originClass, referencesObject){
             return this.messages
         }
         /**
-         * Adds a thread id to the conversation archive
-         * @param {string} thread_id - The thread id to add
+         * Adds a conversation id to the conversation archive
+         * @param {string} conversation_id - The conversation id to add to thread
          * @returns {void}
          */
-        addThread(thread_id){
-            this.#threads.add(thread_id)
+        addThread(conversation_id){
+            this.#threads.add(conversation_id)
+        }
+        /**
+         * Starts an exchange within the conversation by exchange id, or defaults to new guid
+         * @param {string} exchangeId - The exchange id (uuid) to start, or defaults to new guid if not provided
+         * @returns {void}
+         */
+        exchangeStart(exchangeId = this.#factory.newGuid){
+            this.#activeExchangeId = exchangeId
+            this.#exchanges.add(exchangeId)
         }
         /**
          * Get the message by id, or defaults to last message added.
@@ -126,24 +137,36 @@ function extendClass_conversation(originClass, referencesObject){
          * Get the messages for the conversation.
          * @public
          * @param {boolean} agentOnly - Whether or not to get only agent messages
-         * @param {string} thread_id - The thread id to get messages for (optional)
+         * @param {boolean} currentExchangeOnly - Whether or not to get only messages from the current exchange; defaults to `false` will return all exchanges
+         * @param {string} conversation_id - The conversation id to get messages for (optional)
+         * @param {string} exchangeId - The exchange id to get messages for (optional)
+         * @param {boolean} chronological - Whether or not to return messages in chronological order, defaults to `true`, oldest first
          * @returns {Message[]} - The messages array
          */
-        getMessages(agentOnly=true, thread_id){
-            let messages = thread_id?.length
-                ? this.#messages.filter(message=>message.thread_id===thread_id)
-                : this.#messages
+        getMessages(agentOnly=true, currentExchangeOnly=false, conversation_id, exchangeId, chronological=true){
+            let messages = this.messages
             if(agentOnly)
-                messages = messages.filter(message => ['member', 'user'].indexOf(message.role) < 0)
+                messages = messages.filter(message=>['member', 'user'].indexOf(message.role) < 0)
+            if(currentExchangeOnly)
+                if(this.#activeExchangeId?.length)
+                    messages = messages.filter(message=>message.exchangeId===this.exchangeId)
+                else if(this.#exchanges.size)
+                    messages = messages.filter(message=>message.exchangeId===[...this.#exchanges][this.#exchanges.size-1]) // get last <uuid> in set
+            if(conversation_id?.length)
+                messages = messages.filter(message=>message.thread_id===conversation_id)
+            if(exchangeId?.length)
+                messages = messages.filter(message=>message.exchangeId===exchangeId)
+            if(chronological)
+                messages = messages.sort((a, b) => a.created_at - b.created_at)
             return messages
         }
         /**
          * Removes a thread id from the conversation archive
-         * @param {string} thread_id - The thread id to remove
+         * @param {string} conversation_id - The conversation id to remove
          * @returns {void}
          */
-        removeThread(thread_id){
-            this.#threads.delete(thread_id)
+        removeThread(conversation_id){
+            this.#threads.delete(conversation_id)
         }
         /**
          * Sets the thread instance for the conversation.
@@ -179,6 +202,9 @@ function extendClass_conversation(originClass, referencesObject){
         }
         set botId(botId){
             this.bot_id = botId
+        }
+        get exchangeId(){
+            return this.#activeExchangeId
         }
         get form(){
             return this.#form
@@ -289,6 +315,7 @@ function extendClass_message(originClass, referencesObject) {
         #content
         constructor(obj){
             const { content, ..._obj } = obj
+            _obj.created_at = _obj.created_at ?? Date.now()
             super(_obj)
             try{
                 this.#content = assignContent(content ?? obj)

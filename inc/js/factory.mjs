@@ -539,7 +539,7 @@ class BotFactory extends EventEmitter{
 			?? this.mbr_name
 	}
 	get newGuid(){
-		return Globals.newGuid
+		return this.globals.newGuid
 	}
 }
 class AgentFactory extends BotFactory {

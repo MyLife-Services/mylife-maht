@@ -80,8 +80,10 @@ class Bot {
 		const Conversation = await this.getConversation()
 		Conversation.prompt = message
 		Conversation.originalPrompt = originalMessage
+		Conversation.exchangeStart(this.globals.newGuid)
 		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar) // mutates Conversation
-		this.accessed = true
+		if(!this.accessed)
+			this.accessed = true
 		return Conversation
 	}
     /**
@@ -416,7 +418,7 @@ class BotAgent {
 		return success
 	}
 	/**
-	 * Chat with the active bot.
+	 * Chat with the active bot, mutating Conversation instance with the exchange.
 	 * @param {Conversation} Conversation - The Conversation instance
 	 * @param {Boolean} allowSave - Whether to save the conversation, defaults to `true`
 	 * @param {Q/Avatar} Avatar - The Avatar instance
@@ -426,7 +428,8 @@ class BotAgent {
 		if(!Conversation)
 			throw new Error('Conversation instance required')
 		Conversation.processStartTime
-		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, Avatar) // mutates Conversation
+		Conversation.exchangeStart(this.globals.newGuid)
+		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, Avatar)
 		return Conversation
 	}
 	/**
@@ -1090,6 +1093,8 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
 	Conversation.addMessage({
 		content: prompt,
 		created_at: processStartTime,
+		exchangeId: Conversation.exchangeId,
+		id: factory.newGuid,
 		originalPrompt,
 		role: 'member',
 		thread_id,

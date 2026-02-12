@@ -7,7 +7,7 @@ const hide = mGlobals.hide
 const retract = mGlobals.retract
 const show = mGlobals.show
 /* variables */
-let mAvatarIcon='C4-PAC.png',
+let mAvatarIcon='majoritarian.png',
     mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultPauseDelay = 5, // in seconds
@@ -16,7 +16,7 @@ let mAvatarIcon='C4-PAC.png',
     mInitialBotId='fb95a3de-bf22-4c62-857b-e6243870b18e',
     mMissionId,
     mPageType = null,
-    mPersonalAvatarIcon='avatar.png',
+    mPersonalAvatarIcon='visitor.png',
     mRecognition,
     mRecognizingSpeech = false,
     mSignupType = 'newsletter',
@@ -99,14 +99,14 @@ async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, c
         case 'system':
         case 'warning':
             messageThumb.src = mIconDirectory + mAvatarIcon
-            messageThumb.alt = `C4-PAC, Citizens for Rational Government's PAC Intelligence`
-            messageThumb.title = `Hi, I'm C4-PAC, Citizens for Rational Government's Corporate Synthetic Intelligence. I am designed to help you better understand our organization, services and vision.`        
+            messageThumb.alt = `The Majoritarian Candidate, Citizens for Rational Government's Intelligence designbed to represent the political stances and opinions of the majority of Americans.`
+            messageThumb.title = `Hello, I'm the Majoritarian Candidate, an AI entity designed to represent the political stances and opinions of the majority of Americans.`       
             break
         default:
             messageThumb.classList.add('chat-message-thumb-small')
             messageThumb.src = mIconDirectory + mPersonalAvatarIcon
             messageThumb.alt = `Default Individual Avatar`
-            messageThumb.title = `I represent the individual speaking or typing.`
+            messageThumb.title = `I represent the individual visitor speaking or typing.`
             break
     }
     chatMessage.appendChild(messageThumb)
