@@ -170,7 +170,7 @@ function extendClass_conversation(originClass, referencesObject){
         }
         /**
          * Sets the thread instance for the conversation.
-         * @param {object} thread - The thread instance
+         * @param {object} thread - The thread instance (now `conversation` in OpenAI)
          * @returns {void}
          */
         setThread(thread){

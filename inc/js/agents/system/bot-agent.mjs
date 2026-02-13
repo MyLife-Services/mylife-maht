@@ -222,7 +222,7 @@ class Bot {
 	}
 	/**
 	 * Sets the thread id (external conversation id) for the internal bot data.
-	 * @param {String} thread_id - The thread id
+	 * @param {String} thread_id - The thread id (now `conversation` in OpenAI)
 	 * @returns {Promise<void>}
 	 */
 	async setThread(thread_id){
@@ -1317,7 +1317,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
 	const { conversation, id: botId, thread_id, type: botType, } = Bot
 	if(!thread_id?.length)
 		return false
-    let messages = await llm.messages(thread_id) // @todo - limit to 25 messages or modify request
+    let messages = await llm.messages(thread_id)
     if(!messages?.length)
         return false
     let chatLimit=15,
@@ -1369,7 +1369,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     messages = messages
         .slice(0, chatLimit)
         .map(message=>{
-            const { content: contentArray, id, metadata, role, } = message
+            const { content: contentArray, id, metadata, role, status, } = message
             const content = contentArray
                 .filter(_content=>_content.type==='text')
                 .map(_content=>_content.text?.value)
@@ -1408,15 +1408,15 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
         })
     if(!summaryMessages.length)
         return
-	const newThread = await mThread(llm, undefined, summaryMessages, metadata) // add message(s) to new thread
+	const newConversation = await llm.conversation(undefined, summaryMessages, metadata) // add message(s) to new thread
 	if(!!conversation){
-	    conversation.setThread(newThread)
+	    conversation.setThread(newConversation)
 		if(saveConversation)
 			conversation.save() // no `await`
 	}
-    Bot.setThread(newThread.id) // autosaves `thread_id`, no `await`
+    Bot.setThread(newConversation.id) // autosaves `thread_id`, no `await`
 	llm.deleteThread(thread_id)
-	console.log(`chat migrated::from ${ thread_id } to ${ newThread.id }`, botType )
+	console.log(`chat migrated::from ${ thread_id } to ${ newConversation.id }`, botType )
 }
 /* exports */
 export default BotAgent
