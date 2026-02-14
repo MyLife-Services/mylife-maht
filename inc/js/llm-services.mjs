@@ -178,9 +178,9 @@ class LLMServices {
                     }
                     llmMessages = messages.map(message => mMessageConvert(this.provider, message))
                 } else if(typeof output==='string' && output.length)
-                    llmMessages.append(mMessageConvert(this.provider, output_text))
+                    llmMessages.push(mMessageConvert(this.provider, output_text))
                 else
-                    llmMessages.append(mMessageConvert(this.provider, 'No LLM response was parseable; please try your request again.'))
+                    llmMessages.push(mMessageConvert(this.provider, 'No LLM response was parseable; please try your request again.'))
                 console.log(`LLMServices::getLLMResponse()::success::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
                 break
             case 'in_progress':
