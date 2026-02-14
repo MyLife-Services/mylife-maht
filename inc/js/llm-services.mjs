@@ -237,7 +237,7 @@ class LLMServices {
      * @returns {Promise<Object>} - openai assistant object.
      */
     async updateBot(botData){
-        let { bot_id, llm_id, ...assistantData } = botData
+        let { bot_id, llm_id, ...assistantData } = botData // strip and ignore bot_id
         if(!llm_id?.length)
             throw new Error('No bot ID provided for update')
         botData = mValidateAssistantData(assistantData)
