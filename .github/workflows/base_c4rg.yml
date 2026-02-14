@@ -19,21 +19,31 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js version
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '24.x'
+          cache: 'npm'
 
       - name: npm install, build, and test
         run: |
-          npm install
+          npm ci
           npm run build --if-present
           npm run test --if-present
+
+      - name: Create deployment zip (exclude deps)
+        run: |
+          zip -r app.zip . \
+            -x "node_modules/**" \
+               "**/node_modules/**" \
+               "node_modules.tar.gz" \
+               ".git/**" \
+               ".github/**"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: app.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -47,6 +57,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
+          path: .
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -61,5 +72,4 @@ jobs:
         with:
           app-name: 'c4rg'
           slot-name: 'Production'
-          package: .
-          
+          package: app.zip
