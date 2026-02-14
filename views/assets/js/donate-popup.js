@@ -21,7 +21,7 @@
       const w = window.open(url, "zeffyDonate", features);
 
       // Fallback if popup blocked
-      if (!w) window.open(url, "_blank", "noopener,noreferrer");
+      if (!w) window.open(url, "_blank", "noopener");
     });
   }
 
