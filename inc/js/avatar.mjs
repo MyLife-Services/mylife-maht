@@ -660,7 +660,7 @@ class Avatar extends EventEmitter {
         // @stub - force-type into enum?
         helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
         const { thread_id, } = this.activeBot
-        const { botId, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
+        const { id: botId, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
             ?? this.helpBots?.[0]
             ?? this.activeBot
         const conversation = this.getConversation(thread_id)
