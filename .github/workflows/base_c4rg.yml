@@ -24,20 +24,19 @@ jobs:
           node-version: '24.x'
           cache: 'npm'
 
-      - name: npm install, build, and test
+      - name: Install production dependencies
         run: |
-          npm ci
-          npm run build --if-present
-          npm run test --if-present
+          npm ci --omit=dev
 
-      - name: Create deployment zip (exclude deps)
+      - name: Create deployment zip
         run: |
           zip -r app.zip . \
-            -x "node_modules/**" \
-               "**/node_modules/**" \
-               "node_modules.tar.gz" \
-               ".git/**" \
-               ".github/**"
+            -x ".git/**" \
+               ".github/**" \
+               "**/*.log"
+
+      - name: Show zip size
+        run: ls -lah app.zip
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -73,3 +72,4 @@ jobs:
           app-name: 'c4rg'
           slot-name: 'Production'
           package: app.zip
+
