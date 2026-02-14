@@ -66,7 +66,7 @@ function extendClass_conversation(originClass, referencesObject){
             this.#thread = thread
             this.#bot_id = botId
             this.#form = form
-            this.#id = this.#factory.newGuid
+            this.#id = obj?.id ?? this.#factory.newGuid
             this.#llm_id = llm_id
             this.#mbr_id = mbr_id
                 ?? this.#factory.mbr_id

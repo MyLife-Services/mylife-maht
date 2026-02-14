@@ -706,7 +706,7 @@ async function mRunFunctions(openai, run, factory, avatar){
                         run.id,
                         { tool_outputs: toolCallsOutput },
                     )
-            return finalOutput /. undefined indicates to ping again
+            return finalOutput // undefined indicates to ping again
         }
     } catch(error){
         if(error.status!==400)

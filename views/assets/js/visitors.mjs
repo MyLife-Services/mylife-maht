@@ -99,7 +99,7 @@ async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, c
         case 'system':
         case 'warning':
             messageThumb.src = mIconDirectory + mAvatarIcon
-            messageThumb.alt = `The Majoritarian Candidate, Citizens for Rational Government's Intelligence designbed to represent the political stances and opinions of the majority of Americans.`
+            messageThumb.alt = `The Majoritarian Candidate, Citizens for Rational Government's Intelligence designed to represent the political stances and opinions of the majority of Americans.`
             messageThumb.title = `Hello, I'm the Majoritarian Candidate, an AI entity designed to represent the political stances and opinions of the majority of Americans.`       
             break
         default:
