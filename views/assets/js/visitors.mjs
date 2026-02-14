@@ -7,15 +7,16 @@ const hide = mGlobals.hide
 const retract = mGlobals.retract
 const show = mGlobals.show
 /* variables */
-let mAvatarIcon='C4-PAC.png',
+let mAvatarIcon='majoritarian.png',
     mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultPauseDelay = 5, // in seconds
     mDefaultTypeDelay = 10,
     mIconDirectory= 'images/icons/',
+    mInitialBotId='fb95a3de-bf22-4c62-857b-e6243870b18e',
     mMissionId,
     mPageType = null,
-    mPersonalAvatarIcon='avatar.png',
+    mPersonalAvatarIcon='visitor.png',
     mRecognition,
     mRecognizingSpeech = false,
     mSignupType = 'newsletter',
@@ -43,7 +44,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     let activeShare=false,
         activeShareId=new URLSearchParams(window.location.search).get('sid'),
         hideChat=false
-    let { input, messages, } = await mLoadStart()
+    let { input, messages, } = await mLoadStart(mInitialBotId)
     /* display page */
     if(mGlobals.isGuid(activeShareId)){
         activeShareId = await mGlobals.datamanager.validateShare(activeShareId) // set with instanceId as opposed to share document id
@@ -98,14 +99,14 @@ async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, c
         case 'system':
         case 'warning':
             messageThumb.src = mIconDirectory + mAvatarIcon
-            messageThumb.alt = `C4-PAC, Citizens for Rational Government's PAC Intelligence`
-            messageThumb.title = `Hi, I'm C4-PAC, Citizens for Rational Government's Corporate Synthetic Intelligence. I am designed to help you better understand our organization, services and vision.`        
+            messageThumb.alt = `The Majoritarian Candidate, Citizens for Rational Government's Intelligence designed to represent the political stances and opinions of the majority of Americans.`
+            messageThumb.title = `Hello, I'm the Majoritarian Candidate, an AI entity designed to represent the political stances and opinions of the majority of Americans.`       
             break
         default:
             messageThumb.classList.add('chat-message-thumb-small')
             messageThumb.src = mIconDirectory + mPersonalAvatarIcon
             messageThumb.alt = `Default Individual Avatar`
-            messageThumb.title = `I represent the individual speaking or typing.`
+            messageThumb.title = `I represent the individual visitor speaking or typing.`
             break
     }
     chatMessage.appendChild(messageThumb)
@@ -215,9 +216,10 @@ function mCreateChallengeElement(){
  * @private
  * @requires mGlobals
  * @requires mPageType
+ * @param {string} activeBotId - The active bot id (uuid) to fetch the start routine for (optional)
  * @returns {Object} - Fetch response object: { input, messages, }
  */
-async function mFetchStart(){
+async function mFetchStart(activeBotId){
     const isSignedUp = await mGlobals.datamanager.signupStatus()
     if(mGlobals.isGuid(mMissionId)){
         const missions = await mGlobals.datamanager.availableMissions()
@@ -243,7 +245,10 @@ async function mFetchStart(){
                 messages.push(`I'm sorry, I can't find the member you're looking for...`)
             break
         default:
-            messages.push(...await mGlobals.datamanager.greetings())
+            messages.push(...activeBotId?.length
+                ? ( await mGlobals.datamanager.botActivate(activeBotId, true) )?.responses
+                : await mGlobals.datamanager.greetings()
+            )
             break
     }
     return {
@@ -265,9 +270,11 @@ function mInitializeListeners(){
 /**
  * Determines page type and loads data.
  * @private
+ * @requires mGlobals
+ * @param {string} activeBotId - The active bot id (uuid) to fetch the start routine for (optional)
  * @returns {Message[]} - The response Message array.
  */
-async function mLoadStart(){
+async function mLoadStart(activeBotId){
     /* assign page div variables */
     mainContent = mGlobals.mainContent
     if(!mainContent)
@@ -289,7 +296,7 @@ async function mLoadStart(){
     mMissionId = new URLSearchParams(window.location.search).get('mid')
     mPageType = new URLSearchParams(window.location.search).get('type')
         ?? window.location.pathname.split('/').pop()
-    const startObject = await mFetchStart()
+    const startObject = await mFetchStart(activeBotId)
     return startObject
 }
 /**
@@ -531,7 +538,7 @@ async function mSubmitInput(event, message){
     event.stopPropagation()
 	event.preventDefault()
     hide(mGlobals.MemberChat)
-    const awaitButton = mGlobals.await('Connecting with MyLife...')
+    const awaitButton = mGlobals.await('Connecting with Citizens for Rational Government...')
     mGlobals.addChatElement(awaitButton)
     console.log('mSubmitInput', message, awaitButton)
     const chatData = {

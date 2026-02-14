@@ -32,6 +32,9 @@ class Actor {
         return this.#bot?.id
             ?? this.id
     }
+    get botId(){
+        return this.bot_id
+    }
 }
 /**
  * @class CastMember

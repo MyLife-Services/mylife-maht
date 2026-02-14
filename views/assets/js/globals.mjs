@@ -1,7 +1,7 @@
 /* module constants */
 const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
 const mAudioRecording = `<div><b>I am listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
-const mDefaultHelpPlaceholderText = 'Help me, C4-PAC, I\'m confused!'
+const mDefaultHelpPlaceholderText = 'Help me, I\'m confused!'
 const mHelpInitiatorContent = {
     experiences: `I'll do my best to assist with an "experiences" request. Please type in your question or issue below and click "Send" to get started.`,
     interface: `I'll do my best to assist with an "interface" request. Please type in your question or issue below and click "Send" to get started.`,
@@ -109,8 +109,8 @@ class Datamanager {
         const responses = await this.#fetch(url)
         return responses
     }
-    async botActivate(botId){
-        const url = `/members/bots/activate/${ botId }`
+    async botActivate(botId, system=false){
+        const url = `${ !system ? '/members' : '' }/bots/activate/${ botId }`
         const options = {
             method: 'POST',
             headers: {
@@ -693,7 +693,7 @@ class Globals {
         if(!mLoaded){
             /* constants */
             mAvatarName = this.getAvatar()?.name
-                ?? 'C4-PAC'
+                ?? 'Majoritarian Candidate'
             mPlaceholder = `Type your message to ${ mAvatarName }...`
             /* elements */
             mChatAudioIcon = document.getElementById('audio-icon')
