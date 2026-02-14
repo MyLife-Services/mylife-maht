@@ -1,9 +1,3 @@
-/** conditional imports */
-// Support both standard Azure name and custom name for Application Insights
-const aiConnectionString = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING 
-	|| process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING
-if(aiConnectionString?.trim() && aiConnectionString.trim() !== 'disabled')
-	await importMSAI(aiConnectionString.trim())
 /** imports **/
 import fs from 'fs'
 import path from 'path'
@@ -162,33 +156,6 @@ setInterval(async _=>{
       }
     }
 }, sessionCheckInterval)
-/** server functions **/
-/**
- * Imports and initializes Microsoft Application Insights for telemetry and monitoring.
- * @param {string} connectionString - application insights connection string from Azure
- * @returns {Promise<void>} - A promise that resolves when Application Insights is set up and started.
- */
-async function importMSAI(connectionString){
-	try{
-		const ai = await import('applicationinsights')
-		ai.default
-			.setup(connectionString)
-			.setAutoCollectRequests(true)
-			.setAutoCollectPerformance(true, true)
-			.setAutoCollectExceptions(true)
-			.setAutoCollectDependencies(true)
-			.setAutoCollectConsole(true, true)
-			.setUseDiskRetryCaching(true)
-			.setSendLiveMetrics(false)
-			.start()
-		console.log('✅ Application Insights initialized successfully')
-		console.log('   Connection String:', connectionString.substring(0, 50) + '...')
-	} catch(e){
-		console.error(`❌ Failed to initialize Application Insights. Telemetry will be disabled.`)
-		console.error('   Error:', e.message)
-		console.error('   Stack:', e.stack)
-	}
-}
 /** DEPRECATIONS
 setInterval(
 	checkForLiveAlerts,

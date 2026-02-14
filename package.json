@@ -5,9 +5,9 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "start-dev": "dotenv -e .env server.js",
-    "dev": "dotenv -e .env nodemon server.js"
+    "start": "node bootstrap.js",
+    "start-dev": "dotenv -e .env node bootstrap.js",
+    "dev": "dotenv -e .env nodemon bootstrap.js"
   },
   "nodemonConfig": {
     "ignore": [
@@ -22,6 +22,7 @@
       "inc/json-schemas/in-progress/*"
     ],
     "watch": [
+      "bootstrap.js",
       "server.js",
       "inc/js/*",
       "inc/json-schemas/*"
