@@ -1,7 +1,9 @@
 /** conditional imports */
-if(process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING?.trim()
-	&& process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING.trim() !== 'disabled')
-	await importMSAI(process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING.trim())
+// Support both standard Azure name and custom name for Application Insights
+const aiConnectionString = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING 
+	|| process.env.MS_APPLICATIONINSIGHTS_CONNECTION_STRING
+if(aiConnectionString?.trim() && aiConnectionString.trim() !== 'disabled')
+	await importMSAI(aiConnectionString.trim())
 /** imports **/
 import fs from 'fs'
 import path from 'path'
@@ -171,10 +173,20 @@ async function importMSAI(connectionString){
 		const ai = await import('applicationinsights')
 		ai.default
 			.setup(connectionString)
+			.setAutoCollectRequests(true)
+			.setAutoCollectPerformance(true, true)
+			.setAutoCollectExceptions(true)
+			.setAutoCollectDependencies(true)
+			.setAutoCollectConsole(true, true)
+			.setUseDiskRetryCaching(true)
+			.setSendLiveMetrics(false)
 			.start()
-		console.log('✅ Application Insights initialized successfully', connectionString)
+		console.log('✅ Application Insights initialized successfully')
+		console.log('   Connection String:', connectionString.substring(0, 50) + '...')
 	} catch(e){
-		console.warn(`Failed to initialize Application Insights. Telemetry will be disabled.`, e)
+		console.error(`❌ Failed to initialize Application Insights. Telemetry will be disabled.`)
+		console.error('   Error:', e.message)
+		console.error('   Stack:', e.stack)
 	}
 }
 /** DEPRECATIONS
