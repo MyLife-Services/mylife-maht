@@ -3,12 +3,9 @@
 	html5up.net | @ajlkn
 	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
 */
-
 (function($) {
-
 	var	$window = $(window),
 		$body = $('body');
-
 	// Breakpoints.
 		breakpoints({
 			xlarge:  [ '1281px',  '1680px' ],
@@ -16,23 +13,19 @@
 			medium:  [ '737px',   '980px'  ],
 			small:   [ null,      '736px'  ]
 		});
-
 	// Play initial animations on page load.
 		$window.on('load', function() {
 			window.setTimeout(function() {
 				$body.removeClass('is-preload');
 			}, 100);
 		});
-
 	// Dropdowns.
 		$('#nav > ul').dropotron({
 			mode: 'fade',
 			noOpenerFade: true,
 			alignment: 'center'
 		});
-
 	// Nav.
-
 		// Title Bar.
 			$(
 				'<div id="titleBar">' +
@@ -40,7 +33,6 @@
 				'</div>'
 			)
 				.appendTo($body);
-
 		// Panel.
 			$(
 				'<div id="navPanel">' +

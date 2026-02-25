@@ -1,49 +1,24 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
   <head>
     <title>Citizens for Rational Government PAC</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="assets/css/main.css" />
-    <!-- Meta Pixel Code -->
-    <script>
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '1648971006194004');
-    fbq('track', 'PageView');
-    </script>
-    <noscript><img height="1" width="1" style="display:none"
-    src="https://www.facebook.com/tr?id=1648971006194004&ev=PageView&noscript=1"
-    /></noscript>
-    <!-- End Meta Pixel Code -->
-
+    <script async src="assets/js/tracking.js"></script>
+    <script defer src="assets/js/loader.js"></script>
   </head>
-  <body class="homepage">
+  <body class="homepage is-loading is-preload">
+    <noscript>
+      <img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1648971006194004&ev=PageView&noscript=1" />
+      <style>
+        body.is-loading {
+          opacity: 1 !important;
+        }
+      </style>
+    </noscript>
     <div id="page-wrapper">
-      <section id="header">
-        <img src="images/C4RG-header-white-background.jpeg" alt="Citizens for Rational Government" />
-        <nav id="nav">
-            <ul>
-                <li class="current"><a>Home</a></li>
-                <li><a href="mission.html">What We Believe</a></li>
-                <li><a href="candidates.html">Candidates We Prefer</a></li>
-                <li><a href="majoritarian.html">The Majoritarian Candidate</a></li>
-                <li><a href="contact.html">Contact Us</a></li>
-                <li><a href="https://www.zeffy.com/en-US/donation-form/donate-to-help-us-bring-rational-politics-back"
-                      id="donateLink"
-                      class="donate-link"
-                      rel="noopener">Donate
-                    </a>
-                </li>
-            </ul>
-        </nav>
-      </section>
+      <section id="header"></section>
       <section id="main">
         <div class="container">
           <img src="images/homepage-democrat-republican.jpeg" alt="Banner" /><br />
@@ -67,18 +42,8 @@
             </p>
         </div>
       </section>
-      <!-- Footer -->
+      <!-- footer -->
       <section id="footer"></section>
-    </div> <!-- /page-wrapper -->
-    <!-- Scripts -->
-    <script src="assets/js/jquery.min.js"></script>
-    <script src="assets/js/jquery.dropotron.min.js"></script>
-    <script src="assets/js/browser.min.js"></script>
-    <script src="assets/js/breakpoints.min.js"></script>
-    <script src="assets/js/util.js"></script>
-    <script src="assets/js/main.js"></script>
-    <script src="assets/js/footer.js"></script>
-    <!-- Donate popup include -->
-    <script src="assets/js/donate-popup.js"></script>
+    </div><!-- page-wrapper -->
   </body>
 </html>
