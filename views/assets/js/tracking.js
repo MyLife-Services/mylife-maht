@@ -1,7 +1,6 @@
 // assets/js/global_scripts.js
 (function () {
   "use strict";
-
   // -----------------------------
   // Google Analytics (GA4)
   // -----------------------------
@@ -11,17 +10,15 @@
     gaScript.async = true;
     gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-GLYLC0QSVQ";
     document.head.appendChild(gaScript);
-
     // Initialize dataLayer + gtag
     window.dataLayer = window.dataLayer || [];
     window.gtag = function () {
       window.dataLayer.push(arguments);
     };
-
     window.gtag("js", new Date());
     window.gtag("config", "G-GLYLC0QSVQ");
+    console.log("[tracking] Google Analytics loaded");
   }
-
   // -----------------------------
   // Meta Pixel
   // -----------------------------
@@ -49,11 +46,11 @@
       "script",
       "https://connect.facebook.net/en_US/fbevents.js"
     );
-
+    // assign pixel ID and track page view
     fbq("init", "1648971006194004");
     fbq("track", "PageView");
+    console.log("[tracking] Meta Pixel loaded");
   }
-
   // Run both
   loadGoogleAnalytics();
   loadMetaPixel();
