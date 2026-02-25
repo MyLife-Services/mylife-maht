@@ -1,4 +1,4 @@
-// assets/js/global_scripts.js
+// assets/js/tracking.js
 (function () {
   "use strict";
   // -----------------------------
