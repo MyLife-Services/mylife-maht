@@ -1,6 +1,6 @@
 @import url("fontawesome-all.min.css");
 @import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700,900,300italic");
-body.is-loading { opacity: 0; }; /* added to prevent FOUC - see main.js */
+body.is-loading { opacity: 0; } /* added to prevent FOUC - see wrappers.js */
 /*
 	Dopetrope by HTML5 UP
 	html5up.net | @ajlkn

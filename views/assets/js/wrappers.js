@@ -1,19 +1,27 @@
-Promise.all([
-  fetch('header.html')
-    .then(r => r.text())
-    .then(html => {
-      document.getElementById('header').innerHTML = html;
-      markAndDisableCurrentNavLink();
-    }),
-  fetch('footer.html')
-    .then(r => r.text())
-    .then(html => document.getElementById('footer').innerHTML = html),
-])
-  .catch(err => console.error('Error loading header or footer:', err))
-  .finally(() => {
-    document.body.classList.remove('is-loading');
-  });
+// variables
+const url = "https://www.zeffy.com/en-US/donation-form/donate-to-help-us-bring-rational-politics-back",
+  features = [
+    "popup=yes",
+    "width=900",
+    "height=950",
+    "left=120",
+    "top=80",
+    "resizable=yes",
+    "scrollbars=yes"
+  ].join(",");
 // functions
+function attachDonatePopup() {
+  const donateLink = document.getElementById("donateLink");
+  if(!donateLink)
+    return;
+  donateLink.addEventListener("click", function (e) {
+    e.preventDefault();
+    const w = window.open(url, "zeffyDonate", features);
+    // Fallback if popup blocked
+    if (!w) window.open(url, "_blank", "noopener");
+  });
+}
+
 function markAndDisableCurrentNavLink(){
   const nav = document.getElementById('nav');
   if(!nav)
@@ -46,3 +54,20 @@ function markAndDisableCurrentNavLink(){
     }
   });
 }
+// execute
+Promise.all([
+  fetch('header.html')
+    .then(r => r.text())
+    .then(html => {
+      document.getElementById('header').innerHTML = html;
+      markAndDisableCurrentNavLink();
+    }),
+  fetch('footer.html')
+    .then(r => r.text())
+    .then(html => document.getElementById('footer').innerHTML = html),
+])
+  .catch(err => console.error('Error loading header or footer:', err))
+  .finally(() => {
+    attachDonatePopup();
+    document.body.classList.remove('is-loading');
+  });

@@ -20,7 +20,6 @@
     'wrappers.js',
     'util.js',
     'main.js',
-    'donate-popup.js',
   ];
   // functions
   function loadScriptOrdered(src) {
