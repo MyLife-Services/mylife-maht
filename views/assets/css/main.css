@@ -2170,12 +2170,18 @@ input, select, textarea {
 					outline: 0;
 				}
 
-				#nav > ul > li:hover > a, #nav > ul > li.active > a {
+				#nav > ul > li:hover > a,
+				#nav > ul > li.active > a,
+				#navPanel > nav > a:hover,
+				#navPanel > nav > a.active {
 					background: #ff0000;
+					color: #fff !important;
+					font-weight: 700;
 					/* background: #f3f3f3; */
 				}
 
-				#nav > ul > li.current > a {
+				#nav > ul > li.current > a,
+				#navPanel > nav > a.current {
 					background: #0033cc;
 					color: #fff !important;
 					font-weight: 700;
@@ -2670,7 +2676,7 @@ input, select, textarea {
 
 				#navPanel .link {
 					display: block;
-					color: #888;
+					color: #333;
 					text-decoration: none;
 					height: 44px;
 					line-height: 44px;
@@ -2709,7 +2715,7 @@ input, select, textarea {
 				}
 
 				#navPanel .depth-0 {
-					color: #fff;
+					color: black;
 				}
 
 			body.navPanel-visible #page-wrapper {
