@@ -17,7 +17,6 @@
     'jquery.dropotron.min.js',
     'browser.min.js',
     'breakpoints.min.js',
-    'wrappers.js',
     'util.js',
     'main.js',
   ];

@@ -1,39 +1,37 @@
 (function($) {
-
 	/**
 	 * Generate an indented list of links from a nav. Meant for use with panel().
 	 * @return {jQuery} jQuery object.
 	 */
 	$.fn.navList = function() {
-
-		var	$this = $(this);
+		var $this = $(this),
 			$a = $this.find('a'),
 			b = [];
-
 		$a.each(function() {
-
-			var	$this = $(this),
-				indent = Math.max(0, $this.parents('li').length - 1),
-				href = $this.attr('href'),
-				target = $this.attr('target');
-
+			var $link = $(this),
+				$parentLi = $link.parent('li'),              // direct parent <li>
+				parentClass = ($parentLi.attr('class') || '') // classes on that <li>
+								.trim()
+								.replace(/\s+/g, ' '),        // normalize whitespace
+				indent = Math.max(0, $link.parents('li').length - 1),
+				href = $link.attr('href'),
+				target = $link.attr('target');
+			// Build class string: base + parent li classes (if any)
+			var classes = 'link depth-' + indent + (parentClass ? ' ' + parentClass : '');
 			b.push(
-				'<a ' +
-					'class="link depth-' + indent + '"' +
-					( (typeof target !== 'undefined' && target != '') ? ' target="' + target + '"' : '') +
-					( (typeof href !== 'undefined' && href != '') ? ' href="' + href + '"' : '') +
-				'>' +
-					'<span class="indent-' + indent + '"></span>' +
-					$this.text() +
-				'</a>'
+			'<a ' +
+				'class="' + classes + '"' +
+				((typeof target !== 'undefined' && target != '') ? ' target="' + target + '"' : '') +
+				((typeof href !== 'undefined' && href != '') ? ' href="' + href + '"' : '') +
+			'>' +
+				'<span class="indent-' + indent + '"></span>' +
+				$link.text() +
+			'</a>'
 			);
 
 		});
-
 		return b.join('');
-
 	};
-
 	/**
 	 * Panel-ify an element.
 	 * @param {object} userConfig User config.

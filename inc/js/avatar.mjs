@@ -451,6 +451,14 @@ class Avatar extends EventEmitter {
         return await this.#ShareAgent.delete(sid)
     }
     /**
+     * Get the disclaimer for the active bot or generic from #botAgent
+     * @param {Guid} botId - The bot id (optional, defaults to active bot)
+     * @returns {object} - The disclaimer response for the bot or system
+     */
+    async disclaimer(botId){
+        return await this.#botAgent.disclaimer(botId)
+    }
+    /**
      * End the living memory, if running.
      * @async
      * @public
