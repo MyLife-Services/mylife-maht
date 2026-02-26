@@ -221,9 +221,10 @@ function mCreateChallengeElement(){
  * @returns {void}
  */
 async function mDisclaimer(e, dynamic=false){
+    e.preventDefault()
+    e.stopPropagation()
     let awaitButton
     if(dynamic){
-        console.log('Fetching dynamic disclaimer from server...')
         mGlobals.toggleChatInput(false)
         awaitButton = mGlobals.await('Retrieving disclaimer from server...')
     }
@@ -234,9 +235,10 @@ async function mDisclaimer(e, dynamic=false){
         mGlobals.expunge(awaitButton)
     }
     if(response?.success)
-        response.responses.forEach(async message=>await mAddMessage(message.message, 'system', 12))
+        for(const message of response.responses)
+            mAddMessage(message.message, 'system', 12)
     else
-        await mAddMessage('Failed to retrieve disclaimer.', 'system', 6)
+        mAddMessage('Failed to retrieve disclaimer.', 'system', 6)
     setTimeout(_=>{
         disclaimerButton.addEventListener('click', mDisclaimer, { once: true })
         show(disclaimerButton)

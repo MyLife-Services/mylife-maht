@@ -97,7 +97,6 @@ function navPanelCreate(){
 			target: $body,
 			visibleClass: 'navPanel-visible'
 		});
-	console.log("Navigation panel created", $('#nav').navList());
 }
 // execute
 Promise.all([

@@ -16,7 +16,6 @@
 				indent = Math.max(0, $link.parents('li').length - 1),
 				href = $link.attr('href'),
 				target = $link.attr('target');
-			console.log('parent class:', parentClass)
 			// Build class string: base + parent li classes (if any)
 			var classes = 'link depth-' + indent + (parentClass ? ' ' + parentClass : '');
 			b.push(
