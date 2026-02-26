@@ -26,6 +26,7 @@ let challengeError,
     challengeInput,
     challengeInputText,
     challengeSubmit,
+    disclaimerButton,
     loginSelect,
     mainContent,
     navigation,
@@ -212,6 +213,36 @@ function mCreateChallengeElement(){
     return challengeInput
 }
 /**
+ * Fetches the disclaimer from the server and displays it in the chat column. Hides the member chat and disclaimer button while the disclaimer is being displayed. Unclear if this should be a routine or not, but it is only used on the landing page, so it is not currently a routine. See `@required` for elements that this function interacts with.
+ * @required mGlobals
+ * @required disclaimerButton
+ * @param {Event} e - The event object
+ * @param {boolean} dynamic - Whether to create an LLM-dynamic disclaimer (true) or static version (false; default: `false`)
+ * @returns {void}
+ */
+async function mDisclaimer(e, dynamic=false){
+    let awaitButton
+    if(dynamic){
+        console.log('Fetching dynamic disclaimer from server...')
+        mGlobals.toggleChatInput(false)
+        awaitButton = mGlobals.await('Retrieving disclaimer from server...')
+    }
+    hide(disclaimerButton)
+    const response = await mGlobals.datamanager.disclaimer()
+    if(dynamic){
+        mGlobals.toggleChatInput(true)
+        mGlobals.expunge(awaitButton)
+    }
+    if(response?.success)
+        response.responses.forEach(async message=>await mAddMessage(message.message, 'system', 12))
+    else
+        await mAddMessage('Failed to retrieve disclaimer.', 'system', 6)
+    setTimeout(_=>{
+        disclaimerButton.addEventListener('click', mDisclaimer, { once: true })
+        show(disclaimerButton)
+    }, 10000) // show disclaimer button again after 6 seconds to allow for re-reading
+}
+/**
  * Fetches the greeting messages or start routine from the server.
  * @private
  * @requires mGlobals
@@ -263,6 +294,7 @@ async function mFetchStart(activeBotId){
  */
 function mInitializeListeners(){
     document.getElementById('chat-input-submit')?.addEventListener('click', mAddUserMessage)
+    disclaimerButton?.addEventListener('click', mDisclaimer, { once: true })
     signupButton?.addEventListener('click', mSubmitSignup)
     signupEmailInputField?.addEventListener('input', mUpdateFormState)
     signupHumanNameInput?.addEventListener('input', mUpdateFormState)
@@ -276,6 +308,7 @@ function mInitializeListeners(){
  */
 async function mLoadStart(activeBotId){
     /* assign page div variables */
+    disclaimerButton = document.getElementById('disclaimer')
     mainContent = mGlobals.mainContent
     if(!mainContent)
         throw new Error('mLoadStart: mainContent element not found')
@@ -537,7 +570,7 @@ async function mSubmitInput(event, message){
         return
     event.stopPropagation()
 	event.preventDefault()
-    hide(mGlobals.MemberChat)
+    mGlobals.toggleChatInput(false)
     const awaitButton = mGlobals.await('Connecting with Citizens for Rational Government...')
     mGlobals.addChatElement(awaitButton)
     console.log('mSubmitInput', message, awaitButton)
@@ -552,7 +585,6 @@ async function mSubmitInput(event, message){
     mGlobals.expunge(awaitButton)
     mGlobals.chatInput = null
     mGlobals.toggleChatInput()
-    show(mGlobals.MemberChat)
 }
 /**
  * Submits the signup form to the server.

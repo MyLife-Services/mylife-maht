@@ -1,6 +1,16 @@
 @import url("fontawesome-all.min.css");
 @import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700,900,300italic");
+@import url("chat.css");
 body.is-loading { opacity: 0; } /* added to prevent FOUC - see wrappers.js */
+/* MyLife Global */
+.hide {
+    animation: none !important;
+    display: none !important;
+}
+.show {
+    display: flex !important;
+	opacity: 1 !important;
+}
 /*
 	Dopetrope by HTML5 UP
 	html5up.net | @ajlkn
