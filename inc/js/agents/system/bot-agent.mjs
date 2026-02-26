@@ -2,8 +2,10 @@
 const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
 const mDefaultBotType = mDefaultBotTypeArray[0]
+const mDefaultDisclaimer = 'I am an artificial intelligence created by Citizens for Rational Government Political Action Committee (PAC). My responses can be inconsistent and sometimes erroneous. Any views expressed do not necessarily reflect those of the PAC or its principals.'
 const mDefaultGreeting = 'avatar' // greeting routine
 const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
+const mDefaultMessageType = 'chat'
 const mDefaultTeam = 'memory'
 const mRequiredBotTypes = ['personal-avatar']
 const mTeams = [
@@ -464,6 +466,16 @@ class BotAgent {
 			throw new Error('Conversation instance required')
 		await mDeleteChat(Conversation, localDelete, this.#llm, this.#factory)
 		return Conversation
+	}
+	/**
+	 * Get the disclaimer for the active bot or generic.
+	 * @param {Guid} botId - The bot id (optional, defaults to active bot)
+	 * @return {object} - The disclaimer response for the bot or system { error, responses, success, }
+	 */
+	async disclaimer(botId=this.activeBotId){
+		const { disclaimer: botDisclaimer=mDefaultDisclaimer, } = this.bot(botId)
+		const response = mResponses(mResponse(botDisclaimer, botId, 'server', 'disclaimer'))
+		return response
 	}
     /**
      * Given an itemId, evaluates aspects of item summary. Evaluate content is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
@@ -1417,6 +1429,45 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
     Bot.setThread(newConversation.id) // autosaves `thread_id`, no `await`
 	llm.deleteThread(thread_id)
 	console.log(`chat migrated::from ${ thread_id } to ${ newConversation.id }`, botType )
+}
+/**
+ * Convert a string to a standard response payload for a Bot or BotAgent to respond with.
+ * @param {string} message - The response content
+ * @param {Guid} botId - The bot id for which this response is associated
+ * @param {string} agent - The agent type responding (i.e., system, member, bot, etc.), defaults to `system`
+ * @param {string} messageType - Type of response (i.e., chat, disclaimer, help, etc.)
+ * @param {number} response_time - The timestamp for the response, defaults to `Date.now()`
+ * @returns {object} - { activeBotId, agent, message, response_time, type,}
+ */
+function mResponse(message, botId, agent='server', type=mDefaultMessageType, response_time=Date.now()){
+	const response = {
+		activeBotId: botId,
+		agent,
+		message,
+		response_time,
+		type,
+	}
+	return response
+}
+/**
+ * Convert an array of strings or a single string to an array of response payloads for a Bot or BotAgent to respond with.
+ * @param {Array|object} messages - The response content, either as a string or an array of strings
+ * @param {boolean} isError - Whether the messages are error messages, defaults to `false`
+ * @returns {object} - { responses, success }
+ */
+function mResponses(messages, isError=false){
+	if(typeof messages !== 'object'){
+		messages = [mResponse(`bot-agent.mjs::mResponses()::ERROR: invalid parameter type for \`messages\`: ${ typeof messages }`, null, 'server', 'error', Date.now())]
+		isError = true
+	}
+	const success=!isError
+	const responses = Array.isArray(messages)
+		? messages
+		: [messages]
+	return {
+		responses,
+		success,
+	}
 }
 /* exports */
 export default BotAgent
