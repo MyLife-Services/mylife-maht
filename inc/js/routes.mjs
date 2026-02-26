@@ -32,6 +32,7 @@ import {
     chat,
     collections,
     createBot,
+    disclaimer,
     evaluate,
     feedback,
     greetings,
@@ -119,20 +120,21 @@ _Router.get('/alphadog/mission', mission)
 _Router.get('/alphadog/mission/:mid', mission)
 _Router.get('/alphadog/missions', missions)
 _Router.get('/alphadog/missions/available', missionsAvailable)
-_Router.get('/logout', logout)
+_Router.get('/disclaimer', disclaimer)
 _Router.get('/experiences', availableExperiences)
 _Router.get('/greeting', greetings)
 _Router.get('/greetings', greetings)
+_Router.get('/logout', logout)
+_Router.get('/select', loginSelect)
+_Router.get('/shadows', shadows)
 _Router.get('/share/header/:sid', shareHeader)
 _Router.get('/share/stop/:sid', shareStop)
 _Router.get('/share/:sid', validateShare) // last to not interfere with previous
-_Router.get('/select', loginSelect)
+_Router.get('/signup', status_signup)
 _Router.get('/status', status)
 _Router.get('/privacy-policy', privacyPolicy)
 _Router.get('/routine', routine)
 _Router.get('/routine/:rid', routine)
-_Router.get('/shadows', shadows)
-_Router.get('/signup', status_signup)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
@@ -157,6 +159,7 @@ _apiRouter.get('/logout', apiLogout)
 _apiRouter.get('/memories', sharedMemories)
 _apiRouter.get('/memories/memory', sharedMemory)
 _apiRouter.get('/memories/memory/:sid', sharedMemory)
+_apiRouter.get('/disclaimer', disclaimer)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.patch('/experiences/:mid/experience/:xid/cast', experienceCast)
 _apiRouter.patch('/experiences/:mid/experience/:xid/end', experienceEnd)
@@ -191,6 +194,7 @@ _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)
+_memberRouter.get('/disclaimer', disclaimer)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
