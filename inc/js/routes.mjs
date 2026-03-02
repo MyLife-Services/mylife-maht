@@ -336,6 +336,85 @@ async function routeSubdomain(ctx, next){
     ctx.state.a2aAgentId = agentId
     return await router(ctx, next)
 }
+/**
+ * Validates MCP protocol requests, including session management and origin checks.
+ * @param {Koa} ctx - Koa context object
+ * @param {function} next - Koa next function
+ */
+async function mcpProtocolValidation(ctx, next){
+    if(!ctx.state.requestType)
+        ctx.state.requestType = 'system'
+    mcpValidateRequestOrigin(ctx) // confirm bearer always
+    mcpAuthorize(ctx) // confirm bearer always
+    ctx.state.mcp = ctx.request?.body
+    let sessionId
+    sessionId = ctx.request.query?.sessionId /* 2024-11-05 MCP Protocol Validation */
+        ?? ctx.get('Mcp-Session-Id') /* 2025-03-26 MCP Protocol Validation Header */
+    if(sessionId?.length){
+        ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
+        const { sessionMeta, } = ctx.state
+        if(!sessionMeta){
+            mMcpError(ctx, 404, -32001, `Session Unauthorized; sessionId=${ sessionId }`, ctx.state.mcp?.id)
+            return // not awaiting next() here
+        }
+        const { sessionIdKoa, } = sessionMeta
+        if(!sessionIdKoa?.length)
+            ctx.throw(404, 'Unknown session; cannot communicate with Koa')
+        /* validate Koa session */
+        const prefix = 'koa:sess:'
+        const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
+        if(!existingKoaSession)
+            ctx.throw(404, 'Unknown session; cannot find existing Koa session')
+        ctx.session = existingKoaSession
+        await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
+        // Koa server will have mis-assigned ctx.state in faux session
+        ctx.state.avatar = ctx.session.avatar
+        ctx.state.locked = ctx.session.locked
+            ?? true
+        ctx.state.menu = ctx.state.avatar?.menu
+        if(ctx.request.method==='GET'){
+            const { transportEntry, } = sessionMeta
+            await transportEntry.handleRequest(ctx.req, ctx.res)
+        }
+    } else
+        await mcpStream(ctx) // no session set if not streaming
+    await next()
+}
+/**
+ * Handles unsupported MCP requests.
+ * @param {Koa} ctx - Koa context object
+ */
+function mcpUnsupported(ctx){
+    ctx.throw(405, 'Unsupported MCP request. Please use POST /mcp.')
+}
+/**
+ * Validates the request origin for MCP requests.
+ * @param {Koa} ctx - Koa context object
+ */
+function mcpValidateRequestOrigin(ctx){
+    // @todo - confirm that transport handles CORS headers correctly
+    const origin = ctx.headers.origin
+    if(!origin){
+        // console.log('No Origin Header')
+        return
+    }
+    const trustedOrigins = [
+        // 'http://good.com',
+    ]
+    const blockedOrigins = [
+        // 'http://evil.com',
+    ]
+    const isTrusted = trustedOrigins.includes(origin)
+    const isBlocked = blockedOrigins.includes(origin)
+    if(isBlocked){ // Block if explicitly blacklisted
+        console.log(`Blocked Origin: ${origin}`)
+        ctx.throw(403, `Access denied from origin: ${origin}`)
+    }
+    if(trustedOrigins.length > 0 && !isTrusted){
+        console.log(`Unrecognized Origin: ${origin}`)
+        ctx.throw(403, `Origin not allowed: ${origin}`)
+    }
+}
 /* exports */
 export default function init(_Menu) {
 	connectRoutes(_Menu)
