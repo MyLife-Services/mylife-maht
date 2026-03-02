@@ -768,6 +768,55 @@ input:checked + .publicity-slider:before {
 .summary-error {
     color: darkred;
 }
+/* proxy bot options */
+.proxy-access {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 0 0.25rem;
+    width: 100%;
+}
+.proxy-access > * {
+    box-sizing: border-box;
+    flex: 1 1 50%;
+}
+.proxy-skills {
+    cursor: not-allowed;
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+    justify-content: flex-start;
+    margin-bottom: 0.6rem;
+    width: 100%;
+}
+.proxy-skills-label {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+.proxy-skill {
+    display: flex;
+    flex-direction: row;
+    font-size: 0.8rem;
+    font-style: normal;
+    margin: 0 0.6rem;
+    width: auto;
+}
+.proxy-skill .proxy-skill-bullet {
+    color: green;
+    display: flex;
+    font-size: 1.0rem;
+    font-style: normal;
+    margin: 0.5rem;
+    width: auto;
+}
+.proxy-skill .proxy-skill-name {
+    display: flex;
+    font-size: 0.8rem;
+    font-style: normal;
+    width: auto;
+}
 /* media */
 .media-carousel {
     align-items: center;
@@ -804,6 +853,16 @@ input:checked + .publicity-slider:before {
     display: flex;
     flex: 0 1 auto;
     max-width: 50%;
+}
+.input-group textarea {
+    display: flex;
+    flex: 1 1 auto;
+    max-height: 6.0rem;
+    min-height: fit-content;
+    max-width: 100%;
+    min-width: 50%;
+    resize: vertical; /* Allow vertical resizing only */
+    height: fit-content; /* Default height */
 }
 input[type="range"] {
     -webkit-appearance: none;

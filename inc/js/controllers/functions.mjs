@@ -235,9 +235,7 @@ async function item(ctx){
  * @returns {void} - Redirects to the home page
  */
 async function logout(ctx){
-	const { avatar: Avatar, } = ctx.state
-	if(!Avatar?.isMyLife ?? true)
-		ctx.throw(400, `cannot logout from system avatar`)
+	const { avatar: Avatar, locked, } = ctx.state
 	await Avatar.logout(ctx)
 	ctx.redirect('/')
 }

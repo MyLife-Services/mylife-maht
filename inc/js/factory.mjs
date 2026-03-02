@@ -6,15 +6,15 @@ import nodemailer from 'nodemailer'
 import util from 'util'
 import vm from 'vm'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
-import { Avatar, Q, } from './mylife-avatar.mjs'
-import Dataservices from './mylife-dataservices.mjs'
+import { Avatar, Q, } from './avatar.mjs'
+import Dataservices from './dataservices.mjs'
 import {
 	extendClass_consent,
     extendClass_conversation,
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
-import LLMServices from './mylife-llm-services.mjs'
+import LLMServices from './llm-services.mjs'
 import Menu from './menu.mjs'
 /* module constants */
 const {
@@ -179,17 +179,22 @@ class BotFactory extends EventEmitter{
 	 * @param {string} id - The bot id
 	 * @param {string} type - The bot type
 	 * @param {string} mbr_id - The member id
-	 * @returns {object} - The bot.
+	 * @param {string} proxyUrl - The external agent card URL (if applicable)
+	 * @returns {object} - The bot data
 	 */
-	async bot(id, type=mDefaultBotType, mbr_id){
-		return ( await this.dataservices.bot(id, type) )
-			?? ( await this.dataservices.getItemByField(
-					'bot',
-					'type',
-					type,
-					undefined,
-					mbr_id
-				) )
+	async bot(id, type=mDefaultBotType, mbr_id, proxyUrl){
+		if(id?.length && !this.globals.isValidGuid(id)){
+			const bot = await this.dataservices.bot(id, type)
+			if(!!bot && bot?.id?.length)
+				return bot
+		}
+		return await this.dataservices.getItemByField(
+			'bot',
+			proxyUrl?.length ? 'url' : 'type',
+			proxyUrl?.length ? proxyUrl : type,
+			undefined,
+			mbr_id
+		)
 	}
 	/**
 	 * Returns bot instruction set.
@@ -1062,20 +1067,32 @@ class MyLifeFactory extends AgentFactory {
     /**
      * Get a list of publicly shared memories.
      * @param {Number} limit - The max number of memories to return
+     * @param {Object} filterArgs - Optional filter arguments for shared memories
      * @returns {Promise<Object[]>} - The list of shared memories
      */
-    async sharedMemories(limit=10){
-		if(limit<0)
-			limit = 1
-		if(limit>25)
-			limit = 25
+    async sharedMemories(limit=10, filterArgs={}, shuffle=true){
+		limit = limit <= 0 /* test limits */
+			? 1
+			: (limit>1000)
+				? 1000
+				: limit
+		const fields = [{ name: '@scope', value: 'public', }]
+		const { anonymous, guessable, id, title, } = filterArgs
+		if(typeof guessable === 'boolean')
+			fields.push({ name: '@guessable', value: guessable, })
+		if(typeof anonymous === 'boolean')
+			fields.push({ name: '@anonymous', value: anonymous, })
+		if(id?.length)
+			fields.push({ name: '@id', type: 'contains', value: id, })
+		if(title?.length)
+			fields.push({ name: '@title', type: 'contains', value: title, })
 		const memories = await this.dataservices.getItemsByFields(
 			'share',
-			[{ name: '@scope', value: 'public' }],
+			fields,
 			'shares',
 			'memory',
 		)
-		const shuffled = [...memories].sort(() => 0.5 - Math.random())
+		const shuffled = shuffle ? [...memories].sort(() => 0.5 - Math.random()) : memories
 		const response = shuffled.slice(0, limit)
 		return response
 	}
@@ -1085,6 +1102,34 @@ class MyLifeFactory extends AgentFactory {
 			: (await this.sharedMemories(1))?.[0]
 		return memory
 	}
+    /**
+     * Search for shared memories based on keyword, phase of life, and/or title.
+	 * @todo - implement keyword, phaseOfLife, and title dynamic search
+	 * @param {boolean} anonymous - Whether to search for anonymous memories
+	 * @param {boolean} guessable - Whether to search for guessable memories
+     * @param {string} keyword - The keyword to search for in shared memories
+     * @param {string} phaseOfLife - The phase of life to filter memories by
+     * @param {string} title - The title to filter memories by
+     * @returns {Promise<Object[]>} - The list of matching shared memories
+     */
+    async sharedMemorySearch(anonymous, guessable, keyword, phaseOfLife, title){
+		const being='share',
+			fields = [{ name: '@scope', value: 'public', }]
+		if(typeof anonymous === 'boolean')
+			fields.push({ name: '@anonymous', value: anonymous, })
+		if(typeof guessable === 'boolean')
+			fields.push({ name: '@guessable', value: guessable, })
+		/* not yet implemented on `write` (i.e., not in db record yet, could filter on current results)
+		if(keyword?.length)
+			fields.push({ name: '@summary', value: keyword, })
+		if(phaseOfLife?.length)
+			fields.push({ name: '@phaseOfLife', value: phaseOfLife, })
+		*/
+		if(title?.length)
+			fields.push({ name: '@title', type: 'contains', value: title, })
+        const memories = await mDataservices.getItemsByFields(being, fields, 'shares', 'memory') // shareType is key column
+        return memories
+    }
 	updateItem(){
 		console.log(chalk.blueBright('MyLifeFactory::updateItem()::error'), chalk.bgRed('updateItem Request, but MyLife server cannot update items'))
 	}

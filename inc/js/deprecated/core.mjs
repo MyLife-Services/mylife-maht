@@ -255,7 +255,7 @@ class MyLife extends Organization {	// form=server
 	 */
 	async availableExperiences(){
 		const experiences = ( await this.#factory.availableExperiences() )
-			.map(experience=>{ // map to display versions [from `mylife-avatar.mjs`]
+			.map(experience=>{ // map to display versions [from `avatar.mjs`]
 				const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
 				return {
 					description,

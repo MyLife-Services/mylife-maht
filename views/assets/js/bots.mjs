@@ -54,7 +54,7 @@ let mActiveBot,
     mRelivingMemory,
     mShadows
 /* onDomContentLoaded */
-document.addEventListener('DOMContentLoaded', async event=>{
+document.addEventListener('DOMContentLoaded', async e=>{
     mShadows = await globals.datamanager.shadows()
     const { bots, activeBotId: id } = await globals.datamanager.bots()
     if(!bots?.length)
@@ -327,10 +327,10 @@ async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
 /**
  * Find bot in mBots by id.
  * @requires mBots
- * @param {string} type - The bot type or id.
- * @returns {object} - The bot object.
+ * @param {string} type - The bot type or id
+ * @returns {object} - The bot object
  */
-function mBot(type){
+function mBot(type='avatar'){
     const heritageType = type.replace('personal-', '')
     return mBots.find(bot=>bot.type===type)
         ?? mBots.find(bot=>bot.type===heritageType)
@@ -339,8 +339,8 @@ function mBot(type){
 }
 /**
  * Check if bot is active (by id).
- * @param {Guid} id - The bot id to check.
- * @returns 
+ * @param {Guid} id - The bot id to check
+ * @returns {boolean} - True if the bot is active, false otherwise
  */
 function mBotActive(id){
     return id===mActiveBot?.id
@@ -349,7 +349,7 @@ function mBotActive(id){
 /**
  * Returns icon path string based on bot type.
  * @param {string} type - bot type
- * @returns {string} icon path
+ * @returns {string} - icon path
  */
 function mBotIcon(type){
     let image = 'png/'
@@ -382,6 +382,10 @@ function mBotIcon(type){
         case 'biographer':
             image+='biographer-thumb.png'
             break
+        case 'proxy':
+        case 'proxy-agent':
+            image+='Q.png'
+            break
         case 'resume':
             image+='resume-thumb.png'
             break
@@ -396,6 +400,39 @@ function mBotIcon(type){
             break
     }
     return image
+}
+async function mBotNameChange(e){
+    const nameInput = e.target
+    const { bot_name, id, type, } = nameInput.container
+    const newName = nameInput.value.trim()
+    if(!newName?.length){
+        nameInput.value = bot_name
+        nameInput.focus()
+        alert('Bot name cannot be empty. Reverting to current name.')
+    } else {
+        nameInput.blur()
+        nameInput.disabled = true
+        const botData = {
+            bot_name: newName,
+            id,
+            type,
+        }
+        const { name, } = await globals.datamanager.botUpdate(botData)
+        nameInput.disabled = false
+        if(!name?.length)
+            nameInput.value = bot_name
+        else {
+            const botTitleName = document.getElementById(`${ globals.isProxy(type) ? id : type }-title-name`)
+            botTitleName && (botTitleName.textContent = name)
+            nameInput.container.bot_name = name
+            /* update mBot */
+            const bot = mBot(id)
+            bot.bot_name = name
+            bot.name = name
+            globals.chatInputPlaceholder = `Type a message to ${ name }...`
+        }
+    }
+    nameInput.addEventListener('change', mBotNameChange, { once: true })
 }
 /**
  * Create a functional collection item HTML div for the specified collection type.
@@ -480,6 +517,88 @@ function mCreateCollectionItemSummarize(type, id, name){
     itemSummarize.addEventListener('click', mSummarize, { once: true })
     return itemSummarize
 }
+function mCreateProxyBotContainer(proxyAgent){
+    const { access=[], description, id, name, purpose, skills=[], url='A2A', } = proxyAgent
+    /* container [begin] */
+    const proxyContainer = document.createElement('div')
+    proxyContainer.classList.add('bot-container', 'proxy-container')
+    proxyContainer.id = id
+    /* status [begin] */
+    const proxyStatus = document.createElement('div')
+    proxyStatus.classList.add('bot-status', 'proxy-status')
+    proxyStatus.id = `${ id }-status`
+    /* icon */
+    const proxyIcon = document.createElement('div')
+    proxyIcon.classList.add('bot-icon')
+    proxyIcon.id = `${ id }-icon`
+    const proxyIconImage = document.createElement('img')
+    proxyIconImage.alt = `I am External Agent: ${ name } (${ url })`
+    proxyIconImage.classList.add('bot-image')
+    proxyIconImage.id = `${ id }-image`
+    proxyIconImage.src = mBotIcon('proxy')
+    proxyIconImage.title = description
+    proxyIcon.appendChild(proxyIconImage)
+    /* title */
+    const proxyTitle = document.createElement('div')
+    proxyTitle.classList.add('bot-title')
+    const proxyTitleType = document.createElement('div')
+    proxyTitleType.classList.add('bot-title-type', 'proxy-title-type')
+    proxyTitleType.id = `${ id }-title-type`
+    const proxyTitleName = document.createElement('div')
+    proxyTitleName.id = `${ id }-title-name`
+    proxyTitleName.classList.add('bot-title-name', 'proxy-title-name')
+    const proxyTitleVersion = document.createElement('div')
+    proxyTitleVersion.id = `${ id }-title-version`
+    proxyTitleVersion.classList.add('bot-title-version', 'proxy-title-version')
+    proxyTitle.appendChild(proxyTitleType)
+    proxyTitle.appendChild(proxyTitleName)
+    proxyTitle.appendChild(proxyTitleVersion)
+    /* dropdown caret */
+    const proxyDropdown = document.createElement('div')
+    proxyDropdown.classList.add('bot-options-dropdown', 'proxy-options-dropdown')
+    proxyDropdown.id = `${ id }-options-dropdown`
+    /* status [end] */
+    proxyStatus.appendChild(proxyIcon)
+    proxyStatus.appendChild(proxyTitle)
+    proxyStatus.appendChild(proxyDropdown)
+    /* options [begin] */
+    const proxyOptions = document.createElement('div')
+    proxyOptions.classList.add('bot-options', 'hidden', 'proxy-options')
+    proxyOptions.id = `${ id }-options`
+    /* skills [begin] */
+    const proxySkills = document.createElement('div')
+    proxySkills.classList.add('input-group', 'proxy-inputs', 'skills')
+    proxySkills.id = `${ id }-skills`
+    /* - skills label */
+    const proxySkillsLabel = document.createElement('label')
+    proxySkillsLabel.id = `${ id }-label-skills`
+    proxySkillsLabel.htmlFor = `${ id }-input-skills`
+    proxySkillsLabel.textContent = `Agent Skills:`
+    /* - skills input */
+    const proxySkillsInput = document.createElement('textarea')
+    proxySkillsInput.classList.add('bot-input', 'proxy-input', 'proxy-skills')
+    proxySkillsInput.id = `${ id }-input-skills`
+    proxySkillsInput.maxLength = 1024
+    const proxySkillsValue = skills?.length > proxySkillsInput.maxLength
+        ? skills.substring(0, proxySkillsInput.maxLength-3) + '...'
+        : skills
+    proxySkillsInput.value = proxySkillsValue
+    proxySkills.appendChild(proxySkillsLabel)
+    proxySkills.appendChild(proxySkillsInput)
+    /* skills [end] */
+    proxyOptions.appendChild(mProxyName(id, name))
+    proxyOptions.appendChild(mProxyEndpoint(id, url))
+    proxyOptions.appendChild(mProxyDescription(id, description))
+    proxyOptions.appendChild(mProxySkills(id, skills))
+    proxyOptions.appendChild(mProxyPurpose(id, purpose))
+    proxyOptions.appendChild(mProxyAccess(id, access))
+    proxyOptions.appendChild(mProxyRetire(id))
+    /* options [end] */
+    proxyContainer.appendChild(proxyStatus)
+    proxyContainer.appendChild(proxyOptions)
+    /* container [end] */
+    return proxyContainer
+}
 /**
  * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
  * @requires mShadows
@@ -522,16 +641,321 @@ async function mMemoryShadow(event){
         popupClose.click()
 }
 /**
+ * Creates a proxy agent access element.
+ * @param {Set} accessList - List of bot ids that have access to this proxy agent.
+ * @returns {DocumentFragment} - Access element for a proxy agent
+ */
+function mProxyAccess(id, accessList){
+    const accessFragment = document.createDocumentFragment()
+    if(!Array.isArray(accessList))
+        accessList = []
+    const avatarId = mBot('personal-avatar')?.id
+    if(!avatarId?.length){
+        const accessNotice = document.createElement('div')
+        accessNotice.classList.add('error')
+        accessNotice.textContent = `No personal avatar found, cannot set access. Create your personal avatar to enable access.`
+        return accessFragment // no avatar, no access list
+    }
+    if(!accessList.some(id=>id===avatarId)) // force avatar into access list
+        accessList.push(avatarId)
+    const accessLabel = document.createElement('div')
+    accessLabel.classList.add('proxy-access-label')
+    accessLabel.textContent = `Allow access to the following:`
+    const proxyAccess = document.createElement('div')
+    proxyAccess.classList.add('input-group', 'proxy-access')
+    proxyAccess.id = `${ id }-access`
+    mBots.filter(bot=>!globals.isProxy(bot.type) && bot.id!==id)
+        .forEach(bot=>{
+            const { id: botId, type, name, } = bot
+            const botAccess = document.createElement('div')
+            botAccess.classList.add('proxy-access-bot')
+            /* - access checkbox */
+            const botAccessId = `${ id }-access-${ type }-${ botId }`
+            const botAccessInput = document.createElement('input')
+            botAccessInput.addEventListener('change', mProxyAccessAssign, { once: true })
+            botAccessInput.checked = accessList.some(accessId=>accessId===botId)
+            botAccessInput.classList.add('proxy-access-checkbox')
+            botAccessInput.disabled = botId===avatarId // force avatar access, cannot be unchecked
+            botAccessInput.id = botAccessId
+            botAccessInput.proxyBotId = id
+            botAccessInput.title = botId===avatarId
+                ? `Your Member Avatar will always have access to utilize your proxy agents`
+                : `Grant or revoke access for ${ name } to utilize this proxy agent`
+            botAccessInput.type = 'checkbox'
+            botAccessInput.value = botId
+            /* - access label */
+            const botAccessLabel = document.createElement('label')
+            botAccessLabel.classList.add('proxy-access-label')
+            botAccessLabel.htmlFor = botAccessId
+            botAccessLabel.textContent = name
+            botAccessLabel.title = type.replace(/-/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase())
+            /* appends */
+            botAccess.appendChild(botAccessInput)
+            botAccess.appendChild(botAccessLabel)
+            proxyAccess.appendChild(botAccess)
+        })
+    accessFragment.appendChild(accessLabel)
+    accessFragment.appendChild(proxyAccess)
+    return accessFragment
+}
+/**
+ * Assigns or revokes access for a bot to use a proxy agent.
+ * @param {Event} e - The event object
+ * @returns {void}
+ */
+async function mProxyAccessAssign(e){
+    const checkbox = e.target
+    checkbox.disabled = true
+    const { proxyBotId, } = checkbox
+    const action = checkbox.checked ? `grant` : `revoke`
+    const resultAction = checkbox.checked
+        ? 'This bot will have its instructions updated to use this proxy agent as per the purpose you have described.'
+        : 'This bot will no longer be able to use this proxy agent.'
+    if(confirm(`Are you sure you want to ${ action } rights?\n${ resultAction }`)){
+        const assignResult = await globals.datamanager.botProxyAccess(proxyBotId, checkbox.value, checkbox.checked)
+        console.log(`mProxyAccessAssign::checkbox`, checkbox.value, checkbox.checked, proxyBotId, assignResult)
+    } else
+        checkbox.checked = !checkbox.checked
+    checkbox.disabled = false
+    checkbox.addEventListener('change', mProxyAccessAssign, { once: true })
+}
+/**
+ * Creates a proxy agent description element.
+ * @param {Guid} id - The proxy agent id
+ * @param {string} description - Description text
+ * @returns {DocumentFragment} - Description element for a proxy agent
+ */
+function mProxyDescription(id, description){
+    const descriptionFragment = document.createDocumentFragment()
+    if(description?.length){
+        const proxyDescription = document.createElement('div')
+        proxyDescription.classList.add('input-group', 'proxy-inputs')
+        proxyDescription.id = `${ id }-description`
+        /* - description label */
+        const proxyDescriptionLabel = document.createElement('label')
+        proxyDescriptionLabel.id = `${ id }-label-description`
+        proxyDescriptionLabel.htmlFor = `${ id }-input-description`
+        proxyDescriptionLabel.textContent = `Description:`
+        /* - description input */
+        const proxyDescriptionInput = document.createElement('textarea')
+        proxyDescriptionInput.classList.add('bot-input', 'proxy-input', 'proxy-description')
+        proxyDescriptionInput.disabled = true
+        proxyDescriptionInput.id = `${ id }-input-description`
+        proxyDescriptionInput.maxLength = 512
+        const proxyDescriptionValue = description?.length > proxyDescriptionInput.maxLength
+            ? description.substring(0, proxyDescriptionInput.maxLength-3) + '...'
+            : description
+        proxyDescriptionInput.value = proxyDescriptionValue
+        /* appends */
+        proxyDescription.appendChild(proxyDescriptionLabel)
+        proxyDescription.appendChild(proxyDescriptionInput)
+        descriptionFragment.appendChild(proxyDescription)
+    }
+    return descriptionFragment
+}
+/**
+ * Creates a proxy endpoint element.
+ * @param {Guid} id - The proxy agent id
+ * @param {string} url - Endpoint URL
+ * @returns {DocumentFragment} - Endpoint element for a proxy agent
+ */
+function mProxyEndpoint(id, url){
+    const endpointFragment = document.createDocumentFragment()
+    if(url?.length){
+        const proxyUrl = document.createElement('div')
+        proxyUrl.classList.add('input-group', 'proxy-inputs')
+        proxyUrl.id = `${ id }-url`
+        /* - endpoint label */
+        const proxyUrlLabel = document.createElement('label')
+        proxyUrlLabel.id = `${ id }-label-url`
+        proxyUrlLabel.htmlFor = `${ id }-input-url`
+        proxyUrlLabel.textContent = `Endpoint:`
+        /* - endpoint input */
+        const proxyUrlInput = document.createElement('input')
+        proxyUrlInput.classList.add('bot-input', 'proxy-input', 'proxy-url')
+        proxyUrlInput.disabled = true
+        proxyUrlInput.id = `${ id }-input-url`
+        /* - endpoint refresh */
+        const proxyUrlRefresh = document.createElement('span')
+        proxyUrlRefresh.classList.add('fas', 'fa-arrows-rotate', 'proxy-refresh')
+        proxyUrlRefresh.dataset.id = id
+        proxyUrlRefresh.id = `${ id }-refresh`
+        proxyUrlRefresh.title = `Refresh Endpoint`
+        proxyUrlRefresh.addEventListener('click', mRefreshProxyUrl, { once: true })
+        /* appends */
+        proxyUrl.appendChild(proxyUrlLabel)
+        proxyUrl.appendChild(proxyUrlInput)
+        proxyUrl.appendChild(proxyUrlRefresh)
+        endpointFragment.appendChild(proxyUrl)
+    }
+    return endpointFragment
+}
+/**
+ * Creates a proxy agent purpose element.
+ * @param {Guid} id - The proxy agent id
+ * @param {string} purpose - Purpose text
+ * @returns {DocumentFragment} - Purpose element for a proxy agent
+ */
+function mProxyName(id, name){
+    const nameFragment = document.createDocumentFragment()
+    if(name?.length){
+        /* name */
+        const proxyName = document.createElement('div')
+        proxyName.classList.add('input-group', 'proxy-inputs')
+        proxyName.id = `${ id }-bot_name`
+        /* - name label */
+        const proxyNameLabel = document.createElement('label')
+        proxyNameLabel.htmlFor = `${ id }-input-bot_name`
+        proxyNameLabel.id = `${ id }-label-bot_name`
+        proxyNameLabel.textContent = `Agent Name:`
+        /* - name input */
+        const proxyNameInput = document.createElement('input')
+        proxyNameInput.classList.add('bot-input', 'bot-name', 'proxy-input', 'proxy-bot-name')
+        proxyNameInput.id = `${ id }-input-bot_name`
+        proxyNameInput.maxLength = 256
+        /* appends */
+        proxyName.appendChild(proxyNameLabel)
+        proxyName.appendChild(proxyNameInput)
+        nameFragment.appendChild(proxyName)
+    }
+    return nameFragment
+}
+/**
+ * Creates a proxy agent purpose element. **Note**: Purpose is used to apply instructions to other bots (minimally Avatar) that have been given explicit access to this proxy agent by the member.
+ * @param {Guid} id - The proxy agent id
+ * @param {string} purpose - Purpose text
+ * @returns {DocumentFragment} - Purpose element for a proxy agent
+ */
+function mProxyPurpose(id, purpose){
+    const purposeFragment = document.createDocumentFragment()
+    const purposeMaxLength = 1024
+    purpose = purpose?.trim().substring(0, purposeMaxLength)
+    const proxyPurpose = document.createElement('div')
+    proxyPurpose.classList.add('input-group', 'proxy-inputs')
+    proxyPurpose.id = `${ id }-purpose`
+    /* - purpose label */
+    const proxyPurposeLabel = document.createElement('label')
+    proxyPurposeLabel.id = `${ id }-label-purpose`
+    proxyPurposeLabel.htmlFor = `${ id }-input-purpose`
+    proxyPurposeLabel.textContent = `Purpose:`
+    /* - purpose input */
+    const proxyPurposeInput = document.createElement('textarea')
+    proxyPurposeInput.addEventListener('change', mProxyPurposeInput, { once: false })
+    proxyPurposeInput.classList.add('bot-input', 'proxy-input', 'proxy-purpose')
+    proxyPurposeInput.id = `${ id }-input-purpose`
+    proxyPurposeInput.maxLength = purposeMaxLength
+    proxyPurposeInput.originalValue = purpose
+    proxyPurposeInput.placeholder = `Define the purpose of this agent, which will be used when applying instructions to other bots that have been given access to this agent. Example: "This agent is familiar with my current calendar schedule."`
+    proxyPurposeInput.proxyId = id
+    proxyPurposeInput.value = purpose
+    /* appends */
+    proxyPurpose.appendChild(proxyPurposeLabel)
+    proxyPurpose.appendChild(proxyPurposeInput)
+    purposeFragment.appendChild(proxyPurpose)
+    return purposeFragment
+}
+/**
+ * Handles input change for proxy agent purpose. **Note**: Purpose is not included in `dataset` so no need to incorporate; although will deprecate dataset in future.
+ * @param {Event} e - The input change event
+ * @returns {void}
+ */
+async function mProxyPurposeInput(e){
+    const { target, } = e
+    const { proxyId, value, } = target
+    if(!confirm(`By updating the purpose for this proxy agent, you will be changing the instructions for any MyLife intelligences utilizing this agent. Are you sure you want to proceed?`))
+        target.value = target.originalValue
+    else {
+        const { purpose, } = await globals.datamanager.botUpdate({ id: proxyId, purpose: value, })
+        target.originalValue = purpose
+        const bot = mBot(proxyId)
+        if(!!bot)
+            bot.purpose = purpose
+    }
+}
+/**
+ * Creates a retire element for a proxy agent.
+ * @param {Guid} id - The external agent id
+ * @returns {DocumentFragment} - Retire element for a proxy agent
+ */
+function mProxyRetire(id){
+    const retireFragment = document.createDocumentFragment()
+    const proxyRetire = document.createElement('div')
+    proxyRetire.classList.add('retire-container', 'proxy-retire')
+    proxyRetire.id = `${ id }-retire`
+    const proxyRetireText = document.createElement('div')
+    proxyRetireText.classList.add('retire-text', 'proxy-retire-text')
+    proxyRetireText.id = `${ id }-retire-text`
+    proxyRetireText.textContent = `Retire this Agent:`
+    const proxyRetireBot = document.createElement('span')
+    proxyRetireBot.classList.add('fas', 'fa-user-large-slash', 'retire-icon', 'retire-bot', 'proxy-retire-bot')
+    proxyRetireBot.id = `${ id }-retire-bot`
+    proxyRetireBot.title = `Retire this external Agent. This action is permanent and cannot be undone. Agent will have to be recreated.`
+    proxyRetire.appendChild(proxyRetireText)
+    proxyRetire.appendChild(proxyRetireBot)
+    retireFragment.appendChild(proxyRetire)
+    return retireFragment
+}
+/**
+ * Creates a proxy agent skills element.
+ * @param {Guid} id - The proxy agent id
+ * @param {Array} skills - List of skills for this proxy agent
+ * @returns {DocumentFragment} - Skills element for a proxy agent
+ */
+function mProxySkills(id, skills){
+    const skillsFragment = document.createDocumentFragment()
+    if(!Array.isArray(skills) || !skills?.length){
+        const skillError = document.createElement('div')
+        skillError.classList.add('error')
+        skillError.textContent = 'No skills found for this agent. Please refresh or consult A2A service for agent provider.'
+        skillsFragment.appendChild(skillError)
+        return skillsFragment
+    }
+    const skillsContainer = document.createElement('div')
+    skillsContainer.classList.add('proxy-skills')
+    skillsContainer.id = `${ id }-skills`
+    /* - skills label */
+    const skillsLabel = document.createElement('div')
+    skillsLabel.classList.add('proxy-skills-label')
+    skillsLabel.id = `${ id }-skills-label`
+    skillsLabel.textContent = `Agent Skills:`
+    skillsContainer.appendChild(skillsLabel)
+    /* skills list */
+    skills.forEach(skill=>{
+        const { description, id: skillId, inputModes, outputModes, supportedLanguages, } = skill
+        let skillTitle = description
+        if(inputModes?.length)
+            skillTitle+=`\nInput Modes: ${ inputModes.join(', ') }`
+        if(outputModes?.length)
+            skillTitle+=`\nOutput Modes: ${ outputModes.join(', ') }`
+        if(supportedLanguages?.length)
+            skillTitle+=`\nSupported Languages: ${ supportedLanguages.join(', ') }`
+        const skillContainer = document.createElement('div')
+        skillContainer.classList.add('proxy-skill')
+        skillContainer.id = `${ id }-${ skillId }-skill`
+        skillContainer.title = skillTitle
+        const skillBullet = document.createElement('span')
+        skillBullet.classList.add('proxy-skill-bullet', 'fa', 'fa-id-card')
+        const skillName = document.createElement('span')
+        skillName.classList.add('proxy-skill-name')
+        skillName.textContent = skillId
+        skillContainer.appendChild(skillBullet)
+        skillContainer.appendChild(skillName)
+        skillsContainer.appendChild(skillContainer)
+    })
+    skillsFragment.appendChild(skillsContainer)
+    return skillsFragment
+}
+/**
  * Processes a document summary request.
  * @this - collection-item-summary (HTMLSpanElement)
  * @private
  * @async
- * @param {Event} event - The event object.
+ * @param {Event} e - The event object.
  * @returns {void}
  */
-async function mSummarize(event){
-    event.preventDefault()
-    event.stopPropagation()
+async function mSummarize(e){
+    e.stopPropagation()
     const { dataset, } = this
     if(!dataset)
         throw new Error(`No dataset found for summary request.`)
@@ -558,17 +982,16 @@ async function mSummarize(event){
         this.classList.add('fa-file-circle-question')
         this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-xmark', 'fa-compass') // jic
         show(this)
-    }, 20*60*1000)
+    }, 20 * 60 * 1000)
 }
 /**
  * Closes the team popup.
- * @param {Event} event - The event object.
+ * @param {Event} e - The event object.
  * @returns {void}
  */
-function mCloseTeamPopup(event){
-    event.preventDefault()
-    event.stopPropagation()
-    const { ctrlKey, key, target, } = event
+function mCloseTeamPopup(e){
+    // e.stopPropagation()
+    const { ctrlKey, key, target, } = e
     if((key && key!='Escape') && !(ctrlKey && key=='w'))
         return
     document.removeEventListener('keydown', mCloseTeamPopup)
@@ -1134,17 +1557,29 @@ async function mCreateTeamMember(event){
     const { value: type, } = this
     if(!type)
         throw new Error(`no team member type selected`)
+    if(globals.isProxy(type)){}
     const data = {
         id: mActiveTeam.id,
         type,
     }
-    const bot = await globals.datamanager.botCreate(data)
+    if(globals.isProxy(type)){
+        const endpoint = window.prompt(
+            'Enter the external agent URL (A2A/NANDA endpoint):',
+            'https://list39.org/@'
+        )
+        if(!endpoint?.length)
+            throw new Error('External proxy bot requires a valid URL')
+        data.url = endpoint.trim()
+    }
+    const bot = globals.isProxy(type)
+        ? await globals.datamanager.botProxy(data)
+        : await globals.datamanager.botCreate(data)
     if(!bot)
         throw new Error(`no bot created for team member`)
     const { description, id, teams, } = bot
     mBots.push(bot)
-    setActiveBot(id)
-    updatePageBots(mBots, true, true)
+    setActiveBot(id, true)
+    updatePageBots(mBots, false, true)
 }
 /**
  * Create a team new popup.
@@ -1156,7 +1591,7 @@ async function mCreateTeamMember(event){
  * @returns {void}
  */
 function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
-    const { allowCustom, allowedTypes, } = mActiveTeam
+    const { allowCustom=false, allowProxy=false, allowedTypes, } = mActiveTeam
     mTeamPopup.style.visibility = 'hidden'
     mTeamPopup.innerHTML = '' // clear existing
     const teamPopup = document.createElement('div')
@@ -1179,21 +1614,29 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
             memberOption.value = ''
             memberSelect.appendChild(memberOption)
             allowedTypes.forEach(type=>{
-                if(mBots.find(bot=>bot.type===type)) // no duplicates currently
+                if(mBot(type)) // no duplicates currently
                     return
                 const memberOption = document.createElement('option')
                 memberOption.textContent = type
                 memberOption.value = type
                 memberSelect.appendChild(memberOption)
             })
-            if(allowCustom){
+            if(allowCustom || allowProxy){
                 const divider = document.createElement('optgroup')
                 divider.label = "-----------------"
                 memberSelect.appendChild(divider)
-                const memberOptionCustom = document.createElement('option')
-                memberOptionCustom.value = 'custom'
-                memberOptionCustom.textContent = 'Create a custom team member...'
-                memberSelect.appendChild(memberOptionCustom)
+                if(allowCustom){
+                    const memberOptionCustom = document.createElement('option')
+                    memberOptionCustom.value = 'custom'
+                    memberOptionCustom.textContent = 'Create a custom team member'
+                    memberSelect.appendChild(memberOptionCustom)
+                }
+                if(allowProxy){
+                    const memberOptionProxy = document.createElement('option')
+                    memberOptionProxy.value = 'proxy'
+                    memberOptionProxy.textContent = 'Link an external agent'
+                    memberSelect.appendChild(memberOptionProxy)
+                }
             }
             memberSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
             memberSelect.addEventListener('change', mCreateTeamMember, { once: true })
@@ -1344,9 +1787,8 @@ function mIsInputCheckbox(element){
     const outcome = tagName.toLowerCase()==='input' && type.toLowerCase()==='checkbox'
     return outcome
 }
-async function mEvaluate(event){
-    event.preventDefault()
-    event.stopPropagation()
+async function mEvaluate(e){
+    e.stopPropagation()
     /* set active item */
     const { id: itemId, } = this.dataset
     if(itemId)
@@ -1363,9 +1805,8 @@ async function mEvaluate(event){
     globals.expunge(awaitBar)
     toggleMemberInput(true)
 }
-async function mObscureEntry(event){
-    event.preventDefault()
-    event.stopPropagation()
+async function mObscureEntry(e){
+    e.stopPropagation()
     /* set active item */
     const { id: itemId, } = this.dataset
     if(itemId)
@@ -1425,9 +1866,27 @@ async function mRefreshCollection(type, collectionList){
     const collection = await globals.datamanager.collections(type)
     mUpdateCollection(type, collectionList, collection)
 }
-async function mReliveMemory(event){
-    event.preventDefault()
-    event.stopPropagation()
+/**
+ * Refresh the proxy URL for the proxy agent.
+ * @param {Event} e - The event object
+ * @returns {void}
+ */
+async function mRefreshProxyUrl(e){
+    e.stopPropagation()
+    const id = e.target.dataset.id
+        ?? e.target.id.replace('-refresh', '')
+    e.target.classList.add('spin')
+    const response = await globals.datamanager.botProxyRefresh(id)
+    e.target.style.display = 'none'
+    e.target.classList.remove('spin')
+    setTimeout(() => {
+        e.target.style.display = 'flex'
+        e.target.addEventListener('click', mRefreshProxyUrl, { once: true })
+    }, 5 * 60 * 1000)
+    console.log('Proxy URL refreshed:', response)
+}
+async function mReliveMemory(e){
+    e.stopPropagation()
     const { id, inputContent, } = this.dataset
     const previousInput = document.getElementById(`relive-memory-input-container_${id}`)
     if(previousInput)
@@ -1478,13 +1937,12 @@ async function mReliveMemory(event){
         input.appendChild(inputClose)
         input.appendChild(inputContent)
         input.appendChild(inputSubmit)
-        inputClose.addEventListener('click', async event=>{
-            event.preventDefault()
-            event.stopPropagation()
+        inputClose.addEventListener('click', async e=>{
+            e.stopPropagation()
             await mStopRelivingMemory(id, true)
         }, { once: true })
-        inputContent.addEventListener('input', event=>{
-            const { value, } = event.target
+        inputContent.addEventListener('input', e=>{
+            const { value, } = e.target
             inputSubmit.dataset.inputContent = value
             inputSubmit.textContent = value.length > 2
                 ? 'update'
@@ -1499,23 +1957,24 @@ async function mReliveMemory(event){
 }
 /**
  * Request to retire an identified bot.
- * @param {Event} event - The event object
+ * @param {Event} e - The event object
  * @returns {void}
  */
-async function mRetireBot(event){
-    event.preventDefault()
-    event.stopPropagation()
+async function mRetireBot(e){
+    e.stopPropagation()
     try {
-        const { dataset, id, } = event.target
-        const { botId, type, } = dataset
+        const { id, type, } = e.target.container
+        console.log(`Attempting to retire bot: ${ id }`, e.target.container)
+        if(globals.isProxy(type) && !confirm("Retiring a proxy bot will not notify the external agent. Are you sure?"))
+            return
         /* reset active bot */
-        if(mActiveBot.id===botId)
+        if(mActiveBot.id===id)
             setActiveBot()
-        const response = await globals.datamanager.botRetire(botId)
+        const response = await globals.datamanager.botRetire(id)
         addMessages(response.responses, 'avatar')
     } catch(err) {
         console.log('Error posting bot data:', err)
-        addMessage(`Error posting bot data: ${err.message}`, 'error')
+        addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
 }
 /**
@@ -1523,17 +1982,15 @@ async function mRetireBot(event){
  * @param {Event} event - The event object
  * @returns {void}
  */
-async function mRetireChat(event){
-    event.preventDefault()
-    event.stopPropagation()
+async function mRetireChat(e){
+    e.stopPropagation()
     try {
-        const { dataset, id, } = event.target
-        const { botId, type, } = dataset
-        const reponse = await globals.datamanager.chatRetire(botId)
+        const { id, type, } = e.target.container
+        const response = await globals.datamanager.chatRetire(id)
         addMessages(response.responses, mActiveBot.type)
     } catch(err) {
         console.log('Error posting bot data:', err)
-        addMessage(`Error posting bot data: ${err.message}`, 'error')
+        addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
 }
 /**
@@ -1548,7 +2005,7 @@ async function mRetireChat(event){
 function mSetAttributes(bot=mActiveBot, botContainer){
     const {
         activated=[],
-        activeFirst,
+        activeFirst=true,
         bot_name='Anonymous',
         dob,
         flags,
@@ -1559,7 +2016,8 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         privacy,
         type,
         updates,
-        version
+        url,
+        version='1.0',
     } = bot
     /* attributes */
     const botName = name
@@ -1587,10 +2045,12 @@ function mSetAttributes(bot=mActiveBot, botContainer){
         attributes.push({ name: 'privacy', value: privacy })
     if(updates)
         attributes.push({ name: 'updates', value: updates })
+    if(url)
+        attributes.push({ name: 'url', value: url })
     attributes.forEach(attribute=>{
         const { name, value, } = attribute
         botContainer.dataset[name] = value
-        const element = document.getElementById(`${ type }-${ name }`)
+        const element = document.getElementById(`${ globals.isProxy(type) ? bot_id : type }-${ name }`)
         if(element){
             const botInput = element.querySelector('input')
             if(botInput)
@@ -1609,7 +2069,8 @@ function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
     const { id, type, version, } = dataset
     const { id: botId, name, type: botType, version: botVersion, } = bot
-    const botStatusBar = document.getElementById(`${ type }-status`)
+    const containerIdentifier = globals.isProxy(botType) ? botId : type
+    const botStatusBar = document.getElementById(`${ containerIdentifier }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
     const response = {
@@ -1618,8 +2079,8 @@ function mSetStatusBar(bot, botContainer){
         type: type.split('-').pop(),
     }
     /* status icon */
-    const botIcon = document.getElementById(`${ type }-icon`)
-    const botThumb = document.getElementById(`${ type }-thumb`)
+    const botIcon = document.getElementById(`${ containerIdentifier }-icon`)
+    const botThumb = document.getElementById(`${ containerIdentifier }-thumb`)
     switch(true){
         case ( mActiveBot?.id==id ): // activated
             botIcon.classList.remove('online', 'offline', 'error')
@@ -1639,18 +2100,18 @@ function mSetStatusBar(bot, botContainer){
     }
     botContainer.dataset.status = response.status
     /* title-type */
-    const botTitleType = document.getElementById(`${ type }-title-type`)
+    const botTitleType = document.getElementById(`${ containerIdentifier }-title-type`)
     if(botTitleType){
         response.type = response.type.charAt(0).toUpperCase()
             + response.type.slice(1)
         botTitleType.textContent = response.type
     }
     /* title-name */
-    const botTitleName = document.getElementById(`${ type }-title-name`)
+    const botTitleName = document.getElementById(`${ containerIdentifier }-title-name`)
     if(botTitleName)
         botTitleName.textContent = response.name
     /* version */
-    const botVersionElement = document.getElementById(`${ type }-title-version`)
+    const botVersionElement = document.getElementById(`${ containerIdentifier }-title-version`)
     if(botVersionElement)
         botVersionElement.textContent = mVersion(version)
 }
@@ -2036,10 +2497,9 @@ function mCloseSharePanel(){
  * @param {Event} event - The event object
  * @returns {void}
  */
-async function mStartDiary(event){
-    event.preventDefault()
-    event.stopPropagation()
-    const submitButton = event.target
+async function mStartDiary(e){
+    e.stopPropagation()
+    const submitButton = e.target
     const diaryBot = getBot('diary')
     if(!diaryBot)
         return
@@ -2182,7 +2642,6 @@ function mTogglePassphrase(event){
     hide(passphraseSubmitButton)
     if(event?.target===passphraseResetButton){
         event.stopPropagation()
-        console.log('resetting', event.target)
         passphraseInput.focus()
         passphraseInput.disabled = false
         // passphraseInput.addEventListener('input', mInputPassphrase)
@@ -2196,7 +2655,6 @@ function mTogglePassphrase(event){
         show(passphraseCancelButton)
         show(passphraseInputContainer)
     } else {
-        console.log('toggling', event)
         passphraseInput.blur()
         passphraseInput.removeEventListener('input', mInputPassphrase)
         passphraseSubmitButton.removeEventListener('click', mUpdatePassphrase)
@@ -2242,22 +2700,21 @@ function mToggleClass(element, add=[], remove=[]){
 }
 /**
  * Toggles switch for element.
- * @param {Event} event - The event object.
+ * @param {Event} e - The event object.
  * @returns {void}
  */
-function mToggleSwitch(event){
+function mToggleSwitch(e){
     let target = this
-    if(event){
-        event.preventDefault()
-        event.stopPropagation()
-        target = event.target
+    if(e){
+        e.stopPropagation()
+        target = e.target
     }
     const { children, } = this
     let { id, } = this /* parent toggle id */
     id = globals.HTMLIdToType(id)
     const associatedSwitch = mFindCheckbox(target) /* throws on missing */
     const { checked, } = associatedSwitch
-    const { checkedValue=`${ event ? !checked : checked}`, } = target.dataset
+    const { checkedValue=`${ e ? !checked : checked}`, } = target.dataset
     associatedSwitch.checked = checkedValue==='true'
     let labelId
     /* send array children of this */
@@ -2278,17 +2735,17 @@ function mToggleSwitch(event){
 }
 /**
  * Toggles the privacy switch for the bot.
- * @param {Event} event - The event object.
+ * @param {Event} e - The event object.
  * @returns {void}
  */
-function mToggleSwitchPrivacy(event){
+function mToggleSwitchPrivacy(e){
     let { id, } = this
     id = id.replace('-toggle', '') // remove toggle
     const type = globals.HTMLIdToType(id)
     const publicityCheckbox = document.getElementById(`${ type }-publicity-input`)
     const viewIcon = document.getElementById(`${ type }-publicity-toggle-view-icon`)
     const { checked=false, } = publicityCheckbox
-    mToggleSwitch.bind(this)(event)
+    mToggleSwitch.bind(this)(e)
     mToggleClass(viewIcon, !checked ? ['fa-eye'] : ['fa-eye-slash'], checked ? ['fa-eye'] : ['fa-eye-slash'])
     this.addEventListener('click', mToggleSwitchPrivacy, { once: true })
 }
@@ -2337,12 +2794,21 @@ function mUpdateBotBar(){
  */
 function mUpdateBotContainers(includePersonalAvatar=true){
     if(!mBots?.length)
-        throw new Error(`mBots not populated.`)
+        throw new Error(`mBots not populated`)
     const botContainers = Array.from(document.querySelectorAll('.bot-container'))
     if(!botContainers.length)
         throw new Error(`No bot containers found on page`)
     botContainers
         .forEach(botContainer=>mUpdateBotContainer(botContainer, includePersonalAvatar))
+    const proxyAgents = mBots.filter(bot=>globals.isProxy(bot.type))
+    if(proxyAgents.length){
+        const collectionsContainer = document.getElementById('collections-container')
+        proxyAgents.forEach(proxyAgent=>{
+            const proxyContainer = mCreateProxyBotContainer(proxyAgent)
+            collectionsContainer.parentNode.insertBefore(proxyContainer, collectionsContainer)
+            mUpdateBotContainer(proxyContainer)
+        })
+    }
 }
 /**
  * Updates the bot container with specifics.
@@ -2375,116 +2841,83 @@ function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
  * @returns {void}
  */
 function mUpdateBotContainerAddenda(botContainer){
-        if(!botContainer)
-            return
-        /* type-specific logic */
-        const { dataset, id: type } = botContainer
-        const { id, } = dataset
-        const localVars = {}
-        if(dataset) // assign dataset to localVars for state manipulation and rollback
-            Object.keys(dataset).forEach(key=>localVars[key] = dataset[key])
-        const botNameInput = document.getElementById(`${ type }-input-bot_name`)
-        /* attach bot name listener */
-        if(botNameInput){
-            botNameInput.addEventListener('change', async _=>{
-                botNameInput.blur()
-                botNameInput.disabled = true
-                dataset.bot_name = botNameInput.value
-                const { bot_name, } = dataset
-                const botData = {
-                    bot_name,
-                    id,
-                    type,
-                }
-                const { name, } = await globals.datamanager.botUpdate(botData)
-                botNameInput.disabled = false
-                if(name?.length){
-                    const botTitleName = document.getElementById(`${ type }-title-name`)
-                    if(botTitleName)
-                        botTitleName.textContent = bot_name
-                    localVars.bot_name = bot_name
-                    /* update mBot */
-                    const bot = mBot(id)
-                    bot.bot_name = bot_name
-                    bot.name = bot_name
-                    globals.chatInputPlaceholder = `Type a message to ${ bot_name }...`
-                } else {
-                    dataset.bot_name = localVars.bot_name
-                }
+    const { bot_name, id, type, } = botContainer.dataset
+    const nameInput = document.getElementById(`${ globals.isProxy(type) ? id : type }-input-bot_name`)
+    if(nameInput){
+        nameInput.container = botContainer.dataset
+        nameInput.addEventListener('change', mBotNameChange, { once: true })
+    }
+    /* publicity */
+    const publicityToggle = document.getElementById(`${ type }-publicity-toggle`)
+    if(publicityToggle){
+        publicityToggle.addEventListener('click', mToggleSwitchPrivacy)
+        const publicityToggleView = document.getElementById(`${ type }-publicity-toggle-view-icon`)
+        if(publicityToggleView){
+            const { checked=false, } = document.getElementById(`${ type }-publicity-input`) ?? {}
+            mToggleClass(publicityToggleView, !checked ? ['fa-eye-slash'] : ['fa-eye'], checked ? ['fa-eye'] : ['fa-eye-slash'])
+            publicityToggleView.addEventListener('click', e=>{
+                // @note - shouldn't be required, but container masters the switch
+                e.stopImmediatePropagation()
+                e.stopPropagation()
             })
         }
-        /* publicity */
-        const publicityToggle = document.getElementById(`${ type }-publicity-toggle`)
-        if(publicityToggle){
-            publicityToggle.addEventListener('click', mToggleSwitchPrivacy)
-            const publicityToggleView = document.getElementById(`${ type }-publicity-toggle-view-icon`)
-            if(publicityToggleView){
-                const { checked=false, } = document.getElementById(`${ type }-publicity-input`) ?? {}
-                mToggleClass(publicityToggleView, !checked ? ['fa-eye-slash'] : ['fa-eye'], checked ? ['fa-eye'] : ['fa-eye-slash'])
-                publicityToggleView.addEventListener('click', event=>{
-                    // @note - shouldn't be required, but container masters the switch
-                    event.stopImmediatePropagation()
-                    event.stopPropagation()
-                })
-            }
-        }
-        /* retirements */
-        const retireChatButton = document.getElementById(`${ type }-retire-chat`)
-        if(retireChatButton){
-            retireChatButton.dataset.botId = id
-            retireChatButton.dataset.type = type
-            retireChatButton.addEventListener('click', mRetireChat)
-        }
-        const retireBotButton = document.getElementById(`${ type }-retire-bot`)
-        if(retireBotButton){
-            retireBotButton.dataset.botId = id
-            retireBotButton.dataset.type = type
-            retireBotButton.addEventListener('click', mRetireBot)
-        }
-        switch(type){
-            case 'avatar':
-            case 'personal-avatar':
-                /* attach avatar listeners */
-                /* set additional data attributes */
-                mTogglePassphrase(false) /* passphrase */
-                const tutorialButton = document.getElementById('personal-avatar-tutorial')
-                if(tutorialButton){
-                    if(experiences().length){
-                        show(tutorialButton)
-                        tutorialButton.addEventListener('click', async event=>{
-                            hide(tutorialButton)
-                            const tutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
-                            startExperience(tutorialId) // no await
-                        }, { once: true })
-                    } else
+    }
+    /* retirements */
+    const retireChatButton = document.getElementById(`${ globals.isProxy(type) ? id : type }-retire-chat`)
+    if(retireChatButton){
+        retireChatButton.dataset.botId = id
+        retireChatButton.dataset.type = type
+        retireChatButton.addEventListener('click', mRetireChat)
+    }
+    const retireBotButton = document.getElementById(`${ globals.isProxy(type) ? id : type }-retire-bot`)
+    if(retireBotButton){
+        retireBotButton.container = botContainer.dataset
+        retireBotButton.addEventListener('click', mRetireBot, { once: true })
+    }
+    switch(type){
+        case 'avatar':
+        case 'personal-avatar':
+            /* attach avatar listeners */
+            /* set additional data attributes */
+            mTogglePassphrase(false) /* passphrase */
+            const tutorialButton = document.getElementById('personal-avatar-tutorial')
+            if(tutorialButton){
+                if(experiences().length){
+                    show(tutorialButton)
+                    tutorialButton.addEventListener('click', async event=>{
                         hide(tutorialButton)
-                }
-                const introductionButton = document.getElementById('personal-avatar-introduction')
-                if(introductionButton)
-                    introductionButton.addEventListener('click', introduction)
-                const privacyPolicyButton = document.getElementById('personal-avatar-privacy')
-                if(privacyPolicyButton)
-                    privacyPolicyButton.addEventListener('click', privacyPolicy)
-                const greetingRoutineAvatarButton = document.getElementById('personal-avatar-routine')
-                if(greetingRoutineAvatarButton)
-                    greetingRoutineAvatarButton.addEventListener('click', _=>routine('avatar'))
-                break
-            case 'biographer':
-            case 'journaler':
-            case 'personal-biographer':
-                const greetingRoutineBiographerButton = document.getElementById('personal-biographer-routine')
-                if(greetingRoutineBiographerButton)
-                    greetingRoutineBiographerButton.addEventListener('click', _=>routine('biographer'))
-                break
-            case 'diary':
-                // add listener on `diary-start` button
-                const diaryStart = document.getElementById('diary-start')
-                if(diaryStart)
-                    diaryStart.addEventListener('click', mStartDiary)
-                break
-            default:
-                break
-        }
+                        const tutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
+                        startExperience(tutorialId) // no await
+                    }, { once: true })
+                } else
+                    hide(tutorialButton)
+            }
+            const introductionButton = document.getElementById('personal-avatar-introduction')
+            if(introductionButton)
+                introductionButton.addEventListener('click', introduction)
+            const privacyPolicyButton = document.getElementById('personal-avatar-privacy')
+            if(privacyPolicyButton)
+                privacyPolicyButton.addEventListener('click', privacyPolicy)
+            const greetingRoutineAvatarButton = document.getElementById('personal-avatar-routine')
+            if(greetingRoutineAvatarButton)
+                greetingRoutineAvatarButton.addEventListener('click', _=>routine('avatar'))
+            break
+        case 'biographer':
+        case 'journaler':
+        case 'personal-biographer':
+            const greetingRoutineBiographerButton = document.getElementById('personal-biographer-routine')
+            if(greetingRoutineBiographerButton)
+                greetingRoutineBiographerButton.addEventListener('click', _=>routine('biographer'))
+            break
+        case 'diary':
+            // add listener on `diary-start` button
+            const diaryStart = document.getElementById('diary-start')
+            if(diaryStart)
+                diaryStart.addEventListener('click', mStartDiary)
+            break
+        default:
+            break
+    }
 }
 /**
  * Updates bot version on server.
@@ -2640,7 +3073,7 @@ function mUpdateInterests(botContainer){
                 interests,
                 type,
             }
-            globals.datamanager.botUpdate(bot) // no `await
+            globals.datamanager.botUpdate(bot) // no need `await
         })
     })
 }
@@ -2709,7 +3142,7 @@ async function mUpdateTeams(identifier=mDefaultTeam){
         if(activeTeam)
             mActiveTeam = activeTeam
     }
-    const { allowedTypes, description, id, name, title, } = team
+    const { allowCustom, allowProxy, allowedTypes, description, id, name, title, } = team
     mTeamName.dataset.id = id
     mTeamName.dataset.description = description
     mTeamName.textContent = `${ title ?? name } Team`
