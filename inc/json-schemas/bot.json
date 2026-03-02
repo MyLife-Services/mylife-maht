@@ -55,7 +55,7 @@
         "provider": {
             "description": "provider of bot",
             "default": "openai",
-            "enum": ["azure", "meta", "mylife", "openai", "other"],
+            "enum": ["azure", "external", "meta", "mylife", "openai", "other"],
             "type": "string",
             "$comment": "@todo: breakout into $def for provider, ergo we can include in ecosystem as partner, etc."
         },

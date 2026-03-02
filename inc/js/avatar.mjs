@@ -361,6 +361,7 @@ class Avatar extends EventEmitter {
     #assetAgent
     #botAgent
     #collectionsAgent
+    #connectorAgent // connector agent for external proxy agents
     #evolver
     #experienceAgent
     #experienceGenericVariables = {
@@ -409,6 +410,7 @@ class Avatar extends EventEmitter {
         this.#assetAgent = new AssetAgent(this.#factory, this.#llmServices)
         this.#botAgent = new BotAgent(this.#factory, this.#llmServices)
         this.#collectionsAgent = new CollectionsAgent(this.#factory, this.#llmServices)
+        this.#connectorAgent = new ConnectorAgent(this.#factory, this.#llmServices)
         this.#ShareAgent = new ShareAgent({ instanceStartTime: Date.now() }, this, this.#factory, this.#llmServices)
     }
     /**
@@ -499,6 +501,49 @@ class Avatar extends EventEmitter {
     bot(bot_id, botType){
         const Bot = this.#botAgent.bot(bot_id, botType)
         return Bot
+    }
+    /**
+     * Grants or revokes access to a proxy Agent for a specific MyLife bot.
+     * @param {Guid} proxyId - The proxy Agent id
+     * @param {Guid} botId - The Bot id
+     * @param {Boolean} grant - Whether to grant or revoke access
+     * @returns {Promise<Boolean>} - Whether the operation was successful
+     */
+    async botProxyAccess(proxyId, botId, grant){
+        const result = this.#botAgent.proxyAccess(proxyId, botId, grant)
+        return result
+    }
+    /**
+     * Creates a proxy bot for external A2A agent interaction. Currently for NANDA test.
+     * @param {object} botData - The bot data object
+     * @returns {Promise<object>} - The response object
+     */
+    async botProxyCreate(botData){
+        const { id: teamId, ...data } = botData
+        data.object_id = this.id
+        data.access = [this.avatar.id] // avatar always has access
+        const proxyBot = await this.#connectorAgent.createProxy(data)
+        if(!proxyBot?.id?.length)
+            throw new Error('Proxy Agent creation failed, please review: ' + ( proxyBot?.error ?? 'unknown error' ))
+        this.#botAgent.addProxy(proxyBot, teamId)
+        return proxyBot
+    }
+    async botProxyRefresh(proxyId){
+        const Proxy = this.#botAgent.bot(proxyId)
+        if(!Proxy)
+            return {
+                error: 'Proxy Agent does not exist, cannot refresh endpoint.',
+                success: false,
+            }
+        const { isProxy=false, url, } = Proxy
+        if(!isProxy)
+            return {
+                error: 'Proxy Agent is not a proxy bot, cannot refresh endpoint.',
+                success: false,
+            }
+        const botData = await this.#connectorAgent.refreshProxy(url) // mutates Proxy in place
+        botData.id = proxyId
+        return this.updateBot(botData)
     }
     /**
      * Processes and executes incoming chat request.
@@ -816,11 +861,14 @@ class Avatar extends EventEmitter {
     /**
      * Specified by id, returns the pruned Bot.
      * @param {Guid} id - The Bot id
+     * @param {boolean} returnClassInstance - Whether to return the full Bot class instance, defaults to `false`
      * @returns {object} - The pruned Bot object
      */
-    getBot(bot_id){
-        const bot = this.#botAgent.bot(bot_id)?.bot
-        return bot
+    getBot(bot_id, returnClassInstance=false){
+        const bot = this.#botAgent.bot(bot_id)
+        return !returnClassInstance && !!bot
+            ? bot.bot
+            : bot
     }
     /**
      * Returns pruned Bots for Member Avatar.
@@ -1492,7 +1540,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Update a specific bot.
-     * @async
      * @param {Object} botData - Bot data to set
      * @returns {Promise<Object>} - The updated bot
      */
@@ -1502,7 +1549,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Update instructions for bot-assistant based on type. Default updates all LLM pertinent properties.
-     * @async
      * @param {string} id - The id of bot to update
      * @param {boolean} migrateThread - Whether to migrate the thread to the new bot, defaults to `true`
      * @returns {object} - The updated bot object
@@ -2127,6 +2173,14 @@ class Q extends Avatar {
         this.#connectorAgent = new ConnectorAgent(this.#factory, this.#llmServices)
     }
     /* overloaded methods */
+    /**
+     * OVERLOADED: MyLife must refuse to create proxies for external agents.
+     * @public
+     * @throws {Error} - System avatar cannot create proxies.
+     */
+    async botProxyCreate(){
+        throw new Error('System avatar cannot link to external agents.')
+    }
     /**
      * OVERLOADED: Processes and executes incoming chat request.
      * @todo - shunt registration actions to different MA functions

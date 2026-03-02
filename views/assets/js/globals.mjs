@@ -138,6 +138,45 @@ class Datamanager {
         const response = this.#fetch(url, options)
         return response
     }
+    /**
+     * Request bot proxy be created on server.
+     * @param {object} botData - bot data { auth, id, type, url, }
+     * @property {object} auth - The authentication data, if required
+     * @property {string} id - The teamId agent is assigned to
+     * @property {string} type - only 'proxy' supported
+     * @property {string} url - The external A2A *agent card* URL
+     * @returns {object} - Bot object from server
+     */
+    async botProxy(botData){
+        botData.type = 'proxy' // enforce type
+        const url = `/members/bots/proxy`
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(botData)
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async botProxyAccess(proxyId, botId, grant){
+        const url = `/members/bots/proxy/${ proxyId }/access`
+        const options = {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ botId, grant, })
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async botProxyRefresh(proxyId){
+        const url = `/members/bots/proxy/${ proxyId }/refresh`
+        const response = await this.#fetch(url)
+        return response
+    }
     async botRetire(bot_id){
         const url = `/members/bots/${ bot_id }`
         const options = {
@@ -1069,6 +1108,14 @@ class Globals {
         } catch(e){
             return false
         }
+    }
+    /**
+     * Determines whether the bot is a `proxy agent` given `type`.
+     * @param {string} type - The type to check
+     * @returns {boolean} - Whether the bot is a `proxy agent`
+     */
+    isProxy(type){
+        return type=='proxy'
     }
     /**
      * Remove an element from the DOM based upon its class name of `input-disappear`.

@@ -2,7 +2,9 @@
 import chalk from 'chalk'
 import fs from 'fs/promises'
 import path from 'path'
+import Globals from '../globals.mjs'
 import { mcpLogin, } from './mcp-functions.mjs'
+import { jsonrpcWrapper, } from './jsonrpc-functions.mjs'
 /* constants */
 const mA2AProviders = [
     {
@@ -32,6 +34,7 @@ const mA2AProviders = [
         }
     }
 ]
+const mA2ATimeout = 20000 // 20 seconds
 const mAgentCards = {},
     mAgentCardsPath = path.join(
         process.cwd(),
@@ -132,12 +135,18 @@ async function a2aCall(ctx){
     const { a2aAgentId, } = ctx.state
     ctx.set('Content-Type', 'application/json')
     const card = agentCard(a2aAgentId)
-    const { kind, messageId, metadata={}, parts, role, } = ctx.request.body
+    const { id, jsonrpc, method, params: { kind, messageId, metadata={}, parts, role, }, } = ctx.request.body
+    /* jsonrpc validation */
+    if(jsonrpc !== '2.0')
+        return sendError(ctx, 400, -32600, 'Invalid request body: expected jsonrpc to be "2.0"', { type: 'invalid_request' })
+    if(!method?.length)
+        return sendError(ctx, 400, -32600, 'Method is required in the body; most familiar method is `message/send`', { type: 'missing_parameter' })
+    /* message validation */
     if(kind!=='message')
         return sendError(ctx, 400, -32602, 'Invalid request body: expected kind to be "message"', { type: 'invalid_request' })
     if(!messageId?.length)
         return sendError(ctx, 400, -32602, 'Message ID is required in the body', { type: 'missing_parameter' })
-    if(!parts?.length)
+    if(!Array.isArray(parts) || !parts.length)
         return sendError(ctx, 400, -32602, 'Message parts are required in the body', { type: 'missing_parameter' })
     if(role!=='user')
         return sendError(ctx, 400, -32602, 'Invalid request body: expected role to be "user"', { type: 'invalid_request' })
@@ -264,6 +273,108 @@ async function a2aContract(ctx){
         ctx.body = contract
     }
 }
+/**
+ * Sends an external A2A request to a specified URL and skill and returns its response.
+ * @todo - store in conversation history, et al.
+ * @param {string|null} messageId - The ID of the message
+ * @param {string|null} skillId - The ID of the skill to invoke, defaults to `chat
+ * @param {string} request - The text request to send
+ * @param {string} url - The URL to send the request
+ * @returns {Promise<object>} - The response from the external A2A request { response, status, success, }
+ */
+async function a2aExternalRequest(messageId, skillId='chat', request, url){
+    const response = {
+        response: 'a2aExternalRequest() not yet implemented',
+        stream: false,
+        success: false,
+    }
+    if(!url?.length || !url.startsWith('http'))
+        response.response = 'Invalid or missing URL'
+    else if(!request?.length)
+        response.response = 'Invalid or missing request'
+    else {
+        const message = createA2ARequest(undefined, messageId, 'message/send', request)
+        console.log('a2aExternalRequest() sending message', message)
+        messageId = message.messageId
+        const controller = new AbortController()
+        const timeoutId = setTimeout(()=>controller.abort(), mA2ATimeout)
+        try{
+            const testUrl = 'https://hello.a2aregistry.org/a2a'
+            const a2aResponse = await fetch(testUrl, {
+                body: JSON.stringify(message),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                method: 'POST',
+                signal: controller.signal,
+            })
+            clearTimeout(timeoutId)
+            const a2aParsedResponse = parseA2AResponse(await a2aResponse.text())
+            response.response = a2aParsedResponse.response
+            response.success = a2aParsedResponse.success
+            console.log('a2aExternalRequest()', a2aParsedResponse, response)
+        } catch(e) {
+            clearTimeout(timeoutId)
+            response.response = e.name==='AbortError'
+                ? 'Request timed out (20s)'
+                : `Error during fetch: ${ e.message }`
+            console.error(chalk.redBright('a2aExternalRequest()'), e)
+        }
+    }
+    return response
+}
+/**
+ * Standardizes an A2A card to ensure consistent property names and structure.
+ * @param {object} card - Agent data
+ * @returns {object|null} - The standardized A2A card
+ */
+function standardizeA2ACard(card){
+    if(!card || typeof card !== 'object')
+        return null
+    // Standardize the [agent card properties](https://a2a-protocol.org/dev/specification/#55-agentcard-object-structure); currently supporting NANDA Agent Facts as well
+    const standardizedCard = {
+        capabilities: {
+            authentication: card.capabilities?.authentication ?? false,
+            extensions: card.capabilities?.extensions ?? [],
+            pushNotifications: card.capabilities?.pushNotifications ?? false,
+            stateTransitionHistory: card.capabilities?.stateTransitionHistory ?? false,
+            streaming: card.capabilities?.streaming ?? false,
+        },
+        defaultInputModes: card.defaultInputModes
+            ?? card.capabilities?.modalities
+            ?? [],
+        defaultOutputModes: card.defaultOutputModes
+            ?? card.capabilities?.modalities
+            ?? [],
+        description: card.description,
+        documentationUrl: card.documentationUrl,
+        iconUrl: card.iconUrl,
+        id: card.id,
+        name: card.name
+            ?? card.agent_name,
+        preferredTransport: card.preferredTransport
+            ?? 'JSONRPC',
+        protocolVersion: card.protocolVersion
+            ?? '1.0',
+        provider: {
+            did: card.provider?.did,
+            organization: card.provider?.organization
+                ?? card.provider?.name,
+            url: card.provider?.url
+        },
+        security: card.security ?? {},
+        securitySchemes: card.securitySchemes ?? {},
+        signatures: card.signatures ?? [],
+        skills: card.skills ?? [],
+        supportsAuthenticatedExtendedCard: card.supportsAuthenticatedExtendedCard ?? false,
+        url: card.url
+            ?? card.endpoints?.static?.[0]
+            ?? card.endpoints?.adaptive_resolver?.url,
+        version: card.version ?? '1.0',
+    }
+    standardizedCard.cardType = 'agent-' + (card.agent_name?.length ? 'facts' : 'card')
+    return standardizedCard
+}
 /* private functions */
 /**
  * Handles the A2A request for a specific agent and skill.
@@ -319,6 +430,40 @@ async function addFiletoObject(obj, fileName, dir){
 function agentCard(agentId){
     const agentCard = mAgentCards[agentId]
     return agentCard
+}
+async function botProxy(ctx){
+    const { avatar: Avatar, } = ctx.state
+    const { pid, } = ctx.params
+    const data = ctx.request.body
+    const response = await Avatar.botProxy(pid, data)
+    ctx.body = response
+}
+async function botProxyAccess(ctx){
+    const { avatar: Avatar, } = ctx.state
+    const { pid, } = ctx.params
+    const { botId, grant=true, } = ctx.request.body
+    const response = await Avatar.botProxyAccess(pid, botId, grant)
+    ctx.body = response
+}
+async function botProxyCreate(ctx){
+    const { avatar: Avatar, } = ctx.state
+    const { type, ...data } = ctx.request.body
+    if(type!=='proxy')
+        ctx.throw(500, 'Invalid request body: expected type to be `proxy')
+    const response = await Avatar.botProxyCreate(data)
+    ctx.body = response
+}
+async function botProxyRefresh(ctx){
+    const { avatar: Avatar, } = ctx.state
+    const { pid, } = ctx.params
+    const { botId, bot_id, } = ctx.request.body
+    const agentId = pid
+        ?? botId
+        ?? bot_id
+    if(!agentId?.length)
+        ctx.throw(400, 'Bot ID is required in the path or body')
+    const response = await Avatar.botProxyRefresh(agentId)
+    ctx.body = response
 }
 /**
  * Converts MCP data to A2A data.
@@ -409,6 +554,41 @@ function convertMCPToA2A(ctx, mcpData){
             data: data,
         })
     return a2aParts
+}
+/**
+ * Creates a well-formatted A2A JSON-RPC message object.
+ * @param {Guid|null} id - The task/message id, if null a new Guid will be created
+ * @param {Guid|null} messageId - The id of the message, if null a new Guid will be created
+ * @param {string|null} method - The method to call, defaults to `message/send`
+ * @param {string|null} request - The request to pass to external agent
+ * @returns {object} - The A2A JSON-RPC message object
+ */
+function createA2ARequest(id=Globals.newGuid, messageId=Globals.newGuid, method, request){
+    console.log('createA2ARequest', { id, messageId, method, request, })
+    const action = method.split('/')?.[1]
+    const context = method.split('/')[0]
+    const params = {}
+    switch(context){
+        case 'task':
+            params.task = request
+            break
+        case 'message':
+            switch(action){
+                case 'send':
+                default:
+                    params.kind = 'message'
+                    params.messageId = messageId
+                    params.parts = [{
+                        kind: 'text',
+                        text: request,
+                    }]
+                    params.role = 'user'
+            }
+            break
+        default:
+            throw new Error(`createA2ARequest() does not support context: ${ context }`)
+    }
+    return jsonrpcWrapper(id, method, params)
 }
 /**
  * Extracts the parameters from a skill and data part.
@@ -541,6 +721,69 @@ function makeUrlAbsolute(url){
     return url
 }
 /**
+ * Parses the response from the A2A agent.
+ * @todo - handle streaming responses
+ * @todo - handle data parts better
+ * @todo - handle file parts
+ * @param {any} content - Response from A2A agent
+ * @param {Guid|null} messageId - The ID of the message
+ * @param {Guid|null} id - The ID of the request
+ * @returns {object} - Parsed response object { response, success, }
+ */
+function parseA2AResponse(content, messageId, id){
+    let parsed,
+        response = {
+            response: 'Invalid A2A response',
+            success: false,
+        }
+    try {
+        if(typeof content === 'string')
+            try{
+                parsed = JSON.parse(content)
+            } catch(e) { /* string only */
+                response.response = content
+                response.success = true
+                return response
+            }
+        else if(typeof content === 'object' && !Array.isArray(content))
+            parsed = content
+        else
+            throw new Error('Expected a `string` or `object` response from A2A agent')
+        if(parsed?.jsonrpc) /* check for JSON-RPC */
+            if(parsed.jsonrpc!=='2.0')
+                throw new Error('Invalid JSON-RPC version, requires "2.0"')
+            else if(parsed?.error)
+                throw new Error(`JSON-RPC error: ${ parsed.error?.code } ${ parsed.error?.message }`)
+            else if(parsed?.result){
+                const { kind, messageId: responseMessageId, parts=[], role, } = parsed.result
+                if(kind!=='message')
+                    throw new Error('Invalid JSON-RPC response: expected `kind` to be "message"')
+                if(responseMessageId !== messageId)
+                    console.log(chalk.yellowBright(`Warning: JSON-RPC response messageId (${ responseMessageId }) does not match request messageId (${ messageId })`))
+                if(!['agent', 'assistant'].includes(role))
+                    throw new Error(`Invalid JSON-RPC response: expected role to be "agent" or "assistant", got ${ role }`)
+                if(!parts.length)
+                    throw new Error('Invalid JSON-RPC response: missing message parts')
+                response.response = parts.reduce((acc, part)=>{ /* concatenate all text and data parts */
+                    if(part.kind === 'text' && part.text?.length)
+                        acc += (acc.length ? '\n' : '') + part.text
+                    else if(part.kind === 'data' && part.data && typeof part.data === 'object')
+                        acc += (acc.length ? '\n' : '') + JSON.stringify(part.data)
+                    return acc
+                }, '')
+            } else
+                throw new Error('Invalid JSON-RPC response: missing result or error')
+        else if(parsed?.message?.length) /* custom A2A response */
+            response.response = parsed.message
+        else
+            throw new Error(`Invalid A2A response: unknown format of response: ${ content }`)
+        response.success = true
+    } catch(err) {
+        response.response = err.message
+    }
+    return response
+}
+/**
  * Reduces an array of data parts into a single object.
  * @param {Array} dataArray - An array of data parts to reduce
  * @returns {object} - The reduced data object
@@ -580,4 +823,10 @@ export {
     a2aCall,
     a2aCard,
     a2aContract,
+    a2aExternalRequest,
+    botProxy,
+    botProxyAccess,
+    botProxyCreate,
+    botProxyRefresh,
+    standardizeA2ACard,
 }

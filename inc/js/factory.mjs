@@ -179,17 +179,22 @@ class BotFactory extends EventEmitter{
 	 * @param {string} id - The bot id
 	 * @param {string} type - The bot type
 	 * @param {string} mbr_id - The member id
-	 * @returns {object} - The bot.
+	 * @param {string} proxyUrl - The external agent card URL (if applicable)
+	 * @returns {object} - The bot data
 	 */
-	async bot(id, type=mDefaultBotType, mbr_id){
-		return ( await this.dataservices.bot(id, type) )
-			?? ( await this.dataservices.getItemByField(
-					'bot',
-					'type',
-					type,
-					undefined,
-					mbr_id
-				) )
+	async bot(id, type=mDefaultBotType, mbr_id, proxyUrl){
+		if(id?.length && !this.globals.isValidGuid(id)){
+			const bot = await this.dataservices.bot(id, type)
+			if(!!bot && bot?.id?.length)
+				return bot
+		}
+		return await this.dataservices.getItemByField(
+			'bot',
+			proxyUrl?.length ? 'url' : 'type',
+			proxyUrl?.length ? proxyUrl : type,
+			undefined,
+			mbr_id
+		)
 	}
 	/**
 	 * Returns bot instruction set.

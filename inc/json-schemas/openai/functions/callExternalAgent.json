@@ -1,0 +1,30 @@
+{
+  "name": "callExternalAgent",
+  "description": "Call an external agent for response to member question",
+  "strict": true,
+  "parameters": {
+    "additionalProperties": false,
+    "type": "object",
+    "properties": {
+      "agentId": {
+        "description": "The MyLife UUID of the external agent to call",
+        "format": "uuid",
+        "type": "string"
+      },
+      "request": {
+        "description": "The request for response to send to the external agent",
+        "type": "string"
+      },
+      "skillId": {
+        "default": "chat",
+        "description": "The skill ID to call",
+        "type": "string"
+      }
+    },
+    "required": [
+      "agentId",
+      "request",
+      "skillId"
+    ]
+  }
+}
