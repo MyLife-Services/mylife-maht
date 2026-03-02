@@ -2261,6 +2261,14 @@ class Q extends Avatar {
         }
     }
     /**
+     * OVERLOADED: MyLife system avatar cannot logout of MyLife.
+     * @param {Koa} ctx - The Koa context object to throw the error on
+     * @throws {Error} - System avatar cannot logout of MyLife
+     */
+    async logout(ctx){
+        ctx.throw(403, 'System avatar cannot logout of MyLife.')
+    }
+    /**
      * OVERLOAD: Call a MyLife MCP system avatar function. This function elicits the last data decoration before returning to the client.
      * @param {string} functionName - The name of the function to call
      * @param {object} mcpData - The data object to pass to the function
