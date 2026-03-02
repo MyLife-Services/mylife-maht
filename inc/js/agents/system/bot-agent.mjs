@@ -7,6 +7,7 @@ const mDefaultBotType = mDefaultBotTypeArray[0]
 const mDefaultGreeting = 'avatar' // greeting routine
 const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
 const mDefaultTeam = 'memory'
+const mProxyChatTypes = ['chat', 'conversation', 'converse',]
 const mRequiredBotTypes = ['personal-avatar']
 const mTeams = [
 	{
@@ -102,7 +103,11 @@ class Bot {
 		const Conversation = await this.getConversation()
 		Conversation.prompt = message
 		Conversation.originalPrompt = originalMessage
-		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar) // mutates Conversation
+		// mutate Conversation
+		if(this.type!=='proxy')
+			await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar)
+		else
+			await mCallProxy(Conversation, allowSave, this.#factory, this.card)
 		this.accessed = true
 		return Conversation
 	}
@@ -170,7 +175,7 @@ class Bot {
 			const { bot_id: _llm_id, id, type, } = this
 			let { llm_id=_llm_id, thread_id, } = this // @stub - deprecate bot_id
 			this.#conversation = await mConversationStart('chat', type, id, thread_id, llm_id, this.#llm, this.#factory, message)
-			if(!thread_id?.length){
+			if(type!=='proxy' && !thread_id?.length){
 				thread_id = this.#conversation.thread_id
 				this.update({
 					id,
@@ -1331,6 +1336,62 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
 		Conversation.save() // no `await`
 }
 /**
+ * Sends Conversation instance with prompts for proxy agent to process, updating the Conversation instance.
+ * @param {Conversation} Conversation - The Conversation instance to mutate
+ * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
+ * @param {AgentFactory} factory - The Factory instance
+ * @param {object} card - The card data
+ */
+async function mCallProxy(Conversation, allowSave=true, factory, card){
+	const { skills, url, } = card
+	if(!url?.length)
+		throw new Error('Proxy Agent cannot process this card, no compatible skills found.')
+	const { originalPrompt, processStartTime=Date.now(), prompt, } = Conversation
+	const messageId = crypto.randomUUID()
+	Conversation.addRun(messageId)
+	const sendPrompt = prompt
+		?? originalPrompt
+	if(!sendPrompt?.length)
+		throw new Error('No prompt found for Proxy Agent.')
+	const body = {
+		kind: 'message',
+		messageId,
+		role: 'user',
+		parts: [
+			{ kind: 'text', text: sendPrompt },
+		],
+	}
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(body),
+	})
+	if(!response.ok)
+		throw new Error(`Proxy Agent request failed with status ${ response.status }: ${ response.statusText }`)
+	const responseData = await response.json()
+	const { kind, messageId: _messageId, parts, } = responseData
+	if(kind!=='message' || _messageId!==messageId)
+		throw new Error('Invalid or mismatched response from Proxy Agent.')
+    const botResponses = parts.map(part=>({
+		content: part.text,
+		created_at: processStartTime,
+		role: 'assistant',
+		run_id: messageId,
+		thread_id: Conversation.thread_id,
+	}))
+	Conversation.addMessage({
+		content: prompt,
+		created_at: processStartTime,
+		originalPrompt,
+		role: 'member',
+		run_id: messageId,
+		thread_id: Conversation.thread_id,
+	})
+	Conversation.addMessages(botResponses)
+	if(allowSave)
+		Conversation.save() // no `await`
+}
+/**
  * Create a new conversation.
  * @async
  * @module
@@ -1346,6 +1407,7 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
  * @returns {Conversation} - The conversation object
  */
 async function mConversationStart(type='chat', form='system', bot_id, thread_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
+	console.log('Starting conversation with prompt:', prompt, form, type)
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
@@ -1353,8 +1415,10 @@ async function mConversationStart(type='chat', form='system', bot_id, thread_id,
 			bot_id,
 			conversation_id: id,
 		},
-		processStartTime = Date.now(),
-		thread = await mThread(llm, thread_id, messages, metadata)
+		processStartTime = Date.now()
+	const thread = (form!=='proxy')
+		? await mThread(llm, thread_id, messages, metadata)
+		: null
 	const Conversation = new (factory.conversation)(
 		{
 			form,
