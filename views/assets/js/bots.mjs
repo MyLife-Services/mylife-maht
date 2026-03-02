@@ -855,17 +855,29 @@ function mProxyPurpose(id, purpose){
     purposeFragment.appendChild(proxyPurpose)
     return purposeFragment
 }
+/**
+ * Handles input change for proxy agent purpose. **Note**: Purpose is not included in `dataset` so no need to incorporate; although will deprecate dataset in future.
+ * @param {Event} e - The input change event
+ * @returns {void}
+ */
 async function mProxyPurposeInput(e){
     const { target, } = e
     const { proxyId, value, } = target
     if(!confirm(`By updating the purpose for this proxy agent, you will be changing the instructions for any MyLife intelligences utilizing this agent. Are you sure you want to proceed?`))
         target.value = target.originalValue
     else {
-        const test = await globals.datamanager.botUpdate({ id: proxyId, purpose: value, })
-        console.log(`mProxyPurposeInput::test`, proxyId, value, test)
-        target.originalValue = value
+        const { purpose, } = await globals.datamanager.botUpdate({ id: proxyId, purpose: value, })
+        target.originalValue = purpose
+        const bot = mBot(proxyId)
+        if(!!bot)
+            bot.purpose = purpose
     }
 }
+/**
+ * Creates a retire element for a proxy agent.
+ * @param {Guid} id - The external agent id
+ * @returns {DocumentFragment} - Retire element for a proxy agent
+ */
 function mProxyRetire(id){
     const retireFragment = document.createDocumentFragment()
     const proxyRetire = document.createElement('div')
