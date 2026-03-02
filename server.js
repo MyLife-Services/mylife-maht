@@ -11,9 +11,9 @@ import serve from 'koa-static'
 /* misc imports */
 import chalk from 'chalk'
 /* local service imports */
-import SystemAvatar from './inc/js/mylife-factory.mjs'
+import SystemAvatar from './inc/js/factory.mjs'
 /** variables **/
-const version = '0.0.38'
+const version = '0.0.39'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'

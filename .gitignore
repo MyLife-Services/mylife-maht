@@ -12,3 +12,4 @@ __*/ # ignore all folders starting with an underscore
 .code-workspace
 .postman
 postman
+package-lock.json

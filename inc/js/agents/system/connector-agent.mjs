@@ -14,6 +14,7 @@ class ConnectorAgent {
     #nandaEmail
     #nandaPassword
     #nandaRegistry
+    /* constructor and init */
     constructor(factory, llm){
         this.#factory = factory
         this.#llm = llm
@@ -21,7 +22,6 @@ class ConnectorAgent {
         this.#nandaPassword = mNandaRegistryPassword
         this.#nandaRegistry = mNandaRegistry
     }
-    /* public functions */
     async init(nandaEmail=this.#nandaEmail, nandaPassword=this.#nandaPassword){
         if(nandaEmail?.length && nandaPassword?.length){
             this.#nandaEmail = nandaEmail
@@ -32,7 +32,45 @@ class ConnectorAgent {
         }
         return this
     }
-    // init() would come on `login`
+    /* public functions */
+    /**
+     * Create a proxy bot from external agent card URL.
+     * @param {object} botData - The bot data
+     * @property {object} auth - The authentication data, if required
+     * @property {string} id - The teamId agent is assigned to
+     * @property {string} type - only 'proxy' supported
+     * @property {string} url - The external A2A *agent card* URL
+     * @returns {Promise<object>} - The created proxy bot data
+     */
+    async createProxy(botData){
+        const { url, } = botData
+        let proxyBot
+        if(!url?.length || !this.globals.isValidUrl(url))
+            return { error: 'Invalid or missing bot URL', success: false, }
+        proxyBot = await this.#factory.bot(undefined, 'proxy', undefined, url) // check if url already exists for member
+        if(!!proxyBot)
+            return proxyBot
+        botData.card = await this.#agentCard(url) // expect and read agent facts/card
+        if(!botData.card)
+            return { error: 'Failed to fetch agent facts', success: false, ...botData, }
+        this.#updateProxyByCard(botData)
+        botData.id = null /* ensure new id */
+        proxyBot = await this.#factory.createBot(botData)
+        return proxyBot
+    }
+    /**
+     * Refresh a proxy bot's data from external agent card URL.
+     * @param {string} url - The external A2A *agent card* URL
+     * @returns {Promise<object>} - The refreshed bot data
+     */
+    async refreshProxy(url){
+        if(!this.globals.isValidUrl(url))
+            return { error: 'Invalid bot data', success: false, }
+        const botData = {}
+        botData.card = await this.#agentCard(url)
+        this.#updateProxyByCard(botData, false) // avoid member-assigned updates; **note**: updates botData in place
+        return botData
+    }
     /** nanda-registry */
     async nandaServer(serverId){
         if(!this.globals.isValidGuid(serverId))
@@ -71,8 +109,66 @@ class ConnectorAgent {
     get globals(){
         return this.#factory.globals
     }
+    get mbr_id(){
+        return this.#factory.mbr_id
+    }
     get nandaRegistry(){
         return this.#nandaRegistry
+    }
+    /* private functions */
+    async #agentCard(endpoint){
+        const response = await fetch(endpoint)
+        if(!response.ok)
+            return
+        try {
+            const cardData = await response.json()
+            if(typeof cardData!=='object')
+                throw new Error('External agent did not return valid JSON card')
+            const { additionalInterfaces, capabilities: { extensions, pushNotifications, stateTransitionHistory, streaming, }, defaultInputModes, defaultOutputModes, description, documentationUrl, iconUrl, name: cardName, preferredTransport, protocolVersion='0.3.0', provider: {  organization: providerOrganization, url: providerUrl, }, security, securitySchemes, signatures, skills, supportsAuthenticatedExtendedCard, url: cardUrl, version, } = cardData // agent card (A2A)
+            const { agent_name, capabilities: { authentication, batch, modalities, }, certification, created_at, endpoints: { adaptive_resolver, static: urlArray, }, evaluations: { auditorID, auditTrail, availability90d, lastAudited, performanceScore, }, id, jurisdiction, label, provider: { did, name: providerName, }, telemetry, updated_at, } = cardData // agent facts (NANDA)
+            if(!description?.length)
+                throw new Error('No agent description found in card')
+            if(!Array.isArray(skills) || !skills.length)
+                throw new Error('No valid agent skills found in card, aborting')
+            const url = cardUrl ?? urlArray?.[0]
+            if(!url?.length)
+                throw new Error('No agent endpoint found in card')
+            const name = cardName ?? agent_name
+            if(!name?.length)
+                throw new Error('No agent name found in card')
+            const organization = providerOrganization ?? providerName
+            if(!organization?.length)
+                throw new Error('No valid agent provider organization found in card')
+            cardData.name = name
+            cardData.provider.organization = organization
+            cardData.url = url
+            return cardData
+        } catch(error) { console.error('Agent Facts/Card Fetch error:', error) }
+    }
+    /**
+     * Update botData in place from agent card data.
+     * @param {object|Bot} botData - The bot data to update (can be Bot instance)
+     * @param {boolean} allUpdates - Whether to update bot name and greeting; default: true
+     * @returns {void} - botData is updated in place
+     */
+    #updateProxyByCard(botData, allUpdates=true){
+        botData.allowMultiple = true
+        botData.description = botData?.card?.description
+            ?? 'No description provided'
+        botData.provider = 'external'
+        botData.purpose = ''
+        botData.type = 'proxy'
+        if(botData.card?.skills?.length)
+            botData.skills = botData.card.skills
+        if(allUpdates){
+            botData.bot_name = botData.name
+                ?? botData.card.name
+                ?? botData.card.agent_name
+                ?? 'Proxy Agent'
+            botData.name = `bot_${ botData.bot_name }_${ botData.url ?? 'unknown-agent-endpoint' }`.slice(0, 250)
+        }
+        if(allUpdates)
+            botData.greeting = `Hello, I am external agent ${ botData.bot_name }. My role is: ${ botData.description }. How can I help?`
     }
 }
 class nandaRegistry {

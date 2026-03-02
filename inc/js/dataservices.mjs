@@ -4,7 +4,7 @@
  * @version 1.0.0
  */
 //	imports
-import Datamanager from "./mylife-datamanager.mjs"
+import Datamanager from "./datamanager.mjs"
 /**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
@@ -515,21 +515,29 @@ class Dataservices {
 	 */
 	async getItems(being, selects=[], paramsArray=[], container_id, _mbr_id=this.mbr_id) {	//	paramsArray is array of objects { name: '${varName}' }
 		// @todo: incorporate date range functionality into this.getItems()
-		const _prefix = 'u'
-		paramsArray.unshift({ name: '@being', value: being })	//	add primary parameter to array at beginning
+		const prefix = 'u'
+		paramsArray.unshift({ name: '@being', value: being, })	//	add primary parameter to array at beginning
 		const _selectFields = (selects.length)
-			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${_prefix}.`+field)).join(',')
+			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${prefix}.`+field)).join(',')
 			:	'*'
-		let query = `select ${_selectFields} from ${_prefix}`	//	@being is required
-		paramsArray	//	iterate through parameters
-			.forEach(param=>{	//	param is an object of name, value pairs
-				query += (param.name==='@being')
-					?	` where ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
-					:	` and ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
+		let query = `select ${ _selectFields } from ${ prefix }`	//	@being is required
+		paramsArray /* iterate array of parameters */
+			.forEach((param, index)=>{
+				const { name, type, value=null,  } = param
+				let dbName = name
+				if(!dbName?.length || ( dbName.length===1 && dbName==='@' ))
+					return
+				if(!dbName.startsWith('@'))
+					dbName = '@' + dbName
+				query += ` ${ index === 0 ? 'where' : 'and' } `
+				const appendValue = type==='contains'
+					? `contains(lower(${ prefix }.${ dbName.slice(1) }), lower(${ dbName }))`
+					: `${ prefix }.${ dbName.slice(1) }=${ dbName }`
+				query += appendValue
 		})
 		try {
 			const items = await this.datamanager.getItems(
-				{ query: query, parameters: paramsArray },
+				{ query: query, parameters: paramsArray, },
 				container_id,
 				{
 					partitionKey: _mbr_id,
@@ -538,7 +546,7 @@ class Dataservices {
 			)
 			return items
 		} catch(_error) {
-			console.log('Dataservices::getItems()::error', _error, being, query, paramsArray, container_id,)
+			console.log('Dataservices::getItems()::error', _error, being, query, paramsArray, container_id)
 		}
 	}
 	/**

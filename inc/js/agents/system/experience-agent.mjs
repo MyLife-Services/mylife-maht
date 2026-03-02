@@ -1,5 +1,5 @@
 import BotAgent from "./bot-agent.mjs"
-import { Share, } from '../../mylife-models.mjs'
+import { Share, } from '../../models.mjs'
 import { Marked } from 'marked'
 /* module constants */
 const mAvailableEventActionMap = {
@@ -483,12 +483,15 @@ class ShareAgent {
         await Share.play(input)
         return Share
     }
+    /**
+     * Returns a Share instance by either instanceId (continue) or shareId(create).
+     * @param {Guid} instanceId - The Share instance id (optional)
+     * @param {Guid} shareId - The Share id (optional)
+     * @returns {Share} - The Share instance
+     */
     share(instanceId, shareId){
-        let Share
-        if(this.#factory.globals.isValidGuid(instanceId))
-            Share = this.#shares.find(share=>share.instanceId===instanceId)
-        else if(this.#factory.globals.isValidGuid(shareId))
-            Share = this.#shares.find(share=>share.id===shareId)
+        const Share = this.#shares.find(share=>share?.instanceId===instanceId)
+            ?? this.#shares.find(share=>share?.id===shareId)
         return Share
     }
     /**
