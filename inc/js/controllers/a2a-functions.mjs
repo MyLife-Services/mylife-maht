@@ -295,12 +295,12 @@ async function a2aExternalRequest(messageId, skillId='chat', request, url){
     else {
         const message = createA2ARequest(undefined, messageId, 'message/send', request)
         console.log('a2aExternalRequest() sending message', message)
-        messageId = message.messageId
+        messageId = message?.params?.messageId
+            ?? messageId
         const controller = new AbortController()
         const timeoutId = setTimeout(()=>controller.abort(), mA2ATimeout)
         try{
-            const testUrl = 'https://hello.a2aregistry.org/a2a'
-            const a2aResponse = await fetch(testUrl, {
+            const a2aResponse = await fetch(url, {
                 body: JSON.stringify(message),
                 headers: {
                     'Content-Type': 'application/json',

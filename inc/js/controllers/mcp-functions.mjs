@@ -363,7 +363,7 @@ async function mMcpCall(ctx, mcp){
     /* identify run */
     run = runs.get(id)
     if(!!run) // @todo - handle run in progress
-        throw new error('Run in progress', id)
+        throw new Error(`Run in progress: ${ id }`)
     run = {
         args,
         id,
@@ -587,7 +587,7 @@ async function mMcpCall(ctx, mcp){
                             }
                             result = {
                                 contents: [{
-                                    mimeType: 'application/pdf',
+                                    mimeType: 'text/html',
                                     name: httpsName,
                                     text,
                                     title: httpsTitle,

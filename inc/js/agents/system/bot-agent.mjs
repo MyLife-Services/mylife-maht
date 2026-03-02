@@ -614,7 +614,7 @@ class BotAgent {
 		return response
 	}
 	async genericBot(botType='avatar'){
-		return avatar 
+		return this.avatar
 	}
 	/**
 	 * Gets the correct bot for the item type and form.
@@ -1060,9 +1060,9 @@ async function mBotDelete(botId, BotAgent, llm, factory){
     const cannotRetire = ['actor', 'system', 'personal-avatar']
     if(cannotRetire.includes(type))
         return false
-	if(Bot.isProxy()) /* delete proxy agent instructions */
+	if(Bot.isProxy) /* delete proxy agent instructions */
 		if(access?.length)
-			access.forEach(async accessBot=>await BotAgent.proxyAccess(id, accessBot.id, false))
+			access.forEach(async accessBot => await BotAgent.proxyAccess(id, accessBot, false))
 	BotAgent.bots = BotAgent.bots.filter(bot=>bot.id!==id) /* delete from memory */
     await factory.deleteItem(id) /* delete bot from Cosmos */
 	if(llm_id?.length) /* delete bot from LLM provider */

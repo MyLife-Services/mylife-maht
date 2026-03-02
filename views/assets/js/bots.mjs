@@ -917,7 +917,7 @@ function mProxySkills(id, skills){
     /* - skills label */
     const skillsLabel = document.createElement('div')
     skillsLabel.classList.add('proxy-skills-label')
-    skillsLabel.id = `${ id }-skills`
+    skillsLabel.id = `${ id }-skills-label`
     skillsLabel.textContent = `Agent Skills:`
     skillsContainer.appendChild(skillsLabel)
     /* skills list */
@@ -1874,7 +1874,7 @@ async function mRefreshCollection(type, collectionList){
 async function mRefreshProxyUrl(e){
     e.stopPropagation()
     const id = e.target.dataset.id
-        ?? e.target.id.remove('-refresh')
+        ?? e.target.id.replace('-refresh', '')
     e.target.classList.add('spin')
     const response = await globals.datamanager.botProxyRefresh(id)
     e.target.style.display = 'none'
