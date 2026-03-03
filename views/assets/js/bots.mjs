@@ -600,6 +600,211 @@ function mCreateProxyBotContainer(proxyAgent){
     return proxyContainer
 }
 /**
+ * Creates a dynamic bot container element for the given bot, replacing hard-coded HTML.
+ * @private
+ * @param {object} bot - The bot object from mBots
+ * @returns {HTMLDivElement} - The bot container element
+ */
+function mCreateBotContainer(bot){
+    const { type, } = bot
+    /* container */
+    const container = document.createElement('div')
+    container.classList.add('bot-container')
+    container.id = type
+    /* status bar */
+    const status = document.createElement('div')
+    status.classList.add('bot-status')
+    status.id = `${ type }-status`
+    const icon = document.createElement('div')
+    icon.classList.add('bot-icon')
+    icon.id = `${ type }-icon`
+    const thumb = document.createElement('img')
+    thumb.classList.add('bot-image')
+    thumb.id = `${ type }-thumb`
+    thumb.src = mBotIcon(type)
+    icon.appendChild(thumb)
+    const title = document.createElement('div')
+    title.classList.add('bot-title')
+    title.id = `${ type }-title`
+    const titleType = document.createElement('div')
+    titleType.classList.add('bot-title-type')
+    titleType.id = `${ type }-title-type`
+    const titleName = document.createElement('div')
+    titleName.classList.add('bot-title-name')
+    titleName.id = `${ type }-title-name`
+    const titleVersion = document.createElement('div')
+    titleVersion.classList.add('bot-title-version')
+    titleVersion.id = `${ type }-title-version`
+    title.appendChild(titleType)
+    title.appendChild(titleName)
+    title.appendChild(titleVersion)
+    const dropdown = document.createElement('div')
+    dropdown.classList.add('bot-options-dropdown')
+    dropdown.id = `${ type }-options-dropdown`
+    status.appendChild(icon)
+    status.appendChild(title)
+    status.appendChild(dropdown)
+    /* options panel */
+    const options = document.createElement('div')
+    options.classList.add('bot-options', 'hidden')
+    options.id = `${ type }-options`
+    options.name = 'bot-options'
+    /* bot name input */
+    const nameGroup = document.createElement('div')
+    nameGroup.classList.add('input-group')
+    nameGroup.id = `${ type }-bot_name`
+    const nameLabel = document.createElement('label')
+    nameLabel.htmlFor = `${ type }-input-bot_name`
+    nameLabel.textContent = 'Bot Name:'
+    const nameInput = document.createElement('input')
+    nameInput.classList.add('bot-input', 'bot-name')
+    nameInput.id = `${ type }-input-bot_name`
+    nameInput.maxLength = 256
+    nameGroup.appendChild(nameLabel)
+    nameGroup.appendChild(nameInput)
+    options.appendChild(nameGroup)
+    /* interests */
+    const interests = mBotInterestsContainer(type)
+    if(interests)
+        options.appendChild(interests)
+    /* type-specific controls */
+    switch(type){
+        case 'biographer':
+        case 'personal-biographer':
+            const routineButton = document.createElement('button')
+            routineButton.classList.add('bot-options-button', 'button', 'routine-button')
+            routineButton.id = `${ type }-routine`
+            routineButton.type = 'button'
+            routineButton.textContent = 'My Greeting Routine'
+            options.appendChild(routineButton)
+            break
+        case 'diary':
+        case 'diarist':
+            const diaryStartButton = document.createElement('button')
+            diaryStartButton.classList.add('bot-options-button', 'button', 'bot-start')
+            diaryStartButton.id = `${ type }-start`
+            diaryStartButton.textContent = `Let's get started!`
+            options.appendChild(diaryStartButton)
+            options.appendChild(mCreateRetireContainer(type))
+            break
+        case 'journaler':
+            options.appendChild(mCreateRetireContainer(type))
+            break
+        default:
+            break
+    }
+    container.appendChild(status)
+    container.appendChild(options)
+    return container
+}
+/**
+ * Creates the retire container for a bot options panel.
+ * @private
+ * @param {string} type - The bot type
+ * @returns {HTMLDivElement} - The retire container element
+ */
+function mCreateRetireContainer(type){
+    const retireContainer = document.createElement('div')
+    retireContainer.classList.add('retire-container')
+    retireContainer.id = `${ type }-retire`
+    const retireText = document.createElement('div')
+    retireText.classList.add('retire-text')
+    retireText.id = `${ type }-retire-text`
+    retireText.textContent = 'Retire this:'
+    const retireChat = document.createElement('span')
+    retireChat.classList.add('fas', 'fa-comment-slash', 'retire-icon', 'retire-chat')
+    retireChat.id = `${ type }-retire-chat`
+    retireChat.title = 'Retire this Chat. Begins new chat.'
+    const retireBot = document.createElement('span')
+    retireBot.classList.add('fas', 'fa-user-large-slash', 'retire-icon', 'retire-bot')
+    retireBot.id = `${ type }-retire-bot`
+    retireBot.title = 'Relieves this bot, cannot be returned.'
+    retireContainer.appendChild(retireText)
+    retireContainer.appendChild(retireChat)
+    retireContainer.appendChild(retireBot)
+    return retireContainer
+}
+/**
+ * Creates the interests checkbox list for a bot options panel based on bot type.
+ * All available interest definitions are kept here in module scope (mBots), not in dataset or HTML.
+ * @private
+ * @param {string} type - The bot type
+ * @returns {HTMLDivElement|null} - The interests container, or null if none defined for this type
+ */
+function mBotInterestsContainer(type){
+    const biographerInterests = [
+        { id: 'academics', value: 'Academics', label: 'Academics' },
+        { id: 'art', value: 'Art', label: 'Art' },
+        { id: 'business-career', value: 'Business and Career', label: 'Business and Career' },
+        { id: 'culture', value: 'Culture', label: 'Culture' },
+        { id: 'entertainment', value: 'Entertainment', label: 'Entertainment' },
+        { id: 'family', value: 'Family', label: 'Family' },
+        { id: 'fashion', value: 'Fashion', label: 'Fashion' },
+        { id: 'food', value: 'Food', label: 'Food' },
+        { id: 'health', value: 'Health and Well-Being', label: 'Health and Well-Being' },
+        { id: 'hobbies', value: 'Hobbies', label: 'Hobbies' },
+        { id: 'ideas', value: 'Ideas', label: 'Ideas' },
+        { id: 'literature', value: 'Literature', label: 'Literature' },
+        { id: 'music', value: 'Music', label: 'Music' },
+        { id: 'pets', value: 'Pets', label: 'Pets' },
+        { id: 'philosophy', value: 'Philosophy', label: 'Philosophy' },
+        { id: 'politics', value: 'Politics', label: 'Politics' },
+        { id: 'relationships', value: 'Relationships', label: 'Relationships' },
+        { id: 'science', value: 'Science', label: 'Science' },
+        { id: 'social-justice', value: 'Social Justice', label: 'Social Justice' },
+        { id: 'sports', value: 'Sports', label: 'Sports' },
+        { id: 'tech', value: 'Tech', label: 'Technology' },
+        { id: 'travel', value: 'Travel', label: 'Travel' },
+    ]
+    const diaryJournalerInterests = [
+        { id: 'art', value: 'art', label: 'Art' },
+        { id: 'ideas', value: 'ideas', label: 'Ideas' },
+        { id: 'dreams', value: 'dreams', label: 'Dreams' },
+        { id: 'relationships', value: 'relationships', label: 'Relationships' },
+        { id: 'awareness', value: 'awareness', label: 'Self-awareness' },
+        { id: 'understanding', value: 'understanding', label: 'Understanding' },
+        { id: 'peace', value: 'peace', label: 'Inner Peace' },
+        { id: 'spirituality', value: 'spirituality', label: 'Spirituality' },
+    ]
+    const interestsConfig = {
+        'biographer': { label: 'I enjoy talking about:', interests: biographerInterests, },
+        'personal-biographer': { label: 'I enjoy talking about:', interests: biographerInterests, },
+        'diary': { label: 'I like using my diary for:', interests: diaryJournalerInterests, },
+        'diarist': { label: 'I like using my diary for:', interests: diaryJournalerInterests, },
+        'journaler': { label: 'I enjoy journaling about:', interests: diaryJournalerInterests, },
+    }
+    const config = interestsConfig[type]
+    if(!config)
+        return null
+    const { label, interests, } = config
+    const interestsContainer = document.createElement('div')
+    interestsContainer.classList.add('input-group', 'interests')
+    interestsContainer.id = `${ type }-interests`
+    const interestsLabel = document.createElement('label')
+    interestsLabel.classList.add('interests-label')
+    interestsLabel.textContent = label
+    interestsContainer.appendChild(interestsLabel)
+    const checkboxGroup = document.createElement('div')
+    checkboxGroup.classList.add('checkbox-group')
+    interests.forEach(({ id, value, label: interestLabel, })=>{
+        const item = document.createElement('div')
+        item.classList.add('checkbox-group-item')
+        const checkbox = document.createElement('input')
+        checkbox.type = 'checkbox'
+        checkbox.name = 'interests'
+        checkbox.id = `${ type }-${ id }`
+        checkbox.value = value
+        const itemLabel = document.createElement('label')
+        itemLabel.htmlFor = `${ type }-${ id }`
+        itemLabel.textContent = interestLabel
+        item.appendChild(checkbox)
+        item.appendChild(itemLabel)
+        checkboxGroup.appendChild(item)
+    })
+    interestsContainer.appendChild(checkboxGroup)
+    return interestsContainer
+}
+/**
  * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
  * @requires mShadows
  * @param {Event} event - The event object.
@@ -2795,6 +3000,19 @@ function mUpdateBotBar(){
 function mUpdateBotContainers(includePersonalAvatar=true){
     if(!mBots?.length)
         throw new Error(`mBots not populated`)
+    const collectionsContainer = document.getElementById('collections-container')
+    /* dynamically create containers for non-proxy bots not yet in DOM */
+    mBots
+        .filter(bot=>!globals.isProxy(bot.type))
+        .forEach(bot=>{
+            const { type, } = bot
+            if(type==='avatar' || type==='personal-avatar')
+                return /* personal-avatar stays hard-coded in _bots.html */
+            if(!document.getElementById(type)){
+                const botContainer = mCreateBotContainer(bot)
+                collectionsContainer.parentNode.insertBefore(botContainer, collectionsContainer)
+            }
+        })
     const botContainers = Array.from(document.querySelectorAll('.bot-container'))
     if(!botContainers.length)
         throw new Error(`No bot containers found on page`)
@@ -2802,7 +3020,6 @@ function mUpdateBotContainers(includePersonalAvatar=true){
         .forEach(botContainer=>mUpdateBotContainer(botContainer, includePersonalAvatar))
     const proxyAgents = mBots.filter(bot=>globals.isProxy(bot.type))
     if(proxyAgents.length){
-        const collectionsContainer = document.getElementById('collections-container')
         proxyAgents.forEach(proxyAgent=>{
             const proxyContainer = mCreateProxyBotContainer(proxyAgent)
             collectionsContainer.parentNode.insertBefore(proxyContainer, collectionsContainer)
@@ -2905,13 +3122,14 @@ function mUpdateBotContainerAddenda(botContainer){
         case 'biographer':
         case 'journaler':
         case 'personal-biographer':
-            const greetingRoutineBiographerButton = document.getElementById('personal-biographer-routine')
+            const greetingRoutineBiographerButton = document.getElementById(`${ type }-routine`)
             if(greetingRoutineBiographerButton)
                 greetingRoutineBiographerButton.addEventListener('click', _=>routine('biographer'))
             break
         case 'diary':
-            // add listener on `diary-start` button
-            const diaryStart = document.getElementById('diary-start')
+        case 'diarist':
+            // add listener on `${type}-start` button
+            const diaryStart = document.getElementById(`${ type }-start`)
             if(diaryStart)
                 diaryStart.addEventListener('click', mStartDiary)
             break
