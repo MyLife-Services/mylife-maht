@@ -216,7 +216,8 @@ async function setActiveBot(event, displayGreeting=true){
     mActiveBot.routines = mActiveBot.routines
         ?? []
     if(versionUpdate!==version){
-        const botVersion = document.getElementById(`${ type }-title-version`)
+        const botVersion = document.getElementById(`${ id }-title-version`)
+            ?? document.getElementById(`${ type }-title-version`)
         if(botVersion){
             botVersion.classList.add('update-available')
             botVersion.dataset.botId = bot_id
@@ -422,7 +423,7 @@ async function mBotNameChange(e){
         if(!name?.length)
             nameInput.value = bot_name
         else {
-            const botTitleName = document.getElementById(`${ globals.isProxy(type) ? id : type }-title-name`)
+            const botTitleName = document.getElementById(`${ nameInput.containerId }-title-name`)
             botTitleName && (botTitleName.textContent = name)
             nameInput.container.bot_name = name
             /* update mBot */
@@ -606,93 +607,87 @@ function mCreateProxyBotContainer(proxyAgent){
  * @returns {HTMLDivElement} - The bot container element
  */
 function mCreateBotContainer(bot){
-    const { type, } = bot
+    const { id, type, icon, buttons=[], options: botOptions=[], retirable=false, } = bot
     /* container */
     const container = document.createElement('div')
     container.classList.add('bot-container')
-    container.id = type
+    container.id = id
     /* status bar */
     const status = document.createElement('div')
     status.classList.add('bot-status')
-    status.id = `${ type }-status`
-    const icon = document.createElement('div')
-    icon.classList.add('bot-icon')
-    icon.id = `${ type }-icon`
+    status.id = `${ id }-status`
+    const iconEl = document.createElement('div')
+    iconEl.classList.add('bot-icon')
+    iconEl.id = `${ id }-icon`
     const thumb = document.createElement('img')
     thumb.classList.add('bot-image')
-    thumb.id = `${ type }-thumb`
-    thumb.src = mBotIcon(type)
-    icon.appendChild(thumb)
+    thumb.id = `${ id }-thumb`
+    thumb.src = icon ? `png/${ icon }` : mBotIcon(type)
+    iconEl.appendChild(thumb)
     const title = document.createElement('div')
     title.classList.add('bot-title')
-    title.id = `${ type }-title`
+    title.id = `${ id }-title`
     const titleType = document.createElement('div')
     titleType.classList.add('bot-title-type')
-    titleType.id = `${ type }-title-type`
+    titleType.id = `${ id }-title-type`
     const titleName = document.createElement('div')
     titleName.classList.add('bot-title-name')
-    titleName.id = `${ type }-title-name`
+    titleName.id = `${ id }-title-name`
     const titleVersion = document.createElement('div')
     titleVersion.classList.add('bot-title-version')
-    titleVersion.id = `${ type }-title-version`
+    titleVersion.id = `${ id }-title-version`
     title.appendChild(titleType)
     title.appendChild(titleName)
     title.appendChild(titleVersion)
     const dropdown = document.createElement('div')
     dropdown.classList.add('bot-options-dropdown')
-    dropdown.id = `${ type }-options-dropdown`
-    status.appendChild(icon)
+    dropdown.id = `${ id }-options-dropdown`
+    status.appendChild(iconEl)
     status.appendChild(title)
     status.appendChild(dropdown)
     /* options panel */
     const options = document.createElement('div')
     options.classList.add('bot-options', 'hidden')
-    options.id = `${ type }-options`
+    options.id = `${ id }-options`
     options.name = 'bot-options'
     /* bot name input */
     const nameGroup = document.createElement('div')
     nameGroup.classList.add('input-group')
-    nameGroup.id = `${ type }-bot_name`
+    nameGroup.id = `${ id }-bot_name`
     const nameLabel = document.createElement('label')
-    nameLabel.htmlFor = `${ type }-input-bot_name`
+    nameLabel.htmlFor = `${ id }-input-bot_name`
     nameLabel.textContent = 'Bot Name:'
     const nameInput = document.createElement('input')
     nameInput.classList.add('bot-input', 'bot-name')
-    nameInput.id = `${ type }-input-bot_name`
+    nameInput.id = `${ id }-input-bot_name`
     nameInput.maxLength = 256
     nameGroup.appendChild(nameLabel)
     nameGroup.appendChild(nameInput)
     options.appendChild(nameGroup)
-    /* interests */
-    const interests = mBotInterestsContainer(type)
-    if(interests)
-        options.appendChild(interests)
-    /* type-specific controls */
-    switch(type){
-        case 'biographer':
-        case 'personal-biographer':
-            const routineButton = document.createElement('button')
-            routineButton.classList.add('bot-options-button', 'button', 'routine-button')
-            routineButton.id = `${ type }-routine`
-            routineButton.type = 'button'
-            routineButton.textContent = 'My Greeting Routine'
-            options.appendChild(routineButton)
-            break
-        case 'diary':
-        case 'diarist':
-            const diaryStartButton = document.createElement('button')
-            diaryStartButton.classList.add('bot-options-button', 'button', 'bot-start')
-            diaryStartButton.id = `${ type }-start`
-            diaryStartButton.textContent = `Let's get started!`
-            options.appendChild(diaryStartButton)
-            options.appendChild(mCreateRetireContainer(type))
-            break
-        case 'journaler':
-            options.appendChild(mCreateRetireContainer(type))
-            break
-        default:
-            break
-    }
+    /* options panels from bot data */
+    botOptions.forEach(optionGroup=>{
+        if(optionGroup.type === 'checkbox'){
+            const interestsEl = mBotInterestsContainer(id, optionGroup)
+            if(interestsEl)
+                options.appendChild(interestsEl)
+        }
+    })
+    /* buttons from bot data */
+    buttons.slice().sort((a, b)=>(a.order ?? 0) - (b.order ?? 0)).forEach(button=>{
+        const btn = document.createElement('button')
+        btn.classList.add('bot-options-button', 'button')
+        btn.id = button.id
+        btn.type = 'button'
+        btn.textContent = button.label
+        if(button.type === 'routine')
+            btn.classList.add('routine-button')
+        else if(button.type === 'start')
+            btn.classList.add('bot-start')
+        options.appendChild(btn)
+    })
+    /* retire container from bot data */
+    if(retirable)
+        options.appendChild(mCreateRetireContainer(id))
     container.appendChild(status)
     container.appendChild(options)
     return container
@@ -700,24 +695,24 @@ function mCreateBotContainer(bot){
 /**
  * Creates the retire container for a bot options panel.
  * @private
- * @param {string} type - The bot type
+ * @param {Guid} id - The bot id (uuid)
  * @returns {HTMLDivElement} - The retire container element
  */
-function mCreateRetireContainer(type){
+function mCreateRetireContainer(id){
     const retireContainer = document.createElement('div')
     retireContainer.classList.add('retire-container')
-    retireContainer.id = `${ type }-retire`
+    retireContainer.id = `${ id }-retire`
     const retireText = document.createElement('div')
     retireText.classList.add('retire-text')
-    retireText.id = `${ type }-retire-text`
+    retireText.id = `${ id }-retire-text`
     retireText.textContent = 'Retire this:'
     const retireChat = document.createElement('span')
     retireChat.classList.add('fas', 'fa-comment-slash', 'retire-icon', 'retire-chat')
-    retireChat.id = `${ type }-retire-chat`
+    retireChat.id = `${ id }-retire-chat`
     retireChat.title = 'Retire this Chat. Begins new chat.'
     const retireBot = document.createElement('span')
     retireBot.classList.add('fas', 'fa-user-large-slash', 'retire-icon', 'retire-bot')
-    retireBot.id = `${ type }-retire-bot`
+    retireBot.id = `${ id }-retire-bot`
     retireBot.title = 'Relieves this bot, cannot be returned.'
     retireContainer.appendChild(retireText)
     retireContainer.appendChild(retireChat)
@@ -725,77 +720,33 @@ function mCreateRetireContainer(type){
     return retireContainer
 }
 /**
- * Creates the interests checkbox list for a bot options panel based on bot type.
- * All available interest definitions are kept here in module scope (mBots), not in dataset or HTML.
+ * Creates the interests checkbox list for a bot options panel from bot option group data.
  * @private
- * @param {string} type - The bot type
- * @returns {HTMLDivElement|null} - The interests container, or null if none defined for this type
+ * @param {Guid} botId - The bot id (uuid), used as element id prefix
+ * @param {object} optionGroup - The option group object from bot.options (type 'checkbox')
+ * @returns {HTMLDivElement} - The interests container element
  */
-function mBotInterestsContainer(type){
-    const biographerInterests = [
-        { id: 'academics', value: 'Academics', label: 'Academics' },
-        { id: 'art', value: 'Art', label: 'Art' },
-        { id: 'business-career', value: 'Business and Career', label: 'Business and Career' },
-        { id: 'culture', value: 'Culture', label: 'Culture' },
-        { id: 'entertainment', value: 'Entertainment', label: 'Entertainment' },
-        { id: 'family', value: 'Family', label: 'Family' },
-        { id: 'fashion', value: 'Fashion', label: 'Fashion' },
-        { id: 'food', value: 'Food', label: 'Food' },
-        { id: 'health', value: 'Health and Well-Being', label: 'Health and Well-Being' },
-        { id: 'hobbies', value: 'Hobbies', label: 'Hobbies' },
-        { id: 'ideas', value: 'Ideas', label: 'Ideas' },
-        { id: 'literature', value: 'Literature', label: 'Literature' },
-        { id: 'music', value: 'Music', label: 'Music' },
-        { id: 'pets', value: 'Pets', label: 'Pets' },
-        { id: 'philosophy', value: 'Philosophy', label: 'Philosophy' },
-        { id: 'politics', value: 'Politics', label: 'Politics' },
-        { id: 'relationships', value: 'Relationships', label: 'Relationships' },
-        { id: 'science', value: 'Science', label: 'Science' },
-        { id: 'social-justice', value: 'Social Justice', label: 'Social Justice' },
-        { id: 'sports', value: 'Sports', label: 'Sports' },
-        { id: 'tech', value: 'Tech', label: 'Technology' },
-        { id: 'travel', value: 'Travel', label: 'Travel' },
-    ]
-    const diaryJournalerInterests = [
-        { id: 'art', value: 'art', label: 'Art' },
-        { id: 'ideas', value: 'ideas', label: 'Ideas' },
-        { id: 'dreams', value: 'dreams', label: 'Dreams' },
-        { id: 'relationships', value: 'relationships', label: 'Relationships' },
-        { id: 'awareness', value: 'awareness', label: 'Self-awareness' },
-        { id: 'understanding', value: 'understanding', label: 'Understanding' },
-        { id: 'peace', value: 'peace', label: 'Inner Peace' },
-        { id: 'spirituality', value: 'spirituality', label: 'Spirituality' },
-    ]
-    const interestsConfig = {
-        'biographer': { label: 'I enjoy talking about:', interests: biographerInterests, },
-        'personal-biographer': { label: 'I enjoy talking about:', interests: biographerInterests, },
-        'diary': { label: 'I like using my diary for:', interests: diaryJournalerInterests, },
-        'diarist': { label: 'I like using my diary for:', interests: diaryJournalerInterests, },
-        'journaler': { label: 'I enjoy journaling about:', interests: diaryJournalerInterests, },
-    }
-    const config = interestsConfig[type]
-    if(!config)
-        return null
-    const { label, interests, } = config
+function mBotInterestsContainer(botId, optionGroup){
+    const { label, options: items=[], variable='interests', } = optionGroup
     const interestsContainer = document.createElement('div')
     interestsContainer.classList.add('input-group', 'interests')
-    interestsContainer.id = `${ type }-interests`
+    interestsContainer.id = `${ botId }-interests`
     const interestsLabel = document.createElement('label')
     interestsLabel.classList.add('interests-label')
     interestsLabel.textContent = label
     interestsContainer.appendChild(interestsLabel)
     const checkboxGroup = document.createElement('div')
     checkboxGroup.classList.add('checkbox-group')
-    interests.forEach(({ id, value, label: interestLabel, })=>{
+    items.forEach(({ id, value, label: interestLabel, })=>{
         const item = document.createElement('div')
         item.classList.add('checkbox-group-item')
         const checkbox = document.createElement('input')
         checkbox.type = 'checkbox'
-        checkbox.name = 'interests'
-        checkbox.id = `${ type }-${ id }`
+        checkbox.name = variable
+        checkbox.id = `${ botId }-${ id }`
         checkbox.value = value
         const itemLabel = document.createElement('label')
-        itemLabel.htmlFor = `${ type }-${ id }`
+        itemLabel.htmlFor = `${ botId }-${ id }`
         itemLabel.textContent = interestLabel
         item.appendChild(checkbox)
         item.appendChild(itemLabel)
@@ -2255,7 +2206,7 @@ function mSetAttributes(bot=mActiveBot, botContainer){
     attributes.forEach(attribute=>{
         const { name, value, } = attribute
         botContainer.dataset[name] = value
-        const element = document.getElementById(`${ globals.isProxy(type) ? bot_id : type }-${ name }`)
+        const element = document.getElementById(`${ botContainer.id }-${ name }`)
         if(element){
             const botInput = element.querySelector('input')
             if(botInput)
@@ -2274,7 +2225,7 @@ function mSetStatusBar(bot, botContainer){
     const { dataset, } = botContainer
     const { id, type, version, } = dataset
     const { id: botId, name, type: botType, version: botVersion, } = bot
-    const containerIdentifier = globals.isProxy(botType) ? botId : type
+    const containerIdentifier = botContainer.id
     const botStatusBar = document.getElementById(`${ containerIdentifier }-status`)
     if(!type || !botType==type || !botStatusBar)
         return
@@ -2345,7 +2296,7 @@ function mSpotlightBotStatus(){
     mBots
         .forEach(bot=>{
             const { id, type, } = bot
-            const botContainer = document.getElementById(type)
+            const botContainer = document.getElementById(id) ?? document.getElementById(type)
             if(botContainer){ // exists on-page
                 // set data attribute for active bot
                 const { dataset, } = botContainer
@@ -3008,7 +2959,7 @@ function mUpdateBotContainers(includePersonalAvatar=true){
             const { type, } = bot
             if(type==='avatar' || type==='personal-avatar')
                 return /* personal-avatar stays hard-coded in _bots.html */
-            if(!document.getElementById(type)){
+            if(!document.getElementById(bot.id)){
                 const botContainer = mCreateBotContainer(bot)
                 collectionsContainer.parentNode.insertBefore(botContainer, collectionsContainer)
             }
@@ -3035,10 +2986,10 @@ function mUpdateBotContainers(includePersonalAvatar=true){
  * @returns {void}
  */
 function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
-    const { id: type } = botContainer
-    if(type==='personal-avatar' && !includePersonalAvatar)
+    const { id: containerId } = botContainer
+    if(containerId==='personal-avatar' && !includePersonalAvatar)
         return /* skip personal avatar when requested */
-    const bot = mBot(type) // @stub - careful of multiples once allowed!
+    const bot = mBot(containerId) // @stub - careful of multiples once allowed!
     if(!bot){
         hide(botContainer)
         return /* no problem if not found, likely available different team */
@@ -3058,10 +3009,11 @@ function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
  * @returns {void}
  */
 function mUpdateBotContainerAddenda(botContainer){
-    const { bot_name, id, type, } = botContainer.dataset
-    const nameInput = document.getElementById(`${ globals.isProxy(type) ? id : type }-input-bot_name`)
+    const { id, type, } = botContainer.dataset
+    const nameInput = document.getElementById(`${ botContainer.id }-input-bot_name`)
     if(nameInput){
         nameInput.container = botContainer.dataset
+        nameInput.containerId = botContainer.id
         nameInput.addEventListener('change', mBotNameChange, { once: true })
     }
     /* publicity */
@@ -3080,13 +3032,13 @@ function mUpdateBotContainerAddenda(botContainer){
         }
     }
     /* retirements */
-    const retireChatButton = document.getElementById(`${ globals.isProxy(type) ? id : type }-retire-chat`)
+    const retireChatButton = document.getElementById(`${ botContainer.id }-retire-chat`)
     if(retireChatButton){
         retireChatButton.dataset.botId = id
         retireChatButton.dataset.type = type
         retireChatButton.addEventListener('click', mRetireChat)
     }
-    const retireBotButton = document.getElementById(`${ globals.isProxy(type) ? id : type }-retire-bot`)
+    const retireBotButton = document.getElementById(`${ botContainer.id }-retire-bot`)
     if(retireBotButton){
         retireBotButton.container = botContainer.dataset
         retireBotButton.addEventListener('click', mRetireBot, { once: true })
@@ -3122,14 +3074,13 @@ function mUpdateBotContainerAddenda(botContainer){
         case 'biographer':
         case 'journaler':
         case 'personal-biographer':
-            const greetingRoutineBiographerButton = document.getElementById(`${ type }-routine`)
+            const greetingRoutineBiographerButton = botContainer.querySelector('.routine-button')
             if(greetingRoutineBiographerButton)
                 greetingRoutineBiographerButton.addEventListener('click', _=>routine('biographer'))
             break
         case 'diary':
         case 'diarist':
-            // add listener on `${type}-start` button
-            const diaryStart = document.getElementById(`${ type }-start`)
+            const diaryStart = botContainer.querySelector('.bot-start')
             if(diaryStart)
                 diaryStart.addEventListener('click', mStartDiary)
             break
@@ -3262,7 +3213,7 @@ function mUpdateCollectionItemTitle(event){
 function mUpdateInterests(botContainer){
     const { dataset, } = botContainer
     const { id, interests, type, } = dataset
-    const interestsList = document.getElementById(`${ type }-interests`)
+    const interestsList = document.getElementById(`${ botContainer.id }-interests`)
     if(!interestsList)
         return
     const checkboxes = interestsList.querySelectorAll('input[type="checkbox"]')
