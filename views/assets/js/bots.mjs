@@ -3147,7 +3147,8 @@ async function mUpdateTeams(identifier=mDefaultTeam){
     mTeamName.dataset.description = description
     mTeamName.textContent = `${ title ?? name } Team`
     mTeamName.title = description
-    // @stub mTeamName.addEventListener('click', mCreateTeamSelect)
+    if(mTeams.length > 1)
+        mTeamName.addEventListener('click', mCreateTeamSelect)
     mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
     hide(mTeamPopup)
     show(mTeamHeader)
