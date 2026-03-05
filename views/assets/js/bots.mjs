@@ -320,7 +320,7 @@ async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
     if(mBots!==bots)
         mBots = bots
     await mUpdateTeams() // sets `mActiveBot`
-    mUpdateBotContainers()
+    await mUpdateBotContainers()
     if(includeGreeting)
         addMessage(mActiveBot.greeting, mActiveBot.type)
 }
@@ -603,11 +603,19 @@ function mCreateProxyBotContainer(proxyAgent){
 /**
  * Creates a dynamic bot container element for the given bot, replacing hard-coded HTML.
  * @private
+ * @requires mBots
+ * @requires mBotIcon
  * @param {object} bot - The bot object from mBots
  * @returns {HTMLDivElement} - The bot container element
  */
-function mCreateBotContainer(bot){
-    const { id, type, icon, buttons=[], options: botOptions=[], retirable=false, } = bot
+async function mCreateBotContainer(bot){
+    const { buttons=[], description, flags, icon, id, name, options: botOptions=[], purpose, retirable=true, type, version, } = bot
+    if(!botOptions.length)
+        botOptions.push(...await globals.datamanager.botOptions(id))
+    if(!buttons.length)
+        buttons.push(...await globals.datamanager.botButtons(id))
+    if(!icon?.length)
+        bot.icon = mBotIcon(type)
     /* container */
     const container = document.createElement('div')
     container.classList.add('bot-container')
@@ -630,12 +638,16 @@ function mCreateBotContainer(bot){
     const titleType = document.createElement('div')
     titleType.classList.add('bot-title-type')
     titleType.id = `${ id }-title-type`
+    titleType.textContent = type.replace('personal-', '')
+    titleType.textContent = titleType.textContent.charAt(0).toUpperCase() + titleType.textContent.slice(1)
     const titleName = document.createElement('div')
     titleName.classList.add('bot-title-name')
     titleName.id = `${ id }-title-name`
+    titleName.textContent = name
     const titleVersion = document.createElement('div')
     titleVersion.classList.add('bot-title-version')
     titleVersion.id = `${ id }-title-version`
+    titleVersion.textContent = 'v.' + (version ? version : '1.0')
     title.appendChild(titleType)
     title.appendChild(titleName)
     title.appendChild(titleVersion)
@@ -1811,10 +1823,10 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
             teamOption.value = ''
             teamSelect.appendChild(teamOption)
             mTeams.forEach(team=>{
-                const { name, } = team
+                const { name, title, } = team
                 const teamOption = document.createElement('option')
                 teamOption.value = name
-                teamOption.textContent = name
+                teamOption.textContent = title
                 teamSelect.appendChild(teamOption)
             })
             teamSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
@@ -2948,20 +2960,20 @@ function mUpdateBotBar(){
  * @param {boolean} includePersonalAvatar - Include personal avatar, use false when switching teams.
  * @returns {void}
  */
-function mUpdateBotContainers(includePersonalAvatar=true){
+async function mUpdateBotContainers(includePersonalAvatar=true){
     if(!mBots?.length)
         throw new Error(`mBots not populated`)
     const collectionsContainer = document.getElementById('collections-container')
     /* dynamically create containers for non-proxy bots not yet in DOM */
     mBots
         .filter(bot=>!globals.isProxy(bot.type))
-        .forEach(bot=>{
+        .forEach(async bot=>{
             const { type, } = bot
             if(type==='avatar' || type==='personal-avatar')
                 return /* personal-avatar stays hard-coded in _bots.html */
             if(!document.getElementById(bot.id)){
-                const botContainer = mCreateBotContainer(bot)
-                collectionsContainer.parentNode.insertBefore(botContainer, collectionsContainer)
+                bot.container = await mCreateBotContainer(bot)
+                collectionsContainer.parentNode.insertBefore(bot.container, collectionsContainer)
             }
         })
     const botContainers = Array.from(document.querySelectorAll('.bot-container'))
@@ -3312,8 +3324,6 @@ async function mUpdateTeams(identifier=mDefaultTeam){
             mActiveTeam = activeTeam
     }
     const { allowCustom, allowProxy, allowedTypes, description, id, name, title, } = team
-    mTeamName.dataset.id = id
-    mTeamName.dataset.description = description
     mTeamName.textContent = `${ title ?? name } Team`
     mTeamName.title = description
     if(mTeams.length > 1)

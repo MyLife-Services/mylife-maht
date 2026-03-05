@@ -190,6 +190,9 @@
           "value": "travel"
         }
       ],
+      "order": 0,
+      "placeholder": null,
+      "range": {},
       "title": "My Interests",
       "type": "checkbox",
       "variable": "interests"

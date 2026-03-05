@@ -121,6 +121,16 @@ class Datamanager {
         return response
     }
     /**
+     * Fetches the buttons for a specified bot.
+     * @param {Guid} botId - bot id
+     * @returns {Object[]} - array of bot button objects: { endpoint, id, label, order, type, value, }
+     */
+    async botButtons(botId){
+        const url = `/members/bots/${ botId }/buttons`
+        const response = await this.#fetch(url)
+        return response
+    }
+    /**
      * Request bot be created on server.
      * @requires mActiveTeam
      * @param {string} type - bot type
@@ -136,6 +146,16 @@ class Datamanager {
             body: JSON.stringify(botData)
         }
         const response = this.#fetch(url, options)
+        return response
+    }
+    /**
+     * Fetches the options for a specified bot.
+     * @param {Guid} botId - bot id
+     * @returns {Object[]} - array of bot option objects: { endpoint, id, label, options, order, placeholder, title, type, variable, }
+     */
+    async botOptions(botId){
+        const url = `/members/bots/${ botId }/options`
+        const response = await this.#fetch(url)
         return response
     }
     /**
