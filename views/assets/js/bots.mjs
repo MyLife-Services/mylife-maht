@@ -30,7 +30,6 @@ import {
 const mAvailableCollections = ['entry', 'experience', 'file', 'memory'], // ['chat', 'conversation'],
     mAvailableMimeTypes = [],
     mAvailableUploaderTypes = ['collections', 'personal-avatar'],
-    botBar = document.getElementById('bot-bar'),
     mCollections = document.getElementById('collections-collections'),
     mCollectionsContainer = document.getElementById('collections-container'),
     mCollectionsDescription = document.getElementById('collections-description'),
@@ -638,8 +637,9 @@ async function mCreateBotContainer(bot){
     const titleType = document.createElement('div')
     titleType.classList.add('bot-title-type')
     titleType.id = `${ id }-title-type`
-    titleType.textContent = type.replace('personal-', '')
-    titleType.textContent = titleType.textContent.charAt(0).toUpperCase() + titleType.textContent.slice(1)
+    let titleTextContent = type.replace('personal-', '')
+    titleTextContent = titleTextContent.charAt(0).toUpperCase() + titleTextContent.slice(1)
+    titleType.textContent = titleTextContent
     const titleName = document.createElement('div')
     titleName.classList.add('bot-title-name')
     titleName.id = `${ id }-title-name`
@@ -654,6 +654,7 @@ async function mCreateBotContainer(bot){
     const dropdown = document.createElement('div')
     dropdown.classList.add('bot-options-dropdown')
     dropdown.id = `${ id }-options-dropdown`
+    // add listener to dropdown
     status.appendChild(iconEl)
     status.appendChild(title)
     status.appendChild(dropdown)
@@ -676,28 +677,30 @@ async function mCreateBotContainer(bot){
     nameGroup.appendChild(nameLabel)
     nameGroup.appendChild(nameInput)
     options.appendChild(nameGroup)
-    /* options panels from bot data */
-    botOptions.forEach(optionGroup=>{
-        if(optionGroup.type === 'checkbox'){
-            const interestsEl = mBotInterestsContainer(id, optionGroup)
-            if(interestsEl)
-                options.appendChild(interestsEl)
-        }
-    })
-    /* buttons from bot data */
-    buttons.slice().sort((a, b)=>(a.order ?? 0) - (b.order ?? 0)).forEach(button=>{
-        const btn = document.createElement('button')
-        btn.classList.add('bot-options-button', 'button')
-        btn.id = button.id
-        btn.type = 'button'
-        btn.textContent = button.label
-        if(button.type === 'routine')
-            btn.classList.add('routine-button')
-        else if(button.type === 'start')
-            btn.classList.add('bot-start')
-        options.appendChild(btn)
-    })
-    /* retire container from bot data */
+    // options panels
+    botOptions
+        .sort((a, b)=>(a.order ?? 1) - (b.order ?? 1))
+        .forEach(option=>{
+            const optionsElement = mBotOptionContainer(id, option)
+            if(optionsElement)
+                options.appendChild(optionsElement)
+        })
+    // buttons
+    buttons
+        .slice()
+        .sort((a, b)=>(a.order ?? 0) - (b.order ?? 0)).forEach(button=>{
+            const btn = document.createElement('button')
+            btn.classList.add('bot-options-button', 'button')
+            btn.id = button.id
+            btn.type = 'button'
+            btn.textContent = button.label
+            if(button.type === 'routine')
+                btn.classList.add('routine-button')
+            else if(button.type === 'start')
+                btn.classList.add('bot-start')
+            options.appendChild(btn)
+        })
+    // retire container
     if(retirable)
         options.appendChild(mCreateRetireContainer(id))
     container.appendChild(status)
@@ -732,40 +735,77 @@ function mCreateRetireContainer(id){
     return retireContainer
 }
 /**
- * Creates the interests checkbox list for a bot options panel from bot option group data.
+ * Creates an options checkbox list for a bot options panel from bot option group data.
  * @private
  * @param {Guid} botId - The bot id (uuid), used as element id prefix
- * @param {object} optionGroup - The option group object from bot.options (type 'checkbox')
- * @returns {HTMLDivElement} - The interests container element
+ * @param {object} options - The option object { id, label, options: { id, label, value, }, order, placeholder, range: { max, min, }, title, type, variable, }
+ * @returns {HTMLDivElement} - The options container element
  */
-function mBotInterestsContainer(botId, optionGroup){
-    const { label, options: items=[], variable='interests', } = optionGroup
-    const interestsContainer = document.createElement('div')
-    interestsContainer.classList.add('input-group', 'interests')
-    interestsContainer.id = `${ botId }-interests`
-    const interestsLabel = document.createElement('label')
-    interestsLabel.classList.add('interests-label')
-    interestsLabel.textContent = label
-    interestsContainer.appendChild(interestsLabel)
-    const checkboxGroup = document.createElement('div')
-    checkboxGroup.classList.add('checkbox-group')
-    items.forEach(({ id, value, label: interestLabel, })=>{
-        const item = document.createElement('div')
-        item.classList.add('checkbox-group-item')
-        const checkbox = document.createElement('input')
-        checkbox.type = 'checkbox'
-        checkbox.name = variable
-        checkbox.id = `${ botId }-${ id }`
-        checkbox.value = value
-        const itemLabel = document.createElement('label')
-        itemLabel.htmlFor = `${ botId }-${ id }`
-        itemLabel.textContent = interestLabel
-        item.appendChild(checkbox)
-        item.appendChild(itemLabel)
-        checkboxGroup.appendChild(item)
-    })
-    interestsContainer.appendChild(checkboxGroup)
-    return interestsContainer
+function mBotOptionContainer(botId, options){
+    const { id, label, title, type, variable, } = options
+    if(!id?.length || !type?.length || !variable?.length)
+        return
+    const containerId = `${ botId }-${ id }`,
+        inputId = `${ botId }-input-${ variable }`
+    // option container
+    const optionContainer = document.createElement('div')
+    optionContainer.classList.add('input-group')
+    optionContainer.id = containerId
+    // title (applies to container not input)
+    if(title?.length){
+        const optionTitle = document.createElement('label')
+        optionTitle.classList.add('input-group-title')
+        optionTitle.htmlFor = containerId
+        optionTitle.textContent = title
+        optionContainer.appendChild(optionTitle)
+    }
+    // label
+    let optionLabel
+    if(label?.length){
+        optionLabel = document.createElement('label')
+        optionLabel.htmlFor = inputId
+        optionLabel.textContent = label
+        optionContainer.appendChild(optionLabel)
+    }
+    // input(s)
+    switch(type){
+        case 'checkbox':
+            const { options: items=[], } = options
+            if(optionContainer)
+                optionContainer.classList.add('options')
+            if(!!optionLabel)
+                optionLabel.classList.add('options-label')
+            const checkboxGroup = document.createElement('div')
+            checkboxGroup.classList.add('checkbox-group')
+            checkboxGroup.id = inputId
+            items.forEach(({ id, value, label: optionLabel, })=>{
+                const item = document.createElement('div')
+                item.classList.add('checkbox-group-item')
+                const checkbox = document.createElement('input')
+                checkbox.type = 'checkbox'
+                checkbox.name = variable
+                checkbox.id = `${ botId }-${ id }`
+                checkbox.value = value
+                const itemLabel = document.createElement('label')
+                itemLabel.htmlFor = `${ botId }-${ id }`
+                itemLabel.textContent = optionLabel
+                item.appendChild(checkbox)
+                item.appendChild(itemLabel)
+                checkboxGroup.appendChild(item)
+            })
+            optionContainer.appendChild(checkboxGroup)
+            break
+        case 'text':
+        default:
+            const { placeholder, } = options
+            const inputField = document.createElement('input')
+            inputField.type = 'text'
+            inputField.id = inputId
+            inputField.placeholder = placeholder
+            optionContainer.appendChild(inputField)
+            break
+    }
+    return optionContainer
 }
 /**
  * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
@@ -1164,30 +1204,6 @@ function mCloseTeamPopup(e){
         return
     document.removeEventListener('keydown', mCloseTeamPopup)
     hide(mTeamPopup)
-}
-/**
- * Creates bot thumb container.
- * @param {object} bot - The bot object, defaults to personal-avatar.
- * @returns {HTMLDivElement} - The bot thumb container.
- */
-function mCreateBotThumb(bot=getBot()){
-    const { id, name, type, } = bot
-    /* bot-thumb container */
-    const botThumbContainer = document.createElement('div')
-    botThumbContainer.id = `bot-bar-container_${ id }`
-    botThumbContainer.name = `bot-bar-container-${ type }`
-    botThumbContainer.title = name
-    botThumbContainer.addEventListener('click', setActiveBot)
-    botThumbContainer.classList.add('bot-thumb-container')
-    /* bot-thumb */
-    const botIconImage = document.createElement('img')
-    botIconImage.classList.add('bot-thumb')
-    botIconImage.src = mBotIcon(type)
-    botIconImage.alt = type
-    botIconImage.id = `bot-bar-icon_${ id }`
-    botIconImage.dataset.bot_id = id
-    botThumbContainer.appendChild(botIconImage)
-    return botThumbContainer
 }
 async function mCreateCollections(){
     /* scrapbook (collections) */
@@ -2284,21 +2300,6 @@ function mSetStatusBar(bot, botContainer){
         botVersionElement.textContent = mVersion(version)
 }
 /**
- * Highlights bot bar icon of active bot.
- * @public
- * @requires mActiveBot
- * @returns {void}
- */
-function mSpotlightBotBar(){
-    document.querySelectorAll('.bot-thumb')
-        .forEach(icon=>{
-            if(icon.alt===mActiveBot?.type)
-                icon.classList.add('bot-thumb-active')
-            else
-                icon.classList.remove('bot-thumb-active')
-        })
-}
-/**
  * Highlights bot container of active bot.
  * @public
  * @requires mActiveBot
@@ -2734,33 +2735,29 @@ function mTeamSelect(event){
  */
 async function mToggleBotContainers(event){
     event.stopPropagation()
-    const botContainer = this
+    const { id, } = this
     const element = event.target
-    const { dataset, id, } = botContainer
     const itemIdSnippet = element.id.split('-').pop()
     switch(itemIdSnippet){
+        case 'dropdown':
         case 'name':
+        case 'status':
         case 'title':
         case 'titlebar':
+        case 'type':
+            console.log(`${ itemIdSnippet } clicked`)
             mOpenStatusDropdown(this)
             break
         case 'icon':
         case 'image':
         case 'thumb':
-        case 'type':
-            if(dataset?.status && !(['error', 'offline', 'unknown'].includes(dataset.status)))
-                await setActiveBot(dataset?.id ?? id, true)
-            break
-        case 'status':
-        case 'type':
-        case 'dropdown':
-            mOpenStatusDropdown(this)
+            await setActiveBot(id, true)
             break
         case 'update':
         case 'upload':
             break
         case 'version':
-            console.log('Version:', dataset.version, 'check version against server', mTeams)
+            console.log('Version:', element.textContent, 'check version against server', mTeams)
             break
         default:
             break
@@ -2918,41 +2915,6 @@ function mToggleSwitchPrivacy(e){
     this.addEventListener('click', mToggleSwitchPrivacy, { once: true })
 }
 /**
- * Activates bot bar icon and container. Creates div and icon in bot bar.
- * @todo - limit to bots that actually show on sidebar?
- * @requires mActiveBot
- * @requires mBots
- * @returns {void}
- */
-function mUpdateBotBar(){
-    const botBarBots = []
-    botBar.innerHTML = ''
-    if(!mBots?.length)
-        throw new Error(`No bots found for bot bar.`)
-    const avatarThumb = mCreateBotThumb(getBot())
-    botBar.appendChild(avatarThumb) // avatar
-    botBar.appendChild(_thumbDivider())
-    botBarBots.push(getBot().id) // active bot
-    mActiveTeam?.bots // active team bots
-        .forEach(bot=>{
-            botBar.appendChild(mCreateBotThumb(bot))
-            botBarBots.push(bot.id)
-        })
-    botBar.appendChild(_thumbDivider())
-    // create remaining bots
-    mBots
-        .filter(bot=>!botBarBots.includes(bot.id))
-        .forEach(bot=>{
-            botBar.appendChild(mCreateBotThumb(bot))
-            botBarBots.push(bot.id)
-        })
-    function _thumbDivider(){
-        const divider = document.createElement('div')
-        divider.classList.add('bot-bar-divider')
-        return divider
-    }
-}
-/**
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
  * @todo - creation mechanism for new bots or to `reinitialize` or `reset` current bots, like avatar.
  * @todo - architect  better mechanic for populating and managing bot-specific options
@@ -2964,63 +2926,68 @@ async function mUpdateBotContainers(includePersonalAvatar=true){
     if(!mBots?.length)
         throw new Error(`mBots not populated`)
     const collectionsContainer = document.getElementById('collections-container')
-    /* dynamically create containers for non-proxy bots not yet in DOM */
-    mBots
-        .filter(bot=>!globals.isProxy(bot.type))
-        .forEach(async bot=>{
-            const { type, } = bot
-            if(type==='avatar' || type==='personal-avatar')
-                return /* personal-avatar stays hard-coded in _bots.html */
-            if(!document.getElementById(bot.id)){
-                bot.container = await mCreateBotContainer(bot)
-                collectionsContainer.parentNode.insertBefore(bot.container, collectionsContainer)
+    const [agents, proxyAgents] = mBots.reduce( // set normal and proxy agents
+        ([normal, proxy], bot)=>{
+            (globals.isProxy(bot.type)
+                ? proxy
+                : normal
+            )
+                .push(bot)
+            return [normal, proxy]
+        }, [[], []]
+    )
+    // MyLife internal agents
+    for(const bot of agents){
+        const { type, } = bot
+        if(type==='avatar' || type==='personal-avatar')
+            bot.container = document.getElementById('personal-avatar')
+        if(!bot.container)
+            if(document.getElementById(bot.id))
+                bot.container = document.getElementById(bot.id)
+            else {
+                const botContainer = await mCreateBotContainer(bot)
+                collectionsContainer.parentNode.insertBefore(botContainer, collectionsContainer)
+                bot.container = botContainer
             }
-        })
-    const botContainers = Array.from(document.querySelectorAll('.bot-container'))
-    if(!botContainers.length)
-        throw new Error(`No bot containers found on page`)
-    botContainers
-        .forEach(botContainer=>mUpdateBotContainer(botContainer, includePersonalAvatar))
-    const proxyAgents = mBots.filter(bot=>globals.isProxy(bot.type))
+        mUpdateBotContainer(bot, includePersonalAvatar)
+    }
+    // external proxy agents
     if(proxyAgents.length){
-        proxyAgents.forEach(proxyAgent=>{
+        proxyAgents.forEach(async proxyAgent=>{
             const proxyContainer = mCreateProxyBotContainer(proxyAgent)
+            proxyAgent.container = proxyContainer
             collectionsContainer.parentNode.insertBefore(proxyContainer, collectionsContainer)
-            mUpdateBotContainer(proxyContainer)
+            mUpdateBotContainer(proxyAgent)
         })
     }
 }
 /**
  * Updates the bot container with specifics.
  * @todo - will need to refactor to allow for on-demand containers; could still come from HTML fragments, but cannot be "hard-coded" by type as they are, given that different teams will have different bots of the _same_ `type`.
- * @param {HTMLDivElement} botContainer - The bot container.
- * @param {boolean} includePersonalAvatar - Include personal avatar.
+ * @param {HTMLDivElement} botContainer - The bot container
+ * @param {boolean} includePersonalAvatar - Include personal avatar, defaults to `true
  * @returns {void}
  */
-function mUpdateBotContainer(botContainer, includePersonalAvatar=true) {
-    const { id: containerId } = botContainer
-    if(containerId==='personal-avatar' && !includePersonalAvatar)
-        return /* skip personal avatar when requested */
-    const bot = mBot(containerId) // @stub - careful of multiples once allowed!
-    if(!bot){
-        hide(botContainer)
-        return /* no problem if not found, likely available different team */
-    }
+function mUpdateBotContainer(bot, includePersonalAvatar=true) {
+    const { container, id, } = bot
+    if(id==='personal-avatar' && !includePersonalAvatar)
+        return // skip personal avatar when requested
     /* container listeners */
-    botContainer.addEventListener('click', mToggleBotContainers)
+    container.addEventListener('click', mToggleBotContainers)
     /* universal logic */
-    mSetAttributes(bot, botContainer) // first, assigns data attributes
-    mSetStatusBar(bot, botContainer)
-    mUpdateInterests(botContainer)
+    mSetAttributes(bot, container) // first, assigns data attributes
+    mSetStatusBar(bot, container)
+    mUpdateInterests(bot, container)
     /* type-specific logic */
-    mUpdateBotContainerAddenda(botContainer, bot)
+    mUpdateBotContainerAddenda(bot, container)
 }
 /**
  * Updates the bot container with specifics based on `type`.
- * @param {HTMLDivElement} botContainer - The bot container.
+ * @param {Object} bot - The bot data object
+ * @param {HTMLDivElement} botContainer - The bot container
  * @returns {void}
  */
-function mUpdateBotContainerAddenda(botContainer){
+function mUpdateBotContainerAddenda(bot, botContainer){
     const { id, type, } = botContainer.dataset
     const nameInput = document.getElementById(`${ botContainer.id }-input-bot_name`)
     if(nameInput){
@@ -3222,7 +3189,7 @@ function mUpdateCollectionItemTitle(event){
  * @param {HTMLElement} botContainer - The bot container.
  * @returns {void}
  */
-function mUpdateInterests(botContainer){
+function mUpdateInterests(bot, botContainer){
     const { dataset, } = botContainer
     const { id, interests, type, } = dataset
     const interestsList = document.getElementById(`${ botContainer.id }-interests`)
