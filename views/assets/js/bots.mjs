@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async e=>{
     const { bots, activeBotId: id } = await globals.datamanager.bots()
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
-    updatePageBots(bots)
+    await updatePageBots(bots)
     await mCreateCollections()
     await setActiveBot(id, true)
 })
@@ -745,7 +745,7 @@ function mBotOptionContainer(botId, options){
     const { id, label, title, type, variable, } = options
     if(!id?.length || !type?.length || !variable?.length)
         return
-    const containerId = `${ botId }-${ id }`,
+    const containerId = `${ botId }-input-group-${ id }`,
         inputId = `${ botId }-input-${ variable }`
     // option container
     const optionContainer = document.createElement('div')
@@ -2178,69 +2178,16 @@ async function mRetireChat(e){
     }
 }
 /**
- * Sets bot attributes on bot container.
+ * Sets additional attributes on bot.
  * @private
  * @requires mActiveBot
- * @requires globals
- * @param {object} bot - The bot object.
- * @param {HTMLDivElement} botContainer - The bot container.
+ * @param {object} bot - The bot object
  * @returns {void}
  */
-function mSetAttributes(bot=mActiveBot, botContainer){
-    const {
-        activated=[],
-        activeFirst=true,
-        bot_name='Anonymous',
-        dob,
-        flags,
-        id: bot_id,
-        interests,
-        name,
-        narrative,
-        privacy,
-        type,
-        updates,
-        url,
-        version='1.0',
-    } = bot
-    /* attributes */
-    const botName = name
-        ?? bot_name
-    const attributes = [
-        { name: 'activated', value: activated },
-        { name: 'active', value: mBotActive(bot_id) },
-        { name: 'activeFirst', value: activeFirst },
-        { name: 'bot_id', value: bot_id },
-        { name: 'bot_name', value: botName },
-        { name: 'id', value: bot_id },
-        { name: 'initialized', value: Date.now() },
-        { name: 'type', value: type },
-        { name: 'version', value: version },
-    ]
-    if(dob)
-        attributes.push({ name: 'dob', value: dob })
-    if(flags)
-        attributes.push({ name: 'flags', value: flags })
-    if(interests)
-        attributes.push({ name: 'interests', value: interests })
-    if(narrative)
-        attributes.push({ name: 'narrative', value: narrative })
-    if(privacy)
-        attributes.push({ name: 'privacy', value: privacy })
-    if(updates)
-        attributes.push({ name: 'updates', value: updates })
-    if(url)
-        attributes.push({ name: 'url', value: url })
-    attributes.forEach(attribute=>{
-        const { name, value, } = attribute
-        botContainer.dataset[name] = value
-        const element = document.getElementById(`${ botContainer.id }-${ name }`)
-        if(element){
-            const botInput = element.querySelector('input')
-            if(botInput)
-                botInput.value = botContainer.getAttribute(`data-${ name }`)
-        }
-    })
+function mSetAttributes(bot=mActiveBot){
+    bot.active = mBotActive(bot.id)
+    bot.activeFirst = bot.activeFirst ?? true
+    bot.initialized = Date.now()
 }
 /**
  * Sets bot container status bar based on bot, thread, and assistant population.
@@ -2249,55 +2196,34 @@ function mSetAttributes(bot=mActiveBot, botContainer){
  * @param {object} bot - The bot object.
  * @returns {void}
  */
-function mSetStatusBar(bot, botContainer){
-    const { dataset, } = botContainer
-    const { id, type, version, } = dataset
-    const { id: botId, name, type: botType, version: botVersion, } = bot
-    const containerIdentifier = botContainer.id
-    const botStatusBar = document.getElementById(`${ containerIdentifier }-status`)
-    if(!type || !botType==type || !botStatusBar)
+function mSetStatusBar(bot){
+    const { container, id, name, } = bot
+    if(!container)
         return
-    const response = {
-        name,
-        status: 'unknown',
-        type: type.split('-').pop(),
-    }
-    /* status icon */
+    const containerIdentifier = container.id
     const botIcon = document.getElementById(`${ containerIdentifier }-icon`)
-    const botThumb = document.getElementById(`${ containerIdentifier }-thumb`)
+    if(!botIcon)
+        return
+    let status
+    /* status icon */
     switch(true){
         case ( mActiveBot?.id==id ): // activated
             botIcon.classList.remove('online', 'offline', 'error')
             botIcon.classList.add('active')
-            response.status = 'active'
+            status = 'active'
             break
         case ( name?.length>0 ): // online
             botIcon.classList.remove('active', 'offline', 'error')
             botIcon.classList.add('online')
-            response.status = 'online'
+            status = 'online'
             break
         default: // error
             botIcon.classList.remove('active', 'online', 'offline')
             botIcon.classList.add('error')
-            response.status = 'error'
+            status = 'error'
             break
     }
-    botContainer.dataset.status = response.status
-    /* title-type */
-    const botTitleType = document.getElementById(`${ containerIdentifier }-title-type`)
-    if(botTitleType){
-        response.type = response.type.charAt(0).toUpperCase()
-            + response.type.slice(1)
-        botTitleType.textContent = response.type
-    }
-    /* title-name */
-    const botTitleName = document.getElementById(`${ containerIdentifier }-title-name`)
-    if(botTitleName)
-        botTitleName.textContent = response.name
-    /* version */
-    const botVersionElement = document.getElementById(`${ containerIdentifier }-title-version`)
-    if(botVersionElement)
-        botVersionElement.textContent = mVersion(version)
+    bot.status = status
 }
 /**
  * Highlights bot container of active bot.
@@ -2919,10 +2845,9 @@ function mToggleSwitchPrivacy(e){
  * @todo - creation mechanism for new bots or to `reinitialize` or `reset` current bots, like avatar.
  * @todo - architect  better mechanic for populating and managing bot-specific options
  * @requires mBots
- * @param {boolean} includePersonalAvatar - Include personal avatar, use false when switching teams.
  * @returns {void}
  */
-async function mUpdateBotContainers(includePersonalAvatar=true){
+async function mUpdateBotContainers(){
     if(!mBots?.length)
         throw new Error(`mBots not populated`)
     const collectionsContainer = document.getElementById('collections-container')
@@ -2942,14 +2867,13 @@ async function mUpdateBotContainers(includePersonalAvatar=true){
         if(type==='avatar' || type==='personal-avatar')
             bot.container = document.getElementById('personal-avatar')
         if(!bot.container)
-            if(document.getElementById(bot.id))
-                bot.container = document.getElementById(bot.id)
-            else {
-                const botContainer = await mCreateBotContainer(bot)
-                collectionsContainer.parentNode.insertBefore(botContainer, collectionsContainer)
-                bot.container = botContainer
-            }
-        mUpdateBotContainer(bot, includePersonalAvatar)
+            bot.container = document.getElementById(bot.id)
+        if(!bot.container){
+            const botContainer = await mCreateBotContainer(bot)
+            collectionsContainer.parentNode.insertBefore(botContainer, collectionsContainer)
+            bot.container = botContainer
+        }
+        mUpdateBotContainer(bot)
     }
     // external proxy agents
     if(proxyAgents.length){
@@ -2963,22 +2887,17 @@ async function mUpdateBotContainers(includePersonalAvatar=true){
 }
 /**
  * Updates the bot container with specifics.
- * @todo - will need to refactor to allow for on-demand containers; could still come from HTML fragments, but cannot be "hard-coded" by type as they are, given that different teams will have different bots of the _same_ `type`.
- * @param {HTMLDivElement} botContainer - The bot container
- * @param {boolean} includePersonalAvatar - Include personal avatar, defaults to `true
+ * @param {object} bot - The bot object
  * @returns {void}
  */
-function mUpdateBotContainer(bot, includePersonalAvatar=true) {
-    const { container, id, } = bot
-    if(id==='personal-avatar' && !includePersonalAvatar)
-        return // skip personal avatar when requested
+function mUpdateBotContainer(bot) {
+    const { container, } = bot
     /* container listeners */
     container.addEventListener('click', mToggleBotContainers)
     /* universal logic */
-    mSetAttributes(bot, container) // first, assigns data attributes
-    mSetStatusBar(bot, container)
-    mUpdateInterests(bot, container)
-    /* type-specific logic */
+    mSetAttributes(bot)
+    mSetStatusBar(bot)
+    mUpdateOptions(bot)
     mUpdateBotContainerAddenda(bot, container)
 }
 /**
@@ -3184,48 +3103,6 @@ function mUpdateCollectionItemTitle(event){
     input.focus()
 }
 /**
- * Update the bot interests checkbox structure with specifics.
- * @param {string} interests - The member's interests.
- * @param {HTMLElement} botContainer - The bot container.
- * @returns {void}
- */
-function mUpdateInterests(bot, botContainer){
-    const { dataset, } = botContainer
-    const { id, interests, type, } = dataset
-    const interestsList = document.getElementById(`${ botContainer.id }-interests`)
-    if(!interestsList)
-        return
-    const checkboxes = interestsList.querySelectorAll('input[type="checkbox"]')
-    if(interests?.length){
-        dataset.interests = interests
-        const interestsArray = interests.split('; ')
-        checkboxes.forEach(checkbox=>{
-            if(interestsArray.includes(checkbox.value)){
-                checkbox.checked = true
-            }
-        })
-    }
-    /* add listeners to checkboxes */
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const { dataset, } = botContainer
-            /* concatenate checked values */
-            const checkedValues = Array.from(checkboxes)
-                .filter(cb => cb.checked) // Filter only checked checkboxes
-                .map(cb => cb.value) // Map to their values
-                .join('; ')
-            dataset.interests = checkedValues
-            const { id, interests, type, } = dataset
-            const bot = {
-                id,
-                interests,
-                type,
-            }
-            globals.datamanager.botUpdate(bot) // no need `await
-        })
-    })
-}
-/**
  * Update the bot labels with specifics.
  * @param {string} activeLabel - The active label.
  * @param {Array} labels - The array of possible labels.
@@ -3243,7 +3120,51 @@ function mUpdateLabels(activeLabelId, labels){
         }
     })
 }
-
+/**
+ * Update a bot checkbox structure with specifics.
+ * @param {object} bot - The bot object
+ * @returns {void}
+ */
+function mUpdateOptions(bot){
+    const { container, id, options, type, } = bot
+    if(!container || !options?.length)
+        return
+    for(const option of options){
+        const { id: optionId, type: optionType, variable, } = option
+        const value = bot[variable]
+            ?? ''
+        const optionGroup = document.getElementById(`${ id }-input-group-${ optionId }`)
+        const optionInput = document.getElementById(`${ id }-input-${ variable }`)
+        switch(optionType){
+            case 'checkbox':
+                const checkboxDelimiter = ';'
+                const checkboxValuesArray = value
+                    .split(checkboxDelimiter)
+                    .map(v=>v.trim().toLowerCase())
+                const checkboxes = Array.from(optionGroup.querySelectorAll(`input[type="checkbox"]`))
+                checkboxes.forEach(checkbox=>{
+                    checkbox.checked = checkboxValuesArray.includes(checkbox.value.toLowerCase())
+                    checkbox.addEventListener('change', ()=>checkboxUpdate(checkboxes, variable))
+                })
+                break
+            default:
+                break
+        }
+    }
+    // local function
+    function checkboxUpdate(checkboxes, variable){
+        const checkedValues = checkboxes
+            .filter(cb => cb.checked) // Filter only checked checkboxes
+            .map(cb => cb.value) // Map to their values
+            .join(';')
+        const bot = {
+            id,
+            type,
+        }
+        bot[variable] = checkedValues
+        globals.datamanager.botUpdate(bot) // no need `await
+    }
+}
 /**
  * Submit updated passphrase for MyLife via avatar.
  * @private
