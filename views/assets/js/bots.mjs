@@ -252,13 +252,6 @@ function togglePopup(id, bForceState=null){
     toggleVisibility(popup, bForceState)
 }
 /**
- * Pulls and creates/refreshes member collections from the server.
- * @returns {void}
- */
-async function updateCollections(){
-    await mUpdateCollections()
-}
-/**
  * Update collection item.
  * @todo - determine whether more nuance is needed, or recreating is sufficient
  * @param {object} item - The collection item fields to update, requires `{ id, }`
