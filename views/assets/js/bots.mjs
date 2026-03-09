@@ -45,7 +45,8 @@ const mAvailableCollections = ['entry', 'experience', 'file', 'memory'], // ['ch
     mTeamHeader = document.getElementById('team-header'),
     mTeamName = document.getElementById('team-name'),
     mTeamPopup = document.getElementById('team-popup'),
-    mTeams = []
+    mTeams = [],
+    mTutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
 /* variables */
 let mActiveBot,
     mActiveTeam,
@@ -403,10 +404,12 @@ function mBotIcon(type){
 }
 async function mBotNameChange(e){
     const nameInput = e.target
-    const { bot_name, id, type, } = nameInput.container
+    const botId = nameInput?.id?.replace('-input-bot_name', '')
+    const bot = getBot(botId) // will match either `id` or `type`
+    const { id, name, type, } = bot
     const newName = nameInput.value.trim()
     if(!newName?.length){
-        nameInput.value = bot_name
+        nameInput.value = name
         nameInput.focus()
         alert('Bot name cannot be empty. Reverting to current name.')
     } else {
@@ -417,19 +420,16 @@ async function mBotNameChange(e){
             id,
             type,
         }
-        const { name, } = await globals.datamanager.botUpdate(botData)
+        const { name: updatedName, } = await globals.datamanager.botUpdate(botData)
         nameInput.disabled = false
-        if(!name?.length)
-            nameInput.value = bot_name
+        if(!name?.length) // revert
+            nameInput.value = name
         else {
-            const botTitleName = document.getElementById(`${ nameInput.containerId }-title-name`)
-            botTitleName && (botTitleName.textContent = name)
-            nameInput.container.bot_name = name
-            /* update mBot */
-            const bot = mBot(id)
-            bot.bot_name = name
-            bot.name = name
-            globals.chatInputPlaceholder = `Type a message to ${ name }...`
+            const botTitleName = document.getElementById(`${ botId }-title-name`)
+            botTitleName && (botTitleName.textContent = updatedName)
+            bot.name = updatedName
+            console.log('name changed', updatedName, bot.name)
+            globals.chatInputPlaceholder = `Type a message to ${ updatedName }...`
         }
     }
     nameInput.addEventListener('change', mBotNameChange, { once: true })
@@ -674,6 +674,8 @@ async function mCreateBotContainer(bot){
     nameInput.classList.add('bot-input', 'bot-name')
     nameInput.id = `${ id }-input-bot_name`
     nameInput.maxLength = 256
+    nameInput.value = name
+    nameInput.addEventListener('change', mBotNameChange, { once: true })
     nameGroup.appendChild(nameLabel)
     nameGroup.appendChild(nameInput)
     options.appendChild(nameGroup)
@@ -700,9 +702,8 @@ async function mCreateBotContainer(bot){
                 btn.classList.add('bot-start')
             options.appendChild(btn)
         })
-    // retire container
-    if(retirable)
-        options.appendChild(mCreateRetireContainer(id))
+    // retirements
+    options.appendChild(mCreateRetireContainer(id, retirable))
     container.appendChild(status)
     container.appendChild(options)
     return container
@@ -711,9 +712,10 @@ async function mCreateBotContainer(bot){
  * Creates the retire container for a bot options panel.
  * @private
  * @param {Guid} id - The bot id (uuid)
+ * @param {boolean} retirable - Whether or not the bot is retirable, if false, retire options are hidden/disabled
  * @returns {HTMLDivElement} - The retire container element
  */
-function mCreateRetireContainer(id){
+function mCreateRetireContainer(id, retirable=false){
     const retireContainer = document.createElement('div')
     retireContainer.classList.add('retire-container')
     retireContainer.id = `${ id }-retire`
@@ -725,13 +727,17 @@ function mCreateRetireContainer(id){
     retireChat.classList.add('fas', 'fa-comment-slash', 'retire-icon', 'retire-chat')
     retireChat.id = `${ id }-retire-chat`
     retireChat.title = 'Retire this Chat. Begins new chat.'
-    const retireBot = document.createElement('span')
-    retireBot.classList.add('fas', 'fa-user-large-slash', 'retire-icon', 'retire-bot')
-    retireBot.id = `${ id }-retire-bot`
-    retireBot.title = 'Relieves this bot, cannot be returned.'
+    retireChat.addEventListener('click', mRetireChat)
     retireContainer.appendChild(retireText)
     retireContainer.appendChild(retireChat)
-    retireContainer.appendChild(retireBot)
+    if(retirable){
+        const retireBot = document.createElement('span')
+        retireBot.classList.add('fas', 'fa-user-large-slash', 'retire-icon', 'retire-bot')
+        retireBot.id = `${ id }-retire-bot`
+        retireBot.title = 'Relieves this bot, cannot be returned.'
+        retireBot.addEventListener('click', mRetireBot, { once: true })
+        retireContainer.appendChild(retireBot)
+    }
     return retireContainer
 }
 /**
@@ -1760,7 +1766,7 @@ async function mCreateTeamMember(event){
         : await globals.datamanager.botCreate(data)
     if(!bot)
         throw new Error(`no bot created for team member`)
-    const { description, id, teams, } = bot
+    const { id, } = bot
     mBots.push(bot)
     setActiveBot(id, true)
     updatePageBots(mBots, false, true)
@@ -2147,8 +2153,10 @@ async function mReliveMemory(e){
 async function mRetireBot(e){
     e.stopPropagation()
     try {
-        const { id, type, } = e.target.container
-        console.log(`Attempting to retire bot: ${ id }`, e.target.container)
+        const { id: botId, } = e.target
+        botId = fullId.replace('-retire-chat', '')
+        const bot = getBot(botId) // will match either `id` or `type`
+        const { id, type, } = bot
         if(globals.isProxy(type) && !confirm("Retiring a proxy bot will not notify the external agent. Are you sure?"))
             return
         /* reset active bot */
@@ -2169,7 +2177,10 @@ async function mRetireBot(e){
 async function mRetireChat(e){
     e.stopPropagation()
     try {
-        const { id, type, } = e.target.container
+        const { id: botId, } = e.target
+        botId = fullId.replace('-retire-chat', '')
+        const bot = getBot(botId) // will match either `id` or `type`
+        const { id, } = bot
         const response = await globals.datamanager.chatRetire(id)
         addMessages(response.responses, mActiveBot.type)
     } catch(err) {
@@ -2825,22 +2836,6 @@ function mToggleSwitch(e){
         mUpdateLabels(labelId, labels)
 }
 /**
- * Toggles the privacy switch for the bot.
- * @param {Event} e - The event object.
- * @returns {void}
- */
-function mToggleSwitchPrivacy(e){
-    let { id, } = this
-    id = id.replace('-toggle', '') // remove toggle
-    const type = globals.HTMLIdToType(id)
-    const publicityCheckbox = document.getElementById(`${ type }-publicity-input`)
-    const viewIcon = document.getElementById(`${ type }-publicity-toggle-view-icon`)
-    const { checked=false, } = publicityCheckbox
-    mToggleSwitch.bind(this)(e)
-    mToggleClass(viewIcon, !checked ? ['fa-eye'] : ['fa-eye-slash'], checked ? ['fa-eye'] : ['fa-eye-slash'])
-    this.addEventListener('click', mToggleSwitchPrivacy, { once: true })
-}
-/**
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
  * @todo - creation mechanism for new bots or to `reinitialize` or `reset` current bots, like avatar.
  * @todo - architect  better mechanic for populating and managing bot-specific options
@@ -2898,93 +2893,6 @@ function mUpdateBotContainer(bot) {
     mSetAttributes(bot)
     mSetStatusBar(bot)
     mUpdateOptions(bot)
-    mUpdateBotContainerAddenda(bot, container)
-}
-/**
- * Updates the bot container with specifics based on `type`.
- * @param {Object} bot - The bot data object
- * @param {HTMLDivElement} botContainer - The bot container
- * @returns {void}
- */
-function mUpdateBotContainerAddenda(bot, botContainer){
-    const { id, type, } = botContainer.dataset
-    const nameInput = document.getElementById(`${ botContainer.id }-input-bot_name`)
-    if(nameInput){
-        nameInput.container = botContainer.dataset
-        nameInput.containerId = botContainer.id
-        nameInput.addEventListener('change', mBotNameChange, { once: true })
-    }
-    /* publicity */
-    const publicityToggle = document.getElementById(`${ type }-publicity-toggle`)
-    if(publicityToggle){
-        publicityToggle.addEventListener('click', mToggleSwitchPrivacy)
-        const publicityToggleView = document.getElementById(`${ type }-publicity-toggle-view-icon`)
-        if(publicityToggleView){
-            const { checked=false, } = document.getElementById(`${ type }-publicity-input`) ?? {}
-            mToggleClass(publicityToggleView, !checked ? ['fa-eye-slash'] : ['fa-eye'], checked ? ['fa-eye'] : ['fa-eye-slash'])
-            publicityToggleView.addEventListener('click', e=>{
-                // @note - shouldn't be required, but container masters the switch
-                e.stopImmediatePropagation()
-                e.stopPropagation()
-            })
-        }
-    }
-    /* retirements */
-    const retireChatButton = document.getElementById(`${ botContainer.id }-retire-chat`)
-    if(retireChatButton){
-        retireChatButton.dataset.botId = id
-        retireChatButton.dataset.type = type
-        retireChatButton.addEventListener('click', mRetireChat)
-    }
-    const retireBotButton = document.getElementById(`${ botContainer.id }-retire-bot`)
-    if(retireBotButton){
-        retireBotButton.container = botContainer.dataset
-        retireBotButton.addEventListener('click', mRetireBot, { once: true })
-    }
-    switch(type){
-        case 'avatar':
-        case 'personal-avatar':
-            /* attach avatar listeners */
-            /* set additional data attributes */
-            mTogglePassphrase(false) /* passphrase */
-            const tutorialButton = document.getElementById('personal-avatar-tutorial')
-            if(tutorialButton){
-                if(experiences().length){
-                    show(tutorialButton)
-                    tutorialButton.addEventListener('click', async event=>{
-                        hide(tutorialButton)
-                        const tutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
-                        startExperience(tutorialId) // no await
-                    }, { once: true })
-                } else
-                    hide(tutorialButton)
-            }
-            const introductionButton = document.getElementById('personal-avatar-introduction')
-            if(introductionButton)
-                introductionButton.addEventListener('click', introduction)
-            const privacyPolicyButton = document.getElementById('personal-avatar-privacy')
-            if(privacyPolicyButton)
-                privacyPolicyButton.addEventListener('click', privacyPolicy)
-            const greetingRoutineAvatarButton = document.getElementById('personal-avatar-routine')
-            if(greetingRoutineAvatarButton)
-                greetingRoutineAvatarButton.addEventListener('click', _=>routine('avatar'))
-            break
-        case 'biographer':
-        case 'journaler':
-        case 'personal-biographer':
-            const greetingRoutineBiographerButton = botContainer.querySelector('.routine-button')
-            if(greetingRoutineBiographerButton)
-                greetingRoutineBiographerButton.addEventListener('click', _=>routine('biographer'))
-            break
-        case 'diary':
-        case 'diarist':
-            const diaryStart = botContainer.querySelector('.bot-start')
-            if(diaryStart)
-                diaryStart.addEventListener('click', mStartDiary)
-            break
-        default:
-            break
-    }
 }
 /**
  * Updates bot version on server.

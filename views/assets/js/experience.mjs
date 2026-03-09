@@ -227,12 +227,13 @@ async function experienceStart(experienceId){
 }
 /**
  * Runs the routine based on the incoming script. A routine is similar currently to an `experience`, but is not as full-featured and is likely to meld in the near future.
+ * @param {boolean} clearChat - Whether to clear the chat for the routine, defaults to `false`
  * @param {string|object} routineScript - The routine script object { cast, description, developers, events, purpose, title, }
  * @property {object[]} cast - The cast of characters { icon, id, role, type, }
  * @property {object[]} events - The events of the routine { character, dialog, }; dialog: { message, options, }
  * @returns {void}
  */
-async function routine(script){
+async function routine(clearChat=false, script){
     /* validate request */
     if(typeof script==='string'){
         const response = await mGlobals.datamanager.routine(script)
@@ -249,6 +250,8 @@ async function routine(script){
     let activeCharacter,
         interrupted=false
     /* execute request */
+    if(clearChat)
+        clearSystemChat()
     toggleMemberInput(false)
     document.addEventListener("keydown",e=>{
         if(e.key==='Escape')
