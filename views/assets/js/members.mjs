@@ -1,5 +1,31 @@
 /* imports */
 import {
+    activeItem,
+    chatActiveItem,
+    chatActiveThumb,
+    createItem,
+    getItem,
+    init,
+    refreshCollection,
+    setActiveItem,
+    togglePopup,
+    unsetActiveItem,
+    updateActiveItemTitle,
+    updateItem,
+    updateItemSummary,
+    updateItemTitle,
+    updateTitle,
+} from './collections.mjs'
+import {
+    activeBot,
+    endMemory,
+    getAction,
+    getBot,
+    getBotIcon,
+    setActiveBot as _setActiveBot,
+    toggleBotContainers,
+} from './bots.mjs'
+import {
     experienceEnd,
     experiencePlay,
     experiences as _experiences,
@@ -8,22 +34,6 @@ import {
     routine,
     submitInput,
 } from './experience.mjs'
-import {
-    activeBot,
-    createItem,
-    endMemory,
-    getAction,
-    getBot,
-    getBotIcon,
-    getItem,
-    refreshCollection,
-    setActiveBot as _setActiveBot,
-    togglePopup,
-    updateItem,
-    updateItemSummary,
-    updateItemTitle,
-    updateTitle,
-} from './bots.mjs'
 import Globals from './globals.mjs'
 /* variables */
 /* constants */
@@ -34,14 +44,11 @@ const mainContent = globals.mainContent,
 window.about = about
 window.privacyPolicy = privacyPolicy
 /* variables */
-let mActiveItem=null,
-    mAutoplay=false,
+let mAutoplay=false,
     mChatBubbleCount=0,
     mMemberId
 /* page div variables */
 let botBar,
-    chatActiveItem,
-    chatActiveThumb,
     mChatRefresh,
     mLogout,
     pageLoader,
@@ -53,8 +60,6 @@ let botBar,
 document.addEventListener('DOMContentLoaded', async event=>{
     /* post-DOM population constants */
     botBar = document.getElementById('bot-bar')
-    chatActiveItem = document.getElementById('chat-active-item')
-    chatActiveThumb = document.getElementById('chat-active-item-thumb')
     mChatRefresh = document.getElementById('chat-refresh')
     mLogout = document.getElementById('navigation-logout')
     pageLoader = document.getElementById('page-loader')
@@ -77,14 +82,6 @@ document.addEventListener('DOMContentLoaded', async event=>{
  */
 function about(){
     routine('about')
-}
-/**
- * Gets the active item object.
- * @public
- * @returns {object} - The active item object.
- */
-function activeItem(){
-    return mActiveItem
 }
 /**
  * Adds an input element (button, input, textarea,) to the system chat column.
@@ -256,8 +253,6 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 /**
  * Sets the active item to an `action` determined by the requesting bot.
  * @public
- * @requires chatActiveItem
- * @requires chatActiveThumb
  * @param {object} instructions - The action object describing how to populate { button, callback, icon, status, text, thumb, }.
  * @property {string} button - The button text; if false-y, no button is displayed
  * @property {function} callback - The callback function to execute on button click
@@ -270,18 +265,18 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 function setActiveAction(instructions){
     if(!instructions)
         return
-    mActiveItem = { inAction: true, }
+    activeItem().inAction = true
     const { button, callback, icon, status, text, thumb, } = instructions
     const activeButton = document.getElementById('chat-active-item-button')
     const activeClose = document.getElementById('chat-active-item-close')
     const activeIcon = document.getElementById('chat-active-item-icon')
     const activeStatus = document.getElementById('chat-active-item-status')
     const activeTitle = document.getElementById('chat-active-item-title')
-    chatActiveThumb.className = 'fas chat-active-action-thumb'
+    chatActiveThumb().className = 'fas chat-active-action-thumb'
     if(thumb?.length)
-        chatActiveThumb.src = thumb
+        chatActiveThumb().src = thumb
     else
-        hide(chatActiveThumb)
+        hide(chatActiveThumb())
     if(activeIcon){
         activeIcon.className = 'fas chat-active-action-icon'
         if(icon?.length)
@@ -291,7 +286,7 @@ function setActiveAction(instructions){
     }
     if(activeStatus){
         activeStatus.className = 'chat-active-action-status'
-        activeStatus.removeEventListener('click', mToggleItemPopup)
+        // activeStatus.removeEventListener('click', mToggleItemPopup)
         if(status?.length)
             activeStatus.textContent = status
         else
@@ -318,7 +313,7 @@ function setActiveAction(instructions){
     if(activeClose){
         activeClose.addEventListener('click', unsetActiveAction, { once: true })
     }
-    show(chatActiveItem)
+    show(chatActiveItem())
 }
 /**
  * Proxy to set the active bot (via `bots.mjs`).
@@ -328,70 +323,6 @@ function setActiveAction(instructions){
  */
 async function setActiveBot(){
     return await _setActiveBot(...arguments)
-}
-/**
- * Sets the active item, ex. `memory`, `entry` in the chat system for member operation(s).
- * @public
- * @requires chatActiveItem
- * @param {Guid} itemId - The item id to set as active
- * @returns {void}
- */
-function setActiveItem(itemId){
-    console.log('setActiveItem()::itemId', itemId)
-    if(!globals.isGuid(itemId))
-        return
-    const popup = document.getElementById(`popup-container_${ itemId }`)
-    if(!popup)
-        return
-    const { form='journal', title, type, } = popup.dataset
-    const activeButton = document.getElementById('chat-active-item-button')
-    const activeClose = document.getElementById('chat-active-item-close')
-    const activeIcon = document.getElementById('chat-active-item-icon')
-    const activeStatus = document.getElementById('chat-active-item-status')
-    const activeTitle = document.getElementById('chat-active-item-title')
-    if(activeButton)
-        hide(activeButton)
-    if(activeClose){
-        activeClose.className = 'fas fa-times chat-active-item-close'
-        activeClose.addEventListener('click', unsetActiveItem, { once: true })
-    }
-    if(activeIcon){
-        activeIcon.className = 'fas fa-square chat-active-item-icon'
-    }
-    if(activeStatus){
-        activeStatus.className = 'chat-active-item-status'
-        activeStatus.textContent = 'Active: '
-        activeStatus.addEventListener('click', mToggleItemPopup)
-    }
-    if(activeTitle){
-        activeTitle.innerHTML = ''
-        const activeText = document.createElement('div')
-        activeText.classList.add('chat-active-item-title-text')
-        activeText.id = `chat-active-item-title-text_${ itemId }`
-        activeText.innerHTML = title
-        /* append activeTitle */
-        activeTitle.appendChild(activeText)
-        activeTitle.className = 'chat-active-item-title'
-        activeTitle.addEventListener('dblclick', updateTitle, { once: true })
-    }
-    mActiveItem = { form, id: itemId, inAction: false, type }
-    function getBotType(itemType){
-        switch(itemType){
-            case 'memory':
-                return 'biographer'
-            case 'entry':
-                return form==='journal'
-                    ? 'journaler'
-                    : 'diary'
-            default:
-                return 'avatar'
-        }
-    }
-    const botType = getBotType(type)
-    const { id, } = getBot(botType)
-    if(id)
-        setActiveBot(id, false)
-    show(chatActiveItem)
 }
 /**
  * Proxy for Globals.show().
@@ -445,7 +376,6 @@ async function startExperience(experienceId){
 /**
  * Submits a message to MyLife Member Services chat.
  * @async
- * @requires chatActiveItem
  * @param {string} message - The message to submit
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`
  * @returns {Promise<object>} - The return is the chat response object: { instruction, responses, success, }
@@ -456,7 +386,7 @@ async function submit(message){
     toggleMemberInput(false)
     const awaitBar = globals.await(`Connecting with ${ activeBot().name }...`)
     globals.addChatElement(awaitBar)
-    const itemId = mActiveItem?.id
+    const itemId = activeItem()?.id
     const { id: botId, } = activeBot()
 	const request = {
         botId,
@@ -492,38 +422,10 @@ function toggleVisibility(){
 /**
  * Unsets the active action in the chat system.
  * @public
- * @requires chatActiveItem
- * @requires chatActiveThumb
  * @returns {void}
  */
 function unsetActiveAction(){
-    mActiveItem = null
-    hide(chatActiveThumb)
-    hide(chatActiveItem)
-}
-/**
- * Unsets the active item in the chat system.
- * @public
- * @requires chatActiveItem
- * @returns {void}
- */
-function unsetActiveItem(){
-    mActiveItem = null
-    hide(chatActiveItem)
-}
-/**
- * Updates the active item title in the chat system, display-only.
- * @public
- * @param {Guid} itemId - The item ID
- * @param {string} title - The title to set
- * @returns {void}
- */
-function updateActiveItemTitle(itemId, title){
-    const chatActiveItemTitle = document.getElementById(`chat-active-item-title-text_${ itemId }`)
-    const id = mActiveItem?.id
-    if(id!==itemId)
-        throw new Error('updateActiveItemTitle::Error()::`itemId`\'s do not match')
-    chatActiveItemTitle.innerHTML = title
+    unsetActiveItem()
 }
 /**
  * Waits for user action.
@@ -752,8 +654,6 @@ async function mAddMessage(message, role='agent', typeDelay=2){
  * @returns {Promise<boolean>} - The return is a boolean indicating success.
  */
 async function mInitialize(){
-    /* retrieve primary collections */
-    await refreshCollection('memory') // memories required
     /* page listeners */
     mInitializePageListeners()
 }
@@ -781,14 +681,13 @@ function mInitializePageListeners(){
 /**
  * Primitive step to set a "modality" or intercession for the member chat.
  * @public
- * @requires chatActiveItem
  * @param {Guid} itemId - The Active Item ID
  * @param {Guid} shadowId - The shadow ID
  * @param {string} value - The value to seed the input with
  * @param {string} placeholder - The placeholder to seed the input with (optional)
  */
 function seedInput(itemId, shadowId, value, placeholder){
-    mActiveItem = { ...(mActiveItem ?? {}), id: itemId, shadowId }
+    setActiveItem({ id: itemId, shadowId, })
     globals.seedInput(value, placeholder)
 }
 /**
@@ -839,12 +738,14 @@ function mStageTransitionMember(includeSidebar=true){
             show(botBar)
     }
 }
+/* DEPRECATE?
 function mToggleItemPopup(event){
     event.stopPropagation()
     event.preventDefault()
-    const itemId = mActiveItem?.id
+    const itemId = activeItem()?.id
     togglePopup(itemId, true)
 }
+*/
 /**
  * Typewrites a message to a chat bubble.
  * @param {HTMLDivElement} chatBubble - The chat bubble element.
@@ -870,7 +771,6 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
 }
 /* exports */
 export {
-    activeItem,
     addInput,
     addMessage,
     addMessages,
@@ -891,7 +791,6 @@ export {
     seedInput,
     setActiveAction,
     setActiveBot,
-    setActiveItem,
     show,
     showMemberInterface,
     showSidebar,
@@ -899,9 +798,8 @@ export {
     startExperience,
     submit,
     toggleMemberInput,
+    toggleBotContainers,
     toggleVisibility,
     unsetActiveAction,
-    unsetActiveItem,
-    updateActiveItemTitle,
     waitForUserAction,
 }

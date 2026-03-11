@@ -1567,7 +1567,8 @@ function mSanitizeSchemaValue(_value) {
 function mTeam(team){
     const {
         allowCustom,
-        allowedTypes,
+        allowedBotTypes,
+		allowedItemTypes,
         defaultTypes,
         description,
         id,
@@ -1576,7 +1577,8 @@ function mTeam(team){
     } = team
     return {
         allowCustom,
-        allowedTypes: [...allowedTypes],
+        allowedBotTypes: [...allowedBotTypes],
+		allowedItemTypes: [...allowedItemTypes],
         defaultTypes: [...defaultTypes],
         description,
         id,

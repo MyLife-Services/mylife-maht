@@ -2,6 +2,21 @@
 /* imports */
 import {
     activeItem,
+    createItem,
+    getItem,
+    init as initCollections,
+    refreshCollection,
+    setActiveItem,
+    togglePopup,
+    unsetActiveItem,
+    updateActiveItemTitle,
+    updateItem,
+    updateItemSummary,
+    updateItemTitle,
+    updateTitle,
+} from './collections.mjs'
+import {
+    // activeItem,
     addInput,
     addMessage,
     addMessages,
@@ -15,9 +30,6 @@ import {
     enactInstruction,
     privacyPolicy,
     seedInput,
-    setActiveAction,
-    setActiveItem,
-    updateActiveItemTitle,
     routine,
     show,
     startExperience,
@@ -25,16 +37,10 @@ import {
     toggleMemberInput,
     toggleVisibility,
     unsetActiveAction,
-    unsetActiveItem,
 } from './members.mjs'
-const mAvailableCollections = ['entry', 'experience', 'file', 'memory'], // ['chat', 'conversation'],
-    mAvailableMimeTypes = [],
-    mAvailableUploaderTypes = ['collections', 'personal-avatar'],
+const mAvailableUploaderTypes = ['personal-avatar'],
     botBar = document.getElementById('bot-bar'),
-    mCollections = document.getElementById('collections-collections'),
-    mCollectionsContainer = document.getElementById('collections-container'),
-    mCollectionsDescription = document.getElementById('collections-description'),
-    mCollectionsUpload = document.getElementById('collections-upload'),
+    mDefaultCollections = ['memory', 'entry'],
     mDefaultReliveMemoryButtonText = 'Next',
     mDefaultTeam = 'memory',
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
@@ -60,8 +66,8 @@ document.addEventListener('DOMContentLoaded', async e=>{
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
     updatePageBots(bots)
-    await mCreateCollections()
     await setActiveBot(id, true)
+    await initCollections(mDefaultCollections) // @stub: pull from teams
 })
 /* public functions */
 /**
@@ -71,24 +77,6 @@ document.addEventListener('DOMContentLoaded', async e=>{
  */
 function activeBot(){
     return mActiveBot
-}
-/**
- * Creates a new collection item from server item object data, and activates the new summary.
- * @param {object} item - The collection item data
- * @returns {void}
- */
-function createItem(item){
-    const { id, type, } = item
-    if(getItem(id))
-        removeItem(id) // already exists, expunge
-    console.log('createItem()::start', item)
-    item = mCreateCollectionItem(item)
-    console.log('createItem()::end', item)
-    const collectionList = document.getElementById(`collection-list-${ type }`)
-    if(collectionList){
-        collectionList.insertBefore(item, collectionList.firstChild)
-        setActiveItem(id)
-    }
 }
 /**
  * Ends the memory reliving process.
@@ -161,31 +149,6 @@ function getBotIcon(type){
     return mBotIcon(type)
 }
 /**
- * Get collection item by id.
- * @param {Guid} id - The collection item id.
- * @returns {object} - The collection item object.
- */
-function getItem(id){
-    const item = document.getElementById(`collection-item_${ id }`)
-    return item
-}
-/**
- * Refresh designated collection from server. **note**: external calls denied option to identify collectionList parameter, ergo must always be of same type.
- * @param {string} type - The collection type.
- * @returns {void}
- */
-async function refreshCollection(type){
-    return await mRefreshCollection(type)
-}
-/**
- * Removes a collection item from the DOM, does not update server.
- * @param {Guid} id - The collection item id
- * @returns {void}
- */
-function removeItem(id){
-    expunge(getItem(id))
-}
-/**
  * Set active bot on server and update page bots.
  * @requires mActiveBot
  * @requires mBots
@@ -241,71 +204,14 @@ async function setActiveBot(event, displayGreeting=true){
     decorateActiveBot(mActiveBot)
 }
 /**
- * Exposed method to allow externalities to toggle a specific item popup.
- * @param {string} id - Id for HTML div element to toggle.
- */
-function togglePopup(id, bForceState=null){
-    if(globals.isGuid(id))
-        id = `popup-container_${ id }`
-    const popup = document.getElementById(id)
-    if(!popup)
-        throw new Error(`No popup found for id: ${ id }`)
-    toggleVisibility(popup, bForceState)
-}
-/**
- * Pulls and creates/refreshes member collections from the server.
+ * Toggles bot containers and checks for various actions on master click of `this` bot-container. Sub-elements appear as targets and are rendered appropriately.
+ * @private
+ * @async
+ * @param {Event} event - The event object, represents entire bot box as `this`
  * @returns {void}
  */
-async function updateCollections(){
-    await mUpdateCollections()
-}
-/**
- * Update collection item.
- * @todo - determine whether more nuance is needed, or recreating is sufficient
- * @param {object} item - The collection item fields to update, requires `{ id, }`
- * @returns {void}
- */
-function updateItem(item){
-    if(!item?.id)
-        return
-    createItem(item)
-}
-function updateItemSummary(id, summary){
-    const popupContent = document.getElementById(`popup-content_${ id }`)
-    if(popupContent){
-        popupContent.dataset.lastUpdatedContent = summary
-        popupContent.value = summary
-    } else {
-        const item = document.getElementById(`collection-item_${ id }`)
-        const collectionItem = item?.collectionItem
-        if(collectionItem)
-            collectionItem.summary = summary
-    }
-}
-/**
- * Sets an item's changed title in all locations.
- * @param {Guid} itemId - The collection item id
- * @param {String} title - The title to set for the item
- */
-function updateItemTitle(itemId, title){
-    const titleSpan = document.getElementById(`collection-item-title_${ itemId }`)
-    const titleInput = document.getElementById(`collection-item-title-input__${ itemId }`)
-    const popupTitle = document.getElementById(`popup-header-title_${ itemId }`)
-    if(titleSpan)
-        titleSpan.textContent = title
-    if(titleInput)
-        titleInput.value = title
-    if(popupTitle)
-        popupTitle.textContent = title
-    updateActiveItemTitle(itemId, title)
-}
-/**
- * Allows for member to update title to item or other.
- * @param {Event} event - The event object
- * @returns {void}
- */
-function updateTitle(event){
-    mUpdateCollectionItemTitle(event)
+function toggleBotContainers(event){
+    mToggleBotContainers(event) // no await
 }
 /**
  * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
@@ -1023,42 +929,6 @@ function mCreateBotThumb(bot=getBot()){
     botThumbContainer.appendChild(botIconImage)
     return botThumbContainer
 }
-async function mCreateCollections(){
-    /* scrapbook (collections) */
-    if(!mCollections || !mCollections.children.length)
-        return
-    for(let collection of mCollections.children){
-        const { id, } = collection
-        const type = id.split('-').pop()
-        if(!mAvailableCollections.includes(type))
-            continue
-        const associatedBot = ( type==='entry' && mBots.some(bot=>bot.type==='journaler' || bot.type==='diary') )
-            || ( type==='memory' && mBots.some(bot=>bot.type==='biographer' || bot.type==='personal-biographer') )
-        if(!associatedBot && !['file', 'files'].includes(type)){
-            expunge(collection)
-            continue
-        }
-        const collectionBar = document.getElementById(`collection-bar-${ type }`)
-        if(collectionBar){
-            const { dataset, } = collectionBar
-            dataset.id = id
-            dataset.type = type
-            const itemList = document.getElementById(`collection-list-${ type }`)
-            dataset.init = itemList.querySelectorAll(`.${ type }-collection-item`).length > 0
-                    ? 'true' // externally refreshed
-                    : dataset.init // tested empty
-                        ?? 'false'
-            /* update collection list */
-            const refresh = document.getElementById(`collection-refresh-${ type }`)
-            if(dataset.init!=='true' && refresh)
-                hide(refresh)
-            collectionBar.addEventListener('click', mToggleCollectionItems)
-        }
-    }
-    mCollectionsContainer.addEventListener('click', mToggleBotContainers)
-    if(mCollectionsUpload)
-        mCollectionsUpload.addEventListener('click', mUploadFiles)
-}
 /**
  * Create a popup for viewing collection item.
  * @param {object} collectionItem - The collection item object.
@@ -1075,6 +945,8 @@ function mCreateCollectionPopup(collectionItem){
     collectionPopup.dataset.type = type
     collectionPopup.dataset.version = version
     collectionPopup.id = `popup-container_${ id }`
+    collectionPopup.style.position = 'fixed'
+    collectionPopup.style.right = '80vw'
     collectionPopup.name = `collection-popup_${ type }`
     collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
     /* popup header */
@@ -1095,11 +967,11 @@ function mCreateCollectionPopup(collectionItem){
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
     popupClose.id = `popup-close_${ id }`
     popupClose.setAttribute('aria-label', 'Close')
-    popupClose.addEventListener('click', _=>globals.expunge(collectionPopup), { once: true })
+    popupClose.addEventListener('click', _=>hide(collectionPopup))
     document.addEventListener('keydown', event=>{
-        if(event.key==='Escape')
-            popupClose.click()
-    }, { once: true })
+        if(event.key==='Escape' && collectionPopup.classList.contains('show'))
+            hide(collectionPopup)
+    })
     popupHeader.appendChild(popupClose)
     /* Variables for dragging */
     let isDragging = false
@@ -1593,7 +1465,7 @@ async function mCreateTeamMember(event){
  * @returns {void}
  */
 function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
-    const { allowCustom=false, allowProxy=false, allowedTypes, } = mActiveTeam
+    const { allowCustom=false, allowProxy=false, allowedBotTypes, allowedItemTypes, } = mActiveTeam
     mTeamPopup.style.visibility = 'hidden'
     mTeamPopup.innerHTML = '' // clear existing
     const teamPopup = document.createElement('div')
@@ -1615,7 +1487,7 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
             memberOption.selected = true
             memberOption.value = ''
             memberSelect.appendChild(memberOption)
-            allowedTypes.forEach(type=>{
+            allowedBotTypes.forEach(type=>{
                 if(mBot(type)) // no duplicates currently
                     return
                 const memberOption = document.createElement('option')
@@ -1853,9 +1725,8 @@ function mOpenStatusDropdown(element){
 }
 /**
  * Refresh designated collection from server.
- * @this - collection-refresh
- * @param {string} type - The collection type.
- * @param {HTMLDivElement} collectionList - The collection list, defaults to `collection-list-${ type }`.
+ * @param {string} type - The collection type
+ * @param {HTMLDivElement} collectionList - The collection list, defaults to `collection-list-${ type }`
  * @returns {void}
  */
 async function mRefreshCollection(type, collectionList){
@@ -1866,7 +1737,7 @@ async function mRefreshCollection(type, collectionList){
     if(!collectionList)
         throw new Error(`No collection list found for refresh request.`)
     const collection = await globals.datamanager.collections(type)
-    mUpdateCollection(type, collectionList, collection)
+    return mUpdateCollection(type, collectionList, collection)
 }
 /**
  * Refresh the proxy URL for the proxy agent.
@@ -2569,8 +2440,9 @@ function mTeamSelect(event){
 async function mToggleBotContainers(event){
     event.stopPropagation()
     const botContainer = this
+    console.log('Bot container click:', this, event.target)
     const element = event.target
-    const { dataset, id, } = botContainer
+    const { id, } = botContainer
     const itemIdSnippet = element.id.split('-').pop()
     switch(itemIdSnippet){
         case 'name':
@@ -2673,21 +2545,7 @@ function mTogglePassphrase(event){
  */
 function mTogglePopup(event, collectionItem){
     event.stopPropagation()
-    const item = event.target.parentElement
-    const { id, } = item
-    const popupId = id.split('_').pop()
-    let popup = document.getElementById(`popup-container_${ popupId }`)
-    if(!!popup){
-        globals.expunge(popup)
-        return
-    }
-    popup = mCreateCollectionPopup(collectionItem)
-    item.appendChild(popup)
-    /* calculate desired position */
-    popup.style.position = 'fixed'
-    popup.style.right = '80vw'
-    show(popup)
-    setActiveItem(popupId)
+    togglePopup(event, collectionItem)
 }
 /**
  * 
@@ -2951,7 +2809,7 @@ async function mUpdateBotVersion(event){
  */
 function mUpdateCollection(type, collectionList, collection){
     collectionList.innerHTML = ''
-    collection
+    return collection
         .map(item=>({
             ...item,
             being: item.being,
@@ -2965,7 +2823,14 @@ function mUpdateCollection(type, collectionList, collection){
         }))
         .filter(item=>item.type===type)
         .sort((a, b)=>a.name.localeCompare(b.name))
-        .forEach(item=>collectionList.appendChild(mCreateCollectionItem(item)))
+        .map(item=>{
+            const lineItem = mCreateCollectionItem(item)
+            collectionList.appendChild(lineItem)
+            const popup = mCreateCollectionPopup(item)
+            hide(popup)
+            lineItem.appendChild(popup)
+            return { ...item, lineItem, popup }
+        })
 }
 /**
  * Sets collection item content.
@@ -3144,7 +3009,7 @@ async function mUpdateTeams(identifier=mDefaultTeam){
         if(activeTeam)
             mActiveTeam = activeTeam
     }
-    const { allowCustom, allowProxy, allowedTypes, description, id, name, title, } = team
+    const { allowCustom, allowProxy, allowedBotTypes, description, id, name, title, } = team
     mTeamName.dataset.id = id
     mTeamName.dataset.description = description
     mTeamName.textContent = `${ title ?? name } Team`
@@ -3221,18 +3086,11 @@ function mVersion(version){
 /* exports */
 export {
     activeBot,
-    createItem,
     endMemory,
     getAction,
     getBot,
     getBotIcon,
-    getItem,
-    refreshCollection,
     setActiveBot,
-    togglePopup,
-    updateItem,
-    updateItemSummary,
-    updateItemTitle,
-    updateTitle,
+    toggleBotContainers,
     updatePageBots,
 }

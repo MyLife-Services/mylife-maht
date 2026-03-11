@@ -10,7 +10,6 @@ import {
     sceneTransition as memberSceneTransition,
     setActiveAction,
     setActiveBot,
-    setActiveItem,
     show,
     stageTransition,
     toggleMemberInput,
