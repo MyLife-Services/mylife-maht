@@ -1,6 +1,7 @@
 /* bot functionality */
 /* imports */
 import {
+    activeItem,
     addInput,
     addMessage,
     addMessages,
@@ -8,7 +9,6 @@ import {
     decorateActiveBot,
     experiences,
     expunge,
-    getActiveItemId,
     globals,
     hide,
     introduction,
@@ -81,7 +81,9 @@ function createItem(item){
     const { id, type, } = item
     if(getItem(id))
         removeItem(id) // already exists, expunge
+    console.log('createItem()::start', item)
     item = mCreateCollectionItem(item)
+    console.log('createItem()::end', item)
     const collectionList = document.getElementById(`collection-list-${ type }`)
     if(collectionList){
         collectionList.insertBefore(item, collectionList.firstChild)
@@ -1721,7 +1723,7 @@ async function mDeleteCollectionItem(event){
     const id = collectionItemDelete.id.split('_').pop()
     const item = document.getElementById(`collection-item_${ id }`)
     const userConfirmed = confirm("Are you sure you want to delete this item?") /* confirmation dialog */
-    if(getActiveItemId()===id)
+    if(activeItem()?.id && activeItem().id===id)
         unsetActiveItem()
     if(userConfirmed){
         const { instruction, responses, success, } = await globals.datamanager.itemDelete(id)

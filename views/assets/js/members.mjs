@@ -154,14 +154,6 @@ function expunge(element){
     return globals.expunge(element)
 }
 /**
- * Gets the active chat item id to send to server.
- * @requires chatActiveItem
- * @returns {Guid} - The return is the active item ID.
- */
-function getActiveItemId(){
-    return mActiveItem?.id
-}
-/**
  * Proxy for Globals.hide().
  * @param {HTMLElement} element - The element to hide.
  * @param {function} callbackFunction - The callback function to execute after the element is hidden.
@@ -278,14 +270,13 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 function setActiveAction(instructions){
     if(!instructions)
         return
-    mActiveItem = { inAction: true }
+    mActiveItem = { inAction: true, }
     const { button, callback, icon, status, text, thumb, } = instructions
     const activeButton = document.getElementById('chat-active-item-button')
     const activeClose = document.getElementById('chat-active-item-close')
     const activeIcon = document.getElementById('chat-active-item-icon')
     const activeStatus = document.getElementById('chat-active-item-status')
     const activeTitle = document.getElementById('chat-active-item-title')
-    globals.clearDataset(chatActiveThumb.dataset)
     chatActiveThumb.className = 'fas chat-active-action-thumb'
     if(thumb?.length)
         chatActiveThumb.src = thumb
@@ -346,6 +337,7 @@ async function setActiveBot(){
  * @returns {void}
  */
 function setActiveItem(itemId){
+    console.log('setActiveItem()::itemId', itemId)
     if(!globals.isGuid(itemId))
         return
     const popup = document.getElementById(`popup-container_${ itemId }`)
@@ -887,7 +879,6 @@ export {
     escapeHtml,
     experiences,
     expunge,
-    getActiveItemId,
     globals,
     hide,
     inExperience,

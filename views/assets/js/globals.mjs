@@ -890,19 +890,6 @@ class Globals {
 		a.length = 0
 	}
     /**
-     * Operates on a dataset to clear all frontend-defined keys.
-     * @param {DOMStringMap} dataset - The dataset to clear
-     * @returns {void}
-     */
-    clearDataset(dataset){
-        if(!(dataset instanceof DOMStringMap))
-            return
-        for(let key in dataset){
-            if(dataset.hasOwnProperty(key))
-                delete dataset[key]
-        }
-    }
-    /**
      * Clears an element of its contents, brute force currently via innerHTML.
      * @param {HTMLElement} element - The element to clear.
      * @returns {void}
