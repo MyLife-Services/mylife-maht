@@ -205,23 +205,17 @@ async function setActiveBot(botId, displayGreeting=true){
     const { bot_id, firstAccess, responses=[], routine: botRoutine, success=false, version, versionUpdate, } = await globals.datamanager.botActivate(id)
     if(!success)
         throw new Error(`Server unsuccessful at setting active bot.`)
-    console.log('testing setActiveBot', { bot_id, firstAccess, responses, botRoutine, version, versionUpdate, })
     /* update page bot data */
     const { activated=[], activatedFirst=Date.now(), } = mActiveBot
     mActiveBot.activatedFirst = activatedFirst
     activated.push(Date.now()) // newest date is last to .pop()
     mActiveBot.activated = activated
+    mActiveBot.versionUpdate = versionUpdate
     if(versionUpdate!==version){
         const botVersion = document.getElementById(`${ id }-title-version`)
             ?? document.getElementById(`${ type }-title-version`)
-        if(botVersion){
+        if(botVersion)
             botVersion.classList.add('update-available')
-            botVersion.dataset.botId = bot_id
-            botVersion.dataset.currentVersion = version
-            botVersion.dataset.type = type
-            botVersion.dataset.updateVersion = versionUpdate
-            botVersion.addEventListener('click', mUpdateBotVersion, { once: true })
-        }
     }
     /* update page */
     mSpotlightBotStatus()
@@ -2670,7 +2664,7 @@ async function mToggleBotContainers(event){
         case 'upload':
             break
         case 'version':
-            console.log('Version:', element.textContent, 'check version against server', mTeams)
+            mUpdateBotVersion(id)
             break
         default:
             break
@@ -2872,24 +2866,31 @@ function mUpdateBotContainer(bot) {
 }
 /**
  * Updates bot version on server.
- * @param {Event} event - The event object
+ * @param {Guid} botId - The bot ID
  * @returns {void}
  */
-async function mUpdateBotVersion(event){
-    event.stopPropagation()
-    const updater = event.target
-    const { classList, dataset,} = updater
-    const { botId, currentVersion, updateVersion, } = dataset
-    if(currentVersion==updateVersion)
+async function mUpdateBotVersion(botId){
+    const bot = mBot(botId)
+    if(!bot)
         return
-    const updatedVersion = await globals.datamanager.botVersion(botId)
-    if(updatedVersion?.success){
-        const { version, } = updatedVersion.bot
-        dataset.currentVersion = version
-        updater.textContent = mVersion(version)
-        classList.remove('update-available')
-    } else
-        updater.addEventListener('click', mUpdateBotVersion, { once: true })
+    const { container, version, versionUpdate, } = bot
+    if(!versionUpdate>version)
+        return
+    const updater = document.getElementById(`${ container.id }-title-version`)
+    if(!updater)
+        return
+    try{
+        updater.textContent ='Updating...'
+        const { success, bot: { version: updatedVersion, }, } = await globals.datamanager.botVersion(botId)
+        if(success && updatedVersion!==version){
+            bot.version = updatedVersion
+            bot.versionUpdate = null
+        } else
+            throw new Error(`Failed to update bot version for bot ${ botId }: Failed updating version: ${ version } to ${ versionUpdate }; returned version: ${ updatedVersion }`)
+    } finally {
+        updater.classList.remove('update-available')
+        updater.textContent = mVersion(bot.version)
+    }
 }
 /**
  * Update the identified collection with provided specifics.

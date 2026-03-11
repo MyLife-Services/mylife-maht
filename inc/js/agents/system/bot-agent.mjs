@@ -880,25 +880,22 @@ class BotAgent {
 	 * @param {Boolean} migrateThread - Whether to migrate the thread, defaults to `true`
 	 * @returns {Bot} - The updated Bot instance
 	 */
-	async updateBotInstructions(bot_id, migrateThread=true){
+	async updateBotInstructions(bot_id, migrateThread=false){
 		const Bot = this.bot(bot_id)
-		const { type, version=1.0, } = Bot
-        /* check version */
-        const newestVersion = this.#factory.botInstructionsVersion(type)
-        if(newestVersion!=version){
-			const { bot_id: _llm_id, id, } = Bot
-			const { llm_id=_llm_id, } = Bot
-            const _bot = { id, llm_id, type, }
-            const botOptions = {
-                instructions: true,
-                model: true,
-                tools: true,
-                vectorstoreId: this.#vectorstoreId,
-            }
-            await Bot.update(_bot, botOptions)
-            if(migrateThread)
-                await Bot.migrateChat()
-        }
+		const { id, llm_id, type, version=1.0, } = Bot
+        const newestVersion = this.#factory.botInstructionsVersion(type) // check version
+			?? 0
+		if(newestVersion <= version)
+			return Bot
+		const bot = {
+			id,
+			llm_id,
+			type,
+			version: newestVersion,
+		}
+		await Bot.update(bot, { instructions: true, })
+		if(migrateThread)
+			await Bot.migrateChat()
         return Bot
 	}
     /* getters/setters */
@@ -1148,7 +1145,9 @@ async function mBotGreetings(thread_id, llm_id, greetingPrompt=`Greet me enthusi
  * @returns {object} - The intermediary bot instructions object: { instructions, version, }
  */
 function mBotInstructions(factory, botData={}){
-	const { agentInstructions, type=mDefaultBotType, } = botData
+	const { agentInstructions, type, } = botData
+	if(!type?.length)
+		return
     let {
 		greeting,
 		greetings,
@@ -1289,6 +1288,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 		} = options
 		if(updateInstructions){
 			const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
+			instructionReferences.type = type
 			const { greetings, instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
 			allowedBotData.greetings = greetings
 			allowedBotData.instructions = instructions
