@@ -233,23 +233,23 @@ class Bot {
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
 	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last'){
-		if(this.type!=='proxy' && !this.llm_id)
+		if(dynamic && this.type!=='proxy' && !this.llm_id)
 			return {
 				error: 'Bot llm_id not set',
 				responses: ['I currently have no connection with my foundational intelligence, so my greeting is generic'],
 				success: false,
 			}
-		let greeting,
+		let firstAccess=this.#firstAccess,
 			responses=[],
-			routine
-		if(!this.#firstAccess){
+			routine=this.#greetingRoutine
+		if(!firstAccess){
 			const greetings = dynamic
 				? await mBotGreetings(this.thread_id, this.llm_id, greetingPrompt, this.#llm, this.#factory)
 				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
 			responses.push(...greetings)
-		} else
-			routine = this.#greetingRoutine
+		}
 		return {
+			firstAccess,
 			responses,
 			routine,
 			success: true,
@@ -807,9 +807,10 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botInstructionsVersion(type)
 		}
-		const { responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
+		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
 		return {
 			bot_id,
+			firstAccess,
 			responses,
 			routine,
 			success,

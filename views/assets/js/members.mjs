@@ -270,7 +270,6 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 function setActiveAction(instructions){
     if(!instructions)
         return
-    globals.clearDataset(chatActiveItem.dataset)
     chatActiveItem.dataset.inAction = "true"
     const { button, callback, icon, status, text, thumb, } = instructions
     const activeButton = document.getElementById('chat-active-item-button')
@@ -278,14 +277,12 @@ function setActiveAction(instructions){
     const activeIcon = document.getElementById('chat-active-item-icon')
     const activeStatus = document.getElementById('chat-active-item-status')
     const activeTitle = document.getElementById('chat-active-item-title')
-    globals.clearDataset(chatActiveThumb.dataset)
     chatActiveThumb.className = 'fas chat-active-action-thumb'
     if(thumb?.length)
         chatActiveThumb.src = thumb
     else
         hide(chatActiveThumb)
     if(activeIcon){
-        globals.clearDataset(activeIcon.dataset)
         activeIcon.className = 'fas chat-active-action-icon'
         if(icon?.length)
             activeIcon.classList.add(icon)
@@ -293,7 +290,6 @@ function setActiveAction(instructions){
             hide(activeIcon)
     }
     if(activeStatus){
-        globals.clearDataset(activeStatus.dataset)
         activeStatus.className = 'chat-active-action-status'
         activeStatus.removeEventListener('click', mToggleItemPopup)
         if(status?.length)
@@ -302,7 +298,6 @@ function setActiveAction(instructions){
             hide(activeStatus)
     }
     if(activeButton){
-        globals.clearDataset(activeButton.dataset)
         activeButton.className = 'button chat-active-action-button'
         if(button?.length){
             activeButton.textContent = button
@@ -314,7 +309,6 @@ function setActiveAction(instructions){
             hide(activeButton)
     }
     if(activeTitle){
-        globals.clearDataset(activeTitle.dataset)
         activeTitle.className = 'chat-active-action-title'
         if(text?.length)
             activeTitle.textContent = text
@@ -322,7 +316,6 @@ function setActiveAction(instructions){
             hide(activeTitle)
     }
     if(activeClose){
-        globals.clearDataset(activeClose.dataset)
         activeClose.addEventListener('click', unsetActiveAction, { once: true })
     }
     show(chatActiveItem)

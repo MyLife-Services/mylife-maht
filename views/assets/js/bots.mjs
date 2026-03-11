@@ -187,34 +187,30 @@ function removeItem(id){
  * Set active bot on server and update page bots.
  * @requires mActiveBot
  * @requires mBots
- * @param {Event} event - The event object.
- * @param {boolean} dynamic - Whether or not to add dynamic greeting, only triggered from source code.
+ * @param {Guid} botId - The bot id
+ * @param {boolean} dynamic - Whether or not to add dynamic greeting, only triggered from source code
  * @returns {void}
  */
-async function setActiveBot(event, displayGreeting=true){
-    const botId = globals.isGuid(event)
-        ? event /* bypassed event, sent id */
-        : event.target?.dataset?.bot_id
-    if(!botId)
-        throw new Error(`Bot data not found in event.`)
+async function setActiveBot(botId, displayGreeting=true){
+    if(!globals.isGuid(botId))
+        throw new Error(`Invalid bot id: ${ botId }`)
     const initialActiveBot = mActiveBot
     mActiveBot = mBot(botId)
         ?? initialActiveBot
     if(!mActiveBot)
-        throw new Error(`ERROR: failure to set active bot.`)
+        throw new Error(`ERROR: failure to set active bot with id: ${ botId }`)
     if(initialActiveBot===mActiveBot)
         return // no change, no problem
     const { id, type, } = mActiveBot
-    const { bot_id, responses=[], routine: botRoutine, success=false, version, versionUpdate, } = await globals.datamanager.botActivate(id)
+    const { bot_id, firstAccess, responses=[], routine: botRoutine, success=false, version, versionUpdate, } = await globals.datamanager.botActivate(id)
     if(!success)
         throw new Error(`Server unsuccessful at setting active bot.`)
+    console.log('testing setActiveBot', { bot_id, firstAccess, responses, botRoutine, version, versionUpdate, })
     /* update page bot data */
     const { activated=[], activatedFirst=Date.now(), } = mActiveBot
     mActiveBot.activatedFirst = activatedFirst
     activated.push(Date.now()) // newest date is last to .pop()
     mActiveBot.activated = activated
-    mActiveBot.routines = mActiveBot.routines
-        ?? []
     if(versionUpdate!==version){
         const botVersion = document.getElementById(`${ id }-title-version`)
             ?? document.getElementById(`${ type }-title-version`)
@@ -229,10 +225,8 @@ async function setActiveBot(event, displayGreeting=true){
     }
     /* update page */
     mSpotlightBotStatus()
-    if(botRoutine?.length && !mActiveBot.routines.includes(botRoutine)){
+    if(firstAccess && botRoutine?.length)
         routine(botRoutine)
-        mActiveBot.routines.push(botRoutine)
-    }
     else if(displayGreeting && responses.length)
         addMessages(responses, type)
     else if(displayGreeting)
@@ -2236,18 +2230,7 @@ function mSetStatusBar(bot){
  * @returns {void}
  */
 function mSpotlightBotStatus(){
-    mBots
-        .forEach(bot=>{
-            const { id, type, } = bot
-            const botContainer = document.getElementById(id) ?? document.getElementById(type)
-            if(botContainer){ // exists on-page
-                // set data attribute for active bot
-                const { dataset, } = botContainer
-                if(dataset && id)
-                    botContainer.dataset.active = id===mActiveBot?.id
-                mSetStatusBar(bot, botContainer)
-            }
-        })
+    mBots.forEach(bot=>mSetStatusBar(bot))
 }
 /**
  * Deletes the share from the server, from the item and from the DOM.
