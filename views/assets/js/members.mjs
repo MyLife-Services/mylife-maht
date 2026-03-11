@@ -34,7 +34,8 @@ const mainContent = globals.mainContent,
 window.about = about
 window.privacyPolicy = privacyPolicy
 /* variables */
-let mAutoplay=false,
+let mActiveItem=null,
+    mAutoplay=false,
     mChatBubbleCount=0,
     mMemberId
 /* page div variables */
@@ -76,6 +77,14 @@ document.addEventListener('DOMContentLoaded', async event=>{
  */
 function about(){
     routine('about')
+}
+/**
+ * Gets the active item object.
+ * @public
+ * @returns {object} - The active item object.
+ */
+function activeItem(){
+    return mActiveItem
 }
 /**
  * Adds an input element (button, input, textarea,) to the system chat column.
@@ -150,8 +159,7 @@ function expunge(element){
  * @returns {Guid} - The return is the active item ID.
  */
 function getActiveItemId(){
-    const id = chatActiveItem.dataset?.id?.split('_')?.pop()
-    return id
+    return mActiveItem?.id
 }
 /**
  * Proxy for Globals.hide().
@@ -270,8 +278,7 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 function setActiveAction(instructions){
     if(!instructions)
         return
-    globals.clearDataset(chatActiveItem.dataset)
-    chatActiveItem.dataset.inAction = "true"
+    mActiveItem = { inAction: true }
     const { button, callback, icon, status, text, thumb, } = instructions
     const activeButton = document.getElementById('chat-active-item-button')
     const activeClose = document.getElementById('chat-active-item-close')
@@ -285,7 +292,6 @@ function setActiveAction(instructions){
     else
         hide(chatActiveThumb)
     if(activeIcon){
-        globals.clearDataset(activeIcon.dataset)
         activeIcon.className = 'fas chat-active-action-icon'
         if(icon?.length)
             activeIcon.classList.add(icon)
@@ -293,7 +299,6 @@ function setActiveAction(instructions){
             hide(activeIcon)
     }
     if(activeStatus){
-        globals.clearDataset(activeStatus.dataset)
         activeStatus.className = 'chat-active-action-status'
         activeStatus.removeEventListener('click', mToggleItemPopup)
         if(status?.length)
@@ -302,7 +307,6 @@ function setActiveAction(instructions){
             hide(activeStatus)
     }
     if(activeButton){
-        globals.clearDataset(activeButton.dataset)
         activeButton.className = 'button chat-active-action-button'
         if(button?.length){
             activeButton.textContent = button
@@ -314,7 +318,6 @@ function setActiveAction(instructions){
             hide(activeButton)
     }
     if(activeTitle){
-        globals.clearDataset(activeTitle.dataset)
         activeTitle.className = 'chat-active-action-title'
         if(text?.length)
             activeTitle.textContent = text
@@ -322,7 +325,6 @@ function setActiveAction(instructions){
             hide(activeTitle)
     }
     if(activeClose){
-        globals.clearDataset(activeClose.dataset)
         activeClose.addEventListener('click', unsetActiveAction, { once: true })
     }
     show(chatActiveItem)
@@ -344,7 +346,6 @@ async function setActiveBot(){
  * @returns {void}
  */
 function setActiveItem(itemId){
-    globals.clearDataset(chatActiveItem.dataset)
     if(!globals.isGuid(itemId))
         return
     const popup = document.getElementById(`popup-container_${ itemId }`)
@@ -367,7 +368,6 @@ function setActiveItem(itemId){
     }
     if(activeStatus){
         activeStatus.className = 'chat-active-item-status'
-        activeStatus.dataset.itemId = itemId
         activeStatus.textContent = 'Active: '
         activeStatus.addEventListener('click', mToggleItemPopup)
     }
@@ -375,22 +375,14 @@ function setActiveItem(itemId){
         activeTitle.innerHTML = ''
         const activeText = document.createElement('div')
         activeText.classList.add('chat-active-item-title-text')
-        activeText.dataset.itemId = itemId
         activeText.id = `chat-active-item-title-text_${ itemId }`
         activeText.innerHTML = title
         /* append activeTitle */
         activeTitle.appendChild(activeText)
         activeTitle.className = 'chat-active-item-title'
-        activeTitle.dataset.itemId = itemId
-        activeTitle.dataset.popupId = popup.id
-        activeTitle.dataset.title = title
         activeTitle.addEventListener('dblclick', updateTitle, { once: true })
     }
-    chatActiveItem.dataset.form = form
-    chatActiveItem.dataset.id = itemId
-    chatActiveItem.dataset.inAction = "false"
-    chatActiveItem.dataset.itemId = itemId
-    chatActiveItem.dataset.type = type
+    mActiveItem = { form, id: itemId, inAction: false, type }
     function getBotType(itemType){
         switch(itemType){
             case 'memory':
@@ -472,7 +464,7 @@ async function submit(message){
     toggleMemberInput(false)
     const awaitBar = globals.await(`Connecting with ${ activeBot().name }...`)
     globals.addChatElement(awaitBar)
-    const { itemId, } = chatActiveItem.dataset
+    const itemId = mActiveItem?.id
     const { id: botId, } = activeBot()
 	const request = {
         botId,
@@ -513,7 +505,7 @@ function toggleVisibility(){
  * @returns {void}
  */
 function unsetActiveAction(){
-    globals.clearDataset(chatActiveItem.dataset)
+    mActiveItem = null
     hide(chatActiveThumb)
     hide(chatActiveItem)
 }
@@ -524,7 +516,7 @@ function unsetActiveAction(){
  * @returns {void}
  */
 function unsetActiveItem(){
-    globals.clearDataset(chatActiveItem.dataset)
+    mActiveItem = null
     hide(chatActiveItem)
 }
 /**
@@ -535,9 +527,8 @@ function unsetActiveItem(){
  * @returns {void}
  */
 function updateActiveItemTitle(itemId, title){
-    const chatActiveItemText = document.getElementById('chat-active-item-title')
     const chatActiveItemTitle = document.getElementById(`chat-active-item-title-text_${ itemId }`)
-    const { itemId: id, } = chatActiveItemText.dataset
+    const id = mActiveItem?.id
     if(id!==itemId)
         throw new Error('updateActiveItemTitle::Error()::`itemId`\'s do not match')
     chatActiveItemTitle.innerHTML = title
@@ -805,8 +796,7 @@ function mInitializePageListeners(){
  * @param {string} placeholder - The placeholder to seed the input with (optional)
  */
 function seedInput(itemId, shadowId, value, placeholder){
-    chatActiveItem.dataset.itemId = itemId
-    chatActiveItem.dataset.shadowId = shadowId
+    mActiveItem = { ...(mActiveItem ?? {}), id: itemId, shadowId }
     globals.seedInput(value, placeholder)
 }
 /**
@@ -860,7 +850,7 @@ function mStageTransitionMember(includeSidebar=true){
 function mToggleItemPopup(event){
     event.stopPropagation()
     event.preventDefault()
-    const { itemId, } = event.target.dataset
+    const itemId = mActiveItem?.id
     togglePopup(itemId, true)
 }
 /**
@@ -888,6 +878,7 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
 }
 /* exports */
 export {
+    activeItem,
     addInput,
     addMessage,
     addMessages,
