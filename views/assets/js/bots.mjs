@@ -14,6 +14,7 @@ import {
     introduction,
     enactInstruction,
     privacyPolicy,
+    registerItem,
     seedInput,
     setActiveAction,
     setActiveItem,
@@ -77,14 +78,18 @@ function activeBot(){
  * @param {object} item - The collection item data
  * @returns {void}
  */
-function createItem(item){
-    const { id, type, } = item
+function createItem(itemData){
+    const { id, type, } = itemData
     if(getItem(id))
         removeItem(id) // already exists, expunge
-    item = mCreateCollectionItem(item)
+    const lineItem = mCreateCollectionItem(itemData)
+    const popup = mCreateCollectionPopup(itemData)
+    hide(popup)
+    lineItem.appendChild(popup)
     const collectionList = document.getElementById(`collection-list-${ type }`)
     if(collectionList){
-        collectionList.insertBefore(item, collectionList.firstChild)
+        collectionList.insertBefore(lineItem, collectionList.firstChild)
+        registerItem(itemData, lineItem, popup)
         setActiveItem(id)
     }
 }
@@ -1073,6 +1078,8 @@ function mCreateCollectionPopup(collectionItem){
     collectionPopup.dataset.type = type
     collectionPopup.dataset.version = version
     collectionPopup.id = `popup-container_${ id }`
+    collectionPopup.style.position = 'fixed'
+    collectionPopup.style.right = '80vw'
     collectionPopup.name = `collection-popup_${ type }`
     collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
     /* popup header */
@@ -1093,11 +1100,11 @@ function mCreateCollectionPopup(collectionItem){
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
     popupClose.id = `popup-close_${ id }`
     popupClose.setAttribute('aria-label', 'Close')
-    popupClose.addEventListener('click', _=>globals.expunge(collectionPopup), { once: true })
+    popupClose.addEventListener('click', _=>hide(collectionPopup))
     document.addEventListener('keydown', event=>{
-        if(event.key==='Escape')
-            popupClose.click()
-    }, { once: true })
+        if(event.key==='Escape' && collectionPopup.classList.contains('show'))
+            hide(collectionPopup)
+    })
     popupHeader.appendChild(popupClose)
     /* Variables for dragging */
     let isDragging = false
@@ -1864,7 +1871,7 @@ async function mRefreshCollection(type, collectionList){
     if(!collectionList)
         throw new Error(`No collection list found for refresh request.`)
     const collection = await globals.datamanager.collections(type)
-    mUpdateCollection(type, collectionList, collection)
+    return mUpdateCollection(type, collectionList, collection)
 }
 /**
  * Refresh the proxy URL for the proxy agent.
@@ -2674,16 +2681,13 @@ function mTogglePopup(event, collectionItem){
     const item = event.target.parentElement
     const { id, } = item
     const popupId = id.split('_').pop()
-    let popup = document.getElementById(`popup-container_${ popupId }`)
-    if(!!popup){
-        globals.expunge(popup)
+    const popup = document.getElementById(`popup-container_${ popupId }`)
+    if(!popup) return
+    if(popup.classList.contains('show')){
+        hide(popup)
+        unsetActiveItem()
         return
     }
-    popup = mCreateCollectionPopup(collectionItem)
-    item.appendChild(popup)
-    /* calculate desired position */
-    popup.style.position = 'fixed'
-    popup.style.right = '80vw'
     show(popup)
     setActiveItem(popupId)
 }
@@ -2949,7 +2953,7 @@ async function mUpdateBotVersion(event){
  */
 function mUpdateCollection(type, collectionList, collection){
     collectionList.innerHTML = ''
-    collection
+    return collection
         .map(item=>({
             ...item,
             being: item.being,
@@ -2963,7 +2967,14 @@ function mUpdateCollection(type, collectionList, collection){
         }))
         .filter(item=>item.type===type)
         .sort((a, b)=>a.name.localeCompare(b.name))
-        .forEach(item=>collectionList.appendChild(mCreateCollectionItem(item)))
+        .map(item=>{
+            const lineItem = mCreateCollectionItem(item)
+            collectionList.appendChild(lineItem)
+            const popup = mCreateCollectionPopup(item)
+            hide(popup)
+            lineItem.appendChild(popup)
+            return { ...item, lineItem, popup }
+        })
 }
 /**
  * Sets collection item content.

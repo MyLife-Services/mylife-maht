@@ -37,6 +37,7 @@ window.privacyPolicy = privacyPolicy
 let mActiveItem=null,
     mAutoplay=false,
     mChatBubbleCount=0,
+    mItems=[],
     mMemberId
 /* page div variables */
 let botBar,
@@ -85,6 +86,30 @@ function about(){
  */
 function activeItem(){
     return mActiveItem
+}
+/**
+ * Gets the collection items array.
+ * @public
+ * @returns {object[]} - The collection items array.
+ */
+function items(){
+    return mItems
+}
+/**
+ * Registers or updates a collection item in `mItems`.
+ * @public
+ * @param {object} item - The item data object.
+ * @param {HTMLElement} lineItem - The collection-list DOM element for this item.
+ * @param {HTMLElement} popup - The popup container DOM element for this item.
+ * @returns {void}
+ */
+function registerItem(item, lineItem, popup){
+    const idx = mItems.findIndex(i => i.id === item.id)
+    const entry = { ...item, lineItem, popup }
+    if(idx >= 0)
+        mItems[idx] = entry
+    else
+        mItems.push(entry)
 }
 /**
  * Adds an input element (button, input, textarea,) to the system chat column.
@@ -754,6 +779,19 @@ async function mAddMessage(message, role='agent', typeDelay=2){
     mChatBubbleCount++
 }
 /**
+ * Refreshes a collection from server and populates `mItems` with item data, lineItem, and popup references.
+ * @private
+ * @param {string} type - The collection type.
+ * @returns {Promise<void>}
+ */
+async function mRefreshCollection(type){
+    const refreshed = await refreshCollection(type)
+    mItems = [
+        ...mItems.filter(i => i.type !== type),
+        ...(refreshed ?? []),
+    ]
+}
+/**
  * Initialize module variables from server.
  * @private
  * @requires mMemberId
@@ -761,7 +799,7 @@ async function mAddMessage(message, role='agent', typeDelay=2){
  */
 async function mInitialize(){
     /* retrieve primary collections */
-    await refreshCollection('memory') // memories required
+    await mRefreshCollection('memory') // memories required
     /* page listeners */
     mInitializePageListeners()
 }
@@ -893,7 +931,9 @@ export {
     inExperience,
     introduction,
     enactInstruction,
+    items,
     privacyPolicy,
+    registerItem,
     replaceElement,
     routine,
     sceneTransition,
