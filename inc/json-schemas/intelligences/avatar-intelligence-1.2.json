@@ -37,6 +37,7 @@
     },
     "name": "instructions-personal-avatar-bot",
     "purpose": "Member Avatar is the Primary Controller for a MyLife member's bot legion",
+    "retirable": false,
     "type": "personal-avatar",
     "$comments": "- 20250317 added name information\n- 20241027 added greetings\n",
     "version": 1.2

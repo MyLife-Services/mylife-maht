@@ -503,6 +503,24 @@ class Avatar extends EventEmitter {
         return Bot
     }
     /**
+     * Retrieves buttons for a specified bot.
+     * @param {Guid} botId - The Bot id
+     * @returns {Object[]} - Array of bot button objects: { endpoint, id, label, order, type, value, }
+     */
+    botButtons(botId){
+        const { buttons, }= this.bot(botId)
+        return buttons
+    }
+    /**
+     * Retrieves options for a specified bot.
+     * @param {Guid} botId - The Bot id
+     * @returns {Object[]} - Array of bot option objects: { endpoint, id, label, order, type, value, }
+     */
+    botOptions(botId){
+        const { options, }= this.bot(botId)
+        return options
+    }
+    /**
      * Grants or revokes access to a proxy Agent for a specific MyLife bot.
      * @param {Guid} proxyId - The proxy Agent id
      * @param {Guid} botId - The Bot id
@@ -2518,14 +2536,6 @@ class Q extends Avatar {
         return updatedSummary
     }
     /* overload rejections */
-    /**
-     * OVERLOADED: Q refuses to execute.
-     * @public
-     * @throws {Error} - MyLife avatar cannot upload files.
-     */
-    async setActiveBot(){
-        throw new Error('MyLife System Avatars cannot be externally set')
-    }
     summarize(){
         throw new Error('MyLife System Avatar cannot summarize files')
     }

@@ -6,6 +6,7 @@ const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
 const mDefaultBotType = mDefaultBotTypeArray[0]
 const mDefaultGreeting = 'avatar' // greeting routine
 const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
+const mDefaultIcon = 'default.png'
 const mDefaultTeam = 'memory'
 const mProxyChatTypes = ['chat', 'conversation', 'converse',]
 const mRequiredBotTypes = ['personal-avatar']
@@ -16,12 +17,26 @@ const mTeams = [
 		allowProxy: true,
 		allowedBotTypes: ['diary', 'journaler', 'personal-biographer'],
 		allowedItemTypes: ['entry', 'memory'],
+		collection: 'Scrapbook',
 		defaultActiveType: 'personal-biographer',
 		defaultTypes: ['personal-biographer'],
 		description: 'The Memory Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
 		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
 		name: 'memory',
 		title: 'Memory',
+	},
+	{
+		active: true,
+		allowCustom: true,
+		allowProxy: true,
+		allowedTypes: ['activism', 'conflict-resolution', 'journaler', 'political-narratives', 'political-stance', 'values',],
+		collection: 'Political Notebook',
+		defaultActiveType: 'political-stance',
+		defaultTypes: ['political-stance',],
+		description: 'The Political Team is dedicated to help you craft records of your own political views on issues, and how to engage with political issues and perspectives from productive conversation with those of opposing views to activism.',
+		id: '0434f506-2a33-443a-80ed-8bd9832b33d7',
+		name: 'political',
+		title: 'Political',
 	},
 ]
 /* classes */
@@ -40,14 +55,17 @@ class Bot {
 	#firstAccess=false
 	#greetingRoutine
 	#greetings
+	#icon
 	#instructionNodes = new Set()
 	#llm
 	#mcpTools = []
+	#retirable
 	#type
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, name, unaccessed, type=mDefaultBotType, ...filteredBotData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
 		this.#feedback = feedback
@@ -55,7 +73,14 @@ class Bot {
 		this.#greetings = greetings
 		this.#greetingRoutine = type.split('-').pop()
 		this.#type = type
-		Object.assign(this, this.globals.sanitize(filteredBotData))
+		this.#retirable = retirable
+			?? this.#factory.botRetirable(type)
+			?? true
+		Object.assign(this, this.globals.sanitize(__botData))
+		this.#icon = icon
+			?? this.#factory.botIcon(type)
+			?? this.card?.icon
+			?? mDefaultIcon
 		this.#instructionNodes.add('agentInstructions')
 		this.#instructionNodes.add('bot_name')
 		switch(type){
@@ -209,23 +234,23 @@ class Bot {
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
 	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last'){
-		if(this.type!=='proxy' && !this.llm_id)
+		if(dynamic && this.type!=='proxy' && !this.llm_id)
 			return {
 				error: 'Bot llm_id not set',
 				responses: ['I currently have no connection with my foundational intelligence, so my greeting is generic'],
 				success: false,
 			}
-		let greeting,
+		let firstAccess=this.#firstAccess,
 			responses=[],
-			routine
-		if(!this.#firstAccess){
+			routine=this.#greetingRoutine
+		if(!firstAccess){
 			const greetings = dynamic
 				? await mBotGreetings(this.thread_id, this.llm_id, greetingPrompt, this.#llm, this.#factory)
 				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
 			responses.push(...greetings)
-		} else
-			routine = this.#greetingRoutine
+		}
 		return {
+			firstAccess,
 			responses,
 			routine,
 			success: true,
@@ -374,15 +399,19 @@ class Bot {
 	 * @getter
 	 */
 	get bot() {
-		const { access, card, description, flags, id, interests, name, purpose, skills, type, url, version, } = this
+		const { access, buttons, card, description, flags, icon, id, interests, name, options, purpose, retirable, skills, type, url, version, } = this
 		const bot = {
 			access,
+			buttons,
 			description,
 			flags,
+			icon,
 			id,
 			interests,
 			name,
+			options,
 			purpose,
+			retirable,
 			skills,
 			type,
 			url,
@@ -391,6 +420,15 @@ class Bot {
 				?? '1.0',
 		}
 		return bot
+	}
+	/**
+	 * Gets the bot's buttons from the factory based on bot type, or an empty array if no buttons are found. This is _not_ written to local memory space, as it is global, generic and not currently overwritten.
+	 * @getter
+	 * @returns {array} - An array of button objects for the bot
+	 */
+	get buttons(){
+		return this.#factory.botButtons(this.type)
+			?? []
 	}
 	get conversation(){
 		return this.#conversation
@@ -408,6 +446,9 @@ class Bot {
 			&&	greetings.every(item => typeof item === 'string')
 		)
 			this.#greetings = greetings
+	}
+	get icon(){
+		return this.#icon
 	}
 	get instructionNodes(){
 		return this.#instructionNodes
@@ -464,6 +505,17 @@ class Bot {
 	}
 	set name(name){
 		this.bot_name = name
+	}
+	/**
+	 * Gets the bot's frontend options from the factory based on bot type, or an empty array if no options are found. This is _not_ written to local memory space, as it is global, generic and not currently overwritten.
+	 * @getter
+	 * @returns {array} - An array of option objects for the bot
+	 */
+	get options(){
+		return this.#factory.botOptions(this.type)
+	}
+	get retirable(){
+		return this.#retirable
 	}
 	get type(){
 		return this.#type
@@ -756,9 +808,10 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botInstructionsVersion(type)
 		}
-		const { responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
+		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
 		return {
 			bot_id,
+			firstAccess,
 			responses,
 			routine,
 			success,
@@ -828,25 +881,22 @@ class BotAgent {
 	 * @param {Boolean} migrateThread - Whether to migrate the thread, defaults to `true`
 	 * @returns {Bot} - The updated Bot instance
 	 */
-	async updateBotInstructions(bot_id, migrateThread=true){
+	async updateBotInstructions(bot_id, migrateThread=false){
 		const Bot = this.bot(bot_id)
-		const { type, version=1.0, } = Bot
-        /* check version */
-        const newestVersion = this.#factory.botInstructionsVersion(type)
-        if(newestVersion!=version){
-			const { bot_id: _llm_id, id, } = Bot
-			const { llm_id=_llm_id, } = Bot
-            const _bot = { id, llm_id, type, }
-            const botOptions = {
-                instructions: true,
-                model: true,
-                tools: true,
-                vectorstoreId: this.#vectorstoreId,
-            }
-            await Bot.update(_bot, botOptions)
-            if(migrateThread)
-                await Bot.migrateChat()
-        }
+		const { id, llm_id, type, version=1.0, } = Bot
+        const newestVersion = this.#factory.botInstructionsVersion(type) // check version
+			?? 0
+		if(newestVersion <= version)
+			return Bot
+		const bot = {
+			id,
+			llm_id,
+			type,
+			version: newestVersion,
+		}
+		await Bot.update(bot, { instructions: true, })
+		if(migrateThread)
+			await Bot.migrateChat()
         return Bot
 	}
     /* getters/setters */
@@ -1096,7 +1146,9 @@ async function mBotGreetings(thread_id, llm_id, greetingPrompt=`Greet me enthusi
  * @returns {object} - The intermediary bot instructions object: { instructions, version, }
  */
 function mBotInstructions(factory, botData={}){
-	const { agentInstructions, type=mDefaultBotType, } = botData
+	const { agentInstructions, type, } = botData
+	if(!type?.length)
+		return
     let {
 		greeting,
 		greetings,
@@ -1237,6 +1289,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 		} = options
 		if(updateInstructions){
 			const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
+			instructionReferences.type = type
 			const { greetings, instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
 			allowedBotData.greetings = greetings
 			allowedBotData.instructions = instructions
