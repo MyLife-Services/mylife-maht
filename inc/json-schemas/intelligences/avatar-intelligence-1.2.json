@@ -35,6 +35,10 @@
         }
       ]
     },
+    "itemForms": [
+      "chat",
+      "file"
+    ],
     "name": "instructions-personal-avatar-bot",
     "purpose": "Member Avatar is the Primary Controller for a MyLife member's bot legion",
     "retirable": false,
