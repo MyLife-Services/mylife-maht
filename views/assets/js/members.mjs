@@ -39,8 +39,7 @@ import Globals from './globals.mjs'
 /* variables */
 /* constants */
 const globals = new Globals()
-const mainContent = globals.mainContent,
-    navigation = globals.navigation,
+const navigation = globals.navigation,
     sidebar = globals.sidebar
 window.about = about
 window.privacyPolicy = privacyPolicy
@@ -48,31 +47,40 @@ window.privacyPolicy = privacyPolicy
 let mAutoplay=false,
     mChatBubbleCount=0,
     mMemberId
+let activePopup = null, // dragging vars
+    isDragging = false,
+    offsetX = 0,
+    offsetY = 0
 /* page div variables */
-let botBar,
-    mChatRefresh,
-    mLogout,
-    pageLoader,
-    sceneContinue,
-    screen,
-    spinner,
-    transport
-/* page load listener */
-document.addEventListener('DOMContentLoaded', async event=>{
-    /* post-DOM population constants */
-    botBar = document.getElementById('bot-bar')
-    mChatRefresh = document.getElementById('chat-refresh')
+const mChatRefresh = document.getElementById('chat-refresh'),
     mLogout = document.getElementById('navigation-logout')
-    pageLoader = document.getElementById('page-loader')
-    sceneContinue = document.getElementById('experience-continue')
-    spinner = document.getElementById('agent-spinner')
-    transport = document.getElementById('experience-transport')
-    screen = document.getElementById('experience-modal')
+const mLoader = document.getElementById('page-loader')
+const sceneContinue = document.getElementById('experience-continue')
+const screen = document.getElementById('experience-modal')
+const spinner = document.getElementById('agent-spinner')
+const transport = document.getElementById('experience-transport')
+/* page load listener */
+
+document.addEventListener('DOMContentLoaded', async event=>{
     /* determine mode, default = member bot interface */
     await mInitialize() // throws if error
     stageTransition()
     unsetActiveAction()
     console.log('members.mjs::DOMContentLoaded')
+})
+/* dragging events */
+document.addEventListener('mousemove', (e)=>{
+    if(!isDragging || !activePopup)
+        return
+    const maxLeft = window.innerWidth * 0.4 // 40vw
+    let newLeft = e.clientX - offsetX
+    let newTop = e.clientY - offsetY
+    if (newLeft > maxLeft) newLeft = maxLeft
+    activePopup.style.left = newLeft + 'px'
+    activePopup.style.top = newTop + 'px'
+})
+document.addEventListener('mouseup', ()=>{
+    isDragging = false
 })
 /* public functions */
 /**
@@ -137,6 +145,25 @@ function decorateActiveBot(){
     const { id, name, } = activeBot()
     globals.chatInputPlaceholder = `Type your message to ${ name }...`
 }
+/**
+ * Consumes instruction object and performs the requested actions.
+ * @todo - all interfaceLocations supported
+ * @todo - currently just force-feeding _all_ the functions I need; make more contextual
+ * @param {object} instruction - The instruction object
+ * @param {string} interfaceLocation - The interface location, default=`chat`
+ * @param {object} additionalFunctions - The additional functions object, coming from other module requests
+ * @returns {void}
+ */
+function enactInstruction(instruction, interfaceLocation='chat', additionalFunctions={}){
+    if(!instruction || interfaceLocation!='chat')
+        return
+    const functions = {
+        addInput,
+        addMessages,
+        ...additionalFunctions, // overloads feasible
+    }
+    globals.enactInstruction(instruction, functions)
+}
 function escapeHtml(text) {
     return globals.escapeHtml(text)
 }
@@ -177,23 +204,15 @@ function introduction(){
     routine('introduction')
 }
 /**
- * Consumes instruction object and performs the requested actions.
- * @todo - all interfaceLocations supported
- * @todo - currently just force-feeding _all_ the functions I need; make more contextual
- * @param {object} instruction - The instruction object
- * @param {string} interfaceLocation - The interface location, default=`chat`
- * @param {object} additionalFunctions - The additional functions object, coming from other module requests
- * @returns {void}
+ * Gets the main content element.
+ * @public
+ * @returns {HTMLElement} - The return is the main content element
  */
-function enactInstruction(instruction, interfaceLocation='chat', additionalFunctions={}){
-    if(!instruction || interfaceLocation!='chat')
-        return
-    const functions = {
-        addInput,
-        addMessages,
-        ...additionalFunctions, // overloads feasible
-    }
-    globals.enactInstruction(instruction, functions)
+function mainContent(){
+    return globals.mainContent
+}
+function overlays(){
+    return globals.overlays
 }
 /**
  * Presents the `privacy-policy` page as a routine.
@@ -287,7 +306,7 @@ function setActiveAction(instructions){
     }
     if(activeStatus){
         activeStatus.className = 'chat-active-action-status'
-        // activeStatus.removeEventListener('click', mToggleItemPopup)
+        activeStatus.removeEventListener('click', e=>togglePopup(activeItem().id))
         if(status?.length)
             activeStatus.textContent = status
         else
@@ -333,7 +352,7 @@ function show(){
  */
 function showMemberInterface(){
     hide(screen)
-    show(mainContent)
+    show(mainContent())
     show(systemChat)
 }
 /**
@@ -355,6 +374,23 @@ function stageTransition(experienceId){
         experienceStart(experienceId)
     else
         mStageTransitionMember()
+}
+/**
+ * Initiates drag of popups, currently only used for item popups.
+ * @public
+ * @param {HTMLElement} popup - The popup element to drag
+ * @param {Event} e - The mouse event object from the initiating event listener
+ * @return {void}
+ */
+function startDrag(popup, e){
+    isDragging = true
+    activePopup = popup
+    const rect = activePopup.getBoundingClientRect()
+    activePopup.style.left = rect.left + 'px'
+    activePopup.style.top = rect.top + 'px'
+    activePopup.style.transform = 'none'
+    offsetX = e.clientX - rect.left
+    offsetY = e.clientY - rect.top
 }
 /**
  * Start experience onscreen, displaying welcome ande loading remaining data. Passthrough to `experience.mjs::experienceStart()`.
@@ -694,7 +730,6 @@ function sceneTransition(type='interface'){
     globals.ChatSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
     hide(navigation)
-    hide(botBar)
     globals.toggleChatInput(false)
     /* type specifics */
     switch(type){
@@ -719,16 +754,13 @@ function mStageTransitionMember(includeSidebar=true){
     globals.ChatSubmit.addEventListener('click', mAddMemberMessage)
     hide(transport)
     hide(screen)
-    hide(pageLoader)
-    show(mainContent)
+    hide(mLoader)
+    show(mainContent())
     show(navigation)
     show(sidebar)
     show(globals.ChatContainer)
-    if(includeSidebar && sidebar){
+    if(includeSidebar && sidebar)
         show(sidebar)
-        if(botBar)
-            show(botBar)
-    }
 }
 /* DEPRECATE?
 function mToggleItemPopup(event){
@@ -773,13 +805,10 @@ export {
     decorateActiveBot,
     escapeHtml,
     experiences,
-    expunge,
     getBot,
     getBotIcon,
     getBots,
     getBotsByForm,
-    globals,
-    hide,
     inExperience,
     introduction,
     enactInstruction,
@@ -790,10 +819,10 @@ export {
     seedInput,
     setActiveAction,
     setActiveBot,
-    show,
     showMemberInterface,
     showSidebar,
     stageTransition,
+    startDrag,
     startExperience,
     submit,
     toggleMemberInput,
@@ -801,4 +830,11 @@ export {
     toggleVisibility,
     unsetActiveAction,
     waitForUserAction,
+    /* globals */
+    expunge,
+    globals,
+    hide,
+    mainContent,
+    overlays,
+    show,
 }

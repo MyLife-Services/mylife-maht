@@ -36,6 +36,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mLoaded = false,
     mLogoutButton,
     mMainContent,
+    mOverlays,
     mNavigation,
     mNavigationHamburger,
     mNavigationHelp,
@@ -783,6 +784,7 @@ class Globals {
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
             mNavigationMenu = document.getElementById('navigation-menu')
+            mOverlays = document.getElementById('overlays')
             mPage = document.getElementById('page-header')
             mSidebar = document.getElementById('sidebar')
                 ?? document.getElementById('bot-container')
@@ -1117,6 +1119,21 @@ class Globals {
         }
     }
     /**
+     * Determines whether an element is hidden via class or inline styles.
+     * @param {HTMLElement} element - The element to check for visibility
+     * @returns {boolean} - Whether the element is hidden
+     */
+    isHidden(element){
+        const { classList, } = element
+        const { display, visibility, } = getComputedStyle(element)
+        const hidden = element.classList.contains('hide')
+            || element.classList.contains('hidden')
+            || element.classList.contains('fade-out')
+            || (display ?? 'none') === 'none'
+            || (visibility ?? 'hidden') === 'hidden'
+        return hidden
+    }
+    /**
      * Determines whether the bot is a `proxy agent` given `type`.
      * @param {string} type - The type to check
      * @returns {boolean} - Whether the bot is a `proxy agent`
@@ -1260,6 +1277,9 @@ class Globals {
     }
     get newGuid(){ 
         return mNewGuid()
+    }
+    get overlays(){
+        return mOverlays
     }
     get page(){
         return mPage

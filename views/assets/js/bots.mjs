@@ -25,18 +25,21 @@ import {
     addMessages,
     clearSystemChat,
     decorateActiveBot,
+    enactInstruction,
     experiences,
     expunge,
     globals,
     hide,
     introduction,
-    enactInstruction,
+    mainContent,
+    overlays,
     privacyPolicy,
     seedInput,
     replaceElement,
     routine,
     setActiveAction,
     show,
+    startDrag,
     startExperience,
     submit,
     toggleMemberInput,
@@ -825,24 +828,6 @@ function mCreateTeamSelect(event){
     const { clientX, clientY, } = event
     mCreateTeamPopup('selectTeam', clientX, clientY, true)
 }
-async function mEvaluate(e){
-    e.stopPropagation()
-    /* set active item */
-    const { id: itemId, } = this.dataset
-    if(itemId)
-        setActiveItem(itemId)
-    toggleMemberInput(false)
-    const awaitBar = globals.await(`${ mActiveBot.name } is evaluating your summary...`)
-    globals.addChatElement(awaitBar)
-    const popupClose = document.getElementById(`popup-close_${ itemId }`)
-    if(popupClose)
-        popupClose.click()
-    const { responses, success, } = await globals.datamanager.evaluate(itemId)
-    if(responses?.length)
-        addMessages(responses, mActiveBot.type)
-    globals.expunge(awaitBar)
-    toggleMemberInput(true)
-}
 /**
  * Find checkbox associated with element, or errors.
  * @param {HTMLElement} element - The element to search for checkbox.
@@ -894,26 +879,6 @@ function mIsInputCheckbox(element){
     const { tagName, type, } = element
     const outcome = tagName.toLowerCase()==='input' && type.toLowerCase()==='checkbox'
     return outcome
-}
-async function mObscureEntry(e){
-    e.stopPropagation()
-    /* set active item */
-    const { id: itemId, } = this.dataset
-    if(itemId)
-        setActiveItem(itemId)
-    const awaitBar = globals.await(`${ mActiveBot.name } is obscuring your content...`)
-    globals.addChatElement(awaitBar)
-    toggleMemberInput(false)
-    const popupClose = document.getElementById(`popup-close_${ itemId }`)
-    if(popupClose)
-        popupClose.click()
-    const { instruction, responses, success, } = await globals.datamanager.obscure(itemId)
-    if(responses?.length)
-        addMessages(responses, mActiveBot.type)
-    if(instruction)
-        enactInstruction(instruction, 'chat', { updateItemSummary, })
-    globals.expunge(awaitBar)
-    toggleMemberInput(true)
 }
 /**
  * Open bot container for passed element, closes all the rest.
@@ -1788,6 +1753,7 @@ export {
     getBotIcon,
     getBots,
     getBotsByForm,
+    init as initBots,
     setActiveBot,
     updatePageBots,
     /* collections.mjs */
@@ -1813,19 +1779,21 @@ export {
     addMessages,
     clearSystemChat,
     decorateActiveBot,
+    enactInstruction,
     experiences,
     expunge,
     globals,
     hide,
-    init as initBots,
     introduction,
-    enactInstruction,
+    mainContent,
+    overlays,
     privacyPolicy,
     seedInput,
     replaceElement,
     routine,
     setActiveAction,
     show,
+    startDrag,
     startExperience,
     submit,
     toggleMemberInput,

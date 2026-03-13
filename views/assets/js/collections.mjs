@@ -6,6 +6,7 @@ import {
     addMessages,
     clearSystemChat,
     decorateActiveBot,
+    enactInstruction,
     expunge,
     getBot,
     getBotIcon,
@@ -13,12 +14,14 @@ import {
     getBotsByForm,
     globals,
     hide,
-    enactInstruction,
+    mainContent,
+    overlays,
     replaceElement,
     seedInput,
     setActiveAction,
     setActiveBot,
     show,
+    startDrag,
     submit,
     toggleBotContainers,
     toggleVisibility,
@@ -82,10 +85,12 @@ function createItem(item){
     if(!container)
         item.container = mCreateCollectionItem(item)
     console.log('createItem()::start', item)
-    if(!popup)
+    if(!popup){
         item.popup = mCreateCollectionItemPopup(item)
-    hide(popup)
-    lineItem.appendChild(popup)
+        container.appendChild(item.popup)
+        hide(item.popup)
+    }
+    lineItem.appendChild(item.popup)
     console.log('createItem()::end', item)
     const collectionList = document.getElementById(`collection-list-${ type }`)
     if(collectionList){
@@ -137,6 +142,32 @@ function isHighlightedCollection(type){
     return mCollectionHighlights.includes(type)
 }
 /**
+ * Obscures an entry item, removing it from view and updating the server. **note**: currently only used for entries, but could be used for other item types in the future, ergo is located in collections module.
+ * @async
+ * @param {Event} e - The event object
+ * @return {void}
+ */
+async function mObscureEntry(e){
+    e.stopPropagation()
+    /* set active item */
+    const { id: itemId, } = this.dataset
+    if(itemId)
+        setActiveItem(itemId)
+    const awaitBar = globals.await(`${ activeBot().name } is obscuring your content...`)
+    globals.addChatElement(awaitBar)
+    toggleMemberInput(false)
+    const popupClose = document.getElementById(`popup-close-${ itemId }`)
+    if(popupClose)
+        popupClose.click()
+    const { instruction, responses, success, } = await globals.datamanager.obscure(itemId)
+    if(responses?.length)
+        addMessages(responses, activeBot().type)
+    if(instruction)
+        enactInstruction(instruction, 'chat', { updateItemSummary, })
+    globals.expunge(awaitBar)
+    toggleMemberInput(true)
+}
+/**
  * Refresh designated collection from server. **note**: external calls denied option to identify collectionList parameter, ergo must always be of same type.
  * @param {string} type - The collection type
  * @returns {void}
@@ -160,10 +191,9 @@ function removeItem(id){
  * @returns {void}
  */
 function setActiveItem(itemId){
-    console.log('setActiveItem()::itemId', itemId)
     if(!globals.isGuid(itemId))
         return
-    const popup = document.getElementById(`popup-container_${ itemId }`)
+    const popup = document.getElementById(`popup-container-${ itemId }`)
     if(!popup)
         return
     const { form='journal', title, type, } = popup.dataset
@@ -184,7 +214,7 @@ function setActiveItem(itemId){
     if(activeStatus){
         activeStatus.className = 'chat-active-item-status'
         activeStatus.textContent = 'Active: '
-        activeStatus.addEventListener('click', mToggleItemPopup)
+        activeStatus.addEventListener('click', mTogglePopup)
     }
     if(activeTitle){
         activeTitle.innerHTML = ''
@@ -214,39 +244,20 @@ function setActiveItem(itemId){
     const { id, } = getBot(botType)
     if(id)
         setActiveBot(id, false)
-    show(chatActiveItem)
+    console.log('setActiveBot()::id', id, chatActiveItem(), )
+    show(chatActiveItem())
 }
 
 /**
  * Exposed method to allow externalities to toggle a specific item popup.
- * @param {string} id - Id for HTML div element to toggle.
- 
-function togglePopup(id, bForceState=null){
-    if(globals.isGuid(id))
-        id = `popup-container_${ id }`
-    const popup = document.getElementById(id)
-    if(!popup)
-        throw new Error(`No popup found for id: ${ id }`)
-    toggleVisibility(popup, bForceState)
-}*/
-function togglePopup(event, collectionItem, bForceState=null){
-    const item = getItem(
-        globals.isGuid(event)
-           ? event
-           : event.target.parentElement?.id ?? event.target.id
-    )
-    console.log('togglePopup()::item', item, collectionItem)
-    const { id, } = item
-    const popupId = id.split('_').pop()
-    const popup = document.getElementById(`popup-container_${ popupId }`)
-    if(!popup) return
-    if(popup.classList.contains('show')){
-        hide(popup)
-        unsetActiveItem()
-        return
-    }
-    show(popup)
-    setActiveItem(popupId)
+ * @param {string} id - Id for HTML div element to toggle
+ * @param {boolean} bForceState - Optional boolean to force open (true) or close (false)
+ * @returns {void}
+ */
+function togglePopup(id, bForceState){
+    const { container, } = getItem(id) // @stub: can get by id or title?
+    console.log('togglePopup()::item', id, container)
+    container?.click() // force click on itemContainer, triggers `mTogglePopup`
 }
 /**
  * Unsets the active item in the chat system.
@@ -346,20 +357,21 @@ function mCreateCollectionItem(item){
         ?? type
     const itemContainer = document.createElement('div')
     itemContainer.id = `collection-item-${ id }`
+    itemContainer.item = item // **note**: synthetic variable to point to reference data
     itemContainer.name = `collection-item-${ type }`
     itemContainer.classList.add('collection-item', `${ type }-collection-item`)
     item.container = itemContainer
     /* icon */
     const itemIcon = document.createElement('img')
-    itemIcon.id = `collection-item-icon-${ id }`
     itemIcon.classList.add('collection-item-icon', `${ type }-collection-item-icon`)
+    itemIcon.id = `collection-item-icon-${ id }`
     itemIcon.src = getBotIcon(iconType)
     itemContainer.appendChild(itemIcon)
     /* name */
     const itemTitle = document.createElement('span')
+    itemTitle.classList.add('collection-item-title', `${ type }-collection-item-title`)
     itemTitle.id = `collection-item-title-${ id }`
     itemTitle.name = `collection-item-title-${ type }`
-    itemTitle.classList.add('collection-item-title', `${ type }-collection-item-title`)
     itemTitle.textContent = title
         ?? name
         ?? filename
@@ -383,22 +395,29 @@ function mCreateCollectionItem(item){
             /* file-summary popup */
             break
         default:
-            itemContainer.addEventListener('click', e=>mTogglePopup(e, item))
+            item.popup = mCreateCollectionItemPopup(item)
+            overlays().appendChild(item.popup)
+            itemContainer.addEventListener('click', mTogglePopup)
             itemTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
             break
     }
     return itemContainer
 }
+/**
+ * Creates collection items for a specified collection type and appends them to the collection container.
+ * @param {string} type - The collection type
+ * @param {Array} items - The collection items
+ * @param {HTMLElement} container - The container to append the collection items to
+ * @returns {Promise<void>}
+ */
 async function mCreateCollectionItems(type, items, container){
     if(!container)
         container = mCollectionItems[type]?.itemContainer
     if(!container || !Array.isArray(items))
         return
     container.replaceChildren()
-    for(const item of items){
-        const itemHTML = mCreateCollectionItem(item)
-        container.appendChild(itemHTML)
-    }
+    for(const item of items)
+        container.appendChild(mCreateCollectionItem(item))
 }
 /**
  * Create a collection item delete button.
@@ -423,17 +442,15 @@ function mCreateCollectionItemDelete(type, id){
 function mCreateCollectionItemPopup(collectionItem){
     const { complete=false, form, id, name, shares=[], summary, title, type, version=1, } = collectionItem
     const collectionPopup = document.createElement('div')
-    collectionPopup.classList.add('collection-popup', 'popup-container')
+    collectionPopup.classList.add('collection-popup')
     collectionPopup.dataset.complete = complete
     collectionPopup.dataset.id = id
     collectionPopup.dataset.name = name
     collectionPopup.dataset.title = title
     collectionPopup.dataset.type = type
     collectionPopup.dataset.version = version
-    collectionPopup.id = `popup-container_${ id }`
-    collectionPopup.style.position = 'fixed'
-    collectionPopup.style.right = '80vw'
-    collectionPopup.name = `collection-popup_${ type }`
+    collectionPopup.id = `popup-container-${ id }`
+    collectionPopup.name = `collection-popup-${ type }`
     collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
     /* popup header */
     const popupHeader = document.createElement('div')
@@ -451,7 +468,7 @@ function mCreateCollectionItemPopup(collectionItem){
     /* create popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
-    popupClose.id = `popup-close_${ id }`
+    popupClose.id = `popup-close-${ id }`
     popupClose.setAttribute('aria-label', 'Close')
     popupClose.addEventListener('click', _=>hide(collectionPopup))
     document.addEventListener('keydown', event=>{
@@ -459,30 +476,7 @@ function mCreateCollectionItemPopup(collectionItem){
             hide(collectionPopup)
     })
     popupHeader.appendChild(popupClose)
-    /* Variables for dragging */
-    let isDragging = false
-    let offsetX, offsetY
-    /* Mouse down event to initiate drag */
-    popupHeader.addEventListener('mousedown', (e)=>{
-        isDragging = true
-        offsetX = e.clientX - collectionPopup.offsetLeft
-        offsetY = e.clientY - collectionPopup.offsetTop
-        e.stopPropagation()
-    })
-    /* Mouse move event to drag the element */
-    popupHeader.addEventListener('mousemove', (e)=>{
-        if(isDragging){
-            collectionPopup.style.left = `${e.clientX - offsetX}px`
-            collectionPopup.style.position = 'absolute'
-            collectionPopup.style.top = `${e.clientY - offsetY}px`
-        }
-    })
-    /* Mouse up event to end drag */
-    popupHeader.addEventListener('mouseup', ()=>{
-        isDragging = false
-        collectionPopup.dataset.offsetX = collectionPopup.offsetLeft
-        collectionPopup.dataset.offsetY = collectionPopup.offsetTop
-    })
+    popupHeader.addEventListener('mousedown', mStartDrag)
     /* create popup body/container */
     const popupBody = document.createElement('div')
     popupBody.classList.add('popup-body', 'collection-popup-body')
@@ -1068,6 +1062,7 @@ function mCreateSharePanel(itemId, shares, summary, title){
 }
 /**
  * Delete collection item.
+ * @async
  * @requires unsetActiveItem
  * @param {Event} event - The event object
  * @returns {void}
@@ -1093,7 +1088,32 @@ async function mDeleteCollectionItem(event){
         collectionItemDelete.addEventListener('click', mDeleteCollectionItem, { once: true })
 }
 /**
+ * Evaluates item with server intelligence for substance, breadth, depth and errors, conceptually, factually or grammatically, with the active bot providing feedback and suggestions for improvement.
+ * @async
+ * @requires globals
+ * @param {Event} e - The event object
+ * @returns {void}
+ */
+async function mEvaluate(e){
+    e.stopPropagation()
+    const { id: itemId, } = this.item
+    if(itemId)
+        setActiveItem(itemId)
+    toggleMemberInput(false)
+    const awaitBar = globals.await(`${ activeBot().name } is evaluating your summary...`)
+    globals.addChatElement(awaitBar)
+    const popupClose = document.getElementById(`popup-close-${ itemId }`)
+    if(popupClose)
+        popupClose.click()
+    const { responses, success, } = await globals.datamanager.evaluate(itemId)
+    if(responses?.length)
+        addMessages(responses, activeBot().type)
+    globals.expunge(awaitBar)
+    toggleMemberInput(true)
+}
+/**
  * Initializes `mCollectionItems` with basics, including (or not) server calls to procure and populate.
+ * @async
  * @requires mAvailableCollections
  * @requires mCollectionItems
  * @param {string} type - The collection type/name
@@ -1128,13 +1148,11 @@ async function mRefreshCollection(type){
     if(!mAvailableCollections.includes(type) || !mCollectionItems[type])
         throw new Error(`Library collection not implemented.`)
     const items = await mCollectionItemsData(type)
-    if(!items.length)
-        return
     const collection = mCollectionItems[type]
-    collection.items = items
+    collection.items = items ?? []
     collection.init = true
     const { itemContainer, } = collection
-    if(itemContainer instanceof HTMLElement)
+    if(itemContainer instanceof HTMLElement && items.length)
         mCreateCollectionItems(type, items, itemContainer)
 }
 /**
@@ -1148,7 +1166,7 @@ async function mReliveStory(e){
     const previousInput = document.getElementById(`relive-memory-input-container_${id}`)
     if(previousInput)
         expunge(previousInput)
-    const popupClose = document.getElementById(`popup-close_${ id }`)
+    const popupClose = document.getElementById(`popup-close-${ id }`)
     if(popupClose)
         popupClose.click()
     if(!mRelivingMemory){
@@ -1249,7 +1267,7 @@ async function mShadow(event){
             throw new Error(`Unimplemented shadow type: ${ type }`)
     }
     /* close popup */
-    const popupClose = document.getElementById(`popup-close_${ itemId }`)
+    const popupClose = document.getElementById(`popup-close-${ itemId }`)
     if(popupClose)
         popupClose.click()
 }
@@ -1600,6 +1618,11 @@ async function mShareModal(itemId, shares, summary, title, shareId){
     globals.page.appendChild(shareModal)
     show(shareModal)
 }
+function mStartDrag(event){
+    event.preventDefault()
+    event.stopPropagation()
+    startDrag(this.closest('.collection-popup'), event)
+}
 /**
  * Stop reliving memory and clean up memory input.
  * @param {Guid} id - The memory id
@@ -1680,25 +1703,71 @@ async function mToggleCollectionItems(event){
     const refreshTrigger = document.getElementById(`collection-refresh-${ type }`)
     const isRefresh = id===`collection-refresh-${ type }`
     /* functionality */
+    let forceOpen
     if(!init || isRefresh){ // first click or refresh
         show(refreshTrigger)
         refreshTrigger.classList.add('spin')
         await refreshCollection(type)
-        collection.init = true
+            .catch(err=>{
+                console.error(`Failed to refresh collection: ${ type }`, err)
+                alert(`Failed to refresh collection: ${ type }`)
+            })
         refreshTrigger.classList.remove('spin')
+        forceOpen = true
     }
-    toggleVisibility(itemContainer)
-    toggleVisibility(mCollectionsDescription)
+    mToggleCollections(type, forceOpen)
+}
+/**
+ * Toggles collection visibility, closing all others if opening.
+ * @private
+ * @requires globals
+ * @requires mCollectionItems
+ * @param {string} type - The collection type to toggle
+ * @param {boolean} forceOpen - Whether or not to force open the collection, defaults to `false`
+ * @returns {void}
+ */
+function mToggleCollections(type, forceOpen=false){
+    const { itemContainer, } = mCollectionItems[type]
+    hide(mCollectionsDescription)
+    if(globals.isHidden(itemContainer) || forceOpen) // close all others and open this
+        for(const collection of Object.values(mCollectionItems))
+            collection.type!==type
+                ? hide(collection.itemContainer)
+                : show(itemContainer)
+    else {
+        hide(itemContainer)
+        show(mCollectionsDescription)
+    }
 }
 /**
  * Toggles popup visibility.
  * @this - collection-item
- * @param {Event} event - The event object.
+ * @param {Event|string} event - The event object (when listener) or string (itemId when forced)
  * @returns {void}
  */
-function mTogglePopup(event, collectionItem){
+function mTogglePopup(event){
     event.stopPropagation()
-    togglePopup(event, collectionItem)
+    const item = this.item
+        ?? event.target.item
+    if(!item)
+        throw new Error(`No item found for popup toggle`)
+    const { id, popup: populatedPopup, } = item
+    if(!globals.isGuid(id))
+        throw new Error(`No item found to create popup`)
+    const popup = populatedPopup
+        ?? document.getElementById(`popup_${ id }`)
+        ?? mCreateCollectionItemPopup(item)
+    if(!popup)
+        throw new Error(`No popup created for toggle`)
+    item.popup = popup
+    if(popup.classList.contains('show')){
+        hide(popup)
+        unsetActiveItem()
+    } else if(popup){
+        popup.classList.add('show', 'popup-active')
+        console.log('popup toggle active item set:', id)
+        setActiveItem(id)
+    }
 }
 /**
  * Update the identified collection with provided specifics.
