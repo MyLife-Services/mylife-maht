@@ -22,7 +22,7 @@ import {
     submit,
     toggleBotContainers,
     toggleVisibility,
-} from './members.mjs'
+} from './bots.mjs'
 const mAvailableCollections = ['file'], // ['chat', 'conversation'],
     mAvailableMimeTypes = [],
     mChatActiveItem = document.getElementById('chat-active-item'),
@@ -389,6 +389,17 @@ function mCreateCollectionItem(item){
     }
     return itemContainer
 }
+async function mCreateCollectionItems(type, items, container){
+    if(!container)
+        container = mCollectionItems[type]?.itemContainer
+    if(!container || !Array.isArray(items))
+        return
+    container.replaceChildren()
+    for(const item of items){
+        const itemHTML = mCreateCollectionItem(item)
+        container.appendChild(itemHTML)
+    }
+}
 /**
  * Create a collection item delete button.
  * @requires mDeleteCollectionItem
@@ -561,7 +572,7 @@ function mCreateCollectionItemPopup(collectionItem){
     popupBody.appendChild(sidebar)
     /* create type-specific elements */
     let typePopup
-    switch (type) {
+    switch(type){
         case 'entry':
             const entryType = form
                 ?? type
@@ -1103,39 +1114,28 @@ async function mInitializeCollectionData(type, retrieve=false){
         type,
     }
     if(retrieve)
-        mCollectionItemsData(type) // no need await
-            .then(items=>{
-                if(!Array.isArray(items))
-                    throw new Error('Incorrect item response from server')
-                const collection = mCollectionItems[type]
-                collection.items = items
-                collection.init = true
-                if(collection.itemContainer instanceof HTMLElement){
-                    collection.itemContainer.replaceChildren()
-                    for(const item of items){
-                        const itemHTML = mCreateCollectionItem(item)
-                        collection.itemContainer.appendChild(itemHTML)
-                    }
-                }
-            })
+        refreshCollection(type) // no need await
 }
 /**
  * Refresh designated collection from server.
  * @requires mAvailableCollections
  * @requires mCollectionItems
+ * @requires mCollectionItemsData
  * @param {string} type - The collection type
  * @returns {void}
  */
 async function mRefreshCollection(type){
-    if(!mAvailableCollections.includes(type))
+    if(!mAvailableCollections.includes(type) || !mCollectionItems[type])
         throw new Error(`Library collection not implemented.`)
-
-    mCollectionItems = collectionList
-        ?? document.getElementById(`collection-list-${ type }`)
-    if(!collectionList)
-        throw new Error(`No collection list found for refresh request.`)
-    const collection = await globals.datamanager.collections(type)
-    return mUpdateCollection(type, collectionList, collection)
+    const items = await mCollectionItemsData(type)
+    if(!items.length)
+        return
+    const collection = mCollectionItems[type]
+    collection.items = items
+    collection.init = true
+    const { itemContainer, } = collection
+    if(itemContainer instanceof HTMLElement)
+        mCreateCollectionItems(type, items, itemContainer)
 }
 /**
  * Relive memory for an identified memory item, with optional input content to guide the relive.
@@ -1674,7 +1674,7 @@ async function mToggleCollectionItems(event){
     const { id, } = event.target
     const type = id.split('-').pop()
     const collection = mCollectionItems[type]
-    const { associatedBots, container, id: collectionId, init, itemContainer, type: collectionType, } = collection
+    const { associatedBots, container, id: collectionId, init, itemContainer, } = collection
     if(!itemContainer)
         throw new Error(`No item container found for toggle request`)
     const refreshTrigger = document.getElementById(`collection-refresh-${ type }`)
@@ -1683,10 +1683,9 @@ async function mToggleCollectionItems(event){
     if(!init || isRefresh){ // first click or refresh
         show(refreshTrigger)
         refreshTrigger.classList.add('spin')
-        await mRefreshCollection(type)
+        await refreshCollection(type)
         collection.init = true
         refreshTrigger.classList.remove('spin')
-        show(target)
     }
     toggleVisibility(itemContainer)
     toggleVisibility(mCollectionsDescription)

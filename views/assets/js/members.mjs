@@ -11,7 +11,9 @@ import {
     getBot,
     getBotIcon,
     getBots,
+    getBotsByForm,
     getItem,
+    initBots,
     refreshCollection,
     setActiveBot,
     setActiveItem,
@@ -148,16 +150,6 @@ function experiences(){
  */
 function expunge(element){
     return globals.expunge(element)
-}
-/**
- * Gets an Array of Bot objects who can service the given form.
- * @param {string} form - The database item format required
- * @returns {Object[]} - The Array of bots who accommodate this form
- */
-function getBotsByForm(form){
-    if(!typeof form==='string' || !form.length)
-        return
-    return getBots().filter(bot=>bot.itemForms.includes(form))
 }
 /**
  * Proxy for Globals.hide().
@@ -654,8 +646,8 @@ async function mAddMessage(message, role='agent', typeDelay=2){
  * @returns {Promise<boolean>} - The return is a boolean indicating success.
  */
 async function mInitialize(){
-    /* page listeners */
     mInitializePageListeners()
+    await initBots()
 }
 /**
  * Initialize page listeners.

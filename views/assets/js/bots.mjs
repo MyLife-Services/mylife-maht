@@ -20,7 +20,6 @@ import {
     updateTitle,
 } from './collections.mjs'
 import {
-    // activeItem,
     addInput,
     addMessage,
     addMessages,
@@ -34,7 +33,9 @@ import {
     enactInstruction,
     privacyPolicy,
     seedInput,
+    replaceElement,
     routine,
+    setActiveAction,
     show,
     startExperience,
     submit,
@@ -63,17 +64,17 @@ let mActiveBot,
     mActiveTeam,
     mBots,
     mRelivingMemory
-/* onDomContentLoaded */
-document.addEventListener('DOMContentLoaded', async e=>{
+/* public functions */
+async function init(){
     const { bots, activeBotId: id } = await globals.datamanager.bots()
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
     await updatePageBots(bots)
-    await setActiveBot(id, true)
-    console.log('bots loaded', mActiveBot, mTeams)
-    await initCollections(mDefaultCollections) // @stub: pull from teams
-})
-/* public functions */
+    await Promise.all([
+        setActiveBot(id, true),
+        initCollections(mDefaultCollections) // @stub: pull from teams
+    ])
+}
 /**
  * Get active bot.
  * @public
@@ -158,6 +159,16 @@ function getBots(teamId, includeAvatar=true){
         ? mBots
         : mBots.filter(bot=>bot.type!=='avatar' && bot.type!=='personal-avatar')
     return bots
+}
+/**
+ * Gets an Array of Bot objects who can service the given form.
+ * @param {string} form - The database item format required
+ * @returns {Object[]} - The Array of bots who accommodate this form
+ */
+function getBotsByForm(form){
+    if(!typeof form==='string' || !form.length)
+        return
+    return getBots().filter(bot=>bot.itemForms.includes(form))
 }
 /**
  * Set active bot on server and update page bots.
@@ -1771,27 +1782,53 @@ function mVersion(version){
 /* exports */
 export {
     activeBot,
-    activeItem, // collections
     activeTeam,
-    chatActiveItem, // collections
-    chatActiveThumb, // collections
-    createItem, // collections
-    endMemory, // collections
     getAction,
     getBot,
     getBotIcon,
     getBots,
-    getItem, // collections
-    refreshCollection, // collections
+    getBotsByForm,
     setActiveBot,
-    setActiveItem, // collections
-    toggleBotContainers,
-    togglePopup, // collections
-    unsetActiveItem, // collections
-    updateActiveItemTitle, // collections
-    updateItem, // collections
-    updateItemSummary, // collections
-    updateItemTitle, // collections
     updatePageBots,
-    updateTitle, // collections
+    /* collections.mjs */
+    activeItem,
+    chatActiveItem,
+    chatActiveThumb,
+    createItem,
+    endMemory,
+    getItem,
+    refreshCollection,
+    setActiveItem,
+    toggleBotContainers,
+    togglePopup,
+    unsetActiveItem,
+    updateActiveItemTitle,
+    updateItem,
+    updateItemSummary,
+    updateItemTitle,
+    updateTitle,
+    /* members.mjs */
+    addInput,
+    addMessage,
+    addMessages,
+    clearSystemChat,
+    decorateActiveBot,
+    experiences,
+    expunge,
+    globals,
+    hide,
+    init as initBots,
+    introduction,
+    enactInstruction,
+    privacyPolicy,
+    seedInput,
+    replaceElement,
+    routine,
+    setActiveAction,
+    show,
+    startExperience,
+    submit,
+    toggleMemberInput,
+    toggleVisibility,
+    unsetActiveAction,
 }
