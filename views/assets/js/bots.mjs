@@ -2,7 +2,11 @@
 /* imports */
 import {
     activeItem,
+    chatActiveItem,
+    chatActiveThumb,
     createItem,
+    endMemory,
+    getCollection,
     getItem,
     init as initCollections,
     refreshCollection,
@@ -40,7 +44,7 @@ import {
 } from './members.mjs'
 const mAvailableUploaderTypes = ['personal-avatar'],
     botBar = document.getElementById('bot-bar'),
-    mDefaultCollections = ['memory', 'entry'],
+    mDefaultCollections = ['memory', 'entry'], // @stub: take from team
     mDefaultReliveMemoryButtonText = 'Next',
     mDefaultTeam = 'memory',
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
@@ -58,16 +62,15 @@ const mAvailableUploaderTypes = ['personal-avatar'],
 let mActiveBot,
     mActiveTeam,
     mBots,
-    mRelivingMemory,
-    mShadows
+    mRelivingMemory
 /* onDomContentLoaded */
 document.addEventListener('DOMContentLoaded', async e=>{
-    mShadows = await globals.datamanager.shadows()
     const { bots, activeBotId: id } = await globals.datamanager.bots()
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
     await updatePageBots(bots)
     await setActiveBot(id, true)
+    console.log('bots loaded', mActiveBot, mTeams)
     await initCollections(mDefaultCollections) // @stub: pull from teams
 })
 /* public functions */
@@ -79,14 +82,8 @@ document.addEventListener('DOMContentLoaded', async e=>{
 function activeBot(){
     return mActiveBot
 }
-/**
- * Ends the memory reliving process.
- * @param {Guid} id - The collection item id
- * @param {boolean} server - Whether or not to update the server, default: `false`
- * @returns {void}
- */
-async function endMemory(id, server=false){
-    await mStopRelivingMemory(id, server)
+function activeTeam(){
+    return mActiveTeam
 }
 /**
  * Get default Action population from active bot.
@@ -148,6 +145,19 @@ function getBot(type='personal-avatar', id){
 }
 function getBotIcon(type){
     return mBotIcon(type)
+}
+/**
+ * Gets list of current bots in memory
+ * @requires mBots
+ * @param {Guid} teamId - The team id to filter by
+ * @param {boolean} includeAvatar - Whether or not to include personal avata, defaults to `true`
+ * @returns {Object[]} - List of bots
+ */
+function getBots(teamId, includeAvatar=true){
+    const bots = includeAvatar
+        ? mBots
+        : mBots.filter(bot=>bot.type!=='avatar' && bot.type!=='personal-avatar')
+    return bots
 }
 /**
  * Set active bot on server and update page bots.
@@ -332,87 +342,90 @@ async function mBotNameChange(e){
     nameInput.addEventListener('change', mBotNameChange, { once: true })
 }
 /**
- * Create a functional collection item HTML div for the specified collection type.
- * @example - collectionItem: { assistantType, filename, form, id, keywords, name, summary, title, type, }
- * @param {object} collectionItem - The collection item object, requires type.
- * @returns {HTMLDivElement} - The collection item.
+ * Creates an options checkbox list for a bot options panel from bot option group data.
+ * @private
+ * @param {Guid} botId - The bot id (uuid), used as element id prefix
+ * @param {object} options - The option object { id, label, options: { id, label, value, }, order, placeholder, range: { max, min, }, title, type, variable, }
+ * @returns {HTMLDivElement} - The options container element
  */
-function mCreateCollectionItem(collectionItem){
-    /* collection item container */
-    const { assistantType, filename, form, id, name, title, type, } = collectionItem
-    const iconType = assistantType
-        ?? form
-        ?? type
-    const item = document.createElement('div')
-    item.id = `collection-item_${ id }`
-    item.name = `collection-item-${ type }`
-    item.classList.add('collection-item', `${ type }-collection-item`)
-    item.collectionItem = collectionItem
-    /* icon */
-    const itemIcon = document.createElement('img')
-    itemIcon.id = `collection-item-icon_${ id }`
-    itemIcon.classList.add('collection-item-icon', `${ type }-collection-item-icon`)
-    itemIcon.src = mBotIcon(iconType)
-    item.appendChild(itemIcon)
-    /* name */
-    const itemTitle = document.createElement('span')
-    itemTitle.id = `collection-item-title_${ id }`
-    itemTitle.name = `collection-item-title-${ type }`
-    itemTitle.classList.add('collection-item-title', `${ type }-collection-item-title`)
-    itemTitle.textContent = title
-        ?? name
-        ?? filename
-        ?? `unknown ${ type } item`
-    item.appendChild(itemTitle)
-    /* buttons */
+function mBotOptionContainer(botId, options){
+    const { id, label, title, type, variable, } = options
+    if(!id?.length || !type?.length || !variable?.length)
+        return
+    const containerId = `${ botId }-input-group-${ id }`,
+        inputId = `${ botId }-input-${ variable }`
+    // option container
+    const optionContainer = document.createElement('div')
+    optionContainer.classList.add('input-group')
+    optionContainer.id = containerId
+    // title (applies to container not input)
+    if(title?.length){
+        const optionTitle = document.createElement('label')
+        optionTitle.classList.add('input-group-title')
+        optionTitle.htmlFor = containerId
+        optionTitle.textContent = title
+        optionContainer.appendChild(optionTitle)
+    }
+    // label
+    let optionLabel
+    if(label?.length){
+        optionLabel = document.createElement('label')
+        optionLabel.htmlFor = inputId
+        optionLabel.textContent = label
+        optionContainer.appendChild(optionLabel)
+    }
+    // input(s)
     switch(type){
-        case 'file':
-            /* file-summary icon */
-            const itemSummary = mCreateCollectionItemSummarize(type, id, filename)
-            item.appendChild(itemSummary)
+        case 'checkbox':
+            const { options: items=[], } = options
+            if(optionContainer)
+                optionContainer.classList.add('options')
+            if(!!optionLabel)
+                optionLabel.classList.add('options-label')
+            const checkboxGroup = document.createElement('div')
+            checkboxGroup.classList.add('checkbox-group')
+            checkboxGroup.id = inputId
+            items.forEach(({ id, value, label: optionLabel, })=>{
+                const item = document.createElement('div')
+                item.classList.add('checkbox-group-item')
+                const checkbox = document.createElement('input')
+                checkbox.type = 'checkbox'
+                checkbox.name = variable
+                checkbox.id = `${ botId }-${ id }`
+                checkbox.value = value
+                const itemLabel = document.createElement('label')
+                itemLabel.htmlFor = `${ botId }-${ id }`
+                itemLabel.textContent = optionLabel
+                item.appendChild(checkbox)
+                item.appendChild(itemLabel)
+                checkboxGroup.appendChild(item)
+            })
+            optionContainer.appendChild(checkboxGroup)
             break
+        case 'text':
         default:
-            const itemDelete = mCreateCollectionItemDelete(type, id)
-            item.appendChild(itemDelete)
+            const { placeholder, } = options
+            const inputField = document.createElement('input')
+            inputField.type = 'text'
+            inputField.id = inputId
+            inputField.placeholder = placeholder
+            optionContainer.appendChild(inputField)
             break
     }
-    /* popup */
-    switch(type){
-        case 'file':
-            /* file-summary popup */
-            break
-        default:
-            item.addEventListener('click', e=>mTogglePopup(e, item.collectionItem))
-            itemTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
-            break
-    }
-    return item
+    return optionContainer
 }
 /**
- * Create a collection item delete button.
- * @param {string} type - The collection type.
- * @param {Guid} id - The collection id.
- * @returns {HTMLSpanElement} - The collection item delete button.
+ * Closes the team popup.
+ * @param {Event} e - The event object.
+ * @returns {void}
  */
-function mCreateCollectionItemDelete(type, id){
-    const itemDelete = document.createElement('span')
-    itemDelete.id = `collection-item-delete_${ id }`
-    itemDelete.name = `collection-item-delete-${ type }`
-    itemDelete.classList.add('fas', 'fa-trash', 'collection-item-delete', `${ type }-collection-item-delete`)
-    itemDelete.addEventListener('click', mDeleteCollectionItem, { once: true })
-    return itemDelete
-}
-function mCreateCollectionItemSummarize(type, id, name){
-    const itemSummarize = document.createElement('span')
-    itemSummarize.classList.add('fas', 'fa-file-circle-question', 'collection-item-summary', `${ type }-collection-item-summary`)
-    itemSummarize.dataset.fileId = id /* raw openai file id */
-    itemSummarize.dataset.fileName = name
-    itemSummarize.dataset.id= `collection-item-summary-${ id }`
-    itemSummarize.dataset.type = type
-    itemSummarize.id = itemSummarize.dataset.id
-    itemSummarize.name = `collection-item-summary-${ type }`
-    itemSummarize.addEventListener('click', mSummarize, { once: true })
-    return itemSummarize
+function mCloseTeamPopup(e){
+    // e.stopPropagation()
+    const { ctrlKey, key, target, } = e
+    if((key && key!='Escape') && !(ctrlKey && key=='w'))
+        return
+    document.removeEventListener('keydown', mCloseTeamPopup)
+    hide(mTeamPopup)
 }
 function mCreateProxyBotContainer(proxyAgent){
     const { access=[], description, id, name, purpose, skills=[], url='A2A', } = proxyAgent
@@ -638,118 +651,282 @@ function mCreateRetireContainer(id, retirable=false){
     return retireContainer
 }
 /**
- * Creates an options checkbox list for a bot options panel from bot option group data.
- * @private
- * @param {Guid} botId - The bot id (uuid), used as element id prefix
- * @param {object} options - The option object { id, label, options: { id, label, value, }, order, placeholder, range: { max, min, }, title, type, variable, }
- * @returns {HTMLDivElement} - The options container element
- */
-function mBotOptionContainer(botId, options){
-    const { id, label, title, type, variable, } = options
-    if(!id?.length || !type?.length || !variable?.length)
-        return
-    const containerId = `${ botId }-input-group-${ id }`,
-        inputId = `${ botId }-input-${ variable }`
-    // option container
-    const optionContainer = document.createElement('div')
-    optionContainer.classList.add('input-group')
-    optionContainer.id = containerId
-    // title (applies to container not input)
-    if(title?.length){
-        const optionTitle = document.createElement('label')
-        optionTitle.classList.add('input-group-title')
-        optionTitle.htmlFor = containerId
-        optionTitle.textContent = title
-        optionContainer.appendChild(optionTitle)
-    }
-    // label
-    let optionLabel
-    if(label?.length){
-        optionLabel = document.createElement('label')
-        optionLabel.htmlFor = inputId
-        optionLabel.textContent = label
-        optionContainer.appendChild(optionLabel)
-    }
-    // input(s)
-    switch(type){
-        case 'checkbox':
-            const { options: items=[], } = options
-            if(optionContainer)
-                optionContainer.classList.add('options')
-            if(!!optionLabel)
-                optionLabel.classList.add('options-label')
-            const checkboxGroup = document.createElement('div')
-            checkboxGroup.classList.add('checkbox-group')
-            checkboxGroup.id = inputId
-            items.forEach(({ id, value, label: optionLabel, })=>{
-                const item = document.createElement('div')
-                item.classList.add('checkbox-group-item')
-                const checkbox = document.createElement('input')
-                checkbox.type = 'checkbox'
-                checkbox.name = variable
-                checkbox.id = `${ botId }-${ id }`
-                checkbox.value = value
-                const itemLabel = document.createElement('label')
-                itemLabel.htmlFor = `${ botId }-${ id }`
-                itemLabel.textContent = optionLabel
-                item.appendChild(checkbox)
-                item.appendChild(itemLabel)
-                checkboxGroup.appendChild(item)
-            })
-            optionContainer.appendChild(checkboxGroup)
-            break
-        case 'text':
-        default:
-            const { placeholder, } = options
-            const inputField = document.createElement('input')
-            inputField.type = 'text'
-            inputField.id = inputId
-            inputField.placeholder = placeholder
-            optionContainer.appendChild(inputField)
-            break
-    }
-    return optionContainer
-}
-/**
- * A memory shadow is a scrolling text members can click to get background (to include) or create content to bolster the memory. Goes directly to chat, and should minimize, or close for now, the story/memory popup.
- * @requires mShadows
+ * Create a team member that has been selected from add-team-member icon.
+ * @requires mActiveTeam
  * @param {Event} event - The event object.
  * @returns {void}
  */
-async function mMemoryShadow(event){
+async function mCreateTeamMember(event){
     event.stopPropagation()
-    const { itemId, lastResponse, shadowId, } = this.dataset
-    const shadow = mShadows.find(shadow=>shadow.id===shadowId)
-    if(!shadow)
-        return
-    const { categories, id, text, type, } = shadow // type enum: [agent, member]
+    const { value: type, } = this
+    if(!type)
+        throw new Error(`no team member type selected`)
+    if(globals.isProxy(type)){}
+    const data = {
+        id: mActiveTeam.id,
+        type,
+    }
+    if(globals.isProxy(type)){
+        const endpoint = window.prompt(
+            'Enter the external agent URL (A2A/NANDA endpoint):',
+            'https://list39.org/@'
+        )
+        if(!endpoint?.length)
+            throw new Error('External proxy bot requires a valid URL')
+        data.url = endpoint.trim()
+    }
+    const bot = globals.isProxy(type)
+        ? await globals.datamanager.botProxy(data)
+        : await globals.datamanager.botCreate(data)
+    if(!bot)
+        throw new Error(`no bot created for team member`)
+    const { id, } = bot
+    mBots.push(bot)
+    setActiveBot(id, true)
+    updatePageBots(mBots, false, true)
+}
+/**
+ * Create a team new popup.
+ * @requires mActiveTeam
+ * @requires mTeamPopup
+ * @requires mTeams
+ * @param {string} type - The type of team to create.
+ * @param {boolean} showPopup - Whether or not to show the popup.
+ * @returns {void}
+ */
+function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
+    const { allowCustom=false, allowProxy=false, allowedBotTypes, allowedItemTypes, } = mActiveTeam
+    mTeamPopup.style.visibility = 'hidden'
+    mTeamPopup.innerHTML = '' // clear existing
+    const teamPopup = document.createElement('div')
+    teamPopup.classList.add(`team-popup-${ type }`, 'team-popup-content')
+    teamPopup.id = `team-popup-${ type }`
+    teamPopup.name = `team-popup-${ type }`
+    let popup
+    let offsetX = 0
+    let listener
     switch(type){
-        case 'agent': /* agent shadows go directly to server for answer */
-            addMessage(text, 'member')
-            const response = await submit(text) /* proxy submission, use endpoint: /shadow */
-            const { error, errors: _errors, itemId: responseItemId, messages, processingBotId, success=false, } = response
-            const errors = error?.length ? [error] : _errors
-            if(!success || !messages?.length)
-                throw new Error(`No response from server for shadow request.`)
-            const botId = processingBotId
-                ?? messages[0].activeBotId
-                ?? mActiveBot?.id
-            if(mActiveBot?.id===botId)
-                setActiveBot(botId)
-            this.dataset.lastResponse = JSON.stringify(messages)
-            addMessages(messages, mActiveBot.type) // print to screen
+        case 'addTeamMember':
+            const memberSelect = document.createElement('select')
+            memberSelect.id = `team-member-select`
+            memberSelect.name = `team-member-select`
+            memberSelect.classList.add('team-member-select')
+            const memberOption = document.createElement('option')
+            memberOption.disabled = true
+            memberOption.textContent = 'Select a team member to add...'
+            memberOption.selected = true
+            memberOption.value = ''
+            memberSelect.appendChild(memberOption)
+            allowedBotTypes.forEach(type=>{
+                if(mBot(type)) // no duplicates currently
+                    return
+                const memberOption = document.createElement('option')
+                memberOption.textContent = type
+                memberOption.value = type
+                memberSelect.appendChild(memberOption)
+            })
+            if(allowCustom || allowProxy){
+                const divider = document.createElement('optgroup')
+                divider.label = "-----------------"
+                memberSelect.appendChild(divider)
+                if(allowCustom){
+                    const memberOptionCustom = document.createElement('option')
+                    memberOptionCustom.value = 'custom'
+                    memberOptionCustom.textContent = 'Create a custom team member'
+                    memberSelect.appendChild(memberOptionCustom)
+                }
+                if(allowProxy){
+                    const memberOptionProxy = document.createElement('option')
+                    memberOptionProxy.value = 'proxy'
+                    memberOptionProxy.textContent = 'Link an external agent'
+                    memberSelect.appendChild(memberOptionProxy)
+                }
+            }
+            memberSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
+            memberSelect.addEventListener('change', mCreateTeamMember, { once: true })
+            listener = mTeamMemberSelect
+            popup = memberSelect
             break
-        case 'member': /* member shadows populate main chat input */
-            const seedText = text.replace(/(\.\.\.|…)\s*$/, '').trim() + ' '
-            seedInput(itemId, shadowId, seedText, text)
+        case 'selectTeam':
+            const teamSelect = document.createElement('select')
+            teamSelect.id = `team-select`
+            teamSelect.name = `team-select`
+            teamSelect.classList.add('team-select')
+            const teamOption = document.createElement('option')
+            teamOption.disabled = true
+            teamOption.textContent = `MyLife's pre-defined agent teams...`
+            teamOption.selected = true
+            teamOption.value = ''
+            teamSelect.appendChild(teamOption)
+            mTeams.forEach(team=>{
+                const { name, title, } = team
+                const teamOption = document.createElement('option')
+                teamOption.value = name
+                teamOption.textContent = title
+                teamSelect.appendChild(teamOption)
+            })
+            teamSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
+            listener = mTeamSelect
+            popup = teamSelect
             break
         default:
-            throw new Error(`Unimplemented shadow type: ${ type }`)
+            break
     }
-    /* close popup */
+    mTeamPopup.appendChild(teamPopup)
+    if(showPopup){
+        show(mTeamPopup)
+        document.addEventListener('click', mCloseTeamPopup, { once: true })
+        document.addEventListener('keydown', mCloseTeamPopup)
+    }
+    if(popup){
+        teamPopup.appendChild(popup)
+        mTeamPopup.style.position = 'absolute'
+        offsetX = teamPopup.offsetWidth
+        let leftPosition = clickX - offsetX / 2
+        const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+        if(leftPosition < 0)
+            leftPosition = 0
+        else if(leftPosition + offsetX > viewportWidth)
+            leftPosition = viewportWidth - offsetX
+        mTeamPopup.style.left = `${ leftPosition }px`
+        mTeamPopup.style.top = `${clickY}px`
+        popup.focus()
+        if(listener)
+            popup.addEventListener('change', listener, { once: true })
+    }
+    mTeamPopup.style.visibility = 'visible'
+}
+/**
+ * Create add a team member popup.
+ */
+function mCreateTeamMemberSelect(event){
+    event.stopPropagation()
+    const { clientX, clientY, } = event
+    mCreateTeamPopup('addTeamMember', clientX, clientY, true)
+}
+/**
+ * Create a team select popup.
+ * @param {Event} event - The event object.
+ * @returns {void}
+ */
+function mCreateTeamSelect(event){
+    event.stopPropagation()
+    const { clientX, clientY, } = event
+    mCreateTeamPopup('selectTeam', clientX, clientY, true)
+}
+async function mEvaluate(e){
+    e.stopPropagation()
+    /* set active item */
+    const { id: itemId, } = this.dataset
+    if(itemId)
+        setActiveItem(itemId)
+    toggleMemberInput(false)
+    const awaitBar = globals.await(`${ mActiveBot.name } is evaluating your summary...`)
+    globals.addChatElement(awaitBar)
     const popupClose = document.getElementById(`popup-close_${ itemId }`)
     if(popupClose)
         popupClose.click()
+    const { responses, success, } = await globals.datamanager.evaluate(itemId)
+    if(responses?.length)
+        addMessages(responses, mActiveBot.type)
+    globals.expunge(awaitBar)
+    toggleMemberInput(true)
+}
+/**
+ * Find checkbox associated with element, or errors.
+ * @param {HTMLElement} element - The element to search for checkbox.
+ * @param {boolean} searchParent - Whether or not to search parent element.
+ * @returns {HTMLElement} - The input checkbox found in element.
+ */
+function mFindCheckbox(element, searchParent=true){
+    const { children, parentElement, } = element
+    if(mIsInputCheckbox(element))
+        return element
+    for(let child of children){
+        const result = mFindCheckbox(child, false)
+        if(result)
+            return result
+    }
+    if(searchParent && parentElement){
+        const { children: parentChildren, } = parentElement
+        // do not run second time (obviously)
+        for(let child of parentChildren){
+            if(child===element)
+                continue // skip redundant processing
+            const result = mFindCheckbox(child, false)
+            if(result)
+                return result
+        }
+    }
+}
+/**
+ * Toggle submit button for input passphrase.
+ * @requires passphraseInput
+ * @returns {void}
+ */
+function mInputPassphrase(event){
+    if(event.key==='Enter')
+        passphraseSubmitButton.click()
+    else if(event.key==='Escape')
+        passphraseCancelButton.click()
+    if(( passphraseInput?.value?.length ?? 0 )>2)
+        show(passphraseSubmitButton)
+    else
+        hide(passphraseSubmitButton)
+}
+/**
+ * Determines whether or not the element is an input checkbox.
+ * @param {HTMLElement} element - The element to check.
+ * @returns {boolean} - Whether or not the element is an input checkbox.
+ */
+function mIsInputCheckbox(element){
+    const { tagName, type, } = element
+    const outcome = tagName.toLowerCase()==='input' && type.toLowerCase()==='checkbox'
+    return outcome
+}
+async function mObscureEntry(e){
+    e.stopPropagation()
+    /* set active item */
+    const { id: itemId, } = this.dataset
+    if(itemId)
+        setActiveItem(itemId)
+    const awaitBar = globals.await(`${ mActiveBot.name } is obscuring your content...`)
+    globals.addChatElement(awaitBar)
+    toggleMemberInput(false)
+    const popupClose = document.getElementById(`popup-close_${ itemId }`)
+    if(popupClose)
+        popupClose.click()
+    const { instruction, responses, success, } = await globals.datamanager.obscure(itemId)
+    if(responses?.length)
+        addMessages(responses, mActiveBot.type)
+    if(instruction)
+        enactInstruction(instruction, 'chat', { updateItemSummary, })
+    globals.expunge(awaitBar)
+    toggleMemberInput(true)
+}
+/**
+ * Open bot container for passed element, closes all the rest.
+ * @param {HTMLDivElement} element - The bot container.
+ * @returns {void}
+ */
+function mOpenStatusDropdown(element){
+    document.querySelectorAll('.bot-container, .collections-container')
+        .forEach(otherContainer=>{
+            if(otherContainer!==element){
+                const otherContent = otherContainer.querySelector('.bot-options')
+                if(otherContent)
+                    otherContent.classList.remove('open')
+                var otherDropdown = otherContainer.querySelector('.bot-options-dropdown')
+                if(otherDropdown)
+                    otherDropdown.classList.remove('open')
+            }
+        })
+        var content = element.querySelector('.bot-options') // even collections use bot-options
+        if(content)
+            content.classList.toggle('open')
+        var dropdown = element.querySelector('.bot-options-dropdown')
+        if(dropdown)
+            dropdown.classList.toggle('open')
 }
 /**
  * Creates a proxy agent access element.
@@ -1058,891 +1235,6 @@ function mProxySkills(id, skills){
     return skillsFragment
 }
 /**
- * Processes a document summary request.
- * @this - collection-item-summary (HTMLSpanElement)
- * @private
- * @async
- * @param {Event} e - The event object.
- * @returns {void}
- */
-async function mSummarize(e){
-    e.stopPropagation()
-    const { dataset, } = this
-    if(!dataset)
-        throw new Error(`No dataset found for summary request.`)
-    const { fileId, fileName, type, } = dataset
-    if(type!=='file')
-        throw new Error(`Unimplemented type for summary request.`)
-    /* visibility triggers */
-    this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-question', 'fa-file-circle-xmark')
-    this.classList.add('fa-compass', 'spin')
-    /* fetch summary */
-    const { instruction, responses, success, } = await globals.datamanager.summary(fileId, fileName)
-    /* visibility triggers */
-    this.classList.remove('fa-compass', 'spin')
-    if(success)
-        this.classList.add('fa-file-circle-xmark')
-    else
-        this.classList.add('fa-file-circle-exclamation', 'summarize-error')
-    /* print response */
-    if(instruction?.length)
-        console.log('mSummarize::instruction', instruction)
-    addMessages(responses, mActiveBot.type)
-    setTimeout(_=>{
-        this.addEventListener('click', mSummarize, { once: true })
-        this.classList.add('fa-file-circle-question')
-        this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-xmark', 'fa-compass') // jic
-        show(this)
-    }, 20 * 60 * 1000)
-}
-/**
- * Closes the team popup.
- * @param {Event} e - The event object.
- * @returns {void}
- */
-function mCloseTeamPopup(e){
-    // e.stopPropagation()
-    const { ctrlKey, key, target, } = e
-    if((key && key!='Escape') && !(ctrlKey && key=='w'))
-        return
-    document.removeEventListener('keydown', mCloseTeamPopup)
-    hide(mTeamPopup)
-}
-/**
- * Creates bot thumb container.
- * @param {object} bot - The bot object, defaults to personal-avatar.
- * @returns {HTMLDivElement} - The bot thumb container.
- */
-function mCreateBotThumb(bot=getBot()){
-    const { id, name, type, } = bot
-    /* bot-thumb container */
-    const botThumbContainer = document.createElement('div')
-    botThumbContainer.id = `bot-bar-container_${ id }`
-    botThumbContainer.name = `bot-bar-container-${ type }`
-    botThumbContainer.title = name
-    botThumbContainer.addEventListener('click', setActiveBot)
-    botThumbContainer.classList.add('bot-thumb-container')
-    /* bot-thumb */
-    const botIconImage = document.createElement('img')
-    botIconImage.classList.add('bot-thumb')
-    botIconImage.src = mBotIcon(type)
-    botIconImage.alt = type
-    botIconImage.id = `bot-bar-icon_${ id }`
-    botIconImage.dataset.bot_id = id
-    botThumbContainer.appendChild(botIconImage)
-    return botThumbContainer
-}
-/**
- * Create a popup for viewing collection item.
- * @param {object} collectionItem - The collection item object.
- * @returns {HTMLDivElement} - The collection popup.
- */
-function mCreateCollectionPopup(collectionItem){
-    const { complete=false, form, id, name, shares=[], summary, title, type, version=1, } = collectionItem
-    const collectionPopup = document.createElement('div')
-    collectionPopup.classList.add('collection-popup', 'popup-container')
-    collectionPopup.dataset.complete = complete
-    collectionPopup.dataset.id = id
-    collectionPopup.dataset.name = name
-    collectionPopup.dataset.title = title
-    collectionPopup.dataset.type = type
-    collectionPopup.dataset.version = version
-    collectionPopup.id = `popup-container_${ id }`
-    collectionPopup.style.position = 'fixed'
-    collectionPopup.style.right = '80vw'
-    collectionPopup.name = `collection-popup_${ type }`
-    collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
-    /* popup header */
-    const popupHeader = document.createElement('div')
-    popupHeader.classList.add('popup-header', 'collection-popup-header')
-    popupHeader.id = `popup-header_${ id }`
-    popupHeader.name = `popup-header-${ type }`
-    const popupHeaderTitle = document.createElement('span')
-    popupHeaderTitle.classList.add('collection-popup-header-title')
-    popupHeaderTitle.id = `popup-header-title_${ id }`
-    popupHeaderTitle.textContent = title
-        ?? `${ type } Item`
-    popupHeaderTitle.name = `popup-header-title-${ type }`
-    popupHeaderTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
-    popupHeader.appendChild(popupHeaderTitle)
-    /* create popup close button */
-    const popupClose = document.createElement('button')
-    popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
-    popupClose.id = `popup-close_${ id }`
-    popupClose.setAttribute('aria-label', 'Close')
-    popupClose.addEventListener('click', _=>hide(collectionPopup))
-    document.addEventListener('keydown', event=>{
-        if(event.key==='Escape' && collectionPopup.classList.contains('show'))
-            hide(collectionPopup)
-    })
-    popupHeader.appendChild(popupClose)
-    /* Variables for dragging */
-    let isDragging = false
-    let offsetX, offsetY
-    /* Mouse down event to initiate drag */
-    popupHeader.addEventListener('mousedown', (e)=>{
-        isDragging = true
-        offsetX = e.clientX - collectionPopup.offsetLeft
-        offsetY = e.clientY - collectionPopup.offsetTop
-        e.stopPropagation()
-    })
-    /* Mouse move event to drag the element */
-    popupHeader.addEventListener('mousemove', (e)=>{
-        if(isDragging){
-            collectionPopup.style.left = `${e.clientX - offsetX}px`
-            collectionPopup.style.position = 'absolute'
-            collectionPopup.style.top = `${e.clientY - offsetY}px`
-        }
-    })
-    /* Mouse up event to end drag */
-    popupHeader.addEventListener('mouseup', ()=>{
-        isDragging = false
-        collectionPopup.dataset.offsetX = collectionPopup.offsetLeft
-        collectionPopup.dataset.offsetY = collectionPopup.offsetTop
-    })
-    /* create popup body/container */
-    const popupBody = document.createElement('div')
-    popupBody.classList.add('popup-body', 'collection-popup-body')
-    popupBody.id = `popup-body_${ id }`
-    popupBody.name = `popup-body-${ type }`
-    /* create popup content */
-    const content = summary
-        ?? JSON.stringify(collectionItem)
-    const popupContent = document.createElement('textarea')
-    popupContent.classList.add('popup-content', 'collection-popup-content')
-    popupContent.dataset.lastUpdatedContent = content
-    popupContent.id = `popup-content_${id}`
-    popupContent.readOnly = true
-    popupContent.value = content
-    /* create popup sidebar */
-    const sidebar = document.createElement('div')
-    sidebar.classList.add('popup-sidebar')
-    sidebar.id = `popup-sidebar_${ id }`
-    /* create edit toggle button */
-    const popupEdit = document.createElement('span')
-    popupEdit.classList.add('fas', 'fa-edit', 'popup-sidebar-icon')
-    popupEdit.id = `popup-edit_${ id }`
-    popupEdit.dataset.id = id
-    popupEdit.dataset.contentId = popupContent.id
-    /* create save button */
-    const popupSave = document.createElement('span')
-    popupSave.classList.add('fas', 'fa-save', 'popup-sidebar-icon')
-    popupSave.id = `popup-save_${ id }`
-    popupSave.dataset.id = id
-    popupSave.dataset.contentId = popupContent.id
-    popupSave.addEventListener('click', async event=>{
-        popupSave.classList.remove('fa-save')
-        popupSave.classList.add('fa-spinner', 'spin')
-        const success = await mUpdateCollectionItem(event)
-        popupSave.classList.remove('fa-spinner', 'spin')
-        popupSave.classList.add(success ? 'fa-check' : 'fa-times')
-        setTimeout(_=>{
-            popupSave.classList.remove('fa-check', 'fa-times')
-            popupSave.classList.add('fa-save')
-        }, 2000)
-    })
-    /* toggle-edit listeners */
-    popupEdit.addEventListener('click', (event)=>{
-        _toggleEditable()
-    })
-    popupContent.addEventListener('dblclick', (event)=>{
-        _toggleEditable()
-    })
-    popupContent.addEventListener('blur', (event) => {
-        _toggleEditable(false)
-    })
-    popupContent.addEventListener('keydown', (event) => {
-        if(event.key==='Escape')
-            _toggleEditable(false)
-    })
-    /* inline function to toggle editable state */
-    function _toggleEditable(isEditable=true){
-        popupContent.dataset.lastCursorPosition = popupContent.selectionStart
-        popupContent.readOnly = !isEditable
-        popupEdit.classList.toggle('popup-sidebar-icon-active', isEditable)
-        popupContent.focus()
-    }
-    sidebar.appendChild(popupEdit)
-    sidebar.appendChild(popupSave)
-    /* create emoticon bar */
-    const emoticons = ['😀', '😢', '😡', '😍', '😱'] // Add more emoticons as needed
-    emoticons.forEach(emoticon => {
-        const emoticonButton = document.createElement('span')
-        emoticonButton.classList.add('popup-sidebar-emoticon')
-        emoticonButton.textContent = emoticon
-        emoticonButton.addEventListener('click', (event)=>{
-            event.stopPropagation()
-            const { lastCursorPosition, } = popupContent.dataset
-            const insert = ` ${ emoticon }`
-            if(lastCursorPosition){
-                const textBeforeCursor = popupContent.value.substring(0, lastCursorPosition)
-                const textAfterCursor = popupContent.value.substring(popupContent.selectionEnd)
-                popupContent.value = textBeforeCursor + insert + textAfterCursor
-                popupContent.selectionStart = popupContent.selectionEnd = lastCursorPosition + emoticon.length + 1
-            } else
-                popupContent.value += insert
-        })
-        sidebar.appendChild(emoticonButton)
-    })
-    /* append to body */
-    popupBody.appendChild(popupContent)
-    popupBody.appendChild(sidebar)
-    /* create type-specific elements */
-    let typePopup
-    switch (type) {
-        case 'entry':
-            const entryType = form
-                ?? type
-            /* improve entry container */
-            const improveEntry = document.createElement('div')
-            improveEntry.classList.add(`collection-popup-${ type }`)
-            improveEntry.id = `popup-${ entryType }_${ id }`
-            improveEntry.name = 'improve-entry-container'
-            /* improve entry lane */
-            const improveEntryLane = document.createElement('div')
-            improveEntryLane.classList.add('improve-entry-lane')
-            const improveEntryWidgetLeft = document.createElement('div')
-            improveEntryWidgetLeft.classList.add('improve-panel')
-            const improveEntryWidgetRight = document.createElement('div')
-            improveEntryWidgetRight.classList.add('improve-panel')
-            improveEntryLane.appendChild(improveEntryWidgetLeft)
-            improveEntryLane.appendChild(improveEntryWidgetRight)
-            /* entry complete */
-            const entryComplete = document.createElement('div')
-            entryComplete.classList.add('entry-complete-container')
-            entryComplete.id = `entry-complete_${ id }`
-            const entryCompleteLabel = document.createElement('label')
-            entryCompleteLabel.classList.add('entry-complete-label')
-            entryCompleteLabel.htmlFor = `entry-complete-checkbox_${ id }`
-            entryCompleteLabel.textContent = `${ entryType } Entry Incomplete`
-            const entryCompleteCheckbox = document.createElement('input')
-            entryCompleteCheckbox.type = 'checkbox'
-            entryCompleteCheckbox.id = `entry-complete-checkbox_${ id }`
-            entryCompleteCheckbox.name = 'entry-complete-checkbox'
-            entryCompleteCheckbox.checked = !complete
-            entryComplete.appendChild(entryCompleteLabel)
-            entryComplete.appendChild(entryCompleteCheckbox)
-            improveEntryWidgetLeft.appendChild(entryComplete)
-            // @stub - add event listener to update entry completed status
-            /* obscure entry */
-            const obscureEntry = document.createElement('button')
-            obscureEntry.classList.add('obscure-button', 'button')
-            obscureEntry.dataset.id = id /* required for mObscureEntry */
-            obscureEntry.id = `button-obscure-${ entryType }_${ id }`
-            obscureEntry.name = 'obscure-button'
-            obscureEntry.textContent = 'Obscure Entry'
-            obscureEntry.addEventListener('click', mObscureEntry, { once: true })
-            improveEntryWidgetLeft.appendChild(obscureEntry)
-            /* evaluate entry */
-            const evaluateEntry = document.createElement('button')
-            evaluateEntry.classList.add('evaluate-button', 'button')
-            evaluateEntry.dataset.id = id /* required for mObscureEntry */
-            evaluateEntry.id = `button-evaluate-${ entryType }_${ id }`
-            evaluateEntry.name = 'evaluate-button'
-            evaluateEntry.textContent = 'Evaluate'
-            evaluateEntry.addEventListener('click', mEvaluate, { once: true })
-            improveEntryWidgetLeft.appendChild(evaluateEntry)
-            /* experience entry panel */
-            const experienceEntry = document.createElement('div')
-            experienceEntry.classList.add('experience-entry-container')
-            experienceEntry.id = `experience_${ id }`
-            experienceEntry.name = 'experience-entry-container'
-            /* entry version */
-            const entryVersion = document.createElement('div')
-            entryVersion.classList.add('entry-version')
-            entryVersion.textContent = `Version: ${ version }`
-            experienceEntry.appendChild(entryVersion)
-            /* experience entry explanation */
-            const experienceExplanation = document.createElement('div')
-            experienceExplanation.classList.add('experience-entry-explanation')
-            experienceExplanation.id = `experience-explanation_${ id }`
-            experienceExplanation.name = 'experience-entry-explanation'
-            experienceExplanation.textContent = 'Experience an entry by clicking the button below.'
-            /* experience entry button */
-            const experienceButton = document.createElement('button')
-            experienceButton.classList.add('experience-entry-button', 'button')
-            experienceButton.dataset.id = id /* required for triggering PATCH */
-            experienceButton.id = `experience-entry-button_${ id }`
-            experienceButton.name = 'experience-entry-button'
-            experienceButton.textContent = 'Experience Entry'
-            experienceButton.addEventListener('click', _=>{
-                alert('Experience Entry: Coming soon')
-            }, { once: true })
-            experienceEntry.appendChild(experienceExplanation)
-            experienceEntry.appendChild(experienceButton)
-            improveEntryWidgetRight.appendChild(experienceEntry)
-            /* memory media-carousel */
-            const entryCarousel = document.createElement('div')
-            entryCarousel.classList.add('media-carousel')
-            entryCarousel.id = `media-carousel_${ id }`
-            entryCarousel.name = 'media-carousel'
-            entryCarousel.textContent = 'Coming soon: media file uploads to Enhance and Improve entries'
-            /* append elements */
-            improveEntry.appendChild(improveEntryLane)
-            improveEntry.appendChild(entryCarousel)
-            typePopup = improveEntry
-            break
-        case 'experience':
-        case 'file':
-            break
-        case 'memory':
-        case 'story':
-            /* improve memory container */
-            const improveMemory = document.createElement('div')
-            improveMemory.classList.add(`collection-popup-${ type }`)
-            improveMemory.id = `popup-${ type }_${ id }`
-            improveMemory.name = 'improve-memory-container'
-            const improveMemoryLane = document.createElement('div')
-            improveMemoryLane.classList.add('improve-memory-lane')
-            const improveMemoryLaneLeft = document.createElement('div')
-            improveMemoryLaneLeft.classList.add('improve-panel')
-            const improveMemoryLaneRight = document.createElement('div')
-            improveMemoryLaneRight.classList.add('improve-panel')
-            improveMemoryLane.appendChild(improveMemoryLaneLeft)
-            improveMemoryLane.appendChild(improveMemoryLaneRight)
-            improveMemory.appendChild(improveMemoryLane)
-            /* memory version */
-            const memoryVersion = document.createElement('div')
-            memoryVersion.classList.add('memory-version')
-            memoryVersion.textContent = `Version: ${ version }`
-            improveMemoryLaneLeft.appendChild(memoryVersion)
-            /* memory complete */
-            const memoryComplete = document.createElement('div')
-            memoryComplete.classList.add('memory-complete-container')
-            memoryComplete.id = `memory-complete_${ id }`
-            const memoryCompleteLabel = document.createElement('label')
-            memoryCompleteLabel.classList.add('memory-complete-label')
-            memoryCompleteLabel.htmlFor = `memory-complete-checkbox_${ id }`
-            memoryCompleteLabel.textContent = `Memory Incomplete`
-            const memoryCompleteCheckbox = document.createElement('input')
-            memoryCompleteCheckbox.type = 'checkbox'
-            memoryCompleteCheckbox.id = `memory-complete-checkbox_${ id }`
-            memoryCompleteCheckbox.name = 'memory-complete-checkbox'
-            memoryCompleteCheckbox.checked = !complete
-            memoryComplete.appendChild(memoryCompleteLabel)
-            memoryComplete.appendChild(memoryCompleteCheckbox)
-            improveMemoryLaneLeft.appendChild(memoryComplete)
-            /* memory prompts */
-            if(mShadows?.length)
-                improveMemoryLaneLeft.appendChild(mCreateMemoryShadows(id))
-            /* evaluate memory */
-            const evaluateMemory = document.createElement('button')
-            evaluateMemory.classList.add('evaluate-button', 'button')
-            evaluateMemory.dataset.id = id
-            evaluateMemory.id = `button-evaluate-memory_${ id }`
-            evaluateMemory.name = 'evaluate-button'
-            evaluateMemory.textContent = 'Evaluate'
-            evaluateMemory.addEventListener('click', mEvaluate, { once: true })
-            improveMemoryLaneLeft.appendChild(evaluateMemory)
-            /* relive memory button */
-            const reliveButton = document.createElement('button')
-            reliveButton.classList.add('relive-memory-button', 'button')
-            reliveButton.dataset.id = id /* required for triggering PATCH */
-            reliveButton.id = `relive-memory-button_${ id }`
-            reliveButton.name = 'relive-memory-button'
-            reliveButton.textContent = 'Relive Memory'
-            reliveButton.addEventListener('click', mReliveMemory, { once: true })
-            improveMemoryLaneRight.appendChild(reliveButton)
-            /* relive memory explanation */
-            const reliveExplanation = document.createElement('div')
-            reliveExplanation.classList.add('relive-memory-explanation')
-            reliveExplanation.id = `relive-memory-explanation_${ id }`
-            reliveExplanation.name = 'relive-memory-explanation'
-            reliveExplanation.textContent = 'Reliving will bring up your memory in chat presented as a story. You can add to it, or simply enjoy reliving it!'
-            improveMemoryLaneRight.appendChild(reliveExplanation)
-            /* share memory */
-            improveMemoryLaneRight.appendChild(mCreateSharePanel(id, shares, summary, title))
-            /* memory media-carousel */
-            const memoryCarousel = document.createElement('div')
-            memoryCarousel.classList.add('media-carousel')
-            memoryCarousel.id = `media-carousel_${ id }`
-            memoryCarousel.name = 'media-carousel'
-            memoryCarousel.textContent = 'Coming soon: media file uploads to Enhance and Improve memories'
-            improveMemory.appendChild(memoryCarousel)
-            typePopup = improveMemory
-            break
-        default:
-            break
-    }
-    /* append elements */
-    collectionPopup.appendChild(popupHeader)
-    collectionPopup.appendChild(popupBody)
-    if(typePopup)
-        collectionPopup.appendChild(typePopup)
-    return collectionPopup
-}
-/**
- * Create a memory shadow `HTMLDivElement`.
- * @requires mShadows
- * @param {Guid} itemId - The collection item id.
- * @returns {HTMLDivElement} - The shadowbox <div>.
- */
-function mCreateMemoryShadows(itemId){
-    let currentIndex = Math.floor(Math.random() * mShadows.length)
-    const shadow = mShadows[currentIndex]
-    const shadowBox = document.createElement('div')
-    shadowBox.classList.add('memory-shadow')
-    shadowBox.dataset.itemId = itemId
-    shadowBox.id = `memory-shadow_${ itemId }`
-    shadowBox.name = 'memory-shadow'
-    /* single shadow text */
-    const { categories, id, text, type, } = shadow
-    const shadowText = document.createElement('div')
-    shadowText.classList.add('memory-shadow-text')
-    shadowText.dataset.itemId = itemId
-    shadowText.dataset.lastResponse = '' // array of messages, will need to stringify/parse
-    shadowText.dataset.shadowId = id
-    shadowText.textContent = text
-    shadowText.addEventListener('click', mMemoryShadow)
-    shadowBox.appendChild(shadowText)
-    // @stub - add mousewheel event listener to scroll through shadows
-    /* pagers */
-    const shadowPagers = document.createElement('div')
-    shadowPagers.classList.add('memory-shadow-pagers')
-    shadowPagers.id = `memory-shadow-pagers_${ itemId }`
-    /* back pager */
-    const backPager = document.createElement('div')
-    backPager.dataset.direction = 'back'
-    backPager.id = `memory-shadow-back_${ itemId }`
-    backPager.classList.add('caret', 'caret-up')
-    backPager.addEventListener('click', _pager)
-    /* next pager */
-    const nextPager = document.createElement('div')
-    nextPager.dataset.direction = 'next'
-    nextPager.id = `memory-shadow-next_${ itemId }`
-    nextPager.classList.add('caret', 'caret-down')
-    nextPager.addEventListener('click', _pager)
-    /* inline function _pager */
-    function _pager(event){
-        event.stopPropagation()
-        const { direction, } = this.dataset
-        currentIndex = direction==='next'
-            ? (currentIndex + 1) % mShadows.length
-            : (currentIndex - 1 + mShadows.length) % mShadows.length
-        const { text, } = mShadows[currentIndex]
-        shadowText.dataset.shadowId = mShadows[currentIndex].id
-        shadowText.textContent = text
-    }
-    shadowPagers.appendChild(backPager)
-    shadowPagers.appendChild(nextPager)
-    shadowBox.appendChild(shadowPagers)
-    /* loop */
-    const seconds = 20 * 1000
-    let intervalId
-    startShadows()
-    function startShadows(){
-        stopShadows()
-        intervalId = setInterval(_=>nextPager.click(), seconds)
-    }
-    function stopShadows(){
-        clearInterval(intervalId)
-    }
-    return shadowBox
-}
-function mCreateShareLink(itemId, shares, summary, title, shareId, shareListIndex){
-    /* share item container */
-    const shareItemContainer = document.createElement('div')
-    shareItemContainer.classList.add('share-item-container')
-    shareItemContainer.id = `share-item-container_${ shareId }`
-    shareItemContainer.name = shareItemContainer.id
-    /* share item descriptor */
-    const shareItem = document.createElement('div')
-    shareItem.classList.add('share-item')
-    shareItem.id = `share-item_${ shareId }_${ shareListIndex }`
-    shareItem.name = `share-item_${ shareId }`
-    shareItem.textContent = `${ title.substring(0, 24) }`
-    shareItem.addEventListener('click', async _=>mShareModal(itemId, shares, summary, title, shareId))
-    shareItemContainer.appendChild(shareItem)
-    /* share item link */
-    const shareLink = document.createElement('div')
-    shareLink.classList.add('fas', 'fa-link', 'share-link')
-    shareLink.id = `share-link_${ shareId }_${ shareListIndex }`
-    shareLink.name = `share-link_${ shareId }`
-    shareLink.addEventListener('click', async _=>mShareLink(shareId))
-    shareItemContainer.appendChild(shareLink)
-    /* share item edit */
-    const shareEdit = document.createElement('div')
-    shareEdit.classList.add('fas', 'fa-edit', 'share-edit')
-    shareEdit.id = `share-edit_${ shareId }_${ shareListIndex }`
-    shareEdit.name = `share-edit_${ shareId }`
-    shareEdit.addEventListener('click', async _=>mShareModal(itemId, shares, summary, title, shareId))
-    shareItemContainer.appendChild(shareEdit)
-    /* share item delete */
-    const shareDelete = document.createElement('div')
-    shareDelete.classList.add('fas', 'fa-trash', 'share-delete')
-    shareDelete.id = `share-delete_${ shareId }_${ shareListIndex }`
-    shareDelete.name = `share-delete_${ shareId }`
-    shareDelete.addEventListener('click', async _=>mShareDelete(shareId, shareItemContainer), { once: true })
-    shareItemContainer.appendChild(shareDelete)
-    return shareItemContainer
-}
-/**
- * Create a share panel for a collection item where member can add, update or remove shares.
- * @param {ItemId} itemId - The collection item id
- * @param {Array} shares - The collection item current share list
- * @param {String} title - The collection item title
- */
-function mCreateSharePanel(itemId, shares, summary, title){
-    /* share panel */
-    const sharePanel = document.createElement('div')
-    sharePanel.classList.add('share-panel')
-    sharePanel.id = `share-panel_${ itemId }`
-    sharePanel.name = sharePanel.id
-    /* share header */
-    const shareHeaderContainer = document.createElement('div') /* container */
-    shareHeaderContainer.classList.add('share-header-container')
-    shareHeaderContainer.id = `share-header-container_${ itemId }`
-    shareHeaderContainer.name = shareHeaderContainer.id
-    const shareHeader = document.createElement('div') /* header */
-    shareHeader.classList.add('share-header')
-    shareHeader.id = `share-header_${ itemId }`
-    shareHeader.name = shareHeader.id
-    shareHeader.textContent = `Share Station`
-    shareHeaderContainer.appendChild(shareHeader)
-    const addShare = document.createElement('button') /* add button */
-    addShare.classList.add('share-add', 'button')
-    addShare.id = `share-add_${ itemId }`
-    addShare.name = addShare.id
-    addShare.textContent = `+ New Share`
-    addShare.addEventListener('click', async _=>mShareModal(itemId, shares, summary, title))
-    shareHeaderContainer.appendChild(addShare)
-    sharePanel.appendChild(shareHeaderContainer)
-    /* share list */
-    const shareList = document.createElement('div')
-    shareList.classList.add('share-list')
-    shareList.id = `share-list_${ itemId }`
-    shareList.name = shareList.id
-    if(shares?.length){
-        let shareListIndex = 0
-        shares.forEach(shareId=>{ // **note** share is a string indicating share.id
-            shareListIndex++
-            const shareItem = mCreateShareLink(itemId, shares, summary, title, shareId, shareListIndex)
-            shareList.appendChild(shareItem)
-        })
-    }
-    sharePanel.appendChild(shareList)
-    return sharePanel
-}
-/**
- * Create a team member that has been selected from add-team-member icon.
- * @requires mActiveTeam
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function mCreateTeamMember(event){
-    event.stopPropagation()
-    const { value: type, } = this
-    if(!type)
-        throw new Error(`no team member type selected`)
-    if(globals.isProxy(type)){}
-    const data = {
-        id: mActiveTeam.id,
-        type,
-    }
-    if(globals.isProxy(type)){
-        const endpoint = window.prompt(
-            'Enter the external agent URL (A2A/NANDA endpoint):',
-            'https://list39.org/@'
-        )
-        if(!endpoint?.length)
-            throw new Error('External proxy bot requires a valid URL')
-        data.url = endpoint.trim()
-    }
-    const bot = globals.isProxy(type)
-        ? await globals.datamanager.botProxy(data)
-        : await globals.datamanager.botCreate(data)
-    if(!bot)
-        throw new Error(`no bot created for team member`)
-    const { id, } = bot
-    mBots.push(bot)
-    setActiveBot(id, true)
-    updatePageBots(mBots, false, true)
-}
-/**
- * Create a team new popup.
- * @requires mActiveTeam
- * @requires mTeamPopup
- * @requires mTeams
- * @param {string} type - The type of team to create.
- * @param {boolean} showPopup - Whether or not to show the popup.
- * @returns {void}
- */
-function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
-    const { allowCustom=false, allowProxy=false, allowedBotTypes, allowedItemTypes, } = mActiveTeam
-    mTeamPopup.style.visibility = 'hidden'
-    mTeamPopup.innerHTML = '' // clear existing
-    const teamPopup = document.createElement('div')
-    teamPopup.classList.add(`team-popup-${ type }`, 'team-popup-content')
-    teamPopup.id = `team-popup-${ type }`
-    teamPopup.name = `team-popup-${ type }`
-    let popup
-    let offsetX = 0
-    let listener
-    switch(type){
-        case 'addTeamMember':
-            const memberSelect = document.createElement('select')
-            memberSelect.id = `team-member-select`
-            memberSelect.name = `team-member-select`
-            memberSelect.classList.add('team-member-select')
-            const memberOption = document.createElement('option')
-            memberOption.disabled = true
-            memberOption.textContent = 'Select a team member to add...'
-            memberOption.selected = true
-            memberOption.value = ''
-            memberSelect.appendChild(memberOption)
-            allowedBotTypes.forEach(type=>{
-                if(mBot(type)) // no duplicates currently
-                    return
-                const memberOption = document.createElement('option')
-                memberOption.textContent = type
-                memberOption.value = type
-                memberSelect.appendChild(memberOption)
-            })
-            if(allowCustom || allowProxy){
-                const divider = document.createElement('optgroup')
-                divider.label = "-----------------"
-                memberSelect.appendChild(divider)
-                if(allowCustom){
-                    const memberOptionCustom = document.createElement('option')
-                    memberOptionCustom.value = 'custom'
-                    memberOptionCustom.textContent = 'Create a custom team member'
-                    memberSelect.appendChild(memberOptionCustom)
-                }
-                if(allowProxy){
-                    const memberOptionProxy = document.createElement('option')
-                    memberOptionProxy.value = 'proxy'
-                    memberOptionProxy.textContent = 'Link an external agent'
-                    memberSelect.appendChild(memberOptionProxy)
-                }
-            }
-            memberSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
-            memberSelect.addEventListener('change', mCreateTeamMember, { once: true })
-            listener = mTeamMemberSelect
-            popup = memberSelect
-            break
-        case 'selectTeam':
-            const teamSelect = document.createElement('select')
-            teamSelect.id = `team-select`
-            teamSelect.name = `team-select`
-            teamSelect.classList.add('team-select')
-            const teamOption = document.createElement('option')
-            teamOption.disabled = true
-            teamOption.textContent = `MyLife's pre-defined agent teams...`
-            teamOption.selected = true
-            teamOption.value = ''
-            teamSelect.appendChild(teamOption)
-            mTeams.forEach(team=>{
-                const { name, title, } = team
-                const teamOption = document.createElement('option')
-                teamOption.value = name
-                teamOption.textContent = title
-                teamSelect.appendChild(teamOption)
-            })
-            teamSelect.addEventListener('click', (e)=>e.stopPropagation()) // stops from closure onClick
-            listener = mTeamSelect
-            popup = teamSelect
-            break
-        default:
-            break
-    }
-    mTeamPopup.appendChild(teamPopup)
-    if(showPopup){
-        show(mTeamPopup)
-        document.addEventListener('click', mCloseTeamPopup, { once: true })
-        document.addEventListener('keydown', mCloseTeamPopup)
-    }
-    if(popup){
-        teamPopup.appendChild(popup)
-        mTeamPopup.style.position = 'absolute'
-        offsetX = teamPopup.offsetWidth
-        let leftPosition = clickX - offsetX / 2
-        const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
-        if(leftPosition < 0)
-            leftPosition = 0
-        else if(leftPosition + offsetX > viewportWidth)
-            leftPosition = viewportWidth - offsetX
-        mTeamPopup.style.left = `${ leftPosition }px`
-        mTeamPopup.style.top = `${clickY}px`
-        popup.focus()
-        if(listener)
-            popup.addEventListener('change', listener, { once: true })
-    }
-    mTeamPopup.style.visibility = 'visible'
-}
-/**
- * Create add a team member popup.
- */
-function mCreateTeamMemberSelect(event){
-    event.stopPropagation()
-    const { clientX, clientY, } = event
-    mCreateTeamPopup('addTeamMember', clientX, clientY, true)
-}
-/**
- * Create a team select popup.
- * @param {Event} event - The event object.
- * @returns {void}
- */
-function mCreateTeamSelect(event){
-    event.stopPropagation()
-    const { clientX, clientY, } = event
-    mCreateTeamPopup('selectTeam', clientX, clientY, true)
-}
-/**
- * Delete collection item.
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function mDeleteCollectionItem(event){
-    event.stopPropagation()
-    const collectionItemDelete = event.target
-    const id = collectionItemDelete.id.split('_').pop()
-    const item = document.getElementById(`collection-item_${ id }`)
-    const userConfirmed = confirm("Are you sure you want to delete this item?") /* confirmation dialog */
-    if(activeItem()?.id && activeItem().id===id)
-        unsetActiveItem()
-    if(userConfirmed){
-        const { instruction, responses, success, } = await globals.datamanager.itemDelete(id)
-        if(!!instruction)
-            enactInstruction(instruction, 'chat', { removeItem, })
-        if(success){
-            expunge(item)
-            if(responses?.length)
-                addMessages(responses, 'avatar')
-        }
-    } else
-        collectionItemDelete.addEventListener('click', mDeleteCollectionItem, { once: true })
-}
-/**
- * Find checkbox associated with element, or errors.
- * @param {HTMLElement} element - The element to search for checkbox.
- * @param {boolean} searchParent - Whether or not to search parent element.
- * @returns {HTMLElement} - The input checkbox found in element.
- */
-function mFindCheckbox(element, searchParent=true){
-    const { children, parentElement, } = element
-    if(mIsInputCheckbox(element))
-        return element
-    for(let child of children){
-        const result = mFindCheckbox(child, false)
-        if(result)
-            return result
-    }
-    if(searchParent && parentElement){
-        const { children: parentChildren, } = parentElement
-        // do not run second time (obviously)
-        for(let child of parentChildren){
-            if(child===element)
-                continue // skip redundant processing
-            const result = mFindCheckbox(child, false)
-            if(result)
-                return result
-        }
-    }
-}
-/**
- * Toggle submit button for input passphrase.
- * @requires passphraseInput
- * @returns {void}
- */
-function mInputPassphrase(event){
-    if(event.key==='Enter')
-        passphraseSubmitButton.click()
-    else if(event.key==='Escape')
-        passphraseCancelButton.click()
-    if(( passphraseInput?.value?.length ?? 0 )>2)
-        show(passphraseSubmitButton)
-    else
-        hide(passphraseSubmitButton)
-}
-/**
- * Determines whether or not the element is an input checkbox.
- * @param {HTMLElement} element - The element to check.
- * @returns {boolean} - Whether or not the element is an input checkbox.
- */
-function mIsInputCheckbox(element){
-    const { tagName, type, } = element
-    const outcome = tagName.toLowerCase()==='input' && type.toLowerCase()==='checkbox'
-    return outcome
-}
-async function mEvaluate(e){
-    e.stopPropagation()
-    /* set active item */
-    const { id: itemId, } = this.dataset
-    if(itemId)
-        setActiveItem(itemId)
-    toggleMemberInput(false)
-    const awaitBar = globals.await(`${ mActiveBot.name } is evaluating your summary...`)
-    globals.addChatElement(awaitBar)
-    const popupClose = document.getElementById(`popup-close_${ itemId }`)
-    if(popupClose)
-        popupClose.click()
-    const { responses, success, } = await globals.datamanager.evaluate(itemId)
-    if(responses?.length)
-        addMessages(responses, mActiveBot.type)
-    globals.expunge(awaitBar)
-    toggleMemberInput(true)
-}
-async function mObscureEntry(e){
-    e.stopPropagation()
-    /* set active item */
-    const { id: itemId, } = this.dataset
-    if(itemId)
-        setActiveItem(itemId)
-    const awaitBar = globals.await(`${ mActiveBot.name } is obscuring your content...`)
-    globals.addChatElement(awaitBar)
-    toggleMemberInput(false)
-    const popupClose = document.getElementById(`popup-close_${ itemId }`)
-    if(popupClose)
-        popupClose.click()
-    const { instruction, responses, success, } = await globals.datamanager.obscure(itemId)
-    if(responses?.length)
-        addMessages(responses, mActiveBot.type)
-    if(instruction)
-        enactInstruction(instruction, 'chat', { updateItemSummary, })
-    globals.expunge(awaitBar)
-    toggleMemberInput(true)
-}
-/**
- * Open bot container for passed element, closes all the rest.
- * @param {HTMLDivElement} element - The bot container.
- * @returns {void}
- */
-function mOpenStatusDropdown(element){
-    document.querySelectorAll('.bot-container, .collections-container')
-        .forEach(otherContainer=>{
-            if(otherContainer!==element){
-                const otherContent = otherContainer.querySelector('.bot-options')
-                if(otherContent)
-                    otherContent.classList.remove('open')
-                var otherDropdown = otherContainer.querySelector('.bot-options-dropdown')
-                if(otherDropdown)
-                    otherDropdown.classList.remove('open')
-            }
-        })
-        var content = element.querySelector('.bot-options') // even collections use bot-options
-        if(content)
-            content.classList.toggle('open')
-        var dropdown = element.querySelector('.bot-options-dropdown')
-        if(dropdown)
-            dropdown.classList.toggle('open')
-}
-/**
- * Refresh designated collection from server.
- * @param {string} type - The collection type
- * @param {HTMLDivElement} collectionList - The collection list, defaults to `collection-list-${ type }`
- * @returns {void}
- */
-async function mRefreshCollection(type, collectionList){
-    if(!mAvailableCollections.includes(type))
-        throw new Error(`Library collection not implemented.`)
-    collectionList = collectionList
-        ?? document.getElementById(`collection-list-${ type }`)
-    if(!collectionList)
-        throw new Error(`No collection list found for refresh request.`)
-    const collection = await globals.datamanager.collections(type)
-    return mUpdateCollection(type, collectionList, collection)
-}
-/**
  * Refresh the proxy URL for the proxy agent.
  * @param {Event} e - The event object
  * @returns {void}
@@ -1960,76 +1252,6 @@ async function mRefreshProxyUrl(e){
         e.target.addEventListener('click', mRefreshProxyUrl, { once: true })
     }, 5 * 60 * 1000)
     console.log('Proxy URL refreshed:', response)
-}
-async function mReliveMemory(e){
-    e.stopPropagation()
-    const { id, inputContent, } = this.dataset
-    const previousInput = document.getElementById(`relive-memory-input-container_${id}`)
-    if(previousInput)
-        expunge(previousInput)
-    const popupClose = document.getElementById(`popup-close_${ id }`)
-    if(popupClose)
-        popupClose.click()
-    if(!mRelivingMemory){
-        mRelivingMemory = id
-        clearSystemChat()
-    }
-    globals.removeDisappearingElements()
-    const awaitBar = globals.await(`Reliving memory with ${ mActiveBot.name }...`)
-    globals.addChatElement(awaitBar)
-    toggleMemberInput(false)
-    unsetActiveItem()
-    const { instruction, item, responses, success, } = await globals.datamanager.memoryRelive(id, inputContent)
-    globals.expunge(awaitBar)
-    if(success){
-        const interrupts = ['endMemory', 'endReliving']
-        const haltMemory = interrupts.includes(instruction?.command)
-        addMessages(responses, haltMemory ? 'system' : 'relive', undefined, 0)
-        if(!!instruction){
-            const functions = {
-                addMessages,
-                endMemory,
-            }
-            enactInstruction(instruction, 'chat', functions)
-            if(haltMemory)
-                return
-        }
-        /* direct relive structure */
-        const input = document.createElement('div')
-        input.classList.add('relive-progress', 'input-disappear')
-        input.id = `relive-memory-input-container_${ id }`
-        input.name = `input_${ id }`
-        const inputClose = document.createElement('button')
-        inputClose.classList.add('relive-cancel')
-        inputClose.textContent = 'Cancel'
-        const inputContent = document.createElement('textarea')
-        inputContent.classList.add('relive-input')
-        inputContent.name = `memory-input_${ id }`
-        inputContent.placeholder = `What did I get wrong? What important details were missed? Click 'Next' to just continue...`
-        const inputSubmit = document.createElement('button')
-        inputSubmit.classList.add('relive-next')
-        inputSubmit.dataset.id = id
-        inputSubmit.textContent = mDefaultReliveMemoryButtonText
-        input.appendChild(inputClose)
-        input.appendChild(inputContent)
-        input.appendChild(inputSubmit)
-        inputClose.addEventListener('click', async e=>{
-            e.stopPropagation()
-            await mStopRelivingMemory(id, true)
-        }, { once: true })
-        inputContent.addEventListener('input', e=>{
-            const { value, } = e.target
-            inputSubmit.dataset.inputContent = value
-            inputSubmit.textContent = value.length > 2
-                ? 'update'
-                : mDefaultReliveMemoryButtonText
-        })
-        inputSubmit.addEventListener('click', mReliveMemory, { once: true })
-        addInput(input)
-    } else {
-        toggleMemberInput(true)
-        throw new Error(`Failed to fetch memory for relive request.`)
-    }
 }
 /**
  * Request to retire an identified bot.
@@ -2132,386 +1354,6 @@ function mSpotlightBotStatus(){
     mBots.forEach(bot=>mSetStatusBar(bot))
 }
 /**
- * Deletes the share from the server, from the item and from the DOM.
- * @param {Guid} shareId - The share id
- * @param {HTMLElement} shareElement - The share HTML element to erase
- */
-async function mShareDelete(shareId, shareElement){
-    await globals.datamanager.shareDelete(shareId)
-    shareElement.remove()
-}
-async function mShareLink(shareId, autoCopy=true){
-    const rootUrl = window.location.origin
-    const link = `${ rootUrl }/?sid=${ shareId }`
-    if(autoCopy)
-        navigator.clipboard.writeText(link)
-            .then(()=>alert("Link copied to clipboard"))
-            .catch(err => console.log("Error copying link:", err))
-    return link
-}
-/**
- * Creates a screen-blocking set of share options for this item. Member can add or update this form.
- * @param {Guid} itemId - The item id
- * @param {String} summary - The item summary
- * @param {String} title - The item title
- * @param {Guid} shareId - The share id (optional for create, required for update)
- * @returns {void}
- */
-async function mShareModal(itemId, shares, summary, title, shareId){
-    expunge(document.getElementById('modal-share'))
-    let shareData = {}
-    if(globals.isGuid(shareId))
-        shareData = await globals.datamanager.getShare(shareId)
-    /* create modal */
-    const shareModal = document.createElement('div')
-    shareModal.classList.add('modal-share')
-    shareModal.id = `modal-share`
-    shareModal.name = shareModal.id
-    /* share header */
-    const shareHeader = document.createElement('div')
-    shareHeader.classList.add('modal-share-header')
-    shareHeader.id = `modal-share-header`
-    shareHeader.name = shareHeader.id
-    // @todo - Esc not working, not firing on keyDown, propagation stopped elsewhere?
-    shareHeader.addEventListener('keydown', event=>{
-        console.log('key:', event.key)
-        if(event.key==='Escape')
-            mCloseSharePanel()
-    }, { once: true })
-    /* share title */
-    const shareTitle = document.createElement('div')
-    shareTitle.classList.add('modal-share-title')
-    shareTitle.id = `modal-share-title`
-    shareTitle.name = shareTitle.id
-    shareTitle.textContent = `Sharing Memory: "${ title }"`
-    shareHeader.appendChild(shareTitle)
-    /* share close */
-    const shareClose = document.createElement('div')
-    shareClose.classList.add('fas', 'fa-times', 'modal-share-close')
-    shareClose.id = `modal-share-close`
-    shareClose.name = shareClose.id
-    shareClose.addEventListener('click', mCloseSharePanel)
-    shareHeader.appendChild(shareClose)
-    /* share summary */
-    const shareSummary = document.createElement('div')
-    shareSummary.classList.add('modal-share-summary')
-    shareSummary.disabled = true
-    shareSummary.id = `modal-share-summary`
-    shareSummary.name = shareSummary.id
-    shareSummary.textContent = summary
-    /* share options row 01 */
-    const shareOptionsRow01 = document.createElement('div')
-    shareOptionsRow01.classList.add('modal-share-options-row')
-    shareOptionsRow01.id = `modal-share-options-row01`
-    shareOptionsRow01.name = shareOptionsRow01.id
-    /* share options */
-    const shareOptions = document.createElement('div')
-    shareOptions.classList.add('modal-share-options')
-    shareOptions.id = `modal-share-options`
-    shareOptions.name = shareOptions.id
-    /* share title */
-    const shareTitleContainer = document.createElement('div')
-    shareTitleContainer.classList.add('modal-share-label')
-    shareTitleContainer.id = `modal-share-title`
-    shareTitleContainer.name = shareTitleContainer.id
-    shareTitleContainer.textContent = 'Share Title'
-    const shareTitleInput = document.createElement('input')
-    shareTitleInput.classList.add('modal-share-title-input')
-    shareTitleInput.id = `modal-share-title-input`
-    shareTitleInput.name = shareTitleInput.id
-    shareTitleInput.placeholder = 'Enter a title for this share...'
-    shareTitleInput.type = 'text'
-    shareTitleInput.value = shareData.title ?? title
-    shareTitleContainer.appendChild(shareTitleInput)
-    /* anonymous share */
-    const anonymousContainer = document.createElement('div')
-    anonymousContainer.classList.add('modal-share-anonymous')
-    anonymousContainer.id = `modal-share-anonymous`
-    anonymousContainer.name = anonymousContainer.id
-    const shareAnonymous = document.createElement('input')
-    shareAnonymous.checked = shareData.anonymous ?? false
-    shareAnonymous.id = `modal-share-anonymous-checkbox`
-    shareAnonymous.name = shareAnonymous.id
-    shareAnonymous.type = 'checkbox'
-    shareAnonymous.value = 'anonymous'
-    anonymousContainer.appendChild(shareAnonymous)
-    const shareAnonymousLabel = document.createElement('label')
-    shareAnonymousLabel.classList.add('modal-share-checkbox-label')
-    shareAnonymousLabel.id = `modal-share-anonymous-label`
-    shareAnonymousLabel.name = shareAnonymousLabel.id
-    shareAnonymousLabel.textContent = 'Share Anonymously'
-    shareAnonymousLabel.htmlFor = shareAnonymous.id
-    anonymousContainer.appendChild(shareAnonymousLabel)
-    /* guessable share */
-    const guessableContainer = document.createElement('div')
-    guessableContainer.classList.add('modal-share-guessable')
-    guessableContainer.id = `modal-share-guessable`
-    guessableContainer.name = guessableContainer.id
-    const shareGuessable = document.createElement('input')
-    shareGuessable.checked = shareData.guessable ?? false
-    shareGuessable.id = `modal-share-guessable-checkbox`
-    shareGuessable.name = shareGuessable.id
-    shareGuessable.type = 'checkbox'
-    shareGuessable.value = 'guessable'
-    guessableContainer.appendChild(shareGuessable)
-    const shareGuessableLabel = document.createElement('label')
-    shareGuessableLabel.classList.add('modal-share-checkbox-label')
-    shareGuessableLabel.id = `modal-share-guessable-label`
-    shareGuessableLabel.name = shareGuessableLabel.id
-    shareGuessableLabel.textContent = 'Allow Recipient to Guess Your Identity'
-    shareGuessableLabel.htmlFor = shareGuessable.id
-    guessableContainer.appendChild(shareGuessableLabel)
-    /* share options row 02 */
-    const shareOptionsRow02 = document.createElement('div')
-    shareOptionsRow02.classList.add('modal-share-options-row')
-    shareOptionsRow02.id = `modal-share-options-row02`
-    shareOptionsRow02.name = shareOptionsRow02.id
-    /* share scope */
-    const shareScope = document.createElement('div')
-    shareScope.classList.add('modal-share-scope')
-    shareScope.id = `modal-share-scope`
-    shareScope.name = shareScope.id
-    const shareScopeLabel = document.createElement('label')
-    shareScopeLabel.classList.add('modal-share-dropdown-label')
-    shareScopeLabel.id = `modal-share-scope-label`
-    shareScopeLabel.name = shareScopeLabel.id
-    shareScopeLabel.textContent = 'Share Scope'
-    shareScope.appendChild(shareScopeLabel)
-    const shareScopeDropdown = document.createElement('select')
-    shareScopeDropdown.classList.add('modal-share-scope-dropdown')
-    shareScopeDropdown.id = `modal-share-scope-dropdown`
-    shareScopeDropdown.name = shareScopeDropdown.id
-    const shareScopeOption = document.createElement('option')
-    shareScopeOption.textContent = 'Select Share Scope...'
-    shareScopeOption.value = ''
-    shareScopeDropdown.appendChild(shareScopeOption)
-    const shareScopeOptions = ['public', 'private', 'team']
-    shareScopeOptions.forEach(option=>{
-        const shareScopeOption = document.createElement('option')
-        shareScopeOption.textContent = option.charAt(0).toUpperCase() + option.slice(1)
-        shareScopeOption.value = option
-        if(option===shareData.scope)
-            shareScopeOption.selected = true
-        shareScopeDropdown.appendChild(shareScopeOption)
-    })
-    shareScope.appendChild(shareScopeDropdown)
-    /* share pov */
-    const sharePov = document.createElement('div')
-    sharePov.classList.add('modal-share-scope')
-    sharePov.id = `modal-share-scope`
-    sharePov.name = sharePov.id
-    const sharePovLabel = document.createElement('label')
-    sharePovLabel.classList.add('modal-share-dropdown-label')
-    sharePovLabel.id = `modal-share-pov-label`
-    sharePovLabel.name = sharePovLabel.id
-    sharePovLabel.textContent = 'Share Point of View'
-    sharePov.appendChild(sharePovLabel)
-    const sharePovDropdown = document.createElement('select')
-    sharePovDropdown.classList.add('modal-share-scope-dropdown')
-    sharePovDropdown.id = `modal-share-scope-dropdown`
-    sharePovDropdown.name = sharePovDropdown.id
-    const sharePovOption = document.createElement('option')
-    sharePovOption.textContent = 'Select Point of View...'
-    sharePovOption.value = ''
-    sharePovDropdown.appendChild(sharePovOption)
-    const sharePovOptions = ['first', 'second', 'third', 'first plural (we)']
-    sharePovOptions.forEach((option, index)=>{
-        const sharePovOption = document.createElement('option')
-        sharePovOption.textContent = option.charAt(0).toUpperCase() + option.slice(1)
-        sharePovOption.value = index + 1
-        if(sharePovOption.value===shareData.pov)
-            sharePovOption.selected = true
-        sharePovDropdown.appendChild(sharePovOption)
-    })
-    sharePov.appendChild(sharePovDropdown)
-    /* share voice */
-    const shareVoiceContainer = document.createElement('div')
-    shareVoiceContainer.classList.add('modal-share-voice')
-    shareVoiceContainer.id = `modal-share-voice`
-    shareVoiceContainer.name = shareVoiceContainer.id
-    const shareVoiceLabel = document.createElement('label')
-    shareVoiceLabel.classList.add('modal-share-textarea-label')
-    shareVoiceLabel.id = `modal-share-voice-label`
-    shareVoiceLabel.name = shareVoiceLabel.id
-    shareVoiceLabel.textContent = 'What mood or voice should the memory have?'
-    shareVoiceContainer.appendChild(shareVoiceLabel)
-    const shareVoiceInput = document.createElement('textarea')
-    shareVoiceInput.classList.add('modal-share-textarea', 'modal-share-voice-input')
-    shareVoiceInput.id = `modal-share-voice-input`
-    shareVoiceInput.name = shareVoiceInput.id
-    shareVoiceInput.placeholder = 'Ex. dark poetry a la Edgar Allan Poe...'
-    shareVoiceInput.value = shareData.voice ?? null
-    shareVoiceContainer.appendChild(shareVoiceInput)
-    /* share options row 03 */
-    const shareOptionsRow03 = document.createElement('div')
-    shareOptionsRow03.classList.add('modal-share-options-row')
-    shareOptionsRow03.id = `modal-share-options-row03`
-    shareOptionsRow03.name = shareOptionsRow03.id
-    /* Share Link */
-    const shareLink = document.createElement('div')
-    shareLink.classList.add('modal-share-link')
-    shareLink.id = `modal-share-link`
-    shareLink.name = shareLink.id
-    const shareLinkLabel = document.createElement('div')
-    shareLinkLabel.classList.add('modal-share-label')
-    shareLinkLabel.id = `modal-share-link-label`
-    shareLinkLabel.name = shareLinkLabel.id
-    shareLinkLabel.textContent = 'Share Link'
-    if(shareData.id)
-        shareLinkLabel.addEventListener('click', async _=>mShareLink(shareData.id))
-    shareLink.appendChild(shareLinkLabel)
-    const shareLinkInput = document.createElement('input')
-    shareLinkInput.classList.add('modal-share-link-link')
-    shareLinkInput.disabled = true
-    shareLinkInput.id = `modal-share-link-link`
-    shareLinkInput.name = shareLinkInput.id
-    shareLinkInput.placeholder = 'Save share for link...'
-    shareLinkInput.type = 'text'
-    if(shareData.id)
-        shareLinkInput.value = await mShareLink(shareData.id, false)
-    shareLink.appendChild(shareLinkInput)
-    if(shareData.id){
-        const shareLinkCopy = document.createElement('div')
-        shareLinkCopy.classList.add('modal-share-copy', 'fas', 'fa-link')
-        shareLinkCopy.id = `modal-share-link-button`
-        shareLinkCopy.name = shareLinkCopy.id
-        shareLinkCopy.addEventListener('click', async _=>mShareLink(shareData.id))
-        shareLink.appendChild(shareLinkCopy)
-    }
-    /* share conclusion */
-    const shareConclusionContainer = document.createElement('div')
-    shareConclusionContainer.classList.add('modal-share-conclusion')
-    shareConclusionContainer.id = `modal-share-conclusion`
-    shareConclusionContainer.name = shareConclusionContainer.id
-    const shareConclusionLabel = document.createElement('label')
-    shareConclusionLabel.classList.add('modal-share-textarea-label')
-    shareConclusionLabel.id = `modal-share-conclusion-label`
-    shareConclusionLabel.name = shareConclusionLabel.id
-    shareConclusionLabel.textContent = 'What question would you pose to your audience?'
-    shareConclusionContainer.appendChild(shareConclusionLabel)
-    const shareConclusionInput = document.createElement('textarea')
-    shareConclusionInput.classList.add('modal-share-textarea', 'modal-share-conclusion-input')
-    shareConclusionInput.id = `modal-share-conclusion-input`
-    shareConclusionInput.name = shareConclusionInput.id
-    shareConclusionInput.placeholder = 'Ex. What would you do in this situation?'
-    shareConclusionInput.value = shareData.conclusion ?? null
-    shareConclusionContainer.appendChild(shareConclusionInput)
-    /* share submit */
-    const shareSubmit = document.createElement('div')
-    shareSubmit.classList.add('modal-share-submit')
-    shareSubmit.id = `modal-share-submit`
-    shareSubmit.name = shareSubmit.id
-    const shareSubmitCancel = document.createElement('button')
-    shareSubmitCancel.classList.add('modal-share-button', 'modal-share-cancel', 'button')
-    shareSubmitCancel.id = `modal-share-cancel`
-    shareSubmitCancel.name = shareSubmitCancel.id
-    shareSubmitCancel.textContent = 'Cancel'
-    shareSubmitCancel.addEventListener('click', mCloseSharePanel)
-    shareSubmit.appendChild(shareSubmitCancel)
-    const shareSubmitSpacer = document.createElement('div')
-    shareSubmitSpacer.classList.add('modal-share-spacer')
-    shareSubmit.appendChild(shareSubmitSpacer)
-    const shareSubmitPreview = document.createElement('button')
-    shareSubmitPreview.classList.add('modal-share-button', 'modal-share-preview', 'button')
-    shareSubmitPreview.id = `modal-share-preview`
-    shareSubmitPreview.name = shareSubmitPreview.id
-    shareSubmitPreview.textContent = 'Preview'
-    shareSubmit.appendChild(shareSubmitPreview)
-    const shareSubmitButton = document.createElement('button')
-    shareSubmitButton.classList.add('modal-share-button', 'modal-share-submit-button', 'button')
-    shareSubmitButton.id = `modal-share-submit-button`
-    shareSubmitButton.name = shareSubmitButton.id
-    shareSubmitButton.textContent = 'Share'
-    shareSubmitButton.addEventListener('click', async _=>{
-        const shareData = {
-            anonymous: shareAnonymous.checked,
-            conclusion: shareConclusionInput.value,
-            guessable: shareGuessable.checked,
-            id: shareId,
-            itemId: itemId,
-            pov: sharePovDropdown.value,
-            scope: shareScopeDropdown.value,
-            title: shareTitleInput.value,
-            voice: shareVoiceInput.value,
-        }
-        const response = globals.isGuid(shareId)
-            ? await globals.datamanager.shareUpdate(shareData)
-            : await globals.datamanager.shareCreate(shareData)
-        if(!shareId){
-            shareId = response.id
-            shares.push(shareId)
-            const shareItem = mCreateShareLink(itemId, shares, summary, title, shareId, 1)
-            const shareList = document.getElementById(`share-list_${ itemId }`)
-            if(shareList)
-                shareList.appendChild(shareItem)
-        }
-        mCloseSharePanel()
-    })
-    // shareSubmitButton.addEventListener('click', mShareSubmit)
-    shareSubmit.appendChild(shareSubmitButton)
-    /* append */
-    shareModal.appendChild(shareHeader)
-    shareModal.appendChild(shareSummary)
-    shareModal.appendChild(shareOptions)
-    shareOptions.appendChild(shareOptionsRow01)
-    shareOptionsRow01.appendChild(shareTitleContainer)
-    shareOptionsRow01.appendChild(anonymousContainer)
-    shareOptionsRow01.appendChild(guessableContainer)
-    shareOptions.appendChild(shareOptionsRow02)
-    shareOptionsRow02.appendChild(shareScope)
-    shareOptionsRow02.appendChild(sharePov)
-    shareOptionsRow02.appendChild(shareVoiceContainer)
-    shareOptions.appendChild(shareOptionsRow03)
-    shareOptionsRow03.appendChild(shareLink)
-    shareOptionsRow03.appendChild(shareConclusionContainer)
-    shareModal.appendChild(shareSubmit)
-    globals.page.appendChild(shareModal)
-    show(shareModal)
-}
-function mCloseSharePanel(){
-    const shareModal = document.getElementById('modal-share')
-    if(shareModal)
-        expunge(shareModal)
-}
-/**
- * Click event to trigger server explanation of how to begin a diary.
- * @param {Event} event - The event object
- * @returns {void}
- */
-async function mStartDiary(e){
-    e.stopPropagation()
-    const submitButton = e.target
-    const diaryBot = getBot('diary')
-    if(!diaryBot)
-        return
-    hide(submitButton)
-    unsetActiveItem()
-    await setActiveBot(diaryBot.id)
-    const response = await submit(`How do I get started?`, true)
-    addMessages(response.responses, 'diary')
-}
-/**
- * Stop reliving memory and clean up memory input.
- * @param {Guid} id - The memory id
- * @param {Boolean} server - Whether or not to execute server response, defaults to `true`
- * @returns {void}
- */
-async function mStopRelivingMemory(id, server=true){
-    globals.removeDisappearingElements()
-    if(server){
-        const { instruction, responses, success} = await globals.datamanager.memoryReliveEnd(id)
-        if(success){
-            addMessages(responses, 'system', 3)
-            if(!!instruction){
-                enactInstruction(instruction)
-            }
-        }
-    }
-    mRelivingMemory = null
-    unsetActiveItem()
-    toggleMemberInput(true)
-}
-/**
  * Manages `change` event selection of team member from `team-select` dropdown.
  * @async
  * @param {Event} event - The event object.
@@ -2547,20 +1389,19 @@ function mTeamSelect(event){
  */
 async function mToggleBotContainers(event){
     event.stopPropagation()
-    const botContainer = this
-    console.log('Bot container click:', this, event.target)
-    const element = event.target
+    const botContainer = event.target.closest('.bot-container, .collections-container')
+    if(!botContainer)
+        return
     const { id, } = botContainer
-    const itemIdSnippet = element.id.split('-').pop()
-    switch(itemIdSnippet){
+    const { id: elementId, } = event.target
+    switch(elementId.split('-').pop()){
         case 'dropdown':
         case 'name':
         case 'status':
         case 'title':
         case 'titlebar':
         case 'type':
-            console.log(`${ itemIdSnippet } clicked`)
-            mOpenStatusDropdown(this)
+            mOpenStatusDropdown(botContainer)
             break
         case 'icon':
         case 'image':
@@ -2576,38 +1417,6 @@ async function mToggleBotContainers(event){
         default:
             break
     }
-}
-/**
- * Toggles collection item visibility.
- * @this - collection-bar
- * @private
- * @async
- * @param {Event} event - The event object.
- * @returns {void}
- */
-async function mToggleCollectionItems(event){
-    event.stopPropagation()
-    /* constants */
-    const { target, } = event /* currentTarget=collection-bar, target=interior divs */
-    const { dataset, id, } = this
-    const type = id.split('-').pop()
-    const refreshTrigger = document.getElementById(`collection-refresh-${ type }`)
-    const isRefresh = target.id===refreshTrigger.id
-    const itemList = document.getElementById(`collection-list-${ type }`)
-    /* validation */
-    if(!itemList)
-        throw new Error(`Collection list not found for toggle.`)
-    /* functionality */
-    if(dataset.init!=='true' || isRefresh){ // first click or refresh
-        show(refreshTrigger)
-        refreshTrigger.classList.add('spin')
-        await mRefreshCollection(type)
-        dataset.init = 'true'
-        refreshTrigger.classList.remove('spin')
-        show(target)
-    }
-    toggleVisibility(itemList)
-    toggleVisibility(mCollectionsDescription)
 }
 /**
  * Toggles passphrase input visibility.
@@ -2641,16 +1450,6 @@ function mTogglePassphrase(event){
         hide(passphraseInputContainer)
         show(passphraseResetButton)
     }
-}
-/**
- * Toggles popup visibility.
- * @this - collection-item
- * @param {Event} event - The event object.
- * @returns {void}
- */
-function mTogglePopup(event, collectionItem){
-    event.stopPropagation()
-    togglePopup(event, collectionItem)
 }
 /**
  * 
@@ -2786,108 +1585,6 @@ async function mUpdateBotVersion(botId){
     }
 }
 /**
- * Update the identified collection with provided specifics.
- * @param {string} type - The collection type.
- * @param {HTMLDivElement} collectionList - The collection container.
- * @param {Array} collection - The collection items.
- * @returns {void}
- */
-function mUpdateCollection(type, collectionList, collection){
-    collectionList.innerHTML = ''
-    return collection
-        .map(item=>({
-            ...item,
-            being: item.being,
-            name: item.title
-                ?? item.filename
-                ?? item.name
-                ?? type,
-            type: item.type
-                ?? type
-                ?? item.being,
-        }))
-        .filter(item=>item.type===type)
-        .sort((a, b)=>a.name.localeCompare(b.name))
-        .map(item=>{
-            const lineItem = mCreateCollectionItem(item)
-            collectionList.appendChild(lineItem)
-            const popup = mCreateCollectionPopup(item)
-            hide(popup)
-            lineItem.appendChild(popup)
-            return { ...item, lineItem, popup }
-        })
-}
-/**
- * Sets collection item content.
- * @private
- * @async
- * @param {Event} event - The event object
- * @returns {Boolean} - Whether or not the content was updated
- */
-async function mUpdateCollectionItem(event){
-    event.stopPropagation()
-    const { contentId, id, } = event.target.dataset
-    const contentElement = document.getElementById(contentId)
-    if(!contentElement)
-        throw new Error(`No content found for collection item update.`)
-    const { dataset, } = contentElement
-    const { emoticons=[], lastUpdatedContent, } = dataset
-    const { value: content, } = contentElement
-    if(content==lastUpdatedContent)
-        return true
-    const { success, } = await globals.datamanager.itemUpdate(id, content, emoticons)
-    if(success){
-        contentElement.dataset.lastUpdatedContent = content
-        const item = document.getElementById(`collection-item_${ id }`)
-        if(item?.collectionItem)
-            item.collectionItem.summary = content
-    } else 
-        contentElement.value = lastUpdatedContent
-    return success
-}
-/**
- * Updates the collection item title and assigns data and listeners as required.
- * @param {Event} event - The event object
- * @returns {void}
- */
-function mUpdateCollectionItemTitle(event){
-    const span = event.target
-    const { id, textContent, } = span
-    let idType = id.split('_')
-    const itemId = idType.pop()
-    idType = idType.join('_')
-    /* create input */
-    const input = document.createElement('input')
-    const inputName = `${ idType }-input`
-    input.id = `${ inputName }_${ itemId }`
-    input.name = inputName
-    input.type = 'text'
-    input.value = textContent
-    input.className = inputName
-    /* replace span with input */
-    span.replaceWith(input)
-    /* add listeners */
-    input.addEventListener('keydown', event=>{
-        if(event.key==='Enter')
-            input.blur()
-        else if(event.key==='Escape'){
-            input.value = textContent
-            input.blur()
-        }
-    })
-    input.addEventListener('blur', async event=>{
-        input.replaceWith(span)
-        input.remove()
-        const title = input.value
-        if(title?.length && title!==textContent){
-            if(await globals.datamanager.itemUpdateTitle(itemId, title))
-                updateItemTitle(itemId, title)
-        }
-        span.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
-    }, { once: true })
-    input.focus()
-}
-/**
  * Update the bot labels with specifics.
  * @param {string} activeLabel - The active label.
  * @param {Array} labels - The array of possible labels.
@@ -2996,11 +1693,11 @@ async function mUpdateTeams(identifier=mDefaultTeam){
         if(activeTeam)
             mActiveTeam = activeTeam
     }
-    const { allowCustom, allowProxy, allowedBotTypes, allowedItemTypes, description, id, name, title, } = team
-    mTeamName.dataset.id = id
-    mTeamName.dataset.description = description
-    mTeamName.textContent = `${ title ?? name } Team`
-    mTeamName.title = description
+    const { allowCustom, allowProxy, allowedBotTypes, allowedItemTypes, description, id, name, primaryCollectionTypes, title, } = team
+    const teamName = title
+        ?? name
+    mTeamName.textContent = `${ teamName } Team`
+    mTeamName.title = `${ description }. The team allows ${ allowedBotTypes?.join(', ') ?? 'various' } bots and ${ allowedItemTypes?.join(', ') ?? 'various' } items. ${ allowCustom ? 'Custom bots and items are allowed. ' : '' }${ allowProxy ? 'Proxy agents are allowed. ' : '' }`
     if(mTeams.length > 1)
         mTeamName.addEventListener('click', mCreateTeamSelect)
     mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
@@ -3074,11 +1771,27 @@ function mVersion(version){
 /* exports */
 export {
     activeBot,
-    endMemory,
+    activeItem, // collections
+    activeTeam,
+    chatActiveItem, // collections
+    chatActiveThumb, // collections
+    createItem, // collections
+    endMemory, // collections
     getAction,
     getBot,
     getBotIcon,
+    getBots,
+    getItem, // collections
+    refreshCollection, // collections
     setActiveBot,
+    setActiveItem, // collections
     toggleBotContainers,
+    togglePopup, // collections
+    unsetActiveItem, // collections
+    updateActiveItemTitle, // collections
+    updateItem, // collections
+    updateItemSummary, // collections
+    updateItemTitle, // collections
     updatePageBots,
+    updateTitle, // collections
 }

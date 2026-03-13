@@ -1,13 +1,21 @@
 /* imports */
 import {
+    activeBot,
     activeItem,
+    activeTeam,
     chatActiveItem,
     chatActiveThumb,
     createItem,
+    endMemory,
+    getAction,
+    getBot,
+    getBotIcon,
+    getBots,
     getItem,
-    init,
     refreshCollection,
+    setActiveBot,
     setActiveItem,
+    toggleBotContainers,
     togglePopup,
     unsetActiveItem,
     updateActiveItemTitle,
@@ -15,15 +23,6 @@ import {
     updateItemSummary,
     updateItemTitle,
     updateTitle,
-} from './collections.mjs'
-import {
-    activeBot,
-    endMemory,
-    getAction,
-    getBot,
-    getBotIcon,
-    setActiveBot as _setActiveBot,
-    toggleBotContainers,
 } from './bots.mjs'
 import {
     experienceEnd,
@@ -149,6 +148,16 @@ function experiences(){
  */
 function expunge(element){
     return globals.expunge(element)
+}
+/**
+ * Gets an Array of Bot objects who can service the given form.
+ * @param {string} form - The database item format required
+ * @returns {Object[]} - The Array of bots who accommodate this form
+ */
+function getBotsByForm(form){
+    if(!typeof form==='string' || !form.length)
+        return
+    return getBots().filter(bot=>bot.itemForms.includes(form))
 }
 /**
  * Proxy for Globals.hide().
@@ -314,15 +323,6 @@ function setActiveAction(instructions){
         activeClose.addEventListener('click', unsetActiveAction, { once: true })
     }
     show(chatActiveItem())
-}
-/**
- * Proxy to set the active bot (via `bots.mjs`).
- * @public
- * @async
- * @returns {Promise<void>} - The return is its own success.
- */
-async function setActiveBot(){
-    return await _setActiveBot(...arguments)
 }
 /**
  * Proxy for Globals.show().
@@ -771,6 +771,9 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
 }
 /* exports */
 export {
+    activeBot,
+    activeItem,
+    activeTeam,
     addInput,
     addMessage,
     addMessages,
@@ -779,6 +782,10 @@ export {
     escapeHtml,
     experiences,
     expunge,
+    getBot,
+    getBotIcon,
+    getBots,
+    getBotsByForm,
     globals,
     hide,
     inExperience,

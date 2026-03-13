@@ -1125,6 +1125,15 @@ class Globals {
         return type=='proxy'
     }
     /**
+     * Pluralizes the last word in a string.
+     * @param {string} phrase - The content to pluralize
+     * @param {boolean} allCaps - Whether to capitalize all words in the phrase, defaults to `false` (only capitalizes first word)
+     * @returns {string} - The pluralized content
+     */
+    pluralize(phrase, allCaps=false){
+        return mPluralize(phrase, allCaps)
+    }
+    /**
      * Remove an element from the DOM based upon its class name of `input-disappear`.
      * @returns {void}
      */
@@ -1658,6 +1667,39 @@ async function mLogout(){
         window.location.href = '/'
     else
         console.error('mLogout::failure', response)
+}
+/**
+ * Pluralizes the last word in a string.
+ * @param {string} phrase - The content to pluralize
+ * @param {boolean} allCaps - Whether to capitalize all words in the phrase
+ * @returns {string} - The pluralized content
+ */
+function mPluralize(phrase, allCaps){
+    if(typeof phrase !== 'string')
+        return phrase
+    phrase = phrase.trim()
+    const parts = phrase.split(/\s+/)
+    let lastWord = parts.pop()
+    // Basic pluralization rules
+    if(lastWord.endsWith('y') && !/[aeiou]y$/i.test(lastWord))
+        lastWord = lastWord.slice(0, -1) + 'ies'
+    else if (/(s|sh|ch|x|z)$/i.test(lastWord))
+        lastWord = lastWord + 'es'
+    else
+        lastWord = lastWord + 's'
+    parts.push(lastWord)
+    const response = parts
+        .map((part, index)=>{
+            if(allCaps || index===0)
+                part = capitalize(part)
+            return part
+        })
+        .join(' ')
+    return response
+    function capitalize(word){
+        word = word.trim()
+        return word.charAt(0).toUpperCase() + word.slice(1)
+    }
 }
 /**
  * Scrolls overflow of passed element to bottom.
