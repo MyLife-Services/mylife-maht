@@ -84,14 +84,12 @@ function createItem(item){
     const { container, id, popup, type, } = item
     if(!container)
         item.container = mCreateCollectionItem(item)
-    console.log('createItem()::start', item)
     if(!popup){
         item.popup = mCreateCollectionItemPopup(item)
         container.appendChild(item.popup)
         hide(item.popup)
     }
     lineItem.appendChild(item.popup)
-    console.log('createItem()::end', item)
     const collectionList = document.getElementById(`collection-list-${ type }`)
     if(collectionList){
         collectionList.insertBefore(lineItem, collectionList.firstChild)
@@ -267,7 +265,8 @@ function togglePopup(id, bForceState){
  */
 function unsetActiveItem(){
     mActiveItem = null
-    hide(mChatActiveItem)
+    hide(chatActiveItem())
+    hide(chatActiveItem().popup)
 }
 /**
  * Updates the active item title in the chat system, display-only.
@@ -1747,25 +1746,25 @@ function mToggleCollections(type, forceOpen=false){
  */
 function mTogglePopup(event){
     event.stopPropagation()
-    const item = this.item
-        ?? event.target.item
+    const { id: targetId, item=this.item ?? activeItem(), } = event.target
     if(!item)
         throw new Error(`No item found for popup toggle`)
     const { id, popup: populatedPopup, } = item
     if(!globals.isGuid(id))
         throw new Error(`No item found to create popup`)
     const popup = populatedPopup
-        ?? document.getElementById(`popup_${ id }`)
+        ?? document.getElementById(`popup-container-${ id }`)
         ?? mCreateCollectionItemPopup(item)
     if(!popup)
         throw new Error(`No popup created for toggle`)
     item.popup = popup
     if(popup.classList.contains('show')){
         hide(popup)
-        unsetActiveItem()
+        const activeClick = targetId.includes('chat-active') && !targetId.includes('close')
+        if(!activeClick) // do not deactive if clicked from active item itself
+            unsetActiveItem()
     } else if(popup){
         popup.classList.add('show', 'popup-active')
-        console.log('popup toggle active item set:', id)
         setActiveItem(id)
     }
 }
