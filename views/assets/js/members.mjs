@@ -1,10 +1,13 @@
 /* imports */
 import {
     activeBot,
+    activeChat,
+    activeClose,
     activeItem,
+    activeStatus,
     activeTeam,
-    chatActiveItem,
-    chatActiveThumb,
+    activeThumb,
+    activeTitle,
     createItem,
     endMemory,
     getAction,
@@ -292,11 +295,11 @@ function setActiveAction(instructions){
     const activeIcon = document.getElementById('chat-active-item-icon')
     const activeStatus = document.getElementById('chat-active-item-status')
     const activeTitle = document.getElementById('chat-active-item-title')
-    chatActiveThumb().className = 'fas chat-active-action-thumb'
+    activeThumb().className = 'fas chat-active-action-thumb'
     if(thumb?.length)
-        chatActiveThumb().src = thumb
+        activeThumb().src = thumb
     else
-        hide(chatActiveThumb())
+        hide(activeThumb())
     if(activeIcon){
         activeIcon.className = 'fas chat-active-action-icon'
         if(icon?.length)
@@ -333,7 +336,7 @@ function setActiveAction(instructions){
     if(activeClose){
         activeClose.addEventListener('click', unsetActiveAction, { once: true })
     }
-    show(chatActiveItem())
+    show(activeChat())
 }
 /**
  * Proxy for Globals.show().

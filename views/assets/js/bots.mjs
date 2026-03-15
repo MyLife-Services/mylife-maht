@@ -1,9 +1,12 @@
 /* bot functionality */
 /* imports */
 import {
+    activeChat,
+    activeClose,
     activeItem,
-    chatActiveItem,
-    chatActiveThumb,
+    activeStatus,
+    activeThumb,
+    activeTitle,
     createItem,
     endMemory,
     getCollection,
@@ -47,9 +50,7 @@ import {
     unsetActiveAction,
 } from './members.mjs'
 const mAvailableUploaderTypes = ['personal-avatar'],
-    botBar = document.getElementById('bot-bar'),
     mDefaultCollections = ['memory', 'entry'], // @stub: take from team
-    mDefaultReliveMemoryButtonText = 'Next',
     mDefaultTeam = 'memory',
     passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
     passphraseInput = document.getElementById(`personal-avatar-passphrase`),
@@ -65,8 +66,7 @@ const mAvailableUploaderTypes = ['personal-avatar'],
 /* variables */
 let mActiveBot,
     mActiveTeam,
-    mBots,
-    mRelivingMemory
+    mBots
 /* public functions */
 async function init(){
     const { bots, activeBotId: id } = await globals.datamanager.bots()
@@ -1757,9 +1757,12 @@ export {
     setActiveBot,
     updatePageBots,
     /* collections.mjs */
+    activeChat,
+    activeClose,
     activeItem,
-    chatActiveItem,
-    chatActiveThumb,
+    activeStatus,
+    activeThumb,
+    activeTitle,
     createItem,
     endMemory,
     getItem,

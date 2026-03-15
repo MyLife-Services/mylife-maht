@@ -24,18 +24,26 @@ import {
     startDrag,
     submit,
     toggleBotContainers,
+    toggleMemberInput,
     toggleVisibility,
 } from './bots.mjs'
 const mAvailableCollections = ['file'], // ['chat', 'conversation'],
     mAvailableMimeTypes = [],
-    mChatActiveItem = document.getElementById('chat-active-item'),
-    mChatActiveThumb = document.getElementById('chat-active-item-thumb'),
+    mActiveButton = document.getElementById('chat-active-item-button'),
+    mActiveChat = document.getElementById('chat-active-item'),
+    mActiveClose = document.getElementById('chat-active-item-close'),
+    mActiveIcon = document.getElementById('chat-active-item-icon'),
+    mActiveStatus = document.getElementById('chat-active-item-status'),
+    mActiveThumb = document.getElementById('chat-active-item-thumb'),
+    mActiveTitle = document.getElementById('chat-active-item-title'),
     mCollections = document.getElementById('collections-container'),
-    mCollectionItems={}
+    mCollectionItems={},
+    mDefaultReliveMemoryButtonText = 'Next'
 let mActiveItem,
     mCollectionsDescription,
     mCollectionHighlights,
     mCollectionsUpload, // document.getElementById('collections-upload')
+    mRelivingMemory,
     mShadows
 /* public functions */
 /**
@@ -59,18 +67,60 @@ async function init(collections, title='Scrapbook'){
     mCreateCollections(mAvailableCollections, title)
 }
 /**
+ * Gets the active item button HTML element for active item display.
+ * @returns {HTMLElement} - The Active Item Button HTML object
+ */
+function activeButton(){
+    return mActiveButton
+}
+/**
+ * Gets the active chat HTML element for active item display.
+ * @returns {HTMLElement} - The Active Chat HTML object
+ */
+function activeChat(){
+    return mActiveChat
+}
+/**
+ * Gets the active item close button HTML element for active item display.
+ * @returns {HTMLElement} - The Active Item Close Button HTML object
+ */
+function activeClose(){
+    return mActiveClose
+}
+/**
+ * Gets the active item icon HTML element for active item display.
+ * @returns {HTMLElement} - The Active Item Icon HTML object
+ */
+function activeIcon(){
+    return mActiveIcon
+}
+/**
  * Gets the active item object.
- * @public
  * @returns {object} - The active item object.
  */
 function activeItem(){
     return mActiveItem
 }
-function chatActiveItem(){
-    return mChatActiveItem
+/**
+ * Gets the active item status HTML element for active item display.
+ * @returns {HTMLElement} - The Active Item Status HTML object
+ */
+function activeStatus(){
+    return mActiveStatus
 }
-function chatActiveThumb(){
-    return mChatActiveThumb
+/**
+ * Gets the active chat thumbnail HTML element for active item display.
+ * @returns {HTMLElement} - The Active Chat Thumbnail HTML object
+ */
+function activeThumb(){
+    return mActiveThumb
+}
+/**
+ * Gets the active item title HTML element for active item display.
+ * @returns {HTMLElement} - The Active Item Title HTML object
+ */
+function activeTitle(){
+    return mActiveTitle
 }
 /**
  * Creates a new collection item from server item object data, and activates the new summary.
@@ -142,15 +192,16 @@ function isHighlightedCollection(type){
 /**
  * Obscures an entry item, removing it from view and updating the server. **note**: currently only used for entries, but could be used for other item types in the future, ergo is located in collections module.
  * @async
- * @param {Event} e - The event object
+ * @param {Event} event - The event object
  * @return {void}
  */
-async function mObscureEntry(e){
-    e.stopPropagation()
-    /* set active item */
-    const { id: itemId, } = this.dataset
-    if(itemId)
-        setActiveItem(itemId)
+async function mObscureEntry(event){
+    event.stopPropagation()
+    const { id, } = event.target
+    const itemId = getItem(id.replace('button-obscure-', ''))?.id
+    if(!globals.isGuid(itemId))
+        return
+    setActiveItem(itemId)
     const awaitBar = globals.await(`${ activeBot().name } is obscuring your content...`)
     globals.addChatElement(awaitBar)
     toggleMemberInput(false)
@@ -162,7 +213,7 @@ async function mObscureEntry(e){
         addMessages(responses, activeBot().type)
     if(instruction)
         enactInstruction(instruction, 'chat', { updateItemSummary, })
-    globals.expunge(awaitBar)
+    expunge(awaitBar)
     toggleMemberInput(true)
 }
 /**
@@ -184,46 +235,41 @@ function removeItem(id){
 /**
  * Sets the active item, ex. `memory`, `entry` in the chat system for member operation(s).
  * @public
- * @requires chatActiveItem
+ * @requires activeChat
  * @param {Guid} itemId - The item id to set as active
  * @returns {void}
  */
 function setActiveItem(itemId){
     if(!globals.isGuid(itemId))
         return
-    const popup = document.getElementById(`popup-container-${ itemId }`)
+    const item = getItem(itemId)
+    const { form, popup, title, type, } = item
     if(!popup)
         return
-    const { form='journal', title, type, } = popup.dataset
-    const activeButton = document.getElementById('chat-active-item-button')
-    const activeClose = document.getElementById('chat-active-item-close')
-    const activeIcon = document.getElementById('chat-active-item-icon')
-    const activeStatus = document.getElementById('chat-active-item-status')
-    const activeTitle = document.getElementById('chat-active-item-title')
-    if(activeButton)
-        hide(activeButton)
-    if(activeClose){
-        activeClose.className = 'fas fa-times chat-active-item-close'
-        activeClose.addEventListener('click', unsetActiveItem, { once: true })
+    if(activeButton())
+        hide(activeButton())
+    if(activeClose()){
+        activeClose().className = 'fas fa-times chat-active-item-close'
+        activeClose().addEventListener('click', unsetActiveItem, { once: true })
     }
-    if(activeIcon){
-        activeIcon.className = 'fas fa-square chat-active-item-icon'
+    if(activeIcon()){
+        activeIcon().className = 'fas fa-square chat-active-item-icon'
     }
-    if(activeStatus){
-        activeStatus.className = 'chat-active-item-status'
-        activeStatus.textContent = 'Active: '
-        activeStatus.addEventListener('click', mTogglePopup)
+    if(activeStatus()){
+        activeStatus().className = 'chat-active-item-status'
+        activeStatus().textContent = 'Active: '
+        activeStatus().addEventListener('click', mTogglePopup)
     }
-    if(activeTitle){
-        activeTitle.innerHTML = ''
+    if(activeTitle()){
+        activeTitle().innerHTML = ''
         const activeText = document.createElement('div')
         activeText.classList.add('chat-active-item-title-text')
         activeText.id = `chat-active-item-title-text_${ itemId }`
         activeText.innerHTML = title
         /* append activeTitle */
-        activeTitle.appendChild(activeText)
-        activeTitle.className = 'chat-active-item-title'
-        activeTitle.addEventListener('dblclick', updateTitle, { once: true })
+        activeTitle().appendChild(activeText)
+        activeTitle().className = 'chat-active-item-title'
+        activeTitle().addEventListener('dblclick', updateTitle, { once: true })
     }
     mActiveItem = { form, id: itemId, inAction: false, type }
     function getBotType(itemType){
@@ -242,8 +288,8 @@ function setActiveItem(itemId){
     const { id, } = getBot(botType)
     if(id)
         setActiveBot(id, false)
-    console.log('setActiveBot()::id', id, chatActiveItem(), )
-    show(chatActiveItem())
+    console.log('setActiveBot()::id', id, activeChat(), )
+    show(activeChat())
 }
 
 /**
@@ -260,13 +306,13 @@ function togglePopup(id, bForceState){
 /**
  * Unsets the active item in the chat system.
  * @public
- * @requires mChatActiveItem
+ * @requires mActiveChat
  * @returns {void}
  */
 function unsetActiveItem(){
     mActiveItem = null
-    hide(chatActiveItem())
-    hide(chatActiveItem().popup)
+    hide(activeChat())
+    hide(activeChat().popup)
 }
 /**
  * Updates the active item title in the chat system, display-only.
@@ -276,15 +322,14 @@ function unsetActiveItem(){
  * @returns {void}
  */
 function updateActiveItemTitle(itemId, title){
-    const chatActiveItemTitle = document.getElementById(`chat-active-item-title-text_${ itemId }`)
+    const activeChatTitle = document.getElementById(`chat-active-item-title-text_${ itemId }`)
     const id = mActiveItem?.id
     if(id!==itemId)
         throw new Error('updateActiveItemTitle::Error()::`itemId`\'s do not match')
-    chatActiveItemTitle.innerHTML = title
+    activeChatTitle.innerHTML = title
 }
 /**
  * Update collection item.
- * @todo - determine whether more nuance is needed, or recreating is sufficient
  * @param {object} item - The collection item fields to update, requires `{ id, }`
  * @returns {void}
  */
@@ -293,17 +338,17 @@ function updateItem(item){
         return
     createItem(item)
 }
-function updateItemSummary(id, summary){
-    const popupContent = document.getElementById(`popup-content_${ id }`)
-    if(popupContent){
-        popupContent.dataset.lastUpdatedContent = summary
-        popupContent.value = summary
-    } else {
-        const item = document.getElementById(`collection-item_${ id }`)
-        const collectionItem = item?.collectionItem
-        if(collectionItem)
-            collectionItem.summary = summary
-    }
+function updateItemSummary(id, updatedSummary){
+    const item = getItem(id)
+    const { container, popup, summary, } = item
+    if(updatedSummary==summary)
+        return
+    const popupContent = popup.getElementById(`popup-content-${ id }`)
+    item.summary = updatedSummary
+    item.lastUpdatedContent = updatedSummary
+    item.lastUpdate = Date.now()
+    if(popupContent)
+        popupContent.value = updatedSummary
 }
 /**
  * Sets an item's changed title in all locations.
@@ -313,7 +358,7 @@ function updateItemSummary(id, summary){
 function updateItemTitle(itemId, title){
     const titleSpan = document.getElementById(`collection-item-title_${ itemId }`)
     const titleInput = document.getElementById(`collection-item-title-input__${ itemId }`)
-    const popupTitle = document.getElementById(`popup-header-title_${ itemId }`)
+    const popupTitle = document.getElementById(`popup-header-title-${ itemId }`)
     if(titleSpan)
         titleSpan.textContent = title
     if(titleInput)
@@ -342,7 +387,7 @@ async function mCollectionItemsData(type){
 }
 /**
  * Create a functional collection item HTML div for the specified collection type.
- * @example - collectionItem: { assistantType, container, filename, form, id, keywords, name, summary, title, type, }
+ * @example - collectionItem: { assistantType, container, complete, emoticons, filename, form, id, keywords, lastCursorPosition, lastUpdatedContent, name, popup, shares, summary, title, type, version, }
  * @param {object} collectionItem - The collection item data object
  * @returns {HTMLDivElement} - The collection item
  */
@@ -427,7 +472,7 @@ async function mCreateCollectionItems(type, items, container){
  */
 function mCreateCollectionItemDelete(type, id){
     const itemDelete = document.createElement('span')
-    itemDelete.id = `collection-item-delete_${ id }`
+    itemDelete.id = `collection-item-delete-${ id }`
     itemDelete.name = `collection-item-delete-${ type }`
     itemDelete.classList.add('fas', 'fa-trash', 'collection-item-delete', `${ type }-collection-item-delete`)
     itemDelete.addEventListener('click', mDeleteCollectionItem, { once: true })
@@ -435,36 +480,32 @@ function mCreateCollectionItemDelete(type, id){
 }
 /**
  * Create a popup for viewing collection item.
- * @param {object} collectionItem - The collection item object.
- * @returns {HTMLDivElement} - The collection popup.
+ * @param {object} item - The collection item object: { assistantType, container, complete, emoticons, filename, form, id, keywords, lastCursorPosition, lastUpdatedContent, name, popup, shares, summary, title, type, version, }
+ * @returns {HTMLDivElement} - The collection popup
  */
-function mCreateCollectionItemPopup(collectionItem){
-    const { complete=false, form, id, name, shares=[], summary, title, type, version=1, } = collectionItem
+function mCreateCollectionItemPopup(item){
+    const { container, complete=false, emoticons, form, id, lastCursorPosition, lastUpdatedContent, name, popup, shares=[], summary, title, type, version=1, } = item
+    if(popup instanceof HTMLElement)
+        return popup
     const collectionPopup = document.createElement('div')
     collectionPopup.classList.add('collection-popup')
-    collectionPopup.dataset.complete = complete
-    collectionPopup.dataset.id = id
-    collectionPopup.dataset.name = name
-    collectionPopup.dataset.title = title
-    collectionPopup.dataset.type = type
-    collectionPopup.dataset.version = version
     collectionPopup.id = `popup-container-${ id }`
     collectionPopup.name = `collection-popup-${ type }`
     collectionPopup.addEventListener('click', (e)=>e.stopPropagation()) /* Prevent event bubbling to collection-bar */
     /* popup header */
     const popupHeader = document.createElement('div')
     popupHeader.classList.add('popup-header', 'collection-popup-header')
-    popupHeader.id = `popup-header_${ id }`
+    popupHeader.id = `popup-header-${ id }`
     popupHeader.name = `popup-header-${ type }`
     const popupHeaderTitle = document.createElement('span')
     popupHeaderTitle.classList.add('collection-popup-header-title')
-    popupHeaderTitle.id = `popup-header-title_${ id }`
+    popupHeaderTitle.id = `popup-header-title-${ id }`
     popupHeaderTitle.textContent = title
         ?? `${ type } Item`
     popupHeaderTitle.name = `popup-header-title-${ type }`
     popupHeaderTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
     popupHeader.appendChild(popupHeaderTitle)
-    /* create popup close button */
+    /* popup close button */
     const popupClose = document.createElement('button')
     popupClose.classList.add('fa-solid', 'fa-close', 'popup-close', 'collection-popup-close')
     popupClose.id = `popup-close-${ id }`
@@ -476,40 +517,36 @@ function mCreateCollectionItemPopup(collectionItem){
     })
     popupHeader.appendChild(popupClose)
     popupHeader.addEventListener('mousedown', mStartDrag)
-    /* create popup body/container */
+    /* popup body/container */
     const popupBody = document.createElement('div')
     popupBody.classList.add('popup-body', 'collection-popup-body')
-    popupBody.id = `popup-body_${ id }`
+    popupBody.id = `popup-body-${ id }`
     popupBody.name = `popup-body-${ type }`
-    /* create popup content */
+    /* popup content */
     const content = summary
-        ?? JSON.stringify(collectionItem)
+        ?? JSON.stringify(item)
     const popupContent = document.createElement('textarea')
     popupContent.classList.add('popup-content', 'collection-popup-content')
-    popupContent.dataset.lastUpdatedContent = content
-    popupContent.id = `popup-content_${id}`
+    item.lastUpdatedContent = content
+    popupContent.id = `popup-content-${ id }`
     popupContent.readOnly = true
     popupContent.value = content
-    /* create popup sidebar */
+    /* popup sidebar */
     const sidebar = document.createElement('div')
     sidebar.classList.add('popup-sidebar')
-    sidebar.id = `popup-sidebar_${ id }`
-    /* create edit toggle button */
+    sidebar.id = `popup-sidebar-${ id }`
+    /* edit toggle button */
     const popupEdit = document.createElement('span')
     popupEdit.classList.add('fas', 'fa-edit', 'popup-sidebar-icon')
-    popupEdit.id = `popup-edit_${ id }`
-    popupEdit.dataset.id = id
-    popupEdit.dataset.contentId = popupContent.id
-    /* create save button */
+    popupEdit.id = `popup-edit-${ id }`
+    /* save button */
     const popupSave = document.createElement('span')
     popupSave.classList.add('fas', 'fa-save', 'popup-sidebar-icon')
-    popupSave.id = `popup-save_${ id }`
-    popupSave.dataset.id = id
-    popupSave.dataset.contentId = popupContent.id
-    popupSave.addEventListener('click', async event=>{
+    popupSave.id = `popup-save-${ id }`
+    popupSave.addEventListener('click', async ()=>{
         popupSave.classList.remove('fa-save')
         popupSave.classList.add('fa-spinner', 'spin')
-        const success = await mUpdateCollectionItem(event)
+        const success = await mUpdateCollectionItem(item, popupContent)
         popupSave.classList.remove('fa-spinner', 'spin')
         popupSave.classList.add(success ? 'fa-check' : 'fa-times')
         setTimeout(_=>{
@@ -518,13 +555,13 @@ function mCreateCollectionItemPopup(collectionItem){
         }, 2000)
     })
     /* toggle-edit listeners */
-    popupEdit.addEventListener('click', (event)=>{
+    popupEdit.addEventListener('click', ()=>{
         _toggleEditable()
     })
-    popupContent.addEventListener('dblclick', (event)=>{
+    popupContent.addEventListener('dblclick', ()=>{
         _toggleEditable()
     })
-    popupContent.addEventListener('blur', (event) => {
+    popupContent.addEventListener('blur', () => {
         _toggleEditable(false)
     })
     popupContent.addEventListener('keydown', (event) => {
@@ -533,7 +570,7 @@ function mCreateCollectionItemPopup(collectionItem){
     })
     /* inline function to toggle editable state */
     function _toggleEditable(isEditable=true){
-        popupContent.dataset.lastCursorPosition = popupContent.selectionStart
+        item.lastCursorPosition = popupContent.selectionStart
         popupContent.readOnly = !isEditable
         popupEdit.classList.toggle('popup-sidebar-icon-active', isEditable)
         popupContent.focus()
@@ -541,14 +578,13 @@ function mCreateCollectionItemPopup(collectionItem){
     sidebar.appendChild(popupEdit)
     sidebar.appendChild(popupSave)
     /* create emoticon bar */
-    const emoticons = ['😀', '😢', '😡', '😍', '😱'] // Add more emoticons as needed
-    emoticons.forEach(emoticon => {
+    const emoticonButtons = ['😀', '😢', '😡', '😍', '😱'] // Add more emoticons as needed
+    emoticonButtons.forEach(emoticon => {
         const emoticonButton = document.createElement('span')
         emoticonButton.classList.add('popup-sidebar-emoticon')
         emoticonButton.textContent = emoticon
-        emoticonButton.addEventListener('click', (event)=>{
-            event.stopPropagation()
-            const { lastCursorPosition, } = popupContent.dataset
+        emoticonButton.addEventListener('click', (e)=>{
+            e.stopPropagation()
             const insert = ` ${ emoticon }`
             if(lastCursorPosition){
                 const textBeforeCursor = popupContent.value.substring(0, lastCursorPosition)
@@ -603,8 +639,7 @@ function mCreateCollectionItemPopup(collectionItem){
             /* obscure entry */
             const obscureEntry = document.createElement('button')
             obscureEntry.classList.add('obscure-button', 'button')
-            obscureEntry.dataset.id = id /* required for mObscureEntry */
-            obscureEntry.id = `button-obscure-${ entryType }_${ id }`
+            obscureEntry.id = `button-obscure-${ id }`
             obscureEntry.name = 'obscure-button'
             obscureEntry.textContent = 'Obscure Entry'
             obscureEntry.addEventListener('click', mObscureEntry, { once: true })
@@ -612,7 +647,6 @@ function mCreateCollectionItemPopup(collectionItem){
             /* evaluate entry */
             const evaluateEntry = document.createElement('button')
             evaluateEntry.classList.add('evaluate-button', 'button')
-            evaluateEntry.dataset.id = id /* required for mObscureEntry */
             evaluateEntry.id = `button-evaluate-${ entryType }_${ id }`
             evaluateEntry.name = 'evaluate-button'
             evaluateEntry.textContent = 'Evaluate'
@@ -637,7 +671,6 @@ function mCreateCollectionItemPopup(collectionItem){
             /* experience entry button */
             const experienceButton = document.createElement('button')
             experienceButton.classList.add('experience-entry-button', 'button')
-            experienceButton.dataset.id = id /* required for triggering PATCH */
             experienceButton.id = `experience-entry-button_${ id }`
             experienceButton.name = 'experience-entry-button'
             experienceButton.textContent = 'Experience Entry'
@@ -704,7 +737,6 @@ function mCreateCollectionItemPopup(collectionItem){
             /* evaluate memory */
             const evaluateMemory = document.createElement('button')
             evaluateMemory.classList.add('evaluate-button', 'button')
-            evaluateMemory.dataset.id = id
             evaluateMemory.id = `button-evaluate-memory_${ id }`
             evaluateMemory.name = 'evaluate-button'
             evaluateMemory.textContent = 'Evaluate'
@@ -713,8 +745,7 @@ function mCreateCollectionItemPopup(collectionItem){
             /* relive memory button */
             const reliveButton = document.createElement('button')
             reliveButton.classList.add('relive-memory-button', 'button')
-            reliveButton.dataset.id = id /* required for triggering PATCH */
-            reliveButton.id = `relive-memory-button_${ id }`
+            reliveButton.id = `relive-memory-button-${ id }`
             reliveButton.name = 'relive-memory-button'
             reliveButton.textContent = 'Relive Memory'
             reliveButton.addEventListener('click', mReliveStory, { once: true })
@@ -758,11 +789,7 @@ function mCreateCollectionItemPopup(collectionItem){
 function mCreateCollectionItemSummarize(type, id, name){
     const itemSummarize = document.createElement('span')
     itemSummarize.classList.add('fas', 'fa-file-circle-question', 'collection-item-summary', `${ type }-collection-item-summary`)
-    itemSummarize.dataset.fileId = id /* raw openai file id */
-    itemSummarize.dataset.fileName = name
-    itemSummarize.dataset.id= `collection-item-summary-${ id }`
-    itemSummarize.dataset.type = type
-    itemSummarize.id = itemSummarize.dataset.id
+    itemSummarize.id = `collection-item-summary-${ id }`
     itemSummarize.name = `collection-item-summary-${ type }`
     itemSummarize.addEventListener('click', mSummarize, { once: true })
     return itemSummarize
@@ -918,16 +945,13 @@ function mCreateShadows(itemId){
     const shadow = mShadows[currentIndex]
     const shadowBox = document.createElement('div')
     shadowBox.classList.add('memory-shadow')
-    shadowBox.dataset.itemId = itemId
-    shadowBox.id = `memory-shadow_${ itemId }`
+    shadowBox.id = `memory-shadow-${ itemId }`
     shadowBox.name = 'memory-shadow'
     /* single shadow text */
-    const { categories, id, text, type, } = shadow
+    const { categories, id: shadowId, text, type, } = shadow
     const shadowText = document.createElement('div')
     shadowText.classList.add('memory-shadow-text')
-    shadowText.dataset.itemId = itemId
-    shadowText.dataset.lastResponse = '' // array of messages, will need to stringify/parse
-    shadowText.dataset.shadowId = id
+    shadowText.id = `memory-shadow-text-${ itemId }_${ shadowId}`
     shadowText.textContent = text
     shadowText.addEventListener('click', mShadow)
     // @stub - add mousewheel event listener to scroll through shadows
@@ -938,25 +962,25 @@ function mCreateShadows(itemId){
     shadowPagers.id = `memory-shadow-pagers_${ itemId }`
     /* back pager */
     const backPager = document.createElement('div')
-    backPager.dataset.direction = 'back'
-    backPager.id = `memory-shadow-back_${ itemId }`
+    backPager.direction = 'back'
+    backPager.id = `memory-shadow-back-${ itemId }`
     backPager.classList.add('caret', 'caret-up')
     backPager.addEventListener('click', _pager)
     /* next pager */
     const nextPager = document.createElement('div')
-    nextPager.dataset.direction = 'next'
-    nextPager.id = `memory-shadow-next_${ itemId }`
+    nextPager.direction = 'next'
+    nextPager.id = `memory-shadow-next-${ itemId }`
     nextPager.classList.add('caret', 'caret-down')
     nextPager.addEventListener('click', _pager)
     /* inline function _pager */
     function _pager(event){
         event.stopPropagation()
-        const { direction, } = this.dataset
+        const { direction, } = event.target
         currentIndex = direction==='next'
             ? (currentIndex + 1) % mShadows.length
             : (currentIndex - 1 + mShadows.length) % mShadows.length
         const { text, } = mShadows[currentIndex]
-        shadowText.dataset.shadowId = mShadows[currentIndex].id
+        shadowText.id = `memory-shadow-text-${ itemId }_${ mShadows[currentIndex].id }`
         shadowText.textContent = text
     }
     shadowPagers.appendChild(backPager)
@@ -1069,8 +1093,8 @@ function mCreateSharePanel(itemId, shares, summary, title){
 async function mDeleteCollectionItem(event){
     event.stopPropagation()
     const collectionItemDelete = event.target
-    const id = collectionItemDelete.id.split('_').pop()
-    const item = document.getElementById(`collection-item_${ id }`)
+    const id = collectionItemDelete.id.replace('collection-item-delete-', '')
+    const item = getItem(id)
     const userConfirmed = confirm("Are you sure you want to delete this item?") /* confirmation dialog */
     if(activeItem()?.id && activeItem().id===id)
         unsetActiveItem()
@@ -1156,13 +1180,15 @@ async function mRefreshCollection(type){
 }
 /**
  * Relive memory for an identified memory item, with optional input content to guide the relive.
- * @param {Event} e - The event object
+ * @param {Event} event - The event object
  * @returns {void}
  */
-async function mReliveStory(e){
-    e.stopPropagation()
-    const { id, inputContent, } = this.dataset
-    const previousInput = document.getElementById(`relive-memory-input-container_${id}`)
+async function mReliveStory(event){
+    event.stopPropagation()
+    const { id: targetId, } = event.target
+    const id = targetId.replace('relive-memory-button-', '')
+    const previousInput = document.getElementById(`relive-memory-input-container-${id}`)
+    const memberInputContent = previousInput?.value
     if(previousInput)
         expunge(previousInput)
     const popupClose = document.getElementById(`popup-close-${ id }`)
@@ -1173,11 +1199,11 @@ async function mReliveStory(e){
         clearSystemChat()
     }
     globals.removeDisappearingElements()
-    const awaitBar = globals.await(`Reliving memory with ${ mActiveBot.name }...`)
+    const awaitBar = globals.await(`Reliving memory with ${ activeBot().name }...`)
     globals.addChatElement(awaitBar)
     toggleMemberInput(false)
     unsetActiveItem()
-    const { instruction, item, responses, success, } = await globals.datamanager.memoryRelive(id, inputContent)
+    const { instruction, item, responses, success, } = await globals.datamanager.memoryRelive(id, memberInputContent)
     globals.expunge(awaitBar)
     if(success){
         const interrupts = ['endMemory', 'endReliving']
@@ -1195,18 +1221,20 @@ async function mReliveStory(e){
         /* direct relive structure */
         const input = document.createElement('div')
         input.classList.add('relive-progress', 'input-disappear')
-        input.id = `relive-memory-input-container_${ id }`
-        input.name = `input_${ id }`
+        input.id = `relive-memory-input-container-${ id }`
+        input.name = `input-${ id }`
         const inputClose = document.createElement('button')
         inputClose.classList.add('relive-cancel')
         inputClose.textContent = 'Cancel'
         const inputContent = document.createElement('textarea')
         inputContent.classList.add('relive-input')
-        inputContent.name = `memory-input_${ id }`
+        inputContent.id = `relive-memory-input-${ id }`
+        inputContent.name = `relive-memory-input-${ id }`
         inputContent.placeholder = `What did I get wrong? What important details were missed? Click 'Next' to just continue...`
         const inputSubmit = document.createElement('button')
         inputSubmit.classList.add('relive-next')
-        inputSubmit.dataset.id = id
+        inputSubmit.id = `relive-memory-submit-${ id }`
+        inputSubmit.name = `relive-memory-submit-${ id }`
         inputSubmit.textContent = mDefaultReliveMemoryButtonText
         input.appendChild(inputClose)
         input.appendChild(inputContent)
@@ -1216,9 +1244,8 @@ async function mReliveStory(e){
             await mStopRelivingMemory(id, true)
         }, { once: true })
         inputContent.addEventListener('input', e=>{
-            const { value, } = e.target
-            inputSubmit.dataset.inputContent = value
-            inputSubmit.textContent = value.length > 2
+            const value = e.target.value
+            inputSubmit.textContent = (value?.length ?? 0) > 2
                 ? 'update'
                 : mDefaultReliveMemoryButtonText
         })
@@ -1237,9 +1264,13 @@ async function mReliveStory(e){
  */
 async function mShadow(event){
     event.stopPropagation()
-    const { itemId, lastResponse, shadowId, } = this.dataset
+    let { id: targetId, } = event.target
+    targetId = targetId.replace('memory-shadow-text-', '')
+    const itemId = targetId.split('_')[0],
+        shadowId = targetId.split('_')?.[1]
+    const item = getItem(itemId)
     const shadow = mShadows.find(shadow=>shadow.id===shadowId)
-    if(!shadow)
+    if(!shadow || !item)
         return
     const { categories, id, text, type, } = shadow // type enum: [agent, member]
     switch(type){
@@ -1255,8 +1286,7 @@ async function mShadow(event){
                 ?? mActiveBot?.id
             if(mActiveBot?.id===botId)
                 setActiveBot(botId)
-            this.dataset.lastResponse = JSON.stringify(messages)
-            addMessages(messages, mActiveBot.type) // print to screen
+            addMessages(messages, activeBot().type) // print to screen
             break
         case 'member': /* member shadows populate main chat input */
             const seedText = text.replace(/(\.\.\.|…)\s*$/, '').trim() + ' '
@@ -1645,18 +1675,19 @@ async function mStopRelivingMemory(id, server=true){
 }
 /**
  * Processes a document summary request.
- * @this - collection-item-summary (HTMLSpanElement)
  * @private
  * @async
- * @param {Event} e - The event object.
+ * @param {Event} event - The event object
  * @returns {void}
  */
-async function mSummarize(e){
-    e.stopPropagation()
-    const { dataset, } = this
-    if(!dataset)
-        throw new Error(`No dataset found for summary request.`)
-    const { fileId, fileName, type, } = dataset
+async function mSummarize(event){
+    event.stopPropagation()
+    const { id, } = event.target
+    const itemId = id.replace('collection-item-summary-', '')
+    const item = getItem(itemId)
+    if(!item)
+        throw new Error(`No item found for summary request.`)
+    const { id: fileId, fileName, type, } = item
     if(type!=='file')
         throw new Error(`Unimplemented type for summary request.`)
     /* visibility triggers */
@@ -1794,6 +1825,7 @@ function mUpdateCollection(type, collectionList, collection){
         .map(item=>{
             const lineItem = mCreateCollectionItem(item)
             collectionList.appendChild(lineItem)
+            // if creating, destroy current... may be possible to just update
             const popup = mCreateCollectionItemPopup(item)
             hide(popup)
             lineItem.appendChild(popup)
@@ -1807,25 +1839,19 @@ function mUpdateCollection(type, collectionList, collection){
  * @param {Event} event - The event object
  * @returns {Boolean} - Whether or not the content was updated
  */
-async function mUpdateCollectionItem(event){
-    event.stopPropagation()
-    const { contentId, id, } = event.target.dataset
-    const contentElement = document.getElementById(contentId)
-    if(!contentElement)
-        throw new Error(`No content found for collection item update.`)
-    const { dataset, } = contentElement
-    const { emoticons=[], lastUpdatedContent, } = dataset
-    const { value: content, } = contentElement
+async function mUpdateCollectionItem(item, summaryContent){
+    const { emoticons=[], lastUpdatedContent, } = item
+    const { value: content, } = summaryContent
     if(content==lastUpdatedContent)
         return true
-    const { success, } = await globals.datamanager.itemUpdate(id, content, emoticons)
+    const { success, } = await globals.datamanager.itemUpdate(item.id, content, emoticons)
     if(success){
-        contentElement.dataset.lastUpdatedContent = content
-        const item = document.getElementById(`collection-item_${ id }`)
-        if(item?.collectionItem)
-            item.collectionItem.summary = content
+        item.lastUpdatedContent = content
+        const itemElement = document.getElementById(`collection-item_${ item.id }`)
+        if(itemElement?.collectionItem)
+            itemElement.collectionItem.summary = content
     } else 
-        contentElement.value = lastUpdatedContent
+        summaryContent.value = lastUpdatedContent
     return success
 }
 /**
@@ -1871,9 +1897,14 @@ function mUpdateCollectionItemTitle(event){
     input.focus()
 }
 export {
+    activeButton,
+    activeChat,
+    activeClose,
+    activeIcon,
     activeItem,
-    chatActiveItem,
-    chatActiveThumb,
+    activeStatus,
+    activeThumb,
+    activeTitle,
     createItem,
     endMemory,
     getCollection,
