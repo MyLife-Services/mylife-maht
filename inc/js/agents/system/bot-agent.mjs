@@ -713,14 +713,13 @@ class BotAgent {
 		const livingMemory = Avatar.livingMemory
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
-			const { bot_id: _llm_id, id: bot_id, type, } = biographer
-			const { llm_id=_llm_id, } = biographer
+			const { id: bot_id, llm_id, type, } = biographer
 			const messages = []
 			messages.push({
 				content: `## MEMORY SUMMARY Reference for id: ${ item.id }\n### FOR REFERENCE ONLY\n${ item.summary }\n`,
 				role: 'user',
 			})
-			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, MEMORY SUMMARY starts this conversation`
+			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, reference to MEMORY SUMMARY message has begun this conversation`
 			const Conversation = await mConversationStart('memory', type, bot_id, undefined, llm_id, this.#llm, this.#factory, memberInput, messages)
 			Conversation.action = 'living'
 			livingMemory.Conversation = Conversation
