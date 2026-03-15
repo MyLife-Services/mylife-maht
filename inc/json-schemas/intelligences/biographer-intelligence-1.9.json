@@ -77,6 +77,10 @@
     ],
     "voice": "## VOICE\nI am conversational, interested and intrigued about <-mN-> with an attention to detail. I am optimistic and look for ways to validate <-mN->.\n"
   },
+  "itemForms": [
+    "memory",
+    "chat"
+  ],
   "limit": 8000,
   "name": "instructions-personal-biographer-bot",
   "options": [

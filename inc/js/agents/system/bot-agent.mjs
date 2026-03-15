@@ -15,20 +15,23 @@ const mTeams = [
 		active: true,
 		allowCustom: true,
 		allowProxy: true,
-		allowedTypes: ['diary', 'journaler', 'personal-biographer',],
+		allowedBotTypes: ['diary', 'journaler', 'personal-biographer'],
+		allowedItemTypes: ['entry', 'memory'],
 		collection: 'Scrapbook',
 		defaultActiveType: 'personal-biographer',
-		defaultTypes: ['personal-biographer',],
+		defaultTypes: ['personal-biographer'],
 		description: 'The Memory Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
 		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
 		name: 'memory',
+		primaryCollectionTypes: ['memory'], // to load on initialization of team
 		title: 'Memory',
 	},
 	{
 		active: true,
 		allowCustom: true,
 		allowProxy: true,
-		allowedTypes: ['activism', 'conflict-resolution', 'journaler', 'political-narratives', 'political-stance', 'values',],
+		allowedBotTypes: ['activism', 'conflict-resolution', 'journaler', 'political-narratives', 'political-stance', 'values',],
+		allowedItemTypes: ['entry', 'memory', 'stance', 'value'],
 		collection: 'Political Notebook',
 		defaultActiveType: 'political-stance',
 		defaultTypes: ['political-stance',],
@@ -36,6 +39,7 @@ const mTeams = [
 		id: '0434f506-2a33-443a-80ed-8bd9832b33d7',
 		name: 'political',
 		title: 'Political',
+		primaryCollectionTypes: ['stance', 'value'], // to load on initialization of team
 	},
 ]
 /* classes */
@@ -398,7 +402,7 @@ class Bot {
 	 * @getter
 	 */
 	get bot() {
-		const { access, buttons, card, description, flags, icon, id, interests, name, options, purpose, retirable, skills, type, url, version, } = this
+		const { access, buttons, card, description, flags, icon, id, interests, itemForms, name, options, purpose, retirable, skills, type, url, version, } = this
 		const bot = {
 			access,
 			buttons,
@@ -407,6 +411,7 @@ class Bot {
 			icon,
 			id,
 			interests,
+			itemForms,
 			name,
 			options,
 			purpose,
@@ -472,6 +477,9 @@ class Bot {
 	}
 	get isProxy(){
 		return this.type==='proxy'
+	}
+	get itemForms(){
+		return this.#factory.botItemForms(this.type)
 	}
 	get mcpTools(){
 		if(!this.isAvatar && !this.#mcpTools.length && this.tools?.length)
@@ -705,14 +713,13 @@ class BotAgent {
 		const livingMemory = Avatar.livingMemory
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
-			const { bot_id: _llm_id, id: bot_id, type, } = biographer
-			const { llm_id=_llm_id, } = biographer
+			const { id: bot_id, llm_id, type, } = biographer
 			const messages = []
 			messages.push({
 				content: `## MEMORY SUMMARY Reference for id: ${ item.id }\n### FOR REFERENCE ONLY\n${ item.summary }\n`,
 				role: 'user',
 			})
-			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, MEMORY SUMMARY starts this conversation`
+			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, reference to MEMORY SUMMARY message has begun this conversation`
 			const Conversation = await mConversationStart('memory', type, bot_id, undefined, llm_id, this.#llm, this.#factory, memberInput, messages)
 			Conversation.action = 'living'
 			livingMemory.Conversation = Conversation

@@ -231,6 +231,15 @@ class BotFactory extends EventEmitter{
 			?? 1.0
 	}
 	/**
+	 * Returns bot item forms, which are the various content forms that a bot can utilize for output, such as memory, chat, entry, stance, etc. If not specified in the bot instructions, defaults to an empty array.
+	 * @param {string} type - The bot type
+	 * @returns {Array} - The bot item forms by string
+	 */
+	botItemForms(type){
+		return mBotInstructions[type]?.itemForms
+			?? []
+	}
+	/**
 	 * Returns bot options, which are a distilled version of the bot instructions meant to be more easily parsed by a bot instance and used for decision-making and prompting.
 	 * @public
 	 * @param {string} type - The bot type
@@ -1601,7 +1610,8 @@ function mSanitizeSchemaValue(_value) {
 function mTeam(team){
     const {
         allowCustom,
-        allowedTypes,
+        allowedBotTypes,
+		allowedItemTypes,
         defaultTypes,
         description,
         id,
@@ -1610,7 +1620,8 @@ function mTeam(team){
     } = team
     return {
         allowCustom,
-        allowedTypes: [...allowedTypes],
+        allowedBotTypes: [...allowedBotTypes],
+		allowedItemTypes: [...allowedItemTypes],
         defaultTypes: [...defaultTypes],
         description,
         id,

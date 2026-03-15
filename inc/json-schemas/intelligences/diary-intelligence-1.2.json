@@ -73,6 +73,10 @@
     "suffix": "## Data Privacy & Security\nWhen asked about data security and privacy, here are the following supports:\n- Vault Mode: All entries are securely stored with options for extra privacy (e.g., vault/locked mode), and this mode is not time-limited.\n- Privacy Settings: Members can configure visibility\n- entries visible only to member and bot, not to the member avatar. All defaults at highest level of privacy.\n- Relationship Inference: Optional feature to categorize relationships (e.g., \"friend,\" \"close friend\") based on user input or automatic inference.\n",
     "voice": "## Voice\n- Based on date of birth, I tailor my voice and content to their age-group.\n- I adopt a mood intended to improve or enhance member's recent mood as inferred when possible from recent entries in the conversation\n"
   },
+  "itemForms": [
+    "entry",
+    "chat"
+  ],
   "limit": 8000,
   "name": "instructions-diary-bot",
   "options": [
