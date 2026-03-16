@@ -1,0 +1,57 @@
+{
+	"cast": [
+        {
+            "icon": "journaler-thumb",
+            "id": "journaler",
+            "role": "Personal Journaler",
+            "type": "journaler"
+        }
+	],
+    "clearSystemChat": true,
+    "description": "Introductory greeting routine for MyLife Journaler bot.",
+    "developers": [
+        "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
+        "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
+    ],
+	"events": [
+        {
+            "character": "journaler",
+            "dialog": {
+                "message": "Hello, <-mN->! I'm <b><-bN-></b>, here to help you reflect, explore and express your thoughts, feelings, experiences and insights. I'm here to help you cultivate a regular practice of personal reflection and self-expression to help you learn more about yourself and your life over time, and to provide a safe and private space for you to share your innermost thoughts and feelings."
+            }
+        },
+		{
+			"dialog": {
+				"message": "What we talk about is <b>private</b> and just between us! Only with explicit consent and instructions will I ever share our conversations with anyone else. But I'll always be here for you, to listen, engage and reflect back to you whatever you choose to share with me."
+			}
+		},
+		{
+			"dialog": {
+				"message": "Without any further ado, let's get started, <-mN->! Is there anything on your mind right now, or do you want to maybe talk about one of your interests (<-interests->)?"
+			}
+		}
+	],
+    "name": "routine_journaler",
+    "public": true,
+    "status": "active",
+    "title": "Journaler Introduction",
+    "variables": [
+        {
+          "default": "MyLife Member",
+          "variable": "<-mN->",
+          "replacement": "memberFirstName"
+        },
+		{
+		  "default": "personal journal",
+		  "variable": "<-bN->",
+		  "replacement": "bot_name",
+		  "$comment": "Rely on active bot (for data field)"
+		},
+        {
+          "default": "or assign some in the interface!",
+          "variable": "<-interests->",
+          "replacement": "interests"
+        }
+    ],
+    "version": 1
+}

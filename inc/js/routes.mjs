@@ -28,38 +28,42 @@ import {
     tokenValidation,
 } from './controllers/api-functions.mjs'
 import {
-    about,
-    activateBot,
-    alerts,
-    bots,
-    challenge,
+	activateBot,
+	bots,
+    botButtons,
+    botOptions,
     chat,
-    collections,
-    createBot,
-    evaluate,
-    feedback,
-    greetings,
-    help,
-    index,
-    item,
-    logout,
-    loginSelect,
-    members,
-    migrateBot,
-    migrateChat,
-    obscure,
-    passphraseReset,
-    privacyPolicy,
+	createBot,
+	migrateBot,
+	migrateChat,
     retireBot,
     retireChat,
     routine,
     shadows,
-    signup,
-    summarize,
-    team,
-    teams,
     updateBotInstructions,
-    upload,
+} from './controllers/bot-functions.mjs'
+import {
+	about,
+	alerts,
+	challenge,
+	collections,
+	evaluate,
+	feedback,
+	greetings,
+	help,
+	index,
+	item,
+	logout,
+	loginSelect,
+	members,
+	obscure,
+	passphraseReset,
+	privacyPolicy,
+	signup,
+	summarize,
+	team,
+	teams,
+	upload,
 } from './controllers/functions.mjs'
 import {
     acceptShareWarnings,
@@ -193,6 +197,8 @@ _memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
+_memberRouter.get('/bots/:bid/buttons', botButtons)
+_memberRouter.get('/bots/:bid/options', botOptions)
 _memberRouter.get('/bots/proxy/:pid/refresh', botProxyRefresh)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)

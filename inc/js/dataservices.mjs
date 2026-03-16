@@ -198,7 +198,8 @@ class Dataservices {
 	 * @returns {array} - An array of bot instruction or `undefined` if no bot instruction found.
 	 */
 	async botInstructions(_type){
-		if(_type?.length) _type = [{ name: '@type', value: _type }]
+		if(_type?.length) 
+			_type = [{ name: '@type', value: _type }]
 		return await this.getItems(
 			'bot-instructions',
 			undefined,

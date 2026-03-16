@@ -13,7 +13,7 @@ import ConnectorAgent from './agents/system/connector-agent.mjs'
 import { Entry, Memory, } from './models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
-import LLMServices from './llm-services.mjs'
+import LLMServices from './llm.mjs'
 import { mcpClientAllowsDirectory, mcpClientAllowsRequest, mcpClientRequest, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const __dirpath = fileURLToPath(import.meta.url)
@@ -501,6 +501,24 @@ class Avatar extends EventEmitter {
     bot(bot_id, botType){
         const Bot = this.#botAgent.bot(bot_id, botType)
         return Bot
+    }
+    /**
+     * Retrieves buttons for a specified bot.
+     * @param {Guid} botId - The Bot id
+     * @returns {Object[]} - Array of bot button objects: { endpoint, id, label, order, type, value, }
+     */
+    botButtons(botId){
+        const { buttons, }= this.bot(botId)
+        return buttons
+    }
+    /**
+     * Retrieves options for a specified bot.
+     * @param {Guid} botId - The Bot id
+     * @returns {Object[]} - Array of bot option objects: { endpoint, id, label, order, type, value, }
+     */
+    botOptions(botId){
+        const { options, }= this.bot(botId)
+        return options
     }
     /**
      * Grants or revokes access to a proxy Agent for a specific MyLife bot.
@@ -2518,14 +2536,6 @@ class Q extends Avatar {
         return updatedSummary
     }
     /* overload rejections */
-    /**
-     * OVERLOADED: Q refuses to execute.
-     * @public
-     * @throws {Error} - MyLife avatar cannot upload files.
-     */
-    async setActiveBot(){
-        throw new Error('MyLife System Avatars cannot be externally set')
-    }
     summarize(){
         throw new Error('MyLife System Avatar cannot summarize files')
     }
@@ -3952,7 +3962,7 @@ function mRoutine(script, Avatar, BotAgent){
         role: Avatar.nickname,
         type: 'avatar',
     }
-    const { cast=[defaultCastMember], description, developers, events, files, name, pause, public: isPublic, purpose, status, title, typeSpeed, variables, version=1.0, } = script
+    const { cast=[defaultCastMember], clearSystemChat=false, description, developers, events, files, name, pause, public: isPublic, purpose, status, title, typeSpeed, variables, version=1.0, } = script
     if(!cast?.length || !events?.length)
         throw new Error('Routine must have a well-structured `cast` and `events` array.')
     if(!isPublic)
@@ -3980,6 +3990,7 @@ function mRoutine(script, Avatar, BotAgent){
     }
     return {
         cast,
+        clearSystemChat,
         description,
         developers,
         events,
