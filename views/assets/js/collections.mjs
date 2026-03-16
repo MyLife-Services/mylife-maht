@@ -297,9 +297,11 @@ function togglePopup(id, bForceState){
  * @returns {void}
  */
 function unsetActiveItem(){
+    const { popup, } = mActiveItem
     mActiveItem = null
     hide(activeChat())
-    hide(activeChat().popup)
+    if(popup)
+        hide(popup)
 }
 /**
  * Updates the active item title in the chat system, display-only.
