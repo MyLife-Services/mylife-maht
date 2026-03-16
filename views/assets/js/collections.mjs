@@ -247,6 +247,7 @@ function setActiveItem(itemId){
     if(activeStatus()){
         activeStatus().className = 'chat-active-item-status'
         activeStatus().textContent = 'Active: '
+        activeStatus().removeEventListener('click', mTogglePopup)
         activeStatus().addEventListener('click', mTogglePopup)
     }
     if(activeTitle()){
