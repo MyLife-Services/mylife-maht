@@ -100,7 +100,7 @@ function activeIcon(){
  * @returns {object} - The active item object.
  */
 function activeItem(){
-    return mActiveItem
+    return mActiveItem ?? {}
 }
 /**
  * Gets the active item status HTML element for active item display.

@@ -290,7 +290,7 @@
     flex-wrap: wrap;
     gap: 0.25rem;
     justify-content: center;
-    max-width: 100%;
+    width: 100%;
 }
 .publicity-toggle-view-icon {
     cursor: default;

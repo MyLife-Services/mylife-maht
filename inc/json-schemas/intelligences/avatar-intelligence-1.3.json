@@ -11,7 +11,7 @@
         "label": "Reset Passphrase",
         "order": 0,
         "type": "passphrase",
-        "value": ""
+        "value": "Enter your new passphrase here..."
       },
       {
         "id": "5afc4f5d-4cbf-4fe6-bf4e-f7d02c519a1e",
@@ -21,6 +21,7 @@
         "value": "avatar"
       },
       {
+        "clearSystemChat": true,
         "id": "2c7716dd-a634-40b8-bbe8-f5050aee5e3a",
         "label": "MyLife Introduction",
         "order": 2,
@@ -35,6 +36,7 @@
         "value": "aae28fe4-30f9-4c29-9174-a0616569e762"
       },
       {
+        "clearSystemChat": true,
         "id": "e3f6a7b8-9d0c-4e1f-8a2b-7c6d5e4f3a2b",
         "label": "Privacy Policy",
         "order": 5,

@@ -103,7 +103,7 @@ function addMessage(message, role, typeDelay){
 /**
  * Pushes an array of messages to the chat column.
  * @param {String[]} messages - The array of string messages to add to the chat column.
- * @param {String} role - The role of the message, default=`agent`
+ * @param {String} role - The role of the message, uses `type` of bot to trigger CSS
  * @param {number} typeDelay - The delay between typing each character, default=`2`
  * @param {number} responseDelay - The delay between each message, default=`3` seconds
  * @returns {void}
@@ -394,26 +394,29 @@ async function startExperience(experienceId){
  * Submits a message to MyLife Member Services chat.
  * @async
  * @param {string} message - The message to submit
+ * @param {string} role - The role of the message, default=`member`
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`
  * @returns {Promise<object>} - The return is the chat response object: { instruction, responses, success, }
  */
-async function submit(message){
+async function submit(message, role='member', hideMemberChat=true){
 	if(!message?.length)
 		return
-    toggleMemberInput(false)
+    if(hideMemberChat)
+        toggleMemberInput(false)
     const awaitBar = globals.await(`Connecting with ${ activeBot().name }...`)
     globals.addChatElement(awaitBar)
-    const itemId = activeItem()?.id
+    const { id: itemId, } = activeItem()
     const { id: botId, } = activeBot()
 	const request = {
         botId,
         itemId,
         message,
-        role: 'member',
+        role,
     }
 	const response = await globals.datamanager.submitChat(request, true)
     globals.expunge(awaitBar)
-    toggleMemberInput(true)
+    if(hideMemberChat)
+        toggleMemberInput(true)
     return response
 }
 /**

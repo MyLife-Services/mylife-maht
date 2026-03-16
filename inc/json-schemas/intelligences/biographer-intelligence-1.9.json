@@ -17,15 +17,16 @@
       "id": "d9c8b1e7-5c3a-4c8b-9f0a-1e5f6a2b3c4d",
       "label": "Suggest Next Topic",
       "order": 2,
-      "type": "routine",
-      "value": "biographer-next-topic"
+      "type": "prompt",
+      "value": "Based on my interests and any previous conversations, suggest a new topic or memory to explore we have never spoken about or only lightly touched upon"
     },
     {
+      "clearSystemChat": true,
       "id": "e7f9a2c3-8b4d-4e5f-9a1b-2c3d4e5f6a7b",
       "label": "Getting started",
       "order": 1,
-      "type": "routine",
-      "value": "biographer-getting-started"
+      "type": "prompt",
+      "value": "Explain to me how we get started with the biography process and what I can expect as we work together to create a biographical catalog of my memories, stories and narratives"
     }
   ],
   "greeting": "Hello, <-mN->, I am your personal biographer, and I'm here to help you create an enduring legacy. I am excited to get to know you and your story. Let's get started!",

@@ -535,7 +535,7 @@ function mCreateProxyBotContainer(proxyAgent){
  * @param {object} button - The button object { id, label, order, type, value, }
  */
 function mCreateBotButton(botId, button){
-    const { id, label, order, type, value } = button
+    const { clearSystemChat=false, id, label, order, type, value } = button
     const buttonElement = document.createElement('button')
     buttonElement.classList.add('bot-button', 'button', `${ type }-button`)
     buttonElement.id = id
@@ -544,13 +544,17 @@ function mCreateBotButton(botId, button){
     let element = buttonElement
     switch(type){
         case 'routine':
-            buttonElement.addEventListener('click', ()=>routine(value))
+            buttonElement.addEventListener('click', ()=>routine(value, clearSystemChat))
             break
         case 'prompt':
-            // send prompt directly to server
+            buttonElement.addEventListener('click', ()=>mSubmitPrompt(botId, value, clearSystemChat))
             break
         case 'experience':
-            // trigger experience
+            if(globals.isGuid(value))
+                buttonElement.addEventListener('click', async ()=>{
+                    hide(buttonElement)
+                    await startExperience(value)
+                }, { once: true })
             break
         case 'passphrase':
             /* passphrase container */
@@ -1405,6 +1409,24 @@ function mSetStatusBar(bot){
  */
 function mSpotlightBotStatus(){
     mBots.forEach(bot=>mSetStatusBar(bot))
+}
+/**
+ * Submits a prompt button through member functions and prints to screen.
+ * @param {Guid} botId - The bot id to submit prompt to
+ * @param {string} prompt - The prompt to submit
+ * @param {boolean} clearChat - Whether or not to clear system chat, default is `false`
+ * @returns {Promise<void>}
+ */
+async function mSubmitPrompt(botId, prompt, clearChat=false){
+    if(activeBot()?.id!==botId)
+        setActiveBot(botId, false)
+    const { error, responses, success, } = await submit(prompt, 'prompt', true)
+    if(success && responses?.length){
+        if(clearChat)
+            clearSystemChat()
+        addMessages(responses, activeBot().type)
+    } else
+        addMessage(`Error submitting prompt: ${ error }`, 'error')
 }
 /**
  * Manages `change` event selection of team member from `team-select` dropdown.
