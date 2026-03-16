@@ -332,7 +332,7 @@ function updateItemSummary(id, updatedSummary){
     const { container, popup, summary, } = item
     if(updatedSummary==summary)
         return
-    const popupContent = popup.getElementById(`popup-content-${ id }`)
+    const popupContent = popup.querySelector(`#popup-content-${ id }`)
     item.summary = updatedSummary
     item.lastUpdatedContent = updatedSummary
     item.lastUpdate = Date.now()
