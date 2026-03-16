@@ -239,7 +239,7 @@
     overflow-wrap: break-word;
 }
 .collections-title {
-    margin-left: 1rem;
+    padding-left: 1rem;
 }
 .bot-title-name,
 .bot-title-type {
