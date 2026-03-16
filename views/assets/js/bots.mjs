@@ -474,15 +474,14 @@ function mCreateProxyBotContainer(proxyAgent){
     const proxyTitleType = document.createElement('div')
     proxyTitleType.classList.add('bot-title-type', 'proxy-title-type')
     proxyTitleType.id = `${ id }-title-type`
+    proxyTitleType.textContent = `Proxy Agent`
     const proxyTitleName = document.createElement('div')
     proxyTitleName.id = `${ id }-title-name`
     proxyTitleName.classList.add('bot-title-name', 'proxy-title-name')
-    const proxyTitleVersion = document.createElement('div')
-    proxyTitleVersion.id = `${ id }-title-version`
-    proxyTitleVersion.classList.add('bot-title-version', 'proxy-title-version')
+    proxyTitleName.textContent = name
+    // no version for external, refreshed differently
     proxyTitle.appendChild(proxyTitleType)
     proxyTitle.appendChild(proxyTitleName)
-    proxyTitle.appendChild(proxyTitleVersion)
     /* dropdown caret */
     const proxyDropdown = document.createElement('div')
     proxyDropdown.classList.add('bot-options-dropdown', 'proxy-options-dropdown')
@@ -495,27 +494,6 @@ function mCreateProxyBotContainer(proxyAgent){
     const proxyOptions = document.createElement('div')
     proxyOptions.classList.add('bot-options', 'hidden', 'proxy-options')
     proxyOptions.id = `${ id }-options`
-    /* skills [begin] */
-    const proxySkills = document.createElement('div')
-    proxySkills.classList.add('input-group', 'proxy-inputs', 'skills')
-    proxySkills.id = `${ id }-skills`
-    /* - skills label */
-    const proxySkillsLabel = document.createElement('label')
-    proxySkillsLabel.id = `${ id }-label-skills`
-    proxySkillsLabel.htmlFor = `${ id }-input-skills`
-    proxySkillsLabel.textContent = `Agent Skills:`
-    /* - skills input */
-    const proxySkillsInput = document.createElement('textarea')
-    proxySkillsInput.classList.add('bot-input', 'proxy-input', 'proxy-skills')
-    proxySkillsInput.id = `${ id }-input-skills`
-    proxySkillsInput.maxLength = 1024
-    const proxySkillsValue = skills?.length > proxySkillsInput.maxLength
-        ? skills.substring(0, proxySkillsInput.maxLength-3) + '...'
-        : skills
-    proxySkillsInput.value = proxySkillsValue
-    proxySkills.appendChild(proxySkillsLabel)
-    proxySkills.appendChild(proxySkillsInput)
-    /* skills [end] */
     proxyOptions.appendChild(mProxyName(id, name))
     proxyOptions.appendChild(mProxyEndpoint(id, url))
     proxyOptions.appendChild(mProxyDescription(id, description))
@@ -1110,22 +1088,22 @@ function mProxyEndpoint(id, url){
     if(url?.length){
         const proxyUrl = document.createElement('div')
         proxyUrl.classList.add('input-group', 'proxy-inputs')
-        proxyUrl.id = `${ id }-url`
+        proxyUrl.id = `endpoint-container-${ id }`
         /* - endpoint label */
         const proxyUrlLabel = document.createElement('label')
-        proxyUrlLabel.id = `${ id }-label-url`
-        proxyUrlLabel.htmlFor = `${ id }-input-url`
+        proxyUrlLabel.id = `endpoint-label-${ id }`
+        proxyUrlLabel.htmlFor = `endpoint-${ id }`
         proxyUrlLabel.textContent = `Endpoint:`
         /* - endpoint input */
         const proxyUrlInput = document.createElement('input')
         proxyUrlInput.classList.add('bot-input', 'proxy-input', 'proxy-url')
         proxyUrlInput.disabled = true
-        proxyUrlInput.id = `${ id }-input-url`
+        proxyUrlInput.id = `endpoint-${ id }`
+        proxyUrlInput.value = url
         /* - endpoint refresh */
         const proxyUrlRefresh = document.createElement('span')
         proxyUrlRefresh.classList.add('fas', 'fa-arrows-rotate', 'proxy-refresh')
-        proxyUrlRefresh.dataset.id = id
-        proxyUrlRefresh.id = `${ id }-refresh`
+        proxyUrlRefresh.id = `endpoint-refresh-${ id }`
         proxyUrlRefresh.title = `Refresh Endpoint`
         proxyUrlRefresh.addEventListener('click', mRefreshProxyUrl, { once: true })
         /* appends */
@@ -1159,6 +1137,9 @@ function mProxyName(id, name){
         proxyNameInput.classList.add('bot-input', 'bot-name', 'proxy-input', 'proxy-bot-name')
         proxyNameInput.id = `${ id }-input-bot_name`
         proxyNameInput.maxLength = 256
+        proxyNameInput.placeholder = 'Your agent name...'
+        proxyNameInput.value = name
+        proxyNameInput.addEventListener('change', mBotNameChange, { once: true })
         /* appends */
         proxyName.appendChild(proxyNameLabel)
         proxyName.appendChild(proxyNameInput)
@@ -1173,6 +1154,7 @@ function mProxyName(id, name){
  * @returns {DocumentFragment} - Purpose element for a proxy agent
  */
 function mProxyPurpose(id, purpose){
+    console.log(`mProxyPurpose::id, purpose`, purpose, id)
     const purposeFragment = document.createDocumentFragment()
     const purposeMaxLength = 1024
     purpose = purpose?.trim().substring(0, purposeMaxLength)
@@ -1293,20 +1275,19 @@ function mProxySkills(id, skills){
 }
 /**
  * Refresh the proxy URL for the proxy agent.
- * @param {Event} e - The event object
+ * @param {Event} event - The event object
  * @returns {void}
  */
-async function mRefreshProxyUrl(e){
-    e.stopPropagation()
-    const id = e.target.dataset.id
-        ?? e.target.id.replace('-refresh', '')
-    e.target.classList.add('spin')
+async function mRefreshProxyUrl(event){
+    event.stopPropagation()
+    const id = event.target.id.replace('endpoint-refresh-', '')
+    event.target.classList.add('spin')
     const response = await globals.datamanager.botProxyRefresh(id)
-    e.target.style.display = 'none'
-    e.target.classList.remove('spin')
+    event.target.style.display = 'none'
+    event.target.classList.remove('spin')
     setTimeout(() => {
-        e.target.style.display = 'flex'
-        e.target.addEventListener('click', mRefreshProxyUrl, { once: true })
+        event.target.style.display = 'flex'
+        event.target.addEventListener('click', mRefreshProxyUrl, { once: true })
     }, 5 * 60 * 1000)
     console.log('Proxy URL refreshed:', response)
 }
