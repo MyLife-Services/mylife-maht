@@ -250,11 +250,11 @@ function setActiveItem(itemId){
         activeStatus().addEventListener('click', mTogglePopup)
     }
     if(activeTitle()){
-        activeTitle().innerHTML = ''
+        activeTitle().textContent = ''
         const activeText = document.createElement('div')
         activeText.classList.add('chat-active-item-title-text')
         activeText.id = `chat-active-item-title-text_${ itemId }`
-        activeText.innerHTML = title
+        activeText.textContent = title
         /* append activeTitle */
         activeTitle().appendChild(activeText)
         activeTitle().className = 'chat-active-item-title'
