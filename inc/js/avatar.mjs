@@ -13,7 +13,7 @@ import ConnectorAgent from './agents/system/connector-agent.mjs'
 import { Entry, Memory, } from './models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
-import LLMServices from './llm-services.mjs'
+import LLMServices from './llm.mjs'
 import { mcpClientAllowsDirectory, mcpClientAllowsRequest, mcpClientRequest, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const __dirpath = fileURLToPath(import.meta.url)

@@ -14,7 +14,7 @@ import {
     extendClass_file,
 	extendClass_message,
 } from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
-import LLMServices from './llm-services.mjs'
+import LLMServices from './llm.mjs'
 import Menu from './menu.mjs'
 /* module constants */
 const {

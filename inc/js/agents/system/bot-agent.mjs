@@ -1026,7 +1026,7 @@ async function mAI_openai(botData, llm){
 }
 /**
  * Creates bot and returns associated `bot` object.
- * @todo - validBotData.name = botDbName should not be required, push logic to `llm-services`
+ * @todo - validBotData.name = botDbName should not be required, push logic to `llm.mjs`
  * @module
  * @async
  * @param {Guid} avatarId - The Avatar id
