@@ -682,7 +682,6 @@ function mInitializePageListeners(){
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
     navigationLinks.forEach(link=>{
-        console.log('link', link)
         if(link.getAttribute('href')===currentPath){
             link.classList.add('active') // Add 'active' class to the current link
             link.addEventListener('click', event=>{
