@@ -277,7 +277,6 @@ function setActiveItem(itemId){
     const { id, } = getBot(botType)
     if(id)
         setActiveBot(id, false)
-    console.log('setActiveBot()::id', id, activeChat(), )
     show(activeChat())
 }
 
@@ -289,7 +288,6 @@ function setActiveItem(itemId){
  */
 function togglePopup(id, bForceState){
     const { container, } = getItem(id) // @stub: can get by id or title?
-    console.log('togglePopup()::item', id, container)
     container?.click() // force click on itemContainer, triggers `mTogglePopup`
 }
 /**
