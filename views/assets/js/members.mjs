@@ -382,7 +382,7 @@ function startDrag(popup, e){
     offsetY = e.clientY - rect.top
 }
 /**
- * Start experience onscreen, displaying welcome ande loading remaining data. Passthrough to `experience.mjs::experienceStart()`.
+ * Start experience onscreen, displaying welcome and loading remaining data. Passthrough to `experience.mjs::experienceStart()`.
  * @public
  * @param {Guid} experienceId - The Experience id
  * @returns {void}

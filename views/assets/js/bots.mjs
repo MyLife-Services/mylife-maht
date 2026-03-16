@@ -1517,52 +1517,6 @@ function mTogglePassphrase(event){
     }
 }
 /**
- * 
- * @param {HTMLElement} element - The element to toggle classes on.
- * @param {array} add - The classes to add.
- * @param {array} remove - The classes to remove.
- * @returns {void}
- */
-function mToggleClass(element, add=[], remove=[]){
-    remove.forEach(className=>element.classList.remove(className))
-    add.forEach(className=>element.classList.add(className))
-}
-/**
- * Toggles switch for element.
- * @param {Event} e - The event object.
- * @returns {void}
- */
-function mToggleSwitch(e){
-    let target = this
-    if(e){
-        e.stopPropagation()
-        target = e.target
-    }
-    const { children, } = this
-    let { id, } = this /* parent toggle id */
-    id = globals.HTMLIdToType(id)
-    const associatedSwitch = mFindCheckbox(target) /* throws on missing */
-    const { checked, } = associatedSwitch
-    const { checkedValue=`${ e ? !checked : checked}`, } = target.dataset
-    associatedSwitch.checked = checkedValue==='true'
-    let labelId
-    /* send array children of this */
-    const labels = Array.from(children)
-        .filter(child=>{
-            const { tagName, } = child
-            return tagName.toLowerCase()==='label'
-        })
-    labels.forEach(label=>{
-        const { dataset, id: childLabelId, } = label
-        const { checked, } = associatedSwitch
-        const { checkedValue=`${ checked }`, } = dataset
-        if(checkedValue?.toLowerCase()===`${ checked }`)
-            labelId = childLabelId
-    })
-    if(labelId && labels.length)
-        mUpdateLabels(labelId, labels)
-}
-/**
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
  * @requires mBots
  * @param {boolean} includeAvatar - Whether to include the personal avatar in the update, defaults to `true` for page construction; afterwards, avatar should remain constant.
@@ -1647,24 +1601,6 @@ async function mUpdateBotVersion(botId){
         updater.classList.remove('update-available')
         updater.textContent = mVersion(bot.version)
     }
-}
-/**
- * Update the bot labels with specifics.
- * @param {string} activeLabel - The active label.
- * @param {Array} labels - The array of possible labels.
- * @returns {void}
- */
-function mUpdateLabels(activeLabelId, labels){
-    labels.forEach(label=>{
-        const { id, name, value, } = label
-        if(id===activeLabelId){
-            label.classList.remove('label-inactive')
-            label.classList.add('label-active')
-        } else {
-            label.classList.remove('label-active')
-            label.classList.add('label-inactive')
-        }
-    })
 }
 /**
  * Update a bot checkbox structure with specifics.
@@ -1810,6 +1746,13 @@ async function mUploadFiles(event){
         mUploadFilesInputRemove(fileInput, uploadParent, mCollectionsUpload)
     }
 }
+/**
+ * Handles file input change event, uploads files to server, and updates the collection list.
+ * @async
+ * @param {HTMLElement} fileInput - The file input element
+ * @param {HTMLElement} uploadParent - The parent element of the upload input
+ * @param {HTMLElement} uploadButton - The upload button element
+ */
 async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
     fileInput.addEventListener('change', async event=>{
         const { files: uploads, } = fileInput
@@ -1827,6 +1770,12 @@ async function mUploadFilesInput(fileInput, uploadParent, uploadButton){
     }, { once: true })
     mUploadFilesInputRemove(fileInput, uploadParent, uploadButton)
 }
+/**
+ * Removes the file input element from the DOM and re-enables the upload button.
+ * @param {HTMLElement} fileInput - The file input element
+ * @param {HTMLElement} uploadParent - The parent element of the upload input
+ * @param {HTMLElement} uploadButton - The upload button element
+ */
 function mUploadFilesInputRemove(fileInput, uploadParent, uploadButton){
     if(fileInput && uploadParent.contains(fileInput))
         uploadParent.removeChild(fileInput)
