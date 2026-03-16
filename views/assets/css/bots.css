@@ -186,12 +186,6 @@
     display: flex; /* Make it flex when open */
     overflow-y: auto;
 }
-.button.bot-options-button {
-    font-size: 0.9rem;
-    margin: 0.4rem;
-    padding: 0.5rem;
-    width: auto;
-}
 .bot-options-dropdown {
     align-items: center;
     background-color: rgba(255, 255, 255, .7); /* Circle color */
@@ -263,6 +257,39 @@
 .bots {
 	flex-direction: column;
 	justify-content: flex-start;
+    max-width: 100%;
+}
+.bot-button.button {
+    font-size: 0.8rem;
+    margin: 0.2rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 45%;
+}
+.bot-button.button.experience-button {
+    background-color: darkviolet;
+    color: white;
+}
+.bot-button.button.experience-button:hover {
+    background-color: violet;
+    color: black;
+}
+.bot-button.button.passphrase-button {
+    background-color: lightblue;
+    color: black;
+    margin: 0.4rem;
+    width: 100%;
+}
+.bot-button.button.passphrase-button:hover {
+    background-color: lightyellow;
+}
+.bot-buttons {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    justify-content: center;
     max-width: 100%;
 }
 .publicity-toggle-view-icon {
@@ -561,11 +588,11 @@
 }
 .passphrase-container {
     align-items: center;
-    display: none;
+    display: flex;
     flex-direction: row;
     gap: 1rem;
     justify-content: space-between;
-    margin-bottom: 1rem;
+    /* margin-bottom: 1rem; */
     width: 100%;
 }
 .passphrase-reset,

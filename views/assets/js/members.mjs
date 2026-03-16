@@ -17,6 +17,7 @@ import {
     getBotsByForm,
     getItem,
     initBots,
+    isAvatar,
     refreshCollection,
     setActiveBot,
     setActiveItem,
@@ -69,21 +70,6 @@ document.addEventListener('DOMContentLoaded', async event=>{
     await mInitialize() // throws if error
     stageTransition()
     unsetActiveAction()
-    console.log('members.mjs::DOMContentLoaded')
-})
-/* dragging events */
-document.addEventListener('mousemove', (e)=>{
-    if(!isDragging || !activePopup)
-        return
-    const maxLeft = window.innerWidth * 0.4 // 40vw
-    let newLeft = e.clientX - offsetX
-    let newTop = e.clientY - offsetY
-    if (newLeft > maxLeft) newLeft = maxLeft
-    activePopup.style.left = newLeft + 'px'
-    activePopup.style.top = newTop + 'px'
-})
-document.addEventListener('mouseup', ()=>{
-    isDragging = false
 })
 /* public functions */
 /**
@@ -707,6 +693,20 @@ function mInitializePageListeners(){
                 event.preventDefault() // Prevent default action (navigation) on click
             })
         }
+    })
+    /* dragging events */
+    document.addEventListener('mousemove', (e)=>{
+        if(!isDragging || !activePopup)
+            return
+        const maxLeft = window.innerWidth * 0.4 // 40vw
+        let newLeft = e.clientX - offsetX
+        let newTop = e.clientY - offsetY
+        if (newLeft > maxLeft) newLeft = maxLeft
+        activePopup.style.left = newLeft + 'px'
+        activePopup.style.top = newTop + 'px'
+    })
+    document.addEventListener('mouseup', ()=>{
+        isDragging = false
     })
 }
 /**

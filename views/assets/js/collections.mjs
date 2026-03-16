@@ -14,6 +14,7 @@ import {
     getBotsByForm,
     globals,
     hide,
+    isAvatar,
     mainContent,
     overlays,
     replaceElement,

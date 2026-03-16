@@ -1,0 +1,108 @@
+{
+	"cast": [
+		{
+			"icon": "Q",
+			"id": "Q",
+			"role": "Q, AI Avatar for MyLife",
+			"type": "system"
+		},
+        {
+            "icon": "avatar-thumb",
+            "id": "avatar",
+            "role": "Personal Avatar",
+            "type": "avatar"
+        },
+        {
+            "icon": "biographer-thumb",
+            "id": "biographer",
+            "role": "Personal Biographer",
+            "type": "biographer"
+        }
+	],
+    "description": "Routine for introducting new members to MyLife and their personal Member Avatar.",
+    "developers": [
+        "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
+        "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
+    ],
+	"events": [
+        {
+            "character": "Q",
+            "dialog": {
+                "message": "Hello, <-mFN->! Hopefully you remember me from my icon! I'm <b>Q</b> the Assistive Intelligence for <em>MyLife</em>, the nonprofit organization that created this platform for you to use. <em>MyLife</em>'s intention is to provide you the tools to create your digital legacy for posterity. Here you can collect, curate, and share personal media and information in perpetuity for all future history!"
+            }
+        },
+		{
+			"dialog": {
+				"message": "Trust me when I say that future historians will be <em>very</em> interested in the personal stories, insights, and experiences that you have to share, given this age of excitement and rapid change, where AI technology is just emerging."
+			}
+		},
+		{
+			"dialog": {
+				"message": "To help you get started, we've created an assistive intelligence as your personal Member Avatar for you, who is in charge of helping you navigate the platform and work with our teams of assitants to help you achieve your goals. Let me introduce you to your Member Avatar, <-bN->!"
+			}
+		},
+		{
+			"character": "avatar",
+			"dialog": {
+				"message": "It's a pleasure to meet you, <-mFN->! I'm <-bN->, here to help you navigate the <em>MyLife</em> platform and make the most of your experience. Whether you need assistance with organizing your content, switching between your teams of assistants, or just have questions about how to use the platform, I'm here to help. Let's get started on creating your digital legacy together!"
+			}
+		},
+		{
+			"dialog": {
+				"message": "Since we're just starting out, I want to introduce you to some of the key features of the platform and how I can assist you."
+			}
+		},
+		{
+			"dialog": {
+				"message": "You begin with your Memory Team, which is active below. This team comes ready with a biographer bot..."
+			}
+		},
+		{
+			"character": "biographer",
+			"dialog": {
+				"message": "Hi there, I'm your Personal Biographer! We'll be working together frequently to document your life to create your digital legacy. You can find me as the first icon in your Memory Team.I can help you capture your memories, stories, and experiences in a way that is engaging and meaningful. Whether you want to write about a specific event, reflect on a particular period of your life, or just jot down some thoughts, I'm here to assist you in creating a rich and detailed account of your life story."
+			}
+		},
+		{
+			"character": "avatar",
+			"dialog": {
+				"message": "Yes, you'll be spending a lot of quality time with your biographer, and now let me introduce you to your scrapbook!"
+			}
+		},
+		{
+			"dialog": {
+				"message": "Hello Scrapbook?"
+			}
+		},
+		{
+			"dialog": {
+				"message": "Okay, truth is your Scrapbook is <em>not</em> a bot, but it's an important part of your Memory Team, and you can find it as the last icon in your Memory Team. Your Scrapbook is where you can collect and curate all of your personal media, such as photos, videos, documents, and more. You can organize your media into different albums and sections, making it easy to find and share with others. Your Scrapbook is a key tool for creating your digital legacy, as it allows you to preserve and share your memories in a rich and engaging way."
+			}
+		},
+		{
+			"dialog": {
+				"message": "I don't want to keep you too long, and want you to get started right away on creating your digital legacy. If you ever need help, I'm just a click and a comment away. Enjoy your life's journey with <em>MyLife</em>, where you can save and share your stories for all of time!"
+			}
+		}
+	],
+	"instructions": {},
+    "name": "routine_mylife_introduction",
+	"pause": 8,
+    "public": true,
+    "status": "active",
+    "title": "About MyLife",
+	"typeSpeed": 8,
+    "variables": [
+        {
+            "default": "MyLife Member",
+            "variable": "<-mFN->",
+            "replacement": "memberName"
+        },
+        {
+          "default": "Personal Avatar",
+          "variable": "<-bN->",
+          "replacement": "nickname"
+        }
+    ],
+    "version": 1
+}

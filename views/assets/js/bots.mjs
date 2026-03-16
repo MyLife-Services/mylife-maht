@@ -50,19 +50,17 @@ import {
     unsetActiveAction,
 } from './members.mjs'
 const mAvailableUploaderTypes = ['personal-avatar'],
+    mAvatarTypes = ['avatar', 'personal-avatar'],
     mDefaultCollections = ['memory', 'entry'], // @stub: take from team
     mDefaultTeam = 'memory',
-    passphraseCancelButton = document.getElementById(`personal-avatar-passphrase-cancel`),
-    passphraseInput = document.getElementById(`personal-avatar-passphrase`),
-    passphraseInputContainer = document.getElementById(`personal-avatar-passphrase-container`),
-    passphraseResetButton = document.getElementById(`passphrase-reset-button`),
-    passphraseSubmitButton = document.getElementById(`personal-avatar-passphrase-submit`),
+    mSidebar = document.getElementById('sidebar'),
     mTeamAddMemberIcon = document.getElementById('add-team-member-icon'),
     mTeamHeader = document.getElementById('team-header'),
     mTeamName = document.getElementById('team-name'),
     mTeamPopup = document.getElementById('team-popup'),
     mTeams = [],
-    mTutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762'
+    mTutorialId = 'aae28fe4-30f9-4c29-9174-a0616569e762',
+    mTutorialOriginal = '88043968-d7ef-4a57-a923-335bc9f92792'
 /* variables */
 let mActiveBot,
     mActiveTeam,
@@ -172,6 +170,14 @@ function getBotsByForm(form){
     if(!typeof form==='string' || !form.length)
         return
     return getBots().filter(bot=>bot.itemForms.includes(form))
+}
+/**
+ * Checks if bot type is an avatar (personal or not).
+ * @param {string} type - The bot type to check
+ * @returns {boolean} - True if the bot is an avatar, false otherwise
+ */
+function isAvatar(type){
+    return mAvatarTypes.includes(type)
 }
 /**
  * Set active bot on server and update page bots.
@@ -524,6 +530,75 @@ function mCreateProxyBotContainer(proxyAgent){
     return proxyContainer
 }
 /**
+ * Creates bot button for a bot buttons panel from bot button data.
+ * @param {Guid} botId - The bot id (uuid)
+ * @param {object} button - The button object { id, label, order, type, value, }
+ */
+function mCreateBotButton(botId, button){
+    const { id, label, order, type, value } = button
+    const buttonElement = document.createElement('button')
+    buttonElement.classList.add('bot-button', 'button', `${ type }-button`)
+    buttonElement.id = id
+    buttonElement.textContent = label
+    buttonElement.type = 'button'
+    let element = buttonElement
+    switch(type){
+        case 'routine':
+            buttonElement.addEventListener('click', ()=>routine(value))
+            break
+        case 'prompt':
+            // send prompt directly to server
+            break
+        case 'experience':
+            // trigger experience
+            break
+        case 'passphrase':
+            /* passphrase container */
+            const passphraseContainer = document.createElement('div')
+            passphraseContainer.classList.add('passphrase-container')
+            passphraseContainer.id = `passphrase-container-${ id }`
+            passphraseContainer.appendChild(buttonElement)
+            /* cancel */
+            const passphraseCancel = document.createElement('div')
+            passphraseCancel.classList.add('fas', 'fa-close', 'passphrase-cancel')
+            passphraseCancel.id = `passphrase-cancel-${ id }`
+            passphraseContainer.appendChild(passphraseCancel)
+            hide(passphraseCancel)
+            /* input */
+            const passphraseInput = document.createElement('input')
+            passphraseInput.classList.add('bot-input', 'passphrase-input')
+            passphraseInput.id = `passphrase-input-${ id }`
+            passphraseInput.maxLength = 256
+            passphraseInput.placeholder = 'Enter new passphrase...'
+            passphraseInput.value = null
+            passphraseContainer.appendChild(passphraseInput)
+            hide(passphraseInput)
+            /* submit */
+            const passphraseSubmit = document.createElement('div')
+            passphraseSubmit.classList.add('fa-solid', 'fa-circle-arrow-right', 'passphrase-submit')
+            passphraseSubmit.id = `passphrase-submit-${ id }`
+            passphraseContainer.appendChild(passphraseSubmit)
+            hide(passphraseSubmit)
+            buttonElement.addEventListener('click', mTogglePassphrase, { once: true })
+            element = passphraseContainer
+            break
+        case 'instruction':
+            default:
+        break
+    }
+    return element
+}
+function mCreateBotButtons(botId, buttons=[]){
+    const buttonContainer = document.createElement('div')
+    buttonContainer.classList.add('bot-buttons')
+    buttonContainer.id = `bot-buttons-container-${ botId }`
+    buttons
+        .slice()
+        .sort((a, b)=>(a.order ?? 0) - (b.order ?? 0))
+        .forEach(button=>buttonContainer.appendChild(mCreateBotButton(botId, button)))
+    return buttonContainer
+}
+/**
  * Creates a dynamic bot container element for the given bot, replacing hard-coded HTML.
  * @private
  * @requires mBots
@@ -612,20 +687,7 @@ async function mCreateBotContainer(bot){
                 options.appendChild(optionsElement)
         })
     // buttons
-    buttons
-        .slice()
-        .sort((a, b)=>(a.order ?? 0) - (b.order ?? 0)).forEach(button=>{
-            const btn = document.createElement('button')
-            btn.classList.add('bot-options-button', 'button')
-            btn.id = button.id
-            btn.type = 'button'
-            btn.textContent = button.label
-            if(button.type === 'routine')
-                btn.classList.add('routine-button')
-            else if(button.type === 'start')
-                btn.classList.add('bot-start')
-            options.appendChild(btn)
-        })
+    options.appendChild(mCreateBotButtons(id, buttons))
     // retirements
     options.appendChild(mCreateRetireContainer(id, retirable))
     container.appendChild(status)
@@ -861,14 +923,29 @@ function mFindCheckbox(element, searchParent=true){
  * @returns {void}
  */
 function mInputPassphrase(event){
-    if(event.key==='Enter')
-        passphraseSubmitButton.click()
-    else if(event.key==='Escape')
-        passphraseCancelButton.click()
-    if(( passphraseInput?.value?.length ?? 0 )>2)
-        show(passphraseSubmitButton)
-    else
-        hide(passphraseSubmitButton)
+    const passphraseContainer = this.closest('.passphrase-container')
+    const passphraseInput = passphraseContainer.querySelector('.passphrase-input')
+    const passphraseSubmit = passphraseContainer.querySelector('.passphrase-submit')
+    const passphraseCancel = passphraseContainer.querySelector('.passphrase-cancel')
+    switch(event.type){
+        case 'keydown':
+            const key = event.key
+            switch(key){
+                case 'Escape':
+                    passphraseCancel.click()
+                    break
+                case 'Enter':
+                    passphraseSubmit.click()
+                    break
+            }
+            break
+        case 'input':
+            if((passphraseInput.value?.length ?? 0)>2)
+                show(passphraseSubmit)
+            else
+                hide(passphraseSubmit)
+            break
+    }
 }
 /**
  * Determines whether or not the element is an input checkbox.
@@ -1396,35 +1473,44 @@ async function mToggleBotContainers(event){
 }
 /**
  * Toggles passphrase input visibility.
- * @param {Event} event - The event object.
+ * @param {Event} event - The event object
  * @returns {void}
  */
 function mTogglePassphrase(event){
-    /* set properties */
-    passphraseInput.value = ''
-    passphraseInput.placeholder = 'Enter new passphrase...'
-    hide(passphraseSubmitButton)
-    if(event?.target===passphraseResetButton){
-        event.stopPropagation()
+    event.preventDefault()
+    event.stopPropagation()
+    const passphraseContainer = this.closest('.passphrase-container')
+    const passphraseCancel = passphraseContainer.querySelector('.passphrase-cancel'),
+        passphraseInput = passphraseContainer.querySelector('.passphrase-input'),
+        passphraseReset = passphraseContainer.querySelector('.passphrase-button'),
+        passphraseSubmit = passphraseContainer.querySelector('.passphrase-submit')
+    hide(passphraseSubmit)
+    if(this===passphraseReset){
         passphraseInput.focus()
         passphraseInput.disabled = false
-        // passphraseInput.addEventListener('input', mInputPassphrase)
-        passphraseCancelButton.addEventListener('click', mTogglePassphrase, { once: true })
-        passphraseSubmitButton.classList.add('fa-circle-arrow-right')
-        passphraseSubmitButton.classList.remove('fa-check')
-        passphraseSubmitButton.addEventListener('click', mUpdatePassphrase);
+        passphraseInput.placeholder = 'Enter new passphrase...'
+        passphraseInput.value = null
+        passphraseCancel.addEventListener('click', mTogglePassphrase, { once: true })
+        passphraseSubmit.classList.add('fa-circle-arrow-right')
+        passphraseSubmit.classList.remove('fa-check')
+        passphraseSubmit.addEventListener('click', mUpdatePassphrase)
+        passphraseInput.addEventListener('input', mInputPassphrase)
         passphraseInput.addEventListener('keydown', mInputPassphrase)
-        passphraseSubmitButton.classList.add('fa-circle-arrow-right')
-        hide(passphraseResetButton)
-        show(passphraseCancelButton)
-        show(passphraseInputContainer)
+        passphraseSubmit.classList.add('fa-circle-arrow-right')
+        hide(passphraseReset)
+        show(passphraseCancel)
+        show(passphraseInput)
     } else {
         passphraseInput.blur()
+        passphraseInput.disabled = true
+        hide(passphraseCancel)
+        hide(passphraseInput)
+        hide(passphraseSubmit)
+        show(passphraseReset)
         passphraseInput.removeEventListener('input', mInputPassphrase)
-        passphraseSubmitButton.removeEventListener('click', mUpdatePassphrase)
-        passphraseResetButton.addEventListener('click', mTogglePassphrase, { once: true })
-        hide(passphraseInputContainer)
-        show(passphraseResetButton)
+        passphraseInput.removeEventListener('keydown', mInputPassphrase)
+        passphraseSubmit.removeEventListener('click', mUpdatePassphrase)
+        passphraseReset.addEventListener('click', mTogglePassphrase, { once: true })
     }
 }
 /**
@@ -1475,16 +1561,15 @@ function mToggleSwitch(e){
 }
 /**
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
- * @todo - creation mechanism for new bots or to `reinitialize` or `reset` current bots, like avatar.
- * @todo - architect  better mechanic for populating and managing bot-specific options
  * @requires mBots
+ * @param {boolean} includeAvatar - Whether to include the personal avatar in the update, defaults to `true` for page construction; afterwards, avatar should remain constant.
  * @returns {void}
  */
-async function mUpdateBotContainers(){
+async function mUpdateBotContainers(includeAvatar=true){
     if(!mBots?.length)
         throw new Error(`mBots not populated`)
     const collectionsContainer = document.getElementById('collections-container')
-    const [agents, proxyAgents] = mBots.reduce( // set normal and proxy agents
+    const [bots, proxyAgents] = mBots.reduce( // set vanilla bots and proxy agents
         ([normal, proxy], bot)=>{
             (globals.isProxy(bot.type)
                 ? proxy
@@ -1494,16 +1579,16 @@ async function mUpdateBotContainers(){
             return [normal, proxy]
         }, [[], []]
     )
-    // MyLife internal agents
-    for(const bot of agents){
-        const { type, } = bot
-        if(type==='avatar' || type==='personal-avatar')
-            bot.container = document.getElementById('personal-avatar')
-        if(!bot.container)
-            bot.container = document.getElementById(bot.id)
+    // MyLife internal bots
+    for(const bot of bots){
+        const { container, id, type, } = bot
+        if(!includeAvatar && isAvatar(type))
+            continue
+        if(!container)
+            bot.container = document.getElementById(id)
         if(!bot.container){
             const botContainer = await mCreateBotContainer(bot)
-            collectionsContainer.parentNode.insertBefore(botContainer, collectionsContainer)
+            mSidebar.insertBefore(botContainer, isAvatar(type) ? mTeamHeader : collectionsContainer)
             bot.container = botContainer
         }
         mUpdateBotContainer(bot)
@@ -1513,7 +1598,7 @@ async function mUpdateBotContainers(){
         proxyAgents.forEach(async proxyAgent=>{
             const proxyContainer = mCreateProxyBotContainer(proxyAgent)
             proxyAgent.container = proxyContainer
-            collectionsContainer.parentNode.insertBefore(proxyContainer, collectionsContainer)
+            mSidebar.insertBefore(proxyContainer, collectionsContainer)
             mUpdateBotContainer(proxyAgent)
         })
     }
@@ -1624,28 +1709,38 @@ function mUpdateOptions(bot){
     }
 }
 /**
- * Submit updated passphrase for MyLife via avatar.
+ * Submit updated passphrase for MyLife.
  * @private
  * @async
- * @param {Event} event - The event object.
+ * @param {Event} event - The event object
  * @returns {void}
  */
 async function mUpdatePassphrase(event){
+    event.preventDefault()
+    event.stopPropagation()
+    const passphraseContainer = this.closest('.passphrase-container')
+    const passphraseCancel = passphraseContainer.querySelector('.passphrase-cancel'),
+        passphraseInput = passphraseContainer.querySelector('.passphrase-input'),
+        passphraseSubmit = passphraseContainer.querySelector('.passphrase-submit')
     const { value, } = passphraseInput
     if(!value?.length)
         return
+    passphraseSubmit.disabled = true
     const success = await globals.datamanager.passphraseUpdate(value)
     if(success){
-        hide(passphraseCancelButton)
+        hide(passphraseCancel)
         passphraseInput.disabled = true
-        passphraseInput.value = 'Passphrase updated!'
-        passphraseSubmitButton.classList.remove('fa-circle-arrow-right')
-        passphraseSubmitButton.classList.add('fa-check')
+        passphraseInput.placeholder = 'Passphrase updated!'
+        passphraseInput.value = null
+        passphraseSubmit.classList.remove('fa-circle-arrow-right')
+        passphraseSubmit.classList.add('fa-check')
         setTimeout(_=>{
-            mTogglePassphrase()
+            passphraseCancel.click()
+            passphraseSubmit.disabled = false
         }, 2000)
-    } else
-        passphraseSubmitButton.classList.add('fa-circle-arrow-right')
+        return
+    }
+    passphraseSubmit.disabled = false
 }
 /**
  * Updates the active team to specific or default.
@@ -1754,6 +1849,7 @@ export {
     getBots,
     getBotsByForm,
     init as initBots,
+    isAvatar,
     setActiveBot,
     updatePageBots,
     /* collections.mjs */
