@@ -23,8 +23,7 @@
     ],
     "watch": [
       "server.js",
-      "inc/js/*",
-      "inc/json-schemas/*"
+      "inc/js/*"
     ]
   },
   "repository": {
