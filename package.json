@@ -19,7 +19,7 @@
       ".git/*",
       "views/*",
       "inc/js/deprecated/*",
-      "inc/json-schemas/in-progress/*"
+      "inc/json-schemas/*"
     ],
     "watch": [
       "server.js",

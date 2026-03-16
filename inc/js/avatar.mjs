@@ -3962,7 +3962,7 @@ function mRoutine(script, Avatar, BotAgent){
         role: Avatar.nickname,
         type: 'avatar',
     }
-    const { cast=[defaultCastMember], description, developers, events, files, name, pause, public: isPublic, purpose, status, title, typeSpeed, variables, version=1.0, } = script
+    const { cast=[defaultCastMember], clearSystemChat=false, description, developers, events, files, name, pause, public: isPublic, purpose, status, title, typeSpeed, variables, version=1.0, } = script
     if(!cast?.length || !events?.length)
         throw new Error('Routine must have a well-structured `cast` and `events` array.')
     if(!isPublic)
@@ -3990,6 +3990,7 @@ function mRoutine(script, Avatar, BotAgent){
     }
     return {
         cast,
+        clearSystemChat,
         description,
         developers,
         events,

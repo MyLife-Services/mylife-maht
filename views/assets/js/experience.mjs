@@ -241,7 +241,8 @@ async function routine(script, clearChat=false){
     }
     if(typeof script !== 'object')
         throw new Error("Invalid routine script")
-    const { cast, description, developers, events, pause=3, purpose, title, typeSpeed, } = script
+    const { clearSystemChat: scriptClearChat=false, cast, description, developers, events, pause=3, purpose, title, typeSpeed, } = script
+    console.log("Routine script", script)
     if(!events?.length)
         throw new Error("No events found")
     if(!cast?.length)
@@ -251,7 +252,7 @@ async function routine(script, clearChat=false){
     let activeCharacter,
         interrupted=false
     /* execute request */
-    if(clearChat)
+    if(clearChat || scriptClearChat)
         clearSystemChat()
     toggleMemberInput(false)
     document.addEventListener("keydown",e=>{
