@@ -6,7 +6,6 @@ import {
     activeItem,
     activeStatus,
     activeTeam,
-    activeThumb,
     activeTitle,
     createItem,
     endMemory,
@@ -281,11 +280,6 @@ function setActiveAction(instructions){
     const activeIcon = document.getElementById('chat-active-item-icon')
     const activeStatus = document.getElementById('chat-active-item-status')
     const activeTitle = document.getElementById('chat-active-item-title')
-    activeThumb().className = 'fas chat-active-action-thumb'
-    if(thumb?.length)
-        activeThumb().src = thumb
-    else
-        hide(activeThumb())
     if(activeIcon){
         activeIcon.className = 'fas chat-active-action-icon'
         if(icon?.length)
@@ -295,7 +289,6 @@ function setActiveAction(instructions){
     }
     if(activeStatus){
         activeStatus.className = 'chat-active-action-status'
-        activeStatus.removeEventListener('click', e=>togglePopup(activeItem().id))
         if(status?.length)
             activeStatus.textContent = status
         else

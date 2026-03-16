@@ -5,7 +5,6 @@ import {
     activeClose,
     activeItem,
     activeStatus,
-    activeThumb,
     activeTitle,
     createItem,
     endMemory,
@@ -205,6 +204,7 @@ async function setActiveBot(botId, displayGreeting=true){
     const { activated=[], activatedFirst=Date.now(), } = mActiveBot
     mActiveBot.activatedFirst = activatedFirst
     activated.push(Date.now()) // newest date is last to .pop()
+    console.log('version control', version, versionUpdate)
     mActiveBot.activated = activated
     mActiveBot.versionUpdate = versionUpdate
     if(versionUpdate!==version){
@@ -590,6 +590,7 @@ function mCreateBotButtons(botId, buttons=[]){
  */
 async function mCreateBotContainer(bot){
     const { buttons=[], description, flags, icon, id, name, options: botOptions=[], purpose, retirable=true, type, version, } = bot
+    console.log('initial version', version)
     if(!botOptions.length)
         botOptions.push(...await globals.datamanager.botOptions(id))
     if(!buttons.length)
@@ -1809,7 +1810,6 @@ export {
     activeClose,
     activeItem,
     activeStatus,
-    activeThumb,
     activeTitle,
     createItem,
     endMemory,

@@ -35,7 +35,6 @@ const mAvailableCollections = ['file'], // ['chat', 'conversation'],
     mActiveClose = document.getElementById('chat-active-item-close'),
     mActiveIcon = document.getElementById('chat-active-item-icon'),
     mActiveStatus = document.getElementById('chat-active-item-status'),
-    mActiveThumb = document.getElementById('chat-active-item-thumb'),
     mActiveTitle = document.getElementById('chat-active-item-title'),
     mCollections = document.getElementById('collections-container'),
     mCollectionItems={},
@@ -110,13 +109,6 @@ function activeStatus(){
     return mActiveStatus
 }
 /**
- * Gets the active chat thumbnail HTML element for active item display.
- * @returns {HTMLElement} - The Active Chat Thumbnail HTML object
- */
-function activeThumb(){
-    return mActiveThumb
-}
-/**
  * Gets the active item title HTML element for active item display.
  * @returns {HTMLElement} - The Active Item Title HTML object
  */
@@ -133,18 +125,13 @@ function createItem(item){
         if(globals.isGuid(item))
             item = getItem(item)
     const { container, id, popup, type, } = item
+    if(id && getItem(id)?.id!==id)
+        mCollectionItems[type].items.push(item)
     if(!container)
         item.container = mCreateCollectionItem(item)
-    if(!popup){
-        item.popup = mCreateCollectionItemPopup(item)
-        container.appendChild(item.popup)
-        hide(item.popup)
-    }
-    lineItem.appendChild(item.popup)
     const collectionList = document.getElementById(`collection-list-${ type }`)
     if(collectionList){
-        collectionList.insertBefore(lineItem, collectionList.firstChild)
-        registerItem(item, lineItem, popup)
+        collectionList.appendChild(item.container)
         setActiveItem(id)
     }
 }
@@ -180,6 +167,7 @@ function getItem(id) {
         if(match)
             return match
     }
+    return {}
 }
 /**
  * Reveals whether the supplied type is a highlighted collection, meaning it is preloaded and shown in priority order.
@@ -357,8 +345,8 @@ function updateItemSummary(id, updatedSummary){
  * @param {String} title - The title to set for the item
  */
 function updateItemTitle(itemId, title){
-    const titleSpan = document.getElementById(`collection-item-title_${ itemId }`)
-    const titleInput = document.getElementById(`collection-item-title-input__${ itemId }`)
+    const titleSpan = document.getElementById(`collection-item-title-${ itemId }`)
+    const titleInput = document.getElementById(`collection-item-title-input-${ itemId }`)
     const popupTitle = document.getElementById(`popup-header-title-${ itemId }`)
     if(titleSpan)
         titleSpan.textContent = title
@@ -846,15 +834,11 @@ function mCreateCollections(collections, title){
     collectionsDescription.textContent = 'Click on a category to browse entries'
     mCollectionsDescription = collectionsDescription
     collectionsOptions.appendChild(collectionsDescription)
+    /* scrapbook (collections) */
     const collectionsContainer = document.createElement('div')
     collectionsContainer.id = 'collections-collections'
     collectionsContainer.className = 'collections'
     collectionsOptions.appendChild(collectionsContainer)
-    /* scrapbook (collections) */
-    const collectionsCollections = document.createElement('div')
-    collectionsCollections.className = 'collections'
-    collectionsCollections.id = 'collections-collections'
-    collectionsOptions.appendChild(collectionsCollections)
     /* sort collections */
     collections.sort((a, b)=>{
         const aH = mCollectionHighlights.includes(a)
@@ -1801,57 +1785,20 @@ function mTogglePopup(event){
     }
 }
 /**
- * Update the identified collection with provided specifics.
- * @param {string} type - The collection type.
- * @param {HTMLDivElement} collectionList - The collection container.
- * @param {Array} collection - The collection items.
- * @returns {void}
- */
-function mUpdateCollection(type, collectionList, collection){
-    collectionList.innerHTML = ''
-    return collection
-        .map(item=>({
-            ...item,
-            being: item.being,
-            name: item.title
-                ?? item.filename
-                ?? item.name
-                ?? type,
-            type: item.type
-                ?? type
-                ?? item.being,
-        }))
-        .filter(item=>item.type===type)
-        .sort((a, b)=>a.name.localeCompare(b.name))
-        .map(item=>{
-            const lineItem = mCreateCollectionItem(item)
-            collectionList.appendChild(lineItem)
-            // if creating, destroy current... may be possible to just update
-            const popup = mCreateCollectionItemPopup(item)
-            hide(popup)
-            lineItem.appendChild(popup)
-            return { ...item, lineItem, popup }
-        })
-}
-/**
  * Sets collection item content.
- * @private
  * @async
  * @param {Event} event - The event object
  * @returns {Boolean} - Whether or not the content was updated
  */
 async function mUpdateCollectionItem(item, summaryContent){
-    const { emoticons=[], lastUpdatedContent, } = item
+    const { emoticons=[], id, lastUpdatedContent, } = item
     const { value: content, } = summaryContent
     if(content==lastUpdatedContent)
         return true
-    const { success, } = await globals.datamanager.itemUpdate(item.id, content, emoticons)
-    if(success){
+    const { success, } = await globals.datamanager.itemUpdate(id, content, emoticons)
+    if(success)
         item.lastUpdatedContent = content
-        const itemElement = document.getElementById(`collection-item_${ item.id }`)
-        if(itemElement?.collectionItem)
-            itemElement.collectionItem.summary = content
-    } else 
+    else
         summaryContent.value = lastUpdatedContent
     return success
 }
@@ -1862,14 +1809,12 @@ async function mUpdateCollectionItem(item, summaryContent){
  */
 function mUpdateCollectionItemTitle(event){
     const span = event.target
-    const { id, textContent, } = span
-    let idType = id.split('_')
-    const itemId = idType.pop()
-    idType = idType.join('_')
+    const { id: spanId, textContent, } = span
+    const itemId = spanId.replace('collection-item-title-', '')
     /* create input */
     const input = document.createElement('input')
-    const inputName = `${ idType }-input`
-    input.id = `${ inputName }_${ itemId }`
+    const inputName = `collection-item-title-input`
+    input.id = `${ inputName }-${ itemId }`
     input.name = inputName
     input.type = 'text'
     input.value = textContent
@@ -1885,7 +1830,7 @@ function mUpdateCollectionItemTitle(event){
             input.blur()
         }
     })
-    input.addEventListener('blur', async event=>{
+    input.addEventListener('blur', async ()=>{
         input.replaceWith(span)
         input.remove()
         const title = input.value
@@ -1904,7 +1849,6 @@ export {
     activeIcon,
     activeItem,
     activeStatus,
-    activeThumb,
     activeTitle,
     createItem,
     endMemory,

@@ -19,7 +19,7 @@
             "type": "biographer"
         }
 	],
-    "description": "Routine for introducting new members to MyLife and their personal Member Avatar.",
+    "description": "Routine for introducing new members to MyLife and their personal Member Avatar.",
     "developers": [
         "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
         "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
@@ -38,7 +38,7 @@
 		},
 		{
 			"dialog": {
-				"message": "To help you get started, we've created an assistive intelligence as your personal Member Avatar for you, who is in charge of helping you navigate the platform and work with our teams of assitants to help you achieve your goals. Let me introduce you to your Member Avatar, <-bN->!"
+				"message": "To help you get started, we've created an assistive intelligence as your personal Member Avatar for you, who is in charge of helping you navigate the platform and work with our teams of assistants to help you achieve your goals. Let me introduce you to your Member Avatar, <-bN->!"
 			}
 		},
 		{
