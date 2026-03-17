@@ -222,9 +222,9 @@ function mCreateChallengeElement(){
  */
 async function mFetchStart(){
     const isSignedUp = await mGlobals.datamanager.signupStatus()
-    if(!mGlobals.isGuid(mMissionId))
-        return
-    const missions = await mGlobals.datamanager.availableMissions()
+    let missions
+    if(mGlobals.isGuid(mMissionId))
+        missions = await mGlobals.datamanager.availableMissions()
     !isSignedUp
         ? hide(signupSuccess)
         : mSignupSuccess()
@@ -251,6 +251,7 @@ async function mFetchStart(){
     return {
         input,
         messages,
+        missions,
     }
 }
 /**
