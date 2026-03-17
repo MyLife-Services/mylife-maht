@@ -222,10 +222,9 @@ function mCreateChallengeElement(){
  */
 async function mFetchStart(){
     const isSignedUp = await mGlobals.datamanager.signupStatus()
-    if(mGlobals.isGuid(mMissionId)){
-        const missions = await mGlobals.datamanager.availableMissions()
-        console.log('missions', missions)
-    }
+    if(!mGlobals.isGuid(mMissionId))
+        return
+    const missions = await mGlobals.datamanager.availableMissions()
     !isSignedUp
         ? hide(signupSuccess)
         : mSignupSuccess()
@@ -490,7 +489,6 @@ function mShowPage(hideChat=false){
         hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){
-    console.log('mSignupSuccess')
     retract(signupForm)
     show(signupSuccess)
 }
@@ -533,7 +531,6 @@ async function mSubmitInput(event, message){
     hide(mGlobals.MemberChat)
     const awaitButton = mGlobals.await('Connecting with MyLife...')
     mGlobals.addChatElement(awaitButton)
-    console.log('mSubmitInput', message, awaitButton)
     const chatData = {
         message,
         role: 'user',

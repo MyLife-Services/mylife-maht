@@ -1339,7 +1339,6 @@ async function mShareModal(itemId, shares, summary, title, shareId){
     shareHeader.name = shareHeader.id
     // @todo - Esc not working, not firing on keyDown, propagation stopped elsewhere?
     shareHeader.addEventListener('keydown', event=>{
-        console.log('key:', event.key)
         if(event.key==='Escape')
             mShareClose()
     }, { once: true })
@@ -1689,7 +1688,7 @@ async function mSummarize(event){
         this.classList.add('fa-file-circle-exclamation', 'summarize-error')
     /* print response */
     if(instruction?.length)
-        console.log('mSummarize::instruction', instruction)
+        console.log('mSummarize::instruction::not yet implemented', instruction) // @stub - implement instruction handling
     addMessages(responses, mActiveBot.type)
     setTimeout(_=>{
         this.addEventListener('click', mSummarize, { once: true })

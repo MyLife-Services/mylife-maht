@@ -84,7 +84,6 @@ document.addEventListener('DOMContentLoaded', async event=>{
                 throw new Error('mInitializePageListeners()::launchExperience::no experience found in `mExperiences`')
             stageTransition(experienceId, false)
         })
-    console.log('experience.mjs::DOMContentLoaded()::mExperiences', mExperiences)
 })
 /* public functions */
 /**
@@ -215,7 +214,6 @@ async function experienceStart(experienceId){
         mExperience.events = await mEvents()
     /* experience manifest */
     const manifest = await mGlobals.datamanager.experienceManifest(id)
-    console.log('experienceStart::manifest', manifest)
     if(!manifest)
         throw new Error("Experience not found")
     if(!Array.isArray(manifest.cast)) // cast required, navigation not required
@@ -269,7 +267,6 @@ async function routine(script, clearChat=false){
             activeTimers.shift()
         }, ( index * pause * 1000 ))
         activeTimers.push(timer)
-        console.log("Routine event", timer, activeTimers)
     })
     /* inline functions */
     function getCharacter(id='avatar'){
@@ -312,7 +309,6 @@ async function routine(script, clearChat=false){
         toggleMemberInput(true)
         if(aborted)
             addMessage(routineAbortMessage, 'error')
-        console.log("Routine ended")
     }
 }
 /**
@@ -797,7 +793,6 @@ async function mEvents(memberInput, xid=mExperience.id){
         throw new Error(`Experience failed! ${ xid }`)
     const { autoplay, description, events, id, location, purpose, skippable, title, } = experience
     mExperience.location = location
-    console.log('mEvents::response', experience, mExperience)
     return events
 }
 /**
@@ -925,7 +920,6 @@ function mSceneTransition(){
     const { cast, location, } = mExperience
     const { sid: upcomingSceneId, } = location
     const { sid: currentSceneId=upcomingSceneId, skippable=true, } = mExperience
-    console.log('mSceneTransition::currentSceneId', currentSceneId, upcomingSceneId, mExperience)
     const upcomingScene = mGetScene(upcomingSceneId)
     if(!upcomingScene)
         throw new Error(`Scene not found! ${currentSceneId}`)

@@ -354,7 +354,6 @@ async function mBotNameChange(e){
             const botTitleName = document.getElementById(`${ botId }-title-name`)
             botTitleName && (botTitleName.textContent = updatedName)
             bot.name = updatedName
-            console.log('name changed', updatedName, bot.name)
             globals.chatInputPlaceholder = `Type a message to ${ updatedName }...`
         }
     }
@@ -1036,7 +1035,6 @@ async function mProxyAccessAssign(e){
         : 'This bot will no longer be able to use this proxy agent.'
     if(confirm(`Are you sure you want to ${ action } rights?\n${ resultAction }`)){
         const assignResult = await globals.datamanager.botProxyAccess(proxyBotId, checkbox.value, checkbox.checked)
-        console.log(`mProxyAccessAssign::checkbox`, checkbox.value, checkbox.checked, proxyBotId, assignResult)
     } else
         checkbox.checked = !checkbox.checked
     checkbox.disabled = false
@@ -1309,7 +1307,6 @@ async function mRetireBot(e){
         const response = await globals.datamanager.botRetire(id)
         addMessages(response.responses, 'avatar')
     } catch(err) {
-        console.log('Error posting bot data:', err)
         addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
 }
@@ -1328,7 +1325,6 @@ async function mRetireChat(e){
         const response = await globals.datamanager.chatRetire(id)
         addMessages(response.responses, mActiveBot.type)
     } catch(err) {
-        console.log('Error posting bot data:', err)
         addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
 }

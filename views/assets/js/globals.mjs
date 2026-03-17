@@ -322,7 +322,6 @@ class Datamanager {
             },
             method: 'PATCH',
         }
-        console.log(`experience: ${ url }`, body, options)
         const response = await this.#fetch(url, options)
         return response
     }
@@ -559,7 +558,6 @@ class Datamanager {
      */
     async share(shareId, input){
         const url = `/share/${ shareId }`
-        console.log(`share: ${ shareId }`, input)
         const options = {
             body: JSON.stringify({ input, }),
             headers: {
