@@ -204,7 +204,6 @@ async function setActiveBot(botId, displayGreeting=true){
     const { activated=[], activatedFirst=Date.now(), } = mActiveBot
     mActiveBot.activatedFirst = activatedFirst
     activated.push(Date.now()) // newest date is last to .pop()
-    console.log('version control', version, versionUpdate)
     mActiveBot.activated = activated
     mActiveBot.versionUpdate = versionUpdate
     if(versionUpdate!==version){
@@ -590,7 +589,6 @@ function mCreateBotButtons(botId, buttons=[]){
  */
 async function mCreateBotContainer(bot){
     const { buttons=[], description, flags, icon, id, name, options: botOptions=[], purpose, retirable=true, type, version, } = bot
-    console.log('initial version', version)
     if(!botOptions.length)
         botOptions.push(...await globals.datamanager.botOptions(id))
     if(!buttons.length)
@@ -1155,7 +1153,6 @@ function mProxyName(id, name){
  * @returns {DocumentFragment} - Purpose element for a proxy agent
  */
 function mProxyPurpose(id, purpose){
-    console.log(`mProxyPurpose::id, purpose`, purpose, id)
     const purposeFragment = document.createDocumentFragment()
     const purposeMaxLength = 1024
     purpose = purpose?.trim().substring(0, purposeMaxLength)

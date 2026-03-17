@@ -294,11 +294,11 @@ function togglePopup(id, bForceState){
 /**
  * Unsets the active item in the chat system.
  * @public
- * @requires mActiveChat
+ * @requires mActiveItem
  * @returns {void}
  */
 function unsetActiveItem(){
-    const { popup, } = mActiveItem
+    const { popup, } = activeItem()
     mActiveItem = null
     hide(activeChat())
     if(popup)
