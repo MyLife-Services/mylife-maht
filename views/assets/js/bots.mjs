@@ -50,7 +50,7 @@ import {
 } from './members.mjs'
 const mAvailableUploaderTypes = ['personal-avatar'],
     mAvatarTypes = ['avatar', 'personal-avatar'],
-    mDefaultCollections = ['memory', 'entry'], // @stub: take from team
+    mBotMount = document.getElementById('bot-mount'),
     mDefaultTeam = 'memory',
     mSidebar = document.getElementById('sidebar'),
     mTeamAddMemberIcon = document.getElementById('add-team-member-icon'),
@@ -66,14 +66,19 @@ let mActiveBot,
     mBots
 /* public functions */
 async function init(){
+    /* teams */
+    mTeams.push(...await globals.datamanager.teams())
+    if(!mTeams?.length)
+        throw new Error(`ERROR: No teams returned from server.`)
+    if(mTeams.length > 1)
+        mTeamName.addEventListener('click', mCreateTeamSelect)
+    mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
     const { bots, activeBotId: id } = await globals.datamanager.bots()
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
-    await updatePageBots(bots)
-    await Promise.all([
-        setActiveBot(id, true),
-        initCollections(mDefaultCollections) // @stub: pull from teams
-    ])
+    mBots = bots
+    await setActiveTeam() // triggers collections and bots initialization
+    await setActiveBot(id, true)
 }
 /**
  * Get active bot.
@@ -171,6 +176,14 @@ function getBotsByForm(form){
     return getBots().filter(bot=>bot.itemForms.includes(form))
 }
 /**
+ * Get team by name or id.
+ * @param {string|Guid} identifier - The team name or id to find, defaults to `mDefaultTeam`
+ * @returns {object} - The team object: { active, allowCustom, allowProxy, allowedBotTypes, allowedItemTypes, collection, defaultActiveType, defaultTypes, description, id, name, primaryCollectionTypes, title, }
+ */
+function getTeam(identifier){
+    return mTeams.find(team=>team.name===identifier || team.id===identifier)
+}
+/**
  * Checks if bot type is an avatar (personal or not).
  * @param {string} type - The bot type to check
  * @returns {boolean} - True if the bot is an avatar, false otherwise
@@ -223,6 +236,25 @@ async function setActiveBot(botId, displayGreeting=true){
     decorateActiveBot(mActiveBot)
 }
 /**
+ * Set active team on server and update page team data. If no identifier provided, defaults to `mDefaultTeam`, then active team, then first team in list.
+ * @param {string|Guid} teamIdentifier - The team name or id to find, defaults to `mDefaultTeam`
+ * @returns {Promise<void>}
+ */
+async function setActiveTeam(teamIdentifier=mDefaultTeam){
+    const team = getTeam(teamIdentifier)
+        ?? mTeams.find(team=>team.active===true)
+        ?? mTeams[0]
+    const { active, id, } = team
+    if(id===mActiveTeam?.id)
+        return // no change, no problem
+    // if not already `active`, activate on server (current bug)
+    const activeTeam = await globals.datamanager.teamActivate(id)
+    if(activeTeam?.id!==id)
+        throw new Error(`Server failure trying to activate team "${ identifier }".`)
+    mActiveTeam = team
+    mUpdateTeams()
+}
+/**
  * Toggles bot containers and checks for various actions on master click of `this` bot-container. Sub-elements appear as targets and are rendered appropriately.
  * @private
  * @async
@@ -233,21 +265,16 @@ function toggleBotContainers(event){
     mToggleBotContainers(event) // no await
 }
 /**
- * Proxy to update bot-bar, bot-containers, and bot-greeting, if desired. Requirements should come from including module, here `members.mjs`.
+ * Proxy to update bot-containers and bot-greeting.
  * @public
  * @requires mBots
  * @param {Array} bots - The bot objects to update page with.
  * @param {boolean} includeGreeting - Include bot-greeting.
  * @returns {void}
  */
-async function updatePageBots(bots=mBots, includeGreeting=false, dynamic=false){
-    if(!bots?.length)
-        throw new Error(`No bots provided to update page.`)
-    if(mBots!==bots)
-        mBots = bots
-    await mUpdateTeams() // sets `mActiveBot`
+async function updatePageBots(includeGreeting=false, dynamic=false){
     await mUpdateBotContainers()
-    if(includeGreeting)
+    if(includeGreeting && mActiveBot?.greeting?.length)
         addMessage(mActiveBot.greeting, mActiveBot.type)
 }
 /* private functions */
@@ -739,7 +766,7 @@ async function mCreateTeamMember(event){
     const { id, } = bot
     mBots.push(bot)
     setActiveBot(id, true)
-    updatePageBots(mBots, false, true)
+    updatePageBots(false, true)
 }
 /**
  * Create a team new popup.
@@ -758,9 +785,9 @@ function mCreateTeamPopup(type, clickX=0, clickY=0, showPopup=true){
     teamPopup.classList.add(`team-popup-${ type }`, 'team-popup-content')
     teamPopup.id = `team-popup-${ type }`
     teamPopup.name = `team-popup-${ type }`
-    let popup
-    let offsetX = 0
-    let listener
+    let listener,
+        offsetX = 0,
+        popup
     switch(type){
         case 'addTeamMember':
             const memberSelect = document.createElement('select')
@@ -1421,13 +1448,16 @@ async function mTeamMemberSelect(event){
 }
 /**
  * Manages `change` event selection of team from `team-select` dropdown.
+ * @async
  * @requires mActiveTeam
  * @param {Event} event - The event object. 
  * @returns {void}
  */
-function mTeamSelect(event){
+async function mTeamSelect(event){
     const { value, } = this
-    mUpdateTeams(value) // `change` requires that value not be the same
+    const currentTeamId = mActiveTeam.id
+    setActiveTeam(value)
+    console.log(`Team selected: ${ value }`, activeBot(), activeTeam())
     mCloseTeamPopup(event)
 }
 /**
@@ -1513,10 +1543,9 @@ function mTogglePassphrase(event){
 /**
  * Updates bot-widget containers for whom there is data. If no bot data exists, ignores container.
  * @requires mBots
- * @param {boolean} includeAvatar - Whether to include the personal avatar in the update, defaults to `true` for page construction; afterwards, avatar should remain constant.
  * @returns {void}
  */
-async function mUpdateBotContainers(includeAvatar=true){
+async function mUpdateBotContainers(){
     if(!mBots?.length)
         throw new Error(`mBots not populated`)
     const collectionsContainer = document.getElementById('collections-container')
@@ -1533,26 +1562,36 @@ async function mUpdateBotContainers(includeAvatar=true){
     // MyLife internal bots
     for(const bot of bots){
         const { container, id, type, } = bot
-        if(!includeAvatar && isAvatar(type))
-            continue
         if(!container)
             bot.container = document.getElementById(id)
         if(!bot.container){
             const botContainer = await mCreateBotContainer(bot)
-            mSidebar.insertBefore(botContainer, isAvatar(type) ? mTeamHeader : collectionsContainer)
             bot.container = botContainer
         }
-        mUpdateBotContainer(bot)
     }
     // external proxy agents
     if(proxyAgents.length){
         proxyAgents.forEach(async proxyAgent=>{
             const proxyContainer = mCreateProxyBotContainer(proxyAgent)
             proxyAgent.container = proxyContainer
-            mSidebar.insertBefore(proxyContainer, collectionsContainer)
-            mUpdateBotContainer(proxyAgent)
         })
     }
+    // ensure DOM avatar
+    const { container: avatarContainer, id: avatarId, } = bots.find(bot=>isAvatar(bot.type))
+    if(!document.getElementById(avatarId))
+        mSidebar.insertBefore(avatarContainer, mTeamHeader) // avatar always first
+    // mount team bots
+    mBotMount.innerHTML = ''
+    const teamBots = [
+        ...bots.filter(bot => activeTeam().allowedBotTypes.includes(bot.type)),
+        ...(activeTeam().allowProxy ? proxyAgents : [])
+    ]
+    teamBots.forEach(bot=>{
+        const { container, id, } = bot
+        if(container)
+            mBotMount.appendChild(container)
+        mUpdateBotContainer(bot)
+    })
 }
 /**
  * Updates the bot container with specifics.
@@ -1561,9 +1600,7 @@ async function mUpdateBotContainers(includeAvatar=true){
  */
 function mUpdateBotContainer(bot) {
     const { container, } = bot
-    /* container listeners */
     container.addEventListener('click', mToggleBotContainers)
-    /* universal logic */
     mSetAttributes(bot)
     mSetStatusBar(bot)
     mUpdateOptions(bot)
@@ -1676,37 +1713,27 @@ async function mUpdatePassphrase(event){
     passphraseSubmit.disabled = false
 }
 /**
- * Updates the active team to specific or default.
+ * Updates the active team to specific or default. Team object: { active, allowCustom, allowProxy, allowedBotTypes, allowedItemTypes, collection, defaultActiveType, defaultTypes, description, id, name, primaryCollectionTypes, title, }.
+ * @async
  * @requires mActiveTeam
- * @requires mAvailableTeams
- * @requires mDefaultTeam
- * @requires mTeams
- * @param {string} identifier - The name or id of active team.
+ * @requires mBots
+ * @requires mTeamName
  * @returns {void}
  */
-async function mUpdateTeams(identifier=mDefaultTeam){
-    if(!mTeams?.length)
-        mTeams.push(...await globals.datamanager.teams())
-    const team = mTeams
-        .find(team=>team.name===identifier || team.id===identifier)
-    if(!team)
-        throw new Error(`Team "${ identifier }" not available at this time.`)
-    if(mActiveTeam!==team){
-        const { id: teamId, } = team
-        const activeTeam = await globals.datamanager.teamActivate(teamId)
-        if(activeTeam)
-            mActiveTeam = activeTeam
-    }
-    const { allowCustom, allowProxy, allowedBotTypes, allowedItemTypes, description, id, name, primaryCollectionTypes, title, } = team
+async function mUpdateTeams(){
+    const { active, allowCustom, allowProxy, allowedBotTypes, allowedItemTypes, collection, description, id, name, primaryCollectionTypes, title, } = activeTeam() ?? {}
+    if(!id)
+        throw new Error(`No active team available at this time.`)
     const teamName = title
         ?? name
     mTeamName.textContent = `${ teamName } Team`
     mTeamName.title = `${ description }. The team allows ${ allowedBotTypes?.join(', ') ?? 'various' } bots and ${ allowedItemTypes?.join(', ') ?? 'various' } items. ${ allowCustom ? 'Custom bots and items are allowed. ' : '' }${ allowProxy ? 'Proxy agents are allowed. ' : '' }`
-    if(mTeams.length > 1)
-        mTeamName.addEventListener('click', mCreateTeamSelect)
-    mTeamAddMemberIcon.addEventListener('click', mCreateTeamMemberSelect)
     hide(mTeamPopup)
     show(mTeamHeader)
+    await Promise.all([
+        updatePageBots(),
+        initCollections()
+    ])
 }
 /**
  * Upload Files to server from any .

@@ -28,8 +28,7 @@ import {
     toggleMemberInput,
     toggleVisibility,
 } from './bots.mjs'
-const mAvailableCollections = ['file'], // ['chat', 'conversation'],
-    mAvailableMimeTypes = [],
+const mAvailableMimeTypes = [],
     mActiveButton = document.getElementById('chat-active-item-button'),
     mActiveChat = document.getElementById('chat-active-item'),
     mActiveClose = document.getElementById('chat-active-item-close'),
@@ -40,6 +39,7 @@ const mAvailableCollections = ['file'], // ['chat', 'conversation'],
     mCollectionItems={},
     mDefaultReliveMemoryButtonText = 'Next'
 let mActiveItem,
+    mAvailableCollections,
     mCollectionsDescription,
     mCollectionHighlights,
     mCollectionsUpload, // document.getElementById('collections-upload')
@@ -48,23 +48,23 @@ let mActiveItem,
 /* public functions */
 /**
  * Initializes the collections by creating collection bars and setting up event listeners.
+ * @requires mAvailableCollections
  * @requires mCollectionHighlights
- * @requires mInitializeCollectionData
- * @param {Array} collections - list of collection types (string) to initialize (e.g., ['memory', 'entry'])
- * @param {string} title - title for the collections section (default: 'Scrapbook')
  * @returns {Promise<void>}
  */
-async function init(collections, title='Scrapbook'){
-    if(!mCollections)
+async function init(){
+    if(!mCollections || !activeTeam()?.id?.length)
         return
-    if(Array.isArray(collections) && collections.length)
-        mAvailableCollections.push(...collections)
+    mAvailableCollections = ['file'] // ['chat', 'conversation'],
+    const { allowedItemTypes, collection, primaryCollectionTypes, } = activeTeam()
+    if(Array.isArray(allowedItemTypes) && allowedItemTypes.length)
+        mAvailableCollections.push(...allowedItemTypes)
     mCollectionHighlights = activeTeam()?.primaryCollectionTypes ?? []
     mShadows = await globals.datamanager.shadows() // @stub: transition to collection-specific
     /* initilize data for collections */
     for(const collectionType of mAvailableCollections) // populates mCollectionItems
         await mInitializeCollectionData(collectionType, isHighlightedCollection(collectionType))
-    mCreateCollections(mAvailableCollections, title)
+    mCreateCollections(mAvailableCollections, activeTeam()?.collection ?? 'Scrapbook')
 }
 /**
  * Gets the active item button HTML element for active item display.
@@ -514,7 +514,8 @@ function mCreateCollectionItemPopup(item){
     popupBody.name = `popup-body-${ type }`
     /* popup content */
     const content = summary
-        ?? JSON.stringify(item)
+    if(!content)
+        console.log(`Warning: collection item with id "${ id }" has no content to display in popup.`, item)
     const popupContent = document.createElement('textarea')
     popupContent.classList.add('popup-content', 'collection-popup-content')
     item.lastUpdatedContent = content
@@ -799,7 +800,9 @@ function mCreateCollections(collections, title){
     /* checks */
     if(!mCollections) // container must exist to create collections
         return
+    mCollections.removeEventListener('click', toggleBotContainers) // prevent stacking
     mCollections.addEventListener('click', toggleBotContainers)
+    mCollections.innerHTML = '' // clear existing collections
     /* header */
     const collectionBar = document.createElement('div')
     collectionBar.className = 'collections-titlebar'
