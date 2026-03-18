@@ -583,26 +583,29 @@ class BotAgent {
 	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
 	 * @param {Guid} botId - The Bot id
 	 * @param {String} botType - The Bot type
+	 * @param {Boolean} strict - Whether to match bot type or allow for avatar response, defaults to `false`
 	 * @returns {Promise<Bot>} - The Bot instance
 	 */
-	bot(botId, botType){
+	bot(botId, botType, strict=false){
 		const Bot = (
 			botType?.length
 				? this.#bots.find(bot=>[botType, `personal-${ botType }`].includes(bot.type)) /* returns first match */
 				: this.#bots.find(bot=>bot.id===botId)
 			)
-			?? this.avatar
+			?? (strict ? null : this.avatar)
 		return Bot
 	}
 	/**
 	 * Creates a bot instance.
 	 * @param {Object} botData - The bot data object
+	 * @param {Boolean} active - Whether to set the created bot as active, defaults to `true`
 	 * @returns {Bot} - The created Bot instance
 	 */
-	async botCreate(botData){
+	async botCreate(botData, active=true){
 		const Bot = await mBotCreate(this.avatarId, this.#vectorstoreId, botData, this.#llm, this.#factory)
 		this.#bots.push(Bot)
-		this.setActiveBot(Bot.id)
+		if(active)
+			this.setActiveBot(Bot.id)
 		return Bot
 	}
 	/**
@@ -826,13 +829,37 @@ class BotAgent {
 		}
 	}
 	/**
-	 * Sets the active team for the BotAgent if `teamId` valid.
+	 * Sets the active team for the BotAgent if `teamId` valid; subsequently sets active bot.
 	 * @param {Guid} teamId - The Team id
-	 * @returns {void}
+	 * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
 	 */
-	setActiveTeam(teamId){
-		this.#activeTeam = this.teams.find(team=>team.id===teamId)
-			?? this.#activeTeam
+	async setActiveTeam(teamId){
+		const response = {
+			team: this.#activeTeam,
+		}
+		if(teamId!==this.#activeTeam.id){
+			const team = this.teams.find(team=>team.id===teamId)
+			if(!team){
+				response.error = new Error('Team not found with requested id: ' + teamId)
+				response.success = false
+				return response
+			}
+			const { defaultActiveType, defaultTypes, } = team
+			let activeBot
+			for(const type of defaultTypes){
+				let Bot = this.bot(null, type, true)
+					?? await this.botCreate({ type, }, false)
+				if(type===defaultActiveType)
+					activeBot = Bot
+			}
+			if(!activeBot)
+				activeBot = this.bot(null, defaultActiveType)
+			this.#activeTeam = team
+			response.team = this.#activeTeam
+			const botResponse = await this.setActiveBot(activeBot.id)
+			response.botResponse = botResponse
+		}
+		return response
 	}
 	/**
 	 * Summarizes a file document.
@@ -1041,6 +1068,8 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	if(!avatarId?.length || !type?.length)
 		throw new Error('avatar id and type required to create bot')
 	const { greeting, greetings, instructions, version=1.0, } = mBotInstructions(factory, botData)
+	if(!instructions)
+		throw new Error('bot instructions not found for type: ' + type)
 	const model = process.env.OPENAI_MODEL_CORE_BOT
 		?? process.env.OPENAI_MODEL_CORE_AVATAR
 		?? 'gpt-4o'
@@ -1173,6 +1202,7 @@ function mBotInstructions(factory, botData={}){
 		references=[],
 		replacements=[],
 		suffix='', // example: data privacy info
+		team='',
 		voice='',
 	} = instructions
     /* compile instructions */
@@ -1198,6 +1228,13 @@ function mBotInstructions(factory, botData={}){
                 + general
 				+ suffix
 				+ voice
+			break
+		case 'political-stance':
+			instructions = preamble
+				+ prefix
+				+ general
+				+ voice
+				+ team
 			break
         default:
             instructions = general
@@ -1538,6 +1575,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'biographer':
 		case 'personal-biographer':
 			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('endReliving'),
 				globals.getGPTJavascriptFunction('getSummary'),
@@ -1552,11 +1590,24 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'diary':
 		case 'journaler':
 			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
 				globals.getGPTJavascriptFunction('itemSummary'),
 				globals.getGPTJavascriptFunction('obscure'),
 				globals.getGPTJavascriptFunction('updateSummary'),
+			)
+			includeSearch = true
+			break
+		case 'political-stance':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createStance'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('setGeography'),
+				globals.getGPTJavascriptFunction('setPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('updateStance'),
 			)
 			includeSearch = true
 			break

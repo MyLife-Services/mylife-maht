@@ -1,0 +1,61 @@
+{
+    "description": "Generate a complete `item` document (form of `stance`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
+    "name": "createStance",
+    "strict": true,
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "content": {
+                "description": "Include original Member content regarding `stance`",
+                "type": "string"
+            },
+            "form": {
+                "description": "MyLife System Form of `stance`; political-stance bots should use `political` form, all others should use `personal`",
+                "enum": [
+                    "personal",
+                    "political"
+                ],
+                "type": "string"
+            },
+            "keywords": {
+                "description": "Keywords most relevant to `stance`, include any relevant ideology, movement, or issue keywords for political stances",
+                "items": {
+                    "description": "Keyword from `stance` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "influences": {
+                "description": "Influences (ethical, ideological, philosophical, etc.) related to `stance`",
+                "type": "array",
+                "items": {
+                    "description": "Specific influence related to `stance`",
+                    "type": "string"
+                }
+            },
+            "summary": {
+                "description": "A complete `stance` summary composed of all salient points and related points from member content",
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title for `stance` based on content",
+                "type": "string"
+            },
+            "type": {
+                "const": "stance",
+                "description": "MyLife System type of item",
+                "type": "string"
+            }
+        },
+        "required": [
+            "content",
+            "form",
+            "keywords",
+            "influences",
+            "summary",
+            "title",
+            "type"
+        ]
+    }
+}

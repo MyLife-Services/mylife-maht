@@ -1,0 +1,27 @@
+{
+    "name": "setPoliticalLeaning",
+    "description": "Set the political leaning of a member, such as liberal or conservative, matched to the enumerated list of political leanings in the system; if convicted, value may deviate from provided values",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "political_leaning": {
+                "description": "Political leaning of member, such as liberal or conservative, matched to the enumerated list of political leanings in the system; if convicted, value may deviate from provided values",
+                "enum": [
+                    "traditionalist",
+                    "conservative",
+                    "center_right",
+                    "moderate",
+                    "center_left",
+                    "liberal",
+                    "progressive",
+                    "revolutionary"
+                ],
+                "type": "string"
+            }
+        },
+        "required": [
+            "political_leaning"
+        ]
+    }
+}

@@ -247,8 +247,7 @@ async function setActiveTeam(teamIdentifier=mDefaultTeam){
     const { active, id, } = team
     if(id===mActiveTeam?.id)
         return // no change, no problem
-    // if not already `active`, activate on server (current bug)
-    const activeTeam = await globals.datamanager.teamActivate(id)
+    const { team: activeTeam, } = await globals.datamanager.teamActivate(id)
     if(activeTeam?.id!==id)
         throw new Error(`Server failure trying to activate team "${ identifier }".`)
     mActiveTeam = team

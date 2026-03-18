@@ -1539,14 +1539,13 @@ class Avatar extends EventEmitter {
         }
     }
     /**
-     * Get a specified team, its details and _instanced_ bots, by id for the member.
+     * Sets the requested team as active, sets the active bot and responds.
      * @param {string} teamId - The team id
-     * @returns {object} - Team object
+     * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
      */
     team(teamId){
-        this.#botAgent.setActiveTeam(teamId)
-        const team = this.#botAgent.activeTeam
-        return team
+        const response = this.#botAgent.setActiveTeam(teamId)
+        return response
     }
     /**
      * Get a list of available teams and their default details.
