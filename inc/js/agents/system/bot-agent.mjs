@@ -1586,6 +1586,20 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		tool_resources,
 		tools = []
 	switch(type){
+		case 'activism':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createAction'),
+				globals.getGPTJavascriptFunction('getAction'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('getValue'),
+				globals.getGPTJavascriptFunction('updateAction'),
+			)
+			includeSearch = true
+			break
 		case 'assistant':
 		case 'avatar':
 		case 'personal-assistant':
@@ -1629,6 +1643,8 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('createStance'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
 				globals.getGPTJavascriptFunction('getStance'),
 				globals.getGPTJavascriptFunction('setGeography'),
 				globals.getGPTJavascriptFunction('setPoliticalLeaning'),
@@ -1641,6 +1657,8 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('createValue'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
 				globals.getGPTJavascriptFunction('getStance'),
 				globals.getGPTJavascriptFunction('getValue'),
 				globals.getGPTJavascriptFunction('setValuesBackground'),
