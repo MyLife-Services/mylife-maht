@@ -74,7 +74,7 @@ class Bot {
 		this.#feedback = feedback
 		this.#firstAccess = unaccessed
 		this.#greetings = greetings
-		this.#greetingRoutine = type.split('-').pop()
+		this.#greetingRoutine = type.replace('personal-', '')
 		this.#type = type
 		this.#retirable = retirable
 			?? this.#factory.botRetirable(type)

@@ -78,7 +78,6 @@ async function init(){
         throw new Error(`ERROR: No bots returned from server`)
     mBots = bots
     await setActiveTeam() // triggers collections and bots initialization
-    await setActiveBot(id, true)
 }
 /**
  * Get active bot.
@@ -247,11 +246,14 @@ async function setActiveTeam(teamIdentifier=mDefaultTeam){
     const { active, id, } = team
     if(id===mActiveTeam?.id)
         return // no change, no problem
-    const { team: activeTeam, } = await globals.datamanager.teamActivate(id)
+    const { botResponse, team: activeTeam, } = await globals.datamanager.teamActivate(id)
+    const { defaultActiveType, id: activeTeamId, } = team ?? {}
+    const { bot_id=this.bot(null, defaultActiveType), responses=[], } = botResponse ?? {}
     if(activeTeam?.id!==id)
         throw new Error(`Server failure trying to activate team "${ identifier }".`)
     mActiveTeam = team
-    mUpdateTeams()
+    await mUpdateTeams()
+    await setActiveBot(bot_id, true)
 }
 /**
  * Toggles bot containers and checks for various actions on master click of `this` bot-container. Sub-elements appear as targets and are rendered appropriately.
