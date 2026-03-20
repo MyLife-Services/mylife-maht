@@ -73,9 +73,17 @@
                 "type": "string"
             },
             "type": {
-                "const": "stance",
+                "const": "issue",
                 "description": "MyLife System type of item",
                 "type": "string"
+            },
+            "values": {
+                "description": "Related `values` for this `stance`, if applicable",
+                "type": "array",
+                "items": {
+                    "description": "Related articulated `value`s related to this `stance`",
+                    "type": "string"
+                }
             }
         },
         "required": [
