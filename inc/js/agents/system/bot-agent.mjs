@@ -10,7 +10,7 @@ const mDefaultIcon = 'default.png'
 const mDefaultTeam = 'memory'
 const mProxyChatTypes = ['chat', 'conversation', 'converse',]
 const mRequiredBotTypes = ['personal-avatar']
-const mTeams = [
+const mTeamData = [
 	{
 		active: true,
 		allowCustom: true,
@@ -38,8 +38,8 @@ const mTeams = [
 		description: 'The Political Team is dedicated to help you craft records of your own political views on issues, and how to engage with political issues and perspectives from productive conversation with those of opposing views to activism.',
 		id: '0434f506-2a33-443a-80ed-8bd9832b33d7',
 		name: 'political',
-		title: 'Political',
 		primaryCollectionTypes: ['stance', 'value'], // to load on initialization of team
+		title: 'Political',
 	},
 ]
 /* classes */
@@ -529,10 +529,6 @@ class Bot {
 	}
 }
 /**
- * @class - Team
- * @private
- */
-/**
  * @class - BotAgent
  * @public
  * @description - BotAgent is an interface to assist in creating, managing and maintaining a Member Avatar's bots.
@@ -545,7 +541,7 @@ class BotAgent {
     #factory
 	#fileConversation
 	#llm
-	#teams = mTeams
+	#teams
 	#vectorstoreId
     constructor(factory, llm){
         this.#factory = factory
@@ -558,13 +554,14 @@ class BotAgent {
 	 * @param {string} vectorstoreId - The Vectorstore id
 	 * @returns {Promise<BotAgent>} - The BotAgent instance
 	 */
-    async init(Avatar){
+    async init(Avatar, factory, llm){
 		/* validate request */
         if(!Avatar)
             throw new Error('Avatar required')
         this.#avatar = Avatar
 		this.#bots = []
 		this.#vectorstoreId = Avatar.vectorstoreId
+		this.#teams = mTeamData.map(teamData=>new Team(teamData, this.#factory))
 		/* execute request */
 		await mInit(this, this.#bots, this.#avatar, this.#factory, this.#llm)
 		return this
@@ -854,7 +851,7 @@ class BotAgent {
 			}
 			if(!activeBot)
 				activeBot = this.bot(null, defaultActiveType)
-			this.#activeTeam = team
+			this.#activeTeam = team.team
 			response.team = this.#activeTeam
 			const botResponse = await this.setActiveBot(activeBot.id)
 			response.botResponse = botResponse
@@ -1034,6 +1031,33 @@ class BotAgent {
 	 */
 	#findBot(botId){
 		return this.#bots.find(bot=>bot.id===botId)
+	}
+}
+/**
+ * @class - Team
+ * @private
+ */
+class Team {
+	#factory
+	constructor(teamData, factory){
+		this.#factory = factory
+		Object.assign(this, this.#factory.globals.sanitize(teamData))
+	}
+	get team(){
+		return {
+			allowCustom: this.allowCustom,
+			allowProxy: this.allowProxy,
+			allowedBotTypes: this.allowedBotTypes,
+			allowedItemTypes: this.allowedItemTypes,
+			collection: this.collection,
+			defaultActiveType: this.defaultActiveType,
+			defaultTypes: this.defaultTypes,
+			description: this.description,
+			id: this.id,
+			name: this.name,
+			primaryCollectionTypes: this.primaryCollectionTypes,
+			title: this.title,
+		}
 	}
 }
 /* modular functions */
@@ -1645,7 +1669,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
  * @returns {String[]} - The array of bot types
  */
 function mGetBotTypes(isMyLife=false, teamName=mDefaultTeam){
-	const team = mTeams
+	const team = mTeamData
 		.find(team=>team.name===teamName)
 	const botTypes = [...mRequiredBotTypes, ...isMyLife ? [] : team?.defaultTypes ?? []]
 	if(team.allowProxy)
