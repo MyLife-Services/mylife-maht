@@ -4,7 +4,7 @@
 			"icon": "values-thumb",
 			"id": "values",
 			"role": "Political Values Bot",
-			"type": "values"
+			"type": "political-values"
 		},
 		{
 			"icon": "stance-thumb",
@@ -44,7 +44,7 @@
         }
 	],
     "name": "routine_political_values",
-	"pause": 8,
+	"pause": 4,
     "public": true,
     "status": "active",
     "title": "Political Values Introduction",

@@ -337,6 +337,14 @@ function mBotIcon(type){
         case 'biographer':
             image+='biographer-thumb.png'
             break
+        case 'political-stance':
+        case 'stance':
+            image+='stance-thumb.png'
+            break
+        case 'political-values':
+        case 'values':
+            image+='values-thumb.png'
+            break
         case 'proxy':
         case 'proxy-agent':
             image+='Q.png'
