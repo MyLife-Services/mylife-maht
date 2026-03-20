@@ -1,7 +1,7 @@
 {
 	"cast": [
 		{
-			"icon": "stance-thumb.png",
+			"icon": "stance-thumb",
 			"id": "stance",
 			"role": "Political Stance Bot",
 			"type": "political-stance"

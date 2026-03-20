@@ -1,13 +1,13 @@
 {
 	"cast": [
 		{
-			"icon": "values-thumb.png",
+			"icon": "values-thumb",
 			"id": "values",
 			"role": "Political Values Bot",
 			"type": "values"
 		},
 		{
-			"icon": "stance-thumb.png",
+			"icon": "stance-thumb",
 			"id": "stance",
 			"role": "Political Stance Bot",
 			"type": "political-stance"
