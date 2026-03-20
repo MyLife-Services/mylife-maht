@@ -1,0 +1,23 @@
+{
+    "description": "Updates (overwrites) the `value` summary referenced by itemId",
+    "name": "updateValue",
+    "strict": true,
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Id of `value` summary to update",
+                "type": "string"
+            },
+            "summary": {
+                "description": "The new updated and **complete** `value` summary",
+                "type": "string"
+            }
+        },
+        "required": [
+            "itemId",
+            "summary"
+        ]
+    }
+}

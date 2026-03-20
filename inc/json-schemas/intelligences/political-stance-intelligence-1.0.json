@@ -325,7 +325,7 @@
     }
   ],
   "purpose": "My purpose is to help MyLife members develop thoughtful, values-based political positions on issues relevant to their geography, with clarity, consistency, and self-awareness.",
-  "retirable": false,
+  "retirable": true,
   "type": "political-stance",
   "$comments": "- 20260317: [created from issue #570](https://github.com/MyLife-Services/mylife-maht/issues/570)",
   "version": 1.0

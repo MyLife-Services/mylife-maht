@@ -30,11 +30,11 @@ const mTeams = [
 		active: true,
 		allowCustom: true,
 		allowProxy: true,
-		allowedBotTypes: ['activism', 'conflict-resolution', 'journaler', 'political-narratives', 'political-stance', 'values',],
+		allowedBotTypes: ['activism', 'conflict-resolution', 'journaler', 'news', 'political-narratives', 'political-stance', 'political-values',],
 		allowedItemTypes: ['entry', 'memory', 'stance', 'value'],
 		collection: 'Political Notebook',
 		defaultActiveType: 'political-stance',
-		defaultTypes: ['political-stance',],
+		defaultTypes: ['political-stance', 'political-values',],
 		description: 'The Political Team is dedicated to help you craft records of your own political views on issues, and how to engage with political issues and perspectives from productive conversation with those of opposing views to activism.',
 		id: '0434f506-2a33-443a-80ed-8bd9832b33d7',
 		name: 'political',
@@ -1230,6 +1230,7 @@ function mBotInstructions(factory, botData={}){
 				+ voice
 			break
 		case 'political-stance':
+		case 'political-values':
 			instructions = preamble
 				+ prefix
 				+ general
@@ -1608,6 +1609,18 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 				globals.getGPTJavascriptFunction('setGeography'),
 				globals.getGPTJavascriptFunction('setPoliticalLeaning'),
 				globals.getGPTJavascriptFunction('updateStance'),
+			)
+			includeSearch = true
+			break
+		case 'political-values':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createValue'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('getValue'),
+				globals.getGPTJavascriptFunction('setValuesBackground'),
+				globals.getGPTJavascriptFunction('updateValue'),
 			)
 			includeSearch = true
 			break

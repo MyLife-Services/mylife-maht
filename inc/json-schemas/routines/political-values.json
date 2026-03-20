@@ -1,0 +1,65 @@
+{
+	"cast": [
+		{
+			"icon": "values-thumb.png",
+			"id": "values",
+			"role": "Political Values Bot",
+			"type": "values"
+		},
+		{
+			"icon": "stance-thumb.png",
+			"id": "stance",
+			"role": "Political Stance Bot",
+			"type": "political-stance"
+		}
+	],
+    "description": "Routine for the Political Values bot to introduce itself and explain how it guide members through their political values.",
+    "developers": [
+        "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
+        "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
+    ],
+	"events": [
+        {
+            "character": "values",
+            "dialog": {
+                "message": "I am an Assistive Intelligence that helps MyLife members work through and evolve their personal values, especially as they relate to their political ideology."
+            }
+        },
+        {
+            "dialog": {
+                "message": "We'll explore your values together, reviewing your background influences and current thinking to help you clarify and articulate values in a way that can guide your political beliefs and actions, and that can evolve over time as you grow and learn more about yourself and the world around you, and live your life with increasing intention."
+            }
+        },
+        {
+            "character": "stance",
+            "dialog": {
+                "message": "Also, together with me, your Political Issues Bot, we can review your current political stances and see _how_ they align with your values, where we see alignment, contradiction, or unresolved tension. It's going to be fun!"
+            }
+        },
+        {
+            "character": "values",
+            "dialog": {
+                "message": "Without any further ado, let's get started, <-mN->! Is there anything on your mind right now, or do you want to maybe talk about one of the values that's important to you (<-PV->)?"
+            }
+        }
+	],
+    "name": "routine_political_values",
+	"pause": 8,
+    "public": true,
+    "status": "active",
+    "title": "Political Values Introduction",
+	"typeSpeed": 10,
+    "variables": [
+        {
+            "default": "MyLife Member",
+            "variable": "<-mN->",
+            "replacement": "memberName"
+        },
+        {
+            "default": "well, I need you to assign some in the interface first",
+            "variable": "<-PV->",
+            "replacement": "political_values"
+        }
+    ],
+    "version": 1
+}
