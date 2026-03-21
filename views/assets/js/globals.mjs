@@ -110,6 +110,12 @@ class Datamanager {
         const responses = await this.#fetch(url)
         return responses
     }
+    async bot(botId){
+        const botURL = botId?.length ? `/${ botId }` : ''
+        const url = `/members/bot` + botURL
+        const response = await this.#fetch(url)
+        return response
+    }
     async botActivate(botId){
         const url = `/members/bots/activate/${ botId }`
         const options = {
@@ -133,7 +139,6 @@ class Datamanager {
     }
     /**
      * Request bot be created on server.
-     * @requires mActiveTeam
      * @param {string} type - bot type
      * @returns {object} - Bot object from server.
      */
@@ -706,22 +711,25 @@ class Datamanager {
         return response
     }
     /**
-     * Fetches the team for a specified team ID.
-     * @param {Guid} teamId - The team name
+     * Fetches the team for a specified team ID; returns active team if teamId is null.
+     * @param {Guid|null} teamId - The team ID; if null, will return active team
      * @returns {Object}- The team object: { id, name, etc. }
      */
     async team(teamId){
-
+        const teamURL = teamId?.length ? `/${ teamId }` : ''
+        const url = `/members/team` + teamURL
+        const response = await this.#fetch(url)
+        return response
     }
     /**
-     * Sets the active Team.
+     * Sets the active Team by ID.
      * @param {Guid} teamId - The team ID
      * @returns {Object} - The response object
      */
     async teamActivate(teamId){
-        const url = `/members/teams/${ teamId }`
+        const url = `/members/teams/activate/${ teamId }`
         const options = {
-            method: 'POST', 
+            method: 'POST',
         }
         const response = await this.#fetch(url, options)
         return response 

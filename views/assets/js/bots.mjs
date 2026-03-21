@@ -77,7 +77,8 @@ async function init(){
     if(!bots?.length)
         throw new Error(`ERROR: No bots returned from server`)
     mBots = bots
-    await setActiveTeam() // triggers collections and bots initialization
+    await getActiveTeam() // sets activeTeam()
+    // bring back setActiveTeam display elements
 }
 /**
  * Get active bot.
@@ -137,6 +138,21 @@ function getAction(type='avatar'){
             break
     }
     return instructions
+}
+async function getActiveBot(){
+    const currentActiveBot = await globals.datamanager.bot()
+    if(currentActiveBot?.id?.length){
+        if(!getBot(currentActiveBot.id))
+            mBots.push(currentActiveBot)
+        if(mActiveBot?.id!==currentActiveBot.id)
+            await setActiveBot(currentActiveBot.id)
+    }
+}
+async function getActiveTeam(){
+    const currentActiveTeam = await globals.datamanager.team()
+    if(currentActiveTeam?.id?.length && mActiveTeam?.id!==currentActiveTeam.id)
+        mActiveTeam = currentActiveTeam
+    await mUpdateTeams()
 }
 /**
  * Get specific bot by id (first) or type.
@@ -202,7 +218,7 @@ async function setActiveBot(botId, displayGreeting=true){
     if(!globals.isGuid(botId))
         throw new Error(`Invalid bot id: ${ botId }`)
     const initialActiveBot = mActiveBot
-    mActiveBot = mBot(botId)
+    mActiveBot = getBot(null, botId)
         ?? initialActiveBot
     if(!mActiveBot)
         throw new Error(`ERROR: failure to set active bot with id: ${ botId }`)
@@ -252,8 +268,7 @@ async function setActiveTeam(teamIdentifier=mDefaultTeam){
     if(activeTeam?.id!==id)
         throw new Error(`Server failure trying to activate team "${ identifier }".`)
     mActiveTeam = team
-    await mUpdateTeams()
-    await setActiveBot(bot_id, true)
+    await mUpdateTeams() // sets active bot
 }
 /**
  * Toggles bot containers and checks for various actions on master click of `this` bot-container. Sub-elements appear as targets and are rendered appropriately.
@@ -1464,9 +1479,7 @@ async function mTeamMemberSelect(event){
  */
 async function mTeamSelect(event){
     const { value, } = this
-    const currentTeamId = mActiveTeam.id
     setActiveTeam(value)
-    console.log(`Team selected: ${ value }`, activeBot(), activeTeam())
     mCloseTeamPopup(event)
 }
 /**
@@ -1743,6 +1756,7 @@ async function mUpdateTeams(){
         updatePageBots(),
         initCollections()
     ])
+    getActiveBot() // no await
 }
 /**
  * Upload Files to server from any .

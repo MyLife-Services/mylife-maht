@@ -256,10 +256,10 @@ class Dataservices {
 	 * Proxy to retrieve stances.
 	 * @returns {Object[]} - The stances
 	 */
-	async collectionStances(){
+	async collectionIssues(){
 		return await this.getItemsByFields(
 			'stance',
-			[{ name: '@type', value: 'stance' }],
+			[{ name: '@type', value: 'issue' }],
 		)
 	}
 	/**
@@ -268,7 +268,7 @@ class Dataservices {
 	 */
 	async collectionValues(){
 		return await this.getItemsByFields(
-			'value',
+			'stance',
 			[{ name: '@type', value: 'value' }],
 		)
 	}
@@ -297,12 +297,14 @@ class Dataservices {
 				return await this.collectionLivedExperiences()
 			case 'file':
 				return await this.collectionFiles()
+			case 'issue':
+			case 'issues':
+			case 'stance':
+				return await this.collectionIssues()
 			case 'item':
 				return []
 			case 'memory':
 				return await this.collectionMemories()
-			case 'stance':
-				return await this.collectionStances()
 			case 'value':
 			case 'values':
 				return await this.collectionValues()
@@ -315,7 +317,7 @@ class Dataservices {
 					this.collectionLivedExperiences(),
 					this.collectionFiles(),
 					this.collectionMemories(),
-					this.collectionStances(),
+					this.collectionIssues(),
 					this.collectionValues(),
 				])
 					.then(([conversations, entries, experiences, files, memories])=>[

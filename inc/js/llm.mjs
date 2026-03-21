@@ -507,6 +507,8 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'end reliving':
                                 avatar.actionCallback = 'endMemory'
                                 throw new Error('endReliving intentionally aborted')
+                            case 'createstance': // stance summary & metadata
+                            case 'createvalue': // value summary & metadata
                             case 'entrysummary': // deprecate
                             case 'entry_summary':
                             case 'entry summary':

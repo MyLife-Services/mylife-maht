@@ -1,7 +1,7 @@
 {
     "description": "Generate a complete `item` document (form of `stance`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
     "name": "createStance",
-    "strict": true,
+    "strict": false,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -74,7 +74,7 @@
             },
             "type": {
                 "const": "issue",
-                "description": "MyLife System type of item",
+                "description": "Standard MyLife System type for `stance`",
                 "type": "string"
             },
             "values": {

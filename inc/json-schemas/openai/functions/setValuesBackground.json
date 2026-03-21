@@ -3,6 +3,7 @@
     "description": "When determining a member's values, it can be helpful to understand their background and context. This function allows you to set the background information of a member, which can include their upbringing, education, cultural influences, religion, philosophy and any other relevant factors.",
     "parameters": {
         "additionalProperties": false,
+        "strict": false,
         "type": "object",
         "properties": {
             "cultural": {

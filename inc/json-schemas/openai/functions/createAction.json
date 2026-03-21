@@ -1,7 +1,7 @@
 {
     "description": "Generate a complete `item` document (form of `action`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
     "name": "createAction",
-    "strict": true,
+    "strict": false,
     "parameters": {
         "additionalProperties": false,
         "type": "object",

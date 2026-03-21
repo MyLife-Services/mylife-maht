@@ -29,6 +29,7 @@ import {
 } from './controllers/api-functions.mjs'
 import {
 	activateBot,
+    bot,
 	bots,
     botButtons,
     botOptions,
@@ -40,6 +41,8 @@ import {
     retireChat,
     routine,
     shadows,
+	team,
+	teams,
     updateBotInstructions,
 } from './controllers/bot-functions.mjs'
 import {
@@ -61,8 +64,6 @@ import {
 	privacyPolicy,
 	signup,
 	summarize,
-	team,
-	teams,
 	upload,
 } from './controllers/functions.mjs'
 import {
@@ -195,6 +196,8 @@ _memberRouter.delete('/bots/:bid', bots)
 _memberRouter.delete('/items/:iid', item)
 _memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
+_memberRouter.get('/bot', bot)
+_memberRouter.get('/bot/:bid', bot)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
 _memberRouter.get('/bots/:bid/buttons', botButtons)
@@ -211,6 +214,8 @@ _memberRouter.get('/share/:sid', getShare)
 _memberRouter.get('/share/delete/:sid', deleteShare)
 _memberRouter.get('/shares', getShares)
 _memberRouter.get('/shares/:iid', getShares)
+_memberRouter.get('/team', team)
+_memberRouter.get('/team/:tid', team)
 _memberRouter.get('/teams', teams)
 _memberRouter.patch('/bots/proxy/:pid', botProxy)
 _memberRouter.patch('/bots/proxy/:pid/access', botProxyAccess)
@@ -236,7 +241,7 @@ _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/chat/:bid', retireChat)
 _memberRouter.post('/share', shareCreate)
 _memberRouter.post('/summarize', summarize)
-_memberRouter.post('/teams/:tid', team)
+_memberRouter.post('/teams/activate/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
