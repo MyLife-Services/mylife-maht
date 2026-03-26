@@ -413,6 +413,11 @@ async function mRunFunctions(openai, run, factory, avatar){
                         toolArguments.thread_id = thread_id // deprecate?
                         const { itemId, } = toolArguments
                         switch(name.toLowerCase()){
+                            case 'callAvatar':
+                            case 'call_avatar':
+                            case 'call avatar':
+                                // @stub
+                                break
                             case 'callexternalagent':
                             case 'call_external_agent':
                             case 'call external agent':
