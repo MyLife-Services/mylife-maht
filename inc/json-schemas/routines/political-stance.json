@@ -1,0 +1,30 @@
+{
+	"cast": [
+		{
+			"icon": "stance-thumb",
+			"id": "stance",
+			"role": "Political Stance Bot",
+			"type": "political-stance"
+		}
+	],
+    "description": "Routine version of the About MyLife page, providing an overview of the organization and its mission.",
+    "developers": [
+        "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
+        "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
+    ],
+	"events": [
+        {
+            "character": "stance",
+            "dialog": {
+                "message": "I am an Assistive Intelligence that helps MyLife members think through political issues, clarify what they believe, and turn those beliefs into structured stance documents."
+            }
+        }
+	],
+    "name": "routine_stance",
+	"pause": 8,
+    "public": true,
+    "status": "active",
+    "title": "Political Stance Introduction",
+	"typeSpeed": 5,
+    "version": 1
+}

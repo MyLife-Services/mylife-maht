@@ -11,21 +11,13 @@ import Datamanager from "./datamanager.mjs"
  * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
  */
 class Dataservices {
-	/**
-	 * Identifies currently available selection sub-types (i.e., `being`=@var) for the data service.
-	 * @private
-	 */
-	#collectionTypes = ['chat', 'conversation', 'entry', 'lived-experience', 'file', 'story']
     /**
-     * Represents the core functionality of the data service. This property
-     * objectifies core data to make it more manageable and structured,
-     * as opposed to presenting raw output.
+     * Represents the core information about the member.
      * @private
      */
     #core
     /**
-     * Manages various data-related operations. It could be responsible for
-     * handling data transactions, CRUD operations, etc., depending on its implementation.
+     * Manager for data-related operations based on long-term storage types; currently Cosmos NoSQL.
      * @private
      */
     #Datamanager
@@ -58,8 +50,8 @@ class Dataservices {
      */
 	async init(){
 		this.#Datamanager = new Datamanager(this.#partitionId)
-		await this.#Datamanager.init()	//	init datamanager
-		const _excludeProperties = { '_none':true }	//	populate if exclusions are required
+		await this.#Datamanager.init()
+		const _excludeProperties = { '_none': true, }	//	populate if exclusions are required
 		const core = Object.entries(this.datamanager.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']
@@ -99,8 +91,8 @@ class Dataservices {
 	//	public functions
 	/**
 	 * Upon MyLife account creation, generates `core` and saves to database.
-	 * @param {object} core - Data object containing member's initial core data from which avatar object will be derived.
-	 * @returns (object) - The saved avatar data object.
+	 * @param {object} core - Data object containing member's initial core data from which avatar object will be derived
+	 * @returns {object} - The saved avatar data object
 	 */
 	async addAvatar(core){
 		if(!this.isMyLife)
@@ -109,8 +101,8 @@ class Dataservices {
 	}
 	/**
 	 * Upon MyLife account creation, generates `core` and saves to database.
-	 * @param {object} core - Data object containing member's initial core data.
-	 * @returns (object) - The core object.
+	 * @param {object} core - Data object containing member's initial core data
+	 * @returns {object} - The core object
 	 */
 	async addCore(core){
 		const { id, mbr_id, } = core
@@ -175,9 +167,9 @@ class Dataservices {
 	}
 	/**
 	 * Gets all bots of a given type for a given member.
-	 * @param {string} type - The bot type.
-	 * @param {string} mbr_id - The member id.
-	 * @returns {array} - The bots or empty array if no bots found.
+	 * @param {string} type - The bot type
+	 * @param {string} mbr_id - The member id
+	 * @returns {Object[]} - The bots or empty array if no bots found
 	 */
 	async bots(type, mbr_id=this.mbr_id){
 		if(type){
@@ -194,11 +186,12 @@ class Dataservices {
 	}
 	/**
 	 * Retrieves a specific bot instruction by its ID.
-	 * @param {string} _type - The type of bot instruction.
-	 * @returns {array} - An array of bot instruction or `undefined` if no bot instruction found.
+	 * @param {string} _type - The type of bot instruction
+	 * @returns {Object[]} - An array of bot instruction or `undefined` if no bot instruction found
 	 */
 	async botInstructions(_type){
-		if(_type?.length) _type = [{ name: '@type', value: _type }]
+		if(_type?.length) 
+			_type = [{ name: '@type', value: _type }]
 		return await this.getItems(
 			'bot-instructions',
 			undefined,
@@ -220,14 +213,14 @@ class Dataservices {
 	}
 	/**
 	 * Proxy to retrieve stored conversations.
-	 * @returns {array} - The collection of conversations.
+	 * @returns {Object[]} - The collection of conversations
 	 */
 	async collectionConversations(){
 		return await this.getItems('chat')
 	}
 	/**
 	 * Proxy to retrieve journal entry items.
-	 * @returns {array} - The journal entry items.
+	 * @returns {Object[]} - The journal entry items
 	 */
 	async collectionEntries(){
 		return await this.getItemsByFields(
@@ -237,21 +230,21 @@ class Dataservices {
 	}
 	/**
 	 * Proxy to retrieve lived experiences.
-	 * @returns {array} - The lived experiences.
+	 * @returns {Object[]} - The lived experiences
 	 */
 	async collectionLivedExperiences(){
 		return await this.getItems('lived-experience')
 	}
 	/**
 	 * Proxy to retrieve files.
-	 * @returns {array} - The member's files.
+	 * @returns {Object[]} - The member's files
 	 */
 	async collectionFiles(){
 		return await this.getItems('file')
 	}
 	/**
 	 * Proxy to retrieve biographical items.
-	 * @returns {array} - The biographical items
+	 * @returns {Object[]} - The biographical items
 	 */
 	async collectionMemories(){
 		return await this.getItemsByFields(
@@ -260,8 +253,28 @@ class Dataservices {
 		)
 	}
 	/**
+	 * Proxy to retrieve stances.
+	 * @returns {Object[]} - The stances
+	 */
+	async collectionIssues(){
+		return await this.getItemsByFields(
+			'stance',
+			[{ name: '@type', value: 'issue' }],
+		)
+	}
+	/**
+	 * Proxy to retrieve values.
+	 * @returns {Object[]} - The values
+	 */
+	async collectionValues(){
+		return await this.getItemsByFields(
+			'stance',
+			[{ name: '@type', value: 'value' }],
+		)
+	}
+	/**
 	 * Proxy to retrieve all story items.
-	 * @returns {array} - The story items
+	 * @returns {Object[]} - The story items
 	 */
 	async collectionStories(){
 		return await this.getItems('story')
@@ -271,8 +284,8 @@ class Dataservices {
 	 * @todo - only roughed in by hand atm
 	 * @public
 	 * @async
-     * @param {string} type - The type of collection to retrieve, `false`-y = all.
-     * @returns {array} - The collection items with no wrapper.
+     * @param {string} type - The type of collection to retrieve, `false`-y = all
+     * @returns {Object[]} - The collection items with no wrapper
      */
 	async collections(type){
 		switch(type){
@@ -284,10 +297,17 @@ class Dataservices {
 				return await this.collectionLivedExperiences()
 			case 'file':
 				return await this.collectionFiles()
+			case 'issue':
+			case 'issues':
+			case 'stance':
+				return await this.collectionIssues()
 			case 'item':
 				return []
 			case 'memory':
 				return await this.collectionMemories()
+			case 'value':
+			case 'values':
+				return await this.collectionValues()
 			case 'story':
 				return await this.collectionStories()
 			default:
@@ -297,6 +317,8 @@ class Dataservices {
 					this.collectionLivedExperiences(),
 					this.collectionFiles(),
 					this.collectionMemories(),
+					this.collectionIssues(),
+					this.collectionValues(),
 				])
 					.then(([conversations, entries, experiences, files, memories])=>[
 						...conversations,
@@ -313,8 +335,8 @@ class Dataservices {
 	}
 	/**
 	 * Creates a new bot in the database.
-	 * @param {object} bot - The bot object to create.
-	 * @returns {object} - The bot object.
+	 * @param {object} bot - The bot object to create
+	 * @returns {object} - The bot object
 	 */
 	async createBot(bot){
 		/* validation */
@@ -334,7 +356,7 @@ class Dataservices {
 	 * @param {Guid} id - The id of the item to delete
 	 * @param {string} containerId - The container to use, overriding default
 	 * @param {string} partitionId - The member id (or other) to use, overriding default
-     * @returns {boolean} - true if item deleted successfully.
+     * @returns {boolean} - true if item deleted successfully
      */
 	async deleteItem(id, containerId, partitionId=this.mbr_id){
 		if(!id?.length)
@@ -360,8 +382,8 @@ class Dataservices {
 	 * Retrieves a specific alert by its ID. _Currently placehoder_.
 	 * @async
 	 * @public
-	 * @param {string} _alert_id - The unique identifier for the alert.
-	 * @returns {Promise<Object>} The alert corresponding to the provided ID.
+	 * @param {string} _alert_id - The unique identifier for the alert
+	 * @returns {Promise<Object>} The alert corresponding to the provided ID
 	 */
 	async getAlert(_alert_id){
 		return await this.getItem(_alert_id, 'system')
@@ -371,8 +393,8 @@ class Dataservices {
 	 * This method is typically used to get all alert entities under a specific object.
 	 * @async
 	 * @public
-	 * @param {string} _object_id - The parent object ID to search for associated alerts.
-	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID.
+	 * @param {string} _object_id - The parent object ID to search for associated alerts
+	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID
 	 */
 	async getAlerts(){	
 		const paramsArray = [

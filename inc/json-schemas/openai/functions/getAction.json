@@ -1,0 +1,24 @@
+{
+    "description": "Gets the `action` summary or document by itemId",
+    "name": "getAction",
+    "strict": true,
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Id of `action` summary to retrieve from server",
+                "type": "string"
+            },
+            "summaryOnly": {
+                "default": true,
+                "description": "Whether to return only the `action` summary text or the full `item` document with summary and metadata",
+                "type": "boolean"
+            }
+        },
+        "required": [
+            "itemId",
+            "summaryOnly"
+        ]
+    }
+}

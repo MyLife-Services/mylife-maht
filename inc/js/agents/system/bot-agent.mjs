@@ -6,23 +6,10 @@ const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
 const mDefaultBotType = mDefaultBotTypeArray[0]
 const mDefaultGreeting = 'avatar' // greeting routine
 const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
+const mDefaultIcon = 'default.png'
 const mDefaultTeam = 'memory'
 const mProxyChatTypes = ['chat', 'conversation', 'converse',]
 const mRequiredBotTypes = ['personal-avatar']
-const mTeams = [
-	{
-		active: true,
-		allowCustom: true,
-		allowProxy: true,
-		allowedTypes: ['diary', 'journaler', 'personal-biographer',],
-		defaultActiveType: 'personal-biographer',
-		defaultTypes: ['personal-biographer',],
-		description: 'The Memory Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
-		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
-		name: 'memory',
-		title: 'Memory',
-	},
-]
 /* classes */
 /**
  * @class - Bot
@@ -39,22 +26,32 @@ class Bot {
 	#firstAccess=false
 	#greetingRoutine
 	#greetings
+	#icon
 	#instructionNodes = new Set()
 	#llm
 	#mcpTools = []
+	#retirable
 	#type
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, name, unaccessed, type=mDefaultBotType, ...filteredBotData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
 		this.#feedback = feedback
 		this.#firstAccess = unaccessed
 		this.#greetings = greetings
-		this.#greetingRoutine = type.split('-').pop()
+		this.#greetingRoutine = type.replace('personal-', '')
 		this.#type = type
-		Object.assign(this, this.globals.sanitize(filteredBotData))
+		this.#retirable = retirable
+			?? this.#factory.botRetirable(type)
+			?? true
+		Object.assign(this, this.globals.sanitize(__botData))
+		this.#icon = icon
+			?? this.#factory.botIcon(type)
+			?? this.card?.icon
+			?? mDefaultIcon
 		this.#instructionNodes.add('agentInstructions')
 		this.#instructionNodes.add('bot_name')
 		switch(type){
@@ -113,6 +110,7 @@ class Bot {
 	}
     /**
      * Get collection items for this bot.
+	 * @stub - add political team
      * @returns {Promise<Array>} - The collection items (no wrapper)
      */
 	async collections(type){
@@ -208,23 +206,23 @@ class Bot {
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
 	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last'){
-		if(this.type!=='proxy' && !this.llm_id)
+		if(dynamic && this.type!=='proxy' && !this.llm_id)
 			return {
 				error: 'Bot llm_id not set',
 				responses: ['I currently have no connection with my foundational intelligence, so my greeting is generic'],
 				success: false,
 			}
-		let greeting,
+		let firstAccess=this.#firstAccess,
 			responses=[],
-			routine
-		if(!this.#firstAccess){
+			routine=this.#greetingRoutine
+		if(!firstAccess){
 			const greetings = dynamic
 				? await mBotGreetings(this.thread_id, this.llm_id, greetingPrompt, this.#llm, this.#factory)
 				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
 			responses.push(...greetings)
-		} else
-			routine = this.#greetingRoutine
+		}
 		return {
+			firstAccess,
 			responses,
 			routine,
 			success: true,
@@ -373,15 +371,20 @@ class Bot {
 	 * @getter
 	 */
 	get bot() {
-		const { access, card, description, flags, id, interests, name, purpose, skills, type, url, version, } = this
+		const { access, buttons, card, description, flags, icon, id, interests, itemForms, name, options, purpose, retirable, skills, type, url, version, } = this
 		const bot = {
 			access,
+			buttons,
 			description,
 			flags,
+			icon,
 			id,
 			interests,
+			itemForms,
 			name,
+			options,
 			purpose,
+			retirable,
 			skills,
 			type,
 			url,
@@ -390,6 +393,15 @@ class Bot {
 				?? '1.0',
 		}
 		return bot
+	}
+	/**
+	 * Gets the bot's buttons from the factory based on bot type, or an empty array if no buttons are found. This is _not_ written to local memory space, as it is global, generic and not currently overwritten.
+	 * @getter
+	 * @returns {array} - An array of button objects for the bot
+	 */
+	get buttons(){
+		return this.#factory.botButtons(this.type)
+			?? []
 	}
 	get conversation(){
 		return this.#conversation
@@ -407,6 +419,9 @@ class Bot {
 			&&	greetings.every(item => typeof item === 'string')
 		)
 			this.#greetings = greetings
+	}
+	get icon(){
+		return this.#icon
 	}
 	get instructionNodes(){
 		return this.#instructionNodes
@@ -431,6 +446,9 @@ class Bot {
 	}
 	get isProxy(){
 		return this.type==='proxy'
+	}
+	get itemForms(){
+		return this.#factory.botItemForms(this.type)
 	}
 	get mcpTools(){
 		if(!this.isAvatar && !this.#mcpTools.length && this.tools?.length)
@@ -464,14 +482,21 @@ class Bot {
 	set name(name){
 		this.bot_name = name
 	}
+	/**
+	 * Gets the bot's frontend options from the factory based on bot type, or an empty array if no options are found. This is _not_ written to local memory space, as it is global, generic and not currently overwritten.
+	 * @getter
+	 * @returns {array} - An array of option objects for the bot
+	 */
+	get options(){
+		return this.#factory.botOptions(this.type)
+	}
+	get retirable(){
+		return this.#retirable
+	}
 	get type(){
 		return this.#type
 	}
 }
-/**
- * @class - Team
- * @private
- */
 /**
  * @class - BotAgent
  * @public
@@ -479,13 +504,13 @@ class Bot {
  */
 class BotAgent {
 	#activeBot
-    #activeTeam = mDefaultTeam
+    #activeTeam
     #avatar
     #bots
     #factory
 	#fileConversation
 	#llm
-	#teams = mTeams
+	#teams
 	#vectorstoreId
     constructor(factory, llm){
         this.#factory = factory
@@ -499,13 +524,13 @@ class BotAgent {
 	 * @returns {Promise<BotAgent>} - The BotAgent instance
 	 */
     async init(Avatar){
-		/* validate request */
         if(!Avatar)
             throw new Error('Avatar required')
         this.#avatar = Avatar
 		this.#bots = []
 		this.#vectorstoreId = Avatar.vectorstoreId
-		/* execute request */
+		const teamData = await this.#factory.teams(true, 'member')
+		this.#teams = teamData.map(teamData=>new Team(teamData, this.#factory))
 		await mInit(this, this.#bots, this.#avatar, this.#factory, this.#llm)
 		return this
     }
@@ -523,26 +548,29 @@ class BotAgent {
 	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
 	 * @param {Guid} botId - The Bot id
 	 * @param {String} botType - The Bot type
+	 * @param {Boolean} strict - Whether to match bot type or allow for avatar response, defaults to `false`
 	 * @returns {Promise<Bot>} - The Bot instance
 	 */
-	bot(botId, botType){
+	bot(botId, botType, strict=false){
 		const Bot = (
 			botType?.length
-				? this.#bots.find(bot=>[botType, `personal-${ botType }`].includes(bot.type)) /* returns first match */
+				? this.#bots.find(bot=>[botType, `personal-${ botType }`, botType.replace('personal-', '') ].includes(bot.type))
 				: this.#bots.find(bot=>bot.id===botId)
 			)
-			?? this.avatar
+				?? (strict ? null : this.avatar)
 		return Bot
 	}
 	/**
 	 * Creates a bot instance.
 	 * @param {Object} botData - The bot data object
+	 * @param {Boolean} active - Whether to set the created bot as active, defaults to `true`
 	 * @returns {Bot} - The created Bot instance
 	 */
-	async botCreate(botData){
+	async botCreate(botData, active=true){
 		const Bot = await mBotCreate(this.avatarId, this.#vectorstoreId, botData, this.#llm, this.#factory)
 		this.#bots.push(Bot)
-		this.setActiveBot(Bot.id)
+		if(active)
+			this.setActiveBot(Bot.id)
 		return Bot
 	}
 	/**
@@ -624,13 +652,24 @@ class BotAgent {
 	 * @returns {String} - The assistant type
 	 */
 	getAssistantType(itemForm='biographer', itemType='memory'){
-		if(itemType.toLowerCase()==='memory')
-			return 'biographer'
-		if(itemType.toLowerCase()==='entry')
-			return itemForm.toLowerCase()==='diary'
-				? 'diary'
-				: 'journaler'
-		return 'avatar'
+		switch(itemType.toLowerCase()){
+			case 'memory':
+				return 'biographer'
+			case 'entry':
+				switch(itemForm.toLowerCase()){
+					case 'diary':
+						return 'diary'
+					case 'journal':
+					case 'journaler':
+						return 'journaler'
+				}
+			case 'issue':
+				return 'political-stance'
+			case 'value':
+				return 'political-values'
+			default:
+				return 'avatar'
+		}
 	}
     /**
      * Get a static or dynamic greeting from active bot.
@@ -653,14 +692,13 @@ class BotAgent {
 		const livingMemory = Avatar.livingMemory
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
-			const { bot_id: _llm_id, id: bot_id, type, } = biographer
-			const { llm_id=_llm_id, } = biographer
+			const { id: bot_id, llm_id, type, } = biographer
 			const messages = []
 			messages.push({
 				content: `## MEMORY SUMMARY Reference for id: ${ item.id }\n### FOR REFERENCE ONLY\n${ item.summary }\n`,
 				role: 'user',
 			})
-			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, MEMORY SUMMARY starts this conversation`
+			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, reference to MEMORY SUMMARY message has begun this conversation`
 			const Conversation = await mConversationStart('memory', type, bot_id, undefined, llm_id, this.#llm, this.#factory, memberInput, messages)
 			Conversation.action = 'living'
 			livingMemory.Conversation = Conversation
@@ -755,9 +793,10 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botInstructionsVersion(type)
 		}
-		const { responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
+		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
 		return {
 			bot_id,
+			firstAccess,
 			responses,
 			routine,
 			success,
@@ -766,13 +805,40 @@ class BotAgent {
 		}
 	}
 	/**
-	 * Sets the active team for the BotAgent if `teamId` valid.
+	 * Sets the active team for the BotAgent if `teamId` valid; subsequently sets active bot.
 	 * @param {Guid} teamId - The Team id
-	 * @returns {void}
+	 * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
 	 */
-	setActiveTeam(teamId){
-		this.#activeTeam = this.teams.find(team=>team.id===teamId)
-			?? this.#activeTeam
+	async setActiveTeam(teamId, activateAvatar=false){
+		if(this.isMyLife)
+			return
+		if(!this.globals.isValidGuid(teamId))
+			throw new Error('Valid teamId required to set active team.')
+		const response = {
+			team: this.#activeTeam,
+		}
+		if(teamId!==this.#activeTeam?.id){
+			const team = this.team(teamId)
+			if(!team){
+				response.error = new Error('Team not found with requested id: ' + teamId)
+				response.success = false
+				return response
+			}
+			const { defaultActiveType, defaultTypes, } = team
+			let activeBot
+			for(const type of defaultTypes)
+				if(!this.bot(null, type, true))
+					await this.botCreate({ type, }, false)
+			activeBot = activateAvatar
+				? this.avatar
+				: this.bot(null, defaultActiveType)
+					?? this.avatar
+			this.#activeTeam = team
+			response.team = this.#activeTeam
+			const botResponse = await this.setActiveBot(activeBot.id)
+			response.botResponse = botResponse
+		}
+		return response
 	}
 	/**
 	 * Summarizes a file document.
@@ -797,6 +863,18 @@ class BotAgent {
 		await mCallLLM(this.#fileConversation, false, this.#llm, this.#factory, Avatar)
 		const responses = this.#fileConversation.getMessages()
         return responses
+	}
+	/**
+	 * Retrieves a team by id, defaults to active team id.
+	 * @param {Guid|string|null} teamId - The team id to retrieve, defaults to active team id
+	 * @returns {object} - The team object
+	 */
+	team(teamId){
+		teamId = teamId
+			?? this.#activeTeam?.id
+			?? mDefaultTeam
+		const team = this.teams.find(team=>team.id===teamId || team.name.toLowerCase()===teamId.toLowerCase())
+		return team
 	}
 	/**
 	 * Updates a bot instance.
@@ -827,25 +905,22 @@ class BotAgent {
 	 * @param {Boolean} migrateThread - Whether to migrate the thread, defaults to `true`
 	 * @returns {Bot} - The updated Bot instance
 	 */
-	async updateBotInstructions(bot_id, migrateThread=true){
+	async updateBotInstructions(bot_id, migrateThread=false){
 		const Bot = this.bot(bot_id)
-		const { type, version=1.0, } = Bot
-        /* check version */
-        const newestVersion = this.#factory.botInstructionsVersion(type)
-        if(newestVersion!=version){
-			const { bot_id: _llm_id, id, } = Bot
-			const { llm_id=_llm_id, } = Bot
-            const _bot = { id, llm_id, type, }
-            const botOptions = {
-                instructions: true,
-                model: true,
-                tools: true,
-                vectorstoreId: this.#vectorstoreId,
-            }
-            await Bot.update(_bot, botOptions)
-            if(migrateThread)
-                await Bot.migrateChat()
-        }
+		const { id, llm_id, type, version=1.0, } = Bot
+        const newestVersion = this.#factory.botInstructionsVersion(type) // check version
+			?? 0
+		if(newestVersion <= version)
+			return Bot
+		const bot = {
+			id,
+			llm_id,
+			type,
+			version: newestVersion,
+		}
+		await Bot.update(bot, { instructions: true, })
+		if(migrateThread)
+			await Bot.migrateChat()
         return Bot
 	}
     /* getters/setters */
@@ -952,6 +1027,33 @@ class BotAgent {
 		return this.#bots.find(bot=>bot.id===botId)
 	}
 }
+/**
+ * @class - Team
+ * @private
+ */
+class Team {
+	#factory
+	constructor(teamData, factory){
+		this.#factory = factory
+		Object.assign(this, this.#factory.globals.sanitize(teamData))
+	}
+	get team(){
+		return {
+			allowCustom: this.allowCustom,
+			allowProxy: this.allowProxy,
+			allowedBotTypes: this.allowedBotTypes,
+			allowedItemTypes: this.allowedItemTypes,
+			collection: this.collection,
+			defaultActiveType: this.defaultActiveType,
+			defaultTypes: this.defaultTypes,
+			description: this.description,
+			id: this.id,
+			name: this.name,
+			primaryCollectionTypes: this.primaryCollectionTypes,
+			title: this.title,
+		}
+	}
+}
 /* modular functions */
 /**
  * Initializes openAI assistant and returns associated `assistant` object.
@@ -969,7 +1071,7 @@ async function mAI_openai(botData, llm){
 }
 /**
  * Creates bot and returns associated `bot` object.
- * @todo - validBotData.name = botDbName should not be required, push logic to `llm-services`
+ * @todo - validBotData.name = botDbName should not be required, push logic to `llm.mjs`
  * @module
  * @async
  * @param {Guid} avatarId - The Avatar id
@@ -984,6 +1086,8 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	if(!avatarId?.length || !type?.length)
 		throw new Error('avatar id and type required to create bot')
 	const { greeting, greetings, instructions, version=1.0, } = mBotInstructions(factory, botData)
+	if(!instructions)
+		throw new Error('bot instructions not found for type: ' + type)
 	const model = process.env.OPENAI_MODEL_CORE_BOT
 		?? process.env.OPENAI_MODEL_CORE_AVATAR
 		?? 'gpt-4o'
@@ -1095,7 +1199,9 @@ async function mBotGreetings(thread_id, llm_id, greetingPrompt=`Greet me enthusi
  * @returns {object} - The intermediary bot instructions object: { instructions, version, }
  */
 function mBotInstructions(factory, botData={}){
-	const { agentInstructions, type=mDefaultBotType, } = botData
+	const { agentInstructions, type, } = botData
+	if(!type?.length)
+		return
     let {
 		greeting,
 		greetings,
@@ -1114,6 +1220,7 @@ function mBotInstructions(factory, botData={}){
 		references=[],
 		replacements=[],
 		suffix='', // example: data privacy info
+		team='',
 		voice='',
 	} = instructions
     /* compile instructions */
@@ -1139,6 +1246,14 @@ function mBotInstructions(factory, botData={}){
                 + general
 				+ suffix
 				+ voice
+			break
+		case 'political-stance':
+		case 'political-values':
+			instructions = preamble
+				+ prefix
+				+ general
+				+ voice
+				+ team
 			break
         default:
             instructions = general
@@ -1236,6 +1351,7 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
 		} = options
 		if(updateInstructions){
 			const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
+			instructionReferences.type = type
 			const { greetings, instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
 			allowedBotData.greetings = greetings
 			allowedBotData.instructions = instructions
@@ -1454,16 +1570,30 @@ async function mDeleteChat(Conversation, localDelete=false, llm, factory){
  * Retrieves any functions that need to be attached to the specific bot-type.
  * @module
  * @todo - Move to llmServices and improve
- * @param {string} type - Type of bot.
- * @param {object} globals - Global functions for bot.
- * @param {string} vectorstoreId - Vectorstore id.
- * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }.
+ * @param {string} type - Type of bot
+ * @param {object} globals - Global functions for bot
+ * @param {string} vectorstoreId - Vectorstore id
+ * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }
  */
 function mGetAIFunctions(type, globals, vectorstoreId){
 	let includeSearch=false,
 		tool_resources,
 		tools = []
 	switch(type){
+		case 'activism':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createAction'),
+				globals.getGPTJavascriptFunction('getAction'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('getValue'),
+				globals.getGPTJavascriptFunction('updateAction'),
+			)
+			includeSearch = true
+			break
 		case 'assistant':
 		case 'avatar':
 		case 'personal-assistant':
@@ -1478,6 +1608,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'biographer':
 		case 'personal-biographer':
 			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('endReliving'),
 				globals.getGPTJavascriptFunction('getSummary'),
@@ -1492,11 +1623,40 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'diary':
 		case 'journaler':
 			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
 				globals.getGPTJavascriptFunction('itemSummary'),
 				globals.getGPTJavascriptFunction('obscure'),
 				globals.getGPTJavascriptFunction('updateSummary'),
+			)
+			includeSearch = true
+			break
+		case 'political-stance':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createStance'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('setGeography'),
+				globals.getGPTJavascriptFunction('setPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('updateStance'),
+			)
+			includeSearch = true
+			break
+		case 'political-values':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createValue'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('getValue'),
+				globals.getGPTJavascriptFunction('setValuesBackground'),
+				globals.getGPTJavascriptFunction('updateValue'),
 			)
 			includeSearch = true
 			break
@@ -1517,11 +1677,11 @@ function mGetAIFunctions(type, globals, vectorstoreId){
  * Retrieves bot types based on team name and MyLife status.
  * @modular
  * @param {Boolean} isMyLife - Whether request is coming from MyLife Q AVatar
- * @param {*} teamName - The team name, defaults to `mDefaultTeam`
+ * @param {string} teamName - The team name, defaults to `mDefaultTeam`
  * @returns {String[]} - The array of bot types
  */
 function mGetBotTypes(isMyLife=false, teamName=mDefaultTeam){
-	const team = mTeams
+	const team = mTeamData
 		.find(team=>team.name===teamName)
 	const botTypes = [...mRequiredBotTypes, ...isMyLife ? [] : team?.defaultTypes ?? []]
 	if(team.allowProxy)
@@ -1560,7 +1720,12 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
 async function mInit(BotAgent, bots, Avatar, factory, llm){
 	const { vectorstoreId, } = BotAgent
 	bots.push(...await mInitBots(vectorstoreId, Avatar, factory, llm))
-	BotAgent.setActiveBot(undefined, false)
+	if(factory.isMyLife){
+		BotAgent.setActiveBot()
+		return
+	}
+	const defaultTeam = BotAgent.team()
+	await BotAgent.setActiveTeam(defaultTeam?.id, true) // also sets active bot based on team
 }
 /**
  * Initializes active bots based upon criteria.

@@ -28,38 +28,43 @@ import {
     tokenValidation,
 } from './controllers/api-functions.mjs'
 import {
-    about,
-    activateBot,
-    alerts,
-    bots,
-    challenge,
+	activateBot,
+    bot,
+	bots,
+    botButtons,
+    botOptions,
     chat,
-    collections,
-    createBot,
-    evaluate,
-    feedback,
-    greetings,
-    help,
-    index,
-    item,
-    logout,
-    loginSelect,
-    members,
-    migrateBot,
-    migrateChat,
-    obscure,
-    passphraseReset,
-    privacyPolicy,
+	createBot,
+	migrateBot,
+	migrateChat,
     retireBot,
     retireChat,
     routine,
     shadows,
-    signup,
-    summarize,
-    team,
-    teams,
+	team,
+	teams,
     updateBotInstructions,
-    upload,
+} from './controllers/bot-functions.mjs'
+import {
+	about,
+	alerts,
+	challenge,
+	collections,
+	evaluate,
+	feedback,
+	greetings,
+	help,
+	index,
+	item,
+	logout,
+	loginSelect,
+	members,
+	obscure,
+	passphraseReset,
+	privacyPolicy,
+	signup,
+	summarize,
+	upload,
 } from './controllers/functions.mjs'
 import {
     acceptShareWarnings,
@@ -191,8 +196,12 @@ _memberRouter.delete('/bots/:bid', bots)
 _memberRouter.delete('/items/:iid', item)
 _memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
+_memberRouter.get('/bot', bot)
+_memberRouter.get('/bot/:bid', bot)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
+_memberRouter.get('/bots/:bid/buttons', botButtons)
+_memberRouter.get('/bots/:bid/options', botOptions)
 _memberRouter.get('/bots/proxy/:pid/refresh', botProxyRefresh)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)
@@ -205,6 +214,8 @@ _memberRouter.get('/share/:sid', getShare)
 _memberRouter.get('/share/delete/:sid', deleteShare)
 _memberRouter.get('/shares', getShares)
 _memberRouter.get('/shares/:iid', getShares)
+_memberRouter.get('/team', team)
+_memberRouter.get('/team/:tid', team)
 _memberRouter.get('/teams', teams)
 _memberRouter.patch('/bots/proxy/:pid', botProxy)
 _memberRouter.patch('/bots/proxy/:pid/access', botProxyAccess)
@@ -230,7 +241,7 @@ _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/chat/:bid', retireChat)
 _memberRouter.post('/share', shareCreate)
 _memberRouter.post('/summarize', summarize)
-_memberRouter.post('/teams/:tid', team)
+_memberRouter.post('/teams/activate/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)

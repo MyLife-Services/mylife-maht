@@ -36,6 +36,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mLoaded = false,
     mLogoutButton,
     mMainContent,
+    mOverlays,
     mNavigation,
     mNavigationHamburger,
     mNavigationHelp,
@@ -109,6 +110,12 @@ class Datamanager {
         const responses = await this.#fetch(url)
         return responses
     }
+    async bot(botId){
+        const botURL = botId?.length ? `/${ botId }` : ''
+        const url = `/members/bot` + botURL
+        const response = await this.#fetch(url)
+        return response
+    }
     async botActivate(botId){
         const url = `/members/bots/activate/${ botId }`
         const options = {
@@ -121,8 +128,17 @@ class Datamanager {
         return response
     }
     /**
+     * Fetches the buttons for a specified bot.
+     * @param {Guid} botId - bot id
+     * @returns {Object[]} - array of bot button objects: { endpoint, id, label, order, type, value, }
+     */
+    async botButtons(botId){
+        const url = `/members/bots/${ botId }/buttons`
+        const response = await this.#fetch(url)
+        return response
+    }
+    /**
      * Request bot be created on server.
-     * @requires mActiveTeam
      * @param {string} type - bot type
      * @returns {object} - Bot object from server.
      */
@@ -136,6 +152,16 @@ class Datamanager {
             body: JSON.stringify(botData)
         }
         const response = this.#fetch(url, options)
+        return response
+    }
+    /**
+     * Fetches the options for a specified bot.
+     * @param {Guid} botId - bot id
+     * @returns {Object[]} - array of bot option objects: { endpoint, id, label, options, order, placeholder, title, type, variable, }
+     */
+    async botOptions(botId){
+        const url = `/members/bots/${ botId }/options`
+        const response = await this.#fetch(url)
         return response
     }
     /**
@@ -301,7 +327,6 @@ class Datamanager {
             },
             method: 'PATCH',
         }
-        console.log(`experience: ${ url }`, body, options)
         const response = await this.#fetch(url, options)
         return response
     }
@@ -538,7 +563,6 @@ class Datamanager {
      */
     async share(shareId, input){
         const url = `/share/${ shareId }`
-        console.log(`share: ${ shareId }`, input)
         const options = {
             body: JSON.stringify({ input, }),
             headers: {
@@ -687,22 +711,25 @@ class Datamanager {
         return response
     }
     /**
-     * Fetches the team for a specified team ID.
-     * @param {Guid} teamId - The team name
+     * Fetches the team for a specified team ID; returns active team if teamId is null.
+     * @param {Guid|null} teamId - The team ID; if null, will return active team
      * @returns {Object}- The team object: { id, name, etc. }
      */
     async team(teamId){
-
+        const teamURL = teamId?.length ? `/${ teamId }` : ''
+        const url = `/members/team` + teamURL
+        const response = await this.#fetch(url)
+        return response
     }
     /**
-     * Sets the active Team.
+     * Sets the active Team by ID.
      * @param {Guid} teamId - The team ID
      * @returns {Object} - The response object
      */
     async teamActivate(teamId){
-        const url = `/members/teams/${ teamId }`
+        const url = `/members/teams/activate/${ teamId }`
         const options = {
-            method: 'POST', 
+            method: 'POST',
         }
         const response = await this.#fetch(url, options)
         return response 
@@ -763,6 +790,7 @@ class Globals {
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
             mNavigationMenu = document.getElementById('navigation-menu')
+            mOverlays = document.getElementById('overlays')
             mPage = document.getElementById('page-header')
             mSidebar = document.getElementById('sidebar')
                 ?? document.getElementById('bot-container')
@@ -889,19 +917,6 @@ class Globals {
 		}
 		a.length = 0
 	}
-    /**
-     * Operates on a dataset to clear all frontend-defined keys.
-     * @param {DOMStringMap} dataset - The dataset to clear
-     * @returns {void}
-     */
-    clearDataset(dataset){
-        if(!(dataset instanceof DOMStringMap))
-            return
-        for(let key in dataset){
-            if(dataset.hasOwnProperty(key))
-                delete dataset[key]
-        }
-    }
     /**
      * Clears an element of its contents, brute force currently via innerHTML.
      * @param {HTMLElement} element - The element to clear.
@@ -1110,12 +1125,36 @@ class Globals {
         }
     }
     /**
+     * Determines whether an element is hidden via class or inline styles.
+     * @param {HTMLElement} element - The element to check for visibility
+     * @returns {boolean} - Whether the element is hidden
+     */
+    isHidden(element){
+        const { classList, } = element
+        const { display, visibility, } = getComputedStyle(element)
+        const hidden = element.classList.contains('hide')
+            || element.classList.contains('hidden')
+            || element.classList.contains('fade-out')
+            || (display ?? 'none') === 'none'
+            || (visibility ?? 'hidden') === 'hidden'
+        return hidden
+    }
+    /**
      * Determines whether the bot is a `proxy agent` given `type`.
      * @param {string} type - The type to check
      * @returns {boolean} - Whether the bot is a `proxy agent`
      */
     isProxy(type){
         return type=='proxy'
+    }
+    /**
+     * Pluralizes the last word in a string.
+     * @param {string} phrase - The content to pluralize
+     * @param {boolean} allCaps - Whether to capitalize all words in the phrase, defaults to `false` (only capitalizes first word)
+     * @returns {string} - The pluralized content
+     */
+    pluralize(phrase, allCaps=false){
+        return mPluralize(phrase, allCaps)
     }
     /**
      * Remove an element from the DOM based upon its class name of `input-disappear`.
@@ -1244,6 +1283,9 @@ class Globals {
     }
     get newGuid(){ 
         return mNewGuid()
+    }
+    get overlays(){
+        return mOverlays
     }
     get page(){
         return mPage
@@ -1651,6 +1693,39 @@ async function mLogout(){
         window.location.href = '/'
     else
         console.error('mLogout::failure', response)
+}
+/**
+ * Pluralizes the last word in a string.
+ * @param {string} phrase - The content to pluralize
+ * @param {boolean} allCaps - Whether to capitalize all words in the phrase
+ * @returns {string} - The pluralized content
+ */
+function mPluralize(phrase, allCaps){
+    if(typeof phrase !== 'string')
+        return phrase
+    phrase = phrase.trim()
+    const parts = phrase.split(/\s+/)
+    let lastWord = parts.pop()
+    // Basic pluralization rules
+    if(lastWord.endsWith('y') && !/[aeiou]y$/i.test(lastWord))
+        lastWord = lastWord.slice(0, -1) + 'ies'
+    else if (/(s|sh|ch|x|z)$/i.test(lastWord))
+        lastWord = lastWord + 'es'
+    else
+        lastWord = lastWord + 's'
+    parts.push(lastWord)
+    const response = parts
+        .map((part, index)=>{
+            if(allCaps || index===0)
+                part = capitalize(part)
+            return part
+        })
+        .join(' ')
+    return response
+    function capitalize(word){
+        word = word.trim()
+        return word.charAt(0).toUpperCase() + word.slice(1)
+    }
 }
 /**
  * Scrolls overflow of passed element to bottom.

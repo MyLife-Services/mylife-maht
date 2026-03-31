@@ -1,0 +1,42 @@
+{
+    "name": "setValuesBackground",
+    "description": "When determining a member's values, it can be helpful to understand their background and context. This function allows you to set the background information of a member, which can include their upbringing, education, cultural influences, religion, philosophy and any other relevant factors.",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "cultural": {
+                "description": "Cultural influences and background of the member, described in natural language; can be `null`",
+                "type": ["string", "null"]
+            },
+            "education": {
+                "description": "Educational background of the member, described in natural language; can be `null`",
+                "type": ["string", "null"]
+            },
+            "philosophical": {
+                "description": "Philosophical education and predilections of the member, described in natural language; can be `null`",
+                "type": ["string", "null"]
+            },
+            "religious": {
+                "description": "Religious education and affiliations of the member, described in natural language; can be `null`",
+                "type": ["string", "null"]
+            },
+            "upbringing": {
+                "description": "Upbringing and family background of the member, described in natural language; can be `null`",
+                "type": ["string", "null"]
+            },
+            "other": {
+                "description": "Any other relevant background information of the member, described in natural language; optional",
+                "type": ["string"]
+            }
+        },
+        "required": [
+            "cultural",
+            "education",
+            "philosophical",
+            "religious",
+            "upbringing"
+        ]
+    },
+    "strict": true
+}

@@ -11,6 +11,27 @@
 	--mylife-help-z-index: 5;
 	--mylife-sidebar-z-index: 20;
 }
+/* page layering */
+#footer,
+#page-header {
+    position: relative;
+    z-index: 1000; /* frame layer */
+}
+#main-content {
+    position: relative;
+    z-index: 500; /* normal content */
+}
+#page-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 3000; /* highest */
+}
+#overlays {
+    position: fixed;
+    inset: 0;
+    z-index: 999999; /* highest in your app */
+    pointer-events: none; /* popups can override */
+}
 /* Basic Reset */
 * {
 	box-sizing: border-box;

@@ -186,12 +186,6 @@
     display: flex; /* Make it flex when open */
     overflow-y: auto;
 }
-.button.bot-options-button {
-    font-size: 0.9rem;
-    margin: 0.4rem;
-    padding: 0.5rem;
-    width: auto;
-}
 .bot-options-dropdown {
     align-items: center;
     background-color: rgba(255, 255, 255, .7); /* Circle color */
@@ -244,6 +238,9 @@
     overflow: hidden;
     overflow-wrap: break-word;
 }
+.collections-title {
+    padding-left: 1rem;
+}
 .bot-title-name,
 .bot-title-type {
     flex: 0 1 auto;
@@ -264,6 +261,39 @@
 	flex-direction: column;
 	justify-content: flex-start;
     max-width: 100%;
+}
+.bot-button.button {
+    font-size: 0.8rem;
+    margin: 0.2rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 45%;
+}
+.bot-button.button.experience-button {
+    background-color: darkviolet;
+    color: white;
+}
+.bot-button.button.experience-button:hover {
+    background-color: violet;
+    color: black;
+}
+.bot-button.button.passphrase-button {
+    background-color: lightblue;
+    color: black;
+    margin: 0.4rem;
+    width: 100%;
+}
+.bot-button.button.passphrase-button:hover {
+    background-color: lightyellow;
+}
+.bot-buttons {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    justify-content: center;
+    width: 100%;
 }
 .publicity-toggle-view-icon {
     cursor: default;
@@ -356,6 +386,11 @@
     min-height: 2.0rem;
     width: 100%;
 }
+.collection-bot {
+    display: flex;
+    height: 1.6rem;
+    width: 1.6rem;
+}
 .collection-icon {
     display: flex;
     flex: 0 0 auto;
@@ -422,18 +457,34 @@
     overflow-x: hidden;
     overflow-y: auto;
 }
-.collection-popup.popup-container {
-    display: flex;
+.collection-popup {
+    background-color: aliceblue;
+    display: none;
     flex: 1 0 auto;
     flex-direction: column;
     height: fit-content;
     margin: 0;
+    max-height: 80vh;
+    max-width: 80vw;
+    left: 10vw;
+    opacity: 0;
     overflow: auto;
-	opacity: 0; /* Start with hidden popup */
-    transition: opacity 0.3s; /* Smooth transition */
     padding: 0;
-    width: 40em;
-    z-index: var(--collection-item-popup-z-index); /* above sidebar and other popups */
+    position: absolute;
+    pointer-events: none; /* Allow interaction when visible */
+    top: 10vh;
+    transition: opacity 0.5s ease; /* Smooth transition */
+    width: auto;
+    z-index: 1; /* default to creation level */
+
+}
+.collection-popup.popup-active {
+    z-index: 10;
+}
+.collection-popup.show {
+    display: flex;
+    opacity: 1;
+    pointer-events: auto; 
 }
 .collection-popup-body {
     display: flex;
@@ -540,11 +591,11 @@
 }
 .passphrase-container {
     align-items: center;
-    display: none;
+    display: flex;
     flex-direction: row;
     gap: 1rem;
     justify-content: space-between;
-    margin-bottom: 1rem;
+    /* margin-bottom: 1rem; */
     width: 100%;
 }
 .passphrase-reset,
@@ -864,6 +915,14 @@ input:checked + .publicity-slider:before {
     resize: vertical; /* Allow vertical resizing only */
     height: fit-content; /* Default height */
 }
+.input-group-title {
+    display: flex;
+    flex: 1 1 auto;
+    font-weight: bold;
+    font-size: 1.0rem;
+    max-width: 100%;
+    width: 100%;
+}
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
@@ -941,12 +1000,12 @@ input[type="range"]::-moz-range-thumb {
     white-space: nowrap; /* Keep text on one line */
 
 }
-.interests {
+.options {
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
 }
-.interests-label {
+.options-label {
     font-weight: bold;
     min-width: -webkit-fill-available;
 }
