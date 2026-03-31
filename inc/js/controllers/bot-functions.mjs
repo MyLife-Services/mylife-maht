@@ -185,12 +185,12 @@ async function team(ctx){
 			break
 		case 'POST': // set active team
 			if(!ctx.Globals.isValidGuid(tid))
-				ctx.throw(500, `Valid Team id required`)
+				ctx.throw(400, `Valid Team id required`)
 			ctx.body = await avatar.setActiveTeam(tid)
 			break
 		case 'DELETE': // remove team from bot
 		default:
-			ctx.throw(500, `Unsupported method ${ ctx.method } for team endpoint`)
+			ctx.throw(405, `Unsupported method ${ ctx.method } for team endpoint`)
 			break
 	}
 }
