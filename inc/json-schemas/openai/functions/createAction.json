@@ -1,0 +1,111 @@
+{
+    "description": "Generate a complete `item` document (form of `action`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
+    "name": "createAction",
+    "strict": false,
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "content": {
+                "description": "Include entire, or snippets, original Member conversation regarding this `action`",
+                "type": "string"
+            },
+            "conviction": {
+                "description": "Conviction level of `action` from 0-10, where 0 is no conviction and 10 is full conviction",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10
+            },
+            "ease_of_execution": {
+                "description": "Ease of execution level of `action` from 0-10, where 0 is very difficult and 10 is very easy",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10
+            },
+            "form": {
+                "description": "Form of `action`, which may be one of: `petition`, `protest`, `donation`, `volunteering`, `education`, or `other`",
+                "type": "string",
+                "enum": [
+                    "petition",
+                    "protest",
+                    "donation",
+                    "volunteering",
+                    "education",
+                    "other"
+                ]
+            },
+            "issues": {
+                "description": "Issues most relevant to `action`, include any relevant ideology, movement, etc. for political actions, if applicable, can omit if not relevant",
+                "items": {
+                    "description": "Issue related to `action` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "keywords": {
+                "description": "Keywords most relevant to `action`, include any relevant ideology, movement, or issue keywords for political actions",
+                "items": {
+                    "description": "Keyword from `action` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "steps": {
+                "description": "Ordered Step-by-step instructions for how to execute `action`, even if only one step",
+                "items": {
+                    "additionalProperties": false,
+                    "description": "Step from `action` instructions",
+                    "properties": {
+                        "content": {
+                            "description": "Instruction content for this step",
+                            "type": "string"
+                        },
+                        "order": {
+                            "description": "Order of this step in overall instructions",
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    "required": [
+                        "content",
+                        "order"
+                    ],
+                    "type": "object"
+                },
+                "type": "array"
+            },
+            "summary": {
+                "description": "Generate summary of `action` content, ideally max of 5 sentences",
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title for `action` based on content",
+                "type": "string"
+            },
+            "type": {
+                "const": "political",
+                "description": "MyLife System type of `action`",
+                "type": "string"
+            },
+            "values": {
+                "description": "Related `values` for this `action`, if applicable",
+                "type": "array",
+                "items": {
+                    "description": "Related articulated `value`s related to this `action`",
+                    "type": "string"
+                }
+            }
+        },
+        "required": [
+            "content",
+            "conviction",
+            "ease_of_execution",
+            "form",
+            "keywords",
+            "steps",
+            "summary",
+            "title",
+            "type"
+        ]
+    }
+}

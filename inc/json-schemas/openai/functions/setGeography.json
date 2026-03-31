@@ -1,0 +1,34 @@
+{
+    "name": "setGeography",
+    "description": "Set the geographical information for a member, including local political locality, nation, and state/regional information",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "local": {
+                "description": "Political locality of member, such as city or town",
+                "type": "string"
+            },
+            "nation": {
+                "description": "Name of nation in which member is politically located",
+                "type": "string"
+            },
+            "nation_iso": {
+                "description": "ISO 3-character country code",
+                "maxLength": 3,
+                "minLength": 3,
+                "type": "string"
+            },
+            "state_regional": {
+                "description": "Political state or regional code in which member is located, such as US state or Canadian province",
+                "type": "string"
+            }
+        },
+        "required": [
+            "local",
+            "nation",
+            "nation_iso",
+            "state_regional"
+        ]
+    }
+}

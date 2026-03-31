@@ -10,7 +10,6 @@ import {
     sceneTransition as memberSceneTransition,
     setActiveAction,
     setActiveBot,
-    setActiveItem,
     show,
     stageTransition,
     toggleMemberInput,
@@ -85,7 +84,6 @@ document.addEventListener('DOMContentLoaded', async event=>{
                 throw new Error('mInitializePageListeners()::launchExperience::no experience found in `mExperiences`')
             stageTransition(experienceId, false)
         })
-    console.log('experience.mjs::DOMContentLoaded()::mExperiences', mExperiences)
 })
 /* public functions */
 /**
@@ -216,7 +214,6 @@ async function experienceStart(experienceId){
         mExperience.events = await mEvents()
     /* experience manifest */
     const manifest = await mGlobals.datamanager.experienceManifest(id)
-    console.log('experienceStart::manifest', manifest)
     if(!manifest)
         throw new Error("Experience not found")
     if(!Array.isArray(manifest.cast)) // cast required, navigation not required
@@ -227,19 +224,22 @@ async function experienceStart(experienceId){
 }
 /**
  * Runs the routine based on the incoming script. A routine is similar currently to an `experience`, but is not as full-featured and is likely to meld in the near future.
- * @param {string|object} routineScript - The routine script object { cast, description, developers, events, purpose, title, }
- * @property {object[]} cast - The cast of characters { icon, id, role, type, }
- * @property {object[]} events - The events of the routine { character, dialog, }; dialog: { message, options, }
+ * @param {string|object} routineScript - The routine script object { cast, description, developers, events, purpose, title, } or string (id of routine script to be pulled from server)
+ * @param {boolean} clearChat - Whether to clear the chat for the routine, defaults to `false`
  * @returns {void}
  */
-async function routine(script){
+async function routine(script, clearChat=false){
     /* validate request */
     if(typeof script==='string'){
         const response = await mGlobals.datamanager.routine(script)
         if(response.success)
             script = response?.routine
+        else
+            throw new Error("Routine not found")
     }
-    const { cast, description, developers, events, pause=3, purpose, title, typeSpeed, } = script
+    if(typeof script !== 'object')
+        throw new Error("Invalid routine script")
+    const { clearSystemChat: scriptClearChat=false, cast, description, developers, events, pause=3, purpose, title, typeSpeed, } = script
     if(!events?.length)
         throw new Error("No events found")
     if(!cast?.length)
@@ -249,6 +249,8 @@ async function routine(script){
     let activeCharacter,
         interrupted=false
     /* execute request */
+    if(clearChat || scriptClearChat)
+        clearSystemChat()
     toggleMemberInput(false)
     document.addEventListener("keydown",e=>{
         if(e.key==='Escape')
@@ -265,7 +267,6 @@ async function routine(script){
             activeTimers.shift()
         }, ( index * pause * 1000 ))
         activeTimers.push(timer)
-        console.log("Routine event", timer, activeTimers)
     })
     /* inline functions */
     function getCharacter(id='avatar'){
@@ -299,6 +300,7 @@ async function routine(script){
         if(!isQ && activeCharacter?.bot_id)
             setActiveBot(activeCharacter.bot_id, false)
         addMessages([message], activeCharacter.type, typeSpeed, pause)
+        // @stub - create routine-specific styling for messages; should not setActiveBot nor require it
         if(!activeTimers.length)
             routineEnd(false)
     }
@@ -308,7 +310,6 @@ async function routine(script){
         toggleMemberInput(true)
         if(aborted)
             addMessage(routineAbortMessage, 'error')
-        console.log("Routine ended")
     }
 }
 /**
@@ -793,7 +794,6 @@ async function mEvents(memberInput, xid=mExperience.id){
         throw new Error(`Experience failed! ${ xid }`)
     const { autoplay, description, events, id, location, purpose, skippable, title, } = experience
     mExperience.location = location
-    console.log('mEvents::response', experience, mExperience)
     return events
 }
 /**
@@ -921,7 +921,6 @@ function mSceneTransition(){
     const { cast, location, } = mExperience
     const { sid: upcomingSceneId, } = location
     const { sid: currentSceneId=upcomingSceneId, skippable=true, } = mExperience
-    console.log('mSceneTransition::currentSceneId', currentSceneId, upcomingSceneId, mExperience)
     const upcomingScene = mGetScene(upcomingSceneId)
     if(!upcomingScene)
         throw new Error(`Scene not found! ${currentSceneId}`)
