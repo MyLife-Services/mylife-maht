@@ -1561,7 +1561,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
      */
     team(teamId){
-        const response = this.#botAgent.team(teamId).team
+        const response = this.#botAgent.team(teamId)?.team ?? {}
         return response
     }
     /**

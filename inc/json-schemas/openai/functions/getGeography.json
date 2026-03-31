@@ -1,4 +1,10 @@
 {
     "name": "getGeography",
-    "description": "Get the political geographical information for a member, including local political locality, nation, and state/regional information"
+    "description": "Get the political geographical information for a member, including local political locality, nation, and state/regional information",
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+    },
+    "strict": true
 }
