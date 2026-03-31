@@ -46,6 +46,10 @@ async function bots(ctx){
 			break
 		case 'GET':
 		default:
+			if(bid?.length){ // specific bot
+				ctx.body = await Avatar.getBot(bid)
+				return
+			}
 			const bots = await Avatar.getBots()
 			let { activeBotId, greeting, } = Avatar
 			if(!activeBotId){
