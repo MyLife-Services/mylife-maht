@@ -664,7 +664,6 @@ class BotAgent {
 						return 'journaler'
 				}
 			case 'issue':
-				console.log('itemForm', itemForm)
 				return 'political-stance'
 			case 'value':
 				return 'political-values'
