@@ -1454,7 +1454,7 @@ class Avatar extends EventEmitter {
     async setActiveTeam(teamId){
         if(this.isMyLife)
             throw new Error('MyLife avatar cannot currently utilize teams.')
-        const response = this.#botAgent.setActiveTeam(teamId)
+        const response = await this.#botAgent.setActiveTeam(teamId)
         return response
     }
     /**
