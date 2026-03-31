@@ -1034,7 +1034,6 @@ class Avatar extends EventEmitter {
                 /* validate request */
                 item.assistantType = assistantType
                     ?? this.#botAgent.getAssistantType(form, type)
-                console.log('MemberAvatar::item()::assistantType', item.assistantType)
                 item.llm_id = llm_id
                 /* execute request */
                 Item = mItem(item, this, this.#llmServices)
