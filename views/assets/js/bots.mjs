@@ -410,88 +410,6 @@ async function mBotNameChange(e){
     }
     nameInput.addEventListener('change', mBotNameChange, { once: true })
 }
-function mCreateProxyBotContainer(proxyAgent){
-    const { access=[], description, id, name, purpose, skills=[], url='A2A', } = proxyAgent
-    /* container [begin] */
-    const proxyContainer = document.createElement('div')
-    proxyContainer.classList.add('bot-container', 'proxy-container')
-    proxyContainer.id = id
-    /* status [begin] */
-    const proxyStatus = document.createElement('div')
-    proxyStatus.classList.add('bot-status', 'proxy-status')
-    proxyStatus.id = `${ id }-status`
-    /* icon */
-    const proxyIcon = document.createElement('div')
-    proxyIcon.classList.add('bot-icon')
-    proxyIcon.id = `${ id }-icon`
-    const proxyIconImage = document.createElement('img')
-    proxyIconImage.alt = `I am External Agent: ${ name } (${ url })`
-    proxyIconImage.classList.add('bot-image')
-    proxyIconImage.id = `${ id }-image`
-    proxyIconImage.src = mBotIcon('proxy')
-    proxyIconImage.title = description
-    proxyIcon.appendChild(proxyIconImage)
-    /* title */
-    const proxyTitle = document.createElement('div')
-    proxyTitle.classList.add('bot-title')
-    const proxyTitleType = document.createElement('div')
-    proxyTitleType.classList.add('bot-title-type', 'proxy-title-type')
-    proxyTitleType.id = `${ id }-title-type`
-    const proxyTitleName = document.createElement('div')
-    proxyTitleName.id = `${ id }-title-name`
-    proxyTitleName.classList.add('bot-title-name', 'proxy-title-name')
-    const proxyTitleVersion = document.createElement('div')
-    proxyTitleVersion.id = `${ id }-title-version`
-    proxyTitleVersion.classList.add('bot-title-version', 'proxy-title-version')
-    proxyTitle.appendChild(proxyTitleType)
-    proxyTitle.appendChild(proxyTitleName)
-    proxyTitle.appendChild(proxyTitleVersion)
-    /* dropdown caret */
-    const proxyDropdown = document.createElement('div')
-    proxyDropdown.classList.add('bot-options-dropdown', 'proxy-options-dropdown')
-    proxyDropdown.id = `${ id }-options-dropdown`
-    /* status [end] */
-    proxyStatus.appendChild(proxyIcon)
-    proxyStatus.appendChild(proxyTitle)
-    proxyStatus.appendChild(proxyDropdown)
-    /* options [begin] */
-    const proxyOptions = document.createElement('div')
-    proxyOptions.classList.add('bot-options', 'hidden', 'proxy-options')
-    proxyOptions.id = `${ id }-options`
-    /* skills [begin] */
-    const proxySkills = document.createElement('div')
-    proxySkills.classList.add('input-group', 'proxy-inputs', 'skills')
-    proxySkills.id = `${ id }-skills`
-    /* - skills label */
-    const proxySkillsLabel = document.createElement('label')
-    proxySkillsLabel.id = `${ id }-label-skills`
-    proxySkillsLabel.htmlFor = `${ id }-input-skills`
-    proxySkillsLabel.textContent = `Agent Skills:`
-    /* - skills input */
-    const proxySkillsInput = document.createElement('textarea')
-    proxySkillsInput.classList.add('bot-input', 'proxy-input', 'proxy-skills')
-    proxySkillsInput.id = `${ id }-input-skills`
-    proxySkillsInput.maxLength = 1024
-    const proxySkillsValue = skills?.length > proxySkillsInput.maxLength
-        ? skills.substring(0, proxySkillsInput.maxLength-3) + '...'
-        : skills
-    proxySkillsInput.value = proxySkillsValue
-    proxySkills.appendChild(proxySkillsLabel)
-    proxySkills.appendChild(proxySkillsInput)
-    /* skills [end] */
-    proxyOptions.appendChild(mProxyName(id, name))
-    proxyOptions.appendChild(mProxyEndpoint(id, url))
-    proxyOptions.appendChild(mProxyDescription(id, description))
-    proxyOptions.appendChild(mProxySkills(id, skills))
-    proxyOptions.appendChild(mProxyPurpose(id, purpose))
-    proxyOptions.appendChild(mProxyAccess(id, access))
-    proxyOptions.appendChild(mProxyRetire(id))
-    /* options [end] */
-    proxyContainer.appendChild(proxyStatus)
-    proxyContainer.appendChild(proxyOptions)
-    /* container [end] */
-    return proxyContainer
-}
 /**
  * Creates an options checkbox list for a bot options panel from bot option group data.
  * @private
@@ -577,66 +495,6 @@ function mCloseTeamPopup(e){
         return
     document.removeEventListener('keydown', mCloseTeamPopup)
     hide(mTeamPopup)
-}
-function mCreateProxyBotContainer(proxyAgent){
-    const { access=[], description, id, name, purpose, skills=[], url='A2A', } = proxyAgent
-    /* container [begin] */
-    const proxyContainer = document.createElement('div')
-    proxyContainer.classList.add('bot-container', 'proxy-container')
-    proxyContainer.id = id
-    /* status [begin] */
-    const proxyStatus = document.createElement('div')
-    proxyStatus.classList.add('bot-status', 'proxy-status')
-    proxyStatus.id = `${ id }-status`
-    /* icon */
-    const proxyIcon = document.createElement('div')
-    proxyIcon.classList.add('bot-icon')
-    proxyIcon.id = `${ id }-icon`
-    const proxyIconImage = document.createElement('img')
-    proxyIconImage.alt = `I am External Agent: ${ name } (${ url })`
-    proxyIconImage.classList.add('bot-image')
-    proxyIconImage.id = `${ id }-image`
-    proxyIconImage.src = mBotIcon('proxy')
-    proxyIconImage.title = description
-    proxyIcon.appendChild(proxyIconImage)
-    /* title */
-    const proxyTitle = document.createElement('div')
-    proxyTitle.classList.add('bot-title')
-    const proxyTitleType = document.createElement('div')
-    proxyTitleType.classList.add('bot-title-type', 'proxy-title-type')
-    proxyTitleType.id = `${ id }-title-type`
-    proxyTitleType.textContent = `Proxy Agent`
-    const proxyTitleName = document.createElement('div')
-    proxyTitleName.id = `${ id }-title-name`
-    proxyTitleName.classList.add('bot-title-name', 'proxy-title-name')
-    proxyTitleName.textContent = name
-    // no version for external, refreshed differently
-    proxyTitle.appendChild(proxyTitleType)
-    proxyTitle.appendChild(proxyTitleName)
-    /* dropdown caret */
-    const proxyDropdown = document.createElement('div')
-    proxyDropdown.classList.add('bot-options-dropdown', 'proxy-options-dropdown')
-    proxyDropdown.id = `${ id }-options-dropdown`
-    /* status [end] */
-    proxyStatus.appendChild(proxyIcon)
-    proxyStatus.appendChild(proxyTitle)
-    proxyStatus.appendChild(proxyDropdown)
-    /* options [begin] */
-    const proxyOptions = document.createElement('div')
-    proxyOptions.classList.add('bot-options', 'hidden', 'proxy-options')
-    proxyOptions.id = `${ id }-options`
-    proxyOptions.appendChild(mProxyName(id, name))
-    proxyOptions.appendChild(mProxyEndpoint(id, url))
-    proxyOptions.appendChild(mProxyDescription(id, description))
-    proxyOptions.appendChild(mProxySkills(id, skills))
-    proxyOptions.appendChild(mProxyPurpose(id, purpose))
-    proxyOptions.appendChild(mProxyAccess(id, access))
-    proxyOptions.appendChild(mProxyRetire(id))
-    /* options [end] */
-    proxyContainer.appendChild(proxyStatus)
-    proxyContainer.appendChild(proxyOptions)
-    /* container [end] */
-    return proxyContainer
 }
 /**
  * Creates bot button for a bot buttons panel from bot button data.
@@ -806,6 +664,71 @@ async function mCreateBotContainer(bot){
     container.appendChild(status)
     container.appendChild(options)
     return container
+}
+/**
+ * Creates a bot container for a proxy agent and appends it to the bot mount.
+ * @param {object} proxyAgent - The proxy agent
+ * @returns {HTMLDivElement} - The proxy bot container element
+ */
+function mCreateProxyBotContainer(proxyAgent){
+    const { access=[], description, id, name, purpose, skills=[], url='A2A', } = proxyAgent
+    /* container [begin] */
+    const proxyContainer = document.createElement('div')
+    proxyContainer.classList.add('bot-container', 'proxy-container')
+    proxyContainer.id = id
+    /* status [begin] */
+    const proxyStatus = document.createElement('div')
+    proxyStatus.classList.add('bot-status', 'proxy-status')
+    proxyStatus.id = `${ id }-status`
+    /* icon */
+    const proxyIcon = document.createElement('div')
+    proxyIcon.classList.add('bot-icon')
+    proxyIcon.id = `${ id }-icon`
+    const proxyIconImage = document.createElement('img')
+    proxyIconImage.alt = `I am External Agent: ${ name } (${ url })`
+    proxyIconImage.classList.add('bot-image')
+    proxyIconImage.id = `${ id }-image`
+    proxyIconImage.src = mBotIcon('proxy')
+    proxyIconImage.title = description
+    proxyIcon.appendChild(proxyIconImage)
+    /* title */
+    const proxyTitle = document.createElement('div')
+    proxyTitle.classList.add('bot-title')
+    const proxyTitleType = document.createElement('div')
+    proxyTitleType.classList.add('bot-title-type', 'proxy-title-type')
+    proxyTitleType.id = `${ id }-title-type`
+    proxyTitleType.textContent = `Proxy Agent`
+    const proxyTitleName = document.createElement('div')
+    proxyTitleName.id = `${ id }-title-name`
+    proxyTitleName.classList.add('bot-title-name', 'proxy-title-name')
+    proxyTitleName.textContent = name
+    // no version for external, refreshed differently
+    proxyTitle.appendChild(proxyTitleType)
+    proxyTitle.appendChild(proxyTitleName)
+    /* dropdown caret */
+    const proxyDropdown = document.createElement('div')
+    proxyDropdown.classList.add('bot-options-dropdown', 'proxy-options-dropdown')
+    proxyDropdown.id = `${ id }-options-dropdown`
+    /* status [end] */
+    proxyStatus.appendChild(proxyIcon)
+    proxyStatus.appendChild(proxyTitle)
+    proxyStatus.appendChild(proxyDropdown)
+    /* options [begin] */
+    const proxyOptions = document.createElement('div')
+    proxyOptions.classList.add('bot-options', 'hidden', 'proxy-options')
+    proxyOptions.id = `${ id }-options`
+    proxyOptions.appendChild(mProxyName(id, name))
+    proxyOptions.appendChild(mProxyEndpoint(id, url))
+    proxyOptions.appendChild(mProxyDescription(id, description))
+    proxyOptions.appendChild(mProxySkills(id, skills))
+    proxyOptions.appendChild(mProxyPurpose(id, purpose))
+    proxyOptions.appendChild(mProxyAccess(id, access))
+    proxyOptions.appendChild(mProxyRetire(id))
+    /* options [end] */
+    proxyContainer.appendChild(proxyStatus)
+    proxyContainer.appendChild(proxyOptions)
+    /* container [end] */
+    return proxyContainer
 }
 /**
  * Creates the retire container for a bot options panel.
