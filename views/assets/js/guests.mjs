@@ -251,6 +251,7 @@ async function mFetchStart(){
     return {
         input,
         messages,
+        missions,
     }
 }
 /**

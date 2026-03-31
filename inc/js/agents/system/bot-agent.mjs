@@ -1572,10 +1572,10 @@ async function mDeleteChat(Conversation, localDelete=false, llm, factory){
  * Retrieves any functions that need to be attached to the specific bot-type.
  * @module
  * @todo - Move to llmServices and improve
- * @param {string} type - Type of bot.
- * @param {object} globals - Global functions for bot.
- * @param {string} vectorstoreId - Vectorstore id.
- * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }.
+ * @param {string} type - Type of bot
+ * @param {object} globals - Global functions for bot
+ * @param {string} vectorstoreId - Vectorstore id
+ * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }
  */
 function mGetAIFunctions(type, globals, vectorstoreId){
 	let includeSearch=false,
