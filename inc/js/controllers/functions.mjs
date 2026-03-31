@@ -256,27 +256,6 @@ async function summarize(ctx){
 	ctx.body = await Avatar.summarize(fileId, fileName)
 }
 /**
- * Get a specified team, its details and bots, by id for the member.
- * @param {Koa} ctx - Koa Context object
- * @returns {object} - Team object
- */
-async function team(ctx){
-	const { tid, } = ctx.params
-	if(!tid?.length)
-		ctx.throw(400, `missing team id`)
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.team(tid)
-}
-/**
- * Get a list of available teams and their default details.
- * @param {Koa} ctx - Koa Context object.
- * @returns {Object[]} - List of team objects.
- */
-async function teams(ctx){
-	const { avatar: Avatar, } = ctx.state
-	ctx.body = await Avatar.teams()
-}
-/**
  * Proxy for uploading files to the API.
  * @param {Koa} ctx - Koa Context object
  * @returns {object} - The result of the upload as `ctx.body`.
@@ -309,7 +288,5 @@ export {
 	privacyPolicy,
 	signup,
 	summarize,
-	team,
-	teams,
 	upload,
 }

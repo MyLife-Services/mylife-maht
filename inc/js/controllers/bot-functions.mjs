@@ -10,8 +10,17 @@ async function activateBot(ctx){
 	if(!ctx.Globals.isValidGuid(bid))
 		ctx.throw(400, `missing bot id`)
 	const { avatar: Avatar, } = ctx.state
-	const response =await Avatar.setActiveBot(bid)
-	ctx.body = response
+	ctx.body =await Avatar.setActiveBot(bid)
+}
+/**
+ * Get a specified bot by id for the member.
+ * @param {Koa} ctx - Koa context object
+ * @returns {object} - Bot object corresponding to the provided bot id
+ */
+async function bot(ctx){
+	const { bid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	ctx.body = await Avatar.getBot(bid)
 }
 /**
  * Manage bots for the member.
@@ -39,19 +48,19 @@ async function bots(ctx){
 		default:
 			if(bid?.length){ // specific bot
 				ctx.body = await Avatar.getBot(bid)
-			} else {
-				const bots = await Avatar.getBots()
-				let { activeBotId, greeting, } = Avatar
-				if(!activeBotId){
-					const { bot_id, greeting: activeGreeting } = await Avatar.setActiveBot()
-					activeBotId = bot_id
-					greeting = activeGreeting
-				}
-				ctx.body = { // wrap bots
-					activeBotId,
-					bots,
-					greeting,
-				}
+				return
+			}
+			const bots = await Avatar.getBots()
+			let { activeBotId, greeting, } = Avatar
+			if(!activeBotId){
+				const { bot_id, greeting: activeGreeting } = await Avatar.setActiveBot()
+				activeBotId = bot_id
+				greeting = activeGreeting
+			}
+			ctx.body = { // wrap bots
+				activeBotId,
+				bots,
+				greeting,
 			}
 			break
 	}
@@ -141,7 +150,7 @@ async function migrateChat(ctx){
  */
 async function retireBot(ctx){
 	ctx.method = 'DELETE'
-	return await this.bots(ctx)
+	return await bots(ctx)
 }
 /**
  * Direct request from member to retire a chat (via bot).
@@ -165,6 +174,38 @@ async function routine(ctx){
 	const { avatar: Avatar, } = ctx.state
 	const response = await Avatar.routine(rid)
 	ctx.body = response
+}
+/**
+ * Get a specified team, its details and bots, by id for the member.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - Team object
+ */
+async function team(ctx){
+	const { tid, } = ctx.params
+	const { avatar, } = ctx.state
+	switch(ctx.method){
+		case 'GET': // get team details
+			ctx.body = await avatar.team(tid)
+			break
+		case 'POST': // set active team
+			if(!ctx.Globals.isValidGuid(tid))
+				ctx.throw(400, `Valid Team id required`)
+			ctx.body = await avatar.setActiveTeam(tid)
+			break
+		case 'DELETE': // remove team from bot
+		default:
+			ctx.throw(405, `Unsupported method ${ ctx.method } for team endpoint`)
+			break
+	}
+}
+/**
+ * Get a list of available teams and their default details.
+ * @param {Koa} ctx - Koa Context object.
+ * @returns {Object[]} - List of team objects.
+ */
+async function teams(ctx){
+	const { avatar: Avatar, } = ctx.state
+	ctx.body = await Avatar.teams()
 }
 /**
  * Gets the list of shadows.
@@ -195,6 +236,7 @@ async function updateBotInstructions(ctx){
 /* exports */
 export {
 	activateBot,
+	bot,
 	bots,
     botButtons,
     botOptions,
@@ -206,5 +248,7 @@ export {
     retireChat,
     routine,
     shadows,
+	team,
+	teams,
     updateBotInstructions,
 }

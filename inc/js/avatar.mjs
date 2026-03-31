@@ -10,7 +10,7 @@ import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
 import ConnectorAgent from './agents/system/connector-agent.mjs'
-import { Entry, Memory, } from './models.mjs'
+import { Entry, Issue, Memory, Value, } from './models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './llm.mjs'
@@ -878,11 +878,11 @@ class Avatar extends EventEmitter {
     }
     /**
      * Specified by id, returns the pruned Bot.
-     * @param {Guid} id - The Bot id
+     * @param {Guid} id - The Bot id, defaults to active bot
      * @param {boolean} returnClassInstance - Whether to return the full Bot class instance, defaults to `false`
      * @returns {object} - The pruned Bot object
      */
-    getBot(bot_id, returnClassInstance=false){
+    getBot(bot_id=this.activeBot?.id, returnClassInstance=false){
         const bot = this.#botAgent.bot(bot_id)
         return !returnClassInstance && !!bot
             ? bot.bot
@@ -1080,6 +1080,11 @@ class Avatar extends EventEmitter {
         response.success = success
         return response
     }
+    /**
+     * Proxy to create an item via factory in the database.
+     * @param {object} item - Item data
+     * @returns {Promise<object>} - The created item object
+     */
     async itemCreate(item){
         return await this.#factory.createItem(item)
     }
@@ -1441,6 +1446,17 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
+     * Sets the requested team as active, sets the active bot and responds.
+     * @param {string} teamId - The team id
+     * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
+     */
+    async setActiveTeam(teamId){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot currently utilize teams.')
+        const response = await this.#botAgent.setActiveTeam(teamId)
+        return response
+    }
+    /**
      * Gets the list of shadows.
      * @returns {Object[]} - Array of shadow objects.
      */
@@ -1539,21 +1555,20 @@ class Avatar extends EventEmitter {
         }
     }
     /**
-     * Get a specified team, its details and _instanced_ bots, by id for the member.
-     * @param {string} teamId - The team id
-     * @returns {object} - Team object
+     * Gets the requested team by id (or default active team).
+     * @param {Guid|null} teamId - The team id
+     * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
      */
     team(teamId){
-        this.#botAgent.setActiveTeam(teamId)
-        const team = this.#botAgent.activeTeam
-        return team
+        const response = this.#botAgent.team(teamId)?.team ?? {}
+        return response
     }
     /**
      * Get a list of available teams and their default details.
      * @returns {Object[]} - List of team objects.
      */
     teams(){
-        const teams = this.#botAgent.teams
+        const teams = this.#botAgent.teams.map(team=>team.team)
         return teams
     }
     /**
@@ -3040,6 +3055,12 @@ function mItem(item, avatar, llmServices){
         switch(type){
             case 'entry':
                 Item = new Entry(item, avatar, llmServices)
+                break
+            case 'issue':
+                Item = new Issue(item, avatar, llmServices)
+                break
+            case 'value':
+                Item = new Value(item, avatar, llmServices)
                 break
             case 'memory':
             default:

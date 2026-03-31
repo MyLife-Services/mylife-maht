@@ -300,6 +300,7 @@ async function routine(script, clearChat=false){
         if(!isQ && activeCharacter?.bot_id)
             setActiveBot(activeCharacter.bot_id, false)
         addMessages([message], activeCharacter.type, typeSpeed, pause)
+        // @stub - create routine-specific styling for messages; should not setActiveBot nor require it
         if(!activeTimers.length)
             routineEnd(false)
     }

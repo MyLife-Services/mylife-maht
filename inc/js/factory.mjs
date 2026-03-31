@@ -504,6 +504,23 @@ class BotFactory extends EventEmitter{
 		)
 	}
 	/**
+	 * Gets list of teams (active only or all).
+	 * @param {boolean} active - Whether to return only active teams
+	 * @returns {Promise<object[]>} - The teams.
+	 */
+	async teams(active=true, form){
+		const filterArray = []
+		if(active)
+			filterArray.push({ name: '@active', value: true })
+		if(form)
+			filterArray.push({ name: '@form', value: form })
+		return await mDataservices.getItemsByFields(
+			'team',
+			filterArray,
+			'system'
+		)
+	}
+	/**
 	 * Updates bot data in the database.
 	 * @param {object} botData - The bot data to update
 	 * @returns {Promise<object>} - the bot document from the database

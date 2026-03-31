@@ -1,0 +1,34 @@
+{
+    "name": "setPoliticalLeaning",
+    "description": "Get the political leaning of a member, such as liberal or conservative, matched to the enumerated list of political leanings in the system; if convicted, value may deviate from provided values",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "additionalProperties": false,
+            "political_leaning": {
+                "description": "Political leaning of member, on spectrum from conservative to liberal and tangential leanings like populist or anarchist",
+                "enum": [
+                    "populist",
+                    "anarchist",
+                    "traditionalist",
+                    "hardline conservative",
+                    "conservative",
+                    "libertarian",
+                    "republican",
+                    "center",
+                    "democrat",
+                    "left-leaning",
+                    "liberal",
+                    "progressive",
+                    "revolutionary"
+                ],
+                "type": "string"
+            }
+        },
+        "required": [
+            "political_leaning"
+        ]
+    },
+    "strict": true
+}

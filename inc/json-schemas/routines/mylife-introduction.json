@@ -28,7 +28,7 @@
         {
             "character": "Q",
             "dialog": {
-                "message": "Hello, <-mFN->! Hopefully you remember me from my icon! I'm <b>Q</b> the Assistive Intelligence for <em>MyLife</em>, the nonprofit organization that created this platform for you to use. <em>MyLife</em>'s intention is to provide you the tools to create your digital legacy for posterity. Here you can collect, curate, and share personal media and information in perpetuity for all future history!"
+                "message": "Hello, <-mN->! Hopefully you remember me from my icon! I'm <b>Q</b> the Assistive Intelligence for <em>MyLife</em>, the nonprofit organization that created this platform for you to use. <em>MyLife</em>'s intention is to provide you the tools to create your digital legacy for posterity. Here you can collect, curate, and share personal media and information in perpetuity for all future history!"
             }
         },
 		{
@@ -44,7 +44,7 @@
 		{
 			"character": "avatar",
 			"dialog": {
-				"message": "It's a pleasure to meet you, <-mFN->! I'm <-bN->, here to help you navigate the <em>MyLife</em> platform and make the most of your experience. Whether you need assistance with organizing your content, switching between your teams of assistants, or just have questions about how to use the platform, I'm here to help. Let's get started on creating your digital legacy together!"
+				"message": "It's a pleasure to meet you, <-mN->! I'm <-bN->, here to help you navigate the <em>MyLife</em> platform and make the most of your experience. Whether you need assistance with organizing your content, switching between your teams of assistants, or just have questions about how to use the platform, I'm here to help. Let's get started on creating your digital legacy together!"
 			}
 		},
 		{
@@ -95,7 +95,7 @@
     "variables": [
         {
             "default": "MyLife Member",
-            "variable": "<-mFN->",
+            "variable": "<-mN->",
             "replacement": "memberName"
         },
         {

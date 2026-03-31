@@ -10,38 +10,6 @@ const mDefaultIcon = 'default.png'
 const mDefaultTeam = 'memory'
 const mProxyChatTypes = ['chat', 'conversation', 'converse',]
 const mRequiredBotTypes = ['personal-avatar']
-const mTeams = [
-	{
-		active: true,
-		allowCustom: true,
-		allowProxy: true,
-		allowedBotTypes: ['diary', 'journaler', 'personal-biographer'],
-		allowedItemTypes: ['entry', 'memory'],
-		collection: 'Scrapbook',
-		defaultActiveType: 'personal-biographer',
-		defaultTypes: ['personal-biographer'],
-		description: 'The Memory Team is dedicated to help you document your life stories, experiences, thoughts, and feelings.',
-		id: 'a261651e-51b3-44ec-a081-a8283b70369d',
-		name: 'memory',
-		primaryCollectionTypes: ['memory'], // to load on initialization of team
-		title: 'Memory',
-	},
-	{
-		active: true,
-		allowCustom: true,
-		allowProxy: true,
-		allowedBotTypes: ['activism', 'conflict-resolution', 'journaler', 'political-narratives', 'political-stance', 'values',],
-		allowedItemTypes: ['entry', 'memory', 'stance', 'value'],
-		collection: 'Political Notebook',
-		defaultActiveType: 'political-stance',
-		defaultTypes: ['political-stance',],
-		description: 'The Political Team is dedicated to help you craft records of your own political views on issues, and how to engage with political issues and perspectives from productive conversation with those of opposing views to activism.',
-		id: '0434f506-2a33-443a-80ed-8bd9832b33d7',
-		name: 'political',
-		title: 'Political',
-		primaryCollectionTypes: ['stance', 'value'], // to load on initialization of team
-	},
-]
 /* classes */
 /**
  * @class - Bot
@@ -74,7 +42,7 @@ class Bot {
 		this.#feedback = feedback
 		this.#firstAccess = unaccessed
 		this.#greetings = greetings
-		this.#greetingRoutine = type.split('-').pop()
+		this.#greetingRoutine = type.replace('personal-', '')
 		this.#type = type
 		this.#retirable = retirable
 			?? this.#factory.botRetirable(type)
@@ -142,6 +110,7 @@ class Bot {
 	}
     /**
      * Get collection items for this bot.
+	 * @stub - add political team
      * @returns {Promise<Array>} - The collection items (no wrapper)
      */
 	async collections(type){
@@ -529,23 +498,19 @@ class Bot {
 	}
 }
 /**
- * @class - Team
- * @private
- */
-/**
  * @class - BotAgent
  * @public
  * @description - BotAgent is an interface to assist in creating, managing and maintaining a Member Avatar's bots.
  */
 class BotAgent {
 	#activeBot
-    #activeTeam = mDefaultTeam
+    #activeTeam
     #avatar
     #bots
     #factory
 	#fileConversation
 	#llm
-	#teams = mTeams
+	#teams
 	#vectorstoreId
     constructor(factory, llm){
         this.#factory = factory
@@ -559,13 +524,13 @@ class BotAgent {
 	 * @returns {Promise<BotAgent>} - The BotAgent instance
 	 */
     async init(Avatar){
-		/* validate request */
         if(!Avatar)
             throw new Error('Avatar required')
         this.#avatar = Avatar
 		this.#bots = []
 		this.#vectorstoreId = Avatar.vectorstoreId
-		/* execute request */
+		const teamData = await this.#factory.teams(true, 'member')
+		this.#teams = teamData.map(teamData=>new Team(teamData, this.#factory))
 		await mInit(this, this.#bots, this.#avatar, this.#factory, this.#llm)
 		return this
     }
@@ -583,26 +548,29 @@ class BotAgent {
 	 * Retrieves Bot instance by id or type, defaults to personal-avatar.
 	 * @param {Guid} botId - The Bot id
 	 * @param {String} botType - The Bot type
+	 * @param {Boolean} strict - Whether to match bot type or allow for avatar response, defaults to `false`
 	 * @returns {Promise<Bot>} - The Bot instance
 	 */
-	bot(botId, botType){
+	bot(botId, botType, strict=false){
 		const Bot = (
 			botType?.length
-				? this.#bots.find(bot=>[botType, `personal-${ botType }`].includes(bot.type)) /* returns first match */
+				? this.#bots.find(bot=>[botType, `personal-${ botType }`, botType.replace('personal-', '') ].includes(bot.type))
 				: this.#bots.find(bot=>bot.id===botId)
 			)
-			?? this.avatar
+				?? (strict ? null : this.avatar)
 		return Bot
 	}
 	/**
 	 * Creates a bot instance.
 	 * @param {Object} botData - The bot data object
+	 * @param {Boolean} active - Whether to set the created bot as active, defaults to `true`
 	 * @returns {Bot} - The created Bot instance
 	 */
-	async botCreate(botData){
+	async botCreate(botData, active=true){
 		const Bot = await mBotCreate(this.avatarId, this.#vectorstoreId, botData, this.#llm, this.#factory)
 		this.#bots.push(Bot)
-		this.setActiveBot(Bot.id)
+		if(active)
+			this.setActiveBot(Bot.id)
 		return Bot
 	}
 	/**
@@ -684,13 +652,24 @@ class BotAgent {
 	 * @returns {String} - The assistant type
 	 */
 	getAssistantType(itemForm='biographer', itemType='memory'){
-		if(itemType.toLowerCase()==='memory')
-			return 'biographer'
-		if(itemType.toLowerCase()==='entry')
-			return itemForm.toLowerCase()==='diary'
-				? 'diary'
-				: 'journaler'
-		return 'avatar'
+		switch(itemType.toLowerCase()){
+			case 'memory':
+				return 'biographer'
+			case 'entry':
+				switch(itemForm.toLowerCase()){
+					case 'diary':
+						return 'diary'
+					case 'journal':
+					case 'journaler':
+						return 'journaler'
+				}
+			case 'issue':
+				return 'political-stance'
+			case 'value':
+				return 'political-values'
+			default:
+				return 'avatar'
+		}
 	}
     /**
      * Get a static or dynamic greeting from active bot.
@@ -826,13 +805,40 @@ class BotAgent {
 		}
 	}
 	/**
-	 * Sets the active team for the BotAgent if `teamId` valid.
+	 * Sets the active team for the BotAgent if `teamId` valid; subsequently sets active bot.
 	 * @param {Guid} teamId - The Team id
-	 * @returns {void}
+	 * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
 	 */
-	setActiveTeam(teamId){
-		this.#activeTeam = this.teams.find(team=>team.id===teamId)
-			?? this.#activeTeam
+	async setActiveTeam(teamId, activateAvatar=false){
+		if(this.isMyLife)
+			return
+		if(!this.globals.isValidGuid(teamId))
+			throw new Error('Valid teamId required to set active team.')
+		const response = {
+			team: this.#activeTeam,
+		}
+		if(teamId!==this.#activeTeam?.id){
+			const team = this.team(teamId)
+			if(!team){
+				response.error = new Error('Team not found with requested id: ' + teamId)
+				response.success = false
+				return response
+			}
+			const { defaultActiveType, defaultTypes, } = team
+			let activeBot
+			for(const type of defaultTypes)
+				if(!this.bot(null, type, true))
+					await this.botCreate({ type, }, false)
+			activeBot = activateAvatar
+				? this.avatar
+				: this.bot(null, defaultActiveType)
+					?? this.avatar
+			this.#activeTeam = team
+			response.team = this.#activeTeam
+			const botResponse = await this.setActiveBot(activeBot.id)
+			response.botResponse = botResponse
+		}
+		return response
 	}
 	/**
 	 * Summarizes a file document.
@@ -857,6 +863,18 @@ class BotAgent {
 		await mCallLLM(this.#fileConversation, false, this.#llm, this.#factory, Avatar)
 		const responses = this.#fileConversation.getMessages()
         return responses
+	}
+	/**
+	 * Retrieves a team by id, defaults to active team id.
+	 * @param {Guid|string|null} teamId - The team id to retrieve, defaults to active team id
+	 * @returns {object} - The team object
+	 */
+	team(teamId){
+		teamId = teamId
+			?? this.#activeTeam?.id
+			?? mDefaultTeam
+		const team = this.teams.find(team=>team.id===teamId || team.name.toLowerCase()===teamId.toLowerCase())
+		return team
 	}
 	/**
 	 * Updates a bot instance.
@@ -1009,6 +1027,33 @@ class BotAgent {
 		return this.#bots.find(bot=>bot.id===botId)
 	}
 }
+/**
+ * @class - Team
+ * @private
+ */
+class Team {
+	#factory
+	constructor(teamData, factory){
+		this.#factory = factory
+		Object.assign(this, this.#factory.globals.sanitize(teamData))
+	}
+	get team(){
+		return {
+			allowCustom: this.allowCustom,
+			allowProxy: this.allowProxy,
+			allowedBotTypes: this.allowedBotTypes,
+			allowedItemTypes: this.allowedItemTypes,
+			collection: this.collection,
+			defaultActiveType: this.defaultActiveType,
+			defaultTypes: this.defaultTypes,
+			description: this.description,
+			id: this.id,
+			name: this.name,
+			primaryCollectionTypes: this.primaryCollectionTypes,
+			title: this.title,
+		}
+	}
+}
 /* modular functions */
 /**
  * Initializes openAI assistant and returns associated `assistant` object.
@@ -1041,6 +1086,8 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	if(!avatarId?.length || !type?.length)
 		throw new Error('avatar id and type required to create bot')
 	const { greeting, greetings, instructions, version=1.0, } = mBotInstructions(factory, botData)
+	if(!instructions)
+		throw new Error('bot instructions not found for type: ' + type)
 	const model = process.env.OPENAI_MODEL_CORE_BOT
 		?? process.env.OPENAI_MODEL_CORE_AVATAR
 		?? 'gpt-4o'
@@ -1173,6 +1220,7 @@ function mBotInstructions(factory, botData={}){
 		references=[],
 		replacements=[],
 		suffix='', // example: data privacy info
+		team='',
 		voice='',
 	} = instructions
     /* compile instructions */
@@ -1198,6 +1246,14 @@ function mBotInstructions(factory, botData={}){
                 + general
 				+ suffix
 				+ voice
+			break
+		case 'political-stance':
+		case 'political-values':
+			instructions = preamble
+				+ prefix
+				+ general
+				+ voice
+				+ team
 			break
         default:
             instructions = general
@@ -1514,16 +1570,30 @@ async function mDeleteChat(Conversation, localDelete=false, llm, factory){
  * Retrieves any functions that need to be attached to the specific bot-type.
  * @module
  * @todo - Move to llmServices and improve
- * @param {string} type - Type of bot.
- * @param {object} globals - Global functions for bot.
- * @param {string} vectorstoreId - Vectorstore id.
- * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }.
+ * @param {string} type - Type of bot
+ * @param {object} globals - Global functions for bot
+ * @param {string} vectorstoreId - Vectorstore id
+ * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }
  */
 function mGetAIFunctions(type, globals, vectorstoreId){
 	let includeSearch=false,
 		tool_resources,
 		tools = []
 	switch(type){
+		case 'activism':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createAction'),
+				globals.getGPTJavascriptFunction('getAction'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('getValue'),
+				globals.getGPTJavascriptFunction('updateAction'),
+			)
+			includeSearch = true
+			break
 		case 'assistant':
 		case 'avatar':
 		case 'personal-assistant':
@@ -1538,6 +1608,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'biographer':
 		case 'personal-biographer':
 			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('endReliving'),
 				globals.getGPTJavascriptFunction('getSummary'),
@@ -1552,11 +1623,40 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'diary':
 		case 'journaler':
 			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
 				globals.getGPTJavascriptFunction('itemSummary'),
 				globals.getGPTJavascriptFunction('obscure'),
 				globals.getGPTJavascriptFunction('updateSummary'),
+			)
+			includeSearch = true
+			break
+		case 'political-stance':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createStance'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('setGeography'),
+				globals.getGPTJavascriptFunction('setPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('updateStance'),
+			)
+			includeSearch = true
+			break
+		case 'political-values':
+			tools.push(
+				globals.getGPTJavascriptFunction('callAvatar'),
+				globals.getGPTJavascriptFunction('changeTitle'),
+				globals.getGPTJavascriptFunction('createValue'),
+				globals.getGPTJavascriptFunction('getGeography'),
+				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
+				globals.getGPTJavascriptFunction('getStance'),
+				globals.getGPTJavascriptFunction('getValue'),
+				globals.getGPTJavascriptFunction('setValuesBackground'),
+				globals.getGPTJavascriptFunction('updateValue'),
 			)
 			includeSearch = true
 			break
@@ -1577,11 +1677,11 @@ function mGetAIFunctions(type, globals, vectorstoreId){
  * Retrieves bot types based on team name and MyLife status.
  * @modular
  * @param {Boolean} isMyLife - Whether request is coming from MyLife Q AVatar
- * @param {*} teamName - The team name, defaults to `mDefaultTeam`
+ * @param {string} teamName - The team name, defaults to `mDefaultTeam`
  * @returns {String[]} - The array of bot types
  */
 function mGetBotTypes(isMyLife=false, teamName=mDefaultTeam){
-	const team = mTeams
+	const team = mTeamData
 		.find(team=>team.name===teamName)
 	const botTypes = [...mRequiredBotTypes, ...isMyLife ? [] : team?.defaultTypes ?? []]
 	if(team.allowProxy)
@@ -1620,7 +1720,12 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
 async function mInit(BotAgent, bots, Avatar, factory, llm){
 	const { vectorstoreId, } = BotAgent
 	bots.push(...await mInitBots(vectorstoreId, Avatar, factory, llm))
-	BotAgent.setActiveBot(undefined, false)
+	if(factory.isMyLife){
+		BotAgent.setActiveBot()
+		return
+	}
+	const defaultTeam = BotAgent.team()
+	await BotAgent.setActiveTeam(defaultTeam?.id, true) // also sets active bot based on team
 }
 /**
  * Initializes active bots based upon criteria.

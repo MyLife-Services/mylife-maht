@@ -413,11 +413,6 @@ async function mRunFunctions(openai, run, factory, avatar){
                         toolArguments.thread_id = thread_id // deprecate?
                         const { itemId, } = toolArguments
                         switch(name.toLowerCase()){
-                            case 'callAvatar':
-                            case 'call_avatar':
-                            case 'call avatar':
-                                // @stub
-                                break
                             case 'callexternalagent':
                             case 'call_external_agent':
                             case 'call external agent':
@@ -512,6 +507,8 @@ async function mRunFunctions(openai, run, factory, avatar){
                             case 'end reliving':
                                 avatar.actionCallback = 'endMemory'
                                 throw new Error('endReliving intentionally aborted')
+                            case 'createstance': // stance summary & metadata
+                            case 'createvalue': // value summary & metadata
                             case 'entrysummary': // deprecate
                             case 'entry_summary':
                             case 'entry summary':

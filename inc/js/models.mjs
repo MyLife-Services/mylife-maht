@@ -15,7 +15,7 @@ class Item extends EventEmitter {
     #additionalProperties
     #availableForms = mAvailableForms
     #avatar
-    #being=mBeing
+    #being
     #complete=false
     #created=Date.now()
     #form
@@ -57,6 +57,8 @@ class Item extends EventEmitter {
             ...additionalProperties
         } = item
         this.#additionalProperties = additionalProperties
+        this.#being = being
+            ?? mBeing
         this.#form = form
         this.#id = id
         this.#llm_id = llm_id
@@ -189,6 +191,32 @@ class Entry extends Item {
     }
     get content(){
         return this.#content
+    }
+}
+class Issue extends Item {
+    #influences
+    #issue
+    constructor(item, avatar, llmServices){
+        item.being = 'stance'
+        item.type = 'issue'
+        const { influences, issue, ..._item } = item
+        super(_item, avatar, llmServices)
+        this.#influences = influences
+        this.#issue = issue
+    }
+    /* getters/setters */
+    get itemCore(){
+        return {
+            ...super.itemCore,
+            influences: this.#influences,
+            issue: this.#issue,
+        }
+    }
+    get influences(){
+        return this.#influences
+    }
+    get issue(){
+        return this.#issue
     }
 }
 class Memory extends Item {
@@ -489,6 +517,32 @@ class Share extends EventEmitter {
             return this.#acceptWarnings
     }
 }
+class Value extends Item {
+    #influences
+    #issue
+    constructor(item, avatar, llmServices){
+        item.being = 'stance'
+        item.type = 'value'
+        const { influences, issue, ..._item } = item
+        super(_item, avatar, llmServices)
+        this.#influences = influences
+        this.#issue = issue
+    }
+    /* getters/setters */
+    get itemCore(){
+        return {
+            ...super.itemCore,
+            influences: this.#influences,
+            issue: this.#issue,
+        }
+    }
+    get influences(){
+        return this.#influences
+    }
+    get issue(){
+        return this.#issue
+    }
+}
 /* module functions */
 /**
  * Validate a guess against a Member name.
@@ -509,6 +563,8 @@ function mValidateGuess(memberName, input){
 /* exports */
 export {
     Entry,
+    Issue,
 	Memory,
     Share,
+    Value,
 }
