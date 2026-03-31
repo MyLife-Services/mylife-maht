@@ -110,6 +110,7 @@ class Bot {
 	}
     /**
      * Get collection items for this bot.
+	 * @stub - add political team
      * @returns {Promise<Array>} - The collection items (no wrapper)
      */
 	async collections(type){
