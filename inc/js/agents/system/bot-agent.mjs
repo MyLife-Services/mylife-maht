@@ -667,8 +667,7 @@ class BotAgent {
 				console.log('itemForm', itemForm)
 				return 'political-stance'
 			case 'value':
-				console.log('itemForm', itemForm)
-				return 'values'
+				return 'political-values'
 			default:
 				return 'avatar'
 		}
