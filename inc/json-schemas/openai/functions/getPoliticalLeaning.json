@@ -1,4 +1,4 @@
 {
-    "name": "getGeography",
-    "description": "Get the political geographical information for a member, including local political locality, nation, and state/regional information"
+    "name": "getPoliticalLeaning",
+    "description": "Get the political leaning information for a member, identifying their political affiliation or ideological stance."
 }

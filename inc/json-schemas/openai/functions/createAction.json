@@ -74,6 +74,10 @@
                 },
                 "type": "array"
             },
+            "summary": {
+                "description": "Generate summary of `action` content, ideally max of 5 sentences",
+                "type": "string"
+            },
             "title": {
                 "description": "Generate display Title for `action` based on content",
                 "type": "string"

@@ -146,7 +146,7 @@ async function migrateChat(ctx){
  */
 async function retireBot(ctx){
 	ctx.method = 'DELETE'
-	return await this.bots(ctx)
+	return await bots(ctx)
 }
 /**
  * Direct request from member to retire a chat (via bot).
