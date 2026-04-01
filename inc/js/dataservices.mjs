@@ -602,17 +602,37 @@ class Dataservices {
 	/**
 	 * Patches an item by its ID with the provided data.
 	 * @async
-	 * @param {string} id - The unique identifier for the item to be patched.
-	 * @param {Object} data - The data to patch the item with; object of key/value pairs to be transformed into patch operations.
-	 * @param {string} [path='/'] - The path for patching, defaults to root.
-	 * @returns {Promise<Object>} The result of the patch operation.
+	 * @param {string} id - The unique identifier for the item to be patched
+	 * @param {Object} data - The data to patch the item with; object of key/value pairs to be transformed into patch operations
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The partition ID to use, overriding default
+	 * @param {string} rootPath - The path for patching, defaults to '/'
+	 * @returns {Promise<Object>} The result of the patch operation
 	 */
-	async patch(id, data, containerId, partitionId, path = '/') {
-		const patchOperations = Object.keys(data)
-			.filter(key => !['id', 'being', 'mbr_id'].includes(key))
-			.map(key => {
-				return { op: 'add', path: path + key, value: data[key] }
-			})
+	async patch(id, data, containerId, partitionId, rootPath = '/'){
+		const patchOperations = []
+		id = id
+			?? data.id
+		if(!id?.length)
+			throw new Error('Dataservices::patch()::id required for patch operation.')
+		for(const key of Object.keys(data)){
+			if(['id', 'being', 'mbr_id'].includes(key))
+				continue
+			let op = 'add'
+			const value = data[key]
+			const path = rootPath + key
+			if(Array.isArray(value))
+				for(const element of value){
+					const elementPath = path + '/-'
+					patchOperations.push({
+						op,
+						path: elementPath,
+						value: element,
+					})
+            	}
+			else
+				patchOperations.push({ op, path, value, })
+		}
 		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations
 		while(patchOperations.length){
 			patchBatches.push(patchOperations.splice(0, 10))

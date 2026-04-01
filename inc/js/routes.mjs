@@ -147,6 +147,7 @@ _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
 _Router.post('/alphadog/mission/:mid', missionPlay)
+_Router.post('/bots/activate/:bid', activateBot)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
