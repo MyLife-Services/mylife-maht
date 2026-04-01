@@ -68,7 +68,7 @@
     "koa-static": "^5.0.0",
     "marked": "^16.0.0",
     "nodemailer": "^7.0.4",
-    "openai": "^4.87.3"
+    "openai": "^6.33.0"
   },
   "devDependencies": {
     "dotenv-cli": "^8.0.0",
