@@ -1232,8 +1232,9 @@ function mBotInstructions(factory, botData={}){
     switch(type){
 		case 'avatar':
         case 'personal-avatar':
-            instructions = purpose
+            instructions = preamble
                 + general
+				+ voice
             break
 		case 'biographer':
         case 'journaler':

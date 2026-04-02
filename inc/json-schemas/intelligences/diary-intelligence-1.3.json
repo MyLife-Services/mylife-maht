@@ -55,7 +55,7 @@
         "default": "MyLife Member",
         "description": "member full name",
         "name": "<-mFN->",
-        "replacement": "memberName"
+        "replacement": "memberFullName"
       },
       {
         "default": "{unknown, find out}",
@@ -78,22 +78,34 @@
     "chat"
   ],
   "limit": 8000,
-  "name": "instructions-diary-bot",
-  "openai": {
-    "prompt": {
-      "id": "pmpt_69cc0502425c8194a8a2749d542b0b9c0ea14c827d874564",
-      "variables": [
-        "bot_name",
-        "dob",
-        "flags",
-        "interests",
-        "memberfullname",
-        "membername"
-      ],
-      "version": 3
-    },
-    "model": "gpt-4.1-nano"
+  "llmConfig": {
+    "defaultProvider": "openai",
+    "providers":[
+        {
+          "model": "gpt-4.1-nano",
+          "prompt": {
+            "id": "pmpt_69cc0502425c8194a8a2749d542b0b9c0ea14c827d874564",
+            "version": 3
+          },
+          "provider": "openai"
+        },
+        {
+          "agent": "mylife-diary",
+          "model": "gpt-4.1-mini",
+          "provider": "azure",
+          "version": 3
+        }
+    ],
+    "variables": [
+      "bot_name",
+      "dob",
+      "flags",
+      "interests",
+      "memberfirstname",
+      "memberfullname"
+    ]
   },
+  "name": "instructions-diary-bot",
   "options": [
     {
       "id": "4f77c5a6-77e4-4049-9b69-2e80c088dd63",

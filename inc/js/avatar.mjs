@@ -1877,19 +1877,15 @@ class Avatar extends EventEmitter {
         })
         return this.#mcp
     }
-    /**
-     * Gets first name of member from `#factory`.
-     * @getter
-     * @returns {guid} - The member's core guid.
-     */
     get memberFirstName(){
         return this.#factory.memberFirstName
     }
-    /**
-     * Gets full name of member from `#factory`.
-     * @getter
-     * @returns {guid} - The member's core guid.
-     */
+    get memberFullName(){
+        return this.memberName
+    }
+    get memberLastName(){
+        return this.#factory.memberLastName
+    }
     get memberName(){
         return this.#factory.memberName
     }

@@ -61,7 +61,7 @@
         "default": "MyLife Member",
         "description": "member full name",
         "name": "<-mFN->",
-        "replacement": "memberName"
+        "replacement": "memberFullName"
       },
       {
         "default": "{unknown, find out}",
@@ -83,20 +83,33 @@
     "chat"
   ],
   "limit": 8000,
-  "name": "instructions-personal-biographer-bot",
-  "openai": {
-    "prompt": {
-      "id": "pmpt_69781db7886481909f1bba1463b8b83b0134d137ddff9743",
-      "variables": [
-        "bio",
-        "dob",
-        "interests",
-        "memberfullname"
-      ],
-      "version": 4
-    },
-    "model": "gpt-4.1-nano"
+  "llmConfig": {
+    "defaultProvider": "openai",
+    "providers":[
+        {
+          "model": "gpt-4.1-nano",
+          "prompt": {
+            "id": "pmpt_69781db7886481909f1bba1463b8b83b0134d137ddff9743",
+            "version": 4
+          },
+          "provider": "openai"
+        },
+        {
+          "agent": "mylife-biographer",
+          "model": "gpt-4.1-mini",
+          "provider": "azure",
+          "version": 3
+        }
+    ],
+    "variables": [
+      "bio",
+      "dob",
+      "interests",
+      "memberfirstname",
+      "memberfullname"
+    ]
   },
+  "name": "instructions-personal-biographer-bot",
   "options": [
     {
       "id": "0831f31e-662d-42c0-97ad-80acd5130f62",
@@ -219,6 +232,6 @@
   "purpose": "I am an artificial intelligence designed by MyLife to help members collect, enhance and relive their cherished memories",
   "retirable": false,
   "type": "personal-biographer",
-  "$comments": "- 20260331: added OpenAI prompt info\n- 20260303: added elements required for dynamic bot-container creation; { buttons, icon, options, retirable, }\n- 20250319 changeTitle adding `ONLY the`\n- 20241104 moved voice and added **PRINT MEMORY**, included in startup routine\n- 20241027 added greetings\n- 20241027 updated greeting structure to include: a) greeting=pre-how to start, and b) greetings=random hard-coded greetings for context switching\n- 20241025 updated instructions to indicate that conversation will _start_ with a summary of LIVING memory (and `id` also provided for getSummary() if needed)\n- 20240919 updated error return without version update\n- 20241005 updated instructions to reflect streamlined update\n",
+  "$comments": "- 20260403: added `llmConfig`\n- 20260331: added OpenAI prompt info\n- 20260303: added elements required for dynamic bot-container creation; { buttons, icon, options, retirable, }\n- 20250319 changeTitle adding `ONLY the`\n- 20241104 moved voice and added **PRINT MEMORY**, included in startup routine\n- 20241027 added greetings\n- 20241027 updated greeting structure to include: a) greeting=pre-how to start, and b) greetings=random hard-coded greetings for context switching\n- 20241025 updated instructions to indicate that conversation will _start_ with a summary of LIVING memory (and `id` also provided for getSummary() if needed)\n- 20240919 updated error return without version update\n- 20241005 updated instructions to reflect streamlined update\n",
   "version": 1.10
 }

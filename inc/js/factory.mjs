@@ -598,8 +598,14 @@ class BotFactory extends EventEmitter{
 		return this.globals.sysName(this.mbr_id)
 	}
 	get memberFirstName(){
-		return this.memberName
-			?.split(' ')[0]
+		return this.memberName?.split(' ')?.[0]
+			?? ''
+	}
+	get memberLastName(){
+		const nameParts = this.memberName?.split(' ') ?? []
+		return nameParts.length>1
+			? nameParts[nameParts.length - 1]
+			: ''
 	}
 	get memberName(){
 		return this.core.names?.[0]
