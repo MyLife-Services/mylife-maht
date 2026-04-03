@@ -29,32 +29,48 @@ class Bot {
 	#icon
 	#instructionNodes = new Set()
 	#llm
+	#llmProvider
 	#mcpTools = []
 	#retirable
 	#type
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
-		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData)
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
 		this.#feedback = feedback
 		this.#firstAccess = unaccessed
 		this.#greetings = greetings
-		this.#greetingRoutine = type.replace('personal-', '')
 		this.#type = type
+		this.#greetingRoutine = this.#type.replace('personal-', '')
+		this.#llmProvider = providers.find(provider=>provider.provider===defaultProvider)
+			?? providers?.[0]
+			?? factory.botLLMProvider(this.#type)
+			?? {}
+		console.log(`Bot constructor()`, this.#llmProvider, providers, variables)
+		this.#llmProvider.variables = [
+			...new Set(
+				[
+					...variables,
+					...(this.#llmProvider.variables ?? [])
+				]
+					.filter(v => typeof v === "string")
+			)
+		]
+		delete this.#llmProvider.variables
 		this.#retirable = retirable
-			?? this.#factory.botRetirable(type)
+			?? this.#factory.botRetirable(this.#type)
 			?? true
 		Object.assign(this, this.globals.sanitize(__botData))
 		this.#icon = icon
-			?? this.#factory.botIcon(type)
+			?? this.#factory.botIcon(this.#type)
 			?? this.card?.icon
 			?? mDefaultIcon
 		this.#instructionNodes.add('agentInstructions')
 		this.#instructionNodes.add('bot_name')
-		switch(type){
+		switch(this.#type){
 			case 'diary':
 			case 'journal':
 			case 'journaler':
@@ -171,9 +187,9 @@ class Bot {
 	 */
 	async getConversation(message){
 		if(!this.#conversation){
-			const { id, llm_id, type, } = this
+			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
-			this.#conversation = await mConversationStart('chat', type, id, thread_id, llm_id, this.#llm, this.#factory, message)
+			this.#conversation = await mConversationStart('chat', type, id, thread_id, llmProvider, this.#llm, this.#factory, message)
 			if(type!=='proxy' && !thread_id?.length){
 				thread_id = this.#conversation.thread_id
 				this.update({
@@ -218,7 +234,7 @@ class Bot {
 			routine=this.#greetingRoutine
 		if(!firstAccess){
 			const greetings = dynamic
-				? await mBotGreetings(this.thread_id, this.llm_id, greetingPrompt, this.#llm, this.#factory)
+				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory)
 				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
 			responses.push(...greetings)
 		}
@@ -453,6 +469,9 @@ class Bot {
 	get itemForms(){
 		return this.#factory.botItemForms(this.type)
 	}
+	get llmProvider(){ // @returns {object} - { *id, model, provider, *type, variables, version, }
+		return this.#llmProvider
+	}
 	get mcpTools(){
 		if(!this.isAvatar && !this.#mcpTools.length && this.tools?.length)
 			this.tools.forEach(tool=>{ // create mcp from openai function tools
@@ -608,20 +627,19 @@ class BotAgent {
 	 * @param {string} type - The type of conversation, defaults to `chat`
 	 * @param {string} form - The form of conversation, defaults to `system-avatar`
 	 * @param {string} prompt - The prompt for the conversation (optional)
-	 * @param {Guid} scriptAdvisorLlmId - The script advisor llm id (optional)
+	 * @param {Guid} scriptAdvisorLlmProvider - The script advisor llm provider (optional)
 	 * @param {string} mbr_id - The member id to use for conversation (optional)
 	 * @param {Boolean} useActive - Whether to use the active bot or the avatar bot, defaults to `true`
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmId, mbr_id, useActive=true){
+	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmProvider, mbr_id, useActive=true){
 		const bot = useActive && !!this.activeBot ? this.activeBot : this.avatar
-		let { id, llm_id, } = bot
-		if(type==='experience'){
-			id = this.#factory.actor.id
-			llm_id = this.#factory.actor.llm_id
-		} else if(type==='script')
-			llm_id = scriptAdvisorLlmId
-    	const Conversation = await mConversationStart(type, form, id, undefined, llm_id, this.#llm, this.#factory, prompt, undefined, mbr_id)
+		let { id, llmProvider, } = bot
+		if(type==='experience')
+			llmProvider = this.#factory.actor.llmProvider
+		else if(type==='script' && scriptAdvisorLlmProvider?.id?.length)
+			llmProvider = scriptAdvisorLlmProvider
+    	const Conversation = await mConversationStart(type, form, id, undefined, llmProvider, this.#llm, this.#factory, prompt, undefined, mbr_id)
 		return Conversation
 	}
 	/**
@@ -642,6 +660,7 @@ class BotAgent {
      * @returns {Object} - The Response object { instruction, responses, success, }
      */
 	async evaluate(itemId){
+		// @stub - use general functioneer
         const response = await this.#factory.evaluate(itemId, this.avatar.llm_id)
 		return response
 	}
@@ -696,14 +715,14 @@ class BotAgent {
 		const livingMemory = Avatar.livingMemory
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
-			const { id: botId, llm_id, type, } = biographer
+			const { id: botId, llmProvider, type, } = biographer
 			const messages = []
 			messages.push({
 				content: `## MEMORY SUMMARY Reference for id: ${ item.id }\n### FOR REFERENCE ONLY\n${ item.summary }\n`,
 				role: 'user',
 			})
 			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, reference to MEMORY SUMMARY message has begun this conversation`
-			const Conversation = await mConversationStart('memory', type, botId, undefined, llm_id, this.#llm, this.#factory, memberInput, messages)
+			const Conversation = await mConversationStart('memory', type, botId, undefined, llmProvider, this.#llm, this.#factory, memberInput, messages)
 			Conversation.action = 'living'
 			livingMemory.Conversation = Conversation
 			livingMemory.id = this.#factory.newGuid
@@ -1184,14 +1203,14 @@ async function mBotDelete(botId, BotAgent, llm, factory){
  * Returns set of dynamically generated Greeting messages.
  * @module
  * @param {string} thread_id - The thread id
- * @param {Guid} llm_id - The bot id
+ * @param {object} llmProvider - The LLM provider object: { *id, *type, }
  * @param {string} greetingPrompt - The prompt for the greeting
  * @param {LLMServices} llm - OpenAI object
  * @param {AgentFactory} factory - Agent Factory object
  * @returns {Promise<Array>} - The array of string messages to respond with
  */
-async function mBotGreetings(thread_id, llm_id, greetingPrompt=`Greet me enthusiastically`, llm, factory){
-	let responses = await llm.getLLMResponse(thread_id, llm_id, greetingPrompt, factory)
+async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, factory){
+	let responses = await llm.getLLMResponse(thread_id, llmProvider, greetingPrompt, factory)
 		?? [mDefaultGreetings]
 	responses = llm.extractResponses(responses)
     return responses
@@ -1393,14 +1412,14 @@ async function mBotUpdate(botData, options={}, Bot, llm, factory){
  * @returns {Promise<void>} - Alters Conversation instance by nature
  */
 async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
-    const { llm_id, originalPrompt, processStartTime=Date.now(), prompt, thread_id, } = Conversation
-	if(!llm_id?.length)
-		throw new Error('No `llm_id` intelligence id found in Conversation for `mCallLLM`.')
+    const { llmProvider, originalPrompt, processStartTime=Date.now(), prompt, thread_id, } = Conversation
+	if(!llmProvider?.id?.length)
+		throw new Error('No `llmProvider` intelligence id found in Conversation for `mCallLLM`.')
     if(!thread_id?.length)
         throw new Error('No Conversation found for `mCallLLM`.')
 	if(!prompt?.length)
 		throw new Error('No `prompt` found in Conversation for `mCallLLM`.')
-    const responses = await llm.getLLMResponse(thread_id, llm_id, prompt, factory, avatar)
+    const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, avatar)
 	if(!responses?.length)
 		return
     responses
@@ -1482,7 +1501,7 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
  * @param {string} botId - The bot id
  * @param {string} conversation_id - The conversation id
- * @param {string} llm_id - The id for the llm agent
+ * @param {object} llmProvider - The properties for the llm agent: { *id, model, provider, *type, variables, version, }
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object
  * @param {string} prompt - The prompt for the conversation (optional)
@@ -1490,7 +1509,7 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @param {string} mbr_id_Override - The member id to use for conversation (optional)
  * @returns {Conversation} - The conversation object
  */
-async function mConversationStart(type='chat', form='system', botId, conversation_id, llm_id, llm, factory, prompt, messages, mbr_id_Override){
+async function mConversationStart(type='chat', form='system', botId, conversation_id, llmProvider, llm, factory, prompt, messages, mbr_id_Override){
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
@@ -1513,7 +1532,7 @@ async function mConversationStart(type='chat', form='system', botId, conversatio
 		},
 		factory,
 		botId,
-		llm_id,
+		llmProvider,
 		thread,
 	)
 	return Conversation

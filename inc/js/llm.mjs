@@ -138,15 +138,25 @@ class LLMServices {
      * Given member input, get a response from the specified LLM service.
      * @documentation [Handling function calls](https://platform.openai.com/docs/guides/function-calling#handling-function-calls)
      * @param {string} conversation_id - Conversation id (from thread id)
-     * @param {string} prompt_id - Prompt id in OpenAI (from assistant id)
+     * @param {string} llmProvider - LLM provider object: { *id, model, provider, *type, variables, version, }
      * @param {string} prompt - Member input text
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} avatar - Avatar object
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(conversation_id, prompt_id, prompt, factory, avatar){
+    async getLLMResponse(conversation_id, llmProvider, prompt, factory, avatar){
+        let promptId
+        switch(llmProvider?.type){
+            case 'prompt':
+                promptId = llmProvider.id
+                break
+            case 'assistant':
+                throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
+            default:
+                throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
+        }
         conversation_id ??= ( await mConversation(this.openai, undefined, prompt) ).id
-        const response = await mResponse(this.openai, conversation_id, prompt_id, prompt)
+        const response = await mResponse(this.openai, conversation_id, promptId, prompt)
         const { completed_at, created_at, error, id, incomplete_details, metadata, model, output, output_text, prompt: _prompt, status, temperature, top_p, usage, } = response
         let llmMessages = []
         switch(status){
@@ -363,19 +373,18 @@ function mMessageConvert(provider, message){
  * Creates an OpenAI request with member input. Appends to Conversation in OpenAI.
  * @param {*} openai - openai object
  * @param {string} conversation_id - Conversation id (from thread id)
- * @param {string} prompt_id  - Prompt id in OpenAI (from assistant id)
+ * @param {string} promptId  - Prompt id in OpenAI (from assistant id)
  * @param {string} prompt - Member input text
  * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
  */
-async function mResponse(openai, conversation_id, prompt_id, prompt){
+async function mResponse(openai, conversation_id, promptId, prompt){
     const response = await openai.responses.create({
         conversation: conversation_id,
         include: ['web_search_call.action.sources', 'file_search_call.results'],
         input: prompt,
         max_output_tokens: 1024,
         metadata: {},
-        // model: "gpt-4.1", // only use if overriding prompt default
-        prompt: { id: prompt_id, },
+        prompt: { id: promptId, },
     })
     return response
 }

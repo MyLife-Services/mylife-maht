@@ -2839,9 +2839,9 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
     return {...experienceVariables, ...localOverrides}
 }
 /**
- * 
- * @param {Globals} globals - Globals object.
- * @param {object} avatar - Avatar object.
+ * Maps avatar data to dropdown format for hosted members list.
+ * @param {Globals} globals - Globals object
+ * @param {object} avatar - Avatar object
  */
 function mAvatarDropdown(globals, avatar){
     const { mbr_id: id, mbr_name, } = avatar
@@ -2850,41 +2850,6 @@ function mAvatarDropdown(globals, avatar){
         id,
         name,
     }
-}
-/**
- * Creates cast and returns associated `cast` object.
- * @todo - move as much functionality for actor into `init()` as makes sense
- * @todo - any trouble retrieving a known actor should be understudied by... Q? or personal-avatar? yes, personal avatar for now
- * @todo - implement `creator` version of actor
- * @todo - include variables for names of roles/actors
- * @module
- * @param {AgentFactory} factory - Agent Factory object
- * @param {array} cast - Array of cast objects
- * @returns {Promise<array>} - Array of ExperienceCastMember instances
- */
-async function mCast(factory, cast){
-    cast = await Promise.all(cast.map(async castMember=>{
-        const actor = new (factory.castMember)(castMember)
-        const { type, } = castMember
-        switch(type.toLowerCase()){
-            case 'actor': // system actor
-            case 'system':
-                actor.bot = await factory.actorGeneric
-                break
-            case 'mylife': // Q
-            case 'q':
-                actor.bot = await factory.actorQ
-                break
-            case 'bot': // identified member-specific bot
-            case 'member':
-            case 'member-bot':
-            default:
-                actor.bot = await factory.bot() // should be new-member safe, but check
-                break
-        }
-        return actor
-    }))
-    return cast
 }
 /**
  * Creates frontend system message from message String/Object.

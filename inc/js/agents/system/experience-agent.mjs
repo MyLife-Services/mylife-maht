@@ -9,7 +9,13 @@ const mAvailableEventActionMap = {
     },
     input: {},
 }
-const mDefaultScriptAdvisorLLMId = 'asst_NonLpXQ5maLpIciwxwGqsMwV'
+const mDefaultScriptAdvisorLLMProvider = {
+	id: 'pmpt_69cf328930e081938c3e37184cfb6f37056f074234ed5663',
+	model: 'gpt-4o-mini',
+	provider: 'openai',
+	type: 'prompt',
+	version: 2
+}
 let mActor,
     mActorQ
 /* class definitions */
@@ -96,7 +102,7 @@ class Experience {
     #navigation
     #running=false
     #scenes
-    #scriptAdvisorLlmId
+    #scriptAdvisorLlmProvider
     #scriptDialog
     #scriptVariables
     #variables
@@ -119,8 +125,8 @@ class Experience {
         this.#factory = Factory
         this.#llm = llm
         this.#id = id
-        this.#scriptAdvisorLlmId = scriptAdvisorBotId
-            ?? mDefaultScriptAdvisorLLMId
+        this.#scriptAdvisorLlmProvider = scriptAdvisorBotId
+            ?? mDefaultScriptAdvisorLLMProvider
         this.#scriptVariables = scriptVariables
         this.#cast = mCast(cast, this.#botAgent, this.#factory)
         this.#location = mLocation(this)
@@ -200,8 +206,8 @@ class Experience {
     get script(){
         return this.scenes
     }
-    get scriptAdvisorLlmId(){
-        return this.#scriptAdvisorLlmId
+    get scriptAdvisorLlmProvider(){
+        return this.#scriptAdvisorLlmProvider
     }
     get scriptDialog(){
         return this.#scriptDialog
@@ -513,7 +519,7 @@ class ShareAgent {
         if(Share.voice?.length)
             prompt += `- voice: ${ Share.voice }\n`
         prompt += `- summary: ${ Share.summary }`
-        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMId, prompt)
+        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMProvider, prompt)
         if(messages?.[0]){
             const { content, thread_id, } = messages[0]
             const message = content

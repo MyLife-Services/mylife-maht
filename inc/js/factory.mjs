@@ -8,14 +8,9 @@ import vm from 'vm'
 import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import { Avatar, Q, } from './avatar.mjs'
 import Dataservices from './dataservices.mjs'
-import {
-	extendClass_consent,
-    extendClass_conversation,
-    extendClass_file,
-	extendClass_message,
-} from './factory-class-extenders/class-extenders.mjs'	//	do not remove, although they are not directly referenced, they are called by eval in mConfigureSchemaPrototypes()
 import LLMServices from './llm.mjs'
 import Menu from './menu.mjs'
+import { Conversation, Message } from './models.mjs'
 /* module constants */
 const {
 	MAHT_EMAIL,
@@ -25,12 +20,6 @@ const {
 const mDataservices = await new Dataservices(mPartitionId).init()
 const mBotInstructions = {}
 const mDefaultBotType = 'personal-avatar'
-const mExtensionFunctions = {
-	extendClass_consent: extendClass_consent,
-	extendClass_conversation: extendClass_conversation,
-	extendClass_file: extendClass_file,
-	extendClass_message: extendClass_message,
-}
 const mExcludeProperties = {
 	$schema: true,
 	$id: true,
@@ -39,7 +28,13 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
-const mGeneralBotId = 'asst_yhX5mohHmZTXNIH55FX2BR1m'
+const mGeneralBotLLMProvider = {
+	id: 'pmpt_69cf2f27034c8197a8f4e9daf045f5fc0d2cca8567b4c8cb',
+	model: 'gpt-4o-nano',
+	provider: 'openai',
+	type: 'prompt',
+	version: 1
+}
 const mLLMServices = new LLMServices()
 const mMailer = nodemailer.createTransport({
     service: 'gmail',
@@ -239,6 +234,21 @@ class BotFactory extends EventEmitter{
 			?? []
 	}
 	/**
+	 * Returns bot LLM provider properties, which are the properties of the LLM that the bot utilizes, such as provider, model, and prompt. If not specified in the bot instructions, defaults to an empty object.
+	 * @param {string} type - The bot type
+	 * @param {string} provider - Chosen LLM provider (optional)
+	 * @return {object|null} - The LLM properties (for specific provider): { id, model, provider, type, variables, version, }
+	 */
+	botLLMProvider(type, provider){
+		const { defaultProvider, providers, variables, } = mBotInstructions[type]?.llmProviders ?? {}
+		let providerConfig = null
+		provider = provider ?? defaultProvider
+		providerConfig = providers?.find(p=>p.provider===provider) ?? providers?.[0]
+		if(providerConfig && variables)
+			providerConfig = { ...providerConfig, variables, }
+		return providerConfig
+	}
+	/**
 	 * Returns bot options, which are a distilled version of the bot instructions meant to be more easily parsed by a bot instance and used for decision-making and prompting.
 	 * @public
 	 * @param {string} type - The bot type
@@ -292,9 +302,10 @@ class BotFactory extends EventEmitter{
 	/**
 	 * Uses proxy of Member Avatar to manage alteration for a given share. **Note:** currently leveraging MyLife General Functioneer, but could be migrated to Personal Avatar instructions after testing.
 	 * @param {Share} Share - The Share instance
+	 * @param {Avatar} avatar - The Avatar instance to use for cleaning the share
 	 * @returns {Share} - The cleaned Share instance
 	 */
-	async cleanShare(Share, avatar){
+	async cleanShare(Share, Avatar){
 		let prompt = '# CLEAN\n## Variables:\n'
 		const { anonymous, guessable, itemId, pov=1, restrictions, } = Share
 		const { name, names, } = this.core
@@ -310,7 +321,7 @@ class BotFactory extends EventEmitter{
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotId, prompt, this, this) // response = { preparedSummary, success, warnings, }
+		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotLLMProvider, prompt, this, this) // response = { preparedSummary, success, warnings, }
 		if(Array.isArray(response))
 			response = response[0] // flatten
 		shareData = {
@@ -924,7 +935,7 @@ class AgentFactory extends BotFactory {
 		return this.schemas.Contribution
 	}
 	get conversation(){
-		return this.schemas.Conversation
+		return Conversation
 	}
 	/**
 	 * Returns the ExperienceEvent class definition.
@@ -937,7 +948,7 @@ class AgentFactory extends BotFactory {
 		return this.schemas.File
 	}
 	get message(){
-		return this.schemas.Message
+		return Message
 	}
 	get organization(){
 		return this.schemas.Organization
@@ -1299,13 +1310,11 @@ function mCompileClass(_className, _classCode){
 	return _class // Return the compiled class
 }
 async function mConfigureSchemaPrototypes(){ //	add required functionality as decorated extension class
-	for(const _className in mSchemas){
-		//	global injections; maintained _outside_ of eval class
+	for(const _className in mSchemas){ // global injections; maintained _outside_ of eval class
 		Object.assign(
 			mSchemas[_className].prototype,
 			{ mSanitizeSchemaValue: mSanitizeSchemaValue },
 		)
-		mSchemas[_className] = mExtendClass(mSchemas[_className])
 	}
 }
 async function mEvaluateItem(summary, llm_id=mGeneralBotId){
@@ -1356,14 +1365,6 @@ function mExtractClassesFromSchema(_schema){
 	}
 	_extractClasses(_schema)
 	return _classes
-}
-function mExtendClass(_class) {
-	const _className = _class.name.toLowerCase()
-	if (typeof mExtensionFunctions?.[`extendClass_${_className}`]==='function'){
-		const _references = { openai: mLLMServices }
-		_class = mExtensionFunctions[`extendClass_${_className}`](_class, _references)
-	}
-	return _class
 }
 /**
  * Ingests components of the JSON schema and generates text for class code.

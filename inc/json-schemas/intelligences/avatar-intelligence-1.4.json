@@ -92,22 +92,15 @@
       "chat",
       "file"
     ],
-    "llmConfig": {
+    "llmProviders": {
       "defaultProvider": "openai",
       "providers":[
           {
+            "id": "pmpt_69ceb550c86c8194be0c739f186fffdf0338ea76c6a0e912",
             "model": "gpt-4.1-nano",
-            "prompt": {
-              "id": "",
-              "version": 4
-            },
-            "provider": "openai"
-          },
-          {
-            "agent": "mylife-member-avatar",
-            "model": "gpt-4.1-mini",
-            "provider": "azure",
-            "version": 3
+            "provider": "openai",
+            "type": "prompt",
+            "version": 1
           }
       ],
       "variables": [

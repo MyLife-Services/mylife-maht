@@ -78,22 +78,15 @@
     "chat"
   ],
   "limit": 8000,
-  "llmConfig": {
+  "llmProviders": {
     "defaultProvider": "openai",
     "providers":[
         {
-          "model": "gpt-4.1-nano",
-          "prompt": {
-            "id": "pmpt_69cc0502425c8194a8a2749d542b0b9c0ea14c827d874564",
-            "version": 3
-          },
-          "provider": "openai"
-        },
-        {
-          "agent": "mylife-diary",
+          "id": "pmpt_69cc0502425c8194a8a2749d542b0b9c0ea14c827d874564",
           "model": "gpt-4.1-mini",
-          "provider": "azure",
-          "version": 3
+          "provider": "openai",
+          "type": "prompt",
+          "version": 4
         }
     ],
     "variables": [
