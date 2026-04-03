@@ -350,17 +350,17 @@ class BotFactory extends EventEmitter{
     /**
      * Given an itemId, evaluates aspects of item summary. Evaluate content is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
      * @param {Guid} itemId - The item id
-	 * @param {Guid} llm_id - The LLM intelligence id
-     * @returns {Object} - The Response object { instruction, responses, success, }
+	 * @param {object} llmProvider - The llm properties for the agent: { *id, model, provider, *type, variables, version, }
+     * @returns {object} - The Response object { instruction, responses, success, }
      */
-	async evaluate(itemId, llm_id){
+	async evaluate(itemId, llmProvider){
 		const { id, summary, } = await this.item(itemId)
 			?? {}
 		if(!id)
 			throw new Error('Item not found')
 		if(!summary?.length)
 			throw new Error('No summary found to evaluate')
-		const evaluation = await mEvaluateItem(summary, llm_id)
+		const evaluation = await mEvaluateItem(summary, llmProvider)
 		return evaluation
 	}
 	/**
@@ -455,14 +455,14 @@ class BotFactory extends EventEmitter{
 	/**
 	 * Proxy for modular mHelp() function.
 	 * @public
-     * @param {string} thread_id - The thread id.
-     * @param {string} botId - The bot id.
+     * @param {string} conversation_id - The conversation id.
+ 	 * @param {object} llmProvider - The Help Bot's LLM provider
      * @param {string} helpRequest - The help request string.
 	 * @param {Avatar} avatar - The avatar instance.
 	 * @returns {Promise<Object>} - openai `message` objects.
 	 */
-	async help(thread_id, botId, helpRequest, avatar){
-		return await mHelp(thread_id, botId, helpRequest, this, avatar)
+	async help(conversation_id, llmProvider, helpRequest, avatar){
+		return await mHelp(conversation_id, llmProvider, helpRequest, this, avatar)
 	}
     /**
      * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
@@ -1317,13 +1317,13 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
 		)
 	}
 }
-async function mEvaluateItem(summary, llm_id=mGeneralBotId){
+async function mEvaluateItem(summary, llmProvider=mGeneralBotLLMProvider.llmProvider){
 	let evaluation = {
 		responses: [],
 		success: false,
 	}
     const prompt = `Evaluate the included summary for clarity, dramatics, aesthetics, and completeness. Give top 2 recommendations to improve the summary. Do not repeat summary in response.\nSUMMARY:\n${summary}`
-    let responses = await mLLMServices.getLLMResponse(undefined, llm_id, prompt)
+    let responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt)
 	responses = mLLMServices.extractResponses(responses)
 	evaluation.success = responses.length
 	if(evaluation.success)
@@ -1451,15 +1451,15 @@ function mGenerateClassFromSchema(_schema) {
 /**
  * Take help request about MyLife and consults appropriate engine for response.
  * @requires mLLMServices - equivalent of default MyLife dataservices/factory
- * @param {string} thread_id - The thread id.
- * @param {string} botId - The bot id.
- * @param {string} helpRequest - The help request string.
- * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation.
- * @param {Avatar} avatar - The avatar instance.
- * @returns {Promise<Object>} - openai `message` objects.
+ * @param {string} conversation_id - The provider's conversation id
+ * @param {object} llmProvider - The Help Bot's LLM provider
+ * @param {string} helpRequest - The help request string
+ * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation
+ * @param {Avatar} avatar - The avatar instance
+ * @returns {Promise<Object>} - openai `message` objects
  */
-async function mHelp(thread_id, botId, helpRequest, factory, avatar){
-	const response = await mLLMServices.help(thread_id, botId, helpRequest, factory, avatar)
+async function mHelp(conversation_id, llmProvider, helpRequest, factory, avatar){
+	const response = await mLLMServices.getLLMResponse(conversation_id, llmProvider, helpRequest, factory, avatar)
 	return response
 }
 /**
@@ -1501,17 +1501,25 @@ async function mLoadSchemas(){
 }
 /**
  * Given an itemId, obscures aspects of contents of the data record.
+ * @requires mGeneralBotLLMProvider
+ * @requires mLLMServices
  * @param {string} summary - The summary to obscure
  * @param {Bot} bot - The bot instance that will obscure the summary
  * @returns {string} - The obscured summary
  */
 async function mObscure(summary, bot){
     const prompt = `OBSCURE:\n${summary}`
-    const responses = await mLLMServices.getLLMResponse(undefined, mGeneralBotId, prompt, undefined, bot)
+	const { llmProvider, } = mGeneralBotLLMProvider
+    const responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt, undefined, bot)
 	return responses?.[0]?.obscuredSummary
 		?? responses?.obscuredSummary
 		?? summary
 }
+/**
+ * Populates the `mBotInstructions` object with instruction sets retrieved from the dataservices. Each instruction set is categorized by its `type` property, allowing for organized access to different types of bot instructions.
+ * @requires mDataservices
+ * @returns {Promise<void>} - Resolves when the bot instructions have been populated in modular space
+ */
 async function mPopulateBotInstructions(){
 	const instructionSets = await mDataservices.botInstructions()
 	instructionSets

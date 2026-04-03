@@ -948,22 +948,21 @@ class Avatar extends EventEmitter {
     }
     /**
      * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
-     * @param {string} helpRequest - The help request text.
-     * @param {string} type - The type of help request.
-     * @returns {Promise<Object>} - openai `message` objects.
+     * @param {string} helpRequest - The help request text
+     * @param {string} type - The type of help request
+     * @returns {Promise<Object>} - openai `message` objects
      */
     async help(helpRequest, type){
         const processStartTime = Date.now()
         if(!helpRequest?.length)
             throw new Error('Help request required.')
-        // @stub - force-type into enum?
         helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
         const { thread_id, } = this.activeBot
-        const { id: botId, } = this.helpBots?.find(bot=>(bot?.subType ?? bot?.sub_type ?? bot?.subtype)===type)
+        const { id, llmProvider, } = this.helpBots?.find(bot=>(bot?.subType ?? 'general')===type)
             ?? this.helpBots?.[0]
             ?? this.activeBot
         const conversation = this.getConversation(thread_id)
-        const helpResponseArray = await this.factory.help(thread_id, botId, helpRequest)
+        const helpResponseArray = await this.factory.help(thread_id, llmProvider, helpRequest)
         conversation.addMessages(helpResponseArray)
         if(mAllowSave)
             conversation.save()

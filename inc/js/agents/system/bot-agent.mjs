@@ -49,7 +49,6 @@ class Bot {
 			?? providers?.[0]
 			?? factory.botLLMProvider(this.#type)
 			?? {}
-		console.log(`Bot constructor()`, this.#llmProvider, providers, variables)
 		this.#llmProvider.variables = [
 			...new Set(
 				[
@@ -425,6 +424,11 @@ class Bot {
 	get conversation(){
 		return this.#conversation
 	}
+	get conversation_id(){
+		return this.thread_id
+			?? this.conversation?.thread_id
+			?? this.conversation?.id
+	}
 	get globals(){
 		return this.#factory.globals
 	}
@@ -627,7 +631,7 @@ class BotAgent {
 	 * @param {string} type - The type of conversation, defaults to `chat`
 	 * @param {string} form - The form of conversation, defaults to `system-avatar`
 	 * @param {string} prompt - The prompt for the conversation (optional)
-	 * @param {Guid} scriptAdvisorLlmProvider - The script advisor llm provider (optional)
+	 * @param {object} scriptAdvisorLlmProvider - The script advisor llm provider (optional)
 	 * @param {string} mbr_id - The member id to use for conversation (optional)
 	 * @param {Boolean} useActive - Whether to use the active bot or the avatar bot, defaults to `true`
 	 * @returns {Promise<Conversation>} - The Conversation instance
@@ -660,8 +664,8 @@ class BotAgent {
      * @returns {Object} - The Response object { instruction, responses, success, }
      */
 	async evaluate(itemId){
-		// @stub - use general functioneer
-        const response = await this.#factory.evaluate(itemId, this.avatar.llm_id)
+		// @stub - default to use general functioneer
+        const response = await this.#factory.evaluate(itemId, this.avatar.llmProvider)
 		return response
 	}
 	async genericBot(botType='avatar'){

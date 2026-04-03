@@ -212,19 +212,6 @@ class LLMServices {
         return llmMessages
     }
     /**
-     * Given member request for help, get response from specified bot assistant.
-     * @param {string} thread_id - Thread id
-     * @param {string} llm_id - GPT-Assistant/Bot id
-     * @param {string} helpRequest - Member input
-     * @param {AgentFactory} factory - Avatar Factory object to process request
-     * @param {Avatar} avatar - Avatar object
-     * @returns {Promise<Object>} - openai `message` objects
-     */
-    async help(thread_id, llm_id, helpRequest, factory, avatar){
-        const helpResponse = await this.getLLMResponse(thread_id, llm_id, helpRequest, factory, avatar)
-        return helpResponse
-    }
-    /**
      * Returns a specific message associated with a conversation.
      * @param {string} conversation_id - Conversation id
      * @param {string} msg_id - Message id
