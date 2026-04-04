@@ -94,8 +94,8 @@
       "dob",
       "flags",
       "interests",
-      "memberfirstname",
-      "memberfullname"
+      "memberFirstName",
+      "memberFullName"
     ]
   },
   "name": "instructions-diary-bot",

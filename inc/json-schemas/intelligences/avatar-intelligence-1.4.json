@@ -106,8 +106,8 @@
       "variables": [
         "bot_name",
         "dob",
-        "memberfirstname",
-        "memberfullname"
+        "memberFirstName",
+        "memberFullName"
       ]
     },
     "name": "instructions-personal-avatar-bot",

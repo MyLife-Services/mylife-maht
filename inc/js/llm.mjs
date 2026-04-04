@@ -139,24 +139,31 @@ class LLMServices {
      * @documentation [Handling function calls](https://platform.openai.com/docs/guides/function-calling#handling-function-calls)
      * @param {string} conversation_id - Conversation id (from thread id)
      * @param {string} llmProvider - LLM provider object: { *id, model, provider, *type, variables, version, }
-     * @param {string} prompt - Member input text
+     * @param {string} input - Member input text
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} avatar - Avatar object
+     * @param {object} variables - variables object to send to LLM for response generation (required when required by LLM prompt)
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(conversation_id, llmProvider, prompt, factory, avatar){
-        let promptId
+    async getLLMResponse(conversation_id, llmProvider, input, factory, avatar){
+        if(llmProvider.provider!=='openai')
+            throw new Error(`LLM provider ${llmProvider.provider} not supported.`)
+        let prompt = {}
         switch(llmProvider?.type){
             case 'prompt':
-                promptId = llmProvider.id
+                prompt.id = llmProvider.id
+                const promptVariables = llmProvider?.variables &&
+                    Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), avatar.promptVariable(v)]))
+                if(promptVariables)
+                    prompt.variables = promptVariables
                 break
             case 'assistant':
                 throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
             default:
                 throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
         }
-        conversation_id ??= ( await mConversation(this.openai, undefined, prompt) ).id
-        const response = await mResponse(this.openai, conversation_id, promptId, prompt)
+        conversation_id ??= ( await mConversation(this.openai, undefined, input) ).id
+        const response = await mResponse(this.openai, conversation_id, prompt, input)
         const { completed_at, created_at, error, id, incomplete_details, metadata, model, output, output_text, prompt: _prompt, status, temperature, top_p, usage, } = response
         let llmMessages = []
         switch(status){
@@ -281,17 +288,19 @@ class LLMServices {
 async function mConversation(openai, conversation_id, messageText, metadata){
     let conversation
     if(conversation_id?.length)
-        conversation =  await openai.conversations.retrieve(conversation_id)
-    else {
-        const conversationOptions = { metadata, }
-        if(messageText?.length)
-            conversationOptions.items = [{
-                type: "message",
-                role: "user",
-                content: messageText,
-            }]
-        conversation = await openai.conversations.create(conversationOptions)
-    }
+        conversation = conversation_id.startsWith('thread_')
+            ? await mConvertThreadToConversation(openai, conversation_id, metadata)
+            : await openai.conversations.retrieve(conversation_id)
+    else
+        conversation = await openai.conversations.create({ metadata, })
+    if(conversation?.id && messageText?.length)
+        await openai.conversations.items.create(conversation.id, {
+            items: [{
+                    type: "message",
+                    role: "user",
+                    content: messageText,
+                }]
+        })
     return conversation
 }
 /**
@@ -312,6 +321,46 @@ async function mConversationDelete(openai, conversation_id){
         deletedConversation = { deleted: false, error, id: conversation_id, object: 'conversation.delete_failed', }
     }
     return deletedConversation
+}
+/**
+ * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
+ * @param {OpenAI} openai - openai object
+ * @param {string} conversation_id - conversation id
+ * @param {object} metadata - metadata object (optional)
+ * @returns {object} - openai `conversation` object
+ */
+async function mConvertThreadToConversation(openai, conversation_id, metadata={}){
+    metadata.thread_id = conversation_id
+    const conversation = await openai.conversations.create({ metadata, }),
+        messages = []
+    if(!conversation?.id)
+        throw new Error(`Failed to create conversation for thread ${ conversation_id }`, metadata)
+    try {
+        for await (const message of openai.beta.threads.messages.list(conversation_id, { limit: 100, order: "asc" }))
+            messages.push(message)
+        const items = messages.map((m)=>{
+            const content = m.content.flatMap((c)=>{
+                switch (c.type) {
+                    case "text":
+                        return [{ type: m.role === "user" ? "input_text" : "output_text", text: c.text.value }]
+                    case "image_url":
+                        return [{ type: "input_image", image_url: c.image_url.url, detail: c.image_url.detail }]
+                    default:
+                        return []
+                }
+            })
+            return { role: m.role, content }
+        })
+        const batchSizeMax = 20
+        for (let i = 0; i < items.length; i += batchSizeMax){
+            const batch = items.slice(i, i + batchSizeMax)
+            await openai.conversations.items.create(conversation.id, { items: batch })
+        }
+        console.warn(`mConversation()::${ conversation_id } is deprecated, converted to ${ conversation.id }`)
+    } catch(error) {
+        console.error(`ERROR converting thread content from ${ conversation_id } to conversation ${ conversation.id }`, error.name, error.message, metadata)
+    }
+    return conversation
 }
 /**
  * Gets message from OpenAI thread.
@@ -358,20 +407,22 @@ function mMessageConvert(provider, message){
 }
 /**
  * Creates an OpenAI request with member input. Appends to Conversation in OpenAI.
- * @param {*} openai - openai object
+ * @param {OpenAI} openai - openai object
  * @param {string} conversation_id - Conversation id (from thread id)
- * @param {string} promptId  - Prompt id in OpenAI (from assistant id)
- * @param {string} prompt - Member input text
+ * @param {object} prompt  - Prompt id in OpenAI (from assistant id)
+ * @param {string} input - Member input text
+ * @param {object} metadata - Metadata object to send with request (optional)
+ * @param {number} max_output_tokens - Max output tokens for response (optional, default: 10240)
  * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
  */
-async function mResponse(openai, conversation_id, promptId, prompt){
+async function mResponse(openai, conversation_id, prompt, input, metadata, max_output_tokens=10240){
     const response = await openai.responses.create({
         conversation: conversation_id,
         include: ['web_search_call.action.sources', 'file_search_call.results'],
-        input: prompt,
-        max_output_tokens: 1024,
-        metadata: {},
-        prompt: { id: promptId, },
+        input,
+        max_output_tokens,
+        metadata,
+        prompt,
     })
     return response
 }

@@ -1265,6 +1265,14 @@ class Avatar extends EventEmitter {
         this.globals.populateObject(obj, data, immutableFields)
     }
     /**
+     * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
+     * @param {string} variable - Prompt variable name
+     * @returns {string} - The prompt variable value
+     */
+    promptVariable(variable){
+        return this.#botAgent.promptVariable(variable)
+    }
+    /**
      * Register a candidate in database.
      * @param {object} candidate - The candidate data object.
      * @returns {object} - The registration object.
@@ -1831,11 +1839,6 @@ class Avatar extends EventEmitter {
     set livingMemory(livingMemory){
         this.#livingMemory = livingMemory
     }
-    /**
-     * Get the member id.
-     * @getter
-     * @returns {string} - The member's id.
-     */
     get mbr_id(){
         return this.#factory.mbr_id
     }

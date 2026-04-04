@@ -93,7 +93,7 @@
           "model": "gpt-4.1-mini",
           "provider": "openai",
           "type": "prompt",
-          "version": 9
+          "version": 10
         }
     ],
     "variables": [
@@ -101,8 +101,8 @@
       "dob",
       "flags",
       "interests",
-      "memberfirstname",
-      "memberfullname"
+      "memberFirstName",
+      "memberFullName"
     ]
   },
   "name": "instructions-journaler-bot",

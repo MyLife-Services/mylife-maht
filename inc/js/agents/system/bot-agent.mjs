@@ -58,7 +58,6 @@ class Bot {
 					.filter(v => typeof v === "string")
 			)
 		]
-		delete this.#llmProvider.variables
 		this.#retirable = retirable
 			?? this.#factory.botRetirable(this.#type)
 			?? true
@@ -189,6 +188,8 @@ class Bot {
 			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
 			this.#conversation = await mConversationStart('chat', type, id, thread_id, llmProvider, this.#llm, this.#factory, message)
+			if(thread_id!==this.conversation.thread_id)
+				this.setThread(this.conversation.thread_id) // saves new id to bot file
 			if(type!=='proxy' && !thread_id?.length){
 				thread_id = this.#conversation.thread_id
 				this.update({
@@ -763,6 +764,26 @@ class BotAgent {
 		await Bot.migrateChat() // no Conversation save
         /* respond request */
         return true
+    }
+    /**
+     * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
+     * @param {string} variable - Prompt variable name
+     * @returns {string} - The prompt variable value
+     */
+    promptVariable(variable){
+		let variableValue = this.activeBot[variable]
+			?? this[variable]
+			?? this.#avatar[variable] // synthetic digital self
+			?? this.avatar[variable] // personal-avatar bot
+			?? this.#factory[variable] // botAgent factory
+			?? this.#factory.core[variable] // MyLife human core entry
+			?? 'unknown'
+		if(typeof variableValue!=='string')
+			if(Array.isArray(variableValue))
+				 variableValue = variableValue.join(', ')
+			else
+				variableValue = JSON.stringify(variableValue)
+        return variableValue
     }
     /**
      * Grants or revokes access to a proxy Agent for a specific MyLife bot.

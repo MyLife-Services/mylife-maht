@@ -98,8 +98,8 @@
       "bio",
       "dob",
       "interests",
-      "memberfirstname",
-      "memberfullname"
+      "memberFirstName",
+      "memberFullName"
     ]
   },
   "name": "instructions-personal-biographer-bot",

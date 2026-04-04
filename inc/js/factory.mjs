@@ -309,7 +309,7 @@ class BotFactory extends EventEmitter{
 		let prompt = '# CLEAN\n## Variables:\n'
 		const { anonymous, guessable, itemId, pov=1, restrictions, } = Share
 		const { name, names, } = this.core
-		const memberName = names?.[0] ?? name
+		const memberName = this.memberName
 		const item = await this.item(itemId)
 		const { phaseOfLife, summary, } = item
 		let response,
