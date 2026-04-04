@@ -264,7 +264,7 @@ async function setActiveTeam(teamIdentifier=mDefaultTeam){
         return // no change, no problem
     const { botResponse, team: activeTeam, } = await globals.datamanager.teamActivate(id)
     const { defaultActiveType, id: activeTeamId, } = team ?? {}
-    const { bot_id=this.bot(null, defaultActiveType), responses=[], } = botResponse ?? {}
+    const { id: bot_id=getBot(null, defaultActiveType), responses=[], } = botResponse ?? {}
     if(activeTeam?.id!==id)
         throw new Error(`Server failure trying to activate team "${ identifier }".`)
     mActiveTeam = team

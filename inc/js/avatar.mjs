@@ -1434,6 +1434,17 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
+     * Sets the requested team as active, sets the active bot and responds.
+     * @param {string} teamId - The team id
+     * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
+     */
+    async setActiveTeam(teamId){
+        if(this.isMyLife)
+            throw new Error('MyLife avatar cannot currently utilize teams.')
+        const response = await this.#botAgent.setActiveTeam(teamId)
+        return response
+    }
+    /**
      * Gets the list of shadows.
      * @returns {Object[]} - Array of shadow objects.
      */
