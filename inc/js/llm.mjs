@@ -2,10 +2,18 @@ import OpenAI from 'openai'
 import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
 import { mcpCall, } from './controllers/mcp-functions.mjs'
 /* module constants */
-const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_MAX_INSTRUCTIONS_LENGTH, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
-const mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000
-const mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890
-const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
+const {
+    OPENAI_API_KEY: mOpenaiKey,
+    OPENAI_BASE_URL: mBasePath,
+    OPENAI_MAX_INSTRUCTIONS_LENGTH,
+    OPENAI_ORG_KEY: mOrganizationKey,
+    OPENAI_API_CHAT_RESPONSE_PING_INTERVAL,
+    OPENAI_API_CHAT_TIMEOUT,
+} = process.env
+const mDefaultLLMProvider = 'openai',
+    mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000,
+    mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890,
+    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 /* class definition */
 /**
  * LLM Services class.
@@ -162,10 +170,18 @@ class LLMServices {
             default:
                 throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
         }
+        // clean input - requiring arrays to be flattened
+        if(Array.isArray(input))
+            input.forEach(item=>{
+                Object.keys(item).forEach(key=>{
+                    if(typeof item[key]!=='string')
+                        item[key] = JSON.stringify(item[key])
+                })
+            })
         conversation_id ??= ( await mConversation(this.openai, undefined, input) ).id
         const response = await mResponse(this.openai, conversation_id, prompt, input)
-        const { completed_at, created_at, error, id, incomplete_details, metadata, model, output, output_text, prompt: _prompt, status, temperature, top_p, usage, } = response
-        let llmMessages = []
+        const { completed_at, created_at, error, id: response_id, incomplete_details, metadata, model, output, output_text, prompt: _prompt, status, temperature, tools, top_p, usage, } = response
+        const llmMessages = []
         switch(status){
             case 'completed':
                 if(Array.isArray(output)){
@@ -176,32 +192,30 @@ class LLMServices {
                     const messages = output.filter(message=>message?.type==='message' && Array.isArray(message?.content))
                     const reasonings = output.filter(message=>message?.type==='reasoning')
                     const webSearches = output.filter(message=>message?.type==='web_search_call')
-                    if(functionCalls.length){
-                        // loop through awaiting function calls and process them, package results as messages to call another `getLLMResponse()`
-                        const toolResponses = []
-                        functionCalls.forEach(async call=>{
-                            if(call.arguments && typeof call.arguments==='string')
-                                call.arguments = JSON.parse(call.arguments)
-                            const { call_id, id, name, status, } = call
-                            let { arguments: args, } = call
-                            if(status==='completed') // already finished
-                                return
-                            let toolResponse
-                            if(avatar[name])
-                                toolResponse = await avatar[name](args)
-                            else if(factory[name])
-                                toolResponse = await factory[name](args)
-                            else
-                                toolResponse = { error: `Tool function ${ name } not recognized by system.` }
-                            toolResponses.push(toolResponse)
-                        })
+                    // @stub - theoretically one can receive **both** function calls and content, but for now, I am treating as either/or; have not encountered a scenario of combination
+                    switch(true){
+                        case !!functionCalls.length:
+                            const toolResponses = []
+                            await Promise.all(
+                                functionCalls.map(async call=>{
+                                    if(call.arguments && typeof call.arguments==='string')
+                                        call.arguments = JSON.parse(call.arguments)
+                                    const { call_id, id: function_id, name, status, } = call
+                                    let { arguments: args, } = call
+                                    const toolResponse = await avatar.llmFunctionCall(name, args)
+                                    // @stub - if canceled, remove response item/functionId from conversation
+                                    const sanitizedToolResponse = mConvertToolResponse(llmProvider, toolResponse, { call_id, function_id, name, tools, })
+                                    toolResponses.push(sanitizedToolResponse)
+                                }
+                            ))
+                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, avatar)
+                        default:
+                            console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
+                            llmMessages.push(...messages.map(message => mMessageConvert(this.provider, message)))
+                            return llmMessages
                     }
-                    llmMessages = messages.map(message => mMessageConvert(this.provider, message))
-                } else if(typeof output==='string' && output.length)
-                    llmMessages.push(mMessageConvert(this.provider, output_text))
-                else
-                    llmMessages.push(mMessageConvert(this.provider, 'No LLM response was parseable; please try your request again.'))
-                console.log(`LLMServices::getLLMResponse()::success::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
+                } else
+                    llmMessages.push(mMessageConvert(this.provider, 'Intelligence was unable to respond; please try your request again.'))
                 break
             case 'in_progress':
             case 'queued':
@@ -216,7 +230,6 @@ class LLMServices {
                 console.log('LLMServices::getLLMResponse()::error', status, error)
                 break
         }
-        return llmMessages
     }
     /**
      * Returns a specific message associated with a conversation.
@@ -281,11 +294,11 @@ class LLMServices {
  * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
  * @param {OpenAI} openai - openai object
  * @param {string} conversation_id - conversation id
- * @param {string} messageText - message text (optional)
+ * @param {Object[]|string} messages - message(s) (optional)
  * @param {object} metadata - metadata object (optional)
  * @returns {object} - openai `conversation` object
  */
-async function mConversation(openai, conversation_id, messageText, metadata){
+async function mConversation(openai, conversation_id, messages, metadata){
     let conversation
     if(conversation_id?.length)
         conversation = conversation_id.startsWith('thread_')
@@ -293,14 +306,19 @@ async function mConversation(openai, conversation_id, messageText, metadata){
             : await openai.conversations.retrieve(conversation_id)
     else
         conversation = await openai.conversations.create({ metadata, })
-    if(conversation?.id && messageText?.length)
-        await openai.conversations.items.create(conversation.id, {
-            items: [{
-                    type: "message",
-                    role: "user",
-                    content: messageText,
-                }]
-        })
+    if(conversation?.id && messages?.length){ // seed message(s)
+        const items = typeof messages==='string'
+            ? [{
+                type: "message",
+                role: "user",
+                content: messages,
+            }]
+            : Array.isArray(messages)
+                ? messages
+                : []
+        if(items.length)
+            await openai.conversations.items.create(conversation.id, { items })
+    }
     return conversation
 }
 /**
@@ -363,6 +381,40 @@ async function mConvertThreadToConversation(openai, conversation_id, metadata={}
     return conversation
 }
 /**
+ * Converts tool response to a sanitized format for LLM response generation. This is required as tools can return a variety of content, but LLM response generation requires a consistent format.
+ * @param {object} llmProvider - LLM provider object
+ * @param {object} toolResponse - The MyLife response from the tool function call
+ * @param {object} providerOptions - Additional options for specific LLM providers, such as call_id
+ * @returns {object} - Sanitized tool response in expected format for LLM response generation
+ */
+function mConvertToolResponse(llmProvider, toolResponse, providerOptions={}){
+    const provider = typeof llmProvider==='string'
+        ? llmProvider
+        : llmProvider?.provider
+            ?? mDefaultLLMProvider
+    let sanitizedResponse
+    switch(provider.toLowerCase()){
+        case 'openai':
+            const { call_id, function_id, name, tools, } = providerOptions
+            const { action, cancelResponse, deleteThread, itemId, function: functionName, success=false, ...rest } = toolResponse
+            sanitizedResponse = {
+                type: "function_call_output",
+                call_id: call_id,
+                output: {
+                    action,
+                    itemId,
+                    success,
+                    ...rest,
+                },
+            }
+            break
+        default:
+            sanitizedResponse = toolResponse
+            break
+    }
+    return sanitizedResponse
+}
+/**
  * Gets message from OpenAI thread.
  * @module
  * @async
@@ -410,20 +462,24 @@ function mMessageConvert(provider, message){
  * @param {OpenAI} openai - openai object
  * @param {string} conversation_id - Conversation id (from thread id)
  * @param {object} prompt  - Prompt id in OpenAI (from assistant id)
- * @param {string} input - Member input text
+ * @param {string|object[]} input - Member input text, be it one message or multiple (=JSON.stringify())
  * @param {object} metadata - Metadata object to send with request (optional)
+ * @param {string} instructionOverride - String to override default instruction in prompt for this response generation (optional)
  * @param {number} max_output_tokens - Max output tokens for response (optional, default: 10240)
  * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
  */
-async function mResponse(openai, conversation_id, prompt, input, metadata, max_output_tokens=10240){
-    const response = await openai.responses.create({
+async function mResponse(openai, conversation_id, prompt, input, metadata, instructionOverride, max_output_tokens=10240){
+    const request = {
         conversation: conversation_id,
         include: ['web_search_call.action.sources', 'file_search_call.results'],
         input,
         max_output_tokens,
         metadata,
         prompt,
-    })
+    }
+    if(instructionOverride?.length)
+        request.instructions = instructionOverride
+    const response = await openai.responses.create(request)
     return response
 }
 /**
@@ -520,41 +576,7 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 confirmation.output = JSON.stringify({ action: 'Response from Agent call:\n' + response.response, success: response?.success ?? false, })
                                 console.log('mRunFunctions()::callExternalAgent::end', confirmation)
                                 return confirmation
-                            case 'changetitle':
-                            case 'change_title':
-                            case 'change title':
-                                const { title: newTitle, } = toolArguments
-                                console.log('mRunFunctions()::changeTitle start', newTitle, itemId)
-                                avatar.backupResponse = {
-                                    message: `I encountered an unexpected error while changing our title to: ${ newTitle }. Please try again.`,
-                                    type: 'system',
-                                }
-                                if(!itemId?.length || !newTitle?.length){
-                                    action = 'apologize for lack of clarity - member should click on the collection item (like a memory, story, etc) to identify it as active'
-                                    confirmation.output = JSON.stringify({ action, success, })
-                                    return confirmation
-                                }
-                                delete avatar.actionCallback
-                                delete avatar.backupResponse
-                                delete avatar.frontendInstruction
-                                const updateTitle = {
-                                    id: itemId,
-                                    title: newTitle
-                                }
-                                if(await avatar.itemUpdate(updateTitle))
-                                    avatar.frontendInstruction = {
-                                        command: 'updateItemTitle',
-                                        itemId,
-                                        title: newTitle,
-                                    }
-                                return {
-                                    cancelResponse: true,
-                                    deleteThread: false,
-                                    function: 'changeTitle',
-                                    run_id: runId, // required for canceling run
-                                    success: true,
-                                    title: newTitle,
-                                }
+
                             case 'confirmregistration':
                             case 'confirm_registration':
                             case 'confirm registration':

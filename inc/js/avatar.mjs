@@ -1074,6 +1074,15 @@ class Avatar extends EventEmitter {
         return await this.#factory.updateItem(item)
     }
     /**
+     * Processes a tool call from the LLM and returns the response.
+     * @param {string} functionName - The name of the function to call
+     * @param {object} toolArguments - The required arguments for the function call
+     * @returns {Promise<object>} - The MyLife Tool Call response object
+     */
+    async llmFunctionCall(name, toolArguments){
+        return await mFunctionCall(name, toolArguments, this.#factory, this)
+    }
+    /**
      * Logs out the current session, removing relevant MyLife session artifacts.
      * @param {Koa} ctx - The Koa context object
      * @returns {Promise<void>}
@@ -2885,6 +2894,62 @@ function mCreateSystemMessage(botId, message, messageClassDefinition){
     }
     message = mPruneMessage(botId, message, 'system')
     return message
+}
+/**
+ * Processes a tool call from the LLM and returns the response.
+ * @param {string} functionName - The name of the function to call
+ * @param {object} toolArguments - The required arguments for the function call
+ * @param {Factory} Factory - The factory instance
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<object>} - The MyLife Tool Call response object
+ */
+async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
+    const itemId = toolArguments?.itemId,
+        response = {
+            cancelResponse: true,
+            deleteThread: false,
+            itemId,
+            function: functionName,
+            success: false,
+        }
+    switch(functionName){
+        case 'changeTitle':
+            const { title: newTitle, } = toolArguments
+            Avatar.backupResponse = {
+                message: `I encountered an unexpected error while changing our title to: ${ newTitle }. Please try again.`,
+                type: 'system',
+            }
+            if(!itemId?.length || !newTitle?.length){
+                response.action = `Title Change Error: Apologize for lack of clarity; member should **first** click on the collection item (like a memory, story, etc) to identify it as active; upon doing so, the active item bar appears above chat bar. (function call requies "itemId" and "title" in arguments. Received itemId: ${ itemId }, title: ${ newTitle })`
+                response.cancelResponse = false
+            }
+            delete Avatar.actionCallback
+            delete Avatar.backupResponse
+            delete Avatar.frontendInstruction
+            const updateTitle = {
+                id: itemId,
+                title: newTitle
+            }
+            if(await Avatar.itemUpdate(updateTitle)){
+                Avatar.backupResponse = {
+                    message: `Wonderful: I have successfully changed the item's title to ${ newTitle }`,
+                    type: 'system',
+                }
+                Avatar.frontendInstruction = {
+                    command: 'updateItemTitle',
+                    itemId,
+                    title: newTitle,
+                }
+                response.success = true
+                response.title = newTitle
+            }
+            response.action ??= Avatar.backupResponse.message
+            console.log(`mFunctionCall()::${ functionName }::complete`, response)
+            break
+        default:
+            break
+    }
+    return response
 }
 /**
  * Include help preamble to _LLM_ request, not outbound to member/guest.
