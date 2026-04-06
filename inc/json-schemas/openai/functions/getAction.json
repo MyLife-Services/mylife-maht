@@ -1,7 +1,6 @@
 {
     "description": "Gets the `action` summary or document by itemId",
     "name": "getAction",
-    "strict": true,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -20,5 +19,6 @@
             "itemId",
             "summaryOnly"
         ]
-    }
+    },
+    "strict": true
 }

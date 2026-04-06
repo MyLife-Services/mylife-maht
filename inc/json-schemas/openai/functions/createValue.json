@@ -1,7 +1,6 @@
 {
     "description": "Generate a complete `item` document (form of `value`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
     "name": "createValue",
-    "strict": false,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -80,5 +79,6 @@
             "title",
             "type"
         ]
-    }
+    },
+    "strict": false
 }

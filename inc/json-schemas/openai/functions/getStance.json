@@ -1,7 +1,6 @@
 {
     "description": "Gets the `stance` summary by itemId",
     "name": "getStance",
-    "strict": true,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -20,5 +19,6 @@
             "itemId",
             "summaryOnly"
         ]
-    }
+    },
+    "strict": true
 }
