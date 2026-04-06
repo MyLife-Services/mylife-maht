@@ -194,38 +194,48 @@ class LLMServices {
                     const webSearches = output.filter(message=>message?.type==='web_search_call')
                     // @stub - theoretically one can receive **both** function calls and content, but for now, I am treating as either/or; have not encountered a scenario of combination
                     switch(true){
-                        case !!functionCalls.length:
-                            const toolResponses = []
+                        case !!functionCalls.length: {
+                            const deleteCalls = [],
+                                toolResponses = []
                             let deleteConversation = false
-                            let deleteCalls = []
-                            await Promise.all(
-                                functionCalls.map(async call=>{
-                                    if(call.arguments && typeof call.arguments==='string')
-                                        call.arguments = JSON.parse(call.arguments)
-                                    const { call_id, id: function_id, name, status, } = call
-                                    let { arguments: args, } = call
-                                    const toolResponse = await avatar.llmFunctionCall(name, args)
-                                    const { cancelResponse=false, deleteThread=false, ..._toolResponse } = toolResponse
-                                    if(deleteThread)
-                                        deleteConversation = true
-                                    if(cancelResponse)
-                                        deleteCalls.push(function_id)
-                                    else
-                                        toolResponses.push(mConvertToolResponse(llmProvider, _toolResponse, { call_id, function_id, name, tools, }))
-                                }
-                            ))
-                            if(deleteConversation)
-                                return await mConversationDelete(this.openai, conversation_id) // temp call; will not be referenced again
-                            else if(
-                                    deleteCalls.length 
-                                &&  await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, deleteCalls.length===functionCalls.length)
-                            ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
+                            try{
+                                await Promise.all(
+                                    functionCalls.map(async call=>{
+                                        if(call.arguments && typeof call.arguments==='string')
+                                            call.arguments = JSON.parse(call.arguments)
+                                        const { call_id, id: function_id, name, status, } = call
+                                        let { arguments: args, } = call
+                                        const toolResponse = await avatar.llmFunctionCall(name, args)
+                                        const { cancelResponse=false, deleteThread=false, ..._toolResponse } = toolResponse
+                                        if(deleteThread)
+                                            deleteConversation = true
+                                        if(cancelResponse)
+                                            deleteCalls.push(function_id)
+                                        else
+                                            toolResponses.push(mConvertToolResponse(llmProvider, _toolResponse, { call_id, function_id, name, tools, }))
+                                    }
+                                ))
+                                if(deleteConversation)
+                                    return await mConversationDelete(this.openai, conversation_id) // temp call; will not be referenced again
+                                else if(
+                                        deleteCalls.length 
+                                    &&  await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, deleteCalls.length>=functionCalls.length)
+                                ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
+                                    return
+                            } catch(error) {
+                                console.error('ERROR running tool function calls from LLM response; removing response and calls', error.name, error.message, conversation_id, response_id)
+                                deleteCalls.length = 0 // clear deleteCalls
+                                functionCalls.forEach(call=>deleteCalls.push(call.id)) // add all function calls to deleteCalls
+                                await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, true)
                                 return
+                            }
                             return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, avatar)
-                        default:
+                        }
+                        default: {
                             console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
                             llmMessages.push(...messages.map(message => mMessageConvert(this.provider, message)))
                             return llmMessages
+                        }
                     }
                 } else
                     llmMessages.push(mMessageConvert(this.provider, 'Intelligence was unable to respond; please try your request again.'))
@@ -606,59 +616,6 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 confirmation.output = JSON.stringify({ action: 'Response from Agent call:\n' + response.response, success: response?.success ?? false, })
                                 console.log('mRunFunctions()::callExternalAgent::end', confirmation)
                                 return confirmation
-
-                            case 'createaccount':
-                            case 'create_account':
-                            case 'create account':
-                                console.log('mRunFunctions()::createAccount::start', toolArguments)
-                                const { birthdate, passphrase, } = toolArguments
-                                action = `error setting basics for member: `
-                                if(!birthdate)
-                                    action += 'birthdate missing, elicit birthdate; '
-                                if(!passphrase)
-                                    action += 'passphrase missing, elicit passphrase; '
-                                try {
-                                    const { success: createAccountSuccess, } = await avatar.createAccount(birthdate, passphrase, factory.candidate)
-                                    action = createAccountSuccess
-                                        ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and explain that once the system processes their membership they will be able to use the login button at the top right.`
-                                        : action + 'server failure for `factory.createAccount()`'
-                                    success = createAccountSuccess
-                                } catch(error){
-                                    action += '__ERROR: ' + error.message
-                                }
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
-                            case 'endreliving':
-                            case 'end_reliving':
-                            case 'end reliving':
-                                avatar.actionCallback = 'endMemory'
-                                throw new Error('endReliving intentionally aborted')
-                            case 'createstance': // stance summary & metadata
-                            case 'createvalue': // value summary & metadata
-                            case 'entrysummary': // deprecate
-                            case 'entry_summary':
-                            case 'entry summary':
-                            case 'itemsummary': // itemSummary in Globals
-                            case 'item_summary':
-                            case 'item summary':
-                            case 'story':
-                            case 'storysummary': // deprecate
-                            case 'story-summary':
-                            case 'story_summary':
-                            case 'story summary':
-                                console.log(`mRunFunctions()::${ name }`, toolArguments?.title)
-                                const createSummaryResponse = await avatar.item(toolArguments, 'POST')
-                                success = createSummaryResponse.success
-                                action = success
-                                    ? `item creation was successful; save for **internal AI reference** this itemId: ${ createSummaryResponse.item.id }`
-                                    : `error creating summary for item given argument title: ${ toolArguments?.title } - DO NOT TRY AGAIN until member asks for it`
-                                confirmation.output = JSON.stringify({
-                                    action,
-                                    success,
-                                })
-                                console.log(`mRunFunctions()::${ name }::success`, success, createSummaryResponse?.item?.id)
-                                return confirmation    
-
 
                             case 'obscure':
                                 avatar.backupResponse = {
