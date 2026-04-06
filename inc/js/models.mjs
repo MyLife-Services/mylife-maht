@@ -269,13 +269,13 @@ class Message extends EventEmitter {
     #role
     constructor(obj){
         super()
-        const { content, role='system', ..._obj } = obj
+        const { content, message, role='system', ..._obj } = obj
         _obj.created_at = _obj.created_at
             ?? Date.now()
         Object.assign(this, _obj)
         try{
             this.#role = role
-            this.#content = mAssignContent(content ?? obj)
+            this.#content = mAssignContent(content ?? message ?? obj)
         } catch(e){
             this.#content = ''
         }

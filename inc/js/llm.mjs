@@ -196,6 +196,8 @@ class LLMServices {
                     switch(true){
                         case !!functionCalls.length:
                             const toolResponses = []
+                            let deleteConversation = false
+                            let deleteCalls = []
                             await Promise.all(
                                 functionCalls.map(async call=>{
                                     if(call.arguments && typeof call.arguments==='string')
@@ -203,11 +205,22 @@ class LLMServices {
                                     const { call_id, id: function_id, name, status, } = call
                                     let { arguments: args, } = call
                                     const toolResponse = await avatar.llmFunctionCall(name, args)
-                                    // @stub - if canceled, remove response item/functionId from conversation
-                                    const sanitizedToolResponse = mConvertToolResponse(llmProvider, toolResponse, { call_id, function_id, name, tools, })
-                                    toolResponses.push(sanitizedToolResponse)
+                                    const { cancelResponse=false, deleteThread=false, ..._toolResponse } = toolResponse
+                                    if(deleteThread)
+                                        deleteConversation = true
+                                    if(cancelResponse)
+                                        deleteCalls.push(function_id)
+                                    else
+                                        toolResponses.push(mConvertToolResponse(llmProvider, _toolResponse, { call_id, function_id, name, tools, }))
                                 }
                             ))
+                            if(deleteConversation)
+                                return await mConversationDelete(this.openai, conversation_id) // temp call; will not be referenced again
+                            else if(
+                                    deleteCalls.length 
+                                &&  await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, deleteCalls.length===functionCalls.length)
+                            ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
+                                return
                             return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, avatar)
                         default:
                             console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
@@ -291,12 +304,29 @@ class LLMServices {
 }
 /* module functions */
 /**
+ * Deletes function calls from an OpenAI response. If deleteAll is true, also deletes entire response.
+ * @param {OpenAI} openai - OpenAI object
+ * @param {string} conversation_id - The conversation id
+ * @param {string} response_id - The response id
+ * @param {string} call_ids - list of function call ids to delete from response
+ * @param {boolean} deleteAll - Whether to delete response entirely
+ * @returns {Promise<boolean>} - Whether the response was deleted entirely (true) or just specific calls (false); when `false` any remaining tool responses are sent.
+ */
+async function mCallDelete(openai, conversation_id, response_id, call_ids, deleteAll=false){
+    await Promise.all(
+        call_ids.map(function_id=>openai.conversations.items.delete(function_id, { conversation_id }))
+    )
+    if(deleteAll)
+        await openai.responses.delete(response_id)
+    return deleteAll
+}
+/**
  * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
- * @param {OpenAI} openai - openai object
+ * @param {OpenAI} openai - OpenAI object
  * @param {string} conversation_id - conversation id
  * @param {Object[]|string} messages - message(s) (optional)
  * @param {object} metadata - metadata object (optional)
- * @returns {object} - openai `conversation` object
+ * @returns {object} - OpenAI `conversation` object
  */
 async function mConversation(openai, conversation_id, messages, metadata){
     let conversation
@@ -396,7 +426,7 @@ function mConvertToolResponse(llmProvider, toolResponse, providerOptions={}){
     switch(provider.toLowerCase()){
         case 'openai':
             const { call_id, function_id, name, tools, } = providerOptions
-            const { action, cancelResponse, deleteThread, itemId, function: functionName, success=false, ...rest } = toolResponse
+            const { action, itemId, function: functionName, success=false, ...rest } = toolResponse
             sanitizedResponse = {
                 type: "function_call_output",
                 call_id: call_id,
@@ -577,23 +607,6 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 console.log('mRunFunctions()::callExternalAgent::end', confirmation)
                                 return confirmation
 
-                            case 'confirmregistration':
-                            case 'confirm_registration':
-                            case 'confirm registration':
-                                console.log('mRunFunctions()::confirmregistration', toolArguments)
-                                let { email: confirmEmail, registrationId, } = toolArguments
-                                confirmEmail = confirmEmail.trim()
-                                if(!confirmEmail?.length)
-                                    action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
-                                else if(!registrationId?.length)
-                                    action = `No registrationId provided, continue discussing MyLife organization but forget all current registration data`
-                                else if(await factory.confirmRegistration(confirmEmail, registrationId)){
-                                    action = `congratulate on registration (**important** remember registrationId=${ registrationId }) and get required member data for follow-up: date of birth, initial account passphrase.`
-                                    success = true
-                                } else
-                                    action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization; forget all current registration data.'
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
                             case 'createaccount':
                             case 'create_account':
                             case 'create account':
@@ -645,27 +658,8 @@ async function mRunFunctions(openai, run, factory, avatar){
                                 })
                                 console.log(`mRunFunctions()::${ name }::success`, success, createSummaryResponse?.item?.id)
                                 return confirmation    
-                            case 'getsummary':
-                            case 'get_summary':
-                            case 'get summary':
-                                let { item: getSummaryItem, success: getSummarySuccess, } = await avatar.item({ id: itemId, })
-                                success = getSummarySuccess
-                                action = success
-                                    ? 'Summary content found in payload @ `summary`'
-                                    : `No summary for item ${ itemId }, use conversation content`
-                                confirmation.output = JSON.stringify({ action, success, summary: getSummaryItem?.summary, })
-                                console.log('mRunFunctions()::getSummary', success, getSummaryItem?.summary?.substring(0, 32))
-                                return confirmation
-                            case 'hijackattempt':
-                            case 'hijack_attempt':
-                            case 'hijack-attempt':
-                            case 'hijack attempt':
-                                // @todo - add conversation flag
-                                console.log('mRunFunctions()::hijackattempt', toolArguments)
-                                action = 'attempt noted in system and user ejected; greet per normal as first time new user'
-                                success = true
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
+
+
                             case 'obscure':
                                 avatar.backupResponse = {
                                     message: `I encountered an unexpected error while obscuring your content, please try again.`,
@@ -704,20 +698,7 @@ async function mRunFunctions(openai, run, factory, avatar){
                                     success: true,
                                     warnings,
                                 }
-                            case 'registercandidate':
-                            case 'register_candidate':
-                            case 'register candidate':
-                                console.log('mRunFunctions()::registercandidate', toolArguments)
-                                const { avatarName, email: registerEmail, humanName, type, } = toolArguments // rename email as it triggers IDE error being in switch
-                                const registrant = await factory.registerCandidate({ avatarName, email: registerEmail, humanName, type, })
-                                if(!registrant)
-                                    action = 'error registering candidate in system; notify member of system error and continue discussing MyLife organization'
-                                else {
-                                    action = 'candidate registered in system; let them know they will be contacted by email within the week and if they have any more questions'
-                                    success = true
-                                }
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
+
                             case 'updatesummary':
                             case 'update_summary':
                             case 'update summary':
