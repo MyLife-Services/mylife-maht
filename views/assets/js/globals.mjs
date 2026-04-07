@@ -1650,7 +1650,9 @@ function mGetHelpInitiatorContent(type){
 function mHide(element, callbackFunction){
     if(!element)
         return
-    element.classList.remove('show')
+    try{
+        element.classList.remove('show')
+    } catch(e) { console.log('mHide::classList error', e, element, callbackFunction) }
     if(element.getAnimations().length){
         element.addEventListener('animationend', function() {
             element.classList.add('hide')

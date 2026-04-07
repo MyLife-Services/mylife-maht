@@ -136,6 +136,20 @@ function createItem(item){
     }
 }
 /**
+ * Deletes a collection item from the local collection items array, as requested by server deletion.
+ * @requires mCollectionItems
+ * @param {Guid} id - The collection item id
+ * @returns {void}
+ */
+function deleteItem(id, type){
+    if(!globals.isGuid(id))
+        return
+    const typeItems = mCollectionItems[type ?? getItem(id)?.type]?.items ?? []
+    const index = typeItems.findIndex(i =>i.id===id)
+    if(index!==-1)
+        typeItems.splice(index, 1)
+}
+/**
  * Ends the memory reliving process.
  * @param {Guid} id - The collection item id
  * @param {boolean} server - Whether or not to update the server, default: `false`
@@ -214,12 +228,16 @@ async function refreshCollection(type){
     return await mRefreshCollection(type)
 }
 /**
- * Removes a collection item from the DOM, does not update server.
+ * Removes a collection item and its popup from the DOM, does not update server.
  * @param {Guid} id - The collection item id
  * @returns {void}
  */
 function removeItem(id){
-    expunge(getItem(id))
+    const item = getItem(id)
+    if(item?.container instanceof HTMLElement)
+        expunge(item.container)
+    if(item?.popup instanceof HTMLElement)
+        expunge(item.popup)
 }
 /**
  * Sets the active item, ex. `memory`, `entry` in the chat system for member operation(s).
@@ -1083,7 +1101,7 @@ async function mDeleteCollectionItem(event){
     event.stopPropagation()
     const collectionItemDelete = event.target
     const id = collectionItemDelete.id.replace('collection-item-delete-', '')
-    const item = getItem(id)
+    const { id: itemId, type, } = getItem(id)
     const userConfirmed = confirm("Are you sure you want to delete this item?") /* confirmation dialog */
     if(activeItem()?.id && activeItem().id===id)
         unsetActiveItem()
@@ -1092,7 +1110,7 @@ async function mDeleteCollectionItem(event){
         if(!!instruction)
             enactInstruction(instruction, 'chat', { removeItem, })
         if(success){
-            expunge(item)
+            deleteItem(itemId, type)
             if(responses?.length)
                 addMessages(responses, 'avatar')
         }

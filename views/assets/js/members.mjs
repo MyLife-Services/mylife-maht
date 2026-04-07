@@ -150,6 +150,7 @@ function enactInstruction(instruction, interfaceLocation='chat', additionalFunct
         addMessages,
         ...additionalFunctions, // overloads feasible
     }
+    console.log('Enacting instruction: ', instruction)
     globals.enactInstruction(instruction, functions)
 }
 function escapeHtml(text) {
