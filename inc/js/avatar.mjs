@@ -2910,6 +2910,14 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
             success: false,
         }
     switch(functionName){
+        case 'callAvatar': {
+            throw new Error('CallAvatar not yet implemented')
+            break
+        }
+        case 'callExternalAgent': {
+            await mFunction_callExternalAgent(response, toolArguments, Avatar)
+            break
+        }
         case 'changeTitle': {
             await mFunction_changeTitle(response, toolArguments, Avatar)
             break
@@ -2949,8 +2957,20 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
             response.success = true
             break
         }
+        case 'obscure': {
+            await mFunction_obscure(response, toolArguments, Avatar)
+            break
+        }
+        case 'prepareSummary': {
+            await mFunction_prepareSummary(response, toolArguments, Avatar)
+            break
+        }
         case 'registerCandidate': {
             await mFunction_registerCandidate(response, toolArguments, Factory)
+            break
+        }
+        case 'updateSummary': {
+            await mFunction_updateSummary(response, toolArguments, Avatar)
             break
         }
         default: {
@@ -2963,6 +2983,28 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
     return response
 }
 /* specific function call handlers */
+/**
+ * Handles the 'callExternalAgent' function call from the LLM, which makes an agent-to-agent request to an external agent and prepares the response based on the success of the request. Mutates `response` and `Avatar` based on the success of the agent-to-agent request.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the 'callExternalAgent' function call
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the agent-to-agent request
+ */
+async function mFunction_callExternalAgent(response, toolArguments, Avatar){
+    const { agentId, messageId, request, skillId, } = toolArguments
+    Avatar.backupResponse = {
+        message: `I could not communicate effectively with our external agent. I cannot determine if this is a temporary issue or a persistent one. Please try again later or contact support if the issue continues.`,
+        type: 'system',
+    }
+    const agent = Avatar.getBot(agentId, true)
+    if(!agent)
+        return
+    const { response: a2aResponse, success=false,} = await a2aExternalRequest(messageId, skillId, request, agent.agentEndpoint)
+    if(success)
+        delete Avatar.backupResponse
+    response.action = `Response from external agent:\n${ a2aResponse }`
+    response.success = success
+}
 /**
  * Handles the 'changeTitle' function call from the LLM, which updates the title of a specified item and prepares the frontend instruction for the update. Mutates `response` and `Avatar`.
  * @param {object} response - The initial response object to be updated based on the function call outcome
@@ -3047,7 +3089,7 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
     }
 }
 /**
- * Handles the 'createStance' function call from the LLM, which creates a summary for a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the summary creation operation.
+ * Handles the 'createStance' function call from the LLM, which creates a summary for a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the summary creation operation.☺
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the 'createStance' function call
  * @param {Avatar} Avatar - The avatar instance (`this`)
@@ -3081,6 +3123,40 @@ async function mFunction_getSummary(response, Avatar){
     }
 }
 /**
+ * Handles the 'obscure' function call from the LLM, which obscures aspects of a specified item and prepares the frontend instruction for the update. Mutates `response` and `Avatar` based on the success of the obscure operation. An extension/decorator of the `updateSummary` function.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the obscure operation
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the obscure operation
+ */
+async function mFunction_obscure(response, toolArguments, Avatar){
+    const { itemId, summary, obscuredSummary, } = toolArguments
+    response.obscuredSummary = summary
+        ?? obscuredSummary
+    response.cancelResponse = true
+    response.deleteThread = true
+}
+/**
+ * Handles the 'prepareSummary' function call from the LLM, which prepares a summary for sharing by setting the appropriate response properties and backup response. Mutates `response` and `Avatar` based on the provided summary and warnings.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the prepare summary operation
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the provided summary and warnings
+ */
+async function mFunction_prepareSummary(response, toolArguments, Avatar){
+    Avatar.backupResponse = {
+        message: `I encountered an unexpected error while preparing content for sharing, please try again.`,
+        type: 'system',
+    }
+    const { summary, preparedSummary, warnings, } = toolArguments
+    response.cancelResponse = true
+    response.deleteThread = true
+    response.preparedSummary = summary
+        ?? preparedSummary
+    if(warnings?.length)
+        response.warnings = warnings
+}
+/**
  * Handles the 'registerCandidate' function call from the LLM, which registers a candidate in the system and prepares the response message based on the success of the registration. Mutates `response` based on the success of the registration operation.
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the registration process
@@ -3094,6 +3170,38 @@ async function mFunction_registerCandidate(response, toolArguments, Factory){
         ? 'error registering candidate in system; notify member of system error and continue discussing MyLife organization'
         : 'candidate registered in system; let them know they will be contacted by email within the week and ask if they have any further questions'
     response.success = !!registrant
+}
+/**
+ * Handles the 'updateSummary' function call from the LLM, which updates the summary of a specified item and prepares the frontend instruction for displaying the updated summary. Mutates `response` and `Avatar` based on the success of the update operation.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the update process
+ * @param {Avatar} Avatar - The avatar instance used to update the summary
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the update operation
+ */
+async function mFunction_updateSummary(response, toolArguments, Avatar){
+    const { itemId, summary, } = toolArguments
+    delete Avatar.actionCallback
+    delete Avatar.frontendInstruction
+    Avatar.backupResponse = {
+        message: `I encountered an unexpected error while updating item with id: "${ itemId }". Please try again.`,
+        type: 'system',
+    }
+    if(!itemId?.length || !summary?.length){
+        response.action = 'Unsuccessful: Tell member to click on an appropriate collection item (like a memory, story, etc) to identify it as active which generates a valid `itemId`'
+        return
+    }
+    const updateData = {
+        id: itemId,
+        summary,
+    }
+    let { instruction, responses, success, } = await Avatar.item(updateData, 'PUT')
+    response.cancelResponse = true
+    response.success = success
+    Avatar.backupResponse = responses?.[0]
+        ?? Avatar.backupResponse
+    Avatar.frontendInstruction = instruction
+    if(Avatar.livingMemory?.item?.id===itemId)
+        delete Avatar.backupResponse
 }
 /**
  * Include help preamble to _LLM_ request, not outbound to member/guest.

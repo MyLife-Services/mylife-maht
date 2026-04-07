@@ -1572,7 +1572,7 @@ async function mConversationStart(type='chat', form='system', botId, conversatio
  */
 async function mDeleteChat(Conversation, localDelete=false, llm, factory){
 	const { id, thread_id, } = Conversation
-	await llm.deleteThread(thread_id) // delete thread from LLM
+	await llm.deleteConversation(thread_id) // delete thread from LLM, temporary conversation with Q (or other)
 	if(localDelete)
 	    factory.deleteItem(id) // no await
     return true
