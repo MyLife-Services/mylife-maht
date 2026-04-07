@@ -1605,9 +1605,12 @@ async function mUpdateBotContainers(){
         })
     }
     // ensure DOM avatar
-    const { container: avatarContainer, id: avatarId, } = bots.find(bot=>isAvatar(bot.type))
-    if(!document.getElementById(avatarId))
-        mSidebar.insertBefore(avatarContainer, mTeamHeader) // avatar always first
+    const Avatar = bots.find(bot=>isAvatar(bot.type))
+    if(Avatar && !document.getElementById(Avatar?.id)){
+        const { container, id: avatarId, } = Avatar
+        mSidebar.insertBefore(container, mTeamHeader) // avatar always first
+        mUpdateBotContainer(Avatar)
+    }
     // mount team bots
     mBotMount.innerHTML = ''
     const teamBots = [
