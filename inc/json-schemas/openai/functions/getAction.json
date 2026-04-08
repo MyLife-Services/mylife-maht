@@ -1,17 +1,18 @@
 {
-    "description": "Gets the `action` summary or document by itemId",
+    "description": "Gets `action` data by `itemId`; refer to its GUID identifier `id`, no other retrieval will work",
     "name": "getAction",
     "parameters": {
         "additionalProperties": false,
         "type": "object",
         "properties": {
             "itemId": {
-                "description": "Id of `action` summary to retrieve from server",
+                "description": "Guid id of `action` data to retrieve",
+                "format": "uuid",
                 "type": "string"
             },
             "summaryOnly": {
                 "default": true,
-                "description": "Whether to return only the `action` summary text or the full `item` document with summary and metadata",
+                "description": "When `true` retrieve _just_ the item summary, use `false` to get entire object with metadata; most cases, summary is sufficient unless you or member is trying to display or update metadata",
                 "type": "boolean"
             }
         },

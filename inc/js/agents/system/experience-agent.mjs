@@ -126,7 +126,7 @@ class Experience {
         this.#llm = llm
         this.#id = id
         this.#scriptAdvisorLlmProvider = scriptAdvisorBotId
-            ?? mDefaultScriptAdvisorLLMProvider
+            ?? mDefaultScriptAdvisorLLMProvider.id
         this.#scriptVariables = scriptVariables
         this.#cast = mCast(cast, this.#botAgent, this.#factory)
         this.#location = mLocation(this)
@@ -750,21 +750,18 @@ async function mEventDialog(Event, Experience, iteration=0){
             if(!dialogPrompt)
                 throw new Error('Dynamic script requested, no prompt identified')
             let prompt = dialogPrompt
-            const { cast, memberDialog, scriptAdvisorBotId, scriptDialog, variables: experienceVariables, } = Experience
+            const { cast, memberDialog, scriptDialog, variables: experienceVariables, } = Experience
             const castMember = cast.find(castMember=>castMember.id===characterId)
-            const { bot, } = castMember
-            const { llm_id, id, } = bot
-            if(!llm_id || !id)
-                throw new Error(`mEventDialog()::Bot id: ${ characterId } not found in cast`)
-            scriptDialog.llm_id = llm_id
-                ?? scriptAdvisorBotId
+            const { bot: { id, }, } = castMember
+            if(!id)
+                throw new Error(`mEventDialog():: ${ characterId } not found in castMembers`)
             if(example?.length)
                 prompt = `using example: "${ example }";\n` + prompt
             if(dialogVariables.length)
                 prompt = mReplaceVariables(prompt, dialogVariables, experienceVariables)
             const messages = await Experience.getScriptDialog(prompt)
             if(!messages?.length)
-                console.log('mEventDialog::no messages returned from LLM', prompt, llm_id)
+                console.log('mEventDialog::no messages returned from LLM', prompt, scriptDialog)
             scriptDialog.addMessages(messages)
             memberDialog.addMessage(scriptDialog.mostRecentDialog)
             const responseDialog = new Marked().parse(memberDialog.mostRecentDialog)
@@ -844,18 +841,12 @@ async function mEventInput(memberInput, Event, Experience, iteration=0){
     if(input.outcome?.trim()?.length)
         prompt += 'OUTCOME: return JSON-parsable object = '
             + input.outcome.trim()
-    const scriptAdvisorBotId = Experience.scriptAdvisorBotId
-        ?? Experience.cast.find(castMember=>castMember.id===cid)?.bot?.llm_id
-        ?? Experience.cast[0]?.bot?.llm_id
     const scriptConsultant = scriptAdvisor
         ?? scriptDialog
         ?? dialog
-    scriptConsultant.llm_id = scriptAdvisorBotId
     const messages = await Experience.getScriptDialog(prompt)
-    if(!messages?.length){
-        console.log('mEventInput::no messages returned from LLM', prompt, scriptAdvisorBotId, scriptConsultant)
-        throw new Error('No messages returned from LLM')
-    }
+    if(!messages?.length)
+        throw new Error(`No messages returned from LLM: { prompt: "${ prompt }", scriptConsultant: ${ JSON.stringify(scriptConsultant) } }`)
     scriptConsultant.addMessages(messages)
     /* validate return from LLM */
     let evaluationResponse = scriptConsultant.mostRecentDialog

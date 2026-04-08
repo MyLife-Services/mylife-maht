@@ -784,7 +784,6 @@ function mAvatarProperties(core, globals){
 		"email",
 		'form',
 		'format',
-		'llm_id',
 		'messages',
 		'metadata',
 		'names',

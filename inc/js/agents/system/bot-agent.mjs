@@ -36,7 +36,7 @@ class Bot {
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
 		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData)
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
@@ -45,7 +45,7 @@ class Bot {
 		this.#greetings = greetings
 		this.#type = type
 		this.#greetingRoutine = this.#type.replace('personal-', '')
-		this.#llmProvider = providers.find(provider=>provider.provider===defaultProvider)
+		this.#llmProvider = providers.find(provider=>provider.provider===(llmProvider ?? defaultProvider))
 			?? providers?.[0]
 			?? factory.botLLMProvider(this.#type)
 			?? {}
@@ -223,9 +223,9 @@ class Bot {
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
 	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last'){
-		if(dynamic && this.type!=='proxy' && !this.llm_id)
+		if(dynamic && this.type!=='proxy')
 			return {
-				error: 'Bot llm_id not set',
+				error: 'Cannot access dynamic greeting routine',
 				responses: ['I currently have no connection with my foundational intelligence, so my greeting is generic'],
 				success: false,
 			}
@@ -328,7 +328,7 @@ class Bot {
 		this.globals.sanitize(botData)
 		botOptions.instructions = botOptions.instructions
 			?? Object.keys(botData).some(key=>this.#instructionNodes.has(key))
-		const { agentInstructions, feedback, id, mbr_id, type, ...updatedNodes } = await mBotUpdate(botData, botOptions, this, this.#llm, this.#factory)
+		const { agentInstructions, feedback, id, mbr_id, type, ...updatedNodes } = await mBotUpdate(botData, botOptions, this, this.#factory)
 		Object.assign(this, updatedNodes)
 		if(botOptions.instructions)
 			await this.migrateChat() // @stub - update for new OpenAI and MCP
@@ -955,12 +955,12 @@ class BotAgent {
 	 */
 	async updateBotInstructions(botId, migrateThread=false){
 		const Bot = this.bot(botId)
-		const { id, llm_id, type, version=1.0, } = Bot
+		const { id, type, version=1.0, } = Bot
         const newestVersion = this.#factory.botInstructionsVersion(type) // check version
 			?? 0
         if(newestVersion!=version){
-			const { id, llm_id, } = Bot
-            const _bot = { id, llm_id, type, }
+			const { id, } = Bot
+            const _bot = { id, type, }
             const botOptions = {
                 instructions: true,
                 model: true,
@@ -1106,22 +1106,7 @@ class Team {
 }
 /* modular functions */
 /**
- * Initializes openAI assistant and returns associated `assistant` object.
- * @module
- * @param {object} botData - The bot data object
- * @param {LLMServices} llm - OpenAI object
- * @returns {object} - [OpenAI assistant object](https://platform.openai.com/docs/api-reference/assistants/object)
- */
-async function mAI_openai(botData, llm){
-    const { bot_name, type, } = botData
-	botData.name = bot_name
-		?? `_member_${ type }`
-    const bot = await llm.createBot(botData)
-	return bot
-}
-/**
  * Creates bot and returns associated `bot` object.
- * @todo - validBotData.name = botDbName should not be required, push logic to `llm.mjs`
  * @module
  * @async
  * @param {Guid} avatarId - The Avatar id
@@ -1174,30 +1159,9 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 		vectorstore_id,
 		version,
 	}
-	/* create in LLM */
-	const { id: llm_id, thread_id, } = await mBotCreateLLM(validBotData, llm)
-	if(!llm_id?.length)
-		throw new Error('bot creation failed')
-	/* create in MyLife datastore */
-	validBotData.llm_id = llm_id
-	validBotData.thread_id = thread_id
 	botData = await factory.createBot(validBotData) // repurposed incoming botData
 	const newBot = new Bot(botData, llm, factory)
 	return newBot
-}
-/**
- * Creates bot and returns associated `bot` object.
- * @module
- * @param {object} botData - Bot object
- * @param {LLMServices} llm - OpenAI object
- * @returns {string} - Bot assistant id in openAI
-*/
-async function mBotCreateLLM(botData, llm){
-    const { id, thread_id, } = await mAI_openai(botData, llm)
-    return {
-		id,
-		thread_id,
-	}
 }
 /**
  * Deletes the bot requested from bot-agent memory, all long-term storage, and any proxy instructions.
@@ -1209,7 +1173,7 @@ async function mBotCreateLLM(botData, llm){
  */
 async function mBotDelete(botId, BotAgent, llm, factory){
 	const Bot = BotAgent.bot(botId)
-	const { access, id, llm_id, type, thread_id, } = Bot
+	const { access, id, type, thread_id, } = Bot
     const cannotRetire = ['actor', 'system', 'personal-avatar']
     if(cannotRetire.includes(type))
         return false
@@ -1218,8 +1182,6 @@ async function mBotDelete(botId, BotAgent, llm, factory){
 			access.forEach(async accessBot => await BotAgent.proxyAccess(id, accessBot, false))
 	BotAgent.bots = BotAgent.bots.filter(bot=>bot.id!==id) /* delete from memory */
     await factory.deleteItem(id) /* delete bot from Cosmos */
-	if(llm_id?.length) /* delete bot from LLM provider */
-    	await llm.deleteBot(llm_id)
 	if(thread_id?.length) /* delete thread from LLM provider */
 	    await llm.deleteThread(thread_id)
 	return true
@@ -1374,14 +1336,13 @@ function mBotInstructions(factory, botData={}){
  * @param {object} botData - Bot data update object
  * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean, vectorstoreId: string, }
  * @param {Bot} Bot - The Bot instance
- * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Factory instance
  * @returns {Promise<Object>} - Allowed (and written) bot data object (dynamic construction): { id, type, ...anyNonRequired }
  */
-async function mBotUpdate(botData, options={}, Bot, llm, factory){
+async function mBotUpdate(botData, options={}, Bot, factory){
 	if(!Bot)
 		throw new Error('Bot instance required to update bot')
-	const { id, llm_id, metadata={}, type, vectorstoreId: bot_vectorstore_id, } = Bot
+	const { id, metadata={}, type, vectorstoreId: bot_vectorstore_id, } = Bot
 	const {
 		instructions: discardInstructions,
 		mbr_id, // no modifications allowed

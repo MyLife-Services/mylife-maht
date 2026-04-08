@@ -55,18 +55,6 @@ class LLMServices {
         return conversation
     }
     /**
-     * Creates openAI GPT API assistant.
-     * @param {object} bot - The bot data
-     * @returns {Promise<object>} - openai assistant object
-     */
-    async createBot(botData){
-        botData = mValidateAssistantData(botData)
-        const bot = await this.openai.beta.assistants.create(botData)
-        const thread = await mConversation(this.openai)
-        bot.thread_id = thread.id
-        return bot
-    }
-    /**
      * Creates a new OpenAI Vectorstore.
      * @param {string} mbr_id - Member ID
      * @returns {Promise<Object>} - OpenAI `vectorstore` object
@@ -76,22 +64,6 @@ class LLMServices {
             name: mbr_id,
         })
         return vectorstore
-    }
-    /**
-     * Deletes an assistant from OpenAI.
-     * @param {string} llm_id - GPT-Assistant external ID
-     * @returns 
-     */
-    async deleteBot(llm_id){
-        try {
-            const deletedBot = await this.openai.beta.assistants.del(llm_id)
-            return deletedBot
-        } catch (error) {
-            if(error.name==='PermissionDeniedError')
-                console.error(`Permission denied to delete assistant: ${ llm_id }`)
-            else
-                console.error(`ERROR trying to delete assistant: ${ llm_id }`, error.name, error.message)
-        }
     }
     /**
      * Deletes a conversation from OpenAI.
@@ -114,7 +86,7 @@ class LLMServices {
         llmResponses.forEach(response=>{
                 if(typeof response==='string' && response.length)
                     responses.push(response)
-                const { assistant_id: llm_id, content, created_at, id, run_id, thread_id, } = response
+                const { content, created_at, id, thread_id, } = response
                 if(!!content?.length)
                     content.forEach(content=>{
                         if(!!content?.text?.value?.length)
@@ -164,7 +136,6 @@ class LLMServices {
                     Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), avatar.promptVariable(v)]))
                 if(promptVariables)
                     prompt.variables = promptVariables
-                console.log(`LLMServices::getLLMResponse()::using prompt ${ prompt.id } with variables:`, prompt.variables)
                 break
             case 'assistant':
                 throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
@@ -520,57 +491,8 @@ async function mResponse(openai, conversation_id, prompt, input, metadata, instr
     }
     if(instructionOverride?.length)
         request.instructions = instructionOverride
-    console.log(`LLMServices::mResponse()::sending request to OpenAI with conversation_id ${ conversation_id } and prompt:`, prompt, input, metadata, instructionOverride)
     const response = await openai.responses.create(request)
     return response
-}
-/**
- * Validates assistant data before sending to OpenAI.
- * @param {object} data - Object data to validate
- * @returns {object} - Cured assistant object data
- */
-function mValidateAssistantData(data){
-    if(!data)
-        throw new Error('No data or data in incorrect format to send to OpenAI assistant.')
-    if(typeof data==='string')
-        data = { [`${ data.substring(0, 32) }`]: data }
-    if(typeof data!=='object')
-        throw new Error('Data to send to OpenAI assistant is not in correct format.')
-    const {
-        bot_name,
-        description,
-        id,
-        instructions,
-        metadata={},
-        model,
-        name: gptName,
-        temperature,
-        tools,
-        tool_resources,
-        top_p,
-        response_format,
-        version,
-    } = data
-    const name = bot_name
-        ?? gptName
-    metadata.id = id
-    metadata.updated = `${ Date.now() }` // metadata nodes must be strings
-    if(instructions?.length > mMaxInstructionsLength)
-        instructions = instructions.substring(0, mMaxInstructionsLength)
-    const assistantData = {
-        description,
-        instructions,
-        metadata,
-        model,
-        name,
-        tools,
-        tool_resources,
-    }
-    Object.keys(assistantData).forEach(key =>{
-        if(assistantData[key] === undefined)
-            delete assistantData[key]
-    })
-    return assistantData
 }
 /* exports */
 export default LLMServices

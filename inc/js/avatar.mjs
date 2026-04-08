@@ -987,7 +987,7 @@ class Avatar extends EventEmitter {
                 message: `I encountered an error while trying to process your request; please try again.`,
                 type: 'system',
             }
-        const { assistantType, id: itemId, llm_id=this.activeBot.llm_id, } = item
+        const { assistantType, id: itemId, } = item
         let { form, summary, title, type=this.activeBot.type, } = item
         let itemDatabase,
             Item,
@@ -1011,7 +1011,6 @@ class Avatar extends EventEmitter {
                 /* validate request */
                 item.assistantType = assistantType
                     ?? this.#botAgent.getAssistantType(form, type)
-                item.llm_id = llm_id
                 /* execute request */
                 Item = mItem(item, this, this.#llmServices)
                 /* return response */
@@ -3314,7 +3313,6 @@ function mItem(item, avatar, llmServices){
         content,
         form,
         id=avatar.newGuid,
-        llm_id=avatar?.activeBot?.llm_id,
         type='memory',
     } = item
     const { // derived defaults
@@ -3325,7 +3323,6 @@ function mItem(item, avatar, llmServices){
         ...item,
         ...{ // validated fields
             assistantType,
-            llm_id,
             summary,
             title,
             type,

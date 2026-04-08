@@ -104,7 +104,6 @@ class Conversation extends EventEmitter {
             bot_id: this.bot_id,
             id: this.#id,
             form: this.form,
-            llm_id: this.llm_id,
             mbr_id: this.mbr_id,
             name: this.name,
             thread: this.thread,
@@ -216,13 +215,6 @@ class Conversation extends EventEmitter {
     }
     get isSaved(){ //Whether or not the conversation has _ever_ been saved
         return this.#saved
-    }
-    get llm_id(){
-        return this.#llmProvider?.id
-    }
-    set llm_id(llm_id){
-        if(!llm_id?.length)
-            this.#llmProvider.id = llm_id
     }
     get llmProvider(){
         return this.#llmProvider
@@ -347,7 +339,6 @@ class Item extends EventEmitter {
     #form
     #id
     #lastSaved
-    #llm_id
     #llmServices
     #mbr_id
     #summary
@@ -375,7 +366,6 @@ class Item extends EventEmitter {
             complete,
             form,
             id=this.#avatar.newGuid,
-            llm_id,
             mbr_id,
             summary='',
             type,
@@ -387,7 +377,6 @@ class Item extends EventEmitter {
             ?? mBeing
         this.#form = form
         this.#id = id
-        this.#llm_id = llm_id
         this.#mbr_id = avatar.mbr_id
         this.#summary = summary
         this.#type = type
@@ -417,7 +406,7 @@ class Item extends EventEmitter {
      */
     async update(data, save=true){
         delete data.itemId
-        const immutableFields = ['being', 'id', 'llm_id', 'mbr_id', 'type']
+        const immutableFields = ['being', 'id', 'mbr_id', 'type']
         this.#avatar.populateObject(this, data, immutableFields)
         this.updateVersion()
         if(save)
@@ -453,7 +442,6 @@ class Item extends EventEmitter {
             complete: this.complete,
             form: this.form,
             id: this.id,
-            llm_id: this.llm_id,
             mbr_id: this.mbr_id,
             summary: this.summary,
             type: this.type,
@@ -465,9 +453,6 @@ class Item extends EventEmitter {
             ...this.#additionalProperties,
             ...this.itemCore,
         }
-    }
-    get llm_id(){
-        return this.#llm_id
     }
     get mbr_id(){
         return this.#mbr_id
