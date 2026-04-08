@@ -250,7 +250,7 @@ function setActiveItem(itemId){
     if(!globals.isGuid(itemId))
         return
     const item = getItem(itemId)
-    const { form, popup, title, type, } = item
+    const { assistantType, form, popup, title, type, } = item
     if(!popup)
         return
     if(activeButton())
@@ -280,20 +280,7 @@ function setActiveItem(itemId){
         activeTitle().addEventListener('dblclick', updateTitle, { once: true })
     }
     mActiveItem = { form, id: itemId, inAction: false, type }
-    function getBotType(itemType){
-        switch(itemType){
-            case 'memory':
-                return 'biographer'
-            case 'entry':
-                return form==='journal'
-                    ? 'journaler'
-                    : 'diary'
-            default:
-                return 'avatar'
-        }
-    }
-    const botType = getBotType(type)
-    const { id, } = getBot(botType)
+    const { id, } = getBot(assistantType) // if null, gets avatar
     if(id)
         setActiveBot(id, false)
     show(activeChat())
