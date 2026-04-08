@@ -214,6 +214,7 @@ class BotFactory extends EventEmitter{
 	 */
 	botInstructions(type='personal-avatar'){
 		return mBotInstructions[type]
+			?? {}
 	}
 	/**
 	 * Returns bot instructions version.
