@@ -435,13 +435,15 @@
     font-style: italic;
     overflow: hidden;
     white-space: nowrap;
+    width: 100%;
 }
 .collection-item-title-input {
     display: flex;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     font-size: 0.9rem;
     overflow: hidden;
     white-space: nowrap;
+    width: 100%;
 }
 .collection-item-summary {
     color: darkblue;

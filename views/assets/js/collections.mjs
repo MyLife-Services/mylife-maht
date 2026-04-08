@@ -250,7 +250,7 @@ function setActiveItem(itemId){
     if(!globals.isGuid(itemId))
         return
     const item = getItem(itemId)
-    const { form, popup, title, type, } = item
+    const { assistantType, form, popup, title, type, } = item
     if(!popup)
         return
     if(activeButton())
@@ -280,20 +280,7 @@ function setActiveItem(itemId){
         activeTitle().addEventListener('dblclick', updateTitle, { once: true })
     }
     mActiveItem = { form, id: itemId, inAction: false, type }
-    function getBotType(itemType){
-        switch(itemType){
-            case 'memory':
-                return 'biographer'
-            case 'entry':
-                return form==='journal'
-                    ? 'journaler'
-                    : 'diary'
-            default:
-                return 'avatar'
-        }
-    }
-    const botType = getBotType(type)
-    const { id, } = getBot(botType)
+    const { id, } = getBot(assistantType) // if null, gets avatar
     if(id)
         setActiveBot(id, false)
     show(activeChat())
@@ -449,7 +436,17 @@ function mCreateCollectionItem(item){
         default:
             item.popup = mCreateCollectionItemPopup(item)
             overlays().appendChild(item.popup)
+            itemTitle.clickTimer = null
             itemContainer.addEventListener('click', mTogglePopup)
+            itemTitle.addEventListener('click', e=>{
+                e.stopPropagation()
+                if(itemTitle.clickTimer)
+                    return
+                itemTitle.clickTimer = setTimeout(()=>{
+                    itemTitle.clickTimer = null
+                    itemContainer.click()
+                }, 200)
+            })
             itemTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
             break
     }
@@ -1828,8 +1825,13 @@ async function mUpdateCollectionItem(item, summaryContent){
  * @returns {void}
  */
 function mUpdateCollectionItemTitle(event){
+    event.stopPropagation()
     const span = event.target
-    const { id: spanId, textContent, } = span
+    const { clickTimer, id: spanId, textContent, } = span
+    if(clickTimer){
+        clearTimeout(clickTimer)
+        span.clickTimer = null
+    }
     const itemId = globals.extractId(spanId)
     /* create input */
     const input = document.createElement('input')
