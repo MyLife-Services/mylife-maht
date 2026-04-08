@@ -164,6 +164,7 @@ class LLMServices {
                     Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), avatar.promptVariable(v)]))
                 if(promptVariables)
                     prompt.variables = promptVariables
+                console.log(`LLMServices::getLLMResponse()::using prompt ${ prompt.id } with variables:`, prompt.variables)
                 break
             case 'assistant':
                 throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
@@ -519,6 +520,7 @@ async function mResponse(openai, conversation_id, prompt, input, metadata, instr
     }
     if(instructionOverride?.length)
         request.instructions = instructionOverride
+    console.log(`LLMServices::mResponse()::sending request to OpenAI with conversation_id ${ conversation_id } and prompt:`, prompt, input, metadata, instructionOverride)
     const response = await openai.responses.create(request)
     return response
 }

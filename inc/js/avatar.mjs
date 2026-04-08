@@ -2969,6 +2969,9 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
             await mFunction_registerCandidate(response, toolArguments, Factory)
             break
         }
+        case 'updateAction':
+        case 'updateStance':
+        case 'updateValue':
         case 'updateSummary': {
             await mFunction_updateSummary(response, toolArguments, Avatar)
             break
