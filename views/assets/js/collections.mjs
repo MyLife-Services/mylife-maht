@@ -449,7 +449,17 @@ function mCreateCollectionItem(item){
         default:
             item.popup = mCreateCollectionItemPopup(item)
             overlays().appendChild(item.popup)
+            itemTitle.clickTimer = null
             itemContainer.addEventListener('click', mTogglePopup)
+            itemTitle.addEventListener('click', e=>{
+                e.stopPropagation()
+                if(itemTitle.clickTimer)
+                    return
+                itemTitle.clickTimer = setTimeout(()=>{
+                    itemTitle.clickTimer = null
+                    itemContainer.click()
+                }, 200)
+            })
             itemTitle.addEventListener('dblclick', mUpdateCollectionItemTitle, { once: true })
             break
     }
@@ -1828,8 +1838,13 @@ async function mUpdateCollectionItem(item, summaryContent){
  * @returns {void}
  */
 function mUpdateCollectionItemTitle(event){
+    event.stopPropagation()
     const span = event.target
-    const { id: spanId, textContent, } = span
+    const { clickTimer, id: spanId, textContent, } = span
+    if(clickTimer){
+        clearTimeout(clickTimer)
+        span.clickTimer = null
+    }
     const itemId = globals.extractId(spanId)
     /* create input */
     const input = document.createElement('input')
