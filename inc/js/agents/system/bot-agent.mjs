@@ -1150,7 +1150,7 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 		instructions,
 		metadata: {
 			externalId: id,
-			version: version.tostring(),
+			version: version.toString(),
 		},
 		model,
 		name,
