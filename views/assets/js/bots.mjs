@@ -381,7 +381,7 @@ function mBotIcon(type){
 }
 async function mBotNameChange(e){
     const nameInput = e.target
-    const botId = nameInput?.id?.replace('-input-bot_name', '')
+    const botId = globals.extractId(nameInput.id)
     const bot = getBot(botId) // will match either `id` or `type`
     const { id, name, type, } = bot
     const newName = nameInput.value.trim()
@@ -1332,7 +1332,8 @@ function mProxySkills(id, skills){
  */
 async function mRefreshProxyUrl(event){
     event.stopPropagation()
-    const id = event.target.id.replace('endpoint-refresh-', '')
+    const { id: fullId, } = event.target
+    const id = globals.extractId(fullId)
     event.target.classList.add('spin')
     const response = await globals.datamanager.botProxyRefresh(id)
     event.target.style.display = 'none'
@@ -1352,7 +1353,7 @@ async function mRetireBot(e){
     e.stopPropagation()
     try {
         const { id: botId, } = e.target
-        botId = fullId.replace('-retire-chat', '')
+        botId = globals.extractId(fullId)
         const bot = getBot(botId) // will match either `id` or `type`
         const { id, type, } = bot
         if(globals.isProxy(type) && !confirm("Retiring a proxy bot will not notify the external agent. Are you sure?"))
@@ -1375,7 +1376,7 @@ async function mRetireChat(e){
     e.stopPropagation()
     try {
         const { id: botId, } = e.target
-        botId = fullId.replace('-retire-chat', '')
+        botId = globals.extractId(fullId)
         const bot = getBot(botId) // will match either `id` or `type`
         const { id, } = bot
         const response = await globals.datamanager.chatRetire(id)
@@ -1604,9 +1605,12 @@ async function mUpdateBotContainers(){
         })
     }
     // ensure DOM avatar
-    const { container: avatarContainer, id: avatarId, } = bots.find(bot=>isAvatar(bot.type))
-    if(!document.getElementById(avatarId))
-        mSidebar.insertBefore(avatarContainer, mTeamHeader) // avatar always first
+    const Avatar = bots.find(bot=>isAvatar(bot.type))
+    if(Avatar && !document.getElementById(Avatar?.id)){
+        const { container, id: avatarId, } = Avatar
+        mSidebar.insertBefore(container, mTeamHeader) // avatar always first
+        mUpdateBotContainer(Avatar)
+    }
     // mount team bots
     mBotMount.innerHTML = ''
     const teamBots = [

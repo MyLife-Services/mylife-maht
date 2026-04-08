@@ -1048,6 +1048,19 @@ class Globals {
         element.remove()
     }
     /**
+     * Utility function to extract guid from string, used primarily for element ids that contain guids.
+     * @param {string} string - The string id that may contain guid
+     * @param {number} [index] - The index of the guid to extract if multiple are present
+     * @returns {string} - The extracted guid or original string if no guid found
+     */
+    extractId(string, index=0){
+        const guidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/ig
+        const matches = string.match(guidRegex) ?? [string]
+        return matches?.[index]
+            ?? matches?.[index-1]
+            ?? string
+    }
+    /**
      * Returns the avatar object if poplated by on-page EJS script.
      * @todo - refactor to api call
      * @returns {object} - The avatar object.
@@ -1650,7 +1663,9 @@ function mGetHelpInitiatorContent(type){
 function mHide(element, callbackFunction){
     if(!element)
         return
-    element.classList.remove('show')
+    try{
+        element.classList.remove('show')
+    } catch(e) { console.log('mHide::classList error', e, element, callbackFunction) }
     if(element.getAnimations().length){
         element.addEventListener('animationend', function() {
             element.classList.add('hide')

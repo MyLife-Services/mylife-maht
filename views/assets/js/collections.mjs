@@ -136,6 +136,20 @@ function createItem(item){
     }
 }
 /**
+ * Deletes a collection item from the local collection items array, as requested by server deletion.
+ * @requires mCollectionItems
+ * @param {Guid} id - The collection item id
+ * @returns {void}
+ */
+function deleteItem(id, type){
+    if(!globals.isGuid(id))
+        return
+    const typeItems = mCollectionItems[type ?? getItem(id)?.type]?.items ?? []
+    const index = typeItems.findIndex(i =>i.id===id)
+    if(index!==-1)
+        typeItems.splice(index, 1)
+}
+/**
  * Ends the memory reliving process.
  * @param {Guid} id - The collection item id
  * @param {boolean} server - Whether or not to update the server, default: `false`
@@ -187,7 +201,7 @@ function isHighlightedCollection(type){
 async function mObscureEntry(event){
     event.stopPropagation()
     const { id, } = event.target
-    const itemId = getItem(id.replace('button-obscure-', ''))?.id
+    const itemId = getItem(globals.extractId(id))?.id
     if(!globals.isGuid(itemId))
         return
     setActiveItem(itemId)
@@ -214,12 +228,16 @@ async function refreshCollection(type){
     return await mRefreshCollection(type)
 }
 /**
- * Removes a collection item from the DOM, does not update server.
+ * Removes a collection item and its popup from the DOM, does not update server.
  * @param {Guid} id - The collection item id
  * @returns {void}
  */
 function removeItem(id){
-    expunge(getItem(id))
+    const item = getItem(id)
+    if(item?.container instanceof HTMLElement)
+        expunge(item.container)
+    if(item?.popup instanceof HTMLElement)
+        expunge(item.popup)
 }
 /**
  * Sets the active item, ex. `memory`, `entry` in the chat system for member operation(s).
@@ -254,7 +272,7 @@ function setActiveItem(itemId){
         activeTitle().textContent = ''
         const activeText = document.createElement('div')
         activeText.classList.add('chat-active-item-title-text')
-        activeText.id = `chat-active-item-title-text_${ itemId }`
+        activeText.id = `chat-active-item-title-text-${ itemId }`
         activeText.textContent = title
         /* append activeTitle */
         activeTitle().appendChild(activeText)
@@ -312,7 +330,7 @@ function unsetActiveItem(){
  * @returns {void}
  */
 function updateActiveItemTitle(itemId, title){
-    const activeChatTitle = document.getElementById(`chat-active-item-title-text_${ itemId }`)
+    const activeChatTitle = document.getElementById(`chat-active-item-title-text-${ itemId }`)
     const id = mActiveItem?.id
     if(id!==itemId)
         throw new Error('updateActiveItemTitle::Error()::`itemId`\'s do not match')
@@ -1082,8 +1100,8 @@ function mCreateSharePanel(itemId, shares, summary, title){
 async function mDeleteCollectionItem(event){
     event.stopPropagation()
     const collectionItemDelete = event.target
-    const id = collectionItemDelete.id.replace('collection-item-delete-', '')
-    const item = getItem(id)
+    const id = globals.extractId(collectionItemDelete.id)
+    const { id: itemId, type, } = getItem(id)
     const userConfirmed = confirm("Are you sure you want to delete this item?") /* confirmation dialog */
     if(activeItem()?.id && activeItem().id===id)
         unsetActiveItem()
@@ -1092,7 +1110,7 @@ async function mDeleteCollectionItem(event){
         if(!!instruction)
             enactInstruction(instruction, 'chat', { removeItem, })
         if(success){
-            expunge(item)
+            deleteItem(itemId, type)
             if(responses?.length)
                 addMessages(responses, 'avatar')
         }
@@ -1175,7 +1193,7 @@ async function mRefreshCollection(type){
 async function mReliveStory(event){
     event.stopPropagation()
     const { id: targetId, } = event.target
-    const id = targetId.replace('relive-memory-button-', '')
+    const id = globals.extractId(targetId)
     const previousInput = document.getElementById(`relive-memory-input-container-${id}`)
     const memberInputContent = previousInput?.value
     if(previousInput)
@@ -1254,9 +1272,8 @@ async function mReliveStory(event){
 async function mShadow(event){
     event.stopPropagation()
     let { id: targetId, } = event.target
-    targetId = targetId.replace('memory-shadow-text-', '')
-    const itemId = targetId.split('_')[0],
-        shadowId = targetId.split('_')?.[1]
+    const itemId = globals.extractId(targetId),
+        shadowId = globals.extractId(targetId, 1)
     const item = getItem(itemId)
     const shadow = mShadows.find(shadow=>shadow.id===shadowId)
     if(!shadow || !item)
@@ -1671,7 +1688,7 @@ async function mStopRelivingMemory(id, server=true){
 async function mSummarize(event){
     event.stopPropagation()
     const { id, } = event.target
-    const itemId = id.replace('collection-item-summary-', '')
+    const itemId = globals.extractId(id)
     const item = getItem(itemId)
     if(!item)
         throw new Error(`No item found for summary request.`)
@@ -1813,7 +1830,7 @@ async function mUpdateCollectionItem(item, summaryContent){
 function mUpdateCollectionItemTitle(event){
     const span = event.target
     const { id: spanId, textContent, } = span
-    const itemId = spanId.replace('collection-item-title-', '')
+    const itemId = globals.extractId(spanId)
     /* create input */
     const input = document.createElement('input')
     const inputName = `collection-item-title-input`
