@@ -1077,6 +1077,7 @@ async function mAI_openai(botData, llm){
  * @param {Guid} avatarId - The Avatar id
  * @param {String} vectorstore_id - The Vectorstore id
  * @param {Object} botData - The bot proto-data
+ * @param {LLMServices} llm - The LLMServices instance (for injection to Bot)
  * @param {AgentFactory} factory - Agent Factory instance
  * @returns {Promise<Bot>} - Created Bot instance
 */
@@ -1085,7 +1086,7 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	const { type, } = botData
 	if(!avatarId?.length || !type?.length)
 		throw new Error('avatar id and type required to create bot')
-	const { greeting, greetings, instructions, version=1.0, } = mBotInstructions(factory, botData)
+	const { defaults: { name: defaultBotName, }, greetings, instructions, version=1.0, } = mBotInstructions(factory, botData)
 	if(!instructions)
 		throw new Error('bot instructions not found for type: ' + type)
 	const model = process.env.OPENAI_MODEL_CORE_BOT
@@ -1094,17 +1095,21 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstore_id)
 	const id = factory.newGuid
 	const typeShort = type.split('-').pop()
+	const name = `bot_${ type }_${ factory.mbr_id }_${ id }`
     let {
-        bot_name=`My ${ typeShort }`,
-        description=`I am a ${ typeShort } for ${ factory.memberName }`,
-        name=`bot_${ type }_${ avatarId }`,
+		bot_name,
+        description,
+		purpose,
     } = botData
+	bot_name ??= defaultBotName
+		?? `My ${ typeShort }`
+	description ??= purpose
+		?? `I am a ${ typeShort } for ${ factory.memberName }`
 	const validBotData = {
 		being: 'bot', // intentionally hard-coded
 		bot_name,
 		description,
 		unaccessed: true,
-		greeting,
 		greetings,
 		id,
 		instructions,
@@ -1202,14 +1207,7 @@ function mBotInstructions(factory, botData={}){
 	const { agentInstructions, type, } = botData
 	if(!type?.length)
 		return
-    let {
-		greeting,
-		greetings,
-		instructions,
-		limit=8000,
-		version,
-	} = factory.botInstructions(type)
-		?? {}
+    let { defaults={}, greeting, greetings=[], instructions, limit=16000, version=1.0, } = factory.botInstructions(type)
     if(!instructions) // @stub - custom must have instruction loophole
 		throw new Error(`bot instructions not found for type: ${ type }`)
     let {
@@ -1225,6 +1223,15 @@ function mBotInstructions(factory, botData={}){
 	} = instructions
     /* compile instructions */
     switch(type){
+		case 'activism':
+		case 'political-stance':
+		case 'political-values':
+			instructions = preamble
+				+ prefix
+				+ general
+				+ voice
+				+ team
+			break
 		case 'avatar':
         case 'personal-avatar':
             instructions = purpose
@@ -1247,14 +1254,6 @@ function mBotInstructions(factory, botData={}){
 				+ suffix
 				+ voice
 			break
-		case 'political-stance':
-		case 'political-values':
-			instructions = preamble
-				+ prefix
-				+ general
-				+ voice
-				+ team
-			break
         default:
             instructions = general
             break
@@ -1264,8 +1263,10 @@ function mBotInstructions(factory, botData={}){
 		instructions += '\nEXTERNAL AGENT CALL ABILITY\nIf member requests information defined in any of the purposes below, call your tool action: `callExternalAgent` with the appropriate `agentId`, `skillId`, and `request` parameters. **note**: request is formulated to get the appropriate answer to the member question. When receiving answer from external agent, include in your response to the member the fact that you queried an external source.\n' + allInstructions.join('\n')
 	instructions = instructions.trim()
 	/* greetings */
-	greetings = greetings
-		?? [greeting]
+	if(greeting?.length)
+		greetings.unshift(greeting)
+	if(defaults?.greeting?.length)
+		greetings.unshift(defaults.greeting)
     /* apply replacements */
     replacements.forEach(replacement=>{
         const placeholderRegExp = factory.globals.getRegExp(replacement.name, true)
@@ -1311,7 +1312,9 @@ function mBotInstructions(factory, botData={}){
                 break
         }
     })
+	instructions = instructions.slice(0, limit)
 	const response = {
+		defaults,
 		greetings,
 		instructions,
 		version,
