@@ -344,7 +344,7 @@ class Dataservices {
 		if(!type?.length)
 			throw new Error('ERROR::createBot::Bot `type` required.')
 		if(!this.globals.isValidGuid(id))
-			bot.id = this.globals.newGuid
+			bot.id = this.newGuid
 		bot.being = 'bot'
 		/* create bot */
 		return await this.pushItem(bot)
@@ -722,6 +722,10 @@ class Dataservices {
 			candidate.validated = true
 		}
 		return candidate
+	}
+	/* getters/setters */
+	get newGuid(){
+		return this.globals.newGuid
 	}
 }
 /* modular functions */
