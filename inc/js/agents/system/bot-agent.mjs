@@ -128,26 +128,23 @@ class Bot {
 	 * @stub - add political team
      * @returns {Promise<Array>} - The collection items (no wrapper)
      */
-	async collections(type){
-		if(!type?.length){
-			type = this.type
-			switch(type){
-				case 'avatar':
-				case 'personal-avatar':
-					type='chat'
-					break
-				case 'diary':
-				case 'journal':
-				case 'journaler':
-					type='entry'
-					break
-				case 'biographer':
-				case 'personal-biographer':
-					type='memory'
-					break
-				default:
-					break
-			}
+	async collections(type=this.type){
+		switch(type){
+			case 'avatar':
+			case 'personal-avatar':
+				type='chat'
+				break
+			case 'diary':
+			case 'journal':
+			case 'journaler':
+				type='entry'
+				break
+			case 'biographer':
+			case 'personal-biographer':
+				type='memory'
+				break
+			default: // defaults to AssistantType
+				break
 		}
 		const collections = ( await this.#factory.collections(type) )
 		return collections
@@ -1185,10 +1182,12 @@ async function mBotDelete(botId, BotAgent, llm, factory){
 	if(Bot.isProxy) /* delete proxy agent instructions */
 		if(access?.length)
 			access.forEach(async accessBot => await BotAgent.proxyAccess(id, accessBot, false))
-	BotAgent.bots = BotAgent.bots.filter(bot=>bot.id!==id) /* delete from memory */
+	const index = BotAgent.bots.findIndex(bot =>bot.id === id)
+	if(index !== -1) /* delete from memory */
+		BotAgent.bots.splice(index, 1)
     await factory.deleteItem(id) /* delete bot from Cosmos */
 	if(thread_id?.length) /* delete thread from LLM provider */
-	    await llm.deleteThread(thread_id)
+	    await llm.deleteConversation(thread_id)
 	return true
 }
 /**
@@ -1848,7 +1847,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
 			conversation.save() // no `await`
 	}
     Bot.setThread(newConversation.id) // autosaves `thread_id`, no `await`
-	llm.deleteThread(thread_id)
+	llm.deleteConversation(thread_id)
 	console.log(`chat migrated::from ${ thread_id } to ${ newConversation.id }`, botType )
 }
 /* exports */

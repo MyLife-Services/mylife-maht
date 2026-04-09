@@ -211,6 +211,9 @@ class Dataservices {
 	async challengeAccess(mbr_id, passphrase, caseInsensitive){
 		return await this.datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
 	}
+	async collectionAssistantType(type){
+
+	}
 	/**
 	 * Proxy to retrieve stored conversations.
 	 * @returns {Object[]} - The collection of conversations
@@ -289,6 +292,30 @@ class Dataservices {
      */
 	async collections(type){
 		switch(type){
+			case 'all':
+				return await Promise.all([
+					this.collectionConversations(),
+					this.collectionEntries(),
+					this.collectionLivedExperiences(),
+					this.collectionFiles(),
+					this.collectionMemories(),
+					this.collectionIssues(),
+					this.collectionValues(),
+				])
+					.then(([conversations, entries, experiences, files, memories, issues, values])=>[
+						...conversations,
+						...entries,
+						...experiences,
+						...files,
+						...memories,
+						...issues,
+						...values,
+					])
+					.catch(err=>{
+						console.log('Dataservices::collections()::error', err)
+						return []
+					})				
+			case 'chat':
 			case 'conversation':
 				return await this.collectionConversations()
 			case 'entry':
@@ -310,27 +337,9 @@ class Dataservices {
 				return await this.collectionValues()
 			case 'story':
 				return await this.collectionStories()
-			default:
-				return await Promise.all([
-					this.collectionConversations(),
-					this.collectionEntries(),
-					this.collectionLivedExperiences(),
-					this.collectionFiles(),
-					this.collectionMemories(),
-					this.collectionIssues(),
-					this.collectionValues(),
-				])
-					.then(([conversations, entries, experiences, files, memories])=>[
-						...conversations,
-						...entries,
-						...experiences,
-						...files,
-						...memories,
-					])
-					.catch(err=>{
-						console.log('Dataservices::collections()::error', err)
-						return []
-					})
+			default: // try to return based on assistantType
+				return this.collectionAssistantType(type)
+
 		}
 	}
 	/**
@@ -528,7 +537,7 @@ class Dataservices {
 	 * Retrieves items based on specified parameters.
 	 * @async
 	 * @public
-	 * @param {string} being - The type of items to retrieve.
+	 * @param {string} being - The type of items to retrieve (almost always required; currently optional for collection retrieval by Assistant Type, as could have several different beings)
 	 * @param {array} [selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [paramsArray=[]] - Additional query parameters.
 	 * @param {string} container_id - The container name to use, overriding default.
@@ -538,11 +547,12 @@ class Dataservices {
 	async getItems(being, selects=[], paramsArray=[], container_id, _mbr_id=this.mbr_id) {	//	paramsArray is array of objects { name: '${varName}' }
 		// @todo: incorporate date range functionality into this.getItems()
 		const prefix = 'u'
-		paramsArray.unshift({ name: '@being', value: being, })	//	add primary parameter to array at beginning
+		if(being?.length)
+			paramsArray.unshift({ name: '@being', value: being, })
 		const _selectFields = (selects.length)
 			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${prefix}.`+field)).join(',')
 			:	'*'
-		let query = `select ${ _selectFields } from ${ prefix }`	//	@being is required
+		let query = `select ${ _selectFields } from ${ prefix }`
 		paramsArray /* iterate array of parameters */
 			.forEach((param, index)=>{
 				const { name, type, value=null,  } = param

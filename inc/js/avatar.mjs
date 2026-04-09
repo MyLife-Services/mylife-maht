@@ -1324,6 +1324,7 @@ class Avatar extends EventEmitter {
      */
     async retireBot(botId){
         const success = await this.#botAgent.botDelete(botId)
+        const successor = success ? this.bot(null, this.team()?.defaultActiveType)?.id : undefined
         const response = {
             instruction: {
                 command: success
@@ -1344,6 +1345,7 @@ class Avatar extends EventEmitter {
                 }
             ],
             success,
+            successor,
         }
         if(!success)
             instruction.error = 'I encountered an error while trying to retire this bot; please try again.'
@@ -3112,16 +3114,20 @@ async function mFunction_createSummary(response, toolArguments, Avatar){
  */
 async function mFunction_getSummary(response, Avatar){
     const { itemId, summaryOnly=true, } = response
-    const { item, success, } = await Avatar.item({ id: itemId, })
-    response.action = success
-        ? 'Summary content found in `summary` output'
-        : `No summary found for item ${ itemId }; if nothing in conversation context to summarize, tell member to click on the item in the collection to identify it and ask again trigger summary retrieval`
-    response.success = success
-    response.summary = item?.summary
-    if(!summaryOnly && success){
-        const { success, summary, ..._item } = item
-        response.item = _item
-        response.action += ', full item metadata found in `item`'
+    try {
+        const { id, item, success, } = await Avatar.item({ id: itemId, })
+        if(!success || !item.summary?.length)
+            throw new Error(`No summary found for item ${ itemId }`)
+        response.item = { id: id ?? itemId, }
+        if(summaryOnly)
+            response.item.summary = item.summary
+        else
+            response.item = item
+        response.action = 'Requested content found in `item`, share info with member'
+        response.success = true
+    } catch(err) { // on fail, send back the current collection with `{ id, title, }` in order to suffuse intelligence with most recent options
+        const { collections, } = Avatar.activeBot
+        console.log(`mFunction_getSummary()::error retrieving summary for itemId ${ itemId }`, err, collections)
     }
 }
 /**

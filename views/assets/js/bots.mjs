@@ -1352,17 +1352,32 @@ async function mRefreshProxyUrl(event){
 async function mRetireBot(e){
     e.stopPropagation()
     try {
-        const { id: botId, } = e.target
-        botId = globals.extractId(fullId)
+        const { id: fullId, } = e.target
+        const botId = globals.extractId(fullId)
         const bot = getBot(botId) // will match either `id` or `type`
         const { id, type, } = bot
         if(globals.isProxy(type) && !confirm("Retiring a proxy bot will not notify the external agent. Are you sure?"))
             return
+        const { instruction, instructions=[], responses, successor=getBot()?.id, } = await globals.datamanager.botRetire(id)
         /* reset active bot */
         if(mActiveBot.id===id)
-            setActiveBot()
-        const response = await globals.datamanager.botRetire(id)
-        addMessages(response.responses, 'avatar')
+            setActiveBot(successor)
+        if(instruction)
+            instructions.unshift(instruction)
+        if(instructions?.length){
+            const removeBot = (botId)=>{ // inline function
+                const { container, popup, } = bot
+                if(container instanceof HTMLElement)
+                    container.remove()
+                if(popup instanceof HTMLElement)
+                    popup.remove()
+                const botIndex = mBots.findIndex(bot=>bot.id===botId)
+                if(botIndex>-1)
+                    mBots.splice(botIndex, 1) // remove from memory
+            }
+            globals.enactInstruction(instructions, { removeBot, })
+        }
+        addMessages(responses, 'avatar')
     } catch(err) {
         addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
@@ -1374,11 +1389,11 @@ async function mRetireBot(e){
  */
 async function mRetireChat(e){
     e.stopPropagation()
+    const { id: fullId, } = e.target
+    const botId = globals.extractId(fullId)
+    const bot = getBot(botId) // will match either `id` or `type`
+    const { id, } = bot
     try {
-        const { id: botId, } = e.target
-        botId = globals.extractId(fullId)
-        const bot = getBot(botId) // will match either `id` or `type`
-        const { id, } = bot
         const response = await globals.datamanager.chatRetire(id)
         addMessages(response.responses, mActiveBot.type)
     } catch(err) {

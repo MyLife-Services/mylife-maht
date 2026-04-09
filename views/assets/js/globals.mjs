@@ -927,25 +927,19 @@ class Globals {
     }
     /**
      * Consumes instruction object and performs the requested actions.
-     * @param {object} instruction - The instruction object: { command, input, inputs, item, itemId, summary, title, }
+     * @param {object} instruction - The instruction object: { command, id, input, inputs, item, itemId, livingMemoryId, summary, title, }
      * @param {object} functions - Object with access to injected functions, populated by case
      * @returns {void}
      */
-    enactInstruction(instruction, functions){
-        const { command, input, inputs=[], item, itemId, livingMemoryId, summary, title, } = instruction
-        const {
-            addInput,
-            addMessages,
-            createItem,
-            endMemory,
-            removeItem,
-            updateItem,
-            updateItemSummary,
-            updateItemTitle,
-        } = functions
+    enactInstruction(instruction, functions={}){
+        console.log('enacting instruction', instruction, functions)
+        if(Array.isArray(instruction))
+            return instruction.forEach(i=>this.enactInstruction(i, functions) ) // always void return, these are command-only instructions
+        const { command, id, input, inputs=[], item, itemId, livingMemoryId, summary, title, } = instruction
         switch(command){
             case 'createInput':
-            case 'createInputs':
+            case 'createInputs': {
+                const { addInput, addMessages, } = functions
                 if(typeof addInput!=='function' || typeof addMessages!=='function')
                     return
                 this.removeDisappearingElements()
@@ -980,41 +974,60 @@ class Globals {
                     addInput(inputElement, interfaceLocation)
                 }
                 return
-            case 'createItem':
+            }
+            case 'createItem': {
+                const { createItem, } = functions
                 if(!item || typeof createItem!=='function')
                     return
                 createItem(item)
                 return
+            }
             case 'endLiving': // server has already ended, call frontend cleanup
             case 'endMemory':
-            case 'endReliving':
+            case 'endReliving': {
+                const { endMemory, } = functions
                 if(!itemId?.length || typeof endMemory!=='function')
                     return
                 endMemory(itemId)
                 return
-            case 'error':
+            }
+            case 'error': {
                 return
-            case 'removeBot': // retireBot in Avatar
-            return
-            case 'removeItem':
-                if(typeof removeItem !== 'function')
+            }
+            case 'removeBot': {// retireBot in Avatar
+                const { removeBot, } = functions
+                if(!id?.length || typeof removeBot!=='function')
+                    return
+                removeBot(id)
+                return
+            }
+            case 'removeItem': {
+                const { removeItem, } = functions
+                if(!itemId?.length || typeof removeItem!=='function')
                     return
                 removeItem(itemId)
                 return
-            case 'updateItem':
-                if(typeof updateItem!=='function')
+            }
+            case 'updateItem': {
+                const { updateItem, } = functions
+                if(!item || typeof updateItem!=='function')
                     return
                 updateItem(item)
                 return
-            case 'updateItemSummary':
-                if(typeof updateItemSummary!=='function')
+            }
+            case 'updateItemSummary': {
+                const { updateItemSummary, } = functions
+                if(!itemId?.length || typeof updateItemSummary!=='function')
                     return
                 updateItemSummary(itemId, summary)
                 return
-            case 'updateItemTitle':
-                if(typeof updateItemTitle!=='function')
+            }
+            case 'updateItemTitle': {
+                const { updateItemTitle, } = functions
+                if(!itemId?.length || typeof updateItemTitle!=='function')
                     return
                 updateItemTitle(itemId, title)
+            }
             default:
                 return
         }

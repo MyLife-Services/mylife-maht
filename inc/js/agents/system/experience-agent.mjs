@@ -552,7 +552,7 @@ class ShareAgent {
                 shareData.scenes = scenes
             }
             if(thread_id?.length)
-                this.#llm.deleteThread(thread_id) // no await
+                this.#llm.deleteConversation(thread_id) // no await
         }
         /* set Conversation */
         shareData.Conversation = await this.#avatar.conversationStart('share', 'share-agent', Share.mbr_id)
