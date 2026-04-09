@@ -5,7 +5,6 @@ import EventEmitter from 'events'
 import nodemailer from 'nodemailer'
 import util from 'util'
 import vm from 'vm'
-import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import { Avatar, Q, } from './avatar.mjs'
 import Dataservices from './dataservices.mjs'
 import {
@@ -48,7 +47,6 @@ const mMailer = nodemailer.createTransport({
         pass: MAHT_EMAIL_PASSWORD,   // App-specific password or OAuth token
     }
 })
-const mNewGuid = ()=>Guid.newGuid().toString()
 const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
 const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
@@ -608,7 +606,7 @@ class BotFactory extends EventEmitter{
 			?? this.mbr_name
 	}
 	get newGuid(){
-		return mNewGuid()
+		return mDataservices.newGuid
 	}
 }
 class AgentFactory extends BotFactory {
@@ -1272,9 +1270,9 @@ function assignClassPropertyValues(propertyDefinition){
 					switch (propertyDefinition?.format) {
 						case 'date':
 						case 'date-time':
-							return `'${new Date().toDateString()}'`
+							return `'${ new Date().toDateString() }'`
 						case 'uuid':
-							return `'${Guid.newGuid().toString()}'`
+							return `'${ mDataservices.newGuid }'`
 						case 'email':
 						case 'uri':
 						default:
