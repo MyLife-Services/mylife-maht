@@ -2,7 +2,7 @@
 @import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700,900,300italic");
 @import url("chat.css");
 body.is-loading { opacity: 0; } /* added to prevent FOUC - see wrappers.js */
-/* MyLife Global */
+/* C4RG Global */
 .hide {
     animation: none !important;
     display: none !important;
@@ -10,6 +10,42 @@ body.is-loading { opacity: 0; } /* added to prevent FOUC - see wrappers.js */
 .show {
     display: flex !important;
 	opacity: 1 !important;
+}
+/* C4RG Specific */
+/* candidates */
+#candidates-states {
+	cursor: pointer;
+	display: flex;
+	gap: 0;
+	margin-bottom: 1rem;
+	width: 100%;
+}
+#candidates-states .state-tab {
+	flex: 1;
+	display: block;
+	text-align: center;
+	padding: 0.6em 0;
+	background: #ffffff;
+	color: #000000;
+	text-decoration: none;
+}
+#candidates-states .state-tab:hover {
+	background: #ff0000;
+	color: #ffffff;
+}
+#candidates-states .state-tab.active {
+	background: #0000ff;
+	color: #ffffff;
+	cursor: none;
+}
+.primary-date {
+    color: navy;
+    display: flex;
+    font-size: 1.5rem;
+    font-weight: bold;
+    justify-content: center;
+    margin-bottom: 1rem;
+    width: 100%;
 }
 /*
 	Dopetrope by HTML5 UP
@@ -182,7 +218,7 @@ input, select, textarea {
 	}
 
 	p, ul, ol, dl, table {
-		margin-bottom: 2em;
+		margin-bottom: 1.5rem;
 	}
 	p {
 		font-weight: 500;
@@ -190,7 +226,7 @@ input, select, textarea {
 	}
 	ul.left, ol.left {
 		font-weight: 500;
-		margin-left: 2em;
+		margin-left: 1.5rem;
 		text-align: left;
 	}
 
