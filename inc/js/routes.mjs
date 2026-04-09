@@ -1,5 +1,5 @@
 /* imports */
-import Router from 'koa-router'
+import Router from '@koa/router'
 import {
     a2aCard,
     a2aCall,

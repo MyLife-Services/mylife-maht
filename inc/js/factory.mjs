@@ -5,7 +5,6 @@ import EventEmitter from 'events'
 import nodemailer from 'nodemailer'
 import util from 'util'
 import vm from 'vm'
-import { Guid } from 'js-guid'	//	usage = Guid.newGuid().toString()
 import { Avatar, Q, } from './avatar.mjs'
 import Dataservices from './dataservices.mjs'
 import LLMServices from './llm.mjs'
@@ -624,7 +623,7 @@ class BotFactory extends EventEmitter{
 			?? this.mbr_name
 	}
 	get newGuid(){
-		return this.globals.newGuid
+		return mDataservices.newGuid
 	}
 }
 class AgentFactory extends BotFactory {
@@ -1288,9 +1287,9 @@ function assignClassPropertyValues(propertyDefinition){
 					switch (propertyDefinition?.format) {
 						case 'date':
 						case 'date-time':
-							return `'${new Date().toDateString()}'`
+							return `'${ new Date().toDateString() }'`
 						case 'uuid':
-							return `'${Guid.newGuid().toString()}'`
+							return `'${ mDataservices.newGuid }'`
 						case 'email':
 						case 'uri':
 						default:
