@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { pipeline } from '@huggingface/transformers'
 import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
 import { mcpCall, } from './controllers/mcp-functions.mjs'
 /* module constants */
