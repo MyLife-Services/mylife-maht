@@ -266,7 +266,7 @@ async function setActiveTeam(teamIdentifier=mDefaultTeam){
     const { defaultActiveType, id: activeTeamId, } = team ?? {}
     const { bot_id=this.bot(null, defaultActiveType), responses=[], } = botResponse ?? {}
     if(activeTeam?.id!==id)
-        throw new Error(`Server failure trying to activate team "${ identifier }".`)
+        throw new Error(`Server failure trying to activate team "${ teamIdentifier }".`)
     mActiveTeam = team
     await mUpdateTeams() // sets active bot
 }
