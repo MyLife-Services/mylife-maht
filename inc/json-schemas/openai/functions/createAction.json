@@ -22,19 +22,21 @@
                 "maximum": 10
             },
             "form": {
-                "description": "Form of `action`, which may be one of: `petition`, `protest`, `donation`, `volunteering`, `education`, or `other`",
+                "default": "personal",
+                "description": "Primary form of `action`, which may be one of: `petition`, `protest`, `donation`, `volunteering`, `education`, or `other`; if multiple, use comma-separated string with all relevant forms",
                 "type": "string",
                 "enum": [
-                    "petition",
-                    "protest",
-                    "donation",
-                    "volunteering",
-                    "education",
+                    "environmental",
+                    "personal",
+                    "political",
+                    "relational",
+                    "social",
                     "other"
                 ]
             },
             "issues": {
-                "description": "Issues most relevant to `action`, include any relevant ideology, movement, etc. for political actions, if applicable, can omit if not relevant",
+                "default": [],
+                "description": "Issues most relevant to `action`, include any relevant ideology, movement, etc. for political actions; can be empty if none articulated or unknown",
                 "items": {
                     "description": "Issue related to `action` summary",
                     "type": "string"
@@ -78,16 +80,17 @@
                 "type": "string"
             },
             "title": {
-                "description": "Generate display Title for `action` based on content",
+                "description": "Generate short display Title for `action` based on content",
                 "type": "string"
             },
             "type": {
-                "const": "political",
-                "description": "MyLife System type of `action`",
+                "const": "action",
+                "description": "MyLife System type of `action`, always `action` for this function",
                 "type": "string"
             },
             "values": {
-                "description": "Related `values` for this `action`, if applicable",
+                "default": [],
+                "description": "Related `values` for this `action`, can be empty if none articulated or unknown",
                 "type": "array",
                 "items": {
                     "description": "Related articulated `value`s related to this `action`",
@@ -100,12 +103,14 @@
             "conviction",
             "ease_of_execution",
             "form",
+            "issues",
             "keywords",
             "steps",
             "summary",
             "title",
-            "type"
+            "type",
+            "values"
         ]
     },
-    "strict": false
+    "strict": true
 }

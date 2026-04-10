@@ -485,6 +485,25 @@ class Item extends EventEmitter {
         return this.#version
     }
 }
+class Action extends Item {
+    #steps
+    constructor(item, avatar, llmServices){
+        item.being = 'action'
+        const { steps, ..._item } = item
+        super(_item, avatar, llmServices)
+        this.#steps = steps
+    }
+    /* getters/setters */
+    get itemCore(){
+        return {
+            ...super.itemCore,
+            steps: this.steps,
+        }
+    }
+    get steps(){
+        return this.#steps
+    }
+}
 class Entry extends Item {
     #content
     constructor(item, avatar, llmServices){
@@ -963,6 +982,7 @@ function mValidateGuess(memberName, input){
 }
 /* exports */
 export {
+    Action,
     Conversation,
     Entry,
     Issue,

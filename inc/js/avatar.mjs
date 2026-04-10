@@ -10,7 +10,7 @@ import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
 import ConnectorAgent from './agents/system/connector-agent.mjs'
-import { Entry, Issue, Memory, Value, } from './models.mjs'
+import { Action, Entry, Issue, Memory, Value, } from './models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './llm.mjs'
@@ -2979,7 +2979,6 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
         }
         default: {
             response.action = `Function ${ functionName } not found in Avatar`
-            throw new Error(response.action)
             break
         }
     }
@@ -3113,7 +3112,7 @@ async function mFunction_createSummary(response, toolArguments, Avatar){
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary retrieval operation
  */
 async function mFunction_getSummary(response, Avatar){
-    const { itemId, summaryOnly=true, } = response
+    const { function: functionName, itemId, summaryOnly=true, } = response
     try {
         const { id, item, success, } = await Avatar.item({ id: itemId, })
         if(!success || !item.summary?.length)
@@ -3126,8 +3125,15 @@ async function mFunction_getSummary(response, Avatar){
         response.action = 'Requested content found in `item`, share info with member'
         response.success = true
     } catch(err) { // on fail, send back the current collection with `{ id, title, }` in order to suffuse intelligence with most recent options
-        const { collections, } = Avatar.activeBot
-        console.log(`mFunction_getSummary()::error retrieving summary for itemId ${ itemId }`, err, collections)
+        const collections = await Avatar.activeBot.collections()
+            ?? []
+        console.log(`mFunction_getSummary()::error retrieving summary for itemId: ${ itemId } with function: ${ functionName }`, err, collections)
+        response.collections = collections.map(c=>({ id: c.id, title: c.title, }))
+        response.action = `I was unable to retrieve the content for the itemId (${ itemId }) you requested, ` + (
+            collections?.length
+                ? `but review the collections included; if any titles match the content you are trying to access, run the \`${ functionName }\` tool again with the correct itemId. Otherwise show the list to the member and see if they want to proceed with any of those items for discussion.`
+                : 'and no collections are currently available for this intelligence.'
+        )
     }
 }
 /**
@@ -3309,7 +3315,7 @@ async function mInitializeExternalTools(toolType='mcp', toolsPath){
  * @param {object} item - The item data
  * @param {Avatar} avatar - The avatar instance
  * @param {LLMServices} llmServices - The llm instance
- * @returns {Entry|Memory} - The item object
+ * @returns {Item} - The item object (or any extender class: Action, Stance, Value, Memory, etc)
  */
 function mItem(item, avatar, llmServices){
     /* validate request */
@@ -3340,7 +3346,10 @@ function mItem(item, avatar, llmServices){
         }
     }
     try {
-        switch(type){
+        switch(type.toLowerCase()){
+            case 'action':
+                Item = new Action(item, avatar, llmServices)
+                break
             case 'entry':
                 Item = new Entry(item, avatar, llmServices)
                 break

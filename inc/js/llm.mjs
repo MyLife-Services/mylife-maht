@@ -195,7 +195,7 @@ class LLMServices {
                                 ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
                                     return
                             } catch(error) {
-                                console.error('ERROR running tool function calls from LLM response; removing response and calls', error.name, error.message, conversation_id, response_id)
+                                console.error('ERROR running tool function calls from LLM response', response_id, error)
                                 deleteCalls.length = 0 // clear deleteCalls
                                 functionCalls.forEach(call=>deleteCalls.push(call.id)) // add all function calls to deleteCalls
                                 await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, true)
@@ -298,8 +298,21 @@ async function mCallDelete(openai, conversation_id, response_id, call_ids, delet
     await Promise.all(
         call_ids.map(function_id=>openai.conversations.items.delete(function_id, { conversation_id }))
     )
-    if(deleteAll)
-        await openai.responses.delete(response_id)
+    if(deleteAll){ // in partial deletions, LLM is less likely to get hung up on undelivered requests, so here need to also delete any recent user requests to fully clear the response deck
+        const { data } = await openai.conversations.items.list(conversation_id, { limit: 20, order: 'desc', })
+        const inputItems = []
+        for(const item of data){
+            if(item.role==='assistant')
+                break
+            if(item.role==='user')
+                inputItems.push(item.id)
+        }
+        await Promise.all(
+            inputItems.map(itemId=>openai.conversations.items.delete(itemId, { conversation_id }))
+        )
+        const response = await openai.responses.delete(response_id)
+        console.log('mCallDelete()::deleting entire response', [...call_ids, ...inputItems], response)
+    }
     return deleteAll
 }
 /**

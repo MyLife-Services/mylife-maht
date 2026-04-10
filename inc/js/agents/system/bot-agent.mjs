@@ -678,6 +678,12 @@ class BotAgent {
 	 */
 	getAssistantType(itemForm='biographer', itemType='memory'){
 		switch(itemType.toLowerCase()){
+			case 'action':
+				switch(itemForm.toLowerCase()){
+					case 'political':
+					default:
+						return 'activism'
+				}
 			case 'memory':
 				return 'biographer'
 			case 'entry':
@@ -1369,7 +1375,7 @@ async function mBotUpdate(botData, options={}, Bot, factory){
 			allowedBotData.greetings = greetings
 			allowedBotData.instructions = instructions
 			allowedBotData.metadata = metadata
-			allowedBotData.metadata.version = version.tostring()
+			allowedBotData.metadata.version = version.toString()
 			allowedBotData.version = version /* omitted from llm, but appears on updateBot */
 		}
 		if(updateTools){
