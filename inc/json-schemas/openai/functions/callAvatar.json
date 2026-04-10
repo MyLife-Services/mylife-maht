@@ -11,12 +11,29 @@
         "format": "uuid",
         "type": "string"
       },
+      "fidelity": {
+        "description": "A confidence score from 0-10 of how much the bot thinks the request is out of scope, where 0 is least confident and 10 is most confident. This also respresents how strongly the bot recommends the Avatar handle the request.",
+        "type": "number",
+        "minimum": 0,
+        "maximum": 10
+      },
+      "reason": {
+        "description": "An explanation of why the bot believes this is out of scope with respect to its current responsibilities.",
+        "type": "string"
+      },
+      "recommendedIntelligence": {
+        "description": "A recommendation of what the bot believes may be a better suited intelligence for the member's request.",
+        "type": "string"
+      },
       "request": {
         "description": "The original out-of-scope request from the member",
         "type": "string"
       }
     },
     "required": [
+      "botId",
+      "fidelity",
+      "reason",
       "request"
     ]
   },
