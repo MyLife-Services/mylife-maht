@@ -1,16 +1,11 @@
 {
   "name": "callAvatar",
   "description": "Call Member Avatar when request is out-of-scope for underlying intelligence, or specifically asked by member",
-  "strict": false,
+  "strict": true,
   "parameters": {
     "additionalProperties": false,
     "type": "object",
     "properties": {
-      "botId": {
-        "description": "The MyLife UUID of the external agent to call",
-        "format": "uuid",
-        "type": "string"
-      },
       "fidelity": {
         "description": "A confidence score from 0-10 of how much the bot thinks the request is out of scope, where 0 is least confident and 10 is most confident. This also respresents how strongly the bot recommends the Avatar handle the request.",
         "type": "number",
@@ -31,9 +26,9 @@
       }
     },
     "required": [
-      "botId",
       "fidelity",
       "reason",
+      "recommendedIntelligence",
       "request"
     ]
   },
