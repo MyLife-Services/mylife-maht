@@ -476,7 +476,7 @@ async function mAddMemberMessage(event){
     /* server request */
     const response = await submit(memberMessage)
     let { instruction, responses=[], success=false, } = response
-    if(!success)
+    if(!success && !responses.length)
         mAddMessage('I\'m sorry, I didn\'t understand that, something went wrong on the server. Please try again.')
     if(!!instruction)
         enactInstruction(instruction, 'chat', {

@@ -311,7 +311,6 @@ async function mCallDelete(openai, conversation_id, response_id, call_ids, delet
             inputItems.map(itemId=>openai.conversations.items.delete(itemId, { conversation_id }))
         )
         const response = await openai.responses.delete(response_id)
-        console.log('mCallDelete()::deleting entire response', [...call_ids, ...inputItems], response)
     }
     return deleteAll
 }
