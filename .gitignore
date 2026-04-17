@@ -2,6 +2,7 @@
 node_modules/
 /in-progress/
 .claude/worktrees/
+.claude/settings.local.json
 .env*
 .vscode/
 .personal/
