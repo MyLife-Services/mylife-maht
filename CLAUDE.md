@@ -56,9 +56,17 @@ server.js (Koa app + session setup)
   → routes.mjs (Koa Router — all HTTP endpoints)
     → inc/js/controllers/*.mjs (request handlers)
       → inc/js/avatar.mjs (member-facing operations)
-        → inc/js/llm.mjs (OpenAI API)
+        → inc/js/agents/system/bot-agent.mjs (team and bot (agent) logic encapsulation)
+          → inc/js/agents/system/collection-agent.mjs (in-dev: will replace collections access from bot-agent.mjs)
+          → inc/js/llm.mjs (OpenAI API)
+        → inc/js/agents/system/asset-agent.mjs (in-dev: access to flat files and assets)
+        → inc/js/agents/system/connector-agent.mjs (A2A/MCP interfaces)
         → inc/js/dataservices.mjs (CRUD)
           → inc/js/datamanager.mjs (Azure Cosmos / PostgreSQL)
+        → inc/js/agents/system/experience-agent.mjs (Sharing, Tutorial, Experience compiler)
+          → inc/js/llm.mjs (OpenAI API)
+        → inc/js/agents/system/relationship-agent.mjs (in-dev: manages relationship with content-owning member and any content-requesting member avatar [different core account])
+          → inc/js/agents/system/consent-agent.mjs (in-dev: manages natural language consent of outgoing member content)
 ```
 
 ### Key Files
@@ -94,9 +102,8 @@ These are modular assistants (not autonomous agents) integrated into the Avatar 
 - **`bot-agent.mjs`** — Bot/Team management for a member
 - **`collections-agent.mjs`** — Bulk list operations
 - **`connector-agent.mjs`** — External service integrations
-- **`dom-assistant.mjs`** — Data structure / document management
 - **`evolution-agent.mjs`** — Avatar lifecycle phases: `create → init → develop → mature → maintain → retire`
-- **`experience-agent.mjs`** — User experience flows
+- **`experience-agent.mjs`** — Member experiences
 
 ### Session Management
 
