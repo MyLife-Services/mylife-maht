@@ -1,6 +1,7 @@
 # basic js installations
 node_modules/
 /in-progress/
+.claude/worktrees/
 .env*
 .vscode/
 .personal/
