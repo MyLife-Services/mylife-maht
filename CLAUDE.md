@@ -17,14 +17,31 @@ nodemon watches `server.js` and `inc/js/*` (recursively), and ignores `views/`, 
 
 Copy `sample.env` to `.env`. Required keys before the server will start:
 
+### Required Variables
+
 | Variable | Purpose |
 |---|---|
-| `OPENAI_API_KEY` | OpenAI API access |
 | `MYLIFE_HOSTING_KEY` | UUID; validated at startup — missing = server crash |
 | `MYLIFE_SERVER_MBR_ID` | System member partition ID in Cosmos |
 | `MYLIFE_DB_ENDPOINT` / `MYLIFE_DB_RW` | Azure Cosmos DB connection |
+| `MYLIFE_DB_CONTAINER_NAME` | use `members` unless homegrown container |
+| `MYLIFE_DB_ENDPOINT` | use `https://mylife.documents.azure.com:443/` when approved as datasource |
+| `MYLIFE_DB_RW` | required for access to MyLife system database |
+| `MYLIFE_ORIGIN` | match your local or production installation |
+| `MYLIFE_REGISTRATION_DB_CONTAINER_NAME` | get from admin, or link to local |
+| `MYLIFE_SHARES_DB_CONTAINER_NAME` | get from admin, or link to local |
+| `MYLIFE_SYSTEM_DB_CONTAINER_NAME` | get from admin, or link to local |
+| `OPENAI_API_KEY` | OpenAI API access for project or spinoff |
+| `OPENAI_ORG_KEY` | OpenAI Org key for MyLife or unique project spinoff |
 
-Set `MYLIFE_DB_ALLOW_SAVE=false` during local dev to prevent writes to the production database.
+### Important Variables
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | Will default to `3000` so worth addressing |
+| `MAHT_EMAIL` | email address for SMTP for system correspondence |
+| `MAHT_EMAIL_PASSWORD` | Password for SMTP connection |
+| `MYLIFE_DB_ALLOW_SAVE` | Set to `false` during local dev to prevent writes to the production database |
 
 ## Architecture
 
