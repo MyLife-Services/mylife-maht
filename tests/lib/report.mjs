@@ -25,7 +25,7 @@ export function movement(name, response, understand){
  * Documents what the synthetic consumer has learned from the performance.
  * @param {string} name - Score name
  * @param {object[]} movements - Array of movement results
- * @returns {object} - { passed, tally }
+ * @returns {object} - { passed, tally, movements }
  */
 export function scoreReport(name, movements){
     const passed = movements.filter(m=>m.passed).length
@@ -44,5 +44,5 @@ export function scoreReport(name, movements){
         movements.filter(m=>!m.passed).forEach(m=>console.log(`  ✗ ${ m.name }: ${ m.notes }`))
     }
     console.log(`${ '═'.repeat(52) }\n`)
-    return { passed: allPassed, tally: `${ passed }/${ total }` }
+    return { passed: allPassed, tally: `${ passed }/${ total }`, movements }
 }
