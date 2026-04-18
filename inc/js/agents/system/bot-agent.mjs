@@ -1798,7 +1798,7 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
                 ?.[0]
             return { content, id, metadata, role, }
         })
-        .filter(message=>!itemSummaryRegex.test(message.content))
+        .filter(message=>message.content?.length && !itemSummaryRegex.test(message.content))
 	const summaryMessage = messages
 		.map(message => {
 			const contentWithoutTags = message.content.replace(chatSummaryRegex, '').replace(disclaimer, '')
