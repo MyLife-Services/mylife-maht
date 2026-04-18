@@ -211,11 +211,11 @@ async function mObscureEntry(event){
     const popupClose = document.getElementById(`popup-close-${ itemId }`)
     if(popupClose)
         popupClose.click()
-    const { instruction, responses, success, } = await globals.datamanager.obscure(itemId)
+    const { instructions, responses, success, } = await globals.datamanager.obscure(itemId)
     if(responses?.length)
         addMessages(responses, activeBot().type)
-    if(instruction)
-        enactInstruction(instruction, 'chat', { updateItemSummary, })
+    if(instructions?.length)
+        enactInstruction(instructions, 'chat', { updateItemSummary, })
     expunge(awaitBar)
     toggleMemberInput(true)
 }
@@ -1103,9 +1103,9 @@ async function mDeleteCollectionItem(event){
     if(activeItem()?.id && activeItem().id===id)
         unsetActiveItem()
     if(userConfirmed){
-        const { instruction, responses, success, } = await globals.datamanager.itemDelete(id)
-        if(!!instruction)
-            enactInstruction(instruction, 'chat', { removeItem, })
+        const { instructions, responses, success, } = await globals.datamanager.itemDelete(id)
+        if(instructions?.length)
+            enactInstruction(instructions, 'chat', { removeItem, })
         if(success){
             deleteItem(itemId, type)
             if(responses?.length)
@@ -1207,18 +1207,18 @@ async function mReliveStory(event){
     globals.addChatElement(awaitBar)
     toggleMemberInput(false)
     unsetActiveItem()
-    const { instruction, item, responses, success, } = await globals.datamanager.memoryRelive(id, memberInputContent)
+    const { instructions, item, responses, success, } = await globals.datamanager.memoryRelive(id, memberInputContent)
     globals.expunge(awaitBar)
     if(success){
         const interrupts = ['endMemory', 'endReliving']
-        const haltMemory = interrupts.includes(instruction?.command)
+        const haltMemory = instructions?.some(i=>interrupts.includes(i?.command))
         addMessages(responses, haltMemory ? 'system' : 'relive', undefined, 0)
-        if(!!instruction){
+        if(instructions?.length){
             const functions = {
                 addMessages,
                 endMemory,
             }
-            enactInstruction(instruction, 'chat', functions)
+            enactInstruction(instructions, 'chat', functions)
             if(haltMemory)
                 return
         }
@@ -1663,12 +1663,11 @@ function mStartDrag(event){
 async function mStopRelivingMemory(id, server=true){
     globals.removeDisappearingElements()
     if(server){
-        const { instruction, responses, success} = await globals.datamanager.memoryReliveEnd(id)
+        const { instructions, responses, success} = await globals.datamanager.memoryReliveEnd(id)
         if(success){
             addMessages(responses, 'system', 3)
-            if(!!instruction){
-                enactInstruction(instruction)
-            }
+            if(instructions?.length)
+                enactInstruction(instructions)
         }
     }
     mRelivingMemory = null
@@ -1696,7 +1695,7 @@ async function mSummarize(event){
     this.classList.remove('summarize-error', 'fa-file-circle-exclamation', 'fa-file-circle-question', 'fa-file-circle-xmark')
     this.classList.add('fa-compass', 'spin')
     /* fetch summary */
-    const { instruction, responses, success, } = await globals.datamanager.summary(fileId, fileName)
+    const { instructions, responses, success, } = await globals.datamanager.summary(fileId, fileName)
     /* visibility triggers */
     this.classList.remove('fa-compass', 'spin')
     if(success)
@@ -1704,8 +1703,8 @@ async function mSummarize(event){
     else
         this.classList.add('fa-file-circle-exclamation', 'summarize-error')
     /* print response */
-    if(instruction?.length)
-        console.log('mSummarize::instruction::not yet implemented', instruction) // @stub - implement instruction handling
+    if(instructions?.length)
+        console.log('mSummarize::instructions::not yet implemented', instructions) // @stub - implement instruction handling
     addMessages(responses, mActiveBot.type)
     setTimeout(_=>{
         this.addEventListener('click', mSummarize, { once: true })

@@ -961,11 +961,11 @@ class Globals {
                         inputObject.value = prompt
                         if(endpoint)
                             inputObject.addEventListener('click', async event=>{
-                                const { instruction: dynamicInputResponseInstruction, responses, success, } = await mDatamanager.dynamicInput(endpoint, { method, })
+                                const { instructions: dynamicInputResponseInstructions, responses, success, } = await mDatamanager.dynamicInput(endpoint, { method, })
                                 if(responses?.length && success){
                                     addMessages(responses)
-                                    if(!!dynamicInputResponseInstruction)
-                                        this.enactInstruction(dynamicInputResponseInstruction, functions)
+                                    if(dynamicInputResponseInstructions?.length)
+                                        this.enactInstruction(dynamicInputResponseInstructions, functions)
                                 }
                                 this.expunge(inputObject)
                             }, { once: true })
@@ -977,9 +977,9 @@ class Globals {
             }
             case 'createItem': {
                 const { createItem, } = functions
-                if(!item || typeof createItem!=='function')
+                if(typeof createItem!=='function')
                     return
-                createItem(item)
+                createItem()
                 return
             }
             case 'endLiving': // server has already ended, call frontend cleanup
@@ -994,7 +994,7 @@ class Globals {
             case 'error': {
                 return
             }
-            case 'removeBot': {// retireBot in Avatar
+            case 'removeBot': { // retireBot in Avatar
                 const { removeBot, } = functions
                 if(!id?.length || typeof removeBot!=='function')
                     return
@@ -1008,11 +1008,18 @@ class Globals {
                 removeItem(itemId)
                 return
             }
+            case 'setActiveBot': {
+                const { setActiveBot, } = functions
+                if(!id?.length || typeof setActiveBot!=='function')
+                    return
+                setActiveBot(id)
+                return
+            }
             case 'updateItem': {
                 const { updateItem, } = functions
-                if(!item || typeof updateItem!=='function')
+                if(typeof updateItem!=='function')
                     return
-                updateItem(item)
+                updateItem()
                 return
             }
             case 'updateItemSummary': {

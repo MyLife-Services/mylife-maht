@@ -359,6 +359,8 @@ class Avatar extends EventEmitter {
     #alertsShown = [] // array of alert ids
     #alphaDog
     #assetAgent
+    #backupResponses = []
+    #frontendInstructions = []
     #botAgent
     #collectionsAgent
     #connectorAgent // connector agent for external proxy agents
@@ -428,6 +430,250 @@ class Avatar extends EventEmitter {
         this.#experienceAgent = new ExperienceAgent({}, this.#botAgent, this.#llmServices, this.#factory, this, this.#experienceGenericVariables)
         return this
     }
+    /* external API functions */
+    /**
+     * This section specifically refers to items that return the full `response` object: { error, instruction, item, responses, success, }
+     */
+    /**
+     * Processes and executes incoming chat request.
+     * @external
+     * @param {string} message - The chat message content
+     * @param {Guid} itemId - The active collection-item id (optional)
+     * @returns {object} - The response object { instruction, responses, success, }
+    */
+    async chat(message, itemId){
+        if(!message)
+            throw new Error('No message provided in context')
+        const originalMessage = message
+        let responses = [],
+            success = false
+        if(this.globals.isValidGuid(itemId)){
+            let { summary, } = await this.#factory.item(itemId)
+            if(summary?.length)
+                message = `**active-item**: itemId=${ itemId }\n`
+                    + `**member-input**:\n`
+                    + message
+                    + `\n**newest-summary**:\n`
+                    + summary
+        }
+        const Conversation = await this.activeBot.chat(message, originalMessage, mAllowSave, this)
+        responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true) ?? [], 'chat', Conversation.processStartTime)
+        if(responses.length)
+            success = true
+        return mBuildResponse(this, { responses, success })
+    }
+    /**
+     * End the living memory, if running.
+     * @external
+     * @returns {object} - The response object { instruction, item, responses, success, }
+     */
+    async endMemory(){
+        if(!this.#livingMemory)
+            return
+        const { Conversation, id, item, } = this.#livingMemory
+        const { botId, } = Conversation
+        if(mAllowSave)
+            await Conversation.save()
+        this.frontendInstructions = {
+            command: `endReliving`,
+            itemId: item.id,
+        }
+        const responses = [mCreateSystemMessage(botId, `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
+        this.#livingMemory = null
+        return mBuildResponse(this, { responses, item, success: true, })
+    }
+    /**
+     * Manages a collection item's functionality.
+     * @external
+     * @param {Object} item - The item data object
+     * @param {String} method - The http method used to indicate response
+     * @returns {Promise<Object>} - Returns { instruction, item, responses, success, }
+     */
+    async item(itemData, method='get', raw=false){
+        const { assistantType, id: itemId, } = itemData
+        const { globals, mbr_id, } = this
+        const message = {
+                agent: 'server',
+                message: `I'm sorry - I encountered an error while trying to fill your item request. Please try again.`,
+                type: 'system',
+            },
+            responses = []
+        let { form, summary, title, type=this.activeBot.type, } = itemData
+        let item,
+            Item,
+            success = false
+        switch(method.toLowerCase()){
+            case 'delete': {
+                message.message = `I encountered an error while trying to delete your item, id: ${ itemId }.`
+                success = await this.#factory.deleteItem(itemId)
+                if(!success)
+                    break
+                this.frontendInstructions = { command: 'removeItem', itemId, }
+                message.message = `I have successfully deleted your item from the collection.`
+                break
+            }
+            case 'post': { /* create */
+                itemData.assistantType = assistantType
+                    ?? this.#botAgent.getAssistantType(form, type)
+                message.message = `I encountered an error while creating: "${ title ?? itemId }".`
+                Item = mItem(itemData, this, this.#llmServices)
+                success = !!Item && globals.isValidGuid(Item?.id)
+                if(!success)
+                    break
+                Item.create() // remove `await`
+                this.frontendInstructions = { command: 'createItem', itemId, }
+                message.message = `Item successfully created: "${ Item.title }".`
+                success = true
+                break
+            }
+            case 'put': { /* update */
+                message.message = `I encountered an error while trying to update: "${ title ?? itemId }".`
+                const itemDatabase = await this.#factory.item(itemId)
+                if(!itemDatabase)
+                    break
+                Item = await mItem(itemDatabase, this, this.#llmServices)
+                success = !!Item && globals.isValidGuid(Item?.id)
+                if(!success)
+                    break
+                Item.update(itemData, true) // no await needed
+                this.frontendInstructions = { command: 'updateItem', itemId, }
+                message.message = `I have successfully updated: "${ Item.title }".`
+                success = true
+                break
+            }
+            case 'get':
+            default: {
+                const itemDatabase = await this.#factory.item(itemId)
+                if(!itemDatabase)
+                    break
+                Item = await mItem(itemDatabase, this, this.#llmServices)
+                success = !!Item && globals.isValidGuid(Item?.id)
+                break
+            }
+        }
+        if(raw)
+            return Item
+        if(Item)
+            item = Item.item
+        if(success){
+            message.agent = this.activeBot.type
+            message.type = 'chat'
+        }
+        responses.push(message)
+        return mBuildResponse(this, { item, responses, success })
+    }
+    /**
+     * Migrates a chat conversation from an old thread to a newly created conversation thread.
+     * @external
+     * @param {string} botId - The bot id
+     * @returns {object} - The response object { instruction, responses, success, }
+     */
+    async migrateChat(botId){
+        return await this.retireBot(botId) /* currently retireBot is the same as migration, since the bot continues to have a conversation */
+    }
+    /**
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
+     * @external
+     * @param {Guid} iid - The item id
+     * @returns {Object} - The obscured item object
+     */
+    async obscure(iid){
+        const updatedSummary = await this.activeBot.obscure(iid)
+        this.frontendInstructions = {
+            command: 'updateItemSummary',
+            itemId: iid,
+        }
+        return mBuildResponse(this, {
+            item: { id: iid, summary: updatedSummary, },
+            responses: [{ agent: 'server', message: `I have successfully obscured your content.`, type: 'system', }],
+            success: true,
+        })
+    }
+    /**
+     * Member request to retire a bot.
+     * @external
+     * @param {Guid} botId - The id of Bot to retire
+     * @returns {object} - The Response object: { instruction, responses, success, }
+     */
+    async retireBot(botId){
+        const bot = this.bot(botId)
+        const defaultType = this.team()?.defaultActiveType
+            ?? 'avatar'
+        const response = {
+            agent: 'server',
+            message: `I'm sorry - I encountered an error while trying to retire this bot; please try again.`,
+            type: 'system',
+        }
+        const success = await this.#botAgent.botDelete(botId)
+        const successor = this.bot(null, defaultType).id
+        if(success){
+            this.frontendInstructions = {
+                command: 'removeBot',
+                id: botId,
+            }
+            response.agent = successor.type
+            response.message = `I have removed ${ bot?.name || 'the requested bot' } from the team`
+            response.type = 'chat'
+        }
+        if(successor && this.activeBotId!==successor)
+            this.frontendInstructions = {
+                command: 'setActiveBot',
+                displayGreeting: false,
+                id: successor,
+            }
+        return mBuildResponse(this, {
+            responses: [response],
+            success,
+        })
+    }
+    /**
+     * Currently only proxy for `migrateChat`.
+     * @external
+     * @param {string} botId - Bot id with Conversation to retire
+     * @returns {object} - The response object { instruction, responses, success, }
+     */
+    async retireChat(botId){
+        const message = {
+                agent: 'server',
+                message: `I'm sorry - I encountered an error while trying to retire this conversation; please try again.`,
+                type: 'system',
+            },
+            responses = [],
+            success = false
+        if(await this.#botAgent.migrateChat(botId)){
+            message.agent = this.bot(botId)?.name ?? message.agent
+            message.message = `I have successfully retired this conversation.`
+            success = true
+        }
+        responses.push(message)
+        return mBuildResponse(this, { responses, success, })
+    }
+    /**
+     * Summarize the file indicated.
+     * @external
+     * @param {string} fileId 
+     * @param {string} fileName 
+     * @param {number} processStartTime 
+     * @returns {Object} - The response object { error, instruction, responses, success, }
+     */
+    async summarize(fileId, fileName, processStartTime=Date.now()){
+        /* validate request */
+        let responses = [],
+            success = false
+        this.backupResponses = {
+            agent: 'server',
+            message: `I received your request to summarize, but an error occurred in the process. Perhaps try again with another file.`,
+            type: 'system',
+        }
+        /* execute request */
+        responses.push(...await this.#botAgent.summarize(fileId, fileName, processStartTime))
+        /* respond request */
+        if(responses?.length){
+            responses = mPruneMessages(this.avatar.id, responses, 'mylife-file-summary', processStartTime)
+            success = true
+        }
+        return mBuildResponse(this, { responses, success, })
+    }
     /* public functions */
     /**
      * Accepts share warnings and plays the shared memory.
@@ -464,8 +710,6 @@ class Avatar extends EventEmitter {
 	}
     /**
      * Creates AlphaDog instance.
-     * @async
-     * @public
      * @param {object} data - The data object for AlphaDog (originally `ctx.request.body`)
      * @param {string} method - The method used for request (originally `ctx.request.method`)
      * @returns {Promise<void>} - The response object
@@ -546,6 +790,11 @@ class Avatar extends EventEmitter {
         this.#botAgent.addProxy(proxyBot, teamId)
         return proxyBot
     }
+    /**
+     * Refreshes the endpoint of a proxy bot by calling the connector agent's refresh function, which pings the external A2A agent for an updated endpoint and updates the proxy bot in place with the new endpoint. Currently for NANDA test.
+     * @param {Guid} proxyId - The proxy Agent id
+     * @returns {Promise<object>} - The response object with updated bot instance
+     */
     async botProxyRefresh(proxyId){
         const Proxy = this.#botAgent.bot(proxyId)
         if(!Proxy)
@@ -564,97 +813,16 @@ class Avatar extends EventEmitter {
         return this.updateBot(botData)
     }
     /**
-     * Processes and executes incoming chat request.
-     * @public
-     * @param {string} message - The chat message content
-     * @param {Guid} itemId - The active collection-item id (optional)
-     * @returns {object} - The response object { instruction, responses, success, }
-    */
-    async chat(message, itemId){
-        /* validate request */
-        if(!message)
-            throw new Error('No message provided in context')
-        const originalMessage = message
-        let responses = [],
-            success = false
-        this.backupResponse = {
-            message: `I got your message, but I'm having trouble processing it. Please try again.`,
-            type: 'system',
-        }
-        /* execute request */
-        if(this.globals.isValidGuid(itemId)){
-            let { summary, } = await this.#factory.item(itemId)
-            if(summary?.length)
-                message = `**active-item**: itemId=${ itemId }\n`
-                    + `**member-input**:\n`
-                    + message
-                    + `\n**newest-summary**:\n`
-                    + summary
-        }
-        const Conversation = await this.activeBot.chat(message, originalMessage, mAllowSave, this)
-        responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true) ?? [], 'chat', Conversation.processStartTime)
-        const { actionCallback, frontendInstruction, } = this
-        if(!responses.length)
-            responses.push(this.backupResponse)
-        else
-            success = true
-        if(actionCallback?.length){
-            switch(actionCallback){
-                case 'changeTitle':
-                    const { title: changeTitleTitle, } = frontendInstruction
-                    if(!changeTitleTitle?.length)
-                        throw new Error('No title provided')
-                    const changeTitleData = {
-                        id: itemId,
-                        title: changeTitleTitle
-                    }
-                    const changeTitleItem = await this.itemUpdate(changeTitleData)
-                    if(changeTitleItem.id===itemId){
-                        this.frontendInstruction.command = 'updateItemTitle'
-                        responses = [{
-                            message: `I was able to change our title to "${ changeTitleTitle }".`,
-                            type: 'system',
-                        }]
-                        success = true
-                    } else
-                        responses = [{
-                            message: `I encountered an error while trying to change our title to "${ changeTitleTitle }".`,
-                            type: 'system',
-                        }]
-                    break
-                case 'updateItem':
-                case 'updateItemSummary':
-                case 'updateSummary':
-                    const { summary: updateSummarySummary, } = frontendInstruction.item
-                    const updateSummaryData = {
-                        id: itemId,
-                        summary: updateSummarySummary,
-                    }
-                    const updateSummaryItem = await this.itemUpdate(updateSummaryData)
-                    if(updateSummaryItem.id===itemId){
-                        this.frontendInstruction.command = 'updateItem'
-                        responses = [this.backupResponse
-                            ?? {
-                                message: `I was able to update our summary with this info.`,
-                                type: 'system',
-                            }]
-                        success = true
-                    }
-                    break
-                default:
-                    break
-            }
-        }
-        const response = {
-            instruction: this.frontendInstruction,
-            responses,
-            success,
-        }
-        /* respond request */
-        delete this.actionCallback
-        delete this.backupResponse
-        delete this.frontendInstruction
-        return response
+     * Clears backup responses stored on the avatar instance. Backup responses are used to store responses for potential reuse in case of errors or other issues during response generation.
+     */
+    clearBackupResponses(){
+        this.#backupResponses = []
+    }
+    /**
+     * Clears frontend instructions stored on the avatar instance. Frontend instructions are used to store instructions for the frontend to execute, such as updating the UI or triggering certain actions based on avatar interactions.
+     */
+    clearFrontendInstructions(){
+        this.#frontendInstructions = []
     }
     /**
      * Get member collection items.
@@ -714,8 +882,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Create a new bot.
-     * @async
-     * @public
      * @param {Object} botData - The bot data object, requires type.
      * @returns {Object} - The new bot.
      */
@@ -741,33 +907,6 @@ class Avatar extends EventEmitter {
      */
     async deleteShare(sid){
         return await this.#ShareAgent.delete(sid)
-    }
-    /**
-     * End the living memory, if running.
-     * @async
-     * @public
-     * @todo - save conversation fragments
-     * @returns {object} - The response object { instruction, responses, success, }
-     */
-    async endMemory(){
-        if(!this.#livingMemory)
-            return
-        const { Conversation, id, item, } = this.#livingMemory
-        const { botId, } = Conversation
-        if(mAllowSave)
-            await Conversation.save()
-        const instruction = {
-            command: `endMemory`,
-            itemId: item.id,
-        }
-        const responses = [mCreateSystemMessage(botId, `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
-        const response = {
-            instruction,
-            responses,
-            success: true,
-        }
-        this.#livingMemory = null
-        return response
     }
 	/**
 	 * Submits a new diary or journal entry to MyLife. Currently called both from API _and_ LLM function.
@@ -802,7 +941,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Starts, continues or resumes a specific experience.
-     * @public
      * @param {Guid} xid - The experience id
      * @param {object} memberInput - Member input object
      * @returns {object} - The frontend response object: { error, experience, instruction, success, }
@@ -812,7 +950,7 @@ class Avatar extends EventEmitter {
         const experience = mPruneExperience(Experience)
         // add frontend instructions here
         const response = {
-            instructions: this.frontendInstruction,
+            instructions: this.frontendInstructions,
             experience,
             success: true,
         }
@@ -820,7 +958,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Ends the specified experience.
-     * @public
      * @param {Guid} xid - The experience id
      * @returns {void}
      */
@@ -829,7 +966,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Returns array of available experiences for the member in shorthand object format, i.e., not a full `Experience` class instance. That is only required when performing.
-     * @public
      * @param {boolean} includeLived - Include lived experiences in the list
      * @returns {Promise<Object[]>} - Array of shorthand experience payloads: { autoplay, description, id, name, purpose, skippable, }
      */
@@ -850,6 +986,11 @@ class Avatar extends EventEmitter {
         const { success, } = feedback
         return success
     }
+    /**
+     * Returns a generic bot of the specified type, which can be used for various purposes such as help or other non-avatar specific interactions.
+     * @param {string} botType - The type of bot to retrieve, defaults to 'avatar'
+     * @returns {Promise<object>} - The bot instance
+     */
     async genericBot(botType='avatar'){
         const bot = await this.#botAgent.genericBot(botType)
         return bot
@@ -868,7 +1009,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Returns pruned Bots for Member Avatar.
-     * @returns 
+     * @returns {object[]} - The array of pruned Bot objects
      */
     getBots(){
         const bots = this.bots
@@ -972,91 +1113,6 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
-     * Manages a collection item's functionality.
-     * @todo - assistantType fix, whether to include on frontend or omit as is now form from LLM
-     * @param {Object} item - The item data object
-     * @param {String} method - The http method used to indicate response
-     * @returns {Promise<Object>} - Returns { instruction, item, responses, success, }
-     */
-    async item(item, method='get'){
-        const { globals, mbr_id, } = this
-        const response = { item, success: false, }
-        const instruction={},
-            message={
-                agent: 'server',
-                message: `I encountered an error while trying to process your request; please try again.`,
-                type: 'system',
-            }
-        const { assistantType, id: itemId, } = item
-        let { form, summary, title, type=this.activeBot.type, } = item
-        let itemDatabase,
-            Item,
-            success = false
-        if(itemId)
-            itemDatabase = await this.#factory.item(itemId)
-        if(itemId && !globals.isValidGuid(itemId))
-            throw new Error(`Invalid item id: ${ itemId }`)
-        switch(method.toLowerCase()){
-            case 'delete':
-                success = await this.#factory.deleteItem(itemId)
-                message.message = success
-                    ? `I have successfully deleted your item.`
-                    : `I encountered an error while trying to delete your item, id: ${ itemId }.`
-                instruction.command = success
-                    ? 'removeItem'
-                    : 'error'
-                instruction.itemId = itemId
-                break
-            case 'post': /* create */
-                /* validate request */
-                item.assistantType = assistantType
-                    ?? this.#botAgent.getAssistantType(form, type)
-                /* execute request */
-                Item = mItem(item, this, this.#llmServices)
-                /* return response */
-                if(!!Item){
-                    Item.create() // remove `await`
-                    instruction.command = 'createItem'
-                    instruction.item = mPruneItem(Item.item)
-                    message.message = `Item successfully created: "${ response.item.title }".`
-                    response.item = instruction.item
-                    success = true
-                } else {
-                    instruction.command = 'error'
-                    message.message = `I encountered an error while creating: "${ title }".`
-                }
-                break
-            case 'put': /* update */
-                if(!itemDatabase)
-                    break
-                Item = await mItem(itemDatabase, this, this.#llmServices)
-                if(!!Item){
-                    Item.update(item, true)
-                    instruction.command = 'updateItem'
-                    instruction.item = mPruneItem(Item.item)
-                    message.message = `I have successfully updated: "${ Item.title }".`
-                    response.item = instruction.item
-                    success = true
-                } else
-                    message.message = `I encountered an error while trying to update: "${ title }".`
-                break
-            default:
-                if(!itemDatabase)
-                    break
-                Item = await mItem(itemDatabase, this, this.#llmServices)
-                if(!!Item){
-                    response.item = mPruneItem(Item.item)
-                    success = true
-                }
-                break
-        }
-        this.frontendInstruction = instruction // LLM-return safe
-        response.instruction = instruction // direct-access
-        response.responses = [message]
-        response.success = success
-        return response
-    }
-    /**
      * Proxy to create an item via factory in the database.
      * @param {object} item - Item data
      * @returns {Promise<object>} - The created item object
@@ -1083,6 +1139,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Logs out the current session, removing relevant MyLife session artifacts.
+     * @todo - Koa shouldn't be an input, system may not need to actually reach this, is ONLY here for MCP, so need to move that up a layer
      * @param {Koa} ctx - The Koa context object
      * @returns {Promise<void>}
      */
@@ -1090,6 +1147,11 @@ class Avatar extends EventEmitter {
         ctx.session.avatar = ctx.SystemAvatar // reset to SystemAvatar
         ctx.session.locked = true // lock session
     }
+    /**
+     * Retrieves the manifest for a specific experience, which includes details about the experience such as its description, purpose, and variables.
+     * @param {Guid} xid - The experience id
+     * @returns {object} - The experience manifest object
+     */
     manifest(xid){
         return this.#experienceAgent.experienceManifest(xid)
     }
@@ -1175,30 +1237,6 @@ class Avatar extends EventEmitter {
         return migration
     }
     /**
-     * Migrates a chat conversation from an old thread to a newly created (or identified) destination thread.
-     * @param {string} botId - The bot id
-     * @returns {Conversation} - The migrated conversation object
-     */
-    async migrateChat(botId){
-        const success = await this.#botAgent.migrateChat(botId)
-        const response = {
-            responses: [success
-                ? {
-                    agent: 'server',
-                    message: `I have successfully migrated this conversation to a new thread.`,
-                    type: 'chat',
-                }
-                : {
-                    agent: 'server',
-                    message: `I'm sorry - I encountered an error while trying to migrate this conversation; please try again.`,
-                    type: 'chat',
-                }
-            ],
-            success,
-        }
-        return response
-    }
-    /**
      * Gets the Mission object from AlphaDog.
      * @param {Guid} mid - The Mission id
      * @returns {Promise<object>} - The Mission object with current step and status
@@ -1240,27 +1278,6 @@ class Avatar extends EventEmitter {
         await this.alphaDogAlert()
         const missions = await this.#alphaDog.missionsComplete()
         return missions
-    }
-    /**
-     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
-     * @param {Guid} iid - The item id
-     * @returns {Object} - The obscured item object
-     */
-    async obscure(iid){
-        const updatedSummary = await this.activeBot.obscure(iid)
-        this.frontendInstruction = {
-            command: 'updateItemSummary',
-            itemId: iid,
-            summary: updatedSummary,
-        }
-        return {
-            instruction: this.frontendInstruction,
-            responses: [{
-                agent: 'server',
-                message: `I have successfully obscured your content.`,
-            }],
-            success: true,
-        }
     }
 	/**
 	 * Populate an object with data, alters in place the incoming class instance.
@@ -1316,69 +1333,6 @@ class Avatar extends EventEmitter {
         if(!passphrase?.length)
             throw new Error('Passphrase required for reset.')
         return await this.#factory.resetPassphrase(passphrase)
-    }
-    /**
-     * Member request to retire a bot.
-     * @param {Guid} botId - The id of Bot to retire
-     * @returns {object} - The Response object: { instruction, responses, success, }
-     */
-    async retireBot(botId){
-        const success = await this.#botAgent.botDelete(botId)
-        const successor = success ? this.bot(null, this.team()?.defaultActiveType)?.id : undefined
-        const response = {
-            instruction: {
-                command: success
-                    ? 'removeBot'
-                    : 'error',
-                id: botId,
-            },
-            responses: [success
-                ? {
-                    agent: 'server',
-                    message: `I have removed this bot from the team.`,
-                    type: 'chat',
-                }
-                : {
-                    agent: 'server',
-                    message: `I'm sorry - I encountered an error while trying to retire this bot; please try again.`,
-                    type: 'system',
-                }
-            ],
-            success,
-            successor,
-        }
-        if(!success)
-            instruction.error = 'I encountered an error while trying to retire this bot; please try again.'
-        return response
-    }
-    /**
-     * Currently only proxy for `migrateChat`.f
-     * @param {string} botId - Bot id with Conversation to retire
-     * @returns {object} - The response object { instruction, responses, success, }
-     */
-    async retireChat(botId){
-        const success = await this.#botAgent.migrateChat(botId)
-        /* respond request */
-        const response = success
-            ? { /* @todo - add frontend instructions to remove migrateChat button */
-                instruction: null,
-                responses: [{
-                    agent: 'server',
-                    message: `I have successfully retired this conversation.`,
-                    type: 'chat',
-                }],
-                success: true,
-            }
-            : {
-                instruction: null,
-                responses: [{
-                    agent: 'server',
-                    message: `I'm sorry - I encountered an error while trying to retire this conversation; please try again.`,
-                    type: 'chat',
-                }],
-                success: false,
-            }
-        return response
     }
     /**
      * Execute a specific routine, defaults to `introduction`. **Note** could include [](https://www.npmjs.com/package/html-to-json-parser)
@@ -1532,35 +1486,6 @@ class Avatar extends EventEmitter {
 		return await this.item(story, 'POST')
 	}
     /**
-     * Summarize the file indicated.
-     * @param {string} fileId 
-     * @param {string} fileName 
-     * @param {number} processStartTime 
-     * @returns {Object} - The response object { error, instruction, responses, success, }
-     */
-    async summarize(fileId, fileName, processStartTime=Date.now()){
-        /* validate request */
-        let responses = [],
-            success = false
-        this.backupResponse = {
-            message: `I received your request to summarize, but an error occurred in the process. Perhaps try again with another file.`,
-            type: 'system',
-        }
-        /* execute request */
-        responses.push(...await this.#botAgent.summarize(fileId, fileName, processStartTime))
-        /* respond request */
-        if(!responses?.length)
-            responses.push(this.backupResponse)
-        else {
-            responses = mPruneMessages(this.avatar.id, responses, 'mylife-file-summary', processStartTime)
-            success = true
-        }
-        return {
-            responses,
-            success,
-        }
-    }
-    /**
      * Gets the requested team by id (or default active team).
      * @param {Guid|null} teamId - The team id
      * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }
@@ -1664,13 +1589,14 @@ class Avatar extends EventEmitter {
         }
         return age
     }
-    /**
-     * Get the personal avatar bot.
-     * @getter
-     * @returns {object} - The personal avatar bot
-     */
     get avatar(){
         return this.#botAgent.avatar
+    }
+    get backupResponses(){
+        return this.#backupResponses
+    }
+    set backupResponses(response){
+        this.#backupResponses.push(response)
     }
     /**
      * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
@@ -1752,7 +1678,7 @@ class Avatar extends EventEmitter {
     }
     set evolver(evolver){
         if(!(evolver instanceof EvolutionAgent))
-        this.#evolver = evolver
+            this.#evolver = evolver
     }
     /**
      * Get the current experience location (or pointer). Should always map to the last event being sent, if inspecting an array of events via `api.experience()`.
@@ -1781,45 +1707,26 @@ class Avatar extends EventEmitter {
             throw new Error('Experiences lived must be an array.')
         this.#livedExperiences = livedExperiences
     }
-    /**
-     * Globals shortcut.
-     * @getter
-     * @returns {object} - The globals.
-     */
+    get frontendInstructions(){
+        return this.#frontendInstructions
+    }
+    set frontendInstructions(instruction){
+        this.#frontendInstructions = mAddInstruction(this.#frontendInstructions, instruction)
+    }
     get globals(){
         return this.#factory.globals
     }
-    /**
-     * Get the help bots, primarily MyLife avatar, though presume there are a number of custom self-help bots that would be capable of referencing preferences, internal searches, etc.
-     * @getter
-     * @returns {array} - The help bots.
-     */
     get helpBots(){
         const bots = this.getBots()
             .filter(bot=>bot.type==='help')
         return bots
     }
-    /**
-     * Test whether avatar session is creating an account.
-     * @getter
-     * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
-     */
     get isCreatingAccount(){
         return this.#factory.isCreatingAccount
     }
-    /**
-     * Test whether avatar is in an `experience`.
-     * @getter
-     * @returns {boolean} - Avatar is in `experience` (true) or not (false).
-     */
     get isInExperience(){
         return this.mode==='experience'
     }
-    /**
-     * Whether or not the avatar is the MyLife avatar.
-     * @getter
-     * @returns {boolean} - true if the avatar is the MyLife avatar. 
-     */
     get isMyLife(){
         return this.#factory.isMyLife
     }
@@ -2246,14 +2153,7 @@ class Q extends Avatar {
 		Conversation.prompt = message
 		await this.botAgent.chat(Conversation, mAllowSave, this) // call bot-agent, **not** bot explicitly when system avatar
         const responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true), 'chat', Conversation?.processStartTime)
-        const response = {
-            instruction: this.frontendInstruction,
-            responses,
-            success: true,
-        }
-        delete this.frontendInstruction
-        delete this.backupResponse
-        return response
+        return mBuildResponse(this, { responses, success: true })
     }
     /**
      * OVERLOADED: MyLife must refuse to create bots.
@@ -2843,6 +2743,24 @@ class Q extends Avatar {
 }
 /* module functions */
 /**
+ * Pure function: returns updated instructions array with last-wins logic for singleton commands.
+ * Called by the Avatar frontendInstructions setter.
+ * @param {object[]} instructions - Current instructions array
+ * @param {object} instruction - The instruction to add
+ * @returns {object[]} - Updated instructions array
+ */
+function mAddInstruction(instructions=[], instruction){
+    if(!instruction)
+        return instructions
+    const lastWins = new Set(['endLiving', 'endMemory', 'endReliving', 'setActiveBot', 'updateItem', 'updateItemSummary', 'updateItemTitle'])
+    const { command, } = instruction
+    delete instruction.item
+    if(lastWins.has(command))
+        instructions = instructions.filter(i=>i.command!==command)
+    instructions.push(instruction)
+    return instructions
+}
+/**
  * Assigns (directly mutates) private experience variables from avatar.
  * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
  * @module
@@ -2850,14 +2768,14 @@ class Q extends Avatar {
  * @param {Avatar} avatar - Avatar instance.
  * @returns {void} - mutates experienceVariables
  */
-function mAssignGenericExperienceVariables(experienceVariables, avatar){
+function mAssignGenericExperienceVariables(experienceVariables, Avatar){
     Object.keys(experienceVariables).forEach(_key=>{
-        experienceVariables[_key] = avatar[_key]
+        experienceVariables[_key] = Avatar[_key]
     })
     /* handle unique variable instances (jic) */
     const localOverrides = {
-        name: avatar.memberName,
-        nickname: avatar.memberFirstName
+        name: Avatar.memberName,
+        nickname: Avatar.memberFirstName
     }
     return {...experienceVariables, ...localOverrides}
 }
@@ -2866,13 +2784,47 @@ function mAssignGenericExperienceVariables(experienceVariables, avatar){
  * @param {Globals} globals - Globals object
  * @param {object} avatar - Avatar object
  */
-function mAvatarDropdown(globals, avatar){
-    const { mbr_id: id, mbr_name, } = avatar
+function mAvatarDropdown(globals, Avatar){
+    const { mbr_id: id, mbr_name, } = Avatar
     const name = globals.sysName(id) 
     return {
         id,
         name,
     }
+}
+/**
+ * Builds the standard API response envelope and clears Avatar's transient state.
+ * All API-facing Avatar methods return via this function.
+ * @param {Avatar} Avatar - The avatar instance
+ * @param {object} payload - { item, responses, success, ...rest }
+ * @property {object} item - The item to include in the response, if any\
+ * @property {object[]} responses - The messages to include in the response, if any
+ * @property {boolean} success - Whether the operation was successful
+ * @property {object} rest - Any additional properties to include in the response
+ * @returns {object} - { instructions, item, responses, success, ...rest }
+ */
+function mBuildResponse(Avatar, { item, responses=[], success=false, ...rest }){
+    if(item)
+        item = mPruneItem(item)
+    if(!responses?.length){
+        if(!Avatar.backupResponses.length)
+            Avatar.backupResponses = {
+                agent: 'server',
+                message: `I tried to process your message, but am having unspecified difficulty. Please try again.`,
+                type: 'system',
+            }
+        responses = Avatar.backupResponses
+    }
+    const response = {
+        instructions: Avatar.frontendInstructions,
+        item,
+        responses,
+        success,
+        ...rest,
+    }
+    Avatar.clearFrontendInstructions()
+    Avatar.clearBackupResponses()
+    return response
 }
 /**
  * Creates frontend system message from message String/Object.
@@ -2939,8 +2891,9 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
             break
         }
         case 'endReliving': {
-            Avatar.actionCallback = 'endMemory'
-            response.success = false
+            const { itemId, } = toolArguments
+            Avatar.frontendInstructions = { command: 'endReliving', itemId, }
+            response.success = true
             response.cancelResponse = true
             break
         }
@@ -2995,7 +2948,7 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
  */
 async function mFunction_callExternalAgent(response, toolArguments, Avatar){
     const { agentId, messageId, request, skillId, } = toolArguments
-    Avatar.backupResponse = {
+    Avatar.backupResponses = {
         message: `I could not communicate effectively with our external agent. I cannot determine if this is a temporary issue or a persistent one. Please try again later or contact support if the issue continues.`,
         type: 'system',
     }
@@ -3004,7 +2957,7 @@ async function mFunction_callExternalAgent(response, toolArguments, Avatar){
         return
     const { response: a2aResponse, success=false,} = await a2aExternalRequest(messageId, skillId, request, agent.agentEndpoint)
     if(success)
-        delete Avatar.backupResponse
+        Avatar.clearBackupResponses()
     response.action = `Response from external agent:\n${ a2aResponse }`
     response.success = success
 }
@@ -3016,35 +2969,33 @@ async function mFunction_callExternalAgent(response, toolArguments, Avatar){
  * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the title change operation
  */
 async function mFunction_changeTitle(response, toolArguments, Avatar){
-    const { itemId, title: newTitle, } = toolArguments
+    const { itemId, title, } = toolArguments
     let backupResponse = {
-        message: `I encountered an unexpected error while changing our title to: ${ newTitle }. Please try again.`,
+        agent: 'server',
+        message: `I encountered an unexpected error while changing our title to: ${ title }. Please try again.`,
         type: 'system',
     }
-    if(!itemId?.length || !newTitle?.length){
-        response.action = `Title Change Error: Apologize for lack of clarity; member should **first** click on the collection item (like a memory, story, etc) to identify it as active; upon doing so, the active item bar appears above chat bar. (function call requies "itemId" and "title" in arguments. Received itemId: ${ itemId }, title: ${ newTitle })`
+    if(!itemId?.length || !title?.length){
+        response.action = `Title Change Error: Apologize for lack of clarity; member should **first** click on the collection item (like a memory, story, etc) to identify it as active; upon doing so, the active item bar appears above chat bar. (function call requies "itemId" and "title" in arguments. Received itemId: ${ itemId }, title: ${ title })`
         response.cancelResponse = false
     }
-    const updateTitle = {
-        id: itemId,
-        title: newTitle
-    }
-    if(await Avatar.itemUpdate(updateTitle)){
+    const { id, } = await Avatar.itemUpdate({ id: itemId, title, })
+    if(id?.length){
         backupResponse = {
-            message: `Wonderful: I have successfully changed the item's title to ${ newTitle }`,
+            agent: Avatar.activeBotId.type,
+            message: `Wonderful: I have successfully changed the item's title to ${ title }`,
             type: 'system',
         }
-        Avatar.frontendInstruction = {
+        Avatar.frontendInstructions = {
             command: 'updateItemTitle',
             itemId,
-            title: newTitle,
+            title,
         }
         response.cancelResponse = true
         response.success = true
-        response.title = newTitle
     }
     response.action ??= backupResponse.message
-    Avatar.backupResponse = backupResponse
+    Avatar.backupResponses = backupResponse // because cancelResponse is `true`, system will reply on backupResponse
 }
 /**
  * Handles the 'confirmRegistration' function call from the LLM, which confirms a member's registration using their email and registration ID, and prepares the response message based on the success of the confirmation. Mutates `response` based on the success of the confirmation operation.
@@ -3099,9 +3050,9 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary creation operation
  */
 async function mFunction_createSummary(response, toolArguments, Avatar){
-    const { item, success, } = await Avatar.item(toolArguments, 'POST')
-    response.success = success
-    response.action = success && item?.id?.length
+    const item = await Avatar.itemCreate(toolArguments)
+    response.success = item?.id?.length
+    response.action = response.success
         ? `Creation was successful; **important AI reference**, REMEMBER itemId: ${ item.id }`
         : `error creating summary for given argument title: ${ toolArguments?.title ?? 'New Item' } - DO NOT TRY AGAIN until member asks for it`
 }
@@ -3114,15 +3065,13 @@ async function mFunction_createSummary(response, toolArguments, Avatar){
 async function mFunction_getSummary(response, Avatar){
     const { function: functionName, itemId, summaryOnly=true, } = response
     try {
-        const { id, item, success, } = await Avatar.item({ id: itemId, })
-        if(!success || !item.summary?.length)
+        const item = await Avatar.item({ id: itemId, }, 'GET', true)
+        if(!item?.id?.length || !item.summary?.length)
             throw new Error(`No summary found for item ${ itemId }`)
-        response.item = { id: id ?? itemId, }
-        if(summaryOnly)
-            response.item.summary = item.summary
-        else
-            response.item = item
-        response.action = 'Requested content found in `item`, share info with member'
+        response.item = summaryOnly
+            ? { id: item.id, summary: item.summary, }
+            : item
+        response.action = 'Requested content found in `item` field, share info with member'
         response.success = true
     } catch(err) { // on fail, send back the current collection with `{ id, title, }` in order to suffuse intelligence with most recent options
         const collections = await Avatar.activeBot.collections()
@@ -3158,7 +3107,7 @@ async function mFunction_obscure(response, toolArguments, Avatar){
  * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the provided summary and warnings
  */
 async function mFunction_prepareSummary(response, toolArguments, Avatar){
-    Avatar.backupResponse = {
+    Avatar.backupResponses = {
         message: `I encountered an unexpected error while preparing content for sharing, please try again.`,
         type: 'system',
     }
@@ -3193,29 +3142,36 @@ async function mFunction_registerCandidate(response, toolArguments, Factory){
  * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the update operation
  */
 async function mFunction_updateSummary(response, toolArguments, Avatar){
-    const { itemId, summary, } = toolArguments
-    delete Avatar.actionCallback
-    delete Avatar.frontendInstruction
-    Avatar.backupResponse = {
-        message: `I encountered an unexpected error while updating item with id: "${ itemId }". Please try again.`,
+    const { itemId: id, summary, } = toolArguments
+    let backupResponse = {
+        agent: 'server',
+        message: `I encountered an unexpected error while updating item with id: "${ id }". Please try again.`,
         type: 'system',
     }
-    if(!itemId?.length || !summary?.length){
+    if(!id?.length || !summary?.length){
         response.action = 'Unsuccessful: Tell member to click on an appropriate collection item (like a memory, story, etc) to identify it as active which generates a valid `itemId`'
         return
     }
-    const updateData = {
-        id: itemId,
-        summary,
-    }
-    let { instruction, responses, success, } = await Avatar.item(updateData, 'PUT')
+    const item = await Avatar.itemUpdate({ id, summary, })
+    const success = item?.id?.length
     response.cancelResponse = true
     response.success = success
-    Avatar.backupResponse = responses?.[0]
-        ?? Avatar.backupResponse
-    Avatar.frontendInstruction = instruction
-    if(Avatar.livingMemory?.item?.id===itemId)
-        delete Avatar.backupResponse
+    if(success)
+        backupResponse = {
+            agent: Avatar.activeBot.type,
+            message: `Wonderful: I have successfully updated the item's summary based on our conversation. I'm ready for more updates or we can move on to something else!`,
+            type: 'chat',
+        }
+    if(Avatar.livingMemory?.item?.id===id)
+        Avatar.clearBackupResponses()
+    else{
+        Avatar.backupResponses = backupResponse
+        Avatar.frontendInstructions = {
+            command: 'updateItemSummary',
+            itemId: id,
+            summary,
+        }
+    }
 }
 /**
  * Include help preamble to _LLM_ request, not outbound to member/guest.
@@ -3250,7 +3206,7 @@ function mHelpIncludePreamble(type, isMyLife){
  */
 async function mInit(factory, llmServices, Avatar, botAgent, assetAgent){
     /* initial assignments */
-    const { being, mbr_id, setupComplete=true, ...avatarProperties } = factory.globals.sanitize(await factory.avatarProperties())
+    const { backupResponses, being, frontendInstructions, mbr_id, setupComplete=true, ...avatarProperties } = factory.globals.sanitize(await factory.avatarProperties())
     Object.assign(Avatar, avatarProperties)
     if(!factory.isMyLife){
         Avatar.setupComplete = setupComplete
@@ -4246,22 +4202,14 @@ async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
                 type: 'button',
             }],
         }
-        const instruction = Avatar.frontendInstruction?.command?.length
-            ? Avatar.frontendInstruction
-            : defaultInstruction
+        if(!Avatar.frontendInstructions.length)
+            Avatar.frontendInstructions = defaultInstruction
         const responses = Conversation.getMessages()
             .map(message=>mPruneMessage(botId, message, type))
-        response = {
-            instruction,
-            item: mPruneItem(item),
-            responses,
-            success: true,
-        }
+        response = mBuildResponse(Avatar, { item, responses, success: true })
     } else
         response = await Avatar.endMemory()
     delete Avatar.actionCallback
-    delete Avatar.backupResponse
-    delete Avatar.frontendInstruction
     return response
 }
 /**

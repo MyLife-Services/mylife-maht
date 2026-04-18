@@ -142,16 +142,15 @@ function decorateActiveBot(){
  * @param {object} additionalFunctions - The additional functions object, coming from other module requests
  * @returns {void}
  */
-function enactInstruction(instruction, interfaceLocation='chat', additionalFunctions={}){
-    if(!instruction || interfaceLocation!='chat')
+function enactInstruction(instructions, interfaceLocation='chat', additionalFunctions={}){
+    if(!instructions?.length || interfaceLocation!='chat')
         return
     const functions = {
         addInput,
         addMessages,
         ...additionalFunctions, // overloads feasible
     }
-    console.log('Enacting instruction: ', instruction)
-    globals.enactInstruction(instruction, functions)
+    globals.enactInstruction(instructions, functions)
 }
 function escapeHtml(text) {
     return globals.escapeHtml(text)
@@ -475,13 +474,13 @@ async function mAddMemberMessage(event){
     mAddMessage(memberMessage, 'member', 7)
     /* server request */
     const response = await submit(memberMessage)
-    let { instruction, responses=[], success=false, } = response
+    let { instructions, item, responses=[], success=false, } = response
     if(!success && !responses.length)
         mAddMessage('I\'m sorry, I didn\'t understand that, something went wrong on the server. Please try again.')
-    if(!!instruction)
-        enactInstruction(instruction, 'chat', {
-            createItem,
-            updateItem,
+    if(instructions?.length)
+        enactInstruction(instructions, 'chat', {
+            createItem: item ? () => createItem(item) : undefined,
+            updateItem: item ? () => updateItem(item) : undefined,
             updateItemSummary,
             updateItemTitle,
         })

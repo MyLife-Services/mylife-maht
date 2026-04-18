@@ -715,12 +715,11 @@ class BotAgent {
 	 * Begins or continues a living memory conversation.
 	 * @param {Object} item - Memory item from database
 	 * @param {string} memberInput - The member input (with instructions)
-	 * @param {Avatar} Avatar - The Avatar instance
 	 * @returns {Object} - The living memory object
 	 */
-	async liveMemory(item, memberInput='NEXT', Avatar){
+	async liveMemory(item, memberInput='NEXT'){
 		const { biographer, } = this
-		const livingMemory = Avatar.livingMemory
+		const { livingMemory, } = this.avatar
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
@@ -740,7 +739,7 @@ class BotAgent {
 		Conversation.prompt = memberInput?.trim()?.length
 			? memberInput
 			: message
-		await mCallLLM(Conversation, false, this.#llm, this.#factory, Avatar)
+		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.avatar)
 		return livingMemory
 	}
     /**

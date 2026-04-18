@@ -106,6 +106,7 @@
       "variables": [
         "bot_name",
         "dob",
+        "mbr_id",
         "memberFirstName",
         "memberFullName"
       ]

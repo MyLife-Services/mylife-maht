@@ -119,8 +119,9 @@ function getAction(type='avatar'){
                     if(!response?.success)
                         addMessage('An error occurred while talking to the server. Try again.', 'error')
                     else {
-                        enactInstruction(response.instruction, 'chat', { createItem, })
-                        addMessages(response.responses, type)
+                        const { instructions, item, responses: botResponses, } = response
+                        enactInstruction(instructions, 'chat', { createItem: item ? () => createItem(item) : undefined, })
+                        addMessages(botResponses, type)
                     }
                 },
                 icon: 'fa-play',
@@ -1358,13 +1359,9 @@ async function mRetireBot(e){
         const { id, type, } = bot
         if(globals.isProxy(type) && !confirm("Retiring a proxy bot will not notify the external agent. Are you sure?"))
             return
-        const { instruction, instructions=[], responses, successor=getBot()?.id, } = await globals.datamanager.botRetire(id)
+        const { instructions=[], responses, } = await globals.datamanager.botRetire(id)
         /* reset active bot */
-        if(mActiveBot.id===id)
-            setActiveBot(successor)
-        if(instruction)
-            instructions.unshift(instruction)
-        if(instructions?.length){
+        if(instructions.length){
             const removeBot = (botId)=>{ // inline function
                 const { container, popup, } = bot
                 if(container instanceof HTMLElement)
@@ -1375,7 +1372,7 @@ async function mRetireBot(e){
                 if(botIndex>-1)
                     mBots.splice(botIndex, 1) // remove from memory
             }
-            globals.enactInstruction(instructions, { removeBot, })
+            globals.enactInstruction(instructions, { removeBot, setActiveBot, })
         }
         addMessages(responses, 'avatar')
     } catch(err) {
