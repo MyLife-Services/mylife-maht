@@ -59,6 +59,7 @@ const report = {
         movements: r.movements ?? [],
     })),
     conversationLog: context.conversationLog,
+    apiLog: context.apiLog,
 }
 const slug = runAt.replace(/:/g, '-').replace(/\..+$/, '')
 const outDir = new URL('./results', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1') // fix Windows drive letter
