@@ -1653,23 +1653,6 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 	}
 }
 /**
- * Retrieves bot types based on team name and MyLife status.
- * @modular
- * @param {boolean} isMyLife - Whether request is coming from MyLife Q AVatar
- * @param {string} teamName - The team name, defaults to `mDefaultTeam`
- * @returns {string[]} - The array of bot types
- */
-function mGetBotTypes(isMyLife=false, teamName=mDefaultTeam){
-	const team = mTeamData
-		.find(team=>team.name===teamName)
-	const botTypes = [...mRequiredBotTypes, ...isMyLife ? [] : team?.defaultTypes ?? []]
-	if(team.allowProxy)
-		botTypes.push('proxy', 'external')
-	if(team.allowCustom)
-		botTypes.push('custom')
-	return botTypes
-}
-/**
  * Retrieves any tools and tool-resources that need to be attached to the specific bot-type.
  * @param {Globals} globals - Globals object.
  * @param {string} toolName - Name of tool.
@@ -1697,8 +1680,8 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
  * @returns {void}
  */
 async function mInit(BotAgent, bots, Avatar, factory, llm){
-	const { vectorstoreId, } = BotAgent
-	bots.push(...await mInitBots(vectorstoreId, Avatar, factory, llm))
+	const { teams, vectorstoreId, } = BotAgent
+	bots.push(...await mInitBots(vectorstoreId, Avatar, factory, llm, teams))
 	if(factory.isMyLife){
 		BotAgent.setActiveBot()
 		return
@@ -1714,7 +1697,7 @@ async function mInit(BotAgent, bots, Avatar, factory, llm){
  * @param {LLMServices} llm - The LLMServices instance
  * @returns {Bot[]} - The array of activated and available bots
  */
-async function mInitBots(vectorstore_id, Avatar, factory, llm){
+async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
 	let bots = await factory.bots(Avatar?.id)
 	if(bots?.length){
 		bots = bots.map(botData=>{
@@ -1724,8 +1707,10 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm){
 		})
 	} else {
 		if(factory.isMyLife)
-			throw new Error('MyLife bots not yet implemented')
-		const botTypes = mGetBotTypes(factory.isMyLife)
+			throw new Error('MyLife custom or proxy bots not implemented')
+		const team = teams
+			.find(t=>t.name===mDefaultTeam)
+		const botTypes = [...mRequiredBotTypes, ...team?.defaultTypes ?? []]
 		bots = await Promise.all(
 			botTypes.map(async type=>{
 				const botData = {
