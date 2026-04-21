@@ -10,7 +10,7 @@ import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
 import ConnectorAgent from './agents/system/connector-agent.mjs'
-import { Action, Entry, Issue, Memory, Value, } from './models.mjs'
+import { Action, Entry, Issue, Item, Memory, Stance, Value, } from './models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './llm.mjs'
@@ -22,6 +22,15 @@ const mAllowSave = JSON.parse(
         ?? 'false'
 )
 const mDefaultRoutinePath = path.resolve(path.dirname(__dirpath), '..', 'json-schemas/routines/') + '/'
+const mItemMap = {
+    Action,
+    Entry,
+    Issue,
+    Item,
+    Memory,
+    Stance,
+    Value,
+}
 const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
     mMcpConstant = 'mylife-constant.'
@@ -1135,7 +1144,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise<object>} - The MyLife Tool Call response object
      */
     async llmFunctionCall(name, toolArguments){
-        return await mFunctionCall(name, toolArguments, this.#factory, this)
+        return await mFunctionCall(name, toolArguments, this.#factory, this, this.#llmServices)
     }
     /**
      * Logs out the current session, removing relevant MyLife session artifacts.
@@ -2855,7 +2864,7 @@ function mCreateSystemMessage(botId, message, messageClassDefinition){
  * @param {Avatar} Avatar - The avatar instance (`this`)
  * @returns {Promise<object>} - The MyLife Tool Call response object
  */
-async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
+async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmServices){
     const itemId = toolArguments?.itemId,
         response = { // use `cancelResponse` to end tool call (MyLife system handles) and `deleteThread` to delete temporary conversation, as in actors and scripts
             itemId,
@@ -2887,7 +2896,12 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar){
         case 'createStance':
         case 'createValue':
         case 'itemSummary': {
-            await mFunction_createSummary(response, toolArguments, Avatar)
+            const being = functionName.startsWith('create')
+                ? functionName.replace('create', '')
+                : toolArguments?.form==='entry'
+                    ? 'Entry'
+                    : 'Memory'
+            await mFunction_createSummary(type, response, toolArguments, Avatar, llmServices)
             break
         }
         case 'endReliving': {
@@ -3043,17 +3057,20 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
     }
 }
 /**
- * Handles the 'createStance' function call from the LLM, which creates a summary for a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the summary creation operation.☺
+ * Handles the 'createStance' function call from the LLM, which creates a summary for a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the summary creation operation.
+ * @requires mItemType
+ * @param {string} type - The type of item to create (e.g., 'Action', 'Stance', 'Value', etc.)
  * @param {object} response - The initial response object to be updated based on the function call outcome
- * @param {object} toolArguments - The arguments provided for the 'createStance' function call
+ * @param {object} data - The arguments provided for the 'createStance' function call
  * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @param {LLM} llm - The LLM instance for any necessary processing during item creation
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary creation operation
  */
-async function mFunction_createSummary(response, toolArguments, Avatar){
-    const item = await Avatar.itemCreate(toolArguments)
-    response.success = item?.id?.length
+async function mFunction_createSummary(type, response, data, Avatar, llm){
+    const Item = new mItemMap[type ?? 'Item'](data, Avatar, llm)
+    response.success = await Item.save()
     response.action = response.success
-        ? `Creation was successful; **important AI reference**, REMEMBER itemId: ${ item.id }`
+        ? `Creation was successful; **important AI reference**, REMEMBER itemId: ${ Item.id }; inform member that they can find and click on the item in the appropriate collection list (${ type }) to make it active for discussion and further updates`
         : `error creating summary for given argument title: ${ toolArguments?.title ?? 'New Item' } - DO NOT TRY AGAIN until member asks for it`
 }
 /**

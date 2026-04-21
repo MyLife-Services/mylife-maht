@@ -394,9 +394,14 @@ class Item extends EventEmitter {
      * @returns {Promise<void>}
      */
     async save(data=this.item){
-        await this.#avatar.itemUpdate(data)
+        try {
+            await this.#avatar.itemUpdate(data)
+        } catch(err) {
+            return false
+        }
         this.updateVersion()
         this.#lastSaved = Date.now()
+        return true
     }
     /**
      * Update the item with valid new data.
@@ -986,6 +991,7 @@ export {
     Conversation,
     Entry,
     Issue,
+    Item,
 	Memory,
     Message,
     Share,
