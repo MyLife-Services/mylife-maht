@@ -20,12 +20,16 @@ import { play as play02, score as score02, } from './scores/02-biographer-setup.
 import { play as play03, score as score03, } from './scores/03-memory-creation.mjs'
 import { play as play04, score as score04, } from './scores/04-item-management.mjs'
 import { play as play05, score as score05, } from './scores/05-journaler-setup.mjs'
+import { play as play06, score as score06, } from './scores/06-journaler-item-management.mjs'
+import { play as play07, score as score07, } from './scores/07-cleanup.mjs'
 const scores = [
     { meta: score01, play: play01, },
     { meta: score02, play: play02, },
     { meta: score03, play: play03, },
     { meta: score04, play: play04, },
     { meta: score05, play: play05, },
+    { meta: score06, play: play06, },
+    { meta: score07, play: play07, },
 ]
 const runAt = new Date().toISOString()
 console.log(`\nMyLife Synthetic Testing Harness`)
