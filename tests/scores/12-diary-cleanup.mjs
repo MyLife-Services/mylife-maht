@@ -1,17 +1,17 @@
 /**
- * Score 09 — Diary Cleanup
+ * Score 12 — Diary Cleanup
  *
  * Purpose: Delete the diary entry and retire the diary bot. Destructive
  * actions run first, then both verifications run last via collections(entry)
- * and bots() — same pattern as Score 07 (journaler cleanup).
+ * and bots() — same pattern as Score 08 (journaler cleanup).
  *
- * Depends on: Score 08 (context.diaryEntryId, context.diaryBotId)
+ * Depends on: Score 09 (context.diaryBotId), Score 10 (context.diaryEntryId)
  */
 import { context, request, } from '../lib/session.mjs'
 import { movement, scoreReport, } from '../lib/report.mjs'
 export const score = {
     name: 'Diary Cleanup',
-    number: '09',
+    number: '12',
 }
 function extractInstruction(instructions=[], command){
     return instructions.find(i=>i?.command===command) ?? null
@@ -22,7 +22,7 @@ export async function play(){
     const entryId = context.diaryEntryId
     const botId = context.diaryBotId
     if(!entryId && !botId){
-        console.log('  ✗ Cannot run — no diaryEntryId or diaryBotId in context. Run Score 08 first.')
+        console.log('  ✗ Cannot run — no diaryEntryId or diaryBotId in context. Run Scores 09 and 10 first.')
         return { passed: false, tally: '0/4' }
     }
     /* ── movement 1 — delete the diary entry ── */

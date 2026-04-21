@@ -1,12 +1,12 @@
 /**
- * Score 06 — Journaler Item Management
+ * Score 07 — Journaler Item Management
  *
  * Purpose: Put the created journal entry through a full editorial lifecycle:
  * activate it, change title directly and via chat, update summary directly
  * and via chat (remove and add content), then verify all mutations persisted.
  * Parallel structure to Score 04 (biographer item management) but for entry.
  *
- * Depends on: Score 05 (context.createdEntryId, context.journalerBotId,
+ * Depends on: Score 06 (context.createdEntryId, context.journalerBotId,
  *                        context.journalerActiveBotId, context.verifiedEntry)
  *
  * A synthetic passing this score understands:
@@ -18,9 +18,9 @@ import { context, logTurn, request, } from '../lib/session.mjs'
 import { movement, scoreReport, } from '../lib/report.mjs'
 export const score = {
     name: 'Journaler Item Management',
-    number: '06',
+    number: '07',
 }
-const SCORE_ID = '06'
+const SCORE_ID = '07'
 const mTitlesA = [
     'A Rainy Sunday in April',
     'Two Cold Coffees',

@@ -19,7 +19,7 @@ import { context, request, } from '../lib/session.mjs'
 import { movement, scoreReport, } from '../lib/report.mjs'
 export const score = {
     name: 'Journaler Cleanup',
-    number: '07',
+    number: '08',
 }
 function extractInstruction(instructions=[], command){
     return instructions.find(i=>i?.command===command) ?? null

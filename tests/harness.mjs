@@ -12,6 +12,20 @@
  *   MYLIFE_BASE_URL       defaults to https://mylife.ngrok.app
  *   SYNTHETIC_MBR_ID      defaults to ember|95ade320-e0f7-4cef-a001-9324edcb6e71
  *   SYNTHETIC_PASSPHRASE  defaults to synthetic account passphrase
+ *
+ * Score map:
+ *   01 — Discovery (teams, bots, creatableTypes, member info)
+ *   02 — Biographer Setup (create/locate, rename, activate, routine, interests)
+ *   03 — Memory Creation (fictional Nana Bea memory, collections verify + metadata)
+ *   04 — Item Management / Biographer (activate, title×2, summary×3, verify)
+ *   05 — Journaler Setup (create/locate, rename, activate, routine, interests)
+ *   06 — Journaler Entry Creation (fictional rainy-day entry, collections verify + metadata)
+ *   07 — Journaler Item Management (activate, title×2, summary×3, verify)
+ *   08 — Journaler Cleanup (delete entry, retire bot, verify collections, verify bots)
+ *   09 — Diary Setup (create/locate, rename, activate, routine, interests)
+ *   10 — Diary Entry Creation (fictional Thursday/manager entry, collections verify + metadata)
+ *   11 — Diary Item Management (activate, title×2, summary×3, verify)
+ *   12 — Diary Cleanup (delete entry, retire bot, verify collections, verify bots)
  */
 import { mkdir, writeFile, } from 'node:fs/promises'
 import { context, } from './lib/session.mjs'
@@ -20,10 +34,13 @@ import { play as play02, score as score02, } from './scores/02-biographer-setup.
 import { play as play03, score as score03, } from './scores/03-memory-creation.mjs'
 import { play as play04, score as score04, } from './scores/04-item-management.mjs'
 import { play as play05, score as score05, } from './scores/05-journaler-setup.mjs'
-import { play as play06, score as score06, } from './scores/06-journaler-item-management.mjs'
-import { play as play07, score as score07, } from './scores/07-cleanup.mjs'
-import { play as play08, score as score08, } from './scores/08-diary-setup-and-management.mjs'
-import { play as play09, score as score09, } from './scores/09-diary-cleanup.mjs'
+import { play as play06, score as score06, } from './scores/06-journaler-entry-creation.mjs'
+import { play as play07, score as score07, } from './scores/07-journaler-item-management.mjs'
+import { play as play08, score as score08, } from './scores/08-journaler-cleanup.mjs'
+import { play as play09, score as score09, } from './scores/09-diary-setup.mjs'
+import { play as play10, score as score10, } from './scores/10-diary-entry-creation.mjs'
+import { play as play11, score as score11, } from './scores/11-diary-item-management.mjs'
+import { play as play12, score as score12, } from './scores/12-diary-cleanup.mjs'
 const scores = [
     { meta: score01, play: play01, },
     { meta: score02, play: play02, },
@@ -34,6 +51,9 @@ const scores = [
     { meta: score07, play: play07, },
     { meta: score08, play: play08, },
     { meta: score09, play: play09, },
+    { meta: score10, play: play10, },
+    { meta: score11, play: play11, },
+    { meta: score12, play: play12, },
 ]
 const runAt = new Date().toISOString()
 console.log(`\nMyLife Synthetic Testing Harness`)
