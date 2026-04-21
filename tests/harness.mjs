@@ -26,6 +26,7 @@
  *   10 — Diary Entry Creation (fictional Thursday/manager entry, collections verify + metadata)
  *   11 — Diary Item Management (activate, title×2, summary×3, verify)
  *   12 — Diary Cleanup (delete entry, retire bot, verify collections, verify bots)
+ *   13 — Political Team Setup (activate team, implicit setActiveBot, routine if firstAccess, verify bots)
  */
 import { mkdir, writeFile, } from 'node:fs/promises'
 import { context, } from './lib/session.mjs'
@@ -41,6 +42,7 @@ import { play as play09, score as score09, } from './scores/09-diary-setup.mjs'
 import { play as play10, score as score10, } from './scores/10-diary-entry-creation.mjs'
 import { play as play11, score as score11, } from './scores/11-diary-item-management.mjs'
 import { play as play12, score as score12, } from './scores/12-diary-cleanup.mjs'
+import { play as play13, score as score13, } from './scores/13-political-team-setup.mjs'
 const scores = [
     { meta: score01, play: play01, },
     { meta: score02, play: play02, },
@@ -54,6 +56,7 @@ const scores = [
     { meta: score10, play: play10, },
     { meta: score11, play: play11, },
     { meta: score12, play: play12, },
+    { meta: score13, play: play13, },
 ]
 const runAt = new Date().toISOString()
 console.log(`\nMyLife Synthetic Testing Harness`)
