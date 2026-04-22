@@ -979,7 +979,7 @@ class Globals {
                 const { createItem, } = functions
                 if(typeof createItem!=='function')
                     return
-                createItem()
+                createItem(item)
                 return
             }
             case 'endLiving': // server has already ended, call frontend cleanup

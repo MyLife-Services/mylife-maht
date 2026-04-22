@@ -22,15 +22,15 @@
                 "maximum": 10
             },
             "form": {
-                "default": "personal",
-                "description": "Primary form of `action`, which may be one of: `petition`, `protest`, `donation`, `volunteering`, `education`, or `other`; if multiple, use comma-separated string with all relevant forms",
+                "description": "Primary form the `action` takes; if multiple, use comma-separated string with all relevant forms",
                 "type": "string",
                 "enum": [
-                    "environmental",
-                    "personal",
-                    "political",
-                    "relational",
-                    "social",
+                    "donation",
+                    "education",
+                    "employment",
+                    "petition",
+                    "protest",
+                    "volunteering",
                     "other"
                 ]
             },
@@ -84,9 +84,17 @@
                 "type": "string"
             },
             "type": {
-                "const": "action",
-                "description": "MyLife System type of `action`, always `action` for this function",
-                "type": "string"
+                "default": "personal",
+                "description": "Primary type of `action`; if multiple, use comma-separated string with all relevant types",
+                "type": "string",
+                "enum": [
+                    "environmental",
+                    "personal",
+                    "political",
+                    "relational",
+                    "social",
+                    "other"
+                ]
             },
             "values": {
                 "default": [],

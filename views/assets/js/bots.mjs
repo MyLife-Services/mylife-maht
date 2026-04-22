@@ -114,13 +114,15 @@ function getAction(type='avatar'){
                 callback: async function(event){
                     const actionButton = event.target
                     actionButton.disabled = true
-                    const response = await submit('## PRINT\nCreate the summary from our conversation since the last saved memory.')
+                    const response = await submit('## CREATE\nCreate the summary from our conversation since the last saved memory.')
                     unsetActiveAction()
                     if(!response?.success)
                         addMessage('An error occurred while talking to the server. Try again.', 'error')
                     else {
-                        const { instructions, item, responses: botResponses, } = response
-                        enactInstruction(instructions, 'chat', { createItem: item ? () => createItem(item) : undefined, })
+                        const { instructions, item: responseItem, responses: botResponses, } = response // @todo - deprecate response.item, always bundle in instructions for precision and flexibility
+                        if(responseItem)
+                            instructions.forEach(instruction=>instruction.item ??= responseItem)
+                        enactInstruction(instructions, 'chat', { createItem, })
                         addMessages(botResponses, type)
                     }
                 },
