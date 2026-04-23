@@ -907,6 +907,14 @@ input:checked + .publicity-slider:before {
     flex: 0 1 auto;
     max-width: 50%;
 }
+.input-group label.input-group-title {
+    display: flex;
+    flex: 1 1 auto;
+    font-weight: bold;
+    font-size: 1.0rem;
+    max-width: 100%;
+    width: 100%;
+}
 .input-group textarea {
     display: flex;
     flex: 1 1 auto;
@@ -916,14 +924,6 @@ input:checked + .publicity-slider:before {
     min-width: 50%;
     resize: vertical; /* Allow vertical resizing only */
     height: fit-content; /* Default height */
-}
-.input-group-title {
-    display: flex;
-    flex: 1 1 auto;
-    font-weight: bold;
-    font-size: 1.0rem;
-    max-width: 100%;
-    width: 100%;
 }
 input[type="range"] {
     -webkit-appearance: none;

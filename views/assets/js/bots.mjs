@@ -78,7 +78,6 @@ async function init(){
         throw new Error(`ERROR: No bots returned from server`)
     mBots = bots
     await getActiveTeam() // sets activeTeam()
-    // bring back setActiveTeam display elements
 }
 /**
  * Get active bot.

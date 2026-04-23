@@ -361,24 +361,12 @@ class Bot {
 			this.#firstAccess = false
 		}
 	}
-	/**
-	 * Gets the agent card.
-	 * @getter
-	 */
 	get agentCard(){
 		return this.isProxy ? standardizeA2ACard(this.card) : null
 	}
-	/**
-	 * Gets the agent endpoint.
-	 * @getter
-	 */
 	get agentEndpoint(){
 		return this.agentCard?.url
 	}
-	/**
-	 * Gets the agent instructions.
-	 * @getter
-	 */
 	get agentInstructions(){
 		return this.#agentInstructions
 	}
@@ -387,15 +375,20 @@ class Bot {
 	 * @getter
 	 */
 	get bot() {
-		const { access, buttons, card, description, flags, icon, id, interests, itemForms, name, options, purpose, retirable, skills, type, url, version, } = this
-		const bot = {
+		return {
+			...this.botVariables,
+			...this.botCore,
+		}
+	}
+	get botCore(){
+		const { access, buttons, card, description, flags, icon, id, itemForms, name, options, purpose, retirable, skills, type, url, version, } = this
+		return {
 			access,
 			buttons,
 			description,
 			flags,
 			icon,
 			id,
-			interests,
 			itemForms,
 			name,
 			options,
@@ -408,7 +401,15 @@ class Bot {
 				?? card?.version
 				?? '1.0',
 		}
-		return bot
+	}
+	get botVariables(){
+		const { options, } = this
+		const optionVariables = {}
+		this.options?.forEach(option=>{
+			if(option.variable && typeof option.variable === 'string')
+				optionVariables[option.variable] = this[option.variable]
+		})
+		return optionVariables
 	}
 	/**
 	 * Gets the bot's buttons from the factory based on bot type, or an empty array if no buttons are found. This is _not_ written to local memory space, as it is global, generic and not currently overwritten.

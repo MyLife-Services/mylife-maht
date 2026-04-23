@@ -330,6 +330,7 @@ class File extends EventEmitter {
  */
 class Item extends EventEmitter {
     #additionalProperties
+    #assistantType
     #availableTypes=['entry', 'memory']
     #avatar
     #being
@@ -364,12 +365,14 @@ class Item extends EventEmitter {
         this.#llmServices = llmServices
         item = this.#avatar.sanitize(item)
         const {
+            assistantType,
             being,
             complete,
             content,
             form,
             id=this.#avatar.newGuid,
             mbr_id,
+            name,
             summary='',
             type,
             version=mVersion,
@@ -386,6 +389,8 @@ class Item extends EventEmitter {
         this.#type = type
         this.#version = version
         this.#avatar.populateObject(this, this.#additionalProperties)
+        this.#assistantType = assistantType
+            ?? this.#avatar.getAssistantType(form, type)
         this.#name = `${ this.type }_${ this.title ?? 'Untitled' }_${ this.mbr_id }_${ this.id }`
     }
     /* public functions */
@@ -443,6 +448,9 @@ class Item extends EventEmitter {
     get availableTypes(){
         return this.#availableTypes
     }
+    get assistantType(){
+        return this.#assistantType
+    }
     get being(){
         return this.#being
     }
@@ -467,12 +475,14 @@ class Item extends EventEmitter {
     }
     get itemCore(){
         return {
+            assistantType: this.assistantType,
             being: this.being,
             complete: this.complete,
             content: this.content,
             form: this.form,
             id: this.id,
             mbr_id: this.mbr_id,
+            name: this.#name,
             summary: this.summary,
             type: this.type,
             version: this.version,
@@ -482,14 +492,10 @@ class Item extends EventEmitter {
         return {
             ...this.#additionalProperties,
             ...this.itemCore,
-            name: this.#name,
         }
     }
     get mbr_id(){
         return this.#mbr_id
-    }
-    get name(){
-        return this.#name
     }
     get summary(){
         return this.#summary
@@ -520,14 +526,11 @@ class Item extends EventEmitter {
     }
 }
 class Action extends Item {
-    #availableTypes=['environmental', 'personal', 'political', 'relational', 'social', 'other']
+    #availableForms=['environmental', 'personal', 'political', 'relational', 'social', 'other']
     constructor(item, avatar, llmServices){
         item.being = 'action'
+        item.type = 'action'
         super(item, avatar, llmServices)
-    }
-    /* public functions */
-    allowedType(type){
-        return this.#availableTypes.includes(type)
     }
 }
 class Entry extends Item {

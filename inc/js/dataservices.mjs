@@ -211,6 +211,13 @@ class Dataservices {
 	async challengeAccess(mbr_id, passphrase, caseInsensitive){
 		return await this.datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
 	}
+	/**
+	 * Proxy to retrieve stored actions.
+	 * @returns {Object[]} - The collection of actions
+	 */
+	async collectionActions(){
+		return await this.getItems('action')
+	}
 	async collectionAssistantType(type){
 
 	}
@@ -314,7 +321,9 @@ class Dataservices {
 					.catch(err=>{
 						console.log('Dataservices::collections()::error', err)
 						return []
-					})				
+					})
+			case 'action':
+				return await this.collectionActions()
 			case 'chat':
 			case 'conversation':
 				return await this.collectionConversations()

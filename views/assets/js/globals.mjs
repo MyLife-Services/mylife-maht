@@ -932,7 +932,6 @@ class Globals {
      * @returns {void}
      */
     enactInstruction(instruction, functions={}){
-        console.log('enacting instruction', instruction, functions)
         if(Array.isArray(instruction))
             return instruction.forEach(i=>this.enactInstruction(i, functions) ) // always void return, these are command-only instructions
         const { command, id, input, inputs=[], item, itemId, livingMemoryId, summary, title, } = instruction
@@ -979,6 +978,7 @@ class Globals {
                 const { createItem, } = functions
                 if(typeof createItem!=='function')
                     return
+                console.log('Globals::creating item', item)
                 createItem(item)
                 return
             }

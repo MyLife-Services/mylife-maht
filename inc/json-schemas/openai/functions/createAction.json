@@ -5,6 +5,19 @@
         "additionalProperties": false,
         "type": "object",
         "properties": {
+            "activity": {
+                "description": "Primary activity the `action` takes; if multiple, use comma-separated string with all relevant activities",
+                "type": "string",
+                "enum": [
+                    "donation",
+                    "education",
+                    "employment",
+                    "petition",
+                    "protest",
+                    "volunteering",
+                    "other"
+                ]
+            },
             "content": {
                 "description": "Include entire, or snippets, original Member conversation regarding this `action`",
                 "type": "string"
@@ -22,15 +35,15 @@
                 "maximum": 10
             },
             "form": {
-                "description": "Primary form the `action` takes; if multiple, use comma-separated string with all relevant forms",
+                "default": "personal",
+                "description": "Primary type of `action`; if multiple, use comma-separated string with all relevant types",
                 "type": "string",
                 "enum": [
-                    "donation",
-                    "education",
-                    "employment",
-                    "petition",
-                    "protest",
-                    "volunteering",
+                    "environmental",
+                    "personal",
+                    "political",
+                    "relational",
+                    "social",
                     "other"
                 ]
             },
@@ -84,17 +97,9 @@
                 "type": "string"
             },
             "type": {
-                "default": "personal",
-                "description": "Primary type of `action`; if multiple, use comma-separated string with all relevant types",
-                "type": "string",
-                "enum": [
-                    "environmental",
-                    "personal",
-                    "political",
-                    "relational",
-                    "social",
-                    "other"
-                ]
+                "const": "action",
+                "description": "Type of item, in this FORCE `action`",
+                "type": "string"
             },
             "values": {
                 "default": [],
@@ -107,6 +112,7 @@
             }
         },
         "required": [
+            "activity",
             "content",
             "conviction",
             "ease_of_execution",

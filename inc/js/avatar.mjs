@@ -522,17 +522,17 @@ class Avatar extends EventEmitter {
                 break
             }
             case 'post': { /* create */
-                itemData.assistantType = assistantType
-                    ?? this.#botAgent.getAssistantType(form, type)
                 message.message = `I encountered an error while creating: "${ title ?? itemId }".`
                 Item = mItem(itemData, this, this.#llmServices)
                 success = !!Item && globals.isValidGuid(Item?.id)
                 if(!success)
                     break
                 Item.create() // remove `await`
-                this.frontendInstructions = { command: 'createItem', itemId, }
+                this.frontendInstructions = { command: 'createItem', item: Item.item, itemId, }
                 message.message = `Item successfully created: "${ Item.title }".`
                 success = true
+                if(!raw)
+                    Item = null
                 break
             }
             case 'put': { /* update */
@@ -545,9 +545,11 @@ class Avatar extends EventEmitter {
                 if(!success)
                     break
                 Item.update(itemData, true) // no await needed
-                this.frontendInstructions = { command: 'updateItem', itemId, }
+                this.frontendInstructions = { command: 'updateItem', item: Item.item, itemId, }
                 message.message = `I have successfully updated: "${ Item.title }".`
                 success = true
+                if(!raw)
+                    Item = null
                 break
             }
             case 'get':
@@ -844,7 +846,7 @@ class Avatar extends EventEmitter {
             await this.#assetAgent.init(this.#vectorstoreId)
             return this.#assetAgent.files
         }
-        const collections = ( await this.#factory.collections(type) )
+        const collections = ( await this.#factory.collections(type) ?? [] )
             .map(item=>{
                 switch(type){
                     case 'entry':
@@ -1003,6 +1005,15 @@ class Avatar extends EventEmitter {
     async genericBot(botType='avatar'){
         const bot = await this.#botAgent.genericBot(botType)
         return bot
+    }
+    /**
+     * Returns the assistant type for a given form and type, using the bot agent's getAssistantType function.
+     * @param {String} form - The form for which to get the assistant type
+     * @param {String} type - The type for which to get the assistant type
+     * @return {String} - The assistant type for the given form and type
+     */
+    getAssistantType(form, type){
+        return this.#botAgent.getAssistantType(form, type)
     }
     /**
      * Specified by id, returns the pruned Bot.
@@ -3096,7 +3107,7 @@ async function mFunction_createSummary(type, response, data, Avatar, llm){
     const Item = new mItemMap[type ?? 'Item'](data, Avatar, llm)
     response.success = await Item.save()
     if(response.success){
-        Avatar.frontendInstructions = { command: 'createItem', itemId: Item.id, item: Item.item, }
+        Avatar.frontendInstructions = { command: 'createItem', itemId: Item.id, item: mPruneItem(Item.item), }
         response.action = `Creation was successful; **important AI reference**, REMEMBER itemId: ${ Item.id }; inform member that they can find and click on the item in the appropriate collection list (${ type }) to make it active for discussion and further updates`
     } else
         response.action = `error creating summary for given argument title: ${ data?.title ?? 'New Item' } - DO NOT TRY AGAIN until member asks for it`
@@ -3115,7 +3126,7 @@ async function mFunction_getSummary(response, Avatar){
             throw new Error(`No summary found for item ${ itemId }`)
         response.item = summaryOnly
             ? { id: item.id, summary: item.summary, }
-            : item
+            : mPruneItem(item)
         response.action = 'Requested content found in `item` field, share info with member'
         response.success = true
     } catch(err) { // on fail, send back the current collection with `{ id, title, }` in order to suffuse intelligence with most recent options
