@@ -30,6 +30,10 @@
  *   14 — Stance Creation (fictional housing policy stance, collections verify + metadata)
  *   15 — Stance Item Management (activate, title×2, summary append/remove/add, verify)
  *   16 — Political Cleanup (delete stance item, verify collections — no bot retirement, retirable:false)
+ *   17 — Activism Setup (create, rename, activate, routine, preferences — retirable:true)
+ *   18 — Action Creation (fictional housing civic action plan, collections verify + metadata)
+ *   19 — Action Item Management (activate, title×2, summary append/remove/add, verify)
+ *   20 — Activism Cleanup (delete action, retire bot, verify collections, verify bots)
  */
 import { mkdir, writeFile, } from 'node:fs/promises'
 import { context, } from './lib/session.mjs'
@@ -49,6 +53,10 @@ import { play as play13, score as score13, } from './scores/13-political-team-se
 import { play as play14, score as score14, } from './scores/14-stance-creation.mjs'
 import { play as play15, score as score15, } from './scores/15-stance-item-management.mjs'
 import { play as play16, score as score16, } from './scores/16-political-cleanup.mjs'
+import { play as play17, score as score17, } from './scores/17-activism-setup.mjs'
+import { play as play18, score as score18, } from './scores/18-action-creation.mjs'
+import { play as play19, score as score19, } from './scores/19-action-item-management.mjs'
+import { play as play20, score as score20, } from './scores/20-activism-cleanup.mjs'
 const scores = [
     { meta: score01, play: play01, },
     { meta: score02, play: play02, },
@@ -66,6 +74,10 @@ const scores = [
     { meta: score14, play: play14, },
     { meta: score15, play: play15, },
     { meta: score16, play: play16, },
+    { meta: score17, play: play17, },
+    { meta: score18, play: play18, },
+    { meta: score19, play: play19, },
+    { meta: score20, play: play20, },
 ]
 const runAt = new Date().toISOString()
 console.log(`\nMyLife Synthetic Testing Harness`)
