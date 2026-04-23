@@ -27,9 +27,9 @@ class ConnectorAgent {
 	        if(nandaEmail?.length && nandaPassword?.length){
 	            this.#nandaEmail = nandaEmail
 	            this.#nandaPassword = nandaPassword
-	            const nandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init(nandaEmail, nandaPassword)
-	            if(nandaRegistry?.authorized)
-	                this.#nandaRegistry = nandaRegistry
+	            const registryClient = await new nandaRegistry(mNandaRegistryUrl).init(nandaEmail, nandaPassword)
+	            if(registryClient?.authorized)
+	                this.#nandaRegistry = registryClient
 	        }
 		} catch(err) {
 			console.error('CONNECTION-AGENT::Init() ERROR', err)
