@@ -246,6 +246,10 @@ class nandaRegistry {
 }
 /* modular functions */
 /* bootstrapped functions */
-mNandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init()
+try{
+	mNandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init()
+} catch(err) {
+	console.error('connector-agent.mjs::bootstrap::mNandaRegistry ERROR::', err)
+}
 /* module exports */
 export default ConnectorAgent
