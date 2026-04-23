@@ -211,6 +211,13 @@ class Dataservices {
 	async challengeAccess(mbr_id, passphrase, caseInsensitive){
 		return await this.datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
 	}
+	/**
+	 * Proxy to retrieve stored actions.
+	 * @returns {Object[]} - The collection of actions
+	 */
+	async collectionActions(){
+		return await this.getItems('action')
+	}
 	async collectionAssistantType(type){
 
 	}
@@ -314,7 +321,9 @@ class Dataservices {
 					.catch(err=>{
 						console.log('Dataservices::collections()::error', err)
 						return []
-					})				
+					})
+			case 'action':
+				return await this.collectionActions()
 			case 'chat':
 			case 'conversation':
 				return await this.collectionConversations()
@@ -625,8 +634,10 @@ class Dataservices {
 			?? data.id
 		if(!id?.length)
 			throw new Error('Dataservices::patch()::id required for patch operation.')
+		const etag = data._etag
+		delete data._etag
 		for(const key of Object.keys(data)){
-			if(['id', 'being', 'mbr_id'].includes(key))
+			if(['being', 'id', 'mbr_id'].includes(key))
 				continue
 			let op = 'add'
 			const value = data[key]
@@ -649,7 +660,7 @@ class Dataservices {
 		}
 		let endResult
 		for(const batch of patchBatches){ // Perform the patch operation(s) for each batch
-			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id)
+			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id, etag)
 		}
 		return endResult
 	}
@@ -660,10 +671,11 @@ class Dataservices {
 	 * @param {Array<Object>} data - The data for patching, including the path and operation
 	 * @param {string} containerId - The container to use, overriding default
 	 * @param {string} partitionId - The partition ID to use, overriding default
+	 * @param {string} etag - The ETag value for concurrency control, optional but recommended to prevent conflicts
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(id, data, containerId, partitionId){
-		return await this.datamanager.patchItem(id, data, containerId, partitionId)
+	async patchItem(id, data, containerId, partitionId, etag){
+		return await this.datamanager.patchItem(id, data, containerId, partitionId, etag)
 	}
     /**
      * Pushes a new item to the data manager.

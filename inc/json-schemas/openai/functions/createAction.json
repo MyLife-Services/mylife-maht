@@ -5,6 +5,19 @@
         "additionalProperties": false,
         "type": "object",
         "properties": {
+            "activity": {
+                "description": "Primary activity the `action` takes; if multiple, use comma-separated string with all relevant activities",
+                "type": "string",
+                "enum": [
+                    "donation",
+                    "education",
+                    "employment",
+                    "petition",
+                    "protest",
+                    "volunteering",
+                    "other"
+                ]
+            },
             "content": {
                 "description": "Include entire, or snippets, original Member conversation regarding this `action`",
                 "type": "string"
@@ -23,7 +36,7 @@
             },
             "form": {
                 "default": "personal",
-                "description": "Primary form of `action`, which may be one of: `petition`, `protest`, `donation`, `volunteering`, `education`, or `other`; if multiple, use comma-separated string with all relevant forms",
+                "description": "Primary type of `action`; if multiple, use comma-separated string with all relevant types",
                 "type": "string",
                 "enum": [
                     "environmental",
@@ -85,7 +98,7 @@
             },
             "type": {
                 "const": "action",
-                "description": "MyLife System type of `action`, always `action` for this function",
+                "description": "Type of item, in this FORCE `action`",
                 "type": "string"
             },
             "values": {
@@ -99,6 +112,7 @@
             }
         },
         "required": [
+            "activity",
             "content",
             "conviction",
             "ease_of_execution",

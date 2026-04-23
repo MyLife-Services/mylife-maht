@@ -522,17 +522,17 @@ class Avatar extends EventEmitter {
                 break
             }
             case 'post': { /* create */
-                itemData.assistantType = assistantType
-                    ?? this.#botAgent.getAssistantType(form, type)
                 message.message = `I encountered an error while creating: "${ title ?? itemId }".`
                 Item = mItem(itemData, this, this.#llmServices)
                 success = !!Item && globals.isValidGuid(Item?.id)
                 if(!success)
                     break
                 Item.create() // remove `await`
-                this.frontendInstructions = { command: 'createItem', itemId, }
+                this.frontendInstructions = { command: 'createItem', item: Item.item, itemId, }
                 message.message = `Item successfully created: "${ Item.title }".`
                 success = true
+                if(!raw)
+                    Item = null
                 break
             }
             case 'put': { /* update */
@@ -545,9 +545,11 @@ class Avatar extends EventEmitter {
                 if(!success)
                     break
                 Item.update(itemData, true) // no await needed
-                this.frontendInstructions = { command: 'updateItem', itemId, }
+                this.frontendInstructions = { command: 'updateItem', item: Item.item, itemId, }
                 message.message = `I have successfully updated: "${ Item.title }".`
                 success = true
+                if(!raw)
+                    Item = null
                 break
             }
             case 'get':
@@ -844,7 +846,7 @@ class Avatar extends EventEmitter {
             await this.#assetAgent.init(this.#vectorstoreId)
             return this.#assetAgent.files
         }
-        const collections = ( await this.#factory.collections(type) )
+        const collections = ( await this.#factory.collections(type) ?? [] )
             .map(item=>{
                 switch(type){
                     case 'entry':
@@ -1005,6 +1007,15 @@ class Avatar extends EventEmitter {
         return bot
     }
     /**
+     * Returns the assistant type for a given form and type, using the bot agent's getAssistantType function.
+     * @param {String} form - The form for which to get the assistant type
+     * @param {String} type - The type for which to get the assistant type
+     * @return {String} - The assistant type for the given form and type
+     */
+    getAssistantType(form, type){
+        return this.#botAgent.getAssistantType(form, type)
+    }
+    /**
      * Specified by id, returns the pruned Bot.
      * @param {Guid} botId - The Bot id, defaults to active bot
      * @param {boolean} returnClassInstance - Whether to return the full Bot class instance, defaults to `false`
@@ -1135,7 +1146,10 @@ class Avatar extends EventEmitter {
      * @returns {Promise<object>} - The saved item object
      */
     async itemUpdate(item){
-        return await this.#factory.updateItem(item)
+        let _item
+		if(item instanceof Item)
+            _item = mExtractItemDataDiff(item.item, this.#factory)
+        return await this.#factory.updateItem(_item ?? item)
     }
     /**
      * Processes a tool call from the LLM and returns the response.
@@ -2763,7 +2777,6 @@ function mAddInstruction(instructions=[], instruction){
         return instructions
     const lastWins = new Set(['endLiving', 'endMemory', 'endReliving', 'setActiveBot', 'updateItem', 'updateItemSummary', 'updateItemTitle'])
     const { command, } = instruction
-    delete instruction.item
     if(lastWins.has(command))
         instructions = instructions.filter(i=>i.command!==command)
     instructions.push(instruction)
@@ -2857,6 +2870,26 @@ function mCreateSystemMessage(botId, message, messageClassDefinition){
     return message
 }
 /**
+ * Creates item data diff object for updateItem calls, comparing current item data with saved item data and returning only the fields that have changed.
+ * @param {object} item - Item data already extracted from class
+ * @param {Factory} factory - The factory instance, used to retrieve saved item data for comparison
+ * @returns 
+ */
+async function mExtractItemDataDiff(item, factory){
+    const updatedItem = {
+        id: item.id,
+    }
+    const savedItem = await factory.item(updatedItem.id)
+     for(const key of Object.keys(item)){
+        const newValue = item[key]
+        if(key==='id' || newValue===savedItem[key])
+            continue
+        updatedItem[key] = newValue
+    }
+    updatedItem._etag = savedItem._etag
+    return updatedItem
+}
+/**
  * Processes a tool call from the LLM and returns the response.
  * @param {string} functionName - The name of the function to call
  * @param {object} toolArguments - The required arguments for the function call
@@ -2893,10 +2926,14 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             break
         }
         case 'createAction':
+        case 'createEntry':
+        case 'createIssue':
+        case 'createItem':
+        case 'createMemory':
         case 'createStance':
         case 'createValue':
         case 'itemSummary': {
-            const being = functionName.startsWith('create')
+            const type = functionName.startsWith('create')
                 ? functionName.replace('create', '')
                 : toolArguments?.form==='entry'
                     ? 'Entry'
@@ -3057,11 +3094,11 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
     }
 }
 /**
- * Handles the 'createStance' function call from the LLM, which creates a summary for a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the summary creation operation.
+ * Handles various createItem function calls from the LLM, which creates a summary for a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the summary creation operation.
  * @requires mItemType
  * @param {string} type - The type of item to create (e.g., 'Action', 'Stance', 'Value', etc.)
  * @param {object} response - The initial response object to be updated based on the function call outcome
- * @param {object} data - The arguments provided for the 'createStance' function call
+ * @param {object} data - The arguments provided for the function call
  * @param {Avatar} Avatar - The avatar instance (`this`)
  * @param {LLM} llm - The LLM instance for any necessary processing during item creation
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary creation operation
@@ -3069,9 +3106,11 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
 async function mFunction_createSummary(type, response, data, Avatar, llm){
     const Item = new mItemMap[type ?? 'Item'](data, Avatar, llm)
     response.success = await Item.save()
-    response.action = response.success
-        ? `Creation was successful; **important AI reference**, REMEMBER itemId: ${ Item.id }; inform member that they can find and click on the item in the appropriate collection list (${ type }) to make it active for discussion and further updates`
-        : `error creating summary for given argument title: ${ toolArguments?.title ?? 'New Item' } - DO NOT TRY AGAIN until member asks for it`
+    if(response.success){
+        Avatar.frontendInstructions = { command: 'createItem', itemId: Item.id, item: mPruneItem(Item.item), }
+        response.action = `Creation was successful; **important AI reference**, REMEMBER itemId: ${ Item.id }; inform member that they can find and click on the item in the appropriate collection list (${ type }) to make it active for discussion and further updates`
+    } else
+        response.action = `error creating summary for given argument title: ${ data?.title ?? 'New Item' } - DO NOT TRY AGAIN until member asks for it`
 }
 /**
  * Handles the 'getSummary' function call from the LLM, which retrieves the summary of a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the retrieval operation.
@@ -3087,7 +3126,7 @@ async function mFunction_getSummary(response, Avatar){
             throw new Error(`No summary found for item ${ itemId }`)
         response.item = summaryOnly
             ? { id: item.id, summary: item.summary, }
-            : item
+            : mPruneItem(item)
         response.action = 'Requested content found in `item` field, share info with member'
         response.success = true
     } catch(err) { // on fail, send back the current collection with `{ id, title, }` in order to suffuse intelligence with most recent options

@@ -474,13 +474,13 @@ async function mAddMemberMessage(event){
     mAddMessage(memberMessage, 'member', 7)
     /* server request */
     const response = await submit(memberMessage)
-    let { instructions, item, responses=[], success=false, } = response
+    let { instructions, responses=[], success=false, } = response
     if(!success && !responses.length)
         mAddMessage('I\'m sorry, I didn\'t understand that, something went wrong on the server. Please try again.')
     if(instructions?.length)
         enactInstruction(instructions, 'chat', {
-            createItem: item ? () => createItem(item) : undefined,
-            updateItem: item ? () => updateItem(item) : undefined,
+            createItem,
+            updateItem,
             updateItemSummary,
             updateItemTitle,
         })
@@ -636,7 +636,7 @@ async function mAddMessage(message, role='agent', typeDelay=2){
             chatFeedbackPositive.classList.remove('fa-spinner', 'spin')
             chatFeedbackPositive.classList.add(baseClass)
         }, 15000)
-        const saveMessage = `## PRINT\n${ message }\n`
+        const saveMessage = `## CREATE\n${ message }\n`
         const success = await submit(saveMessage, false)
         clearTimeout(feedbackTimeout)
         const successClass = success ? 'fa-check' : 'fa-exclamation-triangle'

@@ -1,8 +1,7 @@
 /* imports */
 import { EventEmitter } from 'events'
 /* module constants */
-const mAvailableForms = ['entry', 'memory'],
-    mBeing = `story`,
+const mBeing = `story`,
     mShareGratitude = `Thank you for letting us share this narrative with you! I hope you enjoyed it as much as I did.`,
     mShareScopes = ['group', 'members', 'private', 'public'],
     mVersion = 1.00
@@ -331,16 +330,20 @@ class File extends EventEmitter {
  */
 class Item extends EventEmitter {
     #additionalProperties
-    #availableForms = mAvailableForms
+    #assistantType
+    #availableTypes=['entry', 'memory']
     #avatar
     #being
     #complete=false
+    #content
     #created=Date.now()
     #form
     #id
+    #immutableFields=['availableTypes', 'being', 'complete', 'id', 'item', 'itemCore', 'mbr_id', 'name', 'type', 'unsavedDuration', 'version'] // **note**: Avatar.populateObject() will prevent overwriting functions
     #lastSaved
     #llmServices
     #mbr_id
+    #name
     #summary
     #type
     #version
@@ -362,11 +365,14 @@ class Item extends EventEmitter {
         this.#llmServices = llmServices
         item = this.#avatar.sanitize(item)
         const {
+            assistantType,
             being,
             complete,
+            content,
             form,
             id=this.#avatar.newGuid,
             mbr_id,
+            name,
             summary='',
             type,
             version=mVersion,
@@ -375,6 +381,7 @@ class Item extends EventEmitter {
         this.#additionalProperties = additionalProperties
         this.#being = being
             ?? mBeing
+        this.#content = content
         this.#form = form
         this.#id = id
         this.#mbr_id = avatar.mbr_id
@@ -382,24 +389,32 @@ class Item extends EventEmitter {
         this.#type = type
         this.#version = version
         this.#avatar.populateObject(this, this.#additionalProperties)
+        this.#assistantType = assistantType
+            ?? this.#avatar.getAssistantType(form, type)
+        this.#name = `${ this.type }_${ this.title ?? 'Untitled' }_${ this.mbr_id }_${ this.id }`
     }
     /* public functions */
+    allowedType(type){
+        return this.#availableTypes.includes(type)
+    }
     async create(){
         await this.#avatar.itemCreate(this.item)
         this.#lastSaved = Date.now()
+        return true
     }
     /**
      * Save the item to the datacore, and updates the next mechanical version.
-     * @param {object} data - Data object describing fields to be saved (optional), defaults to allowable fields
-     * @returns {Promise<void>}
+     * @returns {Promise<boolean>} - Returns true if save was successful, false if an error occurred
      */
-    async save(data=this.item){
+    async save(){
         try {
-            await this.#avatar.itemUpdate(data)
+            this.#lastSaved
+                ? await this.update(this.item)
+                : await this.create()
         } catch(err) {
+            console.log('Error saving item:', err)
             return false
         }
-        this.updateVersion()
         this.#lastSaved = Date.now()
         return true
     }
@@ -410,12 +425,13 @@ class Item extends EventEmitter {
      * @returns {Promise<void>}
      */
     async update(data, save=true){
-        delete data.itemId
-        const immutableFields = ['being', 'id', 'mbr_id', 'type']
-        this.#avatar.populateObject(this, data, immutableFields)
-        this.updateVersion()
+        const clean = { ...data, }
+        delete clean.itemId
+        if(data!==this.item)
+            this.#avatar.populateObject(this, clean, this.#immutableFields)
         if(save)
-            await this.save(data)
+            await this.#avatar.itemUpdate({...clean, id: this.id, })
+        this.updateVersion()
     }
     /**
      * Update the item version.
@@ -429,25 +445,44 @@ class Item extends EventEmitter {
             this.#version = Math.floor(this.#version) + 1.0
     }
     /* getters/setters */
+    get availableTypes(){
+        return this.#availableTypes
+    }
+    get assistantType(){
+        return this.#assistantType
+    }
     get being(){
         return this.#being
     }
     get complete(){
         return this.#complete
     }
+    get content(){
+        return this.#content
+    }
+    set content(value){
+        if(typeof value==='string' && value?.length)
+            this.#content = value
+    }
     get form(){
         return this.#form
+    }
+    set form(value){ /* @stub - currently no gates on form */
+        this.#form = value
     }
     get id(){
         return this.#id
     }
     get itemCore(){
         return {
+            assistantType: this.assistantType,
             being: this.being,
             complete: this.complete,
+            content: this.content,
             form: this.form,
             id: this.id,
             mbr_id: this.mbr_id,
+            name: this.#name,
             summary: this.summary,
             type: this.type,
             version: this.version,
@@ -483,7 +518,7 @@ class Item extends EventEmitter {
         return this.#type
     }
     set type(value){
-        if(this.#availableForms.indexOf(value)!==-1)
+        if(this.allowedType(value))
             this.#type = value
     }
     get version(){
@@ -491,75 +526,54 @@ class Item extends EventEmitter {
     }
 }
 class Action extends Item {
-    #steps
+    #availableForms=['environmental', 'personal', 'political', 'relational', 'social', 'other']
     constructor(item, avatar, llmServices){
         item.being = 'action'
-        const { steps, ..._item } = item
-        super(_item, avatar, llmServices)
-        this.#steps = steps
-    }
-    /* getters/setters */
-    get itemCore(){
-        return {
-            ...super.itemCore,
-            steps: this.steps,
-        }
-    }
-    get steps(){
-        return this.#steps
+        item.type = 'action'
+        super(item, avatar, llmServices)
     }
 }
 class Entry extends Item {
-    #content
     constructor(item, avatar, llmServices){
-        const { content, ..._item } = item
-        _item.type = 'entry'
-        super(_item, avatar, llmServices)
-        this.#content = content
-    }
-    /* getters/setters */
-    get itemCore(){
-        return {
-            ...super.itemCore,
-            content: this.#content,
-        }
-    }
-    get content(){
-        return this.#content
-    }
-}
-class Issue extends Item {
-    #influences
-    #issue
-    constructor(item, avatar, llmServices){
-        item.being = 'stance'
-        item.type = 'issue'
-        const { influences, issue, ..._item } = item
-        super(_item, avatar, llmServices)
-        this.#influences = influences
-        this.#issue = issue
-    }
-    /* getters/setters */
-    get itemCore(){
-        return {
-            ...super.itemCore,
-            influences: this.#influences,
-            issue: this.#issue,
-        }
-    }
-    get influences(){
-        return this.#influences
-    }
-    get issue(){
-        return this.#issue
+        item.being = 'story'
+        item.type = 'entry'
+        super(item, avatar, llmServices)
     }
 }
 class Memory extends Item {
     constructor(item, avatar, llmServices){
+        item.being = 'story'
         item.type = 'memory'
         super(item, avatar, llmServices)
     }
 }
+class Stance extends Item {
+    #availableTypes=['issue', 'personal', 'relational', 'value', 'other']
+    /* unique fields: #backgrounds, #conviction, #emotional_intensity */
+    constructor(item, avatar, llmServices){
+        item.being = 'stance'
+        item.type ??= 'personal'
+        super(item, avatar, llmServices)
+    }
+    /* public functions */
+    allowedType(type){
+        return this.#availableTypes.includes(type)
+    }
+}
+class Issue extends Stance {
+    /* unique fields: #geography, #issue, #values */
+    constructor(item, avatar, llmServices){
+        item.type = 'issue'
+        super(item, avatar, llmServices)
+    }
+}
+class Value extends Stance {
+    constructor(item, avatar, llmServices){
+        item.type = 'value'
+        super(item, avatar, llmServices)
+    }
+}
+/* Share classes */
 /**
  * @class - Share
  * @extends EventEmitter
@@ -852,32 +866,6 @@ class Share extends EventEmitter {
             return this.#acceptWarnings
     }
 }
-class Value extends Item {
-    #influences
-    #issue
-    constructor(item, avatar, llmServices){
-        item.being = 'stance'
-        item.type = 'value'
-        const { influences, issue, ..._item } = item
-        super(_item, avatar, llmServices)
-        this.#influences = influences
-        this.#issue = issue
-    }
-    /* getters/setters */
-    get itemCore(){
-        return {
-            ...super.itemCore,
-            influences: this.#influences,
-            issue: this.#issue,
-        }
-    }
-    get influences(){
-        return this.#influences
-    }
-    get issue(){
-        return this.#issue
-    }
-}
 /* module functions */
 /**
  * Assigns content (from _message.message) to message object.
@@ -995,5 +983,6 @@ export {
 	Memory,
     Message,
     Share,
+    Stance,
     Value,
 }

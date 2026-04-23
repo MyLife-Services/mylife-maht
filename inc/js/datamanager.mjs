@@ -130,17 +130,34 @@ class Datamanager {
 			throw new Error('No hosted members found')
 		return documents
 	}
-	async patchItem(id, item, container_id=this.containerDefault, partitionId=this.#partitionId){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
+	/**
+	 * Patches an item with the given data. The path for each patch operation is embedded in the data.
+	 * @async
+	 * @param {string} id - The unique identifier for the item to be patched
+	 * @param {Array<Object>} item - The data for patching, including the path and operation
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The partition ID to use, overriding default
+	 * @param {string} etag - The ETag value for concurrency control, optional but recommended to prevent conflicts
+	 * @returns {Promise<Object>} The result of the patch operation.
+	 */
+	async patchItem(id, item, containerId=this.containerDefault, partitionId=this.#partitionId, etag){ // patch or update, depends on whether it finds id or not, will only overwrite fields that are in _item
 		// [Partial Document Update, includes node.js examples](https://learn.microsoft.com/en-us/azure/cosmos-db/partial-document-update)
 		if(!Array.isArray(item))
 			item = [item]
+		const options = {}
+		if(etag)
+			options.accessCondition = {
+				type: "IfMatch",
+				condition: etag
+			}
 		try{
-			const { resource: update, } = await this.#containers[container_id]
+			const { resource: update, } = await this.#containers[containerId]
 				.item(id, partitionId)
-				.patch(item) //	see below for filter-patch example
+				.patch(item, options) //	see below for filter-patch example
 			return update
 		} catch (error){
-			console.log('Datamanager::patchItem::error', error, item, id, container_id, partitionId)
+			// **note**: error code 412 indicates ETag mismatch
+			console.log('Datamanager::patchItem::error', error, item, id, containerId, partitionId, etag)
 			return {}
 		}
 	}
