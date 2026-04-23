@@ -32,7 +32,7 @@ class ConnectorAgent {
 	                this.#nandaRegistry = registryClient
 	        }
 		} catch(err) {
-			console.error('CONNECTION-AGENT::Init() ERROR', err)
+			console.error('CONNECTOR-AGENT::Init() ERROR', err)
 		}
         return this
     }
