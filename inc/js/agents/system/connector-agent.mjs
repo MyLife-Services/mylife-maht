@@ -23,13 +23,17 @@ class ConnectorAgent {
     }
     /* public functions */
     async init(nandaEmail=this.#nandaEmail, nandaPassword=this.#nandaPassword){
-        if(nandaEmail?.length && nandaPassword?.length){
-            this.#nandaEmail = nandaEmail
-            this.#nandaPassword = nandaPassword
-            const nandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init(nandaEmail, nandaPassword)
-            if(nandaRegistry?.authorized)
-                this.#nandaRegistry = nandaRegistry
-        }
+		try{
+	        if(nandaEmail?.length && nandaPassword?.length){
+	            this.#nandaEmail = nandaEmail
+	            this.#nandaPassword = nandaPassword
+	            const nandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init(nandaEmail, nandaPassword)
+	            if(nandaRegistry?.authorized)
+	                this.#nandaRegistry = nandaRegistry
+	        }
+		} catch(err) {
+			console.error('CONNECTION-AGENT::Init() ERROR', err)
+		}
         return this
     }
     // init() would come on `login`
