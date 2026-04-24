@@ -2974,6 +2974,9 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             await mFunction_registerCandidate(response, toolArguments, Factory)
             break
         }
+        case 'setGeography':
+            await mFunction_setGeography(response, toolArguments, Factory)
+            break
         case 'updateAction':
         case 'updateStance':
         case 'updateValue':
@@ -2986,7 +2989,7 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             break
         }
     }
-    console.log(`mFunctionCall()::${ functionName }::complete`, response.success)
+    console.log(`mFunctionCall()::${ functionName }::complete`, response.success, response.action)
     return response
 }
 /* specific function call handlers */
@@ -3189,6 +3192,21 @@ async function mFunction_registerCandidate(response, toolArguments, Factory){
         ? 'error registering candidate in system; notify member of system error and continue discussing MyLife organization'
         : 'candidate registered in system; let them know they will be contacted by email within the week and ask if they have any further questions'
     response.success = !!registrant
+}
+/**
+ * Handles the 'setGeography' function call from the LLM, which sets the geography information for the avatar and prepares the response message based on the success of the operation. Mutates `response` and `Avatar` based on the provided geography information.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the geography update process
+ * @param {Factory} Factory - The factory instance used to update the geography information
+ * @returns {Promise<void>} - Mutates `response` based on the success of the geography update operation
+ */
+async function mFunction_setGeography(response, toolArguments, Factory){
+    const { local, nation, nation_iso, state_regional, } = toolArguments
+    const geography = { local, nation, nation_iso, state_regional, }
+    response.success = !!await mSetCoreValues({ geography, }, Factory) // note that botagent variables search through Avatar as well, push into individual core, along with political_leanings, backgrounds
+    response.action = response.success
+        ? `Geography information has been updated based on our conversation.`
+        : `I encountered an unexpected error while updating geography information. Just ask me to try again.`
 }
 /**
  * Handles the 'updateSummary' function call from the LLM, which updates the summary of a specified item and prepares the frontend instruction for displaying the updated summary. Mutates `response` and `Avatar` based on the success of the update operation.
@@ -4321,6 +4339,29 @@ function mRoutine(script, Avatar, BotAgent){
         title,
         typeSpeed,
     }
+}
+/**
+ * Sets core values in the member's dataservice core. USE WITH CAUTION, as this can overwrite important data if used improperly.
+ * Note: when passed an array of { key, value } objects, it reduces to an object, so both formats are accepted.
+ * Note: All `value` typeof Array will by default completely overwrite underlying array; only specified properties (like `feedback`) add/remove.
+ * @todo - run through consent engine
+ * @param {Array|Object} values - The values to set in the core, either as an array of { key, value } objects or as a single object with key-value pairs.
+ * @returns {Promise<object>} - The updated values in `core` (in case something didn't match, can be reviewed and verified)
+ */
+async function mSetCoreValues(coreValues, Factory){
+    const response = { input: coreValues, success: false, }
+    try {
+        if(typeof coreValues === 'string')
+            coreValues = JSON.parse(coreValues)
+        if(Array.isArray(coreValues))
+            coreValues = coreValues.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {})
+        response.result = await Factory.setCoreValues(coreValues)
+        response.success = true
+    } catch(err) {
+        response.error = err
+        console.error('Error setting core values:', response.error.message, Factory, coreValues)
+    }
+    return response
 }
 /**
  * Validate provided registration id.

@@ -17,6 +17,7 @@ const {
 	MYLIFE_SERVER_MBR_ID: mPartitionId,
 } = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
+const mDisallowedCoreKeys = ['avatar_id', 'mbr_id', 'id', 'being'] // keys that cannot be reset in `.core`
 const mBotInstructions = {}
 const mDefaultBotType = 'personal-avatar'
 const mExcludeProperties = {
@@ -871,6 +872,23 @@ class AgentFactory extends BotFactory {
 		}
 		const savedExperience = await this.dataservices.saveExperience(_experience)
 		return savedExperience
+	}
+	/**
+	 * Sets core values in the member's dataservice core. USE WITH CAUTION, as this can overwrite important data if used improperly.
+	 * Note: when passed an array of { key, value } objects, it reduces to an object, so both formats are accepted.
+	 * Note: All `value` typeof Array will by default completely overwrite underlying array; only specified properties (like `feedback`) add/remove.
+	 * @todo - run through consent engine
+	 * @param {Array|Object} values - The values to set in the core, either as an array of { key, value } objects or as a single object with key-value pairs.
+	 * @returns {Promise<object>} - The updated values in `core` (in case something didn't match, can be reviewed and verified)
+	 */
+	async setCoreValues(values){
+		if(Array.isArray(values))
+			values = values.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {})
+		for(const key of mDisallowedCoreKeys)
+			delete values[key]
+		const response = await this.dataservices.patch(this.core.id, values)
+		Object.assign(this.core, values)
+		return values
 	}
 	/**
 	 * Tests partition key for member
