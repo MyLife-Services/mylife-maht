@@ -119,7 +119,7 @@ function getAction(type='avatar'){
                         addMessage('An error occurred while talking to the server. Try again.', 'error')
                     else {
                         const { instructions, item: responseItem, responses: botResponses, } = response // @todo - deprecate response.item, always bundle in instructions for precision and flexibility
-                        if(responseItem)
+                        if(responseItem && instructions?.length)
                             instructions.forEach(instruction=>instruction.item ??= responseItem)
                         enactInstruction(instructions, 'chat', { createItem, })
                         addMessages(botResponses, type)

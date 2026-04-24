@@ -1019,7 +1019,7 @@ class Globals {
                 const { updateItem, } = functions
                 if(typeof updateItem!=='function')
                     return
-                updateItem()
+                updateItem(item)
                 return
             }
             case 'updateItemSummary': {
