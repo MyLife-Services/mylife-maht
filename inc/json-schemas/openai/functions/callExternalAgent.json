@@ -1,7 +1,6 @@
 {
-  "name": "callExternalAgent",
   "description": "Call an external agent for response to member question",
-  "strict": true,
+  "name": "callExternalAgent",
   "parameters": {
     "additionalProperties": false,
     "type": "object",
@@ -26,5 +25,6 @@
       "request",
       "skillId"
     ]
-  }
+  },
+  "strict": true
 }

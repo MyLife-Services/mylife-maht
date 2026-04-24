@@ -1,7 +1,6 @@
 {
-  "name": "callAvatar",
   "description": "Call Member Avatar when request is out-of-scope for underlying intelligence, or specifically asked by member",
-  "strict": true,
+  "name": "callAvatar",
   "parameters": {
     "additionalProperties": false,
     "type": "object",
@@ -32,5 +31,5 @@
       "request"
     ]
   },
-  "$comment": "@aaron - design any other metadata fields that could assist in routing the request - perhaps WHY the biographer thought it couldn't handle the request"
+  "strict": false
 }

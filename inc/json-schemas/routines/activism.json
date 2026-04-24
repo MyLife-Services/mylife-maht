@@ -1,0 +1,36 @@
+{
+	"cast": [
+		{
+			"icon": "activism-thumb",
+			"id": "activism",
+			"role": "Political Stance Bot",
+			"type": "political-stance"
+		}
+	],
+    "description": "Introductory greeting routine for MyLife Activism bot.",
+    "developers": [
+        "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
+        "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
+    ],
+	"events": [
+        {
+            "character": "activism",
+            "dialog": {
+                "message": "I am an Assistive Intelligence that helps you become politically active around the issues, values and beliefs you care about. I can help you find organizations to support, events to attend, and actions to take to make a difference."
+            }
+        },
+        {
+            "character": "activism",
+            "dialog": {
+                "message": "I help you make a step-by-step plan to take action. One you can complete, that will impact your community or beyond."
+            }
+        }
+	],
+    "name": "routine_activism",
+	"pause": 8,
+    "public": true,
+    "status": "active",
+    "title": "Activist Introduction",
+	"typeSpeed": 5,
+    "version": 1
+}

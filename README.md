@@ -190,12 +190,9 @@ MyLife itself is an open-source project and, aside from LLM technologies at the 
    - `chalk` for terminal string styling.
 
 2. **Utilities and Helpers**
-   - `ajv` for JSON schema validation.
-   - `js-guid` for GUID generation.
    - `marked` for markdown parsing.
 
 3. **Development Tools**
-   - `eslint` for code linting.
    - `nodemon` for automatically restarting the node application when file changes are detected.
 
 4. **Miscellaneous**
