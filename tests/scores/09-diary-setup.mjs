@@ -14,7 +14,7 @@ export const score = {
     number: '09',
 }
 const BOT_TYPE = 'diary'
-const ROUTINE_TYPE = 'getting-started'
+const ROUTINE_TYPE = 'diary'
 const mNames = [
     'Folio', 'Vesper', 'Rue', 'Pax', 'Lumen',
     'Calder', 'Maren', 'Sable', 'Rook', 'Finch',

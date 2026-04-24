@@ -20,7 +20,7 @@ export const score = {
     number: '05',
 }
 const BOT_TYPE = 'journaler'
-const ROUTINE_TYPE = 'getting-started'
+const ROUTINE_TYPE = 'journaler'
 const mNames = [
     'Quill', 'Iris', 'Sage', 'Penn', 'Echo',
     'Lyra', 'Cedar', 'Wren', 'Atlas', 'Vale',
