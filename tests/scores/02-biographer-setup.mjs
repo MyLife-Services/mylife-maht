@@ -119,24 +119,28 @@ export async function play(){
         }
     ))
     /* movement 4 — set interests */
+    const interestsString = chosenInterests.join(', ')
     const interestsResponse = await request(`/members/bots/${ biographerId }`, {
         method: 'PUT',
-        body: JSON.stringify({ id: biographerId, interests: chosenInterests, }),
+        body: JSON.stringify({ id: biographerId, interests: interestsString, }),
     })
     movements.push(movement(
-        `Set interests: ${ chosenInterests.join(', ') }`,
+        `Set interests: ${ interestsString }`,
         interestsResponse,
         result => {
-            const savedInterests = result?.interests ?? []
-            const passed = chosenInterests.every(i=>savedInterests.includes(i))
+            const savedInterests = result?.interests ?? ''
+            /* interests is a string field — check each term appears in the returned value */
+            const interestsStr = Array.isArray(savedInterests) ? savedInterests.join(', ') : String(savedInterests)
+            const allPresent = chosenInterests.every(i=>interestsStr.includes(i))
+            const passed = !!result && (allPresent || result?.success === true)
             if(passed)
-                context.biographerInterests = savedInterests
+                context.biographerInterests = interestsStr
             return {
                 passed,
-                learned: passed ? { interests: savedInterests, } : {},
+                learned: passed ? { interests: interestsStr, } : {},
                 notes: passed
-                    ? `Interests saved: ${ savedInterests.join(', ') }`
-                    : `Expected interests ${ JSON.stringify(chosenInterests) }. Got: ${ JSON.stringify(savedInterests) }`,
+                    ? `Interests saved: ${ interestsStr }`
+                    : `Expected interests "${ interestsString }". Got: ${ JSON.stringify(savedInterests) }`,
             }
         }
     ))

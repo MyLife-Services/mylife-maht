@@ -161,27 +161,30 @@ export async function play(){
         }
     ))
     /* ── movement 5 — set interests ── */
+    const interestsString = chosenInterests.join(', ')
     const interestsResponse = await request(`/members/bots/${ botId }`, {
         method: 'PUT',
-        body: JSON.stringify({ id: botId, interests: chosenInterests, }),
+        body: JSON.stringify({ id: botId, interests: interestsString, }),
     })
     movements.push(movement(
-        `Set journaler interests: ${ chosenInterests.join(', ') }`,
+        `Set journaler interests: ${ interestsString }`,
         interestsResponse,
         result => {
-            const saved = result?.interests ?? []
-            const allSaved = chosenInterests.every(i=>saved.includes(i))
-            const passed = !!result && (allSaved || result?.success === true)
+            const saved = result?.interests ?? ''
+            /* interests is a string field */
+            const savedStr = Array.isArray(saved) ? saved.join(', ') : String(saved)
+            const allPresent = chosenInterests.every(i=>savedStr.includes(i))
+            const passed = !!result && (allPresent || result?.success === true)
             console.log(`\n    ── Movement 5: Interests ──`)
-            console.log(`    Selected: ${ chosenInterests.join(', ') }`)
-            console.log(`    Returned: ${ saved.length ? saved.join(', ') : '(none in response)' }`)
-            console.log(`    All confirmed: ${ allSaved }`)
+            console.log(`    Selected: ${ interestsString }`)
+            console.log(`    Returned: ${ savedStr || '(none in response)' }`)
+            console.log(`    All confirmed: ${ allPresent }`)
             console.log(`    ────────────────────────────`)
-            if(passed) context.journalerInterests = chosenInterests
+            if(passed) context.journalerInterests = interestsString
             return {
                 passed,
-                learned: { interestsSelected: chosenInterests, interestsReturned: saved, allConfirmed: allSaved, },
-                notes: passed ? `Interests set: ${ chosenInterests.join(', ') }` : `Interests PUT failed`,
+                learned: { interestsSelected: interestsString, interestsReturned: savedStr, allConfirmed: allPresent, },
+                notes: passed ? `Interests set: ${ interestsString }` : `Interests PUT failed`,
             }
         }
     ))
