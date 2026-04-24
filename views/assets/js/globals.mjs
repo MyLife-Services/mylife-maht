@@ -444,7 +444,7 @@ class Datamanager {
      * @returns {Object} - The response object: { item, success, }
      */
     async itemUpdate(itemId, summary, emoticons){
-        const url = `/members/item/${ itemId }`
+        const url = `/members/items/${ itemId }`
         const options = {
             method: 'PUT',
             headers: {
@@ -464,7 +464,7 @@ class Datamanager {
     async itemUpdateTitle(itemId, title){
         if(!title?.length)
             throw new Error(`No title provided for title update`)
-        const url = `/members/item/${ itemId }`
+        const url = `/members/items/${ itemId }`
         const options = {
             method: 'PUT',
             headers: {

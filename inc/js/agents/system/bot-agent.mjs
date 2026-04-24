@@ -327,8 +327,6 @@ class Bot {
 			?? Object.keys(botData).some(key=>this.#instructionNodes.has(key))
 		const { agentInstructions, feedback, id, mbr_id, type, ...updatedNodes } = await mBotUpdate(botData, botOptions, this, this.#factory)
 		Object.assign(this, updatedNodes)
-		if(botOptions.instructions)
-			await this.migrateChat() // @stub - update for new OpenAI and MCP
 		return this
 	}
 	/**
@@ -1793,10 +1791,13 @@ async function mMigrateChat(Bot, llm, saveConversation=false){
         .slice(0, chatLimit)
         .map(message=>{
             const { content: contentArray, id, metadata, role, status, } = message
-            const content = contentArray
-                .filter(_content=>_content.type==='text')
-                .map(_content=>_content.text?.value)
-                ?.[0]
+            /* content may be a string (system/tool messages) or null — guard before array ops */
+            const content = Array.isArray(contentArray)
+                ? contentArray
+                    .filter(_content=>_content.type==='text')
+                    .map(_content=>_content.text?.value)
+                    ?.[0]
+                : (typeof contentArray === 'string' ? contentArray : undefined)
             return { content, id, metadata, role, }
         })
         .filter(message=>message.content?.length && !itemSummaryRegex.test(message.content))

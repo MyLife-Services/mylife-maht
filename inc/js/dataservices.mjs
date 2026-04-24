@@ -6,6 +6,19 @@
 //	imports
 import Datamanager from "./datamanager.mjs"
 /**
+ * Array fields that represent canonical state and should be replaced wholesale when patched (Cosmos `op: 'set'`). Any array field NOT in this set is treated as an append-only log and uses `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
+ * Example of append-only arrays: `feedback` (each boolean is a new datum).
+ */
+const mReplaceArrayFields = new Set([
+    'agentInstructions',
+    'activism_preferences',
+    'greetings',
+    'keywords',
+    'steps',
+    'tool_resources',
+    'tools',
+])
+/**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
  * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
@@ -639,20 +652,16 @@ class Dataservices {
 		for(const key of Object.keys(data)){
 			if(['being', 'id', 'mbr_id'].includes(key))
 				continue
-			let op = 'add'
 			const value = data[key]
 			const path = rootPath + key
-			if(Array.isArray(value))
-				for(const element of value){
-					const elementPath = path + '/-'
-					patchOperations.push({
-						op,
-						path: elementPath,
-						value: element,
-					})
-            	}
-			else
-				patchOperations.push({ op, path, value, })
+			if(Array.isArray(value)){
+				if(mReplaceArrayFields.has(key)) /* Canonical-state arrays: replace the whole field in one op */
+					patchOperations.push({ op: 'set', path, value, })
+				else /* Append-only arrays (e.g. feedback): additive, no overwrite */
+					for(const element of value) 
+						patchOperations.push({ op: 'add', path: path + '/-', value: element, })
+			} else
+				patchOperations.push({ op: 'add', path, value, })
 		}
 		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations
 		while(patchOperations.length){
