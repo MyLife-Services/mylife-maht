@@ -78,7 +78,6 @@ async function init(){
         throw new Error(`ERROR: No bots returned from server`)
     mBots = bots
     await getActiveTeam() // sets activeTeam()
-    // bring back setActiveTeam display elements
 }
 /**
  * Get active bot.
@@ -114,13 +113,16 @@ function getAction(type='avatar'){
                 callback: async function(event){
                     const actionButton = event.target
                     actionButton.disabled = true
-                    const response = await submit('## PRINT\nCreate the summary from our conversation since the last saved memory.')
+                    const response = await submit('## CREATE\nCreate the summary from our conversation since the last saved memory.')
                     unsetActiveAction()
                     if(!response?.success)
                         addMessage('An error occurred while talking to the server. Try again.', 'error')
                     else {
-                        enactInstruction(response.instruction, 'chat', { createItem, })
-                        addMessages(response.responses, type)
+                        const { instructions, item: responseItem, responses: botResponses, } = response // @todo - deprecate response.item, always bundle in instructions for precision and flexibility
+                        if(responseItem)
+                            instructions.forEach(instruction=>instruction.item ??= responseItem)
+                        enactInstruction(instructions, 'chat', { createItem, })
+                        addMessages(botResponses, type)
                     }
                 },
                 icon: 'fa-play',
@@ -264,7 +266,7 @@ async function setActiveTeam(teamIdentifier=mDefaultTeam){
         return // no change, no problem
     const { botResponse, team: activeTeam, } = await globals.datamanager.teamActivate(id)
     const { defaultActiveType, id: activeTeamId, } = team ?? {}
-    const { bot_id=this.bot(null, defaultActiveType), responses=[], } = botResponse ?? {}
+    const { id: bot_id=getBot(null, defaultActiveType), responses=[], } = botResponse ?? {}
     if(activeTeam?.id!==id)
         throw new Error(`Server failure trying to activate team "${ teamIdentifier }".`)
     mActiveTeam = team
@@ -1352,17 +1354,28 @@ async function mRefreshProxyUrl(event){
 async function mRetireBot(e){
     e.stopPropagation()
     try {
-        const { id: botId, } = e.target
-        botId = globals.extractId(fullId)
+        const { id: fullId, } = e.target
+        const botId = globals.extractId(fullId)
         const bot = getBot(botId) // will match either `id` or `type`
         const { id, type, } = bot
         if(globals.isProxy(type) && !confirm("Retiring a proxy bot will not notify the external agent. Are you sure?"))
             return
+        const { instructions=[], responses, } = await globals.datamanager.botRetire(id)
         /* reset active bot */
-        if(mActiveBot.id===id)
-            setActiveBot()
-        const response = await globals.datamanager.botRetire(id)
-        addMessages(response.responses, 'avatar')
+        if(instructions.length){
+            const removeBot = (botId)=>{ // inline function
+                const { container, popup, } = bot
+                if(container instanceof HTMLElement)
+                    container.remove()
+                if(popup instanceof HTMLElement)
+                    popup.remove()
+                const botIndex = mBots.findIndex(bot=>bot.id===botId)
+                if(botIndex>-1)
+                    mBots.splice(botIndex, 1) // remove from memory
+            }
+            globals.enactInstruction(instructions, { removeBot, setActiveBot, })
+        }
+        addMessages(responses, 'avatar')
     } catch(err) {
         addMessage(`Error posting bot data: ${ err.message }`, 'error')
     }
@@ -1374,11 +1387,11 @@ async function mRetireBot(e){
  */
 async function mRetireChat(e){
     e.stopPropagation()
+    const { id: fullId, } = e.target
+    const botId = globals.extractId(fullId)
+    const bot = getBot(botId) // will match either `id` or `type`
+    const { id, } = bot
     try {
-        const { id: botId, } = e.target
-        botId = globals.extractId(fullId)
-        const bot = getBot(botId) // will match either `id` or `type`
-        const { id, } = bot
         const response = await globals.datamanager.chatRetire(id)
         addMessages(response.responses, mActiveBot.type)
     } catch(err) {

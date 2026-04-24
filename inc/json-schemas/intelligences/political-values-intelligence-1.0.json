@@ -92,6 +92,27 @@
     "stance"
   ],
   "limit": 8000,
+  "llmProviders": {
+    "defaultProvider": "openai",
+    "providers": [
+      {
+        "id": "pmpt_69d09bbabf8481969ef6125a38cb8e8605911b15c824306b",
+        "model": "gpt-4.1-mini",
+        "provider": "openai",
+        "type": "prompt",
+        "version": 1
+      }
+    ],
+    "variables": [
+      "backgrounds",
+      "bot_name",
+      "geography",
+      "memberFirstName",
+      "memberFullName",
+      "political_leaning",
+      "political_values"
+    ]
+  },
   "name": "instructions-political-values-bot",
   "options": [
     {

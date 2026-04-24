@@ -1,7 +1,6 @@
 {
-  "name": "callAvatar",
   "description": "Call Member Avatar when request is out-of-scope for underlying intelligence, or specifically asked by member",
-  "strict": true,
+  "name": "callAvatar",
   "parameters": {
     "additionalProperties": false,
     "type": "object",
@@ -20,5 +19,6 @@
       "botId",
       "request"
     ]
-  }
+  },
+  "strict": false
 }

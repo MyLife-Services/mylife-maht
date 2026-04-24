@@ -38,5 +38,6 @@
             "humanName",
             "type"
         ]
-    }
+    },
+    "strict": true
 }

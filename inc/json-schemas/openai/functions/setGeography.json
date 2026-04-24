@@ -1,8 +1,8 @@
 {
-    "name": "setGeography",
     "description": "Set the geographical information for a member, including local political locality, nation, and state/regional information",
+    "name": "setGeography",
     "parameters": {
-        "additionalProperties": false,
+        "additionalProperties": true,
         "type": "object",
         "properties": {
             "local": {
@@ -25,10 +25,9 @@
             }
         },
         "required": [
-            "local",
             "nation",
-            "nation_iso",
-            "state_regional"
+            "nation_iso"
         ]
-    }
+    },
+    "strict": false
 }
