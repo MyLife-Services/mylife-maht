@@ -9,7 +9,7 @@
  * Depends on: Score 05 (context.createdEntryId, context.journalerBotId)
  *
  * A synthetic passing this score understands:
- *   - How to delete an item via DELETE /members/item/:id
+ *   - How to delete an item via DELETE /members/items/:id
  *   - What a successful removeItem instruction looks like
  *   - How to retire a bot via DELETE /members/bots/:bid
  *   - What a successful removeBot + setActiveBot instruction pair looks like
@@ -37,7 +37,7 @@ export async function play(){
     if(!entryId){
         movements.push({ name: 'Delete journal entry', passed: false, learned: {}, notes: 'Skipped — no createdEntryId in context' })
     } else {
-        const deleteEntryResponse = await request(`/members/item/${ entryId }`, {
+        const deleteEntryResponse = await request(`/members/items/${ entryId }`, {
             method: 'DELETE',
         })
         movements.push(movement(

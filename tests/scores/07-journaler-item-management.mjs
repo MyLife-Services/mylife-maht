@@ -87,7 +87,7 @@ export async function play(){
         }
     ))
     /* ── movement 2 — direct title change via PUT ── */
-    const directTitleResponse = await request(`/members/item/${ entryId }`, {
+    const directTitleResponse = await request(`/members/items/${ entryId }`, {
         method: 'PUT',
         body: JSON.stringify({ id: entryId, title: chosenTitleA, }),
     })
@@ -154,7 +154,7 @@ export async function play(){
     ))
     /* ── movement 4 — direct summary append ── */
     const updatedSummary = currentSummary + mSummaryAppend
-    const directSummaryResponse = await request(`/members/item/${ entryId }`, {
+    const directSummaryResponse = await request(`/members/items/${ entryId }`, {
         method: 'PUT',
         body: JSON.stringify({ id: entryId, summary: updatedSummary, }),
     })

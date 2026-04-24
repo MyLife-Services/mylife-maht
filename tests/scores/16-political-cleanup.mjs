@@ -27,7 +27,7 @@ export async function play(){
         return { passed: false, tally: '0/2' }
     }
     /* ── movement 1 — delete the stance item ── */
-    const deleteResponse = await request(`/members/item/${ stanceId }`, { method: 'DELETE', })
+    const deleteResponse = await request(`/members/items/${ stanceId }`, { method: 'DELETE', })
     movements.push(movement(
         `Delete stance item (${ stanceId.substring(0, 8) }...)`,
         deleteResponse,

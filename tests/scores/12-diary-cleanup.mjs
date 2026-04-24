@@ -29,7 +29,7 @@ export async function play(){
     if(!entryId){
         movements.push({ name: 'Delete diary entry', passed: false, learned: {}, notes: 'Skipped — no diaryEntryId in context' })
     } else {
-        const deleteResponse = await request(`/members/item/${ entryId }`, { method: 'DELETE', })
+        const deleteResponse = await request(`/members/items/${ entryId }`, { method: 'DELETE', })
         movements.push(movement(
             `Delete diary entry (${ entryId.substring(0, 8) }...)`,
             deleteResponse,

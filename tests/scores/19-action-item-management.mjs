@@ -85,8 +85,8 @@ export async function play(){
         }
     ))
     /* ── movement 2 — direct title change via PUT ── */
-    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/item/${ actionId }] title → "${ chosenTitleA }"`, { movement: 2, note: 'direct API title update' })
-    const directTitleResponse = await request(`/members/item/${ actionId }`, {
+    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/items/${ actionId }] title → "${ chosenTitleA }"`, { movement: 2, note: 'direct API title update' })
+    const directTitleResponse = await request(`/members/items/${ actionId }`, {
         method: 'PUT',
         body: JSON.stringify({ id: actionId, title: chosenTitleA, }),
     })
@@ -152,8 +152,8 @@ export async function play(){
     ))
     /* ── movement 4 — direct summary append ── */
     const updatedSummary = currentSummary + mSummaryAppend
-    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/item/${ actionId }] appending ${ mSummaryAppend.length } chars to summary`, { movement: 4, note: 'direct API summary append' })
-    const directSummaryResponse = await request(`/members/item/${ actionId }`, {
+    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/items/${ actionId }] appending ${ mSummaryAppend.length } chars to summary`, { movement: 4, note: 'direct API summary append' })
+    const directSummaryResponse = await request(`/members/items/${ actionId }`, {
         method: 'PUT',
         body: JSON.stringify({ id: actionId, summary: updatedSummary, }),
     })

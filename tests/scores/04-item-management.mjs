@@ -9,7 +9,7 @@
  *
  * A synthetic passing this score understands:
  *   - How to activate an item in the biographer's context via itemId param
- *   - How to change item title directly via PUT /members/item/:id
+ *   - How to change item title directly via PUT /members/items/:id
  *   - How to request a title change via NL chat (instruction: updateItemTitle)
  *   - How to append content to a summary directly via PUT
  *   - How to ask the biographer to remove content from a summary (instruction: updateItemSummary)
@@ -98,8 +98,8 @@ export async function play(){
         }
     ))
     /* ── movement 2 — direct title change via PUT ── */
-    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/item/${ itemId }] title → "${ chosenTitleA }"`, { movement: 2, note: 'direct API title update' })
-    const directTitleResponse = await request(`/members/item/${ itemId }`, {
+    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/items/${ itemId }] title → "${ chosenTitleA }"`, { movement: 2, note: 'direct API title update' })
+    const directTitleResponse = await request(`/members/items/${ itemId }`, {
         method: 'PUT',
         body: JSON.stringify({ id: itemId, title: chosenTitleA, }),
     })
@@ -178,8 +178,8 @@ export async function play(){
     ))
     /* ── movement 4 — append to summary directly via PUT ── */
     const updatedSummary = currentSummary + mSummaryAppend
-    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/item/${ itemId }] appending ${ mSummaryAppend.length } chars to summary`, { movement: 4, note: 'direct API summary append' })
-    const directSummaryResponse = await request(`/members/item/${ itemId }`, {
+    logTurn(SCORE_ID, 'synthetic', `[direct PUT /members/items/${ itemId }] appending ${ mSummaryAppend.length } chars to summary`, { movement: 4, note: 'direct API summary append' })
+    const directSummaryResponse = await request(`/members/items/${ itemId }`, {
         method: 'PUT',
         body: JSON.stringify({ id: itemId, summary: updatedSummary, }),
     })
