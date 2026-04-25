@@ -13,9 +13,10 @@
 #   Abort if Section 1 (authenticate) does not pass — later sections
 #   require an authenticated session.
 #
-# Environment (load before executing):
-#   Copy tests/synthetic.env.sample → tests/synthetic.env  (gitignored)
-#   Variables referenced below as ${VAR_NAME}
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+#   That file is gitignored — copy playbook.env.sample and fill in values.
+#   All ${VAR_NAME} references below are resolved from that file.
 
 movement:
   number: "01"
@@ -23,9 +24,11 @@ movement:
   suite: overture
 
 env:
-  - MYLIFE_BASE_URL      # e.g. https://mylife.ngrok.app
-  - SYNTHETIC_MBR_ID     # e.g. ember|95ade320-e0f7-4cef-a001-9324edcb6e71
-  - SYNTHETIC_PASSPHRASE # e.g. ember lights the way forward
+  file: playbook.env   # path relative to this playbook's directory
+  vars:
+    - MYLIFE_BASE_URL      # base URL for all requests
+    - SYNTHETIC_MBR_ID     # member id (avatarName|uuid format)
+    - SYNTHETIC_PASSPHRASE # passphrase for challenge endpoint
 
 # Cookie jar: all requests in this movement (and all subsequent movements)
 # share a single cookie jar. Pass -b / -c <jar-file> on every curl call,
@@ -105,7 +108,7 @@ sections:
       # whether they need to create a bot or can activate an existing one.
       - list each bot: id, type, name, itemForms
       - list creatableTypes derived above
-      - note whether biographer, journaler, diary, personal-advocate bots already exist
+      - note whether biographer, journaler, diary, personal-avatar bots already exist
 
   - name: Activate personal-avatar
     # Explicitly activate the avatar even though it already holds the session.
