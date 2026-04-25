@@ -1,0 +1,38 @@
+{
+    "active": true,
+    "allowCustom": true,
+    "allowProxy": true,
+    "allowedBotTypes": [
+        "activism",
+        "conflict-resolution",
+        "journaler",
+        "news",
+        "political-narratives",
+        "political-stance",
+        "political-values"
+    ],
+    "allowedItemTypes": [
+        "action",
+        "entry",
+        "memory",
+        "issue",
+        "value"
+    ],
+    "being": "team",
+    "collection": "Political Notebook",
+    "defaultActiveType": "political-stance",
+    "defaultTypes": [
+        "political-stance",
+        "political-values"
+    ],
+    "description": "The Political Team is dedicated to help you craft records of your own political views on issues, and how to engage with political issues and perspectives from productive conversation with those of opposing views to activism.",
+    "form": "member",
+    "name": "political",
+    "primaryCollectionTypes": [
+        "issue",
+        "value"
+    ],
+    "team_name": "political",
+    "title": "Political",
+    "version": 1
+}

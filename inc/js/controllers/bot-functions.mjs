@@ -3,7 +3,7 @@
  * @public
  * @async
  * @param {object} ctx - Koa Context object
- * @returns {object} - Activated Response object: { bot_id, greeting, success, version, versionUpdate, }
+ * @returns {object} - Activated Response object: { id, greeting, success, version, versionUpdate, }
  */
 async function activateBot(ctx){
 	const { bid, } = ctx.params
@@ -53,11 +53,11 @@ async function bots(ctx){
 			const bots = await Avatar.getBots()
 			let { activeBotId, greeting, } = Avatar
 			if(!activeBotId){
-				const { bot_id, greeting: activeGreeting } = await Avatar.setActiveBot()
-				activeBotId = bot_id
+				const { id, greeting: activeGreeting } = await Avatar.setActiveBot()
+				activeBotId = id
 				greeting = activeGreeting
 			}
-			ctx.body = { // wrap bots
+			ctx.body = {
 				activeBotId,
 				bots,
 				greeting,
@@ -101,13 +101,13 @@ async function botOptions(ctx){
  * @property {Object[]} responses - Response messages from Avatar intelligence
  */
 async function chat(ctx){
-	const { botId: bot_id, itemId, message, } = ctx.request.body
+	const { botId, itemId, message, } = ctx.request.body
 		?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
 	const { avatar: Avatar, } = ctx.state
-	if(bot_id?.length && bot_id!==Avatar.activeBotId)
-		throw new Error(`Bot ${ bot_id } not currently active; chat() requires active bot`)
+	if(botId?.length && botId!==Avatar.activeBotId)
+		throw new Error(`Bot ${ botId } not currently active; chat() requires active bot`)
 	const response = await Avatar.chat(message, itemId, ctx.session)
 	ctx.body = response
 }

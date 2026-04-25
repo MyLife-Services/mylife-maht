@@ -1,7 +1,6 @@
 {
   "description": "Confirm registration email provided by user with registrationId provided by MyLife",
   "name": "confirmRegistration",
-  "strict": true,
   "parameters": {
     "additionalProperties": false,
     "type": "object",
@@ -19,5 +18,6 @@
       "email",
       "registrationId"
     ]
-  }
+  },
+  "strict": true
 }

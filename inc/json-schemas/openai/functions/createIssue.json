@@ -1,13 +1,14 @@
 {
     "description": "Generate a complete `item` document (form of `stance`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
     "name": "createStance",
-    "strict": false,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
         "properties": {
             "backgrounds": {
-                "description": "Background Influences (ethical, ideological, philosophical, etc.) related to `value`",
+                "default": [],
+                "description": "Background Influences (ethical, ideological, philosophical, etc.) related to `value`; only include if discussed in context of `stance`/`issue` content",
+                "minItems": 0,
                 "type": "array",
                 "items": {
                     "description": "Specific background influence related to `value`",
@@ -41,7 +42,7 @@
             },
             "form": {
                 "default": "political",
-                "description": "MyLife System Form of `stance`; political-stance bots should use `political` form, all others should use `personal`",
+                "description": "MyLife System Form of `stance`; if this is in any way related to a public policy or social issue, use `political`, otherwise `personal` can be used for private, intimate beliefs",
                 "enum": [
                     "personal",
                     "political"
@@ -74,11 +75,12 @@
             },
             "type": {
                 "const": "issue",
-                "description": "Standard MyLife System type for `stance`",
+                "description": "For this tool, **must** be `issue`",
                 "type": "string"
             },
             "values": {
-                "description": "Related `values` for this `stance`, if applicable",
+                "default": [],
+                "description": "Related `values` for this `stance`, if applicable; can be empty if not explicitly discussed in content, but should be included if relevant to `stance` content",
                 "type": "array",
                 "items": {
                     "description": "Related articulated `value`s related to this `stance`",
@@ -87,14 +89,19 @@
             }
         },
         "required": [
+            "backgrounds",
             "content",
             "conviction",
+            "emotional_intensity",
             "form",
+            "geography",
             "keywords",
             "issue",
             "summary",
             "title",
-            "type"
+            "type",
+            "values"
         ]
-    }
+    },
+    "strict": true
 }

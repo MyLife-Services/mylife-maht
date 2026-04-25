@@ -1,11 +1,23 @@
 {
     "description": "Generate a complete `item` document (form of `action`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
     "name": "createAction",
-    "strict": false,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
         "properties": {
+            "activity": {
+                "description": "Primary activity the `action` takes; if multiple, use comma-separated string with all relevant activities",
+                "type": "string",
+                "enum": [
+                    "donation",
+                    "education",
+                    "employment",
+                    "petition",
+                    "protest",
+                    "volunteering",
+                    "other"
+                ]
+            },
             "content": {
                 "description": "Include entire, or snippets, original Member conversation regarding this `action`",
                 "type": "string"
@@ -23,19 +35,21 @@
                 "maximum": 10
             },
             "form": {
-                "description": "Form of `action`, which may be one of: `petition`, `protest`, `donation`, `volunteering`, `education`, or `other`",
+                "default": "personal",
+                "description": "Primary type of `action`; if multiple, use comma-separated string with all relevant types",
                 "type": "string",
                 "enum": [
-                    "petition",
-                    "protest",
-                    "donation",
-                    "volunteering",
-                    "education",
+                    "environmental",
+                    "personal",
+                    "political",
+                    "relational",
+                    "social",
                     "other"
                 ]
             },
             "issues": {
-                "description": "Issues most relevant to `action`, include any relevant ideology, movement, etc. for political actions, if applicable, can omit if not relevant",
+                "default": [],
+                "description": "Issues most relevant to `action`, include any relevant ideology, movement, etc. for political actions; can be empty if none articulated or unknown",
                 "items": {
                     "description": "Issue related to `action` summary",
                     "type": "string"
@@ -79,16 +93,17 @@
                 "type": "string"
             },
             "title": {
-                "description": "Generate display Title for `action` based on content",
+                "description": "Generate short display Title for `action` based on content",
                 "type": "string"
             },
             "type": {
-                "const": "political",
-                "description": "MyLife System type of `action`",
+                "const": "action",
+                "description": "Type of item, in this FORCE `action`",
                 "type": "string"
             },
             "values": {
-                "description": "Related `values` for this `action`, if applicable",
+                "default": [],
+                "description": "Related `values` for this `action`, can be empty if none articulated or unknown",
                 "type": "array",
                 "items": {
                     "description": "Related articulated `value`s related to this `action`",
@@ -97,15 +112,19 @@
             }
         },
         "required": [
+            "activity",
             "content",
             "conviction",
             "ease_of_execution",
             "form",
+            "issues",
             "keywords",
             "steps",
             "summary",
             "title",
-            "type"
+            "type",
+            "values"
         ]
-    }
+    },
+    "strict": true
 }

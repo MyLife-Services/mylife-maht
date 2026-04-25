@@ -2,10 +2,18 @@ import OpenAI from 'openai'
 import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
 import { mcpCall, } from './controllers/mcp-functions.mjs'
 /* module constants */
-const { OPENAI_API_KEY: mOpenaiKey, OPENAI_BASE_URL: mBasePath, OPENAI_MAX_INSTRUCTIONS_LENGTH, OPENAI_ORG_KEY: mOrganizationKey, OPENAI_API_CHAT_RESPONSE_PING_INTERVAL, OPENAI_API_CHAT_TIMEOUT, } = process.env
-const mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000
-const mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890
-const mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
+const {
+    OPENAI_API_KEY: mOpenaiKey,
+    OPENAI_BASE_URL: mBasePath,
+    OPENAI_MAX_INSTRUCTIONS_LENGTH,
+    OPENAI_ORG_KEY: mOrganizationKey,
+    OPENAI_API_CHAT_RESPONSE_PING_INTERVAL,
+    OPENAI_API_CHAT_TIMEOUT,
+} = process.env
+const mDefaultLLMProvider = 'openai',
+    mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000,
+    mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890,
+    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 /* class definition */
 /**
  * LLM Services class.
@@ -36,21 +44,20 @@ class LLMServices {
     }
     /* public methods */
     /**
-     * Creates openAI GPT API assistant.
-     * @param {object} bot - The bot data
-     * @returns {Promise<object>} - openai assistant object
+     * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
+     * @param {string} conversation_id - conversation id
+     * @param {string} message - array of messages (optional)
+     * @param {object} metadata - metadata object (optional)
+     * @returns {Promise<Object>} - openai conversation object
      */
-    async createBot(botData){
-        botData = mValidateAssistantData(botData)
-        const bot = await this.openai.beta.assistants.create(botData)
-        const thread = await mThread(this.openai)
-        bot.thread_id = thread.id
-        return bot
+    async conversation(conversation_id, messages=[], metadata){
+        const conversation = await mConversation(this.openai, conversation_id, messages, metadata)
+        return conversation
     }
     /**
      * Creates a new OpenAI Vectorstore.
-     * @param {string} mbr_id - Member ID.
-     * @returns {Promise<Object>} - OpenAI `vectorstore` object.
+     * @param {string} mbr_id - Member ID
+     * @returns {Promise<Object>} - OpenAI `vectorstore` object
      */
     async createVectorstore(mbr_id){
         const vectorstore = await this.openai.vectorStores.create({
@@ -59,28 +66,12 @@ class LLMServices {
         return vectorstore
     }
     /**
-     * Deletes an assistant from OpenAI.
-     * @param {string} llm_id - GPT-Assistant external ID
+     * Deletes a conversation from OpenAI.
+     * @param {string} conversation_id - The conversation id
      * @returns 
      */
-    async deleteBot(llm_id){
-        try {
-            const deletedBot = await this.openai.beta.assistants.del(llm_id)
-            return deletedBot
-        } catch (error) {
-            if(error.name==='PermissionDeniedError')
-                console.error(`Permission denied to delete assistant: ${ llm_id }`)
-            else
-                console.error(`ERROR trying to delete assistant: ${ llm_id }`, error.name, error.message)
-        }
-    }
-    /**
-     * Deletes a thread from OpenAI.
-     * @param {string} thread_id - Thread id.
-     * @returns 
-     */
-    async deleteThread(thread_id){
-        return await mThreadDelete(this.openai, thread_id)
+    async deleteConversation(conversation_id){
+        return await mConversationDelete(this.openai, conversation_id)
     }
     /**
      * Extracts response from LLM response object.
@@ -95,7 +86,7 @@ class LLMServices {
         llmResponses.forEach(response=>{
                 if(typeof response==='string' && response.length)
                     responses.push(response)
-                const { assistant_id: llm_id, content, created_at, id, run_id, thread_id, } = response
+                const { content, created_at, id, thread_id, } = response
                 if(!!content?.length)
                     content.forEach(content=>{
                         if(!!content?.text?.value?.length)
@@ -107,8 +98,8 @@ class LLMServices {
     }
     /**
      * Returns openAI file object.
-     * @param {string} fileId - OpenAI file ID.
-     * @returns - OpenAI `file` object.
+     * @param {string} fileId - OpenAI file ID
+     * @returns - OpenAI `file` object
      */
     async file(fileId){
         return await this.openai.files.retrieve(fileId)
@@ -116,8 +107,8 @@ class LLMServices {
     /**
      * Returns file list from indicated vector store.
      * @documentation [OpenAI API Reference: Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores-files/listFiles)
-     * @param {string} vectorstoreId - OpenAI vector store ID.
-     * @returns {Promise<Object[]>} - Array of openai `file` objects.
+     * @param {string} vectorstoreId - OpenAI vector store ID
+     * @returns {Promise<Object[]>} - Array of openai `file` objects
      */
     async files(vectorstoreId){
         const files = await this.openai.vectorStores.files.list(vectorstoreId)
@@ -125,119 +116,142 @@ class LLMServices {
     }
     /**
      * Given member input, get a response from the specified LLM service.
-     * @example - `run` object: { assistant_id, id, model, provider, required_action, status, usage }
-     * @todo - confirm that reason for **factory** is to run functions as responses from LLM; #botAgent if possible, Avatar if not
-     * @todo - cancel run on: 400 Can't add messages to `thread_...` while a run `run_...` is active.
-     * @param {string} thread_id - Thread id
-     * @param {string} llm_id - GPT-Assistant/Bot id
-     * @param {string} prompt - Member input
+     * @documentation [Handling function calls](https://platform.openai.com/docs/guides/function-calling#handling-function-calls)
+     * @param {string} conversation_id - Conversation id (from thread id)
+     * @param {string} llmProvider - LLM provider object: { *id, model, provider, *type, variables, version, }
+     * @param {string} input - Member input text
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} avatar - Avatar object
+     * @param {object} variables - variables object to send to LLM for response generation (required when required by LLM prompt)
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(thread_id, llm_id, prompt, factory, avatar){
-        if(!thread_id?.length)
-            thread_id = ( await mThread(this.openai) ).id
-        try{
-            await mAssignRequestToThread(this.openai, thread_id, prompt)
-        } catch(error) {
-            console.log('LLMServices::getLLMResponse()::error', error.message)
-            try{
-                if(error.status==400){
-                    const cancelRun = await mRunCancel(this.openai, thread_id, llm_id)
-                    if(!!cancelRun)
-                        await mAssignRequestToThread(this.openai, thread_id, prompt)
-                    else {
-                        console.log('LLMServices::getLLMResponse()::cancelRun::unable to cancel run', cancelRun)
-                        return []
+    async getLLMResponse(conversation_id, llmProvider, input, factory, avatar){
+        if(llmProvider.provider!=='openai')
+            throw new Error(`LLM provider ${llmProvider.provider} not supported.`)
+        let prompt = {}
+        switch(llmProvider?.type){
+            case 'prompt':
+                prompt.id = llmProvider.id
+                const promptVariables = llmProvider?.variables &&
+                    Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), avatar.promptVariable(v)]))
+                if(promptVariables)
+                    prompt.variables = promptVariables
+                break
+            case 'assistant':
+                throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
+            default:
+                throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
+        }
+        // clean input - requiring arrays to be flattened
+        if(Array.isArray(input))
+            input.forEach(item=>{
+                Object.keys(item).forEach(key=>{
+                    if(typeof item[key]!=='string')
+                        item[key] = JSON.stringify(item[key])
+                })
+            })
+        conversation_id ??= ( await mConversation(this.openai, undefined, input) ).id
+        const response = await mResponse(this.openai, conversation_id, prompt, input)
+        const { completed_at, created_at, error, id: response_id, incomplete_details, metadata, model, output, output_text, prompt: _prompt, status, temperature, tools, top_p, usage, } = response
+        const llmMessages = []
+        switch(status){
+            case 'completed':
+                if(Array.isArray(output)){
+                    const fileSearches = output.filter(message=>message?.type==='file_search_call')
+                    const functionCalls = output.filter(message=>message?.type==='function_call')
+                    const imageGenerations = output.filter(message=>message?.type==='image_generation_call')
+                    const mcpCalls = output.filter(message=>message?.type==='mcp_call')
+                    const messages = output.filter(message=>message?.type==='message' && Array.isArray(message?.content))
+                    const reasonings = output.filter(message=>message?.type==='reasoning')
+                    const webSearches = output.filter(message=>message?.type==='web_search_call')
+                    // @stub - theoretically one can receive **both** function calls and content, but for now, I am treating as either/or; have not encountered a scenario of combination
+                    switch(true){
+                        case !!functionCalls.length: {
+                            const deleteCalls = [],
+                                toolResponses = []
+                            let deleteConversation = false
+                            try{
+                                await Promise.all(
+                                    functionCalls.map(async call=>{
+                                        if(call.arguments && typeof call.arguments==='string')
+                                            call.arguments = JSON.parse(call.arguments)
+                                        const { call_id, id: function_id, name, status, } = call
+                                        let { arguments: args, } = call
+                                        const toolResponse = await avatar.llmFunctionCall(name, args)
+                                        const { cancelResponse=false, deleteThread=false, ..._toolResponse } = toolResponse
+                                        if(deleteThread)
+                                            deleteConversation = true
+                                        if(cancelResponse)
+                                            deleteCalls.push(function_id)
+                                        else
+                                            toolResponses.push(mConvertToolResponse(llmProvider, _toolResponse, { call_id, function_id, name, tools, }))
+                                    }
+                                ))
+                                if(deleteConversation)
+                                    return await mConversationDelete(this.openai, conversation_id) // temp call; will not be referenced again
+                                else if(
+                                        deleteCalls.length 
+                                    &&  await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, deleteCalls.length>=functionCalls.length)
+                                ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
+                                    return
+                            } catch(error) {
+                                console.error('ERROR running tool function calls from LLM response', response_id, error)
+                                deleteCalls.length = 0 // clear deleteCalls
+                                functionCalls.forEach(call=>deleteCalls.push(call.id)) // add all function calls to deleteCalls
+                                await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, true)
+                                return
+                            }
+                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, avatar)
+                        }
+                        default: {
+                            console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
+                            llmMessages.push(...messages.map(message => mMessageConvert(this.provider, message)))
+                            return llmMessages
+                        }
                     }
-                }
-            } catch(error) {
-                console.log('LLMServices::getLLMResponse()::error re-running', error.message, error.status)
-                return []
-            }
+                } else
+                    llmMessages.push(mMessageConvert(this.provider, 'Intelligence was unable to respond; please try your request again.'))
+                break
+            case 'in_progress':
+            case 'queued':
+                console.log('LLMServices::getLLMResponse()::pending::need to retry', status)
+                break
+            case 'incomplete':
+                console.log('LLMServices::getLLMResponse()::incomplete', status, incomplete_details)
+                break
+            case 'cancelled':
+            case 'failed':
+            default:
+                console.log('LLMServices::getLLMResponse()::error', status, error)
+                break
         }
-        const runOutcome = await mRunTrigger(this.openai, llm_id, thread_id, factory, avatar)
-        const { deleteThread=false, cancelResponse=false, error, function: functionCall, id: _run_id, status, success, } = runOutcome
-        const { run_id=_run_id } = runOutcome
-        let llmMessages
-        if(status=='cancelled' || cancelResponse){
-            if(cancelResponse){
-                await mRunCancel(this.openai, thread_id, run_id, deleteThread)
-                console.log('LLMServices::getLLMResponse()::cancelResponse', cancelResponse, functionCall)
-                delete runOutcome.deleteThread
-            }
-            llmMessages = Array.isArray(runOutcome)
-                ? runOutcome
-                : [runOutcome]
-        } else if(!success){
-            if(avatar?.backupResponse){
-                avatar.backupResponse.action = 'endMemory'
-                avatar.backupResponse.error = error
-                avatar.backupResponse.role = 'avatar'
-                avatar.backupResponse.run_id = run_id
-            }
-            llmMessages = []
-        } else {
-            const messages = await this.messages(thread_id)
-            llmMessages = messages.filter(message=>message.role=='assistant' && message.run_id==run_id)
-        }
-        return llmMessages
     }
     /**
-     * Given member request for help, get response from specified bot assistant.
-     * @param {string} thread_id - Thread id.
-     * @param {string} llm_id - GPT-Assistant/Bot id.
-     * @param {string} helpRequest - Member input.
-     * @param {AgentFactory} factory - Avatar Factory object to process request.
-     * @param {Avatar} avatar - Avatar object.
-     * @returns {Promise<Object>} - openai `message` objects.
+     * Returns a specific message associated with a conversation.
+     * @param {string} conversation_id - Conversation id
+     * @param {string} msg_id - Message id
+     * @returns {Promise<object>} - openai `message` object
      */
-    async help(thread_id, llm_id, helpRequest, factory, avatar){
-        const helpResponse = await this.getLLMResponse(thread_id, llm_id, helpRequest, factory, avatar)
-        return helpResponse
+    async message(conversation_id, msg_id){
+        const message = await mMessages(this.provider, conversation_id, msg_id)
+        return message
     }
     /**
-     * Returns messages associated with specified thread.
-     * @param {string} thread_id - Thread id
-     * @returns {Promise<Object[]>} - Array of openai `message` objects.
+     * Returns messages associated with specified conversation.
+     * @param {string} conversation_id - Conversation id
+     * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async messages(thread_id){
-        const { data: messages } = await mMessages(this.provider, thread_id)
+    async messages(conversation_id){
+        const { data: messages } = await mMessages(this.provider, conversation_id)
         return messages
-    }
-    /**
-     * Create a new OpenAI thread.
-     * @param {string} thread_id - thread id
-     * @param {Message[]} messages - array of messages (optional)
-     * @param {object} metadata - metadata object (optional)
-     * @returns {Promise<Object>} - openai thread object
-     */
-    async thread(thread_id, messages=[], metadata){
-        const thread = await mThread(this.openai, thread_id, messages, metadata)
-        return thread
-    }
-    /**
-     * Updates assistant with specified data. Example: Tools object for openai: { tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }, }; https://platform.openai.com/docs/assistants/tools/file-search/quickstart?lang=node.js
-     * @todo - conform payload to OpenAI API Reference
-     * @param {Object} botData - The bot object data.
-     * @returns {Promise<Object>} - openai assistant object.
-     */
-    async updateBot(botData){
-        let { bot_id, llm_id, ...assistantData } = botData
-        if(!llm_id?.length)
-            throw new Error('No bot ID provided for update')
-        botData = mValidateAssistantData(assistantData)
-        const assistant = await this.openai.beta.assistants.update(llm_id, botData)
-        return assistant
     }
     /**
      * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
      * @documentation [OpenAI API Reference: Vector Stores](https://platform.openai.com/docs/api-reference/vector-stores)
      * @documentation [file_search Quickstart](https://platform.openai.com/docs/assistants/tools/file-search/quickstart)
-     * @param {string} vectorstoreId - Vector store ID from OpenAI.
-     * @param {object} files - as seems to be requested by api: { files, fileIds, }.
-     * @returns {Promise<object>} - The outcome of the upload { vectorstoreId, response, success, }.
+     * @param {string} vectorstoreId - Vector store ID from OpenAI
+     * @param {object} files - as seems to be requested by api: { files, fileIds, }
+     * @returns {Promise<object>} - The outcome of the upload { vectorstoreId, response, success, }
      */
     async upload(vectorstoreId, files){
         if(!files?.length)
@@ -272,611 +286,225 @@ class LLMServices {
 }
 /* module functions */
 /**
- * Takes Member input request and assigns it to OpenAI thread for processing.
- * @module
- * @async
- * @param {OpenAI} openai - openai object
- * @param {string} threadId - thread id
- * @param {string} request - message text 
- * @returns {object} - openai `message` object
+ * Deletes function calls from an OpenAI response. If deleteAll is true, also deletes entire response.
+ * @param {OpenAI} openai - OpenAI object
+ * @param {string} conversation_id - The conversation id
+ * @param {string} response_id - The response id
+ * @param {string} call_ids - list of function call ids to delete from response
+ * @param {boolean} deleteAll - Whether to delete response entirely
+ * @returns {Promise<boolean>} - Whether the response was deleted entirely (true) or just specific calls (false); when `false` any remaining tool responses are sent.
  */
-async function mAssignRequestToThread(openai, threadId, request){
-    const messageObject = await openai.beta.threads.messages.create(
-        threadId,
-        mMessage_openAI(request)
+async function mCallDelete(openai, conversation_id, response_id, call_ids, deleteAll=false){
+    await Promise.all(
+        call_ids.map(function_id=>openai.conversations.items.delete(function_id, { conversation_id }))
     )
-    return messageObject
+    if(deleteAll){ // in partial deletions, LLM is less likely to get hung up on undelivered requests, so here need to also delete any recent user requests to fully clear the response deck
+        const { data } = await openai.conversations.items.list(conversation_id, { limit: 20, order: 'desc', })
+        const inputItems = []
+        for(const item of data){
+            if(item.role==='assistant')
+                break
+            if(item.role==='user')
+                inputItems.push(item.id)
+        }
+        await Promise.all(
+            inputItems.map(itemId=>openai.conversations.items.delete(itemId, { conversation_id }))
+        )
+        const response = await openai.responses.delete(response_id)
+    }
+    return deleteAll
+}
+/**
+ * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
+ * @param {OpenAI} openai - OpenAI object
+ * @param {string} conversation_id - conversation id
+ * @param {Object[]|string} messages - message(s) (optional)
+ * @param {object} metadata - metadata object (optional)
+ * @returns {object} - OpenAI `conversation` object
+ */
+async function mConversation(openai, conversation_id, messages, metadata){
+    let conversation
+    if(conversation_id?.length)
+        conversation = conversation_id.startsWith('thread_')
+            ? await mConvertThreadToConversation(openai, conversation_id, metadata)
+            : await openai.conversations.retrieve(conversation_id)
+    else
+        conversation = await openai.conversations.create({ metadata, })
+    if(conversation?.id && messages?.length){ // seed message(s)
+        const items = typeof messages==='string'
+            ? [{
+                type: "message",
+                role: "user",
+                content: messages,
+            }]
+            : Array.isArray(messages)
+                ? messages
+                : []
+        if(items.length)
+            await openai.conversations.items.create(conversation.id, { items })
+    }
+    return conversation
+}
+/**
+ * Deletes an OpenAI conversation.
+ * @param {OpenAI} openai - OpenAI object
+ * @param {string} conversation_id - Conversation id
+ * @returns {Promise<object>} - Deleted conversation object: { deleted: true, id: conversation_id, object: 'conversation.deleted', }
+ */
+async function mConversationDelete(openai, conversation_id){
+    let deletedConversation
+    try {
+        deletedConversation = await openai.conversations.delete(conversation_id)
+    } catch (error) {
+        if(error.name==='PermissionDeniedError')
+            console.error(`Permission denied to delete conversation: ${ conversation_id }`)
+        else
+            console.error(`ERROR trying to delete conversation: ${ conversation_id }`,  error.name, error.message)
+        deletedConversation = { deleted: false, error, id: conversation_id, object: 'conversation.delete_failed', }
+    }
+    return deletedConversation
+}
+/**
+ * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
+ * @param {OpenAI} openai - openai object
+ * @param {string} conversation_id - conversation id
+ * @param {object} metadata - metadata object (optional)
+ * @returns {object} - openai `conversation` object
+ */
+async function mConvertThreadToConversation(openai, conversation_id, metadata={}){
+    metadata.thread_id = conversation_id
+    const conversation = await openai.conversations.create({ metadata, }),
+        messages = []
+    if(!conversation?.id)
+        throw new Error(`Failed to create conversation for thread ${ conversation_id }`, metadata)
+    try {
+        for await (const message of openai.beta.threads.messages.list(conversation_id, { limit: 100, order: "asc" }))
+            messages.push(message)
+        const items = messages.map((m)=>{
+            const content = m.content.flatMap((c)=>{
+                switch (c.type) {
+                    case "text":
+                        return [{ type: m.role === "user" ? "input_text" : "output_text", text: c.text.value }]
+                    case "image_url":
+                        return [{ type: "input_image", image_url: c.image_url.url, detail: c.image_url.detail }]
+                    default:
+                        return []
+                }
+            })
+            return { role: m.role, content }
+        })
+        const batchSizeMax = 20
+        for (let i = 0; i < items.length; i += batchSizeMax){
+            const batch = items.slice(i, i + batchSizeMax)
+            await openai.conversations.items.create(conversation.id, { items: batch })
+        }
+        console.warn(`mConversation()::${ conversation_id } is deprecated, converted to ${ conversation.id }`)
+    } catch(error) {
+        console.error(`ERROR converting thread content from ${ conversation_id } to conversation ${ conversation.id }`, error.name, error.message, metadata)
+    }
+    return conversation
+}
+/**
+ * Converts tool response to a sanitized format for LLM response generation. This is required as tools can return a variety of content, but LLM response generation requires a consistent format.
+ * @param {object} llmProvider - LLM provider object
+ * @param {object} toolResponse - The MyLife response from the tool function call
+ * @param {object} providerOptions - Additional options for specific LLM providers, such as call_id
+ * @returns {object} - Sanitized tool response in expected format for LLM response generation
+ */
+function mConvertToolResponse(llmProvider, toolResponse, providerOptions={}){
+    const provider = typeof llmProvider==='string'
+        ? llmProvider
+        : llmProvider?.provider
+            ?? mDefaultLLMProvider
+    let sanitizedResponse
+    switch(provider.toLowerCase()){
+        case 'openai':
+            const { call_id, function_id, name, tools, } = providerOptions
+            const { action, itemId, function: functionName, success=false, ...rest } = toolResponse
+            sanitizedResponse = {
+                type: "function_call_output",
+                call_id: call_id,
+                output: {
+                    action,
+                    itemId,
+                    success,
+                    ...rest,
+                },
+            }
+            break
+        default:
+            sanitizedResponse = toolResponse
+            break
+    }
+    return sanitizedResponse
 }
 /**
  * Gets message from OpenAI thread.
  * @module
  * @async
  * @param {OpenAI} openai - openai object
- * @param {string} threadId - thread id
- * @param {string} messageId - message id
+ * @param {string} conversation_id - conversation id
+ * @param {string} msg_id - message id, returns specific message (optional)
  * @returns {object} openai `message` object
  */
-async function mMessage(openai, threadId, messageId){
-    //  files are attached at the message level under file_ids _array_, only content aside from text = [image_file]:image_file.file_id
-    return await openai.beta.threads.messages.retrieve(
-            threadId,
-            messageId,
-        )
+async function mMessages(openai, conversation_id, msg_id){
+    return msg_id?.length
+        ? await openai.conversations.items.retrieve(
+                conversation_id,
+                msg_id,
+            )
+        : await openai.conversations.items.list(
+                conversation_id,
+                { limit: 50, }
+            )
 }
 /**
  * Format input for OpenAI.
  * @module
+ * @param {string} provider - LLM provider
  * @param {string} message - message text 
  * @returns {object} - synthetic openai `message` object
  */
-function mMessage_openAI(message){
-    return {
-        role: 'user',
-        content: message,
-//         file: this.file,
-    }
-}
-/**
- * Gets messages from OpenAI thread.
- * @module
- * @async
- * @param {OpenAI} openai - openai object
- * @param {string} threadId - thread id
- */
-async function mMessages(openai, threadId){
-    const messages = await openai.beta.threads.messages
-        .list(threadId)
-    return messages
-}
-async function mRunCancel(openai, threadId, runId, deleteThread=false){
-    try {
-        const run = await openai.beta.threads.runs.cancel(threadId, runId)
-        if(deleteThread)
-            await mThreadDelete(openai, threadId)
-        return run
-    } catch(err) {
-        return false
-    }
-}
-/**
- * Maintains vigil for status of openAI `run = 'completed'`.
- * @module
- * @async
- * @param {OpenAI} openai - openai object
- * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
- * @param {AgentFactory} factory - Avatar Factory object to process request
- * @param {Avatar} avatar - Avatar object
- * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
- */
-async function mRunFinish(llmServices, run, factory, avatar){
-    return new Promise((resolve, reject) => {
-        const checkInterval = setInterval(async ()=>{
-            try {
-                const functionRun = await mRunStatus(llmServices, run, factory, avatar)
-                const functionRunStatus = functionRun?.status
-                    ?? functionRun
-                if(functionRunStatus){
-                    clearInterval(checkInterval)
-                    resolve(functionRun)
-                }
-            } catch (error){
-                try {
-                    await mRunCancel(llmServices, run.thread_id, run.id)
-                } catch (_error){
-                    console.log('mRunFinish()::cancelRun::error', _error)
-                }
-                clearInterval(checkInterval)
-                reject(error)
-            }
-        }, mPingIntervalMs)
-        setTimeout(() => {
-            clearInterval(checkInterval)
-            resolve('Run completed (timeout)')
-        }, mTimeoutMs)
-    })
-}
-/**
- * Executes openAI run functions. See https://platform.openai.com/docs/assistants/tools/function-calling/quickstart.
- * @module
- * @private
- * @async
- * @param {OpenAI} openai - openai object
- * @param {object} run - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
- * @param {AgentFactory} factory - Avatar Factory object to process request
- * @param {Avatar} avatar - Avatar object
- * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
- * @throws {Error} - If tool function not recognized
- */
-async function mRunFunctions(openai, run, factory, avatar){
-    try{
-        if(
-                run.required_action?.type=='submit_tool_outputs'
-            &&  run.required_action?.submit_tool_outputs?.tool_calls
-            &&  run.required_action.submit_tool_outputs.tool_calls.length
-        ){
-            const { assistant_id: llm_id, id: runId, metadata, thread_id, } = run
-            const toolCallsOutput = await Promise.all(
-                run.required_action.submit_tool_outputs.tool_calls
-                    .map(async tool=>{
-                        const { id, function: toolFunction, type, } = tool
-                        let { arguments: toolArguments={}, name, } = toolFunction
-                        let action = '',
-                            confirmation = {
-                                tool_call_id: id,
-                                output: '',
-                            },
-                            item,
-                            success = false
-                        if(typeof toolArguments==='string')
-                            toolArguments = await JSON.parse(toolArguments)
-                                ?? {}
-                        toolArguments.thread_id = thread_id // deprecate?
-                        const { itemId, } = toolArguments
-                        switch(name.toLowerCase()){
-                            case 'callexternalagent':
-                            case 'call_external_agent':
-                            case 'call external agent':
-                                const { agentId, messageId, request, skillId, } = toolArguments
-                                console.log('mRunFunctions()::callExternalAgent::start', agentId, skillId, request, messageId)
-                                avatar.backupResponse = {
-                                    message: `I could not communicate effectively with our external agent. I cannot determine if this is a temporary issue or a persistent one. Please try again later or contact support if the issue continues.`,
-                                    type: 'system',
-                                }
-                                const agent = avatar.getBot(agentId, true)
-                                const response = await a2aExternalRequest(messageId, skillId, request, agent.agentEndpoint)
-                                if(response?.success)
-                                    delete avatar.backupResponse
-                                confirmation.output = JSON.stringify({ action: 'Response from Agent call:\n' + response.response, success: response?.success ?? false, })
-                                console.log('mRunFunctions()::callExternalAgent::end', confirmation)
-                                return confirmation
-                            case 'changetitle':
-                            case 'change_title':
-                            case 'change title':
-                                const { title: newTitle, } = toolArguments
-                                console.log('mRunFunctions()::changeTitle start', newTitle, itemId)
-                                avatar.backupResponse = {
-                                    message: `I encountered an unexpected error while changing our title to: ${ newTitle }. Please try again.`,
-                                    type: 'system',
-                                }
-                                if(!itemId?.length || !newTitle?.length){
-                                    action = 'apologize for lack of clarity - member should click on the collection item (like a memory, story, etc) to identify it as active'
-                                    confirmation.output = JSON.stringify({ action, success, })
-                                    return confirmation
-                                }
-                                delete avatar.actionCallback
-                                delete avatar.backupResponse
-                                delete avatar.frontendInstruction
-                                const updateTitle = {
-                                    id: itemId,
-                                    title: newTitle
-                                }
-                                if(await avatar.itemUpdate(updateTitle))
-                                    avatar.frontendInstruction = {
-                                        command: 'updateItemTitle',
-                                        itemId,
-                                        title: newTitle,
-                                    }
-                                return {
-                                    cancelResponse: true,
-                                    deleteThread: false,
-                                    function: 'changeTitle',
-                                    run_id: runId, // required for canceling run
-                                    success: true,
-                                    title: newTitle,
-                                }
-                            case 'confirmregistration':
-                            case 'confirm_registration':
-                            case 'confirm registration':
-                                console.log('mRunFunctions()::confirmregistration', toolArguments)
-                                let { email: confirmEmail, registrationId, } = toolArguments
-                                confirmEmail = confirmEmail.trim()
-                                if(!confirmEmail?.length)
-                                    action = `No email provided for registration confirmation, elicit email address for confirmation of registration and try function this again`
-                                else if(!registrationId?.length)
-                                    action = `No registrationId provided, continue discussing MyLife organization but forget all current registration data`
-                                else if(await factory.confirmRegistration(confirmEmail, registrationId)){
-                                    action = `congratulate on registration (**important** remember registrationId=${ registrationId }) and get required member data for follow-up: date of birth, initial account passphrase.`
-                                    success = true
-                                } else
-                                    action = 'Registration confirmation failed, notify member of system error and continue discussing MyLife organization; forget all current registration data.'
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
-                            case 'createaccount':
-                            case 'create_account':
-                            case 'create account':
-                                console.log('mRunFunctions()::createAccount::start', toolArguments)
-                                const { birthdate, passphrase, } = toolArguments
-                                action = `error setting basics for member: `
-                                if(!birthdate)
-                                    action += 'birthdate missing, elicit birthdate; '
-                                if(!passphrase)
-                                    action += 'passphrase missing, elicit passphrase; '
-                                try {
-                                    const { success: createAccountSuccess, } = await avatar.createAccount(birthdate, passphrase, factory.candidate)
-                                    action = createAccountSuccess
-                                        ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and explain that once the system processes their membership they will be able to use the login button at the top right.`
-                                        : action + 'server failure for `factory.createAccount()`'
-                                    success = createAccountSuccess
-                                } catch(error){
-                                    action += '__ERROR: ' + error.message
-                                }
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
-                            case 'endreliving':
-                            case 'end_reliving':
-                            case 'end reliving':
-                                avatar.actionCallback = 'endMemory'
-                                throw new Error('endReliving intentionally aborted')
-                            case 'createstance': // stance summary & metadata
-                            case 'createvalue': // value summary & metadata
-                            case 'entrysummary': // deprecate
-                            case 'entry_summary':
-                            case 'entry summary':
-                            case 'itemsummary': // itemSummary in Globals
-                            case 'item_summary':
-                            case 'item summary':
-                            case 'story':
-                            case 'storysummary': // deprecate
-                            case 'story-summary':
-                            case 'story_summary':
-                            case 'story summary':
-                                console.log(`mRunFunctions()::${ name }`, toolArguments?.title)
-                                const createSummaryResponse = await avatar.item(toolArguments, 'POST')
-                                success = createSummaryResponse.success
-                                action = success
-                                    ? `item creation was successful; save for **internal AI reference** this itemId: ${ createSummaryResponse.item.id }`
-                                    : `error creating summary for item given argument title: ${ toolArguments?.title } - DO NOT TRY AGAIN until member asks for it`
-                                confirmation.output = JSON.stringify({
-                                    action,
-                                    success,
-                                })
-                                console.log(`mRunFunctions()::${ name }::success`, success, createSummaryResponse?.item?.id)
-                                return confirmation    
-                            case 'getsummary':
-                            case 'get_summary':
-                            case 'get summary':
-                                let { item: getSummaryItem, success: getSummarySuccess, } = await avatar.item({ id: itemId, })
-                                success = getSummarySuccess
-                                action = success
-                                    ? 'Summary content found in payload @ `summary`'
-                                    : `No summary for item ${ itemId }, use conversation content`
-                                confirmation.output = JSON.stringify({ action, success, summary: getSummaryItem?.summary, })
-                                console.log('mRunFunctions()::getSummary', success, getSummaryItem?.summary?.substring(0, 32))
-                                return confirmation
-                            case 'hijackattempt':
-                            case 'hijack_attempt':
-                            case 'hijack-attempt':
-                            case 'hijack attempt':
-                                // @todo - add conversation flag
-                                console.log('mRunFunctions()::hijackattempt', toolArguments)
-                                action = 'attempt noted in system and user ejected; greet per normal as first time new user'
-                                success = true
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
-                            case 'obscure':
-                                avatar.backupResponse = {
-                                    message: `I encountered an unexpected error while obscuring your content, please try again.`,
-                                    type: 'system',
-                                }
-                                const { summary: obscured, obscuredSummary: _obscured, } = toolArguments
-                                const obscuredSummary = obscured
-                                    ?? _obscured
-                                console.log('mRunFunctions()::obscure complete')
-                                return {
-                                    cancelResponse: true,
-                                    deleteThread: true,
-                                    function: 'obscure',
-                                    obscuredSummary,
-                                    run_id: runId, // required for canceling run
-                                    success: true,
-                                }
-                            case 'preparesummary':
-                            case 'prepare_summary':
-                            case 'prepare summary':
-                                if(!!avatar)
-                                    avatar.backupResponse = {
-                                        message: `I encountered an unexpected error while preparing content for sharing, please try again.`,
-                                        type: 'system',
-                                    }
-                                const { summary: prepared, preparedSummary: _prepared, warnings, } = toolArguments
-                                const preparedSummary = prepared
-                                    ?? _prepared
-                                console.log('mRunFunctions()::prepareSummary complete')
-                                return {
-                                    cancelResponse: true,
-                                    deleteThread: true,
-                                    function: 'prepareSummary',
-                                    preparedSummary,
-                                    run_id: runId, // required for canceling run
-                                    success: true,
-                                    warnings,
-                                }
-                            case 'registercandidate':
-                            case 'register_candidate':
-                            case 'register candidate':
-                                console.log('mRunFunctions()::registercandidate', toolArguments)
-                                const { avatarName, email: registerEmail, humanName, type, } = toolArguments /* rename email as it triggers IDE error being in switch */
-                                const registrant = await factory.registerCandidate({ avatarName, email: registerEmail, humanName, type, })
-                                if(!registrant)
-                                    action = 'error registering candidate in system; notify member of system error and continue discussing MyLife organization'
-                                else {
-                                    action = 'candidate registered in system; let them know they will be contacted by email within the week and if they have any more questions'
-                                    success = true
-                                }
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
-                            case 'updatesummary':
-                            case 'update_summary':
-                            case 'update summary':
-                                const { summary: newSummary, } = toolArguments
-                                delete avatar.actionCallback
-                                delete avatar.frontendInstruction
-                                avatar.backupResponse = {
-                                    message: `I encountered an unexpected error while updating item with id: "${ itemId }". Please try again.`,
-                                    type: 'system',
-                                }
-                                if(!itemId?.length || !newSummary?.length){
-                                    action = 'if member-driven, they should click on the appropriate collection item (like a memory, story, etc) to identify it as active'
-                                    confirmation.output = JSON.stringify({ action, success, })
-                                    return confirmation
-                                }
-                                console.log('mRunFunctions()::updatesummary::begin', itemId)
-                                const updateData = {
-                                    id: itemId,
-                                    summary: newSummary,
-                                }
-                                let { instruction: updateItemInstruction, responses: updateItemResponses, success: updateItemSuccess, } = await avatar.item(updateData, 'PUT')
-                                success = updateItemSuccess
-                                if(avatar.livingMemory?.item?.id===itemId){
-                                    delete avatar.backupResponse
-                                    confirmation.output = JSON.stringify({ success, })
-                                    return confirmation
-                                }
-                                avatar.backupResponse = updateItemResponses?.[0]
-                                avatar.frontendInstruction = updateItemInstruction
-                                return {
-                                    cancelResponse: true,
-                                    deleteThread: false,
-                                    function: 'updateSummary',
-                                    itemId,
-                                    run_id: runId, // required for canceling run
-                                    success: true,
-                                    updateItemResponses,
-                                }
-                            default:
-                                console.log(`ERROR::mRunFunctions()::toolFunction not found: ${ name }`, toolFunction)
-                                action = `toolFunction not found: ${ name }, apologize for the error and continue on with the conversation; system notified to fix`
-                                confirmation.output = JSON.stringify({ action, success, })
-                                return confirmation
-                        }
-                    }))
-            /* submit tool output */
-            const finalOutput = toolCallsOutput.some(response=>response?.cancelResponse===true)
-                ? toolCallsOutput[0]
-                : await openai.beta.threads.runs.submitToolOutputsAndPoll( // note: must submit all tool outputs at once
-                        run.thread_id,
-                        run.id,
-                        { tool_outputs: toolCallsOutput },
-                    )
-            return finalOutput /* undefined indicates to ping again */
-        }
-    } catch(error){
-        if(error.status!==400)
-            throw error
-    }
-}
-/**
- * Returns all openai `run` objects for `thread`.
- * @module
- * @async
- * @param {OpenAI} openai - openai object
- * @param {string} threadId - Thread id
- * @returns {array} - array of [OpenAI run objects](https://platform.openai.com/docs/api-reference/runs/object)
- */
-async function mRuns(openai, threadId){
-    return await openai.beta.threads.runs
-        .list(threadId)
-}
-/**
- * Checks status of openAI run.
- * @module
- * @async
- * @param {OpenAI} openai - openai object
- * @param {object} run - Run id
- * @param {AgentFactory} factory - Avatar Factory object to process request
- * @param {Avatar} avatar - Avatar object
- * @returns {object} - Run object if run completed, false/voids otherwise
- */
-async function mRunStatus(openai, run, factory, avatar){
-    run = await openai.beta.threads.runs
-        .retrieve(
-            run.thread_id,
-            run.id,
-        )
-    switch(run.status){
-        case 'requires_action':
-            const completedRun = await mRunFunctions(openai, run, factory, avatar)
-            return completedRun /* if undefined, will ping again */
-        case 'cancelled':
-            console.log(`CANCELED:${run.thread_id}...`, run.id) // ping log
-            break // **note** do not return here, as there can be run conditions and we need the completedRun from requires action
-        case 'completed':
-            console.log(`COMPLETED:${run.thread_id}...`, run.id) // ping log
-            return run // run
-        case 'failed':
-        case 'expired':
-            return false
-        case 'queued':
-        case 'in_progress':
-        case 'cancelling':
+function mMessageConvert(provider, message){
+    let messageConverted = {}
+    switch(provider){
         default:
-            console.log(`...${run.status}:${run.thread_id}...`) // ping log
+            if(typeof message==='string'){
+                messageConverted.content = { text: message, type: 'input_text', }
+                messageConverted.id = crypto.randomUUID()
+                messageConverted.role = 'assistant'
+                messageConverted.status = 'completed'
+                messageConverted.type = 'message'
+            } else
+                messageConverted = message
             break
     }
+    return messageConverted
 }
 /**
- * Returns requested openai `run` object.
- * @module
- * @async
- * @param {Avatar} _avatar - Avatar object
- * @param {string} run_id - Run id
- * @param {string} _step_id - Step id
- * @returns {object} - [OpenAI run-step object]()
- */
-async function mRunStep(_avatar, run_id, _step_id){
-	//	pull from known runs
-	return _avatar.runs
-		.filter(run=>{ return run.id==run_id })
-		.steps
-			.filter(_step=>{ return _step.id==_step_id })
-}
-/**
- * Returns all openai `run-step` objects for `run`.
- * @module
- * @async
- * @param {Avatar} _avatar - Avatar object
- * @param {string} run_id - Run id
- * @returns {array} - array of [OpenAI run-step objects]()
- */
-async function mRunSteps(_avatar, run_id){
-	//	always get dynamically
-	const run = _avatar.runs
-        .filter(run=>{ return run.id==run_id })
-        [0]
-	run.steps = await openai.beta.threads.runs.steps
-        .list(_avatar.thread.id, run.id)
-}
-/**
- * Executes openAI run and returns associated `run` object.
- * @module
- * @param {OpenAI} openai - OpenAI object
- * @param {string} assistantId - Assistant id
- * @param {string} threadId - Thread id
- * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
- */
-async function mRunStart(llmServices, assistantId, threadId){
-    return await llmServices.beta.threads.runs.create(
-        threadId,
-        { assistant_id: assistantId }
-    )
-}
-/**
- * Triggers openAI run and updates associated `run` object.
- * @module
- * @param {OpenAI} openai - OpenAI object
- * @param {string} llm_id - Bot id
- * @param {string} threadId - Thread id
- * @param {AgentFactory} factory - Avatar Factory object to process request
- * @param {Avatar} avatar - Avatar object
- * @returns {object} - [OpenAI run object](https://platform.openai.com/docs/api-reference/runs/object)
- */
-async function mRunTrigger(openai, llm_id, threadId, factory, avatar){
-    const run = await mRunStart(openai, llm_id, threadId)
-    if(!run)
-        throw new Error('Run failed to start')
-    const finishRun = await mRunFinish(openai, run, factory, avatar)
-        .then(_run=>{
-            _run.success = true
-            return _run
-        })
-        .catch(err=>{
-            run.error = err
-            run.success = false
-            return run
-        })
-    return finishRun
-}
-/**
- * Create or retrieve an OpenAI thread.
- * @todo - create case for failure in thread creation/retrieval
- * @module
+ * Creates an OpenAI request with member input. Appends to Conversation in OpenAI.
  * @param {OpenAI} openai - openai object
- * @param {string} thread_id - thread id
- * @param {Message[]} messages - array of messages (optional)
- * @param {object} metadata - metadata object (optional)
- * @returns {Promise<Object>} - openai thread object
+ * @param {string} conversation_id - Conversation id (from thread id)
+ * @param {object} prompt  - Prompt id in OpenAI (from assistant id)
+ * @param {string|object[]} input - Member input text, be it one message or multiple (=JSON.stringify())
+ * @param {object} metadata - Metadata object to send with request (optional)
+ * @param {string} instructionOverride - String to override default instruction in prompt for this response generation (optional)
+ * @param {number} max_output_tokens - Max output tokens for response (optional, default: 10240)
+ * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
  */
-async function mThread(openai, thread_id, messages=[], metadata){
-    if(thread_id?.length)
-        return await openai.beta.threads.retrieve(thread_id)
-    else
-        return mThreadCreate(openai, messages, metadata)
-}
-/**
- * Create an OpenAI thread.
- * @module
- * @async
- * @param {OpenAI} openai - openai object
- * @param {Message[]} messages - array of messages (optional)
- * @param {object} metadata - metadata object (optional)
- * @returns {object} - openai `thread` object
- */
-async function mThreadCreate(openai, messages, metadata){
-    const thread = await openai.beta.threads.create({
-        messages,
+async function mResponse(openai, conversation_id, prompt, input, metadata, instructionOverride, max_output_tokens=10240){
+    const request = {
+        conversation: conversation_id,
+        include: ['web_search_call.action.sources', 'file_search_call.results'],
+        input,
+        max_output_tokens,
         metadata,
-        tool_resources: {},
-    })
-    return thread
-}
-async function mThreadDelete(openai, thread_id){
-    try {
-        const deletedThread = await openai.beta.threads.del(thread_id)
-        return deletedThread
-    } catch (error) {
-        if(error.name==='PermissionDeniedError')
-            console.error(`Permission denied to delete thread: ${ thread_id }`)
-        else
-            console.error(`ERROR trying to delete thread: ${ thread_id }`,  error.name, error.message)
+        prompt,
     }
-}
-/**
- * Validates assistant data before sending to OpenAI.
- * @param {object} data - Object data to validate.
- * @returns {object} - Cured assistant object data.
- */
-function mValidateAssistantData(data){
-    if(!data)
-        throw new Error('No data or data in incorrect format to send to OpenAI assistant.')
-    if(typeof data==='string')
-        data = { [`${ data.substring(0, 32) }`]: data }
-    if(typeof data!=='object')
-        throw new Error('Data to send to OpenAI assistant is not in correct format.')
-    const {
-        bot_name,
-        description,
-        id,
-        instructions,
-        metadata={},
-        model,
-        name: gptName,
-        temperature,
-        tools,
-        tool_resources,
-        top_p,
-        response_format,
-        version,
-    } = data
-    const name = bot_name
-        ?? gptName
-    metadata.id = id
-    metadata.updated = `${ Date.now() }` // metadata nodes must be strings
-    if(instructions?.length > mMaxInstructionsLength)
-        instructions = instructions.substring(0, mMaxInstructionsLength)
-    const assistantData = {
-        description,
-        instructions,
-        metadata,
-        model,
-        name,
-        tools,
-        tool_resources,
-    }
-    Object.keys(assistantData).forEach(key =>{
-        if(assistantData[key] === undefined)
-            delete assistantData[key]
-    })
-    return assistantData
+    if(instructionOverride?.length)
+        request.instructions = instructionOverride
+    const response = await openai.responses.create(request)
+    return response
 }
 /* exports */
 export default LLMServices

@@ -1,4 +1,5 @@
 /** imports **/
+import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -13,7 +14,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/factory.mjs'
 /** variables **/
-const version = '0.0.40'
+const version = '0.0.41'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
