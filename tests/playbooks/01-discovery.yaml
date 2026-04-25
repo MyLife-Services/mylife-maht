@@ -166,46 +166,60 @@ sections:
       - note the opening line of event[0] — does the greeting feel coherent and welcoming?
       - report: memberNameSubstituted, botNamePresent, routineTitle, eventCount
 
-  - name: Survey avatar buttons; fire prompt types
+  - name: Survey avatar buttons; fire routine and prompt types
     # GET /members/bots/:id/buttons returns the button manifest for the bot.
     # Button types: routine | prompt | passphrase | experience | instruction
-    # We fire only 'prompt' types here — each sends a pre-set message to the
-    # bot chat. 'experience' is excluded (separate suite). 'routine' was already
-    # exercised in section 6. 'passphrase' is handled in sections 8-11.
+    # routine  → GET /routine/:value  (all must return success + events)
+    # prompt   → POST /members/ { botId, message: value, role: 'prompt' }
+    # experience is excluded (separate suite).
+    # passphrase is handled in sections 8-11.
     request:
       method: GET
       path: /members/bots/${context.avatarId}/buttons
     assert:
       - response is an array
-      # Pass even if no prompt buttons exist — their absence is informational,
-      # not a failure. The avatar currently has none.
+      # Pass even if no prompt buttons exist — their absence is informational.
+      # The avatar currently has no prompt buttons, only routine and experience.
     store:
       - key: context.avatarButtons
         value: response
     assess:
       - list all buttons with their type, label, and value
       - note which types are present (expected: passphrase, routine, experience)
-      - note whether any prompt or script buttons exist
-    # For each prompt button found, fire it.
+    # Fire all routine buttons.
     # for_each semantics: if source is empty, skip entirely — no sub-sections
     # are executed and the parent section still passes. If source has items,
     # iterate once per item, executing the nested do: block each time.
     for_each:
-      source: response[type=prompt]
-      as: btn
-      do:
-        - name: "Fire prompt button: ${btn.label}"
-          request:
-            method: POST
-            path: /members/
-            body:
-              botId: ${context.avatarId}
-              message: ${btn.value}
-              role: prompt
-          assert:
-            - response.success is true OR response.responses is a non-empty array
-          assess:
-            - note the bot's response content — does it address the prompt coherently?
+      - source: response[type=routine]
+        as: btn
+        do:
+          - name: "Fire routine button: ${btn.label}"
+            request:
+              method: GET
+              path: /routine/${btn.value}
+            assert:
+              - response.success is exactly: true
+              - response.routine.events is an array with length >= 1
+            assess:
+              - note the routine title and event count
+              - confirm neither <-mN-> nor <-bN-> appear literally in the dialog
+      # Fire all prompt buttons.
+      - source: response[type=prompt]
+        as: btn
+        do:
+          - name: "Fire prompt button: ${btn.label}"
+            request:
+              method: POST
+              path: /members/
+              body:
+                botId: ${context.avatarId}
+                message: ${btn.value}
+                role: prompt
+            assert:
+              - response.responses is a non-empty array
+            assess:
+              - note the bot's response content — does it address the prompt coherently?
 
   - name: Change passphrase
     # Appends "-test" to the current passphrase to create a temporary one.
@@ -265,3 +279,25 @@ sections:
     assess:
       - if this section fails, playbook.env is OUT OF SYNC — the account passphrase
         is currently "${context.tempPassphrase}" and must be manually restored
+
+  - name: Chat with personal-avatar — ask about MyLife
+    # First real conversational turn with the avatar. Sends a genuine member
+    # question to establish that the LLM pipeline is operational and that the
+    # avatar responds with appropriate context about MyLife's mission and purpose.
+    request:
+      method: POST
+      path: /members/
+      body:
+        botId: ${context.avatarId}
+        message: "What is MyLife, and what is it designed to help me do?"
+        role: member
+    assert:
+      - response.responses is a non-empty array
+    assess:
+      # Quality markers — the synthetic should judge:
+      - does the response mention MyLife by name?
+      - does it address MyLife's mission (nonprofit, digital legacy, memories, storytelling)?
+      - is the response personally framed (uses "you", "your", not generic)?
+      - does the response feel coherent and on-brand, or generic/off-topic?
+      - note word count — a one-sentence reply is a weak response for this question
+      - note the full response text for the movement report

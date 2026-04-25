@@ -204,40 +204,55 @@ export async function play(){
             }
         }
     ))
-    /* section 7 — survey avatar buttons and fire any prompt types */
+    /* section 7 — survey avatar buttons; fire all routine and prompt types
+       routine → GET /routine/:value
+       prompt  → POST /members/ { botId, message: value, role: 'prompt' }
+       experience and passphrase are skipped (separate suite / already covered) */
     const buttons = await request(`/members/bots/${ avatarId }/buttons`)
-    const promptButtons = Array.isArray(buttons) ? buttons.filter(b=>b.type==='prompt') : []
-    const buttonResults = []
+    const routineButtons = Array.isArray(buttons) ? buttons.filter(b=>b.type==='routine') : []
+    const promptButtons  = Array.isArray(buttons) ? buttons.filter(b=>b.type==='prompt')  : []
+    const routineResults = []
+    for(const btn of routineButtons){
+        const routineResponse = await request(`/routine/${ btn.value }`)
+        routineResults.push({
+            label: btn.label,
+            value: btn.value,
+            eventCount: routineResponse?.routine?.events?.length ?? 0,
+            success: routineResponse?.success === true,
+        })
+    }
+    const promptResults = []
     for(const btn of promptButtons){
         const chatResponse = await request('/members/', {
             method: 'POST',
             body: JSON.stringify({ botId: avatarId, message: btn.value, role: 'prompt', }),
         })
-        buttonResults.push({ label: btn.label, value: btn.value, response: chatResponse, })
+        promptResults.push({
+            label: btn.label,
+            value: btn.value,
+            responded: !!chatResponse?.responses?.length,
+        })
     }
     sections.push(section(
-        'Survey avatar buttons; fire prompt types',
+        'Survey avatar buttons; fire routine and prompt types',
         buttons,
         result => {
             const isArray = Array.isArray(result)
-            /* pass regardless of whether prompt buttons exist — their absence is informational */
             const passed = isArray
             const byType = isArray
                 ? result.reduce((acc, b)=>{ ;(acc[b.type] = acc[b.type] ?? []).push(b.label); return acc }, {})
                 : {}
-            const promptsFired = promptButtons.map((btn, i)=>({
-                label: btn.label,
-                responded: !!buttonResults[i]?.response?.responses?.length,
-            }))
+            const allRoutinesPassed = routineResults.every(r=>r.success)
             return {
                 passed,
                 learned: passed ? {
                     buttonCount: result.length,
                     byType,
-                    promptsFired: promptsFired.length ? promptsFired : 'none',
+                    routineResults,
+                    promptResults: promptResults.length ? promptResults : 'none',
                 } : {},
                 notes: passed
-                    ? `${ result.length } button(s). Types: ${ Object.keys(byType).join(', ') || 'none' }. Prompt buttons fired: ${ promptButtons.length }`
+                    ? `${ result.length } button(s). Routines fired: ${ routineResults.length } (${ allRoutinesPassed ? 'all passed' : 'some failed' }). Prompts fired: ${ promptResults.length }.`
                     : `Expected buttons array. Got: ${ JSON.stringify(result) }`,
             }
         }
@@ -329,6 +344,38 @@ export async function play(){
                 notes: passed
                     ? 'Original passphrase restored. playbook.env remains valid.'
                     : `Restore failed — playbook.env passphrase is now out of sync! Got: ${ JSON.stringify(result) }`,
+            }
+        }
+    ))
+    /* section 12 — chat with personal-avatar: ask about MyLife */
+    const chatQuestion = `What is MyLife, and what is it designed to help me do?`
+    const chatResponse = await request('/members/', {
+        method: 'POST',
+        body: JSON.stringify({ botId: avatarId, message: chatQuestion, role: 'member', }),
+    })
+    sections.push(section(
+        'Chat with personal-avatar: ask about MyLife',
+        chatResponse,
+        result => {
+            const responses = result?.responses ?? []
+            const passed = Array.isArray(responses) && responses.length > 0
+            const fullText = responses.map(r=>r.message ?? r.content ?? '').join(' ').replace(/<[^>]+>/g, '').trim()
+            /* assess quality markers */
+            const mentionsMyLife   = /mylife/i.test(fullText)
+            const mentionsMission  = /mission|nonprofit|legacy|memories|stories|platform/i.test(fullText)
+            const mentionsPersonal = /you|your|personal|help/i.test(fullText)
+            const wordCount        = fullText.split(/\s+/).filter(Boolean).length
+            return {
+                passed,
+                learned: passed ? {
+                    responseCount: responses.length,
+                    wordCount,
+                    qualityMarkers: { mentionsMyLife, mentionsMission, mentionsPersonal },
+                    preview: fullText.substring(0, 150),
+                } : {},
+                notes: passed
+                    ? `Avatar responded (${ wordCount } words). MyLife mentioned: ${ mentionsMyLife }. Mission/platform context: ${ mentionsMission }. Personal framing: ${ mentionsPersonal }.`
+                    : `Expected responses array. Got: ${ JSON.stringify(result) }`,
             }
         }
     ))
