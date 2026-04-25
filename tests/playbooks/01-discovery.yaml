@@ -1,0 +1,107 @@
+# MyLife Synthetic Testing Playbook
+# Movement 01 — Login and Stage Setting
+# Suite: Overture
+#
+# Purpose:
+#   Establish that the synthetic consumer can authenticate, then survey what
+#   is available — which teams exist, which bots are active, and what can be
+#   created. No content is modified. This is pure discovery.
+#
+# Execution:
+#   Run sections in order. Maintain a cookie jar across all requests.
+#   Abort if Section 1 (authenticate) does not pass — later sections
+#   require an authenticated session.
+#
+# Environment (load before executing):
+#   Copy tests/synthetic.env.sample → tests/synthetic.env  (gitignored)
+#   Variables referenced below as ${VAR_NAME}
+
+movement:
+  number: "01"
+  name: "Login and Stage Setting"
+  suite: overture
+
+env:
+  - MYLIFE_BASE_URL      # e.g. https://mylife.ngrok.app
+  - SYNTHETIC_MBR_ID     # e.g. ember|95ade320-e0f7-4cef-a001-9324edcb6e71
+  - SYNTHETIC_PASSPHRASE # e.g. ember lights the way forward
+
+# Cookie jar: all requests in this movement (and all subsequent movements)
+# share a single cookie jar. Pass -b / -c <jar-file> on every curl call,
+# or use the session.mjs request() wrapper which manages it automatically.
+
+sections:
+
+  - name: Authenticate synthetic account
+    request:
+      method: POST
+      path: /challenge/${SYNTHETIC_MBR_ID}
+      # URL-encode the member ID before substituting into the path.
+      # Member IDs contain a pipe character: avatarName|uuid
+      url_encode_path: true
+      body:
+        passphrase: ${SYNTHETIC_PASSPHRASE}
+    assert:
+      # The server returns the literal boolean true (not an object, not "true")
+      - response is exactly: true
+    on_fail: abort
+    # If authentication fails, all subsequent sections are meaningless.
+    # The synthetic consumer should report the auth error and stop.
+    store:
+      - key: authenticated
+        value: true
+
+  - name: Survey available teams
+    request:
+      method: GET
+      path: /members/teams
+    assert:
+      - response is an array
+      - response.length >= 1
+      - response contains an item where name == "memory"
+      # Teams expose which bot types are allowed and which collection types
+      # are queryable. Both fields must be present.
+      - each item in response has field: allowedBotTypes (array)
+      - each item in response has field: allowedItemTypes (array)
+      - each item in response has field: primaryCollectionTypes (array)
+      - each item in response has field: defaultActiveType (string)
+    store:
+      - key: context.teams
+        value: response
+        # Downstream movements derive creatableTypes and primaryCollectionTypes
+        # from this array. Preserve the full objects.
+      - key: context.teamNames
+        value: response[*].name
+    assess:
+      # Document which teams are present and what each governs.
+      # Expected at minimum: memory. May also include political, activism, etc.
+      - note the team names and their primaryCollectionTypes
+      - note which team holds defaultActiveType "personal-avatar"
+
+  - name: Survey active bots and creatable types
+    request:
+      method: GET
+      path: /members/bots
+    assert:
+      - response is an object
+      - response.activeBotId is a non-empty string
+      - response.bots is an array
+      - response.bots.length >= 1
+      # The active bot (response.bots[id == activeBotId]) must be type personal-avatar.
+      # This is the default session holder — always present, never retired.
+      - response.bots contains item where id == response.activeBotId and type == "personal-avatar"
+    store:
+      - key: context.activeBotId
+        value: response.activeBotId
+      - key: context.bots
+        value: response.bots
+      - key: context.creatableTypes
+        # Types that appear in context.teams[*].allowedBotTypes
+        # but are NOT already present in response.bots[*].type
+        derive: allowedBotTypes_from_teams MINUS existing_bot_types
+    assess:
+      # Document the current bot landscape so later movements know
+      # whether they need to create a bot or can activate an existing one.
+      - list each bot: id, type, name, itemForms
+      - list creatableTypes derived above
+      - note whether biographer, journaler, diary, personal-advocate bots already exist
