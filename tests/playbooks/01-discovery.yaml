@@ -166,6 +166,44 @@ sections:
       - note the opening line of event[0] — does the greeting feel coherent and welcoming?
       - report: memberNameSubstituted, botNamePresent, routineTitle, eventCount
 
+  - name: Survey avatar buttons; fire prompt types
+    # GET /members/bots/:id/buttons returns the button manifest for the bot.
+    # Button types: routine | prompt | passphrase | experience | instruction
+    # We fire only 'prompt' types here — each sends a pre-set message to the
+    # bot chat. 'experience' is excluded (separate suite). 'routine' was already
+    # exercised in section 6. 'passphrase' is handled in sections 8-11.
+    request:
+      method: GET
+      path: /members/bots/${context.avatarId}/buttons
+    assert:
+      - response is an array
+      # Pass even if no prompt buttons exist — their absence is informational,
+      # not a failure. The avatar currently has none.
+    store:
+      - key: context.avatarButtons
+        value: response
+    assess:
+      - list all buttons with their type, label, and value
+      - note which types are present (expected: passphrase, routine, experience)
+      - note whether any prompt or script buttons exist
+    # For each prompt button found, fire it:
+    for_each:
+      source: response[type=prompt]
+      as: btn
+      do:
+        - name: "Fire prompt button: ${btn.label}"
+          request:
+            method: POST
+            path: /members/
+            body:
+              botId: ${context.avatarId}
+              message: ${btn.value}
+              role: prompt
+          assert:
+            - response.success is true OR response.responses is a non-empty array
+          assess:
+            - note the bot's response content — does it address the prompt coherently?
+
   - name: Change passphrase
     # Appends "-test" to the current passphrase to create a temporary one.
     # The session remains active after this call — no re-auth needed yet.

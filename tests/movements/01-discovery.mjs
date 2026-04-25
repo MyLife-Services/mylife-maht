@@ -204,7 +204,45 @@ export async function play(){
             }
         }
     ))
-    /* section 7 — change passphrase */
+    /* section 7 — survey avatar buttons and fire any prompt types */
+    const buttons = await request(`/members/bots/${ avatarId }/buttons`)
+    const promptButtons = Array.isArray(buttons) ? buttons.filter(b=>b.type==='prompt') : []
+    const buttonResults = []
+    for(const btn of promptButtons){
+        const chatResponse = await request('/members/', {
+            method: 'POST',
+            body: JSON.stringify({ botId: avatarId, message: btn.value, role: 'prompt', }),
+        })
+        buttonResults.push({ label: btn.label, value: btn.value, response: chatResponse, })
+    }
+    sections.push(section(
+        'Survey avatar buttons; fire prompt types',
+        buttons,
+        result => {
+            const isArray = Array.isArray(result)
+            /* pass regardless of whether prompt buttons exist — their absence is informational */
+            const passed = isArray
+            const byType = isArray
+                ? result.reduce((acc, b)=>{ ;(acc[b.type] = acc[b.type] ?? []).push(b.label); return acc }, {})
+                : {}
+            const promptsFired = promptButtons.map((btn, i)=>({
+                label: btn.label,
+                responded: !!buttonResults[i]?.response?.responses?.length,
+            }))
+            return {
+                passed,
+                learned: passed ? {
+                    buttonCount: result.length,
+                    byType,
+                    promptsFired: promptsFired.length ? promptsFired : 'none',
+                } : {},
+                notes: passed
+                    ? `${ result.length } button(s). Types: ${ Object.keys(byType).join(', ') || 'none' }. Prompt buttons fired: ${ promptButtons.length }`
+                    : `Expected buttons array. Got: ${ JSON.stringify(result) }`,
+            }
+        }
+    ))
+    /* section 8 — change passphrase */
     const tempPassphrase = `${ PASSPHRASE }-test`
     const changeResponse = await request('/members/passphrase', {
         method: 'POST',
@@ -224,9 +262,9 @@ export async function play(){
             }
         }
     ))
-    if(!sections[6].passed)
+    if(!sections[7].passed)
         return movementReport(movement.name, sections)
-    /* section 8 — logout */
+    /* section 9 — logout */
     /* GET /logout redirects (302) — no JSON body. Proof of logout comes from
        the re-authentication step below; here we just verify the server responded
        without an error status (i.e., not 4xx/5xx). */
@@ -246,9 +284,9 @@ export async function play(){
             }
         }
     ))
-    if(!sections[7].passed)
+    if(!sections[8].passed)
         return movementReport(movement.name, sections)
-    /* section 9 — re-authenticate with new passphrase */
+    /* section 10 — re-authenticate with new passphrase */
     let reAuthResult
     try {
         const encodedId = encodeURIComponent(MBR_ID)
@@ -273,9 +311,9 @@ export async function play(){
             }
         }
     ))
-    if(!sections[8].passed)
+    if(!sections[9].passed)
         return movementReport(movement.name, sections)
-    /* section 10 — restore original passphrase */
+    /* section 11 — restore original passphrase */
     const restoreResponse = await request('/members/passphrase', {
         method: 'POST',
         body: JSON.stringify({ passphrase: PASSPHRASE, }),
