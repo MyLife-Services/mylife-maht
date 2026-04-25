@@ -1779,6 +1779,18 @@ async function mUpdateTeams(){
         initCollections()
     ])
     getActiveBot() // no await
+    /* newly-created team bots won't be in mBots yet — re-fetch if team expects non-avatar bots but none are present */
+    const nonAvatarAllowed = (allowedBotTypes ?? []).filter(t=>!isAvatar(t))
+    const hasTeamBot = mBots.some(b=>!isAvatar(b.type) && nonAvatarAllowed.includes(b.type))
+    if(nonAvatarAllowed.length && !hasTeamBot){
+        const { bots } = await globals.datamanager.bots()
+        if(bots?.length){
+            for(const bot of bots)
+                if(!mBots.find(b=>b.id===bot.id))
+                    mBots.push(bot)
+            await updatePageBots()
+        }
+    }
 }
 /**
  * Upload Files to server from any .
