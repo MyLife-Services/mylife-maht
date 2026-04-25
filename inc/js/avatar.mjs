@@ -3198,7 +3198,7 @@ async function mFunction_obscure(response, toolArguments, Avatar){
     response.cancelResponse = true
     response.deleteThread = true
     const { summary, } = await Avatar.itemUpdate({ id: itemId, summary: obscuredSummary })
-    response.success = summary?.length
+    response.success = !!summary?.length
     Avatar.frontendInstructions = {
         command: 'updateItemSummary',
         itemId,
