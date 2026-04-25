@@ -364,7 +364,7 @@ class BotFactory extends EventEmitter{
 		if(!id || !summary?.length){
 			Avatar.backupResponses = {
 				agent: Avatar.activeBot.type,
-				message: `I was unable to obscure the item: ${ !id ? 'item not found' : 'summary missing' }`,
+				message: `I was unable to evaluate the item: ${ !id ? 'item not found' : 'summary missing' }`,
 				type: 'system',
 			}
 			return {
