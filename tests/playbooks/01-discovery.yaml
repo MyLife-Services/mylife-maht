@@ -3,9 +3,10 @@
 # Suite: Overture
 #
 # Purpose:
-#   Establish that the synthetic consumer can authenticate, then survey what
-#   is available — which teams exist, which bots are active, and what can be
-#   created. No content is modified. This is pure discovery.
+#   Establish that the synthetic consumer can authenticate, survey what is
+#   available, and verify the personal-avatar is operational. The last three
+#   sections confirm the avatar can be explicitly activated, renamed, and that
+#   its greeting routine correctly substitutes the member name and bot name.
 #
 # Execution:
 #   Run sections in order. Maintain a cookie jar across all requests.
@@ -78,7 +79,7 @@ sections:
       - note the team names and their primaryCollectionTypes
       - note which team holds defaultActiveType "personal-avatar"
 
-  - name: Survey active bots and creatable types
+  - name: Survey available bots and creatable types
     request:
       method: GET
       path: /members/bots
@@ -105,3 +106,59 @@ sections:
       - list each bot: id, type, name, itemForms
       - list creatableTypes derived above
       - note whether biographer, journaler, diary, personal-advocate bots already exist
+
+  - name: Activate personal-avatar
+    # Explicitly activate the avatar even though it already holds the session.
+    # This confirms the activate endpoint works for the avatar type and that
+    # the session bot id is properly echoed back.
+    request:
+      method: POST
+      path: /members/bots/activate/${context.bots[type=personal-avatar].id}
+      # Resolve the avatar id from context stored in section 3.
+    assert:
+      - response.success is exactly: true
+      - response.id or response.bot_id is a non-empty string matching the avatar id
+    store:
+      - key: context.activeBotId
+        value: response.id ?? response.bot_id
+      - key: context.avatarId
+        value: response.id ?? response.bot_id
+    on_fail: abort
+    # Without a confirmed active avatar, rename and routine are meaningless.
+
+  - name: Rename personal-avatar
+    # Choose a name at random from: Aria, Nova, Echo, Atlas, Lyra, Zephyr, Orion, Beacon
+    # Record the chosen name — it will be checked in the routine section.
+    vars:
+      chosenName: <pick randomly from [Aria, Nova, Echo, Atlas, Lyra, Zephyr, Orion, Beacon]>
+    request:
+      method: PUT
+      path: /members/bots/${context.avatarId}
+      body:
+        id: ${context.avatarId}
+        bot_name: ${chosenName}
+    assert:
+      - response.name == chosenName OR response.bot_name == chosenName
+    store:
+      - key: context.avatarName
+        value: ${chosenName}
+
+  - name: Run avatar greeting routine
+    request:
+      method: GET
+      path: /routine/avatar
+    assert:
+      - response.success is exactly: true
+      - response.routine is an object
+      - response.routine.events is an array with length >= 1
+      # Template variables must be substituted — neither literal placeholder may remain
+      - full dialog text (all events joined) does NOT contain the string "<-mN->"
+      - full dialog text does NOT contain the string "<-bN->"
+    assess:
+      # Check personalization quality — the synthetic should judge:
+      - confirm the member's first name appears somewhere in the dialog
+        (it replaces <-mN->; if it reads "MyLife Member" the substitution fell back to default)
+      - confirm context.avatarName ("${context.avatarName}") appears in the dialog
+        (it replaces <-bN->; absence means bot_name was not applied)
+      - note the opening line of event[0] — does the greeting feel coherent and welcoming?
+      - report: memberNameSubstituted, botNamePresent, routineTitle, eventCount
