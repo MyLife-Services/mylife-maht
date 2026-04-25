@@ -186,7 +186,10 @@ sections:
       - list all buttons with their type, label, and value
       - note which types are present (expected: passphrase, routine, experience)
       - note whether any prompt or script buttons exist
-    # For each prompt button found, fire it:
+    # For each prompt button found, fire it.
+    # for_each semantics: if source is empty, skip entirely — no sub-sections
+    # are executed and the parent section still passes. If source has items,
+    # iterate once per item, executing the nested do: block each time.
     for_each:
       source: response[type=prompt]
       as: btn
