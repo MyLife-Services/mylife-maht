@@ -121,19 +121,19 @@ class LLMServices {
      * @param {string} llmProvider - LLM provider object: { *id, model, provider, *type, variables, version, }
      * @param {string} input - Member input text
      * @param {AgentFactory} factory - Avatar Factory object to process request
-     * @param {Avatar} avatar - Avatar object
+     * @param {Avatar} Avatar - Avatar object
      * @param {object} variables - variables object to send to LLM for response generation (required when required by LLM prompt)
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(conversation_id, llmProvider, input, factory, avatar){
+    async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar){
         if(llmProvider.provider!=='openai')
-            throw new Error(`LLM provider ${llmProvider.provider} not supported.`)
+            throw new Error(`LLM provider ${ llmProvider.provider ?? 'unknown' } not supported.`)
         let prompt = {}
         switch(llmProvider?.type){
             case 'prompt':
                 prompt.id = llmProvider.id
-                const promptVariables = llmProvider?.variables &&
-                    Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), avatar.promptVariable(v)]))
+                const promptVariables = llmProvider?.variables
+                    ?? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
                 if(promptVariables)
                     prompt.variables = promptVariables
                 break
@@ -177,7 +177,7 @@ class LLMServices {
                                             call.arguments = JSON.parse(call.arguments)
                                         const { call_id, id: function_id, name, status, } = call
                                         let { arguments: args, } = call
-                                        const toolResponse = await avatar.llmFunctionCall(name, args)
+                                        const toolResponse = await Avatar.llmFunctionCall(name, args)
                                         const { cancelResponse=false, deleteThread=false, ..._toolResponse } = toolResponse
                                         if(deleteThread)
                                             deleteConversation = true
@@ -187,9 +187,10 @@ class LLMServices {
                                             toolResponses.push(mConvertToolResponse(llmProvider, _toolResponse, { call_id, function_id, name, tools, }))
                                     }
                                 ))
-                                if(deleteConversation)
-                                    return await mConversationDelete(this.openai, conversation_id) // temp call; will not be referenced again
-                                else if(
+                                if(deleteConversation){
+                                    this.deleteConversation(conversation_id) // no await
+                                    return
+                                } else if(
                                         deleteCalls.length 
                                     &&  await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, deleteCalls.length>=functionCalls.length)
                                 ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
@@ -201,7 +202,7 @@ class LLMServices {
                                 await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, true)
                                 return
                             }
-                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, avatar)
+                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, Avatar)
                         }
                         default: {
                             console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)

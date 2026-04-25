@@ -257,15 +257,6 @@ class Bot {
 	async migrateChat(){
 		await mMigrateChat(this, this.#llm)
 	}
-    /**
-     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
-     * @param {Guid} itemId - The item id
-     * @returns {Object} - The obscured item object
-     */
-	async obscure(itemId){
-        const updatedSummary = await this.#factory.obscure(itemId, this)
-		return updatedSummary
-	}
 	/**
 	 * Grants or revokes proxy instructions to a bot. These instructions are stored in a separate field array to be incorporated in general bot instructions at the end of the instructions. 
 	 * @param {Guid} proxyId - The Proxy id
@@ -662,7 +653,7 @@ class BotAgent {
      */
 	async evaluate(itemId){
 		// @stub - default to use general functioneer
-        const response = await this.#factory.evaluate(itemId, this.avatar.llmProvider)
+        const response = await this.#factory.evaluate(itemId, this.#avatar.llmProvider)
 		return response
 	}
 	async genericBot(botType='avatar'){
@@ -718,7 +709,7 @@ class BotAgent {
 	 */
 	async liveMemory(item, memberInput='NEXT'){
 		const { biographer, } = this
-		const { livingMemory, } = this.avatar
+		const { livingMemory, } = this.#avatar
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
@@ -738,7 +729,7 @@ class BotAgent {
 		Conversation.prompt = memberInput?.trim()?.length
 			? memberInput
 			: message
-		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.avatar)
+		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.#avatar)
 		return livingMemory
 	}
     /**
@@ -1400,10 +1391,10 @@ async function mBotUpdate(botData, options={}, Bot, factory){
  * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object required for function execution
- * @param {object} avatar - Avatar object
+ * @param {object} Avatar - Avatar object
  * @returns {Promise<void>} - Alters Conversation instance by nature
  */
-async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
+async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
     const { llmProvider, originalPrompt, processStartTime=Date.now(), prompt, thread_id, } = Conversation
 	if(!llmProvider?.id?.length)
 		throw new Error('No `llmProvider` intelligence id found in Conversation for `mCallLLM`.')
@@ -1411,7 +1402,7 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
         throw new Error('No Conversation found for `mCallLLM`.')
 	if(!prompt?.length)
 		throw new Error('No `prompt` found in Conversation for `mCallLLM`.')
-    const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, avatar)
+    const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, Avatar)
 	if(!responses?.length)
 		return
     responses
@@ -1605,7 +1596,6 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
 				globals.getGPTJavascriptFunction('itemSummary'),
-				globals.getGPTJavascriptFunction('obscure'),
 				globals.getGPTJavascriptFunction('updateSummary'),
 			)
 			includeSearch = true

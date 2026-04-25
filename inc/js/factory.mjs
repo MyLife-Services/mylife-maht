@@ -33,6 +33,10 @@ const mGeneralBotLLMProvider = {
 	model: 'gpt-4o-nano',
 	provider: 'openai',
 	type: 'prompt',
+	variables: {
+		id: null,
+		summary: null,
+	},
 	version: 1
 }
 const mLLMServices = new LLMServices()
@@ -468,20 +472,20 @@ class BotFactory extends EventEmitter{
     /**
      * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
      * @param {Guid} itemId - Id of the item to obscure
-	 * @param {Bot} bot - The bot instance to use for obscuring
+	 * @param {Avatar} Avatar - The avatar instance to use for obscuring
      * @returns {string} - The obscured content
      */
-	async obscure(itemId, bot){
+	async obscure(itemId, Avatar){
 		const { id, summary, relationships, } = await this.item(itemId)
 			?? {}
 		if(!id)
 			throw new Error('Item not found')
 		if(!summary?.length)
 			throw new Error('No summary found to obscure')
-		const obscuredSummary = await mObscure(summary, bot)
-		if(obscuredSummary?.length) /* save response */
-			this.dataservices.patch(id, { summary: obscuredSummary }) // no need await
-		return obscuredSummary
+		const prompt = `# OBSCURE`
+		const provider = { ...mGeneralBotLLMProvider, variables: { id, summary, }, }
+		await mLLMServices.getLLMResponse(undefined, provider, prompt, undefined, Avatar)
+		return true
 	}
     /**
      * Allows member to reset passphrase.
@@ -1516,22 +1520,6 @@ async function mLoadSchemas(){
 	} catch(err){
 		console.log(err)
 	}
-}
-/**
- * Given an itemId, obscures aspects of contents of the data record.
- * @requires mGeneralBotLLMProvider
- * @requires mLLMServices
- * @param {string} summary - The summary to obscure
- * @param {Bot} bot - The bot instance that will obscure the summary
- * @returns {string} - The obscured summary
- */
-async function mObscure(summary, bot){
-    const prompt = `OBSCURE:\n${summary}`
-	const { llmProvider, } = mGeneralBotLLMProvider
-    const responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt, undefined, bot)
-	return responses?.[0]?.obscuredSummary
-		?? responses?.obscuredSummary
-		?? summary
 }
 /**
  * Populates the `mBotInstructions` object with instruction sets retrieved from the dataservices. Each instruction set is categorized by its `type` property, allowing for organized access to different types of bot instructions.

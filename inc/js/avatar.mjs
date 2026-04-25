@@ -589,16 +589,8 @@ class Avatar extends EventEmitter {
      * @returns {Object} - The obscured item object
      */
     async obscure(iid){
-        const updatedSummary = await this.activeBot.obscure(iid)
-        this.frontendInstructions = {
-            command: 'updateItemSummary',
-            itemId: iid,
-        }
-        return mBuildResponse(this, {
-            item: { id: iid, summary: updatedSummary, },
-            responses: [{ agent: 'server', message: `I have successfully obscured your content.`, type: 'system', }],
-            success: true,
-        })
+        const success = await this.#factory.obscure(iid, this)
+        return mBuildResponse(this, { success, })
     }
     /**
      * Member request to retire a bot.
@@ -3195,11 +3187,28 @@ async function mFunction_getSummary(response, Avatar){
  * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the obscure operation
  */
 async function mFunction_obscure(response, toolArguments, Avatar){
-    const { itemId, summary, obscuredSummary, } = toolArguments
-    response.obscuredSummary = summary
-        ?? obscuredSummary
+    const { itemId, } = response
+    const { obscuredSummary, } = toolArguments
+    if(!obscuredSummary?.length){
+        response.action = `No obscured content provided for itemId: ${ itemId }. Check with member.`
+        response.success = false
+        return
+    }
+    response.action = obscuredSummary
     response.cancelResponse = true
     response.deleteThread = true
+    const { summary, } = await Avatar.itemUpdate({ id: itemId, summary: obscuredSummary })
+    response.success = summary?.length
+    Avatar.frontendInstructions = {
+        command: 'updateItemSummary',
+        itemId,
+        summary,
+    }
+    Avatar.backupResponses = {
+        agent: Avatar.activeBot.type,
+        message: `I have successfully obscured the content you requested. If you would like to review the obscured content, please click on the item in the appropriate collection list to make it active for discussion.`,
+        type: 'system',
+    }
 }
 /**
  * Handles the 'prepareSummary' function call from the LLM, which prepares a summary for sharing by setting the appropriate response properties and backup response. Mutates `response` and `Avatar` based on the provided summary and warnings.
@@ -3893,9 +3902,9 @@ async function mcp_change_title(mcpdata, sessionMeta, ctx, factory){
         }
     return { error, result, }
 }
-async function mcp_chat(mcpdata, sessionMeta, ctx, factory, avatar){
+async function mcp_chat(mcpdata, sessionMeta, ctx, factory, Avatar){
     const { message, } = mcpdata
-    const Conversation = await avatar.chat(message, message, true, avatar.avatar)
+    const Conversation = await Avatar.chat(message, message, true, Avatar.avatar)
     const content = Conversation?.responses?.length
         ? Conversation.responses.map(response=>({ text: response.message, type: 'text', }))
         : Conversation.getMessages(null, true).map(message=>({ text: message.content, type: 'text', }))
