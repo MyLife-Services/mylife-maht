@@ -6,8 +6,9 @@
 //	imports
 import Datamanager from "./datamanager.mjs"
 /**
- * Array fields that represent append-only variants: use `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
- * Example of append-only arrays: `feedback` (each boolean is a new datum).
+ * Array fields in this set are treated as append-only variants: use `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
+ * Arrays not in this set are replaced wholesale rather than appended to.
+ * Examples of append-only arrays: `feedback`, `validations`.
  */
 const mAddOnlyArrayFields = new Set([
     'feedback',
