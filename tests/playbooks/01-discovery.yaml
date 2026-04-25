@@ -9,9 +9,9 @@
 #   its greeting routine correctly substitutes the member name and bot name.
 #
 # Execution:
-#   Run sections in order. Maintain a cookie jar across all requests.
-#   Abort if Section 1 (authenticate) does not pass — later sections
-#   require an authenticated session.
+#   See SYNTHETIC_OPERATOR.md in this directory for the full operating protocol
+#   (session management, control flow keywords, assertion types, report format).
+#   Run sections in order. Abort if Section 1 (authenticate) does not pass.
 #
 # Environment:
 #   Load tests/playbooks/playbook.env before executing.
