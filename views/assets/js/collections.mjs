@@ -1112,6 +1112,7 @@ async function mDeleteCollectionItem(event){
         if(instructions?.length)
             enactInstruction(instructions, 'chat', { removeItem, })
         if(success){
+            removeItem(itemId)
             deleteItem(itemId, type)
             if(responses?.length)
                 addMessages(responses, 'avatar')
@@ -1181,6 +1182,9 @@ async function mRefreshCollection(type){
         throw new Error(`Library collection not implemented.`)
     const items = await mCollectionItemsData(type)
     const collection = mCollectionItems[type]
+    for(const item of collection.items)
+        if(item?.popup instanceof HTMLElement)
+            expunge(item.popup)
     collection.items = items ?? []
     collection.init = true
     const { itemContainer, } = collection
