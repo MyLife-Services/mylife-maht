@@ -130,7 +130,6 @@ class LLMServices {
      * @param {string} input - Member input text
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} Avatar - Avatar object
-     * @param {object} variables - variables object to send to LLM for response generation (required when required by LLM prompt)
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
     async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar){
