@@ -6,17 +6,13 @@
 //	imports
 import Datamanager from "./datamanager.mjs"
 /**
- * Array fields that represent canonical state and should be replaced wholesale when patched (Cosmos `op: 'set'`). Any array field NOT in this set is treated as an append-only log and uses `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
- * Example of append-only arrays: `feedback` (each boolean is a new datum).
+ * Array fields in this set are treated as append-only variants: use `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
+ * Arrays not in this set are replaced wholesale rather than appended to.
+ * Examples of append-only arrays: `feedback`, `validations`.
  */
-const mReplaceArrayFields = new Set([
-    'agentInstructions',
-    'activism_preferences',
-    'greetings',
-    'keywords',
-    'steps',
-    'tool_resources',
-    'tools',
+const mAddOnlyArrayFields = new Set([
+    'feedback',
+	'validations',
 ])
 /**
  * The Dataservices class.
@@ -655,11 +651,11 @@ class Dataservices {
 			const value = data[key]
 			const path = rootPath + key
 			if(Array.isArray(value)){
-				if(mReplaceArrayFields.has(key)) /* Canonical-state arrays: replace the whole field in one op */
-					patchOperations.push({ op: 'set', path, value, })
-				else /* Append-only arrays (e.g. feedback): additive, no overwrite */
+				if(mAddOnlyArrayFields.has(key)) /* Append-only arrays (e.g. feedback): additive */
 					for(const element of value) 
 						patchOperations.push({ op: 'add', path: path + '/-', value: element, })
+				else /* Canonical-state arrays: replace the whole field in one op */
+					patchOperations.push({ op: 'set', path, value, })
 			} else
 				patchOperations.push({ op: 'add', path, value, })
 		}

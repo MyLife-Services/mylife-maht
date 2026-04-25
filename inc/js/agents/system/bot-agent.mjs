@@ -217,9 +217,10 @@ class Bot {
 	 * Retrieves a greeting message from the active bot.
 	 * @param {boolean} dynamic - Whether to use dynamic greetings (`true`) or static (`false`)
 	 * @param {string} greetingPrompt - The prompt for the dynamic greeting
+	 * @param {Avatar} Avatar - The Avatar instance
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
-	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last'){
+	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last', Avatar){
 		if(dynamic && this.type!=='proxy')
 			return {
 				error: 'Cannot access dynamic greeting routine',
@@ -231,7 +232,7 @@ class Bot {
 			routine=this.#greetingRoutine
 		if(!firstAccess){
 			const greetings = dynamic
-				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory)
+				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory, Avatar)
 				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
 			responses.push(...greetings)
 		}
@@ -256,15 +257,6 @@ class Bot {
      */
 	async migrateChat(){
 		await mMigrateChat(this, this.#llm)
-	}
-    /**
-     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
-     * @param {Guid} itemId - The item id
-     * @returns {Object} - The obscured item object
-     */
-	async obscure(itemId){
-        const updatedSummary = await this.#factory.obscure(itemId, this)
-		return updatedSummary
 	}
 	/**
 	 * Grants or revokes proxy instructions to a bot. These instructions are stored in a separate field array to be incorporated in general bot instructions at the end of the instructions. 
@@ -662,7 +654,7 @@ class BotAgent {
      */
 	async evaluate(itemId){
 		// @stub - default to use general functioneer
-        const response = await this.#factory.evaluate(itemId, this.avatar.llmProvider)
+        const response = await this.#factory.evaluate(itemId, this.#avatar.llmProvider, this.#avatar)
 		return response
 	}
 	async genericBot(botType='avatar'){
@@ -707,7 +699,7 @@ class BotAgent {
      * @returns {string} - The greeting message from the active Bot
      */
     async greeting(dynamic=false){
-        const greeting = await this.activeBot.greeting(dynamic)
+        const greeting = await this.activeBot.greeting(dynamic, undefined, this.#avatar)
         return greeting
     }
 	/**
@@ -718,7 +710,7 @@ class BotAgent {
 	 */
 	async liveMemory(item, memberInput='NEXT'){
 		const { biographer, } = this
-		const { livingMemory, } = this.avatar
+		const { livingMemory, } = this.#avatar
 		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
@@ -738,7 +730,7 @@ class BotAgent {
 		Conversation.prompt = memberInput?.trim()?.length
 			? memberInput
 			: message
-		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.avatar)
+		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.#avatar)
 		return livingMemory
 	}
     /**
@@ -842,7 +834,7 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botInstructionsVersion(type)
 		}
-		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`)
+		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#avatar)
 		return {
 			id: botId,
 			firstAccess,
@@ -1201,11 +1193,12 @@ async function mBotDelete(botId, BotAgent, llm, factory){
  * @param {object} llmProvider - The LLM provider object: { *id, *type, }
  * @param {string} greetingPrompt - The prompt for the greeting
  * @param {LLMServices} llm - OpenAI object
- * @param {AgentFactory} factory - Agent Factory object
+ * @param {AgentFactory} Factory - Agent Factory object
+ * @param {Avatar} Avatar - The Avatar instance
  * @returns {Promise<Array>} - The array of string messages to respond with
  */
-async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, factory){
-	let responses = await llm.getLLMResponse(thread_id, llmProvider, greetingPrompt, factory)
+async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, Factory, Avatar){
+	let responses = await llm.getLLMResponse(thread_id, llmProvider, greetingPrompt, Factory, Avatar)
 		?? [mDefaultGreetings]
 	responses = llm.extractResponses(responses)
     return responses
@@ -1400,10 +1393,10 @@ async function mBotUpdate(botData, options={}, Bot, factory){
  * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object required for function execution
- * @param {object} avatar - Avatar object
+ * @param {object} Avatar - Avatar object
  * @returns {Promise<void>} - Alters Conversation instance by nature
  */
-async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
+async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
     const { llmProvider, originalPrompt, processStartTime=Date.now(), prompt, thread_id, } = Conversation
 	if(!llmProvider?.id?.length)
 		throw new Error('No `llmProvider` intelligence id found in Conversation for `mCallLLM`.')
@@ -1411,7 +1404,7 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, avatar){
         throw new Error('No Conversation found for `mCallLLM`.')
 	if(!prompt?.length)
 		throw new Error('No `prompt` found in Conversation for `mCallLLM`.')
-    const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, avatar)
+    const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, Avatar)
 	if(!responses?.length)
 		return
     responses
@@ -1605,7 +1598,6 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 				globals.getGPTJavascriptFunction('changeTitle'),
 				globals.getGPTJavascriptFunction('getSummary'),
 				globals.getGPTJavascriptFunction('itemSummary'),
-				globals.getGPTJavascriptFunction('obscure'),
 				globals.getGPTJavascriptFunction('updateSummary'),
 			)
 			includeSearch = true
