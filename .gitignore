@@ -3,6 +3,7 @@ node_modules/
 /in-progress/
 .env*
 .vscode/
+.claude/
 .personal/
 __*/ # ignore all folders starting with an underscore
 .hintrc
