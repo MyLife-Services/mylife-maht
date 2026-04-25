@@ -3188,6 +3188,11 @@ async function mFunction_getSummary(response, Avatar){
  */
 async function mFunction_obscure(response, toolArguments, Avatar){
     const { itemId, } = response
+    if(!itemId?.length){
+        response.action = `No itemId provided for obscure operation. Member should click on an item to make it active before requesting obscuration.`
+        response.success = false
+        return
+    }
     const { obscuredSummary, } = toolArguments
     if(!obscuredSummary?.length){
         response.action = `No obscured content provided for itemId: ${ itemId }. Check with member.`
@@ -3198,7 +3203,7 @@ async function mFunction_obscure(response, toolArguments, Avatar){
     response.cancelResponse = true
     response.deleteThread = true
     const { summary, } = await Avatar.itemUpdate({ id: itemId, summary: obscuredSummary })
-    response.success = summary?.length
+    response.success = !!summary?.length
     Avatar.frontendInstructions = {
         command: 'updateItemSummary',
         itemId,
