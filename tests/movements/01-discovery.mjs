@@ -17,8 +17,11 @@
  *   - The personal-avatar responds to explicit activation
  *   - Bot renaming via PUT reflects immediately in the response
  *   - The avatar routine interpolates member name and bot name into dialog
+ *   - Passphrase can be changed, session survives until explicit logout
+ *   - Re-authentication with the new passphrase succeeds after logout
+ *   - Passphrase can be restored to original, leaving the account unchanged
  */
-import { authenticate, context, request, } from '../lib/session.mjs'
+import { authenticate, context, MBR_ID, PASSPHRASE, request, } from '../lib/session.mjs'
 import { section, movementReport, } from '../lib/report.mjs'
 export const movement = {
     name: 'Login and Stage Setting',
@@ -198,6 +201,96 @@ export async function play(){
                 notes: passed
                     ? `Routine "${ routine.title }" — ${ routine.events.length } events. memberVar=${ memberVarSubstituted }, botVar=${ botVarSubstituted }, botName="${ chosenName }" present=${ botNamePresent }`
                     : `Expected { success, routine: { events[] } }. Got: ${ JSON.stringify(result) }`,
+            }
+        }
+    ))
+    /* section 7 — change passphrase */
+    const tempPassphrase = `${ PASSPHRASE }-test`
+    const changeResponse = await request('/members/passphrase', {
+        method: 'POST',
+        body: JSON.stringify({ passphrase: tempPassphrase, }),
+    })
+    sections.push(section(
+        'Change passphrase',
+        changeResponse,
+        result => {
+            const passed = result === true
+            return {
+                passed,
+                learned: passed ? { passphraseChanged: true, } : {},
+                notes: passed
+                    ? 'Passphrase updated successfully.'
+                    : `Expected true. Got: ${ JSON.stringify(result) }`,
+            }
+        }
+    ))
+    if(!sections[6].passed)
+        return movementReport(movement.name, sections)
+    /* section 8 — logout */
+    /* GET /logout redirects (302) — no JSON body. Proof of logout comes from
+       the re-authentication step below; here we just verify the server responded
+       without an error status (i.e., not 4xx/5xx). */
+    await request('/logout')
+    const logoutStatus = context.apiLog[context.apiLog.length - 1]?.status ?? 0
+    sections.push(section(
+        'Logout',
+        logoutStatus,
+        result => {
+            const passed = result === 302 || (result >= 200 && result < 400)
+            return {
+                passed,
+                learned: passed ? { logoutStatus: result, } : {},
+                notes: passed
+                    ? `Session ended (HTTP ${ result }).`
+                    : `Unexpected logout status: ${ result }`,
+            }
+        }
+    ))
+    if(!sections[7].passed)
+        return movementReport(movement.name, sections)
+    /* section 9 — re-authenticate with new passphrase */
+    let reAuthResult
+    try {
+        const encodedId = encodeURIComponent(MBR_ID)
+        reAuthResult = await request(`/challenge/${ encodedId }`, {
+            method: 'POST',
+            body: JSON.stringify({ passphrase: tempPassphrase, }),
+        })
+    } catch(error) {
+        reAuthResult = error.message
+    }
+    sections.push(section(
+        'Re-authenticate with new passphrase',
+        reAuthResult,
+        result => {
+            const passed = result === true
+            return {
+                passed,
+                learned: passed ? { reAuthenticated: true, } : {},
+                notes: passed
+                    ? 'New passphrase accepted. Session re-established.'
+                    : `Re-authentication failed: ${ JSON.stringify(result) }`,
+            }
+        }
+    ))
+    if(!sections[8].passed)
+        return movementReport(movement.name, sections)
+    /* section 10 — restore original passphrase */
+    const restoreResponse = await request('/members/passphrase', {
+        method: 'POST',
+        body: JSON.stringify({ passphrase: PASSPHRASE, }),
+    })
+    sections.push(section(
+        'Restore original passphrase',
+        restoreResponse,
+        result => {
+            const passed = result === true
+            return {
+                passed,
+                learned: passed ? { passphraseRestored: true, } : {},
+                notes: passed
+                    ? 'Original passphrase restored. playbook.env remains valid.'
+                    : `Restore failed — playbook.env passphrase is now out of sync! Got: ${ JSON.stringify(result) }`,
             }
         }
     ))

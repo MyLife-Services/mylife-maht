@@ -165,3 +165,62 @@ sections:
         (it replaces <-bN->; absence means bot_name was not applied)
       - note the opening line of event[0] — does the greeting feel coherent and welcoming?
       - report: memberNameSubstituted, botNamePresent, routineTitle, eventCount
+
+  - name: Change passphrase
+    # Appends "-test" to the current passphrase to create a temporary one.
+    # The session remains active after this call — no re-auth needed yet.
+    vars:
+      tempPassphrase: ${SYNTHETIC_PASSPHRASE}-test
+    request:
+      method: POST
+      path: /members/passphrase
+      body:
+        passphrase: ${tempPassphrase}
+    assert:
+      - response is exactly: true
+    store:
+      - key: context.tempPassphrase
+        value: ${tempPassphrase}
+    on_fail: abort
+    # If change fails, skip logout/re-auth — original passphrase is still valid.
+
+  - name: Logout
+    # GET /logout clears the session and redirects (HTTP 302) — no JSON body.
+    # Pass on any non-error status (2xx or 3xx). Real proof of logout comes
+    # from the next section: re-authentication must succeed with the new passphrase.
+    request:
+      method: GET
+      path: /logout
+      follow_redirects: false
+    assert:
+      - response status is 302 OR (>= 200 AND < 400)
+    on_fail: abort
+
+  - name: Re-authenticate with new passphrase
+    # Challenge endpoint with the temporary passphrase.
+    # If this passes, the passphrase change and logout both worked correctly.
+    request:
+      method: POST
+      path: /challenge/${SYNTHETIC_MBR_ID}
+      url_encode_path: true
+      body:
+        passphrase: ${context.tempPassphrase}
+    assert:
+      - response is exactly: true
+    on_fail: abort
+    # If re-auth fails, the passphrase may be in an unknown state.
+    # Do not attempt restore — flag for manual intervention.
+
+  - name: Restore original passphrase
+    # Resets the passphrase back to ${SYNTHETIC_PASSPHRASE} so playbook.env
+    # stays valid for all future runs without any manual intervention.
+    request:
+      method: POST
+      path: /members/passphrase
+      body:
+        passphrase: ${SYNTHETIC_PASSPHRASE}
+    assert:
+      - response is exactly: true
+    assess:
+      - if this section fails, playbook.env is OUT OF SYNC — the account passphrase
+        is currently "${context.tempPassphrase}" and must be manually restored

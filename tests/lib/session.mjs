@@ -4,8 +4,8 @@
  * All movements share this session — one synthetic account, one active session.
  */
 const BASE_URL = process.env.MYLIFE_BASE_URL ?? 'https://mylife.ngrok.app'
-const MBR_ID = process.env.SYNTHETIC_MBR_ID ?? 'ember|95ade320-e0f7-4cef-a001-9324edcb6e71'
-const PASSPHRASE = process.env.SYNTHETIC_PASSPHRASE ?? 'ember lights the way forward'
+export const MBR_ID = process.env.SYNTHETIC_MBR_ID ?? 'ember|95ade320-e0f7-4cef-a001-9324edcb6e71'
+export const PASSPHRASE = process.env.SYNTHETIC_PASSPHRASE ?? 'ember lights the way forward'
 /* shared state — movements deposit what they learn here for downstream use */
 export const context = {
     conversationLog: [], /* semantic exchange log: { movement, role, message, timestamp, ...meta } */
