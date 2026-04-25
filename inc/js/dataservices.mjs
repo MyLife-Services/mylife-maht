@@ -6,7 +6,7 @@
 //	imports
 import Datamanager from "./datamanager.mjs"
 /**
- * Array fields that represent canonical state and should be replaced wholesale when patched (Cosmos `op: 'set'`). Any array field NOT in this set is treated as an append-only log and uses `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
+ * Array fields that represent append-only variants: use `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
  * Example of append-only arrays: `feedback` (each boolean is a new datum).
  */
 const mAddOnlyArrayFields = new Set([

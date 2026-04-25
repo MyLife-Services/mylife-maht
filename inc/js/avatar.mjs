@@ -583,10 +583,10 @@ class Avatar extends EventEmitter {
         return await this.retireBot(botId) /* currently retireBot is the same as migration, since the bot continues to have a conversation */
     }
     /**
-     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. **Note**: the response is captured midway through the process and stored in Avatar.backupResponses.
      * @external
      * @param {Guid} iid - The item id
-     * @returns {Object} - The obscured item object
+     * @returns {object} - The standard response object { instruction, responses, success, }
      */
     async obscure(iid){
         const success = await this.#factory.obscure(iid, this)
@@ -2207,7 +2207,7 @@ class Q extends Avatar {
      * @returns {Object} - The greeting Response object: { responses, success, }
      */
     async greeting(){
-        const greeting = await this.avatar.greeting(false)
+        const greeting = await this.avatar.greeting(false, undefined, this)
         const { routine, success, } = greeting
         let { responses, } = greeting
         responses = responses.map(response=>{
@@ -4396,7 +4396,12 @@ async function mSetCoreValues(coreValues, Factory){
         response.success = true
     } catch(err) {
         response.error = err
-        console.error('Error setting core values:', response.error.message, Factory, coreValues)
+        // extract from Factory.core only the keys from values
+        response.result = {}
+        const keys = Object.keys(coreValues)
+        for(const key of keys)
+            response.result[key] = Factory.core[key]
+        console.error('Error setting core values:', response.error.message, coreValues, response.result)
     }
     return response
 }
