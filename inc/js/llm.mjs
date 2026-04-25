@@ -67,11 +67,19 @@ class LLMServices {
     }
     /**
      * Deletes a conversation from OpenAI.
-     * @param {string} conversation_id - The conversation id
-     * @returns 
+     * @param {string} conversation_id - The conversation id to delete
+     * @returns {Promise<Object>} - The deleted conversation object
      */
     async deleteConversation(conversation_id){
         return await mConversationDelete(this.openai, conversation_id)
+    }
+    /**
+     * Deletes a response object from OpenAI.
+     * @param {string} response_id - The response id to delete
+     * @returns {Promise<Object>} - The deleted response object
+     */
+    async deleteResponse(response_id){
+        return await mResponseDelete(this.openai, response_id)
     }
     /**
      * Extracts response from LLM response object.
@@ -132,8 +140,9 @@ class LLMServices {
         switch(llmProvider?.type){
             case 'prompt':
                 prompt.id = llmProvider.id
-                const promptVariables = llmProvider?.variables
-                    ?? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
+                const promptVariables = Array.isArray(llmProvider?.variables)
+                    ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
+                    : llmProvider?.variables
                 if(promptVariables)
                     prompt.variables = promptVariables
                 break
@@ -188,10 +197,11 @@ class LLMServices {
                                     }
                                 ))
                                 if(deleteConversation){
+                                    this.deleteResponse(response_id) // no await
                                     this.deleteConversation(conversation_id) // no await
                                     return
                                 } else if(
-                                        deleteCalls.length 
+                                        deleteCalls.length
                                     &&  await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, deleteCalls.length>=functionCalls.length)
                                 ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
                                     return
@@ -296,22 +306,26 @@ class LLMServices {
  * @returns {Promise<boolean>} - Whether the response was deleted entirely (true) or just specific calls (false); when `false` any remaining tool responses are sent.
  */
 async function mCallDelete(openai, conversation_id, response_id, call_ids, deleteAll=false){
-    await Promise.all(
+    /* DELETE FUNCTION CALLS */
+    await Promise.all( // delete calls so they no longer show in response history
         call_ids.map(function_id=>openai.conversations.items.delete(function_id, { conversation_id }))
     )
-    if(deleteAll){ // in partial deletions, LLM is less likely to get hung up on undelivered requests, so here need to also delete any recent user requests to fully clear the response deck
-        const { data } = await openai.conversations.items.list(conversation_id, { limit: 20, order: 'desc', })
-        const inputItems = []
-        for(const item of data){
-            if(item.role==='assistant')
-                break
-            if(item.role==='user')
-                inputItems.push(item.id)
-        }
-        await Promise.all(
-            inputItems.map(itemId=>openai.conversations.items.delete(itemId, { conversation_id }))
-        )
-        const response = await openai.responses.delete(response_id)
+    /* DELETE MEMBER INPUT */
+    // Requests may continue to trigger some function calls in the function array have a response
+    const { data } = await openai.conversations.items.list(conversation_id, { limit: 20, order: 'desc', })
+    const inputItems = []
+    for(const item of data){
+        if(item.role==='assistant')
+            break
+        if(item.role==='user')
+            inputItems.push(item.id)
+    }
+    await Promise.all(
+        inputItems.map(itemId=>openai.conversations.items.delete(itemId, { conversation_id }))
+    )
+    if(deleteAll){ // delete entire response to clear from context history
+        /* DELETE RESPONSE */
+        await mResponseDelete(openai, response_id)
     }
     return deleteAll
 }
@@ -506,6 +520,9 @@ async function mResponse(openai, conversation_id, prompt, input, metadata, instr
         request.instructions = instructionOverride
     const response = await openai.responses.create(request)
     return response
+}
+async function mResponseDelete(openai, response_id){
+    return await openai.responses.delete(response_id)
 }
 /* exports */
 export default LLMServices

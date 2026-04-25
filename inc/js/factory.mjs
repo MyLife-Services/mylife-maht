@@ -891,7 +891,8 @@ class AgentFactory extends BotFactory {
 		for(const key of mDisallowedCoreKeys)
 			delete values[key]
 		const response = await this.dataservices.patch(this.core.id, values)
-		Object.assign(this.core, values)
+		for(const key of Object.keys(values))
+			this.dataservices.core[key] = response[key] ?? null
 		return values
 	}
 	/**

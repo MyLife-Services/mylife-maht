@@ -4410,7 +4410,7 @@ async function mSetCoreValues(coreValues, Factory){
 async function mSetCoreValuesResponse(coreValues, label, Factory){
     const response = await mSetCoreValues(coreValues, Factory)
     response.action = response?.success
-        ? `${ label } data has been updated based on conversation; see response \`result\``
+        ? `Data has been updated based on conversation; see response \`result\`; Continue from previous conversation point or pursue new topics based on updated information.`
         : `unexpected error while updating ${ label } information; ask to try again`
     return response
 }
