@@ -367,7 +367,11 @@ class BotFactory extends EventEmitter{
 				message: `I was unable to obscure the item: ${ !id ? 'item not found' : 'summary missing' }`,
 				type: 'system',
 			}
-			return false
+			return {
+				instruction: null,
+				responses: [Avatar.backupResponses],
+				success: false,
+			}
 		}
 		const evaluation = await mEvaluateItem(summary, llmProvider, this, Avatar)
 		return evaluation
