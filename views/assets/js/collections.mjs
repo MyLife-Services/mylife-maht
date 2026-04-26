@@ -317,11 +317,12 @@ function unsetActiveItem(){
  * @returns {void}
  */
 function updateActiveItemTitle(itemId, title){
-    const activeChatTitle = document.getElementById(`chat-active-item-title-text-${ itemId }`)
     const id = mActiveItem?.id
     if(id!==itemId)
-        throw new Error('updateActiveItemTitle::Error()::`itemId`\'s do not match')
-    activeChatTitle.innerHTML = title
+        return
+    const activeChatTitle = document.getElementById(`chat-active-item-title-text-${ itemId }`)
+    if(activeChatTitle)
+        activeChatTitle.innerHTML = title
 }
 /**
  * Update collection item.
@@ -360,6 +361,10 @@ function updateItemTitle(itemId, title){
         titleInput.value = title
     if(popupTitle)
         popupTitle.textContent = title
+    /* keep in-memory store in sync so setActiveItem re-reads the correct title */
+    const item = getItem(itemId)
+    if(item?.id)
+        item.title = title
     updateActiveItemTitle(itemId, title)
 }
 /**
@@ -1107,6 +1112,7 @@ async function mDeleteCollectionItem(event){
         if(instructions?.length)
             enactInstruction(instructions, 'chat', { removeItem, })
         if(success){
+            removeItem(itemId)
             deleteItem(itemId, type)
             if(responses?.length)
                 addMessages(responses, 'avatar')
@@ -1176,6 +1182,9 @@ async function mRefreshCollection(type){
         throw new Error(`Library collection not implemented.`)
     const items = await mCollectionItemsData(type)
     const collection = mCollectionItems[type]
+    for(const item of collection.items)
+        if(item?.popup instanceof HTMLElement)
+            expunge(item.popup)
     collection.items = items ?? []
     collection.init = true
     const { itemContainer, } = collection

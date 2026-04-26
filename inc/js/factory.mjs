@@ -17,6 +17,7 @@ const {
 	MYLIFE_SERVER_MBR_ID: mPartitionId,
 } = process.env
 const mDataservices = await new Dataservices(mPartitionId).init()
+const mDisallowedCoreKeys = ['avatar_id', 'mbr_id', 'id', 'being'] // keys that cannot be reset in `.core`
 const mBotInstructions = {}
 const mDefaultBotType = 'personal-avatar'
 const mExcludeProperties = {
@@ -32,6 +33,10 @@ const mGeneralBotLLMProvider = {
 	model: 'gpt-4o-nano',
 	provider: 'openai',
 	type: 'prompt',
+	variables: {
+		id: null,
+		summary: null,
+	},
 	version: 1
 }
 const mLLMServices = new LLMServices()
@@ -321,7 +326,7 @@ class BotFactory extends EventEmitter{
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotLLMProvider, prompt, this, this) // response = { preparedSummary, success, warnings, }
+		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotLLMProvider, prompt, this, Avatar) // response = { preparedSummary, success, warnings, }
 		if(Array.isArray(response))
 			response = response[0] // flatten
 		shareData = {
@@ -353,14 +358,22 @@ class BotFactory extends EventEmitter{
 	 * @param {object} llmProvider - The llm properties for the agent: { *id, model, provider, *type, variables, version, }
      * @returns {object} - The Response object { instruction, responses, success, }
      */
-	async evaluate(itemId, llmProvider){
+	async evaluate(itemId, llmProvider, Avatar){
 		const { id, summary, } = await this.item(itemId)
 			?? {}
-		if(!id)
-			throw new Error('Item not found')
-		if(!summary?.length)
-			throw new Error('No summary found to evaluate')
-		const evaluation = await mEvaluateItem(summary, llmProvider)
+		if(!id || !summary?.length){
+			Avatar.backupResponses = {
+				agent: Avatar.activeBot.type,
+				message: `I was unable to evaluate the item: ${ !id ? 'item not found' : 'summary missing' }`,
+				type: 'system',
+			}
+			return {
+				instruction: null,
+				responses: [Avatar.backupResponses],
+				success: false,
+			}
+		}
+		const evaluation = await mEvaluateItem(summary, llmProvider, this, Avatar)
 		return evaluation
 	}
 	/**
@@ -467,20 +480,24 @@ class BotFactory extends EventEmitter{
     /**
      * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
      * @param {Guid} itemId - Id of the item to obscure
-	 * @param {Bot} bot - The bot instance to use for obscuring
-     * @returns {string} - The obscured content
+	 * @param {Avatar} Avatar - The avatar instance to use for obscuring
+     * @returns {boolean} - Whether obscuring was successful or not
      */
-	async obscure(itemId, bot){
+	async obscure(itemId, Avatar){
 		const { id, summary, relationships, } = await this.item(itemId)
 			?? {}
-		if(!id)
-			throw new Error('Item not found')
-		if(!summary?.length)
-			throw new Error('No summary found to obscure')
-		const obscuredSummary = await mObscure(summary, bot)
-		if(obscuredSummary?.length) /* save response */
-			this.dataservices.patch(id, { summary: obscuredSummary }) // no need await
-		return obscuredSummary
+		if(!id || !summary?.length){
+			Avatar.backupResponses = {
+				agent: Avatar.activeBot.type,
+				message: `I was unable to obscure the item: ${ !id ? 'item not found' : 'summary missing' }`,
+				type: 'system',
+			}
+			return false
+		}
+		const prompt = `# OBSCURE`
+		const provider = { ...mGeneralBotLLMProvider, variables: { id, summary, }, }
+		await mLLMServices.getLLMResponse(undefined, provider, prompt, this, Avatar)
+		return true
 	}
     /**
      * Allows member to reset passphrase.
@@ -871,6 +888,27 @@ class AgentFactory extends BotFactory {
 		}
 		const savedExperience = await this.dataservices.saveExperience(_experience)
 		return savedExperience
+	}
+	/**
+	 * Sets core values in the member's dataservice core. USE WITH CAUTION, as this can overwrite important data if used improperly.
+	 * Note: when passed an array of { key, value } objects, it reduces to an object, so both formats are accepted.
+	 * Note: All `value` typeof Array will by default completely overwrite underlying array; only specified properties (like `feedback`) add/remove.
+	 * @todo - run through consent engine
+	 * @param {Array|Object} values - The values to set in the core, either as an array of { key, value } objects or as a single object with key-value pairs.
+	 * @returns {Promise<object>} - The updated values in `core`
+	 */
+	async setCoreValues(values){
+		if(Array.isArray(values))
+			values = values.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {})
+		for(const key of mDisallowedCoreKeys)
+			delete values[key]
+		const response = await this.dataservices.patch(this.core.id, values)
+		const updatedValues = {}
+		for(const key of Object.keys(values)){
+			this.dataservices.core[key] = response[key] ?? null
+			updatedValues[key] = this.dataservices.core[key]
+		}
+		return updatedValues
 	}
 	/**
 	 * Tests partition key for member
@@ -1317,13 +1355,21 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
 		)
 	}
 }
-async function mEvaluateItem(summary, llmProvider=mGeneralBotLLMProvider.llmProvider){
+/**
+ * Evaluates a summary using an LLM and returns recommendations for improvement.
+ * @param {string} summary - The summary to evaluate
+ * @param {object} llmProvider - The LLM provider to use for evaluation
+ * @param {AgentFactory} Factory - The Factory instance to use for evaluation
+ * @param {Avatar} Avatar - The Avatar instance to use for evaluation
+ * @returns {object} - The evaluation result, including success status and responses
+ */
+async function mEvaluateItem(summary, llmProvider=mGeneralBotLLMProvider.llmProvider, Factory, Avatar){
 	let evaluation = {
 		responses: [],
 		success: false,
 	}
     const prompt = `Evaluate the included summary for clarity, dramatics, aesthetics, and completeness. Give top 2 recommendations to improve the summary. Do not repeat summary in response.\nSUMMARY:\n${summary}`
-    let responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt)
+    let responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt, Factory, Avatar)
 	responses = mLLMServices.extractResponses(responses)
 	evaluation.success = responses.length
 	if(evaluation.success)
@@ -1454,12 +1500,12 @@ function mGenerateClassFromSchema(_schema) {
  * @param {string} conversation_id - The provider's conversation id
  * @param {object} llmProvider - The Help Bot's LLM provider
  * @param {string} helpRequest - The help request string
- * @param {AgentFactory} factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation
- * @param {Avatar} avatar - The avatar instance
+ * @param {AgentFactory} Factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation
+ * @param {Avatar} Avatar - The avatar instance
  * @returns {Promise<Object>} - openai `message` objects
  */
-async function mHelp(conversation_id, llmProvider, helpRequest, factory, avatar){
-	const response = await mLLMServices.getLLMResponse(conversation_id, llmProvider, helpRequest, factory, avatar)
+async function mHelp(conversation_id, llmProvider, helpRequest, Factory, Avatar){
+	const response = await mLLMServices.getLLMResponse(conversation_id, llmProvider, helpRequest, Factory, Avatar)
 	return response
 }
 /**
@@ -1498,22 +1544,6 @@ async function mLoadSchemas(){
 	} catch(err){
 		console.log(err)
 	}
-}
-/**
- * Given an itemId, obscures aspects of contents of the data record.
- * @requires mGeneralBotLLMProvider
- * @requires mLLMServices
- * @param {string} summary - The summary to obscure
- * @param {Bot} bot - The bot instance that will obscure the summary
- * @returns {string} - The obscured summary
- */
-async function mObscure(summary, bot){
-    const prompt = `OBSCURE:\n${summary}`
-	const { llmProvider, } = mGeneralBotLLMProvider
-    const responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt, undefined, bot)
-	return responses?.[0]?.obscuredSummary
-		?? responses?.obscuredSummary
-		?? summary
 }
 /**
  * Populates the `mBotInstructions` object with instruction sets retrieved from the dataservices. Each instruction set is categorized by its `type` property, allowing for organized access to different types of bot instructions.

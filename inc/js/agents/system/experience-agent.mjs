@@ -519,7 +519,7 @@ class ShareAgent {
         if(Share.voice?.length)
             prompt += `- voice: ${ Share.voice }\n`
         prompt += `- summary: ${ Share.summary }`
-        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMProvider, prompt)
+        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMProvider, prompt, this.#factory, this.#avatar)
         if(messages?.[0]){
             const { content, thread_id, } = messages[0]
             const message = content

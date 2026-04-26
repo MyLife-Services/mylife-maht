@@ -119,7 +119,7 @@ function getAction(type='avatar'){
                         addMessage('An error occurred while talking to the server. Try again.', 'error')
                     else {
                         const { instructions, item: responseItem, responses: botResponses, } = response // @todo - deprecate response.item, always bundle in instructions for precision and flexibility
-                        if(responseItem)
+                        if(responseItem && instructions?.length)
                             instructions.forEach(instruction=>instruction.item ??= responseItem)
                         enactInstruction(instructions, 'chat', { createItem, })
                         addMessages(botResponses, type)
@@ -1779,6 +1779,18 @@ async function mUpdateTeams(){
         initCollections()
     ])
     getActiveBot() // no await
+    /* newly-created team bots won't be in mBots yet — re-fetch if team expects non-avatar bots but none are present */
+    const nonAvatarAllowed = (allowedBotTypes ?? []).filter(t=>!isAvatar(t))
+    const hasTeamBot = mBots.some(b=>!isAvatar(b.type) && nonAvatarAllowed.includes(b.type))
+    if(nonAvatarAllowed.length && !hasTeamBot){
+        const { bots } = await globals.datamanager.bots()
+        if(bots?.length){
+            for(const bot of bots)
+                if(!mBots.find(b=>b.id===bot.id))
+                    mBots.push(bot)
+            await updatePageBots()
+        }
+    }
 }
 /**
  * Upload Files to server from any .

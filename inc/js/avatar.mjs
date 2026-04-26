@@ -583,22 +583,14 @@ class Avatar extends EventEmitter {
         return await this.retireBot(botId) /* currently retireBot is the same as migration, since the bot continues to have a conversation */
     }
     /**
-     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. **Note**: the response is captured midway through the process and stored in Avatar.backupResponses.
      * @external
      * @param {Guid} iid - The item id
-     * @returns {Object} - The obscured item object
+     * @returns {object} - The standard response object { instruction, responses, success, }
      */
     async obscure(iid){
-        const updatedSummary = await this.activeBot.obscure(iid)
-        this.frontendInstructions = {
-            command: 'updateItemSummary',
-            itemId: iid,
-        }
-        return mBuildResponse(this, {
-            item: { id: iid, summary: updatedSummary, },
-            responses: [{ agent: 'server', message: `I have successfully obscured your content.`, type: 'system', }],
-            success: true,
-        })
+        const success = await this.#factory.obscure(iid, this)
+        return mBuildResponse(this, { success, })
     }
     /**
      * Member request to retire a bot.
@@ -2215,7 +2207,7 @@ class Q extends Avatar {
      * @returns {Object} - The greeting Response object: { responses, success, }
      */
     async greeting(){
-        const greeting = await this.avatar.greeting(false)
+        const greeting = await this.avatar.greeting(false, undefined, this)
         const { routine, success, } = greeting
         let { responses, } = greeting
         responses = responses.map(response=>{
@@ -2957,6 +2949,29 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             await mFunction_getSummary(response, Avatar)
             break
         }
+        case 'getGeography': {
+            const { geography='unknown', } = Factory.core
+            response.action = `The geography in core data can be found in the "result" response field`
+            response.result = geography
+            response.success = response.result !== 'unknown'
+            break
+            
+        }
+        case 'getPoliticalLeaning': {
+            const { political_leaning='unknown', } = Factory.core
+            response.action = `The political leaning in core data can be found in the "result" response field`
+            response.result = political_leaning
+            response.success = response.result !== 'unknown'
+            break
+            
+        }
+        case 'getValuesBackground': {
+            const { valuesBackground='unknown', } = Factory.core
+            response.action = `The values background in core data can be found in the "result" response field`
+            response.result = valuesBackground
+            response.success = response.result !== 'unknown'
+            break
+        }
         case 'hijackAttempt': {
             response.action = 'Let visitor know that their request was out-of-scope, you only discuss matters in your instructions; alert that hijack attempt was noted in system'
             response.success = true
@@ -2974,6 +2989,29 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             await mFunction_registerCandidate(response, toolArguments, Factory)
             break
         }
+        case 'setGeography': {
+            const { local, nation, nation_iso, state_regional, } = toolArguments
+            const geography = { local, nation, nation_iso, state_regional, }
+            const label = ['Geography', local, nation, state_regional]
+                .filter(Boolean)
+                .join(', ')
+            const _response = await mSetCoreValuesResponse({ geography, }, label, Factory)
+            Object.assign(response, _response)
+            break
+        }
+        case 'setPoliticalLeaning': {
+            const { political_leaning, } = toolArguments
+            const _response = await mSetCoreValuesResponse({ political_leaning, }, 'Political Leaning', Factory)
+            Object.assign(response, _response)
+            break
+        }
+        case 'setValuesBackground': {
+            const { cultural, education, philosophical, religious, upbringing, other, } = toolArguments
+            const valuesBackground = { cultural, education, philosophical, religious, upbringing, other, }
+            const _response = await mSetCoreValuesResponse({ valuesBackground, }, 'Values Background', Factory)
+            Object.assign(response, _response)
+            break
+        }
         case 'updateAction':
         case 'updateStance':
         case 'updateValue':
@@ -2986,7 +3024,7 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             break
         }
     }
-    console.log(`mFunctionCall()::${ functionName }::complete`, response.success)
+    console.log(`mFunctionCall()::${ functionName }::complete`, response.success, response.action)
     return response
 }
 /* specific function call handlers */
@@ -3149,11 +3187,28 @@ async function mFunction_getSummary(response, Avatar){
  * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the obscure operation
  */
 async function mFunction_obscure(response, toolArguments, Avatar){
-    const { itemId, summary, obscuredSummary, } = toolArguments
-    response.obscuredSummary = summary
-        ?? obscuredSummary
+    const { itemId, } = response
+    const { obscuredSummary, } = toolArguments
+    if(!itemId?.length || !obscuredSummary?.length){
+        response.action = `No obscured content provided for itemId: ${ itemId ?? 'unknown' }. Check with member.`
+        response.success = false
+        return
+    }
+    response.action = obscuredSummary
     response.cancelResponse = true
     response.deleteThread = true
+    const { summary, } = await Avatar.itemUpdate({ id: itemId, summary: obscuredSummary })
+    response.success = !!summary?.length
+    Avatar.frontendInstructions = {
+        command: 'updateItemSummary',
+        itemId,
+        summary,
+    }
+    Avatar.backupResponses = {
+        agent: Avatar.activeBot.type,
+        message: `I have successfully obscured the content you requested. If you would like to review the obscured content, please click on the item in the appropriate collection list to make it active for discussion.`,
+        type: 'system',
+    }
 }
 /**
  * Handles the 'prepareSummary' function call from the LLM, which prepares a summary for sharing by setting the appropriate response properties and backup response. Mutates `response` and `Avatar` based on the provided summary and warnings.
@@ -3847,9 +3902,9 @@ async function mcp_change_title(mcpdata, sessionMeta, ctx, factory){
         }
     return { error, result, }
 }
-async function mcp_chat(mcpdata, sessionMeta, ctx, factory, avatar){
+async function mcp_chat(mcpdata, sessionMeta, ctx, factory, Avatar){
     const { message, } = mcpdata
-    const Conversation = await avatar.chat(message, message, true, avatar.avatar)
+    const Conversation = await Avatar.chat(message, message, true, Avatar.avatar)
     const content = Conversation?.responses?.length
         ? Conversation.responses.map(response=>({ text: response.message, type: 'text', }))
         : Conversation.getMessages(null, true).map(message=>({ text: message.content, type: 'text', }))
@@ -4321,6 +4376,48 @@ function mRoutine(script, Avatar, BotAgent){
         title,
         typeSpeed,
     }
+}
+/**
+ * Sets core values in the member's dataservice core. USE WITH CAUTION, as this can overwrite important data if used improperly.
+ * Note: when passed an array of { key, value } objects, it reduces to an object, so both formats are accepted.
+ * Note: All `value` typeof Array will by default completely overwrite underlying array; only specified properties (like `feedback`) add/remove.
+ * @todo - run through consent engine
+ * @param {Array|Object} values - The values to set in the core, either as an array of { key, value } objects or as a single object with key-value pairs.
+ * @returns {Promise<object>} - The updated values in `core` (in case something didn't match, can be reviewed and verified)
+ */
+async function mSetCoreValues(coreValues, Factory){
+    const response = { input: coreValues, success: false, }
+    try {
+        if(typeof coreValues === 'string')
+            coreValues = JSON.parse(coreValues)
+        if(Array.isArray(coreValues))
+            coreValues = coreValues.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {})
+        response.result = await Factory.setCoreValues(coreValues)
+        response.success = true
+    } catch(err) {
+        response.error = err
+        // extract from Factory.core only the keys from values
+        response.result = {}
+        const keys = Object.keys(coreValues)
+        for(const key of keys)
+            response.result[key] = Factory.core[key]
+        console.error('Error setting core values:', response.error.message, coreValues, response.result)
+    }
+    return response
+}
+/**
+ * Request to set Core Values 
+ * @param {Array|object} coreValues - The core values to set, either as an array of { key, value } objects or as a single object with key-value pairs.
+ * @param {string} label - Context for the type of core values being set
+ * @param {AgentFactory} Factory - The AgentFactory instance to use for setting core values
+ * @return {Promise<object>} - The response from setting core values, including success status and any messages for the user
+ */
+async function mSetCoreValuesResponse(coreValues, label, Factory){
+    const response = await mSetCoreValues(coreValues, Factory)
+    response.action = response?.success
+        ? `Data has been updated based on conversation; see response \`result\`; Continue from previous conversation point or pursue new topics based on updated information.`
+        : `unexpected error while updating ${ label } information; ask to try again`
+    return response
 }
 /**
  * Validate provided registration id.
