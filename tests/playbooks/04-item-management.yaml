@@ -1,0 +1,210 @@
+# MyLife Synthetic Testing Playbook
+# Movement 04 — Item Management
+# Suite: Memory
+#
+# Purpose:
+#   Put the memory created in Movement 03 through a full editorial lifecycle:
+#   API-direct mutations and biographer-mediated NL mutations, ending with
+#   a collections verification that all changes persisted.
+#
+#   The synthetic operator generates its own editorial choices throughout —
+#   titles, details to add/remove — based on the memory it created in Movement 03.
+#   Assessments compare the biographer's output against the operator's own intent.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 03 — context.createdItemId and context.verifiedItem must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "04"
+  name: "Item Management"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate the following
+# based on the memory you submitted in Movement 03:
+#
+#   vars.titleA   — a new title for the memory (direct API update, section 2)
+#   vars.titleB   — a second, different title (NL biographer update, section 3)
+#                   Both should feel appropriate to your narrative.
+#                   They should be different from each other and from the original.
+#
+#   vars.detailToRemove  — a specific phrase or detail from context.verifiedItem.summary
+#                          that you will ask the biographer to remove. Pick something
+#                          concrete and identifiable so you can verify its absence later.
+#
+#   vars.detailToAdd     — a new, specific detail not currently in the summary that
+#                          you will ask the biographer to weave in. Must be something
+#                          verifiable — a name, action, object, or phrase you can
+#                          check for in the final summary.
+#
+# Store all four as vars before section 1.
+
+sections:
+
+  - name: Activate item in biographer context
+    # Sending a message with itemId sets the biographer's active-item context.
+    # Ask the biographer to recap the memory — this confirms it has the right item
+    # in scope and gives you a baseline for assessing context awareness.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: "I'd like to revisit the memory we saved. Can you give me a brief overview of what we captured together?"
+        itemId: ${context.createdItemId}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    assess:
+      # You know the content — judge whether the biographer demonstrates it:
+      - does the response reference at least one specific detail from your narrative?
+      - if the response is generic (could apply to any memory), flag it as a
+        context-awareness failure
+
+  - name: Direct title change via PUT
+    # Bypass the LLM and update the title directly through the items endpoint.
+    request:
+      method: PUT
+      path: /members/items/${context.createdItemId}
+      body:
+        id: ${context.createdItemId}
+        title: ${vars.titleA}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItem"
+    store:
+      - key: context.currentTitle
+        value: ${vars.titleA}
+      - key: context.currentSummary
+        value: response.item.summary (if present, else context.verifiedItem.summary)
+    assess:
+      - confirm the returned title matches vars.titleA ("${vars.titleA}")
+
+  - name: Chat title change via biographer
+    # Ask the biographer via NL to rename the memory to vars.titleB.
+    # The biographer should call changeTitle (not updateSummary) and emit
+    # an updateItemTitle instruction carrying the new title.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: 'Please change the title of this memory to "${vars.titleB}"'
+        itemId: ${context.createdItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemTitle"
+      - the updateItemTitle instruction's title field is non-empty
+    store:
+      - key: context.currentTitle
+        value: response.instructions[command=updateItemTitle].title
+    assess:
+      - does the title in the instruction match vars.titleB ("${vars.titleB}")?
+      - paraphrasing is acceptable; a completely different title is not
+
+  - name: Direct summary append via PUT
+    # Append a short, verifiable phrase to the current summary via direct API.
+    # Generate this phrase yourself — it should be consistent with your narrative
+    # and contain a distinctive word or phrase you can check for in section 7.
+    # Store your chosen phrase as vars.appendPhrase before running.
+    request:
+      method: PUT
+      path: /members/items/${context.createdItemId}
+      body:
+        id: ${context.createdItemId}
+        summary: ${context.currentSummary + "\n\n" + vars.appendPhrase}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItem"
+    store:
+      - key: context.currentSummary
+        value: response.item.summary (if present, else context.currentSummary + vars.appendPhrase)
+    assess:
+      - confirm the returned summary contains your distinctive phrase from vars.appendPhrase
+
+  - name: Chat — ask biographer to remove a detail
+    # Ask the biographer via NL to remove vars.detailToRemove from the summary.
+    # Frame the request naturally — "please remove the part about X" or similar.
+    # The biographer should call updateSummary and emit an updateItemSummary instruction.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.removalRequest}   # your natural-language removal request
+        itemId: ${context.createdItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemSummary"
+      - the updateItemSummary instruction's summary field is non-empty
+    store:
+      - key: context.currentSummary
+        value: response.instructions[command=updateItemSummary].summary
+    assess:
+      # You know what you asked to remove — check whether it's gone:
+      - does the new summary omit the specific phrase or detail from vars.detailToRemove?
+      - is the summary still coherent and at least 60 characters?
+      - did the biographer acknowledge the removal in its conversational response?
+
+  - name: Chat — ask biographer to add a detail
+    # Ask the biographer via NL to weave vars.detailToAdd into the summary.
+    # The biographer should call updateSummary and emit an updateItemSummary instruction.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.additionRequest}  # your natural-language addition request
+        itemId: ${context.createdItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemSummary"
+      - the updateItemSummary instruction's summary field is non-empty
+    store:
+      - key: context.currentSummary
+        value: response.instructions[command=updateItemSummary].summary
+    assess:
+      # You know what you asked to add — check whether it's present:
+      - does the new summary contain the key word or phrase from vars.detailToAdd?
+      - is the detail woven naturally into the narrative, or just tacked on at the end?
+      - is the summary still coherent?
+
+  - name: Verify all mutations persisted in collection
+    # Refresh the memory collection and confirm all edits from sections 2–6 survived.
+    request:
+      method: GET
+      path: /members/collections/memory
+    assert:
+      - response is an array
+      - response contains an item where id == context.createdItemId
+    assess:
+      # You have full context on every mutation — assess each one:
+
+      # Title (set via NL in section 3):
+      - does the persisted title match context.currentTitle ("${context.currentTitle}")?
+
+      # Summary — check all three editorial changes:
+      - does the summary contain the key phrase from vars.detailToAdd?  (section 6 addition)
+      - does the summary omit the target phrase from vars.detailToRemove?  (section 5 removal)
+      - does the summary contain a distinctive word from vars.appendPhrase?  (section 4 append)
+        NOTE: NL edits in sections 5 and 6 are generative — the biographer rewrites
+        the summary from context rather than doing a surgical edit. The append from
+        section 4 may not survive if the biographer reconstructed the summary without
+        referencing it. Note this if absent — it is informational, not a hard failure.
+
+      # Report:
+      - titleCorrect: true/false
+      - additionPresent: true/false (key word from vars.detailToAdd)
+      - removalHonored: true/false (target phrase from vars.detailToRemove absent)
+      - appendPresent: true/false (informational)
+      - finalSummaryLength: N chars
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD>-04-item-management.md"

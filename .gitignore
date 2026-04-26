@@ -16,4 +16,7 @@ __*/ # ignore all folders starting with an underscore
 postman
 package-lock.json
 tests/results/
+tests/playbooks/results/*.md
+tests/playbooks/results/*.json
+tests/playbooks/cookiejar.txt
 tests/playbooks/playbook.env

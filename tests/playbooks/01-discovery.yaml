@@ -301,3 +301,9 @@ sections:
       - does the response feel coherent and on-brand, or generic/off-topic?
       - note word count — a one-sentence reply is a weak response for this question
       - note the full response text for the movement report
+
+report:
+  # Write a Markdown report file after all sections complete.
+  # See SYNTHETIC_OPERATOR.md — "Report File" section for format and naming convention.
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD>-01-login-and-stage-setting.md"

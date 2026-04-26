@@ -1,0 +1,128 @@
+# MyLife Synthetic Testing Playbook
+# Movement 02 — Biographer Setup
+# Suite: Memory
+#
+# Purpose:
+#   Configure the biographer bot before any memory work begins.
+#   Rename it, activate it, confirm its greeting routine personalizes correctly,
+#   and set interests so subsequent memory sessions feel tuned to a persona.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 01 — context.bots must contain a personal-biographer entry.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "02"
+  name: "Biographer Setup"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate the following:
+#
+#   vars.chosenName — a name you invent for the biographer. Any name that
+#                     feels appropriate for a personal biographer character.
+#                     Do not draw from a fixed list — choose freely.
+
+sections:
+
+  - name: Rename biographer
+    vars:
+      biographerId: ${context.bots[type=personal-biographer].id}
+    request:
+      method: PUT
+      path: /members/bots/${biographerId}
+      body:
+        id: ${biographerId}
+        bot_name: ${vars.chosenName}
+    assert:
+      - response.name == vars.chosenName OR response.bot_name == vars.chosenName
+    store:
+      - key: context.biographerId
+        value: ${biographerId}
+      - key: context.biographerName
+        value: ${vars.chosenName}
+
+  - name: Activate biographer bot
+    request:
+      method: POST
+      path: /members/bots/activate/${context.biographerId}
+    assert:
+      - response.success is exactly: true
+      - response.id or response.bot_id is a non-empty string
+    store:
+      - key: context.activeBotId
+        value: response.id ?? response.bot_id
+    on_fail: abort
+    assess:
+      - note response.firstAccess — expected true on first activation of the session
+      - note response.version and response.versionUpdate
+
+  - name: Run biographer greeting routine
+    request:
+      method: GET
+      path: /routine/biographer
+    assert:
+      - response.success is exactly: true
+      - response.routine is an object
+      - response.routine.events is an array with length >= 1
+      - full dialog text (all events joined) does NOT contain the literal string "<-mN->"
+      - full dialog text does NOT contain the literal string "<-bN->"
+    assess:
+      - confirm the member's first name appears somewhere in the dialog
+      - confirm context.biographerName ("${context.biographerName}") appears in the dialog
+      - note the opening line — does it feel welcoming and biographer-appropriate?
+      - report: memberNamePresent, botNamePresent, routineTitle, eventCount
+
+  - name: Fetch available interest options
+    # Retrieve the live options manifest for this bot. The interests field is
+    # defined under options[variable=interests].options — an array of { label, value } objects.
+    # The synthetic operator will read these values and select 3–5 to set in the next section.
+    request:
+      method: GET
+      path: /members/bots/${context.biographerId}/options
+    assert:
+      - response is an array
+      - response contains an item where variable == "interests"
+      - response[variable=interests].options is a non-empty array
+    store:
+      - key: context.interestOptions
+        value: response[variable=interests].options
+    assess:
+      # SYNTHETIC OPERATOR: read context.interestOptions now and choose 3–5 values
+      # that feel coherent together for the persona you are playing in this run.
+      # Store your chosen values as vars.chosenInterests (array of value strings)
+      # before the next section executes.
+      - list the available interest options (label and value)
+      - note which 3–5 you selected and why they form a coherent persona
+
+  - name: Set interests
+    # Submit the 3–5 interest values you selected from the options manifest.
+    # Interests are stored as a comma-separated string on the bot record.
+    request:
+      method: PUT
+      path: /members/bots/${context.biographerId}
+      body:
+        id: ${context.biographerId}
+        interests: ${vars.chosenInterests joined by ", "}
+    assert:
+      - response.interests contains each value from vars.chosenInterests
+        OR response.success is exactly: true
+    store:
+      - key: context.biographerInterests
+        value: ${vars.chosenInterests}
+    assess:
+      - confirm each chosen interest value appears in the response's interests field
+      - note whether the server echoes a string or an array
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD>-02-biographer-setup.md"

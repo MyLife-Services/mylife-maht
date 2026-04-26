@@ -92,7 +92,8 @@ Assessment notes appear in the movement report under each section's learned bloc
 
 ## Reporting Format
 
-After all sections complete, produce:
+After all sections complete, produce the console summary below, then
+write a report file as described in **Report File** below.
 
 ```
 ════════════════════════════════════════════════════════
@@ -115,6 +116,58 @@ Print a one-line status after each section as it completes:
   ✓  Survey available teams — 3 team(s). Collections: memories, stories, values
   ✗  Activate personal-avatar — Expected { success: true, id }. Got: null
 ```
+
+---
+
+## Report File
+
+After completing a movement, write a Markdown report to:
+
+```
+tests/playbooks/results/<ISO-date>-<movement-number>-<movement-slug>.md
+```
+
+Examples:
+```
+tests/playbooks/results/2026-04-26-01-login-and-stage-setting.md
+tests/playbooks/results/2026-04-26-03-memory-creation.md
+```
+
+The slug is the movement name lowercased with spaces replaced by hyphens.
+The date is the UTC date at time of execution (`YYYY-MM-DD`).
+
+**File format:**
+
+```markdown
+# Movement [number]: [name]
+**Suite:** [suite]
+**Run:** [ISO timestamp]
+**Result:** INSTRUMENT IN TUNE | REVIEW REQUIRED
+**Score:** [n]/[total]
+
+## Sections
+
+### ✓ / ✗  [Section name]
+**Assertion result:** pass | fail — [criterion that failed, if any]
+**Learned:**
+\`\`\`json
+{ ...learned values }
+\`\`\`
+**Assessment:** [your qualitative notes]
+
+## Gaps
+- [section name]: [reason, if any section failed or had a notable anomaly]
+
+## Context Snapshot
+\`\`\`json
+{ ...all context keys written during this movement }
+\`\`\`
+```
+
+If no sections failed and no anomalies were noted, the Gaps section may
+be omitted. The Context Snapshot should include every key stored via
+`store:` during this movement so downstream movements can reconstruct
+state from the file if needed.
 
 ---
 
