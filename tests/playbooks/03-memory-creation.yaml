@@ -159,4 +159,4 @@ sections:
 
 report:
   output_dir: tests/playbooks/results
-  filename: "<YYYY-MM-DD>-03-memory-creation.md"
+  filename: "<YYYY-MM-DD-HH-MM>-03-memory-creation.md"

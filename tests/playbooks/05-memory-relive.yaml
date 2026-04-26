@@ -1,0 +1,216 @@
+# MyLife Synthetic Testing Playbook
+# Movement 05 — Memory Relive
+# Suite: Memory
+#
+# Purpose:
+#   Walk the memory created in Movement 03 through the full relive pipeline:
+#   start → receive scenes → contribute mid-relive → biographer ends naturally
+#   (or operator hits 7-turn max) → verify conversation and summary persisted.
+#
+#   The biographer divides the memory into scenes, narrating each one. The
+#   synthetic operator advances with "NEXT". The biographer will call endReliving
+#   when it decides the memory is complete — the server detects this and
+#   automatically closes the session (max 7 turns as a safety cap).
+#
+#   Key signals to watch for:
+#     createInput instruction    — stop button; present on every in-progress turn
+#     endReliving instruction    — session closed (by biographer or turn cap); no more turns
+#     updateItemSummary instruction — biographer updated summary from a contribution
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 03 — context.createdItemId must be set.
+#   context.verifiedItem (from Movement 03) gives you the summary to draw from.
+#   context.currentTitle (from Movement 04) should be intact after this movement.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "05"
+  name: "Memory Relive"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate the following
+# based on the memory you submitted in Movement 03:
+#
+#   vars.midReliveContribution  — a single, specific detail or reflection to inject
+#                                  mid-relive as natural member speech. Should be
+#                                  consistent with your narrative but add something new:
+#                                  a sensation, a thought you had at the time, a detail
+#                                  you omitted from the original summary. Make it
+#                                  concrete so you can check for it in the final summary.
+#
+#                                  Example form: "I remember now — there was also [X]."
+#                                  Frame it naturally, as a member talking to their biographer.
+#
+# Choose which NEXT turn to replace with your contribution (section 4 suggests turn 3).
+# After the contribution, keep advancing with NEXT until the server returns endReliving.
+# Do not fire the stop endpoint — let the server close the session naturally.
+
+sections:
+
+  - name: Start relive session
+    # Send PATCH with an empty body to begin. The server seeds the biographer with
+    # the memory summary and issues the first scene narration.
+    request:
+      method: PATCH
+      path: /members/memory/relive/${context.createdItemId}
+      body: {}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+      - response.instructions contains an item where command == "createInput"
+      - response.instructions does NOT contain an item where command == "endReliving"
+    store:
+      - key: context.reliveActive
+        value: true
+      - key: context.turnsCompleted
+        value: 1
+    assess:
+      - does the first response read as a scene narration (not a generic greeting)?
+      - is there a stop button in the createInput instruction (type == "button")?
+      - does the narration reference any specific detail from your memory?
+
+  - name: Advance — second scene
+    request:
+      method: PATCH
+      path: /members/memory/relive/${context.createdItemId}
+      body:
+        memberInput: "NEXT"
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.turnsCompleted
+        value: 2
+    assess:
+      - is this a distinct continuation rather than a repeat of scene 1?
+      - is the narrative voice consistent?
+      - if endReliving is present: the biographer concluded in 2 turns — note EARLY_END
+        and skip to section 6 (verify)
+
+  - name: Advance — third scene
+    # Skip if endReliving already appeared.
+    request:
+      method: PATCH
+      path: /members/memory/relive/${context.createdItemId}
+      body:
+        memberInput: "NEXT"
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.turnsCompleted
+        value: 3
+    assess:
+      - is this a new scene beat, or is the biographer wrapping up?
+      - if endReliving is present: note NATURAL_END_TURN_3 and skip to section 6
+
+  - name: Mid-relive contribution
+    # Replace one NEXT with your prepared contribution. Do not send "NEXT" here.
+    # The biographer may call updateSummary and emit updateItemSummary if it decides
+    # the contribution enriches the memory record.
+    # Skip if endReliving already appeared.
+    request:
+      method: PATCH
+      path: /members/memory/relive/${context.createdItemId}
+      body:
+        memberInput: ${vars.midReliveContribution}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.turnsCompleted
+        value: 4
+      - key: context.summaryUpdatedDuringRelive
+        value: response.instructions contains item where command == "updateItemSummary"
+      - key: context.postContributionSummary
+        value: response.instructions[command=updateItemSummary].summary (if present, else null)
+    assess:
+      # Both outcomes (summary updated or not) are valid — assess quality:
+      - did the biographer acknowledge your contribution in its reply?
+      - if updateItemSummary was emitted: does the new summary include a traceable
+        element from vars.midReliveContribution?
+      - if updateItemSummary was NOT emitted: did the biographer weave the detail into
+        its narration without persisting it? Note as CONTRIBUTION_NOT_SAVED.
+      - is the narrative voice still intact after the interruption?
+      - if endReliving is present: note NATURAL_END_AT_CONTRIBUTION and skip to section 6
+
+  - name: Continue to natural end
+    # Keep advancing with NEXT. The biographer will call endReliving when it decides
+    # the memory is complete. The server will detect this and close the session — the
+    # response will contain endReliving in instructions instead of createInput.
+    # Max 7 total turns; if the biographer hasn't ended by then, the server forces it.
+    #
+    # Repeat this section (send NEXT, inspect response) until:
+    #   a) endReliving appears in response.instructions, OR
+    #   b) context.turnsCompleted reaches 7
+    #
+    # Record total turns taken. You do NOT need to fire the stop endpoint.
+    request:
+      method: PATCH
+      path: /members/memory/relive/${context.createdItemId}
+      body:
+        memberInput: "NEXT"
+    repeat:
+      until: response.instructions contains item where command == "endReliving"
+      max_total_turns: 7   # including turns from sections 1–4
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.reliveActive
+        value: false
+      - key: context.endReliving
+        value: response.instructions contains item where command == "endReliving"
+    assess:
+      - when endReliving appears: does the final response read as a conclusion
+        (moral, reflection, or interpretive close) rather than another scene beat?
+      - if turn 7 was reached without endReliving: note as MAX_TURNS_REACHED —
+        the server should have forced a close; investigate if the response still
+        lacks endReliving at turn 7 (that would indicate the auto-close did not fire)
+
+  - name: Verify relive conversation saved and summary current
+    # After the session ends, fetch the memory collection and confirm:
+    # 1. The memory still exists and its title is unchanged from Movement 04.
+    # 2. If a summary update was emitted during section 4, it is reflected in the DB.
+    request:
+      method: GET
+      path: /members/collections/memory
+    assert:
+      - response is an array
+      - response contains an item where id == context.createdItemId
+    store:
+      - key: context.postReliveItem
+        value: response item where id == context.createdItemId
+    assess:
+      # Core persistence:
+      - does the memory still exist with id == context.createdItemId?
+      - is the title unchanged from Movement 04's final state (context.currentTitle)?
+
+      # Summary update:
+      - if context.summaryUpdatedDuringRelive == true:
+          does the current summary contain a traceable element from vars.midReliveContribution?
+          if absent: flag as SUMMARY_UPDATE_NOT_PERSISTED
+      - if context.summaryUpdatedDuringRelive == false:
+          the summary should match the Movement 04 final state — note any unexpected changes
+
+      # Report:
+      - memoryStillPresent: true/false
+      - titleIntact: true/false
+      - totalTurns: N
+      - naturalEndReached: true/false (endReliving before turn 7)
+      - summaryUpdatedDuringRelive: true/false
+      - summaryUpdatePersisted: true/false/notApplicable
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-05-memory-relive.md"

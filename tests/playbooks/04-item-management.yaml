@@ -207,4 +207,4 @@ sections:
 
 report:
   output_dir: tests/playbooks/results
-  filename: "<YYYY-MM-DD>-04-item-management.md"
+  filename: "<YYYY-MM-DD-HH-MM>-04-item-management.md"

@@ -124,17 +124,17 @@ Print a one-line status after each section as it completes:
 After completing a movement, write a Markdown report to:
 
 ```
-tests/playbooks/results/<ISO-date>-<movement-number>-<movement-slug>.md
+tests/playbooks/results/<YYYY-MM-DD-HH-MM>-<movement-number>-<movement-slug>.md
 ```
 
 Examples:
 ```
-tests/playbooks/results/2026-04-26-01-login-and-stage-setting.md
-tests/playbooks/results/2026-04-26-03-memory-creation.md
+tests/playbooks/results/2026-04-26-14-32-01-login-and-stage-setting.md
+tests/playbooks/results/2026-04-26-14-45-03-memory-creation.md
 ```
 
 The slug is the movement name lowercased with spaces replaced by hyphens.
-The date is the UTC date at time of execution (`YYYY-MM-DD`).
+The timestamp is UTC at the moment the movement completes (`YYYY-MM-DD-HH-MM`).
 
 **File format:**
 
