@@ -722,6 +722,7 @@ class BotAgent {
 			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, reference to MEMORY SUMMARY message has begun this conversation`
 			const Conversation = await mConversationStart('memory', type, botId, undefined, llmProvider, this.#llm, this.#factory, memberInput, messages)
 			Conversation.action = 'living'
+			Conversation.itemId = item.id
 			livingMemory.Conversation = Conversation
 			livingMemory.id = this.#factory.newGuid
 			livingMemory.item = item

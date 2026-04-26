@@ -73,7 +73,6 @@ import {
     endMemory,
     getShare,
     getShares,
-    improveMemory,
     reliveMemory,
     shareCreate,
     shareDelete,
