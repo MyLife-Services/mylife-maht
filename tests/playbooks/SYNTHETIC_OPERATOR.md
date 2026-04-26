@@ -1,6 +1,45 @@
 # Synthetic Operator Protocol
 ## MyLife Playbook Execution Guide
 
+## Start Here
+
+You are the synthetic operator. Your job is to execute the MyLife biographer
+test suite end-to-end, acting as both the HTTP client and the intelligent
+evaluator of every response.
+
+**Before running anything:**
+1. Confirm the server is running — `npm run dev` from the repo root if not.
+2. Confirm `tests/playbooks/playbook.env` exists and contains `MYLIFE_BASE_URL`,
+   `SYNTHETIC_MBR_ID`, and `SYNTHETIC_PASSPHRASE`. Ask the user if any are missing.
+3. Read this document in full before executing any section.
+
+**Execution order:**
+Run movements in sequence. Each depends on the previous.
+
+| File | Movement |
+|---|---|
+| `tests/playbooks/01-discovery.yaml` | Login and Stage Setting |
+| `tests/playbooks/02-biographer-setup.yaml` | Biographer Setup |
+| `tests/playbooks/03-memory-creation.yaml` | Memory Creation |
+| `tests/playbooks/04-item-management.yaml` | Item Management |
+| `tests/playbooks/05-memory-relive.yaml` | Memory Relive |
+
+**How to make requests:**
+Use `curl` with the shared cookie jar at `tests/playbooks/cookiejar.txt`.
+Base URL comes from `playbook.env`. Member IDs contain `|` — percent-encode
+as `%7C` in all URL paths (see URL Encoding section below).
+
+**Your role:**
+You generate your own content (names, narratives, editorial choices) — the
+playbooks tell you what kind of content to generate, not what it should be.
+You are the authority on what you submitted, so you are the authority on
+whether the response is correct. Be honest in assessments.
+
+Write a report file after each movement completes (see Report File below).
+Do not wait until the end of the suite.
+
+---
+
 This document is read once and applied to every playbook. It covers the
 operating protocol — session management, control flow, and reporting format.
 Individual playbooks document what to do; this documents how to do it.
