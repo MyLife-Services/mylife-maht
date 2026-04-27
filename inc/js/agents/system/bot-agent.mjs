@@ -112,11 +112,12 @@ class Bot {
 		if(this.isMyLife && !this.isAvatar)
 			throw new Error('Only Q, MyLife Corporate Intelligence, is available for non-member conversation.')
 		const Conversation = await this.getConversation()
+		let interceptSuccess = false
 		Conversation.prompt = message
 		Conversation.originalPrompt = originalMessage
 		Conversation.exchangeStart(this.globals.newGuid)
 		if(this.type!=='proxy')
-			await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar)
+			Conversation.interceptSuccess = await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar)
 		else
 			await mCallProxy(Conversation, allowSave, this.#factory, this.card)
 		if(!this.accessed)
@@ -711,26 +712,22 @@ class BotAgent {
 	async liveMemory(item, memberInput='NEXT'){
 		const { biographer, } = this
 		const { livingMemory, } = this.#avatar
-		let message = `## LIVE Memory Trigger\n`
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
-			const messages = []
-			messages.push({
-				content: `## MEMORY SUMMARY Reference for id: ${ item.id }\n### FOR REFERENCE ONLY\n${ item.summary }\n`,
-				role: 'user',
-			})
-			memberInput = `${ message }Let's begin to LIVE MEMORY, id: ${ item.id }, reference to MEMORY SUMMARY message has begun this conversation`
-			const Conversation = await mConversationStart('memory', type, botId, undefined, llmProvider, this.#llm, this.#factory, memberInput, messages)
+			memberInput = `## LIVE Memory Trigger\n### VARiABLES\nitemId: ${ item.id }\nsummary: "${ item.summary }"\n`
+			const Conversation = await mConversationStart('memory', type, botId, undefined, llmProvider, this.#llm, this.#factory, memberInput)
 			Conversation.action = 'living'
 			Conversation.itemId = item.id
 			livingMemory.Conversation = Conversation
 			livingMemory.id = this.#factory.newGuid
 			livingMemory.item = item
+			livingMemory.turns = 0
 		}
 		const { Conversation, } = livingMemory
-		Conversation.prompt = memberInput?.trim()?.length
-			? memberInput
-			: message
+		Conversation.prompt = memberInput
+		livingMemory.turns++
+		Conversation.exchangeStart()
+		console.log('BotAgent.liveMemory()', Conversation.prompt)
 		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.#avatar)
 		return livingMemory
 	}
@@ -1407,7 +1404,9 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
 		throw new Error('No `prompt` found in Conversation for `mCallLLM`.')
     const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, Avatar)
 	if(!responses?.length)
-		return
+		return typeof responses==='boolean'
+			? responses
+			: false
     responses
 		.sort((mA, mB)=>(mB.created_at-mA.created_at))
 	Conversation.addMessage({

@@ -469,27 +469,39 @@ class Avatar extends EventEmitter {
         responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true) ?? [], 'chat', Conversation.processStartTime)
         if(responses.length)
             success = true
+        else {
+            success = Conversation.interceptSuccess ?? false
+            delete Conversation.interceptSuccess
+        }
         return mBuildResponse(this, { responses, success })
     }
     /**
      * End the living memory, if running.
      * @external
+     * @param {Guid} itemId - The active collection-item id for the living memory
+     * @param {boolean} respond - Whether to return the Response Object (false when called by llm)
      * @returns {object} - The response object { instruction, item, responses, success, }
      */
-    async endMemory(){
+    async endMemory(itemId){
         if(!this.#livingMemory)
             return
         const { Conversation, id, item, } = this.#livingMemory
-        const { botId, } = Conversation
+        const { botId, thread_id, } = Conversation
+        const bot = this.bot(botId)
         if(mAllowSave)
             await Conversation.save()
         this.frontendInstructions = {
-            command: `endReliving`,
+            command: `endMemory`,
             itemId: item.id,
         }
-        const responses = [mCreateSystemMessage(botId, `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`, this.#factory.message)]
+        const responses = [{
+            agent: bot.type.replace('personal-', ''),
+            message: `I've ended the memory, thank you for letting me share my interpretation. I hope you liked it.`,
+            type: 'system'
+        }]
         this.#livingMemory = null
-        return mBuildResponse(this, { responses, item, success: true, })
+        this.#llmServices.deleteConversation(thread_id) // no await
+        return mBuildResponse(this, { item, responses, success: true, })
     }
     /**
      * Manages a collection item's functionality.
@@ -1331,6 +1343,7 @@ class Avatar extends EventEmitter {
      * @returns {Object} - livingMemory engagement object (i.e., includes frontend parameters for engagement as per instructions for included `portrayMemory` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
      */
     async reliveMemory(id, memberInput){
+        console.log('Avatar::reliveMemory()::memberInput', memberInput)
         const { item, } = await this.item({ id, })
         if(!id)
             throw new Error(`No Item found with id: ${ id }`)
@@ -2934,10 +2947,8 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             break
         }
         case 'endReliving': {
-            const { itemId, } = toolArguments
-            Avatar.frontendInstructions = { command: 'endReliving', itemId, }
-            response.success = true
-            response.cancelResponse = true
+            Avatar.livingMemory.endMemory = true
+            response.deleteThread = true
             break
         }
         case 'getAction':
@@ -3195,7 +3206,6 @@ async function mFunction_obscure(response, toolArguments, Avatar){
         return
     }
     response.action = obscuredSummary
-    response.cancelResponse = true
     response.deleteThread = true
     const { summary, } = await Avatar.itemUpdate({ id: itemId, summary: obscuredSummary })
     response.success = !!summary?.length
@@ -3223,7 +3233,6 @@ async function mFunction_prepareSummary(response, toolArguments, Avatar){
         type: 'system',
     }
     const { summary, preparedSummary, warnings, } = toolArguments
-    response.cancelResponse = true
     response.deleteThread = true
     response.preparedSummary = summary
         ?? preparedSummary
@@ -4295,33 +4304,30 @@ function mPruneMessages(botId, messageArray, type='chat', processStartTime=Date.
  * @returns {Promise<object>} - The reliving memory object for frontend to execute: 
  */
 async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
+    console.log('Avatar::mReliveMemoryNarration()::memberInput', memberInput)
     Avatar.livingMemory = await BotAgent.liveMemory(item, memberInput, Avatar)
-    let response
-    if(!Avatar.actionCallback?.length){
-        const { Conversation, item: livingMemoryItem, } = Avatar.livingMemory
-        const { botId, type, } = Conversation
-        const endpoint = `/members/memory/end/${ livingMemoryItem.id }`
-        const defaultInstruction = {
-            command: 'createInput',
-            inputs: [{
-                endpoint,
-                id: Avatar.newGuid,
-                interfaceLocation: 'chat', // enum: ['avatar', 'team', 'chat', 'bot', 'experience', 'system', 'admin'], defaults to chat
-                method: 'PATCH',
-                prompt: `I'd like to stop reliving this memory.`,
-                required: true,
-                type: 'button',
-            }],
-        }
-        if(!Avatar.frontendInstructions.length)
-            Avatar.frontendInstructions = defaultInstruction
-        const responses = Conversation.getMessages()
-            .map(message=>mPruneMessage(botId, message, type))
-        response = mBuildResponse(Avatar, { item, responses, success: true })
-    } else
-        response = await Avatar.endMemory()
-    delete Avatar.actionCallback
-    return response
+    if(Avatar.livingMemory.endMemory || Avatar.livingMemory.turns >= 7) // memory ended by biographer
+        return await Avatar.endMemory(item?.id)
+    const { Conversation, item: livingMemoryItem, } = Avatar.livingMemory
+    const { botId, type, } = Conversation
+    const endpoint = `/members/memory/end/${ livingMemoryItem.id }`
+    const defaultInstruction = {
+        command: 'createInput',
+        inputs: [{
+            endpoint,
+            id: Avatar.newGuid,
+            interfaceLocation: 'chat',
+            method: 'PATCH',
+            prompt: `I'd like to stop reliving this memory.`,
+            required: true,
+            type: 'button',
+        }],
+    }
+    if(!Avatar.frontendInstructions.length)
+        Avatar.frontendInstructions = defaultInstruction
+    const responses = Conversation.getMessages(true, true)
+        .map(message=>mPruneMessage(botId, message, type))
+    return mBuildResponse(Avatar, { item, responses, success: true })
 }
 /**
  * Returns a processed routine.
