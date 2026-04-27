@@ -54,7 +54,6 @@
     "agent",
     "member-intelligence",
     "concierge",
-    "member-avatar",
     "personal-agent",
     "personal-assistant",
     "personal-avatar"
@@ -68,7 +67,7 @@
     "memberId": null,
     "origin": "internal",
     "root": "https://humanremembranceproject.org",
-    "type": "member-avatar"
+    "type": "personal-avatar"
   },
   "name": "MyLife Personal Avatar A2A Wrapper",
   "protocolVersion": "1.0",

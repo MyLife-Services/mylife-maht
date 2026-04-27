@@ -35,7 +35,7 @@ const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
     mJsonRpcProtocolVersion = process.env.MCP_JSONRPC_Protocol_Version,
     mMcpConstant = 'mylife-constant.'
 const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, }; **note**: values are new pseudo-primitivefor completion arrays */
-    changeTitle: { /* no implicit call for this in Avatar instance */
+    changeTitle: { /* no implicit call for this in DigitalSelf instance */
         function: {
             args: ['itemId', 'title', 'factory'],
             fx: async (itemId, title, factory)=>{
@@ -56,7 +56,7 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
             },
         },
     },
-    createSummary: { /* no implicit call for this in Avatar instance */
+    createSummary: { /* no implicit call for this in DigitalSelf instance */
         function: {
             args: ['mcpData', `${ mMcpConstant }POST`],
             fx: 'item',
@@ -87,10 +87,10 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
             },
         },
     },
-    getMemories: { /* no implicit call for this in Avatar instance */
+    getMemories: { /* no implicit call for this in DigitalSelf instance */
         function: {
             fx: async function (){
-                console.log( 'mcpMap.getMemories::avatar', this)
+                console.log( 'mcpMap.getMemories::DigitalSelf', this)
                 const preface = 'Here are the titles and ids (display only titles for human member) for the memories we have created together:\n'
                 const response = ( await this.bot(undefined, 'biographer').collections() )
                     .map(item=>({
@@ -360,11 +360,11 @@ const mMcpTools = await mInitializeExternalTools(
     path.resolve(path.dirname(__dirpath), '..', 'json-schemas/mcp/tools/')
 )
 /**
- * @class - Avatar
+ * @class - DigitalSelf
  * @extends EventEmitter
- * @description An avatar is a digital self proxy of Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The Avatar is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
+ * @description A DigitalSelf is a digital representation or proxy of a Human Member. Not of the class but of the human themselves - they are a one-to-one representation of the human, but the synthetic version that interopts between member and internet when inside the MyLife platform. The DigitalSelf is the manager of the member experience, and is the primary interface with the AI (aside from when a bot is handling API request, again we are speaking inside the MyLife platform).
  */
-class Avatar extends EventEmitter {
+class DigitalSelf extends EventEmitter {
     #alertsShown = [] // array of alert ids
     #alphaDog
     #assetAgent
@@ -405,13 +405,13 @@ class Avatar extends EventEmitter {
         },
     }
     #mode = 'standard' // interface-mode from module `mAvailableModes`
-    #nickname // avatar nickname, need proxy here as g/setter is "complex"
+    #nickname // DigitalSelf nickname, need proxy here as g/setter is "complex"
     #setupComplete
     #ShareAgent
-    #vectorstoreId // vectorstore id for avatar
+    #vectorstoreId // vectorstore id for DigitalSelf
     /**
      * @constructor
-     * @param {MyLifeFactory|AgentFactory} factory - The factory on which avatar relies for all service interactions.
+     * @param {MyLifeFactory|AgentFactory} factory - The factory on which DigitalSelf relies for all service interactions.
      * @param {LLMServices} llmServices - The LLM services object
      */
     constructor(factory, llmServices){
@@ -425,12 +425,12 @@ class Avatar extends EventEmitter {
         this.#ShareAgent = new ShareAgent({ instanceStartTime: Date.now() }, this, this.#factory, this.#llmServices)
     }
     /**
-     * Initialize the Avatar class.
-     * @todo - create class-extender specific to the "singleton" MyLife avatar
+     * Initialize the DigitalSelf class.
+     * @todo - create class-extender specific to the "singleton" MyLife DigitalSelf
      * @todo - rethink architecture on this/#factory and also evolver, as now would manifest more as vectorstore object
      * @async
      * @public
-     * @returns {Promise} Promise resolves to this Avatar class instantiation
+     * @returns {Promise} Promise resolves to this DigitalSelf class instantiation
      */
     async init(){
         await mInit(this.#factory, this.#llmServices, this, this.#botAgent, this.#assetAgent, this.#vectorstoreId) // mutates and populates
@@ -595,7 +595,7 @@ class Avatar extends EventEmitter {
         return await this.retireBot(botId) /* currently retireBot is the same as migration, since the bot continues to have a conversation */
     }
     /**
-     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. **Note**: the response is captured midway through the process and stored in Avatar.backupResponses.
+     * Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. **Note**: the response is captured midway through the process and stored in DigitalSelf.backupResponses.
      * @external
      * @param {Guid} iid - The item id
      * @returns {object} - The standard response object { instruction, responses, success, }
@@ -740,7 +740,7 @@ class Avatar extends EventEmitter {
 	 */
 	async availableExperiences(){
 		const experiences = ( await this.#factory.availableExperiences(this.mbr_id) )
-			.map(experience=>{ // map to display versions [from `avatar.mjs`]
+			.map(experience=>{ // map to display versions [from `digital-self.mjs`]
 				const { autoplay=false, description, id, name, purpose, skippable=true,  } = experience
 				return {
 					description,
@@ -828,13 +828,13 @@ class Avatar extends EventEmitter {
         return this.updateBot(botData)
     }
     /**
-     * Clears backup responses stored on the avatar instance. Backup responses are used to store responses for potential reuse in case of errors or other issues during response generation.
+     * Clears backup responses stored on the DigitalSelf instance. Backup responses are used to store responses for potential reuse in case of errors or other issues during response generation.
      */
     clearBackupResponses(){
         this.#backupResponses = []
     }
     /**
-     * Clears frontend instructions stored on the avatar instance. Frontend instructions are used to store instructions for the frontend to execute, such as updating the UI or triggering certain actions based on avatar interactions.
+     * Clears frontend instructions stored on the DigitalSelf instance. Frontend instructions are used to store instructions for the frontend to execute, such as updating the UI or triggering certain actions based on DigitalSelf interactions.
      */
     clearFrontendInstructions(){
         this.#frontendInstructions = []
@@ -887,11 +887,11 @@ class Avatar extends EventEmitter {
     /**
      * Start a new conversation.
      * @param {String} type - The type of conversation, defaults to `chat`
-     * @param {String} form - The form of conversation, defaults to `member-avatar`
+     * @param {String} form - The form of conversation, defaults to `avatar`
      * @param {String} mbr_id - The member id (optional)
      * @returns {Promise<Conversation>} - The Conversation instance
      */
-	async conversationStart(type='chat', form='member-avatar', mbr_id){
+	async conversationStart(type='chat', form='avatar', mbr_id){
         const Conversation = await this.#botAgent.conversationStart(type, form, undefined, undefined, mbr_id)
         return Conversation
     }
@@ -1032,7 +1032,7 @@ class Avatar extends EventEmitter {
             : bot
     }
     /**
-     * Returns pruned Bots for Member Avatar.
+     * Returns pruned Bots for Member DigitalSelf.
      * @returns {object[]} - The array of pruned Bot objects
      */
     getBots(){
@@ -1171,7 +1171,7 @@ class Avatar extends EventEmitter {
      * @returns {Promise<void>}
      */
     logout(ctx){
-        ctx.session.avatar = ctx.SystemAvatar // reset to SystemAvatar
+        ctx.session.digitalSelf = ctx.SystemAvatar // reset to SystemAvatar
         ctx.session.locked = true // lock session
     }
     /**
@@ -1317,7 +1317,7 @@ class Avatar extends EventEmitter {
         this.globals.populateObject(obj, data, immutableFields)
     }
     /**
-     * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
+     * Cascade search for variable through: bot => botAgent => DigitalSelf => factory => factory.core; returns string even if complex object found.
      * @param {string} variable - Prompt variable name
      * @returns {string} - The prompt variable value
      */
@@ -1343,7 +1343,6 @@ class Avatar extends EventEmitter {
      * @returns {Object} - livingMemory engagement object (i.e., includes frontend parameters for engagement as per instructions for included `portrayMemory` function in LLM-speak): { error, inputs, itemId, messages, processingBotId, success, }
      */
     async reliveMemory(id, memberInput){
-        console.log('Avatar::reliveMemory()::memberInput', memberInput)
         const { item, } = await this.item({ id, })
         if(!id)
             throw new Error(`No Item found with id: ${ id }`)
@@ -1550,7 +1549,7 @@ class Avatar extends EventEmitter {
         return Bot.bot
     }
     /**
-     * Upload files to Member Avatar.
+     * Upload files to via Avatar.
      * @param {File[]} files - The array of files to upload.
      * @returns {boolean} - true if upload successful.
      */
@@ -1573,7 +1572,7 @@ class Avatar extends EventEmitter {
         try {
             instanceId = await this.#ShareAgent.validateShare(shareId)
         } catch (error) {
-            console.error('avatar::validateShare()::failed', error?.message)
+            console.error('DigitalSelf::validateShare()::failed', error?.message)
         }
         return {
             instanceId,
@@ -1627,10 +1626,10 @@ class Avatar extends EventEmitter {
         this.#backupResponses.push(response)
     }
     /**
-     * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
-     * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
+     * Get the "DigitalSelf's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
+     * DigitalSelves are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
      * @getter
-     * @returns {string} The object being the avatar is emulating.
+     * @returns {string} The object being the DigitalSelf is emulating.
     */
     get being(){
         return 'human'
@@ -1656,7 +1655,7 @@ class Avatar extends EventEmitter {
             ?? this.core.birth?.[0]?.place
     }
     /**
-     * Returns Member Avatar's Bot instances.
+     * Returns DigitalSelf's Bot instances.
      * @getter
      * @returns {Bot[]} - Array of Bot instances
      */
@@ -1664,9 +1663,9 @@ class Avatar extends EventEmitter {
         return this.#botAgent.bots
     }
     /**
-     * Get the bot agent if avatar is MyLife, member bot-agents are securitized
+     * Get the bot agent if DigitalSelf is MyLife, member bot-agents are securitized
      * @getter
-     * @returns {BotAgent|null} - The bot agent if avatar is MyLife, otherwise null
+     * @returns {BotAgent|null} - The bot agent if DigitalSelf is MyLife, otherwise null
      */
     get botAgent(){
         return this.isMyLife ? this.#botAgent : null
@@ -1680,7 +1679,7 @@ class Avatar extends EventEmitter {
         return this.#factory.conversation
     }
     /**
-     * Get full list of conversations active in Member Avatar. Use `getConversation(id)` for specific. **Note**: Currently `.conversation` references a class definition.
+     * Get full list of conversations active in DigitalSelf. Use `getConversation(id)` for specific. **Note**: Currently `.conversation` references a class definition.
      * @getter
      * @returns {Conversation[]} - The list of conversations
      */
@@ -1822,7 +1821,7 @@ class Avatar extends EventEmitter {
         return this.#factory.mbr_name
     }
     /**
-     * Get the Member Avatar's mcp self-definition package.
+     * Get the Member DigitalSelf's mcp self-definition package.
      * @getter
      * @returns {object} - The mcp self-definition package
      */
@@ -1864,17 +1863,17 @@ class Avatar extends EventEmitter {
         return this.#mode
     }
     /**
-     * Get the name of the avatar. Note: this.name is normally the Cosmos nomenclature, so we do not write to it, and use it's value as a last resort.
+     * Get the name of the DigitalSelf. Note: this.name is normally the Cosmos nomenclature, so we do not write to it, and use it's value as a last resort.
      * @getter
-     * @returns {string} - The avatar name.
+     * @returns {string} - The DigitalSelf name.
      */
     get name(){
         return this.nickname
     }
     /**
-     * Proxy to set the nickname of the avatar.
+     * Proxy to set the nickname of the DigitalSelf.
      * @setter
-     * @param {string} name - The new avatar nickname.
+     * @param {string} name - The new DigitalSelf nickname.
      * @returns {void}
      */
     set name(name){
@@ -1904,17 +1903,17 @@ class Avatar extends EventEmitter {
         return this.#factory.newGuid
     }
     /**
-     * Get the nickname of the avatar.
+     * Get the nickname of the DigitalSelf.
      * @getter
-     * @returns {string} - The avatar nickname.
+     * @returns {string} - The DigitalSelf nickname.
      */
     get nickname(){
         return this.#nickname
     }
     /**
-     * Set the nickname of the avatar; only set if different from name.
+     * Set the nickname of the DigitalSelf; only set if different from name.
      * @setter
-     * @param {string} nickname - The new avatar nickname.
+     * @param {string} nickname - The new DigitalSelf nickname.
      * @returns {void}
      */
     set nickname(nickname){
@@ -1958,16 +1957,16 @@ class Avatar extends EventEmitter {
 	}
 }
 /**
- * The System Avatar singleton for MyLife.
+ * The System DigitalSelf singleton for MyLife.
  * @class
- * @extends Avatar
+ * @extends DigitalSelf
  */
-class Q extends Avatar {
+class Q extends DigitalSelf {
     #connectorAgent // connector agent for MyLife
     #conversations = []
-    #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
+    #factory // same reference as DigitalSelf, but wish to keep private from public interface; don't touch my factory, man!
     #hostedMembers = [] // MyLife-hosted members
-    #llmServices // ref _could_ differ from Avatar, but for now, same
+    #llmServices // ref _could_ differ from DigitalSelf, but for now, same
     #mcp={
         capabilities: {
             completions: {},
@@ -2205,7 +2204,7 @@ class Q extends Avatar {
     }
     /** 
      * OVERLOADED: Submits and returns the journal or diary entry to MyLife via API.
-	 * @todo - consent check-in with spawned Member Avatar
+	 * @todo - consent check-in with spawned Member DigitalSelf
 	 * @param {object} summary - Object with story summary and metadata
 	 * @returns {object} - The story document from Cosmos
      */
@@ -2470,7 +2469,7 @@ class Q extends Avatar {
     }
 	/**
 	 * OVERLOADED: Submits and returns the memory to MyLife via API.
-	 * @todo - consent check-in with spawned Member Avatar
+	 * @todo - consent check-in with spawned Member DigitalSelf
 	 * @param {object} summary - Object with story summary and metadata
 	 * @returns {object} - The story document from Cosmos
 	 */
@@ -2480,7 +2479,7 @@ class Q extends Avatar {
 		return await this.summary(summary)
 	}
     /**
-     * OVERLOADED: Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. In this overload, we invoke a micro-avatar for the member to handle the request on their behalf, with charge-backs going to MyLife as the sharing and api is a service.
+     * OVERLOADED: Given an itemId, obscures aspects of contents of the data record. Obscure is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM. In this overload, we invoke a micro-botFactory for the member to handle the request on their behalf, with charge-backs going to MyLife as the sharing and api is a service.
      * @public
      * @param {string} mbr_id - The member id
      * @param {Guid} iid - The item id
@@ -2546,13 +2545,13 @@ class Q extends Avatar {
         }
     }
     /**
-     * Returns the Member Avatar proxy for the member id.
+     * Returns the Member DigitalSelf proxy for the member id.
      * @param {string} mbr_id - The member id
-     * @returns {Promise<BotFactory>} - The Member Avatar proxy
+     * @returns {Promise<BotFactory>} - The Member DigitalSelf proxy
      */
     async avatarProxy(mbr_id){
-        const avatar = await this.#factory.avatarProxy(mbr_id)
-        return avatar
+        const botFactory = await this.#factory.avatarProxy(mbr_id)
+        return botFactory
     }
 	/**
 	 * Accesses core data to challenge access to a member's account.
@@ -2564,8 +2563,8 @@ class Q extends Avatar {
     async challengeAccess(mbr_id, passphrase){
         let challengeSuccessful=false
         try{
-            const avatarProxy = await this.avatarProxy(mbr_id)
-            challengeSuccessful = await avatarProxy.challengeAccess(passphrase)
+            const botFactory = await this.avatarProxy(mbr_id)
+            challengeSuccessful = await botFactory.challengeAccess(passphrase)
         } catch(e){
             console.log('SystemAvatar::challengeAccess::error', e)
         }
@@ -2576,23 +2575,23 @@ class Q extends Avatar {
 	 * @todo - deprecate addMember()
 	 * @param {string} birthdate - The birthdate of the member.
 	 * @param {string} passphrase - The passphrase of the member.
-	 * @returns {object} - The account creation object: { avatar, success, }
+	 * @returns {object} - The account creation object: { DigitalSelf, success, }
 	 */
 	async createAccount(birthdate, passphrase){
         if(!birthdate?.length || !passphrase?.length)
             throw new Error('birthdate _**and**_ passphrase required')
-        let avatar,
+        let DigitalSelf,
             success = false
-        avatar = await this.#factory.createAccount(birthdate, passphrase)
-        if(typeof avatar==='object' && Object.keys(avatar).length){
-            const { mbr_id, } = avatar
+        DigitalSelf = await this.#factory.createAccount(birthdate, passphrase)
+        if(typeof DigitalSelf==='object' && Object.keys(DigitalSelf).length){
+            const { mbr_id, } = DigitalSelf
             success = true
             this.addMember(mbr_id)
             console.log(`SystemAvatar::createAccount::mbr_id: ${ mbr_id }`)
         } else
             console.log('SystemAvatar::createAccount::error: failed')
         return {
-            avatar,
+            DigitalSelf,
             success,
         }
     }
@@ -2610,7 +2609,7 @@ class Q extends Avatar {
             if(!hostedMembers.length)
                 throw new Error('No hosted members found.')
             this.#hostedMembers = hostedMembers
-                .map(avatar=>mAvatarDropdown(this.globals, avatar))
+                .map(DigitalSelf=>mAvatarDropdown(this.globals, DigitalSelf))
                 .sort((a, b) => a.name.localeCompare(b.name))
         }
         return this.#hostedMembers
@@ -2643,11 +2642,11 @@ class Q extends Avatar {
     /**
      * Creates a member instance for logged in session.
      * @param {String} mbr_id - The member id
-     * @returns {Promise<Member>} - The Member Avatar instance
+     * @returns {Promise<Member>} - The Member DigitalSelf instance
      */
     async mylifeMember(mbr_id){
-		const Avatar = await this.#factory.getMemberAvatar(mbr_id)
-        return Avatar
+		const DigitalSelf = await this.#factory.getMemberAvatar(mbr_id)
+        return DigitalSelf
     }
     /**
      * Get a list of publicly shared memories.
@@ -2724,10 +2723,10 @@ class Q extends Avatar {
     }
     /* getters/setters */
     /**
-     * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
-     * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
+     * Get the "DigitalSelf's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
+     * DigitalSelfs are special case, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
      * @getter
-     * @returns {string} The object being the avatar is emulating.
+     * @returns {string} The object being the DigitalSelf is emulating.
     */
     get being(){  
         return 'MyLife'
@@ -2739,7 +2738,7 @@ class Q extends Avatar {
         return this.#factory.isRegistered
     }
     /**
-     * Get the MyLife MCP self-definition package. Note that it will populate the internal memory for this avatar, so tool updates will only be reflected on server restart.
+     * Get the MyLife MCP self-definition package. Note that it will populate the internal memory for this DigitalSelf, so tool updates will only be reflected on server restart.
      * @getter
      * @returns {object} - The MyLife MCP self-definition package
      */
@@ -2772,7 +2771,7 @@ class Q extends Avatar {
 /* module functions */
 /**
  * Pure function: returns updated instructions array with last-wins logic for singleton commands.
- * Called by the Avatar frontendInstructions setter.
+ * Called by the DigitalSelf frontendInstructions setter.
  * @param {object[]} instructions - Current instructions array
  * @param {object} instruction - The instruction to add
  * @returns {object[]} - Updated instructions array
@@ -2788,31 +2787,31 @@ function mAddInstruction(instructions=[], instruction){
     return instructions
 }
 /**
- * Assigns (directly mutates) private experience variables from avatar.
- * @todo - theoretically, the variables need not come from the same avatar instance... not sure of viability
+ * Assigns (directly mutates) private experience variables from DigitalSelf.
+ * @todo - theoretically, the variables need not come from the same DigitalSelf instance... not sure of viability
  * @module
- * @param {object} experienceVariables - Experience variables object from Avatar class definition.
- * @param {Avatar} avatar - Avatar instance.
+ * @param {object} experienceVariables - Experience variables object from DigitalSelf class definition.
+ * @param {DigitalSelf} DigitalSelf - DigitalSelf instance.
  * @returns {void} - mutates experienceVariables
  */
-function mAssignGenericExperienceVariables(experienceVariables, Avatar){
+function mAssignGenericExperienceVariables(experienceVariables, DigitalSelf){
     Object.keys(experienceVariables).forEach(_key=>{
-        experienceVariables[_key] = Avatar[_key]
+        experienceVariables[_key] = DigitalSelf[_key]
     })
     /* handle unique variable instances (jic) */
     const localOverrides = {
-        name: Avatar.memberName,
-        nickname: Avatar.memberFirstName
+        name: DigitalSelf.memberName,
+        nickname: DigitalSelf.memberFirstName
     }
     return {...experienceVariables, ...localOverrides}
 }
 /**
- * Maps avatar data to dropdown format for hosted members list.
+ * Maps DigitalSelf data to dropdown format for hosted members list.
  * @param {Globals} globals - Globals object
- * @param {object} avatar - Avatar object
+ * @param {object} DigitalSelf - DigitalSelf object
  */
-function mAvatarDropdown(globals, Avatar){
-    const { mbr_id: id, mbr_name, } = Avatar
+function mAvatarDropdown(globals, DigitalSelf){
+    const { mbr_id: id, mbr_name, } = DigitalSelf
     const name = globals.sysName(id) 
     return {
         id,
@@ -2820,9 +2819,9 @@ function mAvatarDropdown(globals, Avatar){
     }
 }
 /**
- * Builds the standard API response envelope and clears Avatar's transient state.
- * All API-facing Avatar methods return via this function.
- * @param {Avatar} Avatar - The avatar instance
+ * Builds the standard API response envelope and clears DigitalSelf's transient state.
+ * All API-facing DigitalSelf methods return via this function.
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @param {object} payload - { item, responses, success, ...rest }
  * @property {object} item - The item to include in the response, if any\
  * @property {object[]} responses - The messages to include in the response, if any
@@ -2830,27 +2829,27 @@ function mAvatarDropdown(globals, Avatar){
  * @property {object} rest - Any additional properties to include in the response
  * @returns {object} - { instructions, item, responses, success, ...rest }
  */
-function mBuildResponse(Avatar, { item, responses=[], success=false, ...rest }){
+function mBuildResponse(DigitalSelf, { item, responses=[], success=false, ...rest }){
     if(item)
         item = mPruneItem(item)
     if(!responses?.length){
-        if(!Avatar.backupResponses.length)
-            Avatar.backupResponses = {
+        if(!DigitalSelf.backupResponses.length)
+            DigitalSelf.backupResponses = {
                 agent: 'server',
                 message: `I tried to process your message, but am having unspecified difficulty. Please try again.`,
                 type: 'system',
             }
-        responses = Avatar.backupResponses
+        responses = DigitalSelf.backupResponses
     }
     const response = {
-        instructions: Avatar.frontendInstructions,
+        instructions: DigitalSelf.frontendInstructions,
         item,
         responses,
         success,
         ...rest,
     }
-    Avatar.clearFrontendInstructions()
-    Avatar.clearBackupResponses()
+    DigitalSelf.clearFrontendInstructions()
+    DigitalSelf.clearBackupResponses()
     return response
 }
 /**
@@ -2899,10 +2898,10 @@ async function mExtractItemDataDiff(item, factory){
  * @param {string} functionName - The name of the function to call
  * @param {object} toolArguments - The required arguments for the function call
  * @param {Factory} Factory - The factory instance
- * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
  * @returns {Promise<object>} - The MyLife Tool Call response object
  */
-async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmServices){
+async function mFunctionCall(functionName, toolArguments, Factory, DigitalSelf, llmServices){
     const itemId = toolArguments?.itemId,
         response = { // use `cancelResponse` to end tool call (MyLife system handles) and `deleteThread` to delete temporary conversation, as in actors and scripts
             itemId,
@@ -2915,11 +2914,11 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             break
         }
         case 'callExternalAgent': {
-            await mFunction_callExternalAgent(response, toolArguments, Avatar)
+            await mFunction_callExternalAgent(response, toolArguments, DigitalSelf)
             break
         }
         case 'changeTitle': {
-            await mFunction_changeTitle(response, toolArguments, Avatar)
+            await mFunction_changeTitle(response, toolArguments, DigitalSelf)
             break
         }
         case 'confirmRegistration': {
@@ -2927,7 +2926,7 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             break
         }
         case 'createAccount': {
-            await mFunction_createAccount(response, toolArguments, Factory, Avatar)
+            await mFunction_createAccount(response, toolArguments, Factory, DigitalSelf)
             break
         }
         case 'createAction':
@@ -2943,11 +2942,11 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
                 : toolArguments?.form==='entry'
                     ? 'Entry'
                     : 'Memory'
-            await mFunction_createSummary(type, response, toolArguments, Avatar, llmServices)
+            await mFunction_createSummary(type, response, toolArguments, DigitalSelf, llmServices)
             break
         }
         case 'endReliving': {
-            Avatar.livingMemory.endMemory = true
+            DigitalSelf.livingMemory.endMemory = true
             response.deleteThread = true
             break
         }
@@ -2957,7 +2956,7 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
         case 'getSummary': {
             response.summaryOnly = toolArguments?.summaryOnly
                 ?? true
-            await mFunction_getSummary(response, Avatar)
+            await mFunction_getSummary(response, DigitalSelf)
             break
         }
         case 'getGeography': {
@@ -2989,11 +2988,11 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             break
         }
         case 'obscure': {
-            await mFunction_obscure(response, toolArguments, Avatar)
+            await mFunction_obscure(response, toolArguments, DigitalSelf)
             break
         }
         case 'prepareSummary': {
-            await mFunction_prepareSummary(response, toolArguments, Avatar)
+            await mFunction_prepareSummary(response, toolArguments, DigitalSelf)
             break
         }
         case 'registerCandidate': {
@@ -3027,11 +3026,11 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
         case 'updateStance':
         case 'updateValue':
         case 'updateSummary': {
-            await mFunction_updateSummary(response, toolArguments, Avatar)
+            await mFunction_updateSummary(response, toolArguments, DigitalSelf)
             break
         }
         default: {
-            response.action = `Function ${ functionName } not found in Avatar`
+            response.action = `Function ${ functionName } not found in DigitalSelf`
             break
         }
     }
@@ -3040,35 +3039,35 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
 }
 /* specific function call handlers */
 /**
- * Handles the 'callExternalAgent' function call from the LLM, which makes an agent-to-agent request to an external agent and prepares the response based on the success of the request. Mutates `response` and `Avatar` based on the success of the agent-to-agent request.
+ * Handles the 'callExternalAgent' function call from the LLM, which makes an agent-to-agent request to an external agent and prepares the response based on the success of the request. Mutates `response` and `DigitalSelf` based on the success of the agent-to-agent request.
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the 'callExternalAgent' function call
- * @param {Avatar} Avatar - The avatar instance (`this`)
- * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the agent-to-agent request
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `DigitalSelf` based on the success of the agent-to-agent request
  */
-async function mFunction_callExternalAgent(response, toolArguments, Avatar){
+async function mFunction_callExternalAgent(response, toolArguments, DigitalSelf){
     const { agentId, messageId, request, skillId, } = toolArguments
-    Avatar.backupResponses = {
+    DigitalSelf.backupResponses = {
         message: `I could not communicate effectively with our external agent. I cannot determine if this is a temporary issue or a persistent one. Please try again later or contact support if the issue continues.`,
         type: 'system',
     }
-    const agent = Avatar.getBot(agentId, true)
+    const agent = DigitalSelf.getBot(agentId, true)
     if(!agent)
         return
     const { response: a2aResponse, success=false,} = await a2aExternalRequest(messageId, skillId, request, agent.agentEndpoint)
     if(success)
-        Avatar.clearBackupResponses()
+        DigitalSelf.clearBackupResponses()
     response.action = `Response from external agent:\n${ a2aResponse }`
     response.success = success
 }
 /**
- * Handles the 'changeTitle' function call from the LLM, which updates the title of a specified item and prepares the frontend instruction for the update. Mutates `response` and `Avatar`.
+ * Handles the 'changeTitle' function call from the LLM, which updates the title of a specified item and prepares the frontend instruction for the update. Mutates `response` and `DigitalSelf`.
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the 'changeTitle' function call
- * @param {Avatar} Avatar - The avatar instance (`this`)
- * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the title change operation
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `DigitalSelf` based on the success of the title change operation
  */
-async function mFunction_changeTitle(response, toolArguments, Avatar){
+async function mFunction_changeTitle(response, toolArguments, DigitalSelf){
     const { itemId, title, } = toolArguments
     let backupResponse = {
         agent: 'server',
@@ -3079,14 +3078,14 @@ async function mFunction_changeTitle(response, toolArguments, Avatar){
         response.action = `Title Change Error: Apologize for lack of clarity; member should **first** click on the collection item (like a memory, story, etc) to identify it as active; upon doing so, the active item bar appears above chat bar. (function call requies "itemId" and "title" in arguments. Received itemId: ${ itemId }, title: ${ title })`
         response.cancelResponse = false
     }
-    const { id, } = await Avatar.itemUpdate({ id: itemId, title, })
+    const { id, } = await DigitalSelf.itemUpdate({ id: itemId, title, })
     if(id?.length){
         backupResponse = {
-            agent: Avatar.activeBotId.type,
+            agent: DigitalSelf.activeBotId.type,
             message: `Wonderful: I have successfully changed the item's title to ${ title }`,
             type: 'system',
         }
-        Avatar.frontendInstructions = {
+        DigitalSelf.frontendInstructions = {
             command: 'updateItemTitle',
             itemId,
             title,
@@ -3095,7 +3094,7 @@ async function mFunction_changeTitle(response, toolArguments, Avatar){
         response.success = true
     }
     response.action ??= backupResponse.message
-    Avatar.backupResponses = backupResponse // because cancelResponse is `true`, system will reply on backupResponse
+    DigitalSelf.backupResponses = backupResponse // because cancelResponse is `true`, system will reply on backupResponse
 }
 /**
  * Handles the 'confirmRegistration' function call from the LLM, which confirms a member's registration using their email and registration ID, and prepares the response message based on the success of the confirmation. Mutates `response` based on the success of the confirmation operation.
@@ -3122,10 +3121,10 @@ async function mFunction_confirmRegistration(response, toolArguments, Factory){
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the 'createAccount' function call
  * @param {Factory} Factory - The factory instance used to create the account
- * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
  * @returns {Promise<void>} - Mutates `response` based on the success of the account creation operation
  */
-async function mFunction_createAccount(response, toolArguments, Factory, Avatar){
+async function mFunction_createAccount(response, toolArguments, Factory, DigitalSelf){
     const { birthdate, passphrase, } = toolArguments
     response.action = `error setting basics for member: `
     if(!birthdate)
@@ -3133,7 +3132,7 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
     if(!passphrase)
         response.action += 'passphrase missing, elicit passphrase; '
     try {
-        const { success: createAccountSuccess, } = await Avatar.createAccount(birthdate, passphrase, Factory.candidate)
+        const { success: createAccountSuccess, } = await DigitalSelf.createAccount(birthdate, passphrase, Factory.candidate)
         response.action = createAccountSuccess
             ? `congratulate member on creating their MyLife membership, display \`passphrase\` in bold for review (or copy/paste), and explain that once the system processes their membership they will be able to use the login button at the top right.`
             : response.action + 'server failure for `Factory.createAccount()`'
@@ -3148,15 +3147,15 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
  * @param {string} type - The type of item to create (e.g., 'Action', 'Stance', 'Value', etc.)
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} data - The arguments provided for the function call
- * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
  * @param {LLM} llm - The LLM instance for any necessary processing during item creation
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary creation operation
  */
-async function mFunction_createSummary(type, response, data, Avatar, llm){
-    const Item = new mItemMap[type ?? 'Item'](data, Avatar, llm)
+async function mFunction_createSummary(type, response, data, DigitalSelf, llm){
+    const Item = new mItemMap[type ?? 'Item'](data, DigitalSelf, llm)
     response.success = await Item.save()
     if(response.success){
-        Avatar.frontendInstructions = { command: 'createItem', itemId: Item.id, item: mPruneItem(Item.item), }
+        DigitalSelf.frontendInstructions = { command: 'createItem', itemId: Item.id, item: mPruneItem(Item.item), }
         response.action = `Creation was successful; **important AI reference**, REMEMBER itemId: ${ Item.id }; inform member that they can find and click on the item in the appropriate collection list (${ type }) to make it active for discussion and further updates`
     } else
         response.action = `error creating summary for given argument title: ${ data?.title ?? 'New Item' } - DO NOT TRY AGAIN until member asks for it`
@@ -3164,13 +3163,13 @@ async function mFunction_createSummary(type, response, data, Avatar, llm){
 /**
  * Handles the 'getSummary' function call from the LLM, which retrieves the summary of a specified item and prepares the frontend instruction for displaying the summary. Mutates `response` based on the success of the retrieval operation.
  * @param {object} response - The initial response object to be updated based on the function call outcome
- * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary retrieval operation
  */
-async function mFunction_getSummary(response, Avatar){
+async function mFunction_getSummary(response, DigitalSelf){
     const { function: functionName, itemId, summaryOnly=true, } = response
     try {
-        const item = await Avatar.item({ id: itemId, }, 'GET', true)
+        const item = await DigitalSelf.item({ id: itemId, }, 'GET', true)
         if(!item?.id?.length || !item.summary?.length)
             throw new Error(`No summary found for item ${ itemId }`)
         response.item = summaryOnly
@@ -3179,7 +3178,7 @@ async function mFunction_getSummary(response, Avatar){
         response.action = 'Requested content found in `item` field, share info with member'
         response.success = true
     } catch(err) { // on fail, send back the current collection with `{ id, title, }` in order to suffuse intelligence with most recent options
-        const collections = await Avatar.activeBot.collections()
+        const collections = await DigitalSelf.activeBot.collections()
             ?? []
         console.log(`mFunction_getSummary()::error retrieving summary for itemId: ${ itemId } with function: ${ functionName }`, err, collections)
         response.collections = collections.map(c=>({ id: c.id, title: c.title, }))
@@ -3191,13 +3190,13 @@ async function mFunction_getSummary(response, Avatar){
     }
 }
 /**
- * Handles the 'obscure' function call from the LLM, which obscures aspects of a specified item and prepares the frontend instruction for the update. Mutates `response` and `Avatar` based on the success of the obscure operation. An extension/decorator of the `updateSummary` function.
+ * Handles the 'obscure' function call from the LLM, which obscures aspects of a specified item and prepares the frontend instruction for the update. Mutates `response` and `DigitalSelf` based on the success of the obscure operation. An extension/decorator of the `updateSummary` function.
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the obscure operation
- * @param {Avatar} Avatar - The avatar instance (`this`)
- * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the obscure operation
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `DigitalSelf` based on the success of the obscure operation
  */
-async function mFunction_obscure(response, toolArguments, Avatar){
+async function mFunction_obscure(response, toolArguments, DigitalSelf){
     const { itemId, } = response
     const { obscuredSummary, } = toolArguments
     if(!itemId?.length || !obscuredSummary?.length){
@@ -3207,28 +3206,28 @@ async function mFunction_obscure(response, toolArguments, Avatar){
     }
     response.action = obscuredSummary
     response.deleteThread = true
-    const { summary, } = await Avatar.itemUpdate({ id: itemId, summary: obscuredSummary })
+    const { summary, } = await DigitalSelf.itemUpdate({ id: itemId, summary: obscuredSummary })
     response.success = !!summary?.length
-    Avatar.frontendInstructions = {
+    DigitalSelf.frontendInstructions = {
         command: 'updateItemSummary',
         itemId,
         summary,
     }
-    Avatar.backupResponses = {
-        agent: Avatar.activeBot.type,
+    DigitalSelf.backupResponses = {
+        agent: DigitalSelf.activeBot.type,
         message: `I have successfully obscured the content you requested. If you would like to review the obscured content, please click on the item in the appropriate collection list to make it active for discussion.`,
         type: 'system',
     }
 }
 /**
- * Handles the 'prepareSummary' function call from the LLM, which prepares a summary for sharing by setting the appropriate response properties and backup response. Mutates `response` and `Avatar` based on the provided summary and warnings.
+ * Handles the 'prepareSummary' function call from the LLM, which prepares a summary for sharing by setting the appropriate response properties and backup response. Mutates `response` and `DigitalSelf` based on the provided summary and warnings.
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the prepare summary operation
- * @param {Avatar} Avatar - The avatar instance (`this`)
- * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the provided summary and warnings
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `DigitalSelf` based on the provided summary and warnings
  */
-async function mFunction_prepareSummary(response, toolArguments, Avatar){
-    Avatar.backupResponses = {
+async function mFunction_prepareSummary(response, toolArguments, DigitalSelf){
+    DigitalSelf.backupResponses = {
         message: `I encountered an unexpected error while preparing content for sharing, please try again.`,
         type: 'system',
     }
@@ -3255,13 +3254,13 @@ async function mFunction_registerCandidate(response, toolArguments, Factory){
     response.success = !!registrant
 }
 /**
- * Handles the 'updateSummary' function call from the LLM, which updates the summary of a specified item and prepares the frontend instruction for displaying the updated summary. Mutates `response` and `Avatar` based on the success of the update operation.
+ * Handles the 'updateSummary' function call from the LLM, which updates the summary of a specified item and prepares the frontend instruction for displaying the updated summary. Mutates `response` and `DigitalSelf` based on the success of the update operation.
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} toolArguments - The arguments provided for the update process
- * @param {Avatar} Avatar - The avatar instance used to update the summary
- * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the update operation
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance used to update the summary
+ * @returns {Promise<void>} - Mutates `response` and `DigitalSelf` based on the success of the update operation
  */
-async function mFunction_updateSummary(response, toolArguments, Avatar){
+async function mFunction_updateSummary(response, toolArguments, DigitalSelf){
     const { itemId: id, summary, } = toolArguments
     let backupResponse = {
         agent: 'server',
@@ -3272,21 +3271,21 @@ async function mFunction_updateSummary(response, toolArguments, Avatar){
         response.action = 'Unsuccessful: Tell member to click on an appropriate collection item (like a memory, story, etc) to identify it as active which generates a valid `itemId`'
         return
     }
-    const item = await Avatar.itemUpdate({ id, summary, })
+    const item = await DigitalSelf.itemUpdate({ id, summary, })
     const success = item?.id?.length
     response.cancelResponse = true
     response.success = success
     if(success)
         backupResponse = {
-            agent: Avatar.activeBot.type,
+            agent: DigitalSelf.activeBot.type,
             message: `Wonderful: I have successfully updated the item's summary based on our conversation. I'm ready for more updates or we can move on to something else!`,
             type: 'chat',
         }
-    if(Avatar.livingMemory?.item?.id===id)
-        Avatar.clearBackupResponses()
+    if(DigitalSelf.livingMemory?.item?.id===id)
+        DigitalSelf.clearBackupResponses()
     else{
-        Avatar.backupResponses = backupResponse
-        Avatar.frontendInstructions = {
+        DigitalSelf.backupResponses = backupResponse
+        DigitalSelf.frontendInstructions = {
             command: 'updateItemSummary',
             itemId: id,
             summary,
@@ -3316,41 +3315,41 @@ function mHelpIncludePreamble(type, isMyLife){
     }
 }
 /**
- * Initializes the Avatar instance with stored data
- * @param {MyLifeFactory|AgentFactory} factory - Member Avatar or Q
+ * Initializes the DigitalSelf instance with stored data
+ * @param {MyLifeFactory|AgentFactory} factory - Member DigitalSelf or Q
  * @param {LLMServices} llmServices - OpenAI object
- * @param {Q|Avatar} Avatar - The avatar Instance (`this`)
+ * @param {Q|DigitalSelf} DigitalSelf - The DigitalSelf Instance (`this`)
  * @param {BotAgent} botAgent - BotAgent instance
  * @param {AssetAgent} assetAgent - AssetAgent instance
- * @returns {Promise<void>} - Return indicates successfully mutated avatar
+ * @returns {Promise<void>} - Return indicates successfully mutated DigitalSelf
  */
-async function mInit(factory, llmServices, Avatar, botAgent, assetAgent){
+async function mInit(factory, llmServices, DigitalSelf, botAgent, assetAgent){
     /* initial assignments */
-    const { backupResponses, being, frontendInstructions, mbr_id, setupComplete=true, ...avatarProperties } = factory.globals.sanitize(await factory.avatarProperties())
-    Object.assign(Avatar, avatarProperties)
+    const { backupResponses, being, frontendInstructions, mbr_id, setupComplete=true, ...digitalSelfProperties } = factory.globals.sanitize(await factory.avatarProperties())
+    Object.assign(DigitalSelf, digitalSelfProperties)
     if(!factory.isMyLife){
-        Avatar.setupComplete = setupComplete
-        const { mbr_id, vectorstore_id, } = Avatar
-        Avatar.nickname = Avatar.nickname
-            ?? Avatar.names?.[0]
-            ?? `${ Avatar.memberFirstName ?? 'member' }'s Avatar`
+        DigitalSelf.setupComplete = setupComplete
+        const { mbr_id, vectorstore_id, } = DigitalSelf
+        DigitalSelf.nickname = DigitalSelf.nickname
+            ?? DigitalSelf.names?.[0]
+            ?? `${ DigitalSelf.memberFirstName ?? 'member' }'s DigitalSelf`
         if(!vectorstore_id){
             const vectorstore = await llmServices.createVectorstore(mbr_id)
             if(vectorstore?.id){
-                Avatar.vectorstore_id = vectorstore.id
-                await assetAgent.init(Avatar.vectorstore_id)
+                DigitalSelf.vectorstore_id = vectorstore.id
+                await assetAgent.init(DigitalSelf.vectorstore_id)
             }
         }
     }
     /* initialize default bots */
-    await botAgent.init(Avatar)
+    await botAgent.init(DigitalSelf)
     if(factory.isMyLife)
         return
     /* evolver */
-    Avatar.evolver = await (new EvolutionAgent(Avatar))
+    DigitalSelf.evolver = await (new EvolutionAgent(DigitalSelf))
         .init()
     /* lived-experiences */
-    Avatar.experiencesLived = await factory.experiencesLived(false)
+    DigitalSelf.experiencesLived = await factory.experiencesLived(false)
 }
 /**
  * Initializes MCP tools from the JSON schema directory.
@@ -3389,18 +3388,18 @@ async function mInitializeExternalTools(toolType='mcp', toolsPath){
 /**
  * Instantiates a new item and returns the item object.
  * @param {object} item - The item data
- * @param {Avatar} avatar - The avatar instance
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @param {LLMServices} llmServices - The llm instance
  * @returns {Item} - The item object (or any extender class: Action, Stance, Value, Memory, etc)
  */
-function mItem(item, avatar, llmServices){
+function mItem(item, DigitalSelf, llmServices){
     /* validate request */
     let Item
     const {
         assistantType,
         content,
         form,
-        id=avatar.newGuid,
+        id=DigitalSelf.newGuid,
         type='memory',
     } = item
     const { // derived defaults
@@ -3417,27 +3416,27 @@ function mItem(item, avatar, llmServices){
         },
         ...{ // forced fields
             id,
-            mbr_id: avatar.mbr_id,
-            name: `${ type }_${ form }_${ title.substring(0,64) }_${ avatar.mbr_id }`,
+            mbr_id: DigitalSelf.mbr_id,
+            name: `${ type }_${ form }_${ title.substring(0,64) }_${ DigitalSelf.mbr_id }`,
         }
     }
     try {
         switch(type.toLowerCase()){
             case 'action':
-                Item = new Action(item, avatar, llmServices)
+                Item = new Action(item, DigitalSelf, llmServices)
                 break
             case 'entry':
-                Item = new Entry(item, avatar, llmServices)
+                Item = new Entry(item, DigitalSelf, llmServices)
                 break
             case 'issue':
-                Item = new Issue(item, avatar, llmServices)
+                Item = new Issue(item, DigitalSelf, llmServices)
                 break
             case 'value':
-                Item = new Value(item, avatar, llmServices)
+                Item = new Value(item, DigitalSelf, llmServices)
                 break
             case 'memory':
             default:
-                Item = new Memory(item, avatar, llmServices)
+                Item = new Memory(item, DigitalSelf, llmServices)
                 break
         }
     } catch(error){
@@ -3455,7 +3454,7 @@ function mItem(item, avatar, llmServices){
  * @param {Koa} ctx - The Koa context object
  * @returns {Promise<object>} - The result of the MCP completion: { error, result, }
  */
-async function mMcpCompletionRequest(type, reference, argument, contextArguments, sessionMeta, ctx, factory, avatar){
+async function mMcpCompletionRequest(type, reference, argument, contextArguments, sessionMeta, ctx, factory, DigitalSelf){
     const completeLimit=100,
         values = []
     switch(type){
@@ -3472,7 +3471,7 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
                         data,
                     }
                 }
-            const promptArguments = avatar.mcp.prompts
+            const promptArguments = DigitalSelf.mcp.prompts
                 ?.find(p=>p.name === promptName)
                 ?.arguments
                     ?? []
@@ -3501,7 +3500,7 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
             else if(promptArgumentType==='boolean')
                 values.push('true', 'false', 'null') // boolean values
             else
-                values.push(...await mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, avatar))
+                values.push(...await mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, DigitalSelf))
             break
         case 'resource': /* arguments embedded in uri */
             reference = reference?.trim()
@@ -3523,7 +3522,7 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
             }
             const { name: resourceName, value: resourceValue, } = uri.argument
                 ?? {}
-            const resourceArgument = avatar.mcp.resourceTemplates
+            const resourceArgument = DigitalSelf.mcp.resourceTemplates
                 ?.find(t=>t.uriTemplate === reference)
                 ?.arguments
                 ?.[resourceName]
@@ -3543,7 +3542,7 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
                                 [`${ resourceName }`]: resourceValue,
                             }
                             const resourceRoot = factory.globals.jsFunctionName(uri.root)
-                            let dropdownArray = await mMcpRequestResponse('completion', resourceRoot, completionData, contextArguments, sessionMeta, ctx, factory, avatar)
+                            let dropdownArray = await mMcpRequestResponse('completion', resourceRoot, completionData, contextArguments, sessionMeta, ctx, factory, DigitalSelf)
                                 ?? []
                             dropdownArray = dropdownArray?.result
                                 ?? dropdownArray?.responses
@@ -3581,15 +3580,18 @@ async function mMcpCompletionRequest(type, reference, argument, contextArguments
  * @param {string} promptName - The name of the MCP prompt to complete
  * @param {string} promptArgumentName - The name of the argument to complete
  * @param {string|object} completionValue - The value to use for completion (optional)
+ * @param {object} sessionMeta - The session metadata for the MCP prompt completion
+ * @param {Koa} ctx - The Koa context object
  * @param {AgentFactory|MyLifeFactory} factory - The factory object
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @returns {Promise<Array>} - The array of completion values
  */
-async function mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, avatar){
+async function mMcpPromptCompletion(promptName, promptArgumentName, completionValue, sessionMeta, ctx, factory, DigitalSelf){
     const cleanPromptName = promptName.replace(/^mcp_/, '').replace(/^mylife_/, ''),
         completionData = { [`${ promptArgumentName }`]: completionValue },
         functionName = factory.globals.jsFunctionName(cleanPromptName),
         values = []
-    let dropdownArray = await mMcpRequestResponse('completion', functionName, completionData, undefined, sessionMeta, ctx, factory, avatar)
+    let dropdownArray = await mMcpRequestResponse('completion', functionName, completionData, undefined, sessionMeta, ctx, factory, DigitalSelf)
     if(typeof dropdownArray === 'object'){
         if(!Array.isArray(dropdownArray)) /* attempt conversion to array */
             dropdownArray = dropdownArray?.result
@@ -3609,10 +3611,10 @@ async function mMcpPromptCompletion(promptName, promptArgumentName, completionVa
  * @param {object} sessionMeta - The session metadata for the MCP prompt request
  * @param {Koa} ctx - The Koa context object
  * @param {AgentFactory|MyLifeFactory} factory - The factory object to use for the MCP prompt request
- * @param {Avatar} avatar - The avatar object to use for the MCP prompt request
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance to use for the MCP prompt request
  * @returns {Promise<object>} - The result of the MCP prompt request: { description, messages, }
  */
-async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avatar){
+async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, DigitalSelf){
     let error,
         resourceListChanged = false,
         result
@@ -3660,7 +3662,7 @@ async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avat
             */
             if(!searchTitle?.trim()?.length)
                 searchTitle = null
-            const searchResults = await avatar.sharedMemorySearch(searchAnonymous, searchGuessable, searchKeyword, searchPhase, searchTitle)
+            const searchResults = await DigitalSelf.sharedMemorySearch(searchAnonymous, searchGuessable, searchKeyword, searchPhase, searchTitle)
             const resourceText = JSON.stringify(searchResults)
             const searchResourceUri = `public-memories://search?anonymous=${ searchAnonymous }&guessable=${ searchGuessable }&title=${ searchTitle }` /* todo - same as research template, should reference instead of hard-coding */
             sessionMeta.resources.set(searchResourceUri,
@@ -3712,10 +3714,10 @@ async function mMcpPromptRequest(id, name, args, sessionMeta, ctx, factory, avat
  * @param {object} sessionMeta - The session metadata for the MCP completion
  * @param {Koa} ctx - The Koa context object
  * @param {AgentFactory|MyLifeFactory} factory - The factory object to use for the call
- * @param {Avatar|Q} avatar - The avatar instance
+ * @param {DigitalSelf|Q} DigitalSelf - The DigitalSelf instance
  * @returns {Array} - The array of arguments to be used for the MCP completion in place
  */
-async function mMcpRequestResponse(type='function', functionName, data, contextArguments, sessionMeta, ctx, factory, avatar){
+async function mMcpRequestResponse(type='function', functionName, data, contextArguments, sessionMeta, ctx, factory, DigitalSelf){
     const { fx, args=[], fxCallback, } = ( mMcpMap[functionName]?.[type] ?? {} )
     let error,
         resourceListChanged,
@@ -3728,14 +3730,14 @@ async function mMcpRequestResponse(type='function', functionName, data, contextA
                 isError: true,
             }
         }
-    const fxArgs = mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory, avatar)
-    const avatarFunction = typeof fx === 'string'
-        ? avatar[fx]
+    const fxArgs = mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory, DigitalSelf)
+    const digitalSelfFunction = typeof fx === 'string'
+        ? DigitalSelf[fx]
         : fx
-    if(typeof avatarFunction === 'function'){
-        let functionResponse = await avatarFunction.bind(avatar)(...fxArgs)
+    if(typeof digitalSelfFunction === 'function'){
+        let functionResponse = await digitalSelfFunction.bind(DigitalSelf)(...fxArgs)
         if(typeof fxCallback === 'function')
-            functionResponse = await fxCallback.bind(avatar)(functionResponse)
+            functionResponse = await fxCallback.bind(DigitalSelf)(functionResponse)
         result = functionResponse?.result
             ?? functionResponse
         error = functionResponse?.error
@@ -3765,16 +3767,16 @@ async function mMcpRequestResponse(type='function', functionName, data, contextA
  * @param {object} sessionMeta - The session metadata for the MCP completion
  * @param {Koa} ctx - The Koa context object
  * @param {AgentFactory|MyLifeFactory} factory - The factory object to use for the call
- * @param {Avatar|Q} avatar - The avatar instance
+ * @param {DigitalSelf|Q} DigitalSelf - The DigitalSelf instance
  * @returns {Array} - The array of arguments to be used for the MCP completion in place
  */
-function mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory, avatar){
+function mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory, DigitalSelf){
     const requestArguments = args.map(arg=>{
         if(arg.startsWith(mMcpConstant))
             return arg.split('.').slice(1).join('.')
         switch(arg.toLowerCase()){
-            case 'avatar':
-                return avatar
+            case 'DigitalSelf':
+                return DigitalSelf
             case 'ctx':
                 return ctx
             case 'factory':
@@ -3800,16 +3802,16 @@ function mMcpRequestArgs(args, data, contextArguments, sessionMeta, ctx, factory
     return requestArguments
 }
 /**
- * Passthrough to call a function on the active bot or avatar, passing the MCP data to it.
+ * Passthrough to call a function on the active bot or DigitalSelf, passing the MCP data to it.
  * @param {string} functionName - The function name to call
  * @param {object} mcpData - The MCP data to pass to the function
  * @param {object} sessionMeta - The session metadata
  * @param {Koa} ctx - The context object
  * @param {object} factory - The factory object to use for the call
- * @param {Avatar} avatar - The avatar instance
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @returns {object} - The MCP-ready result of the function call
  */
-async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, avatar){
+async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, DigitalSelf){
     if(!functionName?.length)
         return
     const mcpFunctions = {
@@ -3823,8 +3825,8 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
     functionName = functionName.replace('mcp_', '')
     const mcpFunctionName = 'mcp_' + functionName
     if(mcpFunctions[mcpFunctionName]) // fx from local map
-        return await mcpFunctions[mcpFunctionName](mcpData, sessionMeta, ctx, factory, avatar)
-    const { error, result, } = await mMcpRequestResponse('function', factory.globals.jsFunctionName(functionName), mcpData, undefined, sessionMeta, ctx, factory, avatar)
+        return await mcpFunctions[mcpFunctionName](mcpData, sessionMeta, ctx, factory, DigitalSelf)
+    const { error, result, } = await mMcpRequestResponse('function', factory.globals.jsFunctionName(functionName), mcpData, undefined, sessionMeta, ctx, factory, DigitalSelf)
     return { error, result, }
 }
 /**
@@ -3834,10 +3836,10 @@ async function mMcpFunction(functionName, mcpData, sessionMeta, ctx, factory, av
  * @param {object} sessionMeta - The session metadata
  * @param {Koa} ctx - The context object
  * @param {AgentFactory|MyLifeFactory} factory - The factory object
- * @param {Avatar|Q} avatar - The avatar instance
+ * @param {DigitalSelf|Q} DigitalSelf - The DigitalSelf instance
  * @return {Promise<object>} - The result of the MCP resource request { error, resourceListChanged, result, }
  */
-async function mMcpResourceRequest(uri, sessionMeta, ctx, factory, avatar){
+async function mMcpResourceRequest(uri, sessionMeta, ctx, factory, DigitalSelf){
     if(sessionMeta.resources.has(uri))
         return { result: { contents: [sessionMeta.resources.get(uri)] }, }
     const resourcePath = uri.split('://')[1].split('?')[0]
@@ -3845,13 +3847,13 @@ async function mMcpResourceRequest(uri, sessionMeta, ctx, factory, avatar){
     const resourceType = uri.split('://')[0]
     const resourceVariable = resourcePath.split('/').filter(Boolean).pop()
     const sessionResources = Array.from(sessionMeta.resources.values()).flat()
-    const avatarResources = [...avatar.mcp.resources, ...avatar.mcp.resourceTemplates, ...sessionResources]
-    const { description, mimeType, name, title, uri: avatarUri, uriTemplate, } = avatarResources
+    const digitalSelfResources = [...DigitalSelf.mcp.resources, ...DigitalSelf.mcp.resourceTemplates, ...sessionResources]
+    const { description, mimeType, name, title, uri: digitalSelfUri, uriTemplate, } = digitalSelfResources
         .find(resource=>((resource.uri ?? resource.uriTemplate)?.split('://')?.[0])===resourceType)
     const renderedUri = resourceQueryParams?.length
         ? uri /* requires query params to be passed to function */
         : uriTemplate
-            ?? avatarUri
+            ?? digitalSelfUri
     if(!renderedUri?.length)
         return {
             error: {
@@ -3870,7 +3872,7 @@ async function mMcpResourceRequest(uri, sessionMeta, ctx, factory, avatar){
             }, {})
         : resourceVariable
     let contextArguments // @todo - any context that makes sense here?
-    const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await mMcpRequestResponse('resource', factory.globals.jsFunctionName(resourceType), data, contextArguments, sessionMeta, ctx, factory, avatar)
+    const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await mMcpRequestResponse('resource', factory.globals.jsFunctionName(resourceType), data, contextArguments, sessionMeta, ctx, factory, DigitalSelf)
     return {
         error: requestError,
         resourceListChanged: requestResourceListChanged,
@@ -3911,9 +3913,9 @@ async function mcp_change_title(mcpdata, sessionMeta, ctx, factory){
         }
     return { error, result, }
 }
-async function mcp_chat(mcpdata, sessionMeta, ctx, factory, Avatar){
+async function mcp_chat(mcpdata, sessionMeta, ctx, factory, DigitalSelf){
     const { message, } = mcpdata
-    const Conversation = await Avatar.chat(message, message, true, Avatar.avatar)
+    const Conversation = await DigitalSelf.chat(message, message, true, DigitalSelf.avatar)
     const content = Conversation?.responses?.length
         ? Conversation.responses.map(response=>({ text: response.message, type: 'text', }))
         : Conversation.getMessages(null, true).map(message=>({ text: message.content, type: 'text', }))
@@ -3953,13 +3955,15 @@ async function mcp_get_summary(mcpdata, sessionMeta, ctx, factory){
     return { error, result, }
 }
 /**
- * Obscures a summary or item content using the avatar bot.
+ * Obscures a summary or item content using the DigitalSelf bot.
  * @param {object} mcpdata - The MCP data object containing `itemId` and optional `obscuredSummary`
  * @param {object} sessionMeta - The session metadata
  * @param {Koa} ctx - The context object
+ * @param {AgentFactory|MyLifeFactory} factory - The factory object
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance to use for obscuration
  * @returns {Promise<object>} - The result of the obscuration process
  */
-async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
+async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, DigitalSelf){
     const { forceServer=false, itemId, obscuredSummary, } = mcpdata
     let error,
         result,
@@ -4023,7 +4027,7 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
                 success = true
             }
         } else {
-            const { responses, success=false, } = await avatar.obscure(itemId)
+            const { responses, success=false, } = await DigitalSelf.obscure(itemId)
             const text = responses?.[0]?.message
                 ?? `itemId: ${ itemId } not found or not accessible for this member`
             result = {
@@ -4063,12 +4067,12 @@ async function mcp_obscure(mcpdata, sessionMeta, ctx, factory, avatar){
         success,
     }
 }
-async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
+async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, DigitalSelf){
     const { team='memory', type, } = mcpdata
-    let { id=avatar.bot(undefined, type)?.id, } = mcpdata
+    let { id=DigitalSelf.bot(undefined, type)?.id, } = mcpdata
     let error,
         result
-    if(avatar.isMyLife)
+    if(DigitalSelf.isMyLife)
         error = {
             code: 403,
             data: mcpdata,
@@ -4094,7 +4098,7 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
             }],
             isError: true,
         }
-    else if(avatar.activeBot.id===id)
+    else if(DigitalSelf.activeBot.id===id)
         result = {
             content: [{
                 text: `Bot type "${ type }" already currently active`,
@@ -4103,7 +4107,7 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
             isError: true,
         }
     else {
-        const { id: botId, responses, success, } = await avatar.setActiveBot(id, false)
+        const { id: botId, responses, success, } = await DigitalSelf.setActiveBot(id, false)
         if(!success || botId!==id)
             result = {
                 content: [{
@@ -4113,7 +4117,7 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
                 isError: true,
             }
         else {
-            const { bot_name: name, description, id: activeBotId, provider, type, welcome } = avatar.activeBot
+            const { bot_name: name, description, id: activeBotId, provider, type, welcome } = DigitalSelf.activeBot
             const activeBot = {
                 description,
                 id: activeBotId,
@@ -4122,7 +4126,7 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
                 type,
                 welcome: welcome ?? responses?.[0],
             }
-            const availableAgents = avatar.bots
+            const availableAgents = DigitalSelf.bots
                 .map(bot=>({
                     description: bot.description,
                     id: bot.id,
@@ -4291,7 +4295,7 @@ function mPruneMessages(botId, messageArray, type='chat', processStartTime=Date.
     return messageArray
 }
 /**
- * Returns a narration packet for a memory reliving. Will allow for and accommodate the incorporation of helpful data _from_ the avatar member into the memory item `summary` and other metadata. The bot by default will:
+ * Returns a narration packet for a memory reliving. Will allow for and accommodate the incorporation of helpful data _from_ the DigitalSelf into the memory item `summary` and other metadata. The bot by default will:
  * - break memory into `scenes` (2 to 5) set scene, ask for input [determine default what] 2) develop action, dramatize, describe input mechanic 3) conclude scene, moralize - what did you learn? then share what you feel author learned
  * - perform/narrate the memory as scenes describe
  * - others are common to living, but with `reliving`, the biographer bot (only narrator allowed in .10) incorporate any user-contributed contexts or imrpovements to the memory summary that drives the living and sharing. All by itemId.
@@ -4300,22 +4304,22 @@ function mPruneMessages(botId, messageArray, type='chat', processStartTime=Date.
  * @param {object} item - The memory object
  * @param {string} memberInput - The member input (or simply: NEXT, SKIP, etc.)
  * @param {BotAgent} BotAgent - The Bot Agent instance
- * @param {Avatar} Avatar - Member Avatar instance
+ * @param {DigitalSelf} DigitalSelf - Member DigitalSelf instance
  * @returns {Promise<object>} - The reliving memory object for frontend to execute: 
  */
-async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
-    console.log('Avatar::mReliveMemoryNarration()::memberInput', memberInput)
-    Avatar.livingMemory = await BotAgent.liveMemory(item, memberInput, Avatar)
-    if(Avatar.livingMemory.endMemory || Avatar.livingMemory.turns >= 7) // memory ended by biographer
-        return await Avatar.endMemory(item?.id)
-    const { Conversation, item: livingMemoryItem, } = Avatar.livingMemory
+async function mReliveMemoryNarration(item, memberInput, BotAgent, DigitalSelf){
+    console.log('DigitalSelf::mReliveMemoryNarration()::memberInput', memberInput)
+    DigitalSelf.livingMemory = await BotAgent.liveMemory(item, memberInput, DigitalSelf)
+    if(DigitalSelf.livingMemory.endMemory || DigitalSelf.livingMemory.turns >= 7) // memory ended by biographer
+        return await DigitalSelf.endMemory(item?.id)
+    const { Conversation, item: livingMemoryItem, } = DigitalSelf.livingMemory
     const { botId, type, } = Conversation
     const endpoint = `/members/memory/end/${ livingMemoryItem.id }`
     const defaultInstruction = {
         command: 'createInput',
         inputs: [{
             endpoint,
-            id: Avatar.newGuid,
+            id: DigitalSelf.newGuid,
             interfaceLocation: 'chat',
             method: 'PATCH',
             prompt: `I'd like to stop reliving this memory.`,
@@ -4323,26 +4327,26 @@ async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
             type: 'button',
         }],
     }
-    if(!Avatar.frontendInstructions.length)
-        Avatar.frontendInstructions = defaultInstruction
+    if(!DigitalSelf.frontendInstructions.length)
+        DigitalSelf.frontendInstructions = defaultInstruction
     const responses = Conversation.getMessages(true, true)
         .map(message=>mPruneMessage(botId, message, type))
-    return mBuildResponse(Avatar, { item, responses, success: true })
+    return mBuildResponse(DigitalSelf, { item, responses, success: true })
 }
 /**
  * Returns a processed routine.
  * @param {string|object} script - The routine script, converts JSON to object { cast, description, developers, events, files, name, public, purpose, status, title, version, }
- * @param {Avatar} Avatar - The avatar instance
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @param {BotAgent} BotAgent - The BotAgent instance
  * @returns {object} - Synthetic Routine object (if maintained, develop into class; presumed it will be deleted altogether and folded into simple experiences) { cast, description, developers, events, purpose, title, }
  */
-function mRoutine(script, Avatar, BotAgent){
+function mRoutine(script, DigitalSelf, BotAgent){
     if(typeof script === 'string')
         script = JSON.parse(script)
     const defaultCastMember = {
         icon: 'avatar-thumb',
         id: 'avatar',
-        role: Avatar.nickname,
+        role: DigitalSelf.nickname,
         type: 'avatar',
     }
     const { cast=[defaultCastMember], clearSystemChat=false, description, developers, events, files, name, pause, public: isPublic, purpose, status, title, typeSpeed, variables, version=1.0, } = script
@@ -4363,7 +4367,7 @@ function mRoutine(script, Avatar, BotAgent){
                         ?? activeCastMember
                 const Bot = BotAgent.bot(undefined, activeCastMember.type) ?? {}
                 const replacement = Bot[variableReplacement]?.toString()
-                    ?? Avatar[variableReplacement]?.toString()
+                    ?? DigitalSelf[variableReplacement]?.toString()
                     ?? variableDefault
                 const { message, } = event?.dialog ?? {}
                 if(message)
@@ -4473,6 +4477,6 @@ async function mValidateRegistration(botId, factory, validationId){
 }
 /* exports */
 export {
-	Avatar,
+	DigitalSelf,
 	Q,
 }

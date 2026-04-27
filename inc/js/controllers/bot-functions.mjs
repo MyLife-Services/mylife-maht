@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Activate a specific Bot.
  * @public
  * @async
@@ -9,7 +9,7 @@ async function activateBot(ctx){
 	const { bid, } = ctx.params
 	if(!ctx.Globals.isValidGuid(bid))
 		ctx.throw(400, `missing bot id`)
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	ctx.body =await Avatar.setActiveBot(bid)
 }
 /**
@@ -19,7 +19,7 @@ async function activateBot(ctx){
  */
 async function bot(ctx){
 	const { bid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	ctx.body = await Avatar.getBot(bid)
 }
 /**
@@ -29,7 +29,7 @@ async function bot(ctx){
  */
 async function bots(ctx){
 	const { bid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	const bot = ctx.request.body
 		?? {}
 	switch(ctx.method){
@@ -74,7 +74,7 @@ async function botButtons(ctx){
     const { bid, } = ctx.params
     if(!ctx.Globals.isValidGuid(bid))
         ctx.throw(400, `missing bot id`)
-    const { avatar: Avatar, } = ctx.state
+    const { digitalSelf: Avatar, } = ctx.state
     const response = await Avatar.botButtons(bid)
     ctx.body = response
 }
@@ -87,7 +87,7 @@ async function botOptions(ctx){
     const { bid, } = ctx.params
     if(!ctx.Globals.isValidGuid(bid))
         ctx.throw(400, `missing bot id`)
-    const { avatar: Avatar, } = ctx.state
+    const { digitalSelf: Avatar, } = ctx.state
     const response = await Avatar.botOptions(bid)
     ctx.body = response
 }
@@ -105,7 +105,7 @@ async function chat(ctx){
 		?? {} /* body nodes sent by fe */
 	if(!message?.length)
 			ctx.throw(400, 'missing `message` content')
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	if(botId?.length && botId!==Avatar.activeBotId)
 		throw new Error(`Bot ${ botId } not currently active; chat() requires active bot`)
 	const response = await Avatar.chat(message, itemId, ctx.session)
@@ -118,7 +118,7 @@ async function chat(ctx){
  */
 async function createBot(ctx){
 	const { teamId, type, } = ctx.request.body
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	const bot = { teams: [], type, } // `type` only requirement to create a known, MyLife-typed bot
 	if(teamId?.length)
 		bot.teams.push(teamId)
@@ -131,7 +131,7 @@ async function createBot(ctx){
  */
 async function migrateBot(ctx){
 	const { bid, } = ctx.params
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	ctx.body = await avatar.migrateBot(bid)
 }
 /**
@@ -141,7 +141,7 @@ async function migrateBot(ctx){
  */
 async function migrateChat(ctx){
 	const { bid, } = ctx.params
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	ctx.body = await avatar.migrateChat(bid)
 }
 /**
@@ -157,7 +157,7 @@ async function retireBot(ctx){
  * @param {Koa} ctx - Koa Context object
  */
 async function retireChat(ctx){
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	const { bid, } = ctx.params
 	if(!bid?.length)
 		ctx.throw(400, `missing bot id`)
@@ -171,7 +171,7 @@ async function retireChat(ctx){
  */
 async function routine(ctx){
 	const { rid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	const response = await Avatar.routine(rid)
 	ctx.body = response
 }
@@ -182,7 +182,7 @@ async function routine(ctx){
  */
 async function team(ctx){
 	const { tid, } = ctx.params
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	switch(ctx.method){
 		case 'GET': // get team details
 			ctx.body = await avatar.team(tid)
@@ -204,7 +204,7 @@ async function team(ctx){
  * @returns {Object[]} - List of team objects.
  */
 async function teams(ctx){
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	ctx.body = await Avatar.teams()
 }
 /**
@@ -213,7 +213,7 @@ async function teams(ctx){
  * @returns {Object[]} - Array of shadow objects
  */
 async function shadows(ctx){
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	const response = await avatar.shadows()
 	ctx.body = response
 }
@@ -226,7 +226,7 @@ async function updateBotInstructions(ctx){
 	const { bid, } = ctx.params
 	if(!bid?.length)
 		ctx.throw(400, `missing bot id`)
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	const bot = await avatar.updateBotInstructions(bid)
 	ctx.body = {
 		bot,

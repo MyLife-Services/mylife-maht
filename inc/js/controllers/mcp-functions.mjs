@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 import chalk from 'chalk'
 import path from 'path'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
@@ -189,10 +189,10 @@ async function mcpProtocolValidation(ctx, next){
         ctx.session = existingKoaSession
         await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
         // Koa server will have mis-assigned ctx.state in faux session
-        ctx.state.avatar = ctx.session.avatar
+        ctx.state.digitalSelf = ctx.session.digitalSelf
         ctx.state.locked = ctx.session.locked
             ?? true
-        ctx.state.menu = ctx.state.avatar?.menu
+        ctx.state.menu = ctx.state.digitalSelf?.menu
         if(ctx.request.method==='GET'){
             const { transportEntry, } = sessionMeta
             await transportEntry.handleRequest(ctx.req, ctx.res)
@@ -958,7 +958,7 @@ async function mMcpLogin(ctx, transport, args, jsonrpc, id){
         await challenge(ctx, memberId, memberPassphrase)
         if(ctx.body)
             ctx.body = undefined // reset body to avoid double response
-        const { avatar: Avatar, } = ctx.state
+        const { digitalSelf: Avatar, } = ctx.state
         result = {
             content: [{
                 text: `Welcome back, ${ Avatar.memberName }!\n It's me, ${ Avatar.name }.\nYou're now logged in to MyLife.`,

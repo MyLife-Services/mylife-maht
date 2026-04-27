@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 /* public functions */
 /**
  * Get or start "Missions with Moka," our AlphaDog Alpha Tester companion intelligence.
@@ -8,7 +8,7 @@
 async function mission(ctx){
 	const { mid: missionId, } = ctx.params
 	const { body, method, } = ctx.request
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	body.missionId = missionId
 	ctx.body = await Avatar.mission(body, method)
 }
@@ -20,7 +20,7 @@ async function mission(ctx){
 async function missionPlay(ctx){
 	const { mid: missionId, } = ctx.params
 	const { body, } = ctx.request
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	body.missionId = missionId
 	ctx.body = await Avatar.missionPlay(body)
 }
@@ -30,11 +30,11 @@ async function missionPlay(ctx){
  * @returns {Promise<object[]>} - Array of available missions (`Mission.header`)
  */
 async function missions(ctx){
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	ctx.body = await Avatar.missions()
 }
 async function missionsAvailable(ctx){
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	ctx.body = await Avatar.missionsAvailable()
 }
 /* exports */

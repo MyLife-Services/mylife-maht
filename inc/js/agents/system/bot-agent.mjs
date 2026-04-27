@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
 const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
@@ -521,7 +521,7 @@ class Bot {
 class BotAgent {
 	#activeBot
     #activeTeam
-    #avatar
+    #digitalSelf
     #bots
     #factory
 	#fileConversation
@@ -539,15 +539,15 @@ class BotAgent {
 	 * @param {string} vectorstoreId - The Vectorstore id
 	 * @returns {Promise<BotAgent>} - The BotAgent instance
 	 */
-    async init(Avatar){
-        if(!Avatar)
+    async init(digitalSelf){
+        if(!digitalSelf)
             throw new Error('Avatar required')
-        this.#avatar = Avatar
+        this.#digitalSelf = digitalSelf
 		this.#bots = []
-		this.#vectorstoreId = Avatar.vectorstoreId
+		this.#vectorstoreId = digitalSelf.vectorstoreId
 		const teamData = await this.#factory.teams(true, 'member')
 		this.#teams = teamData.map(teamData=>new Team(teamData, this.#factory))
-		await mInit(this, this.#bots, this.#avatar, this.#factory, this.#llm)
+		await mInit(this, this.#bots, this.#digitalSelf, this.#factory, this.#llm)
 		return this
     }
 	/* public functions */
@@ -655,7 +655,7 @@ class BotAgent {
      */
 	async evaluate(itemId){
 		// @stub - default to use general functioneer
-        const response = await this.#factory.evaluate(itemId, this.#avatar.llmProvider, this.#avatar)
+        const response = await this.#factory.evaluate(itemId, this.#digitalSelf.llmProvider, this.#digitalSelf)
 		return response
 	}
 	async genericBot(botType='avatar'){
@@ -700,7 +700,7 @@ class BotAgent {
      * @returns {string} - The greeting message from the active Bot
      */
     async greeting(dynamic=false){
-        const greeting = await this.activeBot.greeting(dynamic, undefined, this.#avatar)
+        const greeting = await this.activeBot.greeting(dynamic, undefined, this.#digitalSelf)
         return greeting
     }
 	/**
@@ -711,7 +711,7 @@ class BotAgent {
 	 */
 	async liveMemory(item, memberInput='NEXT'){
 		const { biographer, } = this
-		const { livingMemory, } = this.#avatar
+		const { livingMemory, } = this.#digitalSelf
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
 			memberInput = `## LIVE Memory Trigger\n### VARiABLES\nitemId: ${ item.id }\nsummary: "${ item.summary }"\n`
@@ -728,7 +728,7 @@ class BotAgent {
 		livingMemory.turns++
 		Conversation.exchangeStart()
 		console.log('BotAgent.liveMemory()', Conversation.prompt)
-		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.#avatar)
+		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.#digitalSelf)
 		return livingMemory
 	}
     /**
@@ -764,7 +764,7 @@ class BotAgent {
     promptVariable(variable){
 		let variableValue = this.activeBot[variable]
 			?? this[variable]
-			?? this.#avatar[variable] // synthetic digital self
+			?? this.#digitalSelf[variable] // synthetic digital self
 			?? this.avatar[variable] // personal-avatar bot
 			?? this.#factory[variable] // botAgent factory
 			?? this.#factory.core[variable] // MyLife human core entry
@@ -832,7 +832,7 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botInstructionsVersion(type)
 		}
-		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#avatar)
+		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#digitalSelf)
 		return {
 			id: botId,
 			firstAccess,
@@ -897,7 +897,7 @@ class BotAgent {
 			prompts.push(`file-name=${ fileName }`)
 		const prompt = `Summarize file document: ${ prompts.join(', ') }`
 		if(!this.#fileConversation)
-			this.#fileConversation = await this.conversationStart('file-summary', 'member-avatar', prompt, processStartTime)
+			this.#fileConversation = await this.conversationStart('file-summary', 'avatar', prompt, processStartTime)
 		this.#fileConversation.prompt = prompt
 		await mCallLLM(this.#fileConversation, false, this.#llm, this.#factory, Avatar)
 		const responses = this.#fileConversation.getMessages()
@@ -1004,7 +1004,7 @@ class BotAgent {
 	 * @returns {string} - The Avatar id
 	 */
 	get avatarId(){
-		return this.#avatar?.id
+		return this.#digitalSelf?.id
 	}
 	/**
 	 * Gets the Biographer bot for the BotAgent.
@@ -1483,7 +1483,7 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @async
  * @module
  * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, system, etc.; defaults to `chat`
- * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
+ * @param {string} form - Form of conversation: system-avatar, avatar, etc.; defaults to `system-avatar`
  * @param {string} botId - The bot id
  * @param {string} conversation_id - The conversation id
  * @param {object} llmProvider - The properties for the llm agent: { *id, model, provider, *type, variables, version, }

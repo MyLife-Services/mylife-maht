@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 import chalk from 'chalk'
 import fs from 'fs/promises'
 import path from 'path'
@@ -53,7 +53,7 @@ const mAgentCards = {},
     ),
     mHandlers = { /* A2A handlers, represent piping between avatars and performed services/capabilities */
         getMyLifeInfo: async (ctx, params)=>{
-            const { avatar: Avatar, } = ctx.state
+            const { digitalSelf: Avatar, } = ctx.state
             if(!Avatar?.isMyLife)
                 return sendError(ctx, 403, -32601, 'Incorrect Avatar is being requested from avatar is in use. Please contact technical support.', { type: 'forbidden' })
             let question = ''
@@ -86,7 +86,7 @@ const mAgentCards = {},
         getPublicMemory: 'get_shared_memory',
         getPublicMemories: "get_shared_memories",
         mylifeLogin: async (ctx, params)=>{
-            const { avatar: Avatar, } = ctx.state
+            const { digitalSelf: Avatar, } = ctx.state
             if(!Avatar?.isMyLife)
                 return sendError(ctx, 403, -32601, 'Incorrect Avatar is being requested from avatar is in use. Please contact technical support.', { type: 'forbidden' })
             const { memberId: mbr_id, passphrase, } = params
@@ -388,7 +388,7 @@ async function a2aHandler(ctx, agentId, skillId, params){
     const handler = mHandlers[skillId]
     if(!handler)
         return sendError(ctx, 501, -32601, `Handler not implemented for capability: ${skillId}`, { type: 'not_implemented' })
-    const { avatar: Avatar, } = ctx.state
+    const { digitalSelf: Avatar, } = ctx.state
     if(!Avatar?.isMyLife)
         return sendError(ctx, 403, -32601, 'Incorrect Avatar is being requested from avatar is in use. Please contact technical support.', { type: 'forbidden' })
     const { sessionMeta={}, } = ctx.session
@@ -432,21 +432,21 @@ function agentCard(agentId){
     return agentCard
 }
 async function botProxy(ctx){
-    const { avatar: Avatar, } = ctx.state
+    const { digitalSelf: Avatar, } = ctx.state
     const { pid, } = ctx.params
     const data = ctx.request.body
     const response = await Avatar.botProxy(pid, data)
     ctx.body = response
 }
 async function botProxyAccess(ctx){
-    const { avatar: Avatar, } = ctx.state
+    const { digitalSelf: Avatar, } = ctx.state
     const { pid, } = ctx.params
     const { botId, grant=true, } = ctx.request.body
     const response = await Avatar.botProxyAccess(pid, botId, grant)
     ctx.body = response
 }
 async function botProxyCreate(ctx){
-    const { avatar: Avatar, } = ctx.state
+    const { digitalSelf: Avatar, } = ctx.state
     const { type, ...data } = ctx.request.body
     if(type!=='proxy')
         ctx.throw(500, 'Invalid request body: expected type to be `proxy')
@@ -454,7 +454,7 @@ async function botProxyCreate(ctx){
     ctx.body = response
 }
 async function botProxyRefresh(ctx){
-    const { avatar: Avatar, } = ctx.state
+    const { digitalSelf: Avatar, } = ctx.state
     const { pid, } = ctx.params
     const { botId, bot_id, } = ctx.request.body
     const agentId = pid

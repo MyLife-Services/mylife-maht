@@ -5,7 +5,7 @@ import EventEmitter from 'events'
 import nodemailer from 'nodemailer'
 import util from 'util'
 import vm from 'vm'
-import { Avatar, Q, } from './avatar.mjs'
+import { DigitalSelf, Q, } from './digital-self.mjs'
 import Dataservices from './dataservices.mjs'
 import LLMServices from './llm.mjs'
 import Menu from './menu.mjs'
@@ -789,7 +789,7 @@ class AgentFactory extends BotFactory {
 	 * @returns {Avatar} - The Avatar instance.
 	 */
 	async getAvatar(Factory=this){
-		const _Avatar = await ( new Avatar(Factory, this.#llmServices) ) // @todo - make non-generic LLM
+		const _Avatar = await ( new DigitalSelf(Factory, this.#llmServices) ) // @todo - make non-generic LLM
 			.init()
 		return _Avatar
 	}

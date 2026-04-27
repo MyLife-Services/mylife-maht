@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 import {
 	upload as apiUpload,
 } from './api-functions.mjs'
@@ -13,7 +13,7 @@ async function about(ctx){
 		ctx.state.title = `About MyLife`
 		await ctx.render('about')
 	} else {
-		const { avatar: Avatar, } = ctx.state
+		const { digitalSelf: Avatar, } = ctx.state
 		const response = await Avatar.routine('about')
 		ctx.body = response
 	}
@@ -25,7 +25,7 @@ async function about(ctx){
  */
 async function alerts(ctx){
 	const { aid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	if(aid)
 		ctx.body = await Avatar.alert(aid)
 	else
@@ -49,13 +49,13 @@ async function challenge(ctx, memberId, memberPassphrase){
 		ctx.throw(400, `challenge request requires member id`)
 	if(!ctx.state.locked)
 		return true
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	const challengeSuccessful = await Avatar.challengeAccess(mid, passphrase)
 	if(challengeSuccessful){
 		const { Conversation, } = ctx.session
 		ctx.session.locked = false
-		ctx.session.avatar = await Avatar.mylifeMember(mid)
-		ctx.state.avatar = ctx.session.avatar
+		ctx.session.digitalSelf = await Avatar.mylifeMember(mid)
+		ctx.state.digitalSelf = ctx.session.digitalSelf
 		if(Conversation)
 			await Avatar.deleteChat(Conversation)
 	}
@@ -63,7 +63,7 @@ async function challenge(ctx, memberId, memberPassphrase){
 }
 async function collections(ctx){
 	const { type, } = ctx.params
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	ctx.body = await avatar.collections(type)
 }
 /**
@@ -73,7 +73,7 @@ async function collections(ctx){
  */
 async function evaluate(ctx){
 	const { iid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	ctx.body = await Avatar.evaluate(iid)
 }
 /**
@@ -83,7 +83,7 @@ async function evaluate(ctx){
  */
 async function feedback(ctx){
 	const { mid: message_id, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	const { isPositive=true, message, } = ctx.request.body
 	ctx.body = await Avatar.feedback(message_id, isPositive, message)
 }
@@ -99,7 +99,7 @@ async function greetings(ctx){
 	let { dyn: dynamic, } = ctx.query
 	if(typeof dynamic==='string')
 		dynamic = JSON.parse(dynamic)
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	const response = validateId?.length && Avatar.isMyLife
 		? await Avatar.validateRegistration(validateId)
 		: await Avatar.greeting(dynamic)
@@ -133,7 +133,7 @@ async function index(ctx){
 }
 async function item(ctx){
 	const { iid: id, } = ctx.params
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	const { method, } = ctx.request
 	const item = ctx.request.body // always `{}` by default
 	if(!item?.id && id?.length)
@@ -158,7 +158,7 @@ async function logout(ctx){
  * @returns {Object[]} - List of hosted members available for login.
  */
 async function loginSelect(ctx){
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	ctx.body = await avatar.hostedMembers(process.env.MYLIFE_HOSTING_KEY)
 }
 async function members(ctx){ // members home
@@ -171,7 +171,7 @@ async function members(ctx){ // members home
  */
 async function obscure(ctx){
 	const { iid, } = ctx.params
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	ctx.body = await avatar.obscure(iid)
 }
 /**
@@ -180,7 +180,7 @@ async function obscure(ctx){
  * @returns {boolean} - Whether or not passpharase successfully reset
  */
 async function passphraseReset(ctx){
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	if(avatar?.isMyLife ?? true)
 		ctx.throw(400, `cannot reset system passphrase`)
 	const { passphrase } = ctx.request.body
@@ -197,7 +197,7 @@ async function privacyPolicy(ctx){
 		ctx.state.title = `MyLife Privacy Policy`
 		await ctx.render('privacy-policy')
 	} else {
-		const { avatar: Avatar, } = ctx.state
+		const { digitalSelf: Avatar, } = ctx.state
 		const response = await Avatar.routine('privacy')
 		ctx.body = response
 	}
@@ -249,7 +249,7 @@ async function signup(ctx) {
     }
 }
 async function summarize(ctx){
-	const { avatar: Avatar, } = ctx.state
+	const { digitalSelf: Avatar, } = ctx.state
 	const { fileId, fileName, } = ctx.request.body
 	ctx.body = await Avatar.summarize(fileId, fileName)
 }
@@ -259,7 +259,7 @@ async function summarize(ctx){
  * @returns {object} - The result of the upload as `ctx.body`.
  */
 async function upload(ctx){
-	const { avatar, } = ctx.state
+	const { digitalSelf: avatar, } = ctx.state
 	if(avatar.isMyLife)
 		throw new Error('Only logged in members may upload files')
 	ctx.session.APIMemberKey = avatar.mbr_id
