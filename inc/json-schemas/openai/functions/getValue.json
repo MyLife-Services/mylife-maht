@@ -1,18 +1,18 @@
 {
-    "description": "Gets the `value` summary or document by itemId",
+    "description": "Gets `value` data by `itemId`; refer to its GUID identifier `id`, no other retrieval will work",
     "name": "getValue",
-    "strict": true,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
         "properties": {
             "itemId": {
-                "description": "Id of `value` summary to retrieve from server",
+                "description": "Guid id of `value` data to retrieve",
+                "format": "uuid",
                 "type": "string"
             },
             "summaryOnly": {
                 "default": true,
-                "description": "Whether to return only the `value` summary text or the full `item` document with summary and metadata",
+                "description": "When `true` retrieve _just_ the item summary, use `false` to get entire object with metadata; most cases, summary is sufficient unless you or member is trying to display or update metadata",
                 "type": "boolean"
             }
         },
@@ -20,5 +20,6 @@
             "itemId",
             "summaryOnly"
         ]
-    }
+    },
+    "strict": true
 }

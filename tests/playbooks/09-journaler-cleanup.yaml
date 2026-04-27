@@ -1,0 +1,83 @@
+# MyLife Synthetic Testing Playbook
+# Movement 09 — Journaler Cleanup
+# Suite: Memory
+#
+# Purpose:
+#   Delete the journal entry created in Movement 07, retire the journaler bot
+#   created in Movement 06, and verify both are absent from their respective
+#   collections and bot lists.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movements 06 and 07 — context.journalerBotId and
+#   context.journalerItemId must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "09"
+  name: "Journaler Cleanup"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+sections:
+
+  - name: Delete journal entry
+    request:
+      method: DELETE
+      path: /members/items/${context.journalerItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "removeItem"
+    assess:
+      - does the removeItem instruction carry the correct itemId?
+
+  - name: Retire journaler bot
+    # The journaler bot is retirable — DELETE removes it from the member's bot list.
+    # The response should include a removeBot instruction and a setActiveBot instruction
+    # re-pointing to the personal-avatar.
+    request:
+      method: DELETE
+      path: /members/bots/${context.journalerBotId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "removeBot"
+      - response.instructions contains an item where command == "setActiveBot"
+    store:
+      - key: context.journalerBotId
+        value: null
+    assess:
+      - does setActiveBot point to the personal-avatar id?
+
+  - name: Verify entry absent from collections
+    request:
+      method: GET
+      path: /members/collections/entry
+    assert:
+      - response is an array
+      - response does NOT contain an item where id == context.journalerItemId
+    assess:
+      - entryAbsent: true/false
+      - if still present: flag as DELETE_NOT_PERSISTED
+
+  - name: Verify journaler absent from bots list
+    request:
+      method: GET
+      path: /members/bots
+    assert:
+      - response.bots is an array (or response is an array)
+    assess:
+      - is a bot with type == "journaler" absent from the list?
+      - journalerAbsent: true/false
+      - if still present: flag as RETIRE_NOT_PERSISTED
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-09-journaler-cleanup.md"

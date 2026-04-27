@@ -1,0 +1,70 @@
+# MyLife Synthetic Testing Playbook
+# Movement 17 — Political Cleanup
+# Suite: Political
+#
+# Purpose:
+#   Delete the political stance created in Movement 15 and verify it is absent
+#   from collections.
+#
+#   NOTE: Political bots (political-stance, political-values) are team defaults
+#   with retirable:false. They are NOT deleted in this movement. Only the stance
+#   item is removed.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 15 — context.stanceItemId must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "17"
+  name: "Political Cleanup"
+  suite: political
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+sections:
+
+  - name: Delete stance item
+    request:
+      method: DELETE
+      path: /members/items/${context.stanceItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "removeItem"
+    assess:
+      - does the removeItem instruction carry the correct itemId?
+
+  - name: Verify stance absent from collections
+    request:
+      method: GET
+      path: /members/collections/stance
+    assert:
+      - response is an array
+      - response does NOT contain an item where id == context.stanceItemId
+    assess:
+      - stanceAbsent: true/false
+      - if still present: flag as DELETE_NOT_PERSISTED
+
+  - name: Verify political bots still present
+    # Political bots should NOT have been removed — confirm they are still in the list.
+    request:
+      method: GET
+      path: /members/bots
+    assert:
+      - response contains a bot where type == "political-stance"
+      - response contains a bot where type == "political-values"
+    assess:
+      - stanceBotPresent: true/false
+      - valuesBotPresent: true/false
+      - if either is absent: flag as UNEXPECTED_BOT_REMOVAL
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-17-political-cleanup.md"
