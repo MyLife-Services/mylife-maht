@@ -73,6 +73,15 @@ class Bot {
 	}
 	/* public functions */
 	/**
+	 * Saves state for the last active item for a specific bot
+	 * @param {Guid} itemId - The Item Id
+	 * @returns {Promise<boolean>} - `true` if the update succeeded
+	 */
+	async activateItem(itemId){
+		const response = await this.update({ activeItemId: itemId, })
+		return this.activeItemId===itemId
+	}
+	/**
 	 * Adds a tool to the bot's tool list if available from Globals.GPTJavascriptFunctions and not already present.
 	 * @param {string} toolName - Name of function/tool to 
 	 * @returns {boolean} - Whether the tool was added/available

@@ -245,7 +245,8 @@ _memberRouter.post('/teams/activate/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
-_memberRouter.put('/item/:iid', item)
+_memberRouter.put('/items/activate/:iid', activateItem)
+_memberRouter.put('/items/:iid', item) // keep last — catches /:iid after specific sub-paths
 /* mcp member-avatar routes */
 _mcpMemberRouter.use(async (ctx, next)=>{
     ctx.state.requestType = 'member'

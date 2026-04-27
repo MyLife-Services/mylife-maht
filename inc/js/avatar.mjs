@@ -1437,13 +1437,22 @@ class Avatar extends EventEmitter {
     }
     /**
      * Activate a specific Bot.
-     * @param {Guid} bot_id - The bot id
+     * @param {Guid} botId - The bot id
      * @returns {object} - Activated Response object: { bot_id, greeting, success, version, versionUpdate, }
      */
-    async setActiveBot(bot_id){
+    async setActiveBot(botId){
         const dynamic = false
-        const response = await this.#botAgent.setActiveBot(bot_id, dynamic)
+        const response = await this.#botAgent.setActiveBot(botId, dynamic)
         return response
+    }
+    /**
+     * Persists the last active item ID for the member.
+     * @param {string} itemId - The item id to persist
+     * @returns {Promise<boolean>} - `true` if the update succeeded
+     */
+    async setActiveItem(itemId){
+        return await this.activeBot?.activateItem(itemId)
+            ?? false
     }
     /**
      * Sets the requested team as active, sets the active bot and responds.
