@@ -1,20 +1,20 @@
 /**
  * Session manager for MyLife synthetic testing harness.
- * Handles authentication and cookie persistence across scores.
- * All scores share this session — one synthetic account, one active session.
+ * Handles authentication and cookie persistence across movements.
+ * All movements share this session — one synthetic account, one active session.
  */
 const BASE_URL = process.env.MYLIFE_BASE_URL ?? 'https://mylife.ngrok.app'
-const MBR_ID = process.env.SYNTHETIC_MBR_ID ?? 'ember|95ade320-e0f7-4cef-a001-9324edcb6e71'
-const PASSPHRASE = process.env.SYNTHETIC_PASSPHRASE ?? 'ember lights the way forward'
-/* shared state — scores deposit what they learn here for downstream use */
+export const MBR_ID = process.env.SYNTHETIC_MBR_ID ?? 'ember|95ade320-e0f7-4cef-a001-9324edcb6e71'
+export const PASSPHRASE = process.env.SYNTHETIC_PASSPHRASE ?? 'ember lights the way forward'
+/* shared state — movements deposit what they learn here for downstream use */
 export const context = {
-    conversationLog: [], /* semantic exchange log: { score, role, message, timestamp, ...meta } */
+    conversationLog: [], /* semantic exchange log: { movement, role, message, timestamp, ...meta } */
     apiLog: [],          /* raw HTTP log: every request() call, full payload in + out */
 }
 /* cookie jar — single string, updated on every set-cookie response */
 let cookie = ''
 /**
- * Authenticated fetch wrapper. All score movements use this, never raw fetch.
+ * Authenticated fetch wrapper. All movement sections use this, never raw fetch.
  * Automatically logs every request/response pair to context.apiLog.
  * Credentials (passphrase) are redacted in the log.
  * @param {string} path - Path relative to BASE_URL
@@ -66,7 +66,7 @@ export async function request(path, options={}){
 }
 /**
  * Establishes authenticated session for the synthetic account.
- * Must be called before any member-scoped score movements.
+ * Must be called before any member-scoped movement sections.
  * @returns {Promise<boolean>}
  */
 export async function authenticate(){
@@ -82,14 +82,14 @@ export async function authenticate(){
 /**
  * Records one conversational turn into the semantic conversation log.
  * Complements apiLog (raw) with human-readable exchange context.
- * @param {string} score - Score identifier, e.g. '03'
+ * @param {string} movement - Movement identifier, e.g. '03'
  * @param {'synthetic'|'biographer'|'avatar'|'system'} role - Who is speaking
  * @param {string} message - The message text (stripped of HTML)
- * @param {object} meta - Optional metadata: { exchange, movement, instructions, note }
+ * @param {object} meta - Optional metadata: { exchange, section, instructions, note }
  */
-export function logTurn(score, role, message, meta={}){
+export function logTurn(movement, role, message, meta={}){
     context.conversationLog.push({
-        score,
+        movement,
         role,
         message,
         timestamp: new Date().toISOString(),

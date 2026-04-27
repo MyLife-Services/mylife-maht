@@ -1,0 +1,84 @@
+# MyLife Synthetic Testing Playbook
+# Movement 21 — Activism Cleanup
+# Suite: Activism
+#
+# Purpose:
+#   Delete the civic action plan created in Movement 19, retire the activism bot
+#   created in Movement 18, and verify both are absent from their respective
+#   collections and bot lists.
+#
+#   The activism bot is retirable (user-created), so it is deleted here —
+#   unlike political bots which are team defaults and are not retired.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movements 18 and 19 — context.activismBotId and
+#   context.actionItemId must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "21"
+  name: "Activism Cleanup"
+  suite: activism
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+sections:
+
+  - name: Delete action item
+    request:
+      method: DELETE
+      path: /members/items/${context.actionItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "removeItem"
+    assess:
+      - does the removeItem instruction carry the correct itemId?
+
+  - name: Retire activism bot
+    # The activism bot is retirable. Expect removeBot + setActiveBot instructions.
+    request:
+      method: DELETE
+      path: /members/bots/${context.activismBotId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "removeBot"
+      - response.instructions contains an item where command == "setActiveBot"
+    store:
+      - key: context.activismBotId
+        value: null
+    assess:
+      - does setActiveBot point to the personal-avatar?
+
+  - name: Verify action absent from collections
+    request:
+      method: GET
+      path: /members/collections/action
+    assert:
+      - response is an array
+      - response does NOT contain an item where id == context.actionItemId
+    assess:
+      - actionAbsent: true/false
+      - if still present: flag as DELETE_NOT_PERSISTED
+
+  - name: Verify activism bot absent from bots list
+    request:
+      method: GET
+      path: /members/bots
+    assert:
+      - response.bots is an array (or response is an array)
+    assess:
+      - is a bot with type == "activism" absent from the list?
+      - activismBotAbsent: true/false
+      - if still present: flag as RETIRE_NOT_PERSISTED
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-21-activism-cleanup.md"

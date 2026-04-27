@@ -1,0 +1,130 @@
+# MyLife Synthetic Testing Playbook
+# Movement 06 — Journaler Setup
+# Suite: Memory
+#
+# Purpose:
+#   Create (or locate) the journaler bot, name it, activate it, confirm the
+#   greeting routine personalizes correctly, and set interests from the live
+#   options list. The journaler bot is retirable — this movement creates it
+#   fresh each run if it does not already exist.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 01 — context.creatableTypes must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "06"
+  name: "Journaler Setup"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, invent:
+#   vars.journalerName  — a personal-sounding name for the journaler bot.
+#                         Any name works. It will appear in the greeting routine.
+
+sections:
+
+  - name: Create journaler bot
+    # journaler should appear in context.creatableTypes from Movement 01.
+    # If POST returns success:false or 409, the bot already exists — locate it
+    # via GET /members/bots and store the existing id as context.journalerBotId.
+    request:
+      method: POST
+      path: /members/bots/create
+      body:
+        type: journaler
+    assert:
+      - response.success is exactly: true
+      - response.id is a non-empty string
+    store:
+      - key: context.journalerBotId
+        value: response.id
+    assess:
+      - note firstAccess value
+      - if creation failed: locate existing journaler from GET /members/bots,
+        store its id as context.journalerBotId, and note LOCATED_EXISTING
+
+  - name: Rename journaler bot
+    request:
+      method: PUT
+      path: /members/bots/${context.journalerBotId}
+      body:
+        bot_name: ${vars.journalerName}
+    assert:
+      - response.success is exactly: true
+      - response.name is a non-empty string
+    store:
+      - key: context.journalerName
+        value: response.name
+    assess:
+      - does response.name match vars.journalerName exactly?
+
+  - name: Activate journaler bot
+    request:
+      method: POST
+      path: /members/bots/activate/${context.journalerBotId}
+    assert:
+      - response.success is exactly: true
+      - response.id == context.journalerBotId
+    store:
+      - key: context.activeBotId
+        value: response.id
+      - key: context.journalerVersion
+        value: response.version
+    assess:
+      - note firstAccess and version
+      - is the greeting coherent and personally addressed?
+
+  - name: Run journaler greeting routine
+    request:
+      method: GET
+      path: /routine/journaler
+    assert:
+      - response.success is exactly: true
+      - response.routine.events is a non-empty array
+    assess:
+      - does the member name appear in at least one event?
+      - does the bot name (context.journalerName) appear in at least one event?
+      - are there any un-substituted template literals (e.g., <-mN-> or <-bN->)?
+      - note eventCount
+
+  - name: Fetch available interest options
+    request:
+      method: GET
+      path: /members/bots/${context.journalerBotId}/options
+    assert:
+      - response is a non-empty array or object containing an interests list
+    store:
+      - key: vars.interestOptions
+        value: response (read shape; adapt if nested)
+    assess:
+      - how many options are available?
+      - select 3–5 that fit a coherent journaling persona
+      - store your selection as vars.chosenInterests (comma-separated string)
+
+  - name: Set interests
+    request:
+      method: PUT
+      path: /members/bots/${context.journalerBotId}
+      body:
+        interests: ${vars.chosenInterests}
+    assert:
+      - response.success is exactly: true
+    store:
+      - key: context.journalerInterests
+        value: ${vars.chosenInterests}
+    assess:
+      - confirm each chosen interest is echoed or acknowledged by the server
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-06-journaler-setup.md"

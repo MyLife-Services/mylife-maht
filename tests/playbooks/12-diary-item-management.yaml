@@ -1,0 +1,154 @@
+# MyLife Synthetic Testing Playbook
+# Movement 12 — Diary Item Management
+# Suite: Memory
+#
+# Purpose:
+#   Put the diary entry created in Movement 11 through a full editorial lifecycle:
+#   direct API mutations and diary-bot-mediated NL mutations, ending with a
+#   collections verification that all changes persisted.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 11 — context.diaryItemId and context.verifiedDiaryItem
+#   must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "12"
+  name: "Diary Item Management"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate from your Movement 11 entry:
+#
+#   vars.titleA          — new title for direct API update (section 2)
+#   vars.titleB          — second title for NL update via diary bot (section 3)
+#   vars.detailToRemove  — specific phrase from the saved summary to remove
+#   vars.detailToAdd     — new concrete detail to add to the summary
+#   vars.appendPhrase    — short phrase to append directly (section 4)
+#   vars.removalRequest  — natural-language removal request
+#   vars.additionRequest — natural-language addition request
+
+sections:
+
+  - name: Activate entry in diary context
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: "Can you give me a quick recap of the entry we saved?"
+        itemId: ${context.diaryItemId}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    assess:
+      - does the response reference at least one specific detail from your entry?
+
+  - name: Direct title change via PUT
+    request:
+      method: PUT
+      path: /members/items/${context.diaryItemId}
+      body:
+        id: ${context.diaryItemId}
+        title: ${vars.titleA}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItem"
+    store:
+      - key: context.diaryCurrentTitle
+        value: ${vars.titleA}
+      - key: context.diaryCurrentSummary
+        value: response.item.summary (if present, else context.verifiedDiaryItem.summary)
+    assess:
+      - confirm returned title matches vars.titleA
+
+  - name: Chat title change via diary bot
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: 'Please rename this entry to "${vars.titleB}"'
+        itemId: ${context.diaryItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemTitle"
+    store:
+      - key: context.diaryCurrentTitle
+        value: response.instructions[command=updateItemTitle].title
+    assess:
+      - does the instruction title match vars.titleB?
+
+  - name: Direct summary append via PUT
+    request:
+      method: PUT
+      path: /members/items/${context.diaryItemId}
+      body:
+        id: ${context.diaryItemId}
+        summary: ${context.diaryCurrentSummary + "\n\n" + vars.appendPhrase}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItem"
+    store:
+      - key: context.diaryCurrentSummary
+        value: response.item.summary (if present, else context.diaryCurrentSummary + vars.appendPhrase)
+    assess:
+      - confirm returned summary contains vars.appendPhrase
+
+  - name: Chat — ask diary bot to remove a detail
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.removalRequest}
+        itemId: ${context.diaryItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemSummary"
+    store:
+      - key: context.diaryCurrentSummary
+        value: response.instructions[command=updateItemSummary].summary
+    assess:
+      - does the new summary omit the target phrase from vars.detailToRemove?
+      - is the summary still coherent?
+
+  - name: Chat — ask diary bot to add a detail
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.additionRequest}
+        itemId: ${context.diaryItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemSummary"
+    store:
+      - key: context.diaryCurrentSummary
+        value: response.instructions[command=updateItemSummary].summary
+    assess:
+      - does the new summary contain the key phrase from vars.detailToAdd?
+
+  - name: Verify all mutations persisted in collection
+    request:
+      method: GET
+      path: /members/collections/entry
+    assert:
+      - response is an array
+      - response contains an item where id == context.diaryItemId
+    assess:
+      - titleCorrect: does title match context.diaryCurrentTitle?
+      - additionPresent: key phrase from vars.detailToAdd present?
+      - removalHonored: target phrase from vars.detailToRemove absent?
+      - appendPresent: distinctive word from vars.appendPhrase present? (informational)
+      - finalSummaryLength: N chars
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-12-diary-item-management.md"
