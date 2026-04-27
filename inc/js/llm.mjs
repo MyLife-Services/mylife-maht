@@ -198,18 +198,18 @@ class LLMServices {
                                 if(deleteConversation){
                                     this.deleteResponse(response_id) // no await
                                     this.deleteConversation(conversation_id) // no await
-                                    return
+                                    return true
                                 } else if(
                                         deleteCalls.length
                                     &&  await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, deleteCalls.length>=functionCalls.length)
                                 ) // if all calls are cancelled, delete entire response; if some calls cancelled, delete specific calls
-                                    return
+                                    return true
                             } catch(error) {
                                 console.error('ERROR running tool function calls from LLM response', response_id, error)
                                 deleteCalls.length = 0 // clear deleteCalls
                                 functionCalls.forEach(call=>deleteCalls.push(call.id)) // add all function calls to deleteCalls
                                 await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, true)
-                                return
+                                return false
                             }
                             return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, Avatar)
                         }

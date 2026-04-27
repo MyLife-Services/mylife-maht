@@ -1201,7 +1201,7 @@ async function mReliveStory(event){
     const { id: targetId, } = event.target
     const id = globals.extractId(targetId)
     const previousInput = document.getElementById(`relive-memory-input-container-${id}`)
-    const memberInputContent = previousInput?.value
+    const memberInputContent = document.getElementById(`relive-memory-input-${id}`)?.value
     if(previousInput)
         expunge(previousInput)
     const popupClose = document.getElementById(`popup-close-${ id }`)

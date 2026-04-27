@@ -67,6 +67,7 @@ async function reliveMemory(ctx){
 		return ctx.throw(400, 'Invalid Item ID')
 	const { avatar, } = ctx.state
 	const { memberInput, } = ctx.request.body
+	console.log('Avatar::reliveMemory()::memberInput', memberInput, ctx.request.body)
 	ctx.body = await avatar.reliveMemory(iid, memberInput)
 }
 async function shareCreate(ctx){
