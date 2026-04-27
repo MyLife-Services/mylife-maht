@@ -211,6 +211,33 @@ sections:
       - summaryUpdatedDuringRelive: true/false
       - summaryUpdatePersisted: true/false/notApplicable
 
+  - name: Second relive — send STOP immediately
+    # Start a fresh relive session for the same memory, but instead of letting
+    # it proceed normally, send "STOP" as the very first memberInput.
+    # The biographer should recognize this as a request to end and call endReliving
+    # itself — resulting in endReliving in the instructions without any scene narration.
+    #
+    # This tests whether the intelligence can handle an abrupt member stop gracefully.
+    request:
+      method: PATCH
+      path: /members/memory/relive/${context.createdItemId}
+      body:
+        memberInput: "STOP"
+    assert:
+      - response.success is exactly: true
+    store:
+      - key: context.stopReliveInstructions
+        value: response.instructions
+      - key: context.llmHonoredStop
+        value: response.instructions contains item where command == "endReliving"
+    assess:
+      - did the biographer call endReliving in response to "STOP"?
+        if yes: PASS — note as LLM_HONORED_STOP
+        if no: the biographer began narrating anyway — note as LLM_IGNORED_STOP
+      - if endReliving was NOT returned: the operator must cancel manually —
+        fire PATCH /members/memory/end/${context.createdItemId} and note OPERATOR_FORCED_STOP
+      - either outcome ends this movement; the stop behavior is what is under test
+
 report:
   output_dir: tests/playbooks/results
   filename: "<YYYY-MM-DD-HH-MM>-05-memory-relive.md"

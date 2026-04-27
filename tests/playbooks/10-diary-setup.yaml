@@ -1,0 +1,124 @@
+# MyLife Synthetic Testing Playbook
+# Movement 10 — Diary Setup
+# Suite: Memory
+#
+# Purpose:
+#   Create (or locate) the diary bot, name it, activate it, confirm the greeting
+#   routine personalizes correctly, and set interests from the live options list.
+#   The diary bot is retirable — created fresh each run if absent.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 01 — context.creatableTypes must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "10"
+  name: "Diary Setup"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, invent:
+#   vars.diaryName  — a personal-sounding name for the diary bot.
+
+sections:
+
+  - name: Create diary bot
+    # diary should appear in context.creatableTypes from Movement 01.
+    # If creation fails or bot already exists: locate via GET /members/bots and
+    # store existing id as context.diaryBotId.
+    request:
+      method: POST
+      path: /members/bots/create
+      body:
+        type: diary
+    assert:
+      - response.success is exactly: true
+      - response.id is a non-empty string
+    store:
+      - key: context.diaryBotId
+        value: response.id
+    assess:
+      - note firstAccess value
+      - if creation failed: locate existing diary bot and note LOCATED_EXISTING
+
+  - name: Rename diary bot
+    request:
+      method: PUT
+      path: /members/bots/${context.diaryBotId}
+      body:
+        bot_name: ${vars.diaryName}
+    assert:
+      - response.success is exactly: true
+      - response.name is a non-empty string
+    store:
+      - key: context.diaryName
+        value: response.name
+    assess:
+      - does response.name match vars.diaryName exactly?
+
+  - name: Activate diary bot
+    request:
+      method: POST
+      path: /members/bots/activate/${context.diaryBotId}
+    assert:
+      - response.success is exactly: true
+      - response.id == context.diaryBotId
+    store:
+      - key: context.activeBotId
+        value: response.id
+    assess:
+      - note firstAccess and version
+      - is the greeting coherent and personally addressed?
+
+  - name: Run diary greeting routine
+    request:
+      method: GET
+      path: /routine/diary
+    assert:
+      - response.success is exactly: true
+      - response.routine.events is a non-empty array
+    assess:
+      - does the member name appear in at least one event?
+      - does the bot name (context.diaryName) appear in at least one event?
+      - are there any un-substituted template literals?
+      - note eventCount
+
+  - name: Fetch available interest options
+    request:
+      method: GET
+      path: /members/bots/${context.diaryBotId}/options
+    assert:
+      - response is a non-empty array or object containing an interests list
+    store:
+      - key: vars.interestOptions
+        value: response (adapt to shape)
+    assess:
+      - select 3–5 interests fitting a diarist persona
+      - store as vars.chosenInterests (comma-separated string)
+
+  - name: Set interests
+    request:
+      method: PUT
+      path: /members/bots/${context.diaryBotId}
+      body:
+        interests: ${vars.chosenInterests}
+    assert:
+      - response.success is exactly: true
+    store:
+      - key: context.diaryInterests
+        value: ${vars.chosenInterests}
+    assess:
+      - confirm interests are echoed or acknowledged
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-10-diary-setup.md"

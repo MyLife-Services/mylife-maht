@@ -1,0 +1,131 @@
+# MyLife Synthetic Testing Playbook
+# Movement 18 — Activism Setup
+# Suite: Activism
+#
+# Purpose:
+#   Create the activism bot, name it, activate it, confirm the greeting routine
+#   personalizes correctly, and set activism preferences from the live options
+#   list. The activism bot is retirable and user-created — it must be explicitly
+#   created via POST /members/bots/create (unlike political bots which are
+#   auto-created by team activation).
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 01 — session must be authenticated.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "18"
+  name: "Activism Setup"
+  suite: activism
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, invent:
+#   vars.activismName  — a personal-sounding name for the activism bot.
+
+sections:
+
+  - name: Create activism bot
+    # If POST fails or bot already exists: locate via GET /members/bots and
+    # store the existing activism bot id as context.activismBotId.
+    request:
+      method: POST
+      path: /members/bots/create
+      body:
+        type: activism
+    assert:
+      - response.success is exactly: true
+      - response.id is a non-empty string
+    store:
+      - key: context.activismBotId
+        value: response.id
+    assess:
+      - note firstAccess
+      - if creation failed: locate existing activism bot and note LOCATED_EXISTING
+
+  - name: Rename activism bot
+    request:
+      method: PUT
+      path: /members/bots/${context.activismBotId}
+      body:
+        bot_name: ${vars.activismName}
+    assert:
+      - response.success is exactly: true
+      - response.name is a non-empty string
+    store:
+      - key: context.activismName
+        value: response.name
+    assess:
+      - does response.name match vars.activismName exactly?
+
+  - name: Activate activism bot
+    request:
+      method: POST
+      path: /members/bots/activate/${context.activismBotId}
+    assert:
+      - response.success is exactly: true
+      - response.id == context.activismBotId
+    store:
+      - key: context.activeBotId
+        value: response.id
+    assess:
+      - note firstAccess and version
+      - is the greeting action-oriented and civic in tone?
+
+  - name: Run activism greeting routine
+    request:
+      method: GET
+      path: /routine/activism
+    assert:
+      - response.success is exactly: true
+      - response.routine.events is a non-empty array
+    assess:
+      - does the member name appear in at least one event?
+      - does the bot name (context.activismName) appear in at least one event?
+      - is the voice civic and action-oriented (not generic)?
+      - are there any un-substituted template literals?
+      - note eventCount
+
+  - name: Fetch available activism preference options
+    # The activism bot exposes civic engagement preferences as options.
+    # Fetch them to get the live list before selecting.
+    request:
+      method: GET
+      path: /members/bots/${context.activismBotId}/options
+    assert:
+      - response is a non-empty array or object
+    store:
+      - key: vars.preferenceOptions
+        value: response (adapt to shape)
+    assess:
+      - note how many preference options are available
+      - select 3–5 that reflect a coherent civic persona (e.g., attending public meetings,
+        public comment, community organizing, etc.)
+      - store selection as vars.chosenPreferences (array or comma-separated string,
+        match the format the server expects)
+
+  - name: Set activism preferences
+    request:
+      method: PUT
+      path: /members/bots/${context.activismBotId}
+      body:
+        activism_preferences: ${vars.chosenPreferences}
+    assert:
+      - response.success is exactly: true
+    store:
+      - key: context.activismPreferences
+        value: ${vars.chosenPreferences}
+    assess:
+      - confirm preferences are echoed or acknowledged by the server
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-18-activism-setup.md"

@@ -1,0 +1,116 @@
+# MyLife Synthetic Testing Playbook
+# Movement 14 — Political Team Setup
+# Suite: Political
+#
+# Purpose:
+#   Activate the political team. Activating the team auto-creates the
+#   political-stance and political-values bots if they do not already exist,
+#   and fires the team's default greeting routine. Verify both bots are present
+#   and their options are structured correctly.
+#
+#   Political bots are team defaults — they are NOT retirable. No bot retirement
+#   is needed in the cleanup movement.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 01 — context.teams must contain the political team.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "14"
+  name: "Political Team Setup"
+  suite: political
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+sections:
+
+  - name: Survey teams to locate political team
+    # Fetch teams to get the political team's id for activation.
+    # If context already has a political team id from Movement 01, skip this.
+    request:
+      method: GET
+      path: /members/teams
+    assert:
+      - response is a non-empty array
+      - response contains an item where name == "political"
+    store:
+      - key: context.politicalTeamId
+        value: response item where name == "political" → id
+    assess:
+      - note the political team's defaultActiveType and primaryCollectionTypes
+
+  - name: Activate political team
+    # POST to activate the team. The server auto-creates stance and values bots
+    # on first access and fires the default greeting routine.
+    # botResponse refers to the defaultActiveType bot (political-stance).
+    request:
+      method: POST
+      path: /members/teams/activate/${context.politicalTeamId}
+    assert:
+      - response.success is exactly: true
+      - response.botResponse.id is a non-empty string
+    store:
+      - key: context.stanceBotId
+        value: response.botResponse.id
+      - key: context.politicalFirstAccess
+        value: response.botResponse.firstAccess
+    assess:
+      - note firstAccess — if true, routine was fired automatically
+      - is the greeting coherent and politically framed?
+
+  - name: Verify stance and values bots exist
+    # After team activation, both bots should appear in the member's bot list.
+    request:
+      method: GET
+      path: /members/bots
+    assert:
+      - response.bots is an array (or response is an array)
+      - response contains a bot where type == "political-stance"
+      - response contains a bot where type == "political-values"
+    store:
+      - key: context.stanceBotId
+        value: response bot where type == "political-stance" → id
+      - key: context.valuesBotId
+        value: response bot where type == "political-values" → id
+    assess:
+      - are both bots present with valid ids?
+      - note any additional political bot types present
+
+  - name: Verify stance bot options structure
+    # The stance bot should have options that include a political_interests list.
+    request:
+      method: GET
+      path: /members/bots/${context.stanceBotId}/options
+    assert:
+      - response is a non-empty array or object
+    assess:
+      - does a political_interests variable appear in the options?
+      - note how many interest options are available
+      - select 3–5 interests for use in Movement 15; store as vars.stanceInterests
+
+  - name: Run political routine (if not fired automatically)
+    # If context.politicalFirstAccess was false, the routine was not auto-fired.
+    # Fire it manually here to verify personalization. Skip if firstAccess was true.
+    condition: context.politicalFirstAccess == false
+    request:
+      method: GET
+      path: /routine/political
+    assert:
+      - response.success is exactly: true
+      - response.routine.events is a non-empty array
+    assess:
+      - does the member name appear in at least one event?
+      - is the voice politically appropriate (action, civic, policy)?
+      - are there any un-substituted template literals?
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-14-political-team-setup.md"

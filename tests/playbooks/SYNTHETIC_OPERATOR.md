@@ -16,13 +16,29 @@ evaluator of every response.
 **Execution order:**
 Run movements in sequence. Each depends on the previous.
 
-| File | Movement |
-|---|---|
-| `tests/playbooks/01-discovery.yaml` | Login and Stage Setting |
-| `tests/playbooks/02-biographer-setup.yaml` | Biographer Setup |
-| `tests/playbooks/03-memory-creation.yaml` | Memory Creation |
-| `tests/playbooks/04-item-management.yaml` | Item Management |
-| `tests/playbooks/05-memory-relive.yaml` | Memory Relive |
+| File | Movement | Suite |
+|---|---|---|
+| `tests/playbooks/01-discovery.yaml` | Login and Stage Setting | Overture |
+| `tests/playbooks/02-biographer-setup.yaml` | Biographer Setup | Memory |
+| `tests/playbooks/03-memory-creation.yaml` | Memory Creation | Memory |
+| `tests/playbooks/04-item-management.yaml` | Item Management | Memory |
+| `tests/playbooks/05-memory-relive.yaml` | Memory Relive | Memory |
+| `tests/playbooks/06-journaler-setup.yaml` | Journaler Setup | Memory |
+| `tests/playbooks/07-journaler-entry-creation.yaml` | Journaler Entry Creation | Memory |
+| `tests/playbooks/08-journaler-item-management.yaml` | Journaler Item Management | Memory |
+| `tests/playbooks/09-journaler-cleanup.yaml` | Journaler Cleanup | Memory |
+| `tests/playbooks/10-diary-setup.yaml` | Diary Setup | Memory |
+| `tests/playbooks/11-diary-entry-creation.yaml` | Diary Entry Creation | Memory |
+| `tests/playbooks/12-diary-item-management.yaml` | Diary Item Management | Memory |
+| `tests/playbooks/13-diary-cleanup.yaml` | Diary Cleanup | Memory |
+| `tests/playbooks/14-political-team-setup.yaml` | Political Team Setup | Political |
+| `tests/playbooks/15-stance-creation.yaml` | Stance Creation | Political |
+| `tests/playbooks/16-stance-item-management.yaml` | Stance Item Management | Political |
+| `tests/playbooks/17-political-cleanup.yaml` | Political Cleanup | Political |
+| `tests/playbooks/18-activism-setup.yaml` | Activism Setup | Activism |
+| `tests/playbooks/19-action-creation.yaml` | Action Creation | Activism |
+| `tests/playbooks/20-action-item-management.yaml` | Action Item Management | Activism |
+| `tests/playbooks/21-activism-cleanup.yaml` | Activism Cleanup | Activism |
 
 **How to make requests:**
 Use `curl` with the shared cookie jar at `tests/playbooks/cookiejar.txt`.
