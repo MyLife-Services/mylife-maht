@@ -1423,6 +1423,14 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
+     * Persists the last active item ID for the member.
+     * @param {string} itemId - The item id to persist
+     * @returns {Promise<boolean>} - `true` if the update succeeded
+     */
+    async setActiveItem(itemId){
+        return await this.activeBot.activateItem(itemId)
+    }
+    /**
      * Sets the requested team as active, sets the active bot and responds.
      * @param {string} teamId - The team id
      * @returns {Promise<Object>} - The response object, includes Active Team object: { botResponse, error, responses, success, team, }

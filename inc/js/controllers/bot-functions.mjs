@@ -13,6 +13,18 @@ async function activateBot(ctx){
 	ctx.body =await Avatar.setActiveBot(bid)
 }
 /**
+ * Persists the last active item id for the member session. Called fire-and-forget from frontend.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {boolean} - `true` if the item was persisted
+ */
+async function activateItem(ctx){
+	const { iid, } = ctx.params
+	if(!ctx.Globals.isValidGuid(iid))
+		ctx.throw(400, `valid item id required`)
+	const { avatar: Avatar, } = ctx.state
+	ctx.body = await Avatar.setActiveItem(iid)
+}
+/**
  * Get a specified bot by id for the member.
  * @param {Koa} ctx - Koa context object
  * @returns {object} - Bot object corresponding to the provided bot id
@@ -236,6 +248,7 @@ async function updateBotInstructions(ctx){
 /* exports */
 export {
 	activateBot,
+	activateItem,
 	bot,
 	bots,
     botButtons,

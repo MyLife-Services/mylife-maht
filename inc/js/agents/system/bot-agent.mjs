@@ -87,6 +87,16 @@ class Bot {
 	}
 	/* public functions */
 	/**
+	 * Saves state for the last active item for a specific bot
+	 * @param {Guid} itemId - The Item Id
+	 * @returns {Promise<boolean>} - `true` if the update succeeded
+	 */
+	async activateItem(itemId){
+		const response = await this.update({ activeItemId: itemId, })
+		const success = !!response
+		return success
+	}
+	/**
 	 * Adds a tool to the bot's tool list if available from Globals.GPTJavascriptFunctions and not already present.
 	 * @param {string} toolName - Name of function/tool to 
 	 * @returns {boolean} - Whether the tool was added/available
@@ -372,9 +382,10 @@ class Bot {
 		}
 	}
 	get botCore(){
-		const { access, buttons, card, description, flags, icon, id, itemForms, name, options, purpose, retirable, skills, type, url, version, } = this
+		const { access, activeItemId, buttons, card, description, flags, icon, id, itemForms, name, options, purpose, retirable, skills, type, url, version, } = this
 		return {
 			access,
+			activeItemId,
 			buttons,
 			description,
 			flags,
@@ -835,6 +846,7 @@ class BotAgent {
 		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#avatar)
 		return {
 			id: botId,
+			activeItemId: Bot.activeItemId ?? null,
 			firstAccess,
 			responses,
 			routine,

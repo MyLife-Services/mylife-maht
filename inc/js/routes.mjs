@@ -29,6 +29,7 @@ import {
 } from './controllers/api-functions.mjs'
 import {
 	activateBot,
+    activateItem,
     bot,
 	bots,
     botButtons,
@@ -210,8 +211,8 @@ _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/greetings', greetings)
 _memberRouter.get('/items/:iid', item)
-_memberRouter.get('/share/:sid', getShare)
 _memberRouter.get('/share/delete/:sid', deleteShare)
+_memberRouter.get('/share/:sid', getShare) // keep last — catches /:sid after specific sub-paths
 _memberRouter.get('/shares', getShares)
 _memberRouter.get('/shares/:iid', getShares)
 _memberRouter.get('/team', team)
@@ -245,6 +246,7 @@ _memberRouter.post('/teams/activate/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
+_memberRouter.put('/items/activate/:iid', activateItem)
 _memberRouter.put('/items/:iid', item)
 /* mcp member-avatar routes */
 _mcpMemberRouter.use(async (ctx, next)=>{

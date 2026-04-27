@@ -280,6 +280,7 @@ function setActiveItem(itemId){
         activeTitle().addEventListener('dblclick', updateTitle, { once: true })
     }
     mActiveItem = { form, id: itemId, inAction: false, type }
+    globals.datamanager.itemActivate(itemId) // persist last active item, fire-and-forget
     const { id, } = getBot(assistantType) // if null, gets avatar
     if(id)
         setActiveBot(id, false)

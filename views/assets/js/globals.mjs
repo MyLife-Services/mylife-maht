@@ -426,6 +426,16 @@ class Datamanager {
         return response
     }
     /**
+     * Persists the last active item id for the member session. Fire-and-forget safe.
+     * @param {Guid} itemId - The item id to persist as last active
+     * @returns {Promise<boolean>} - `true` if persisted successfully
+     */
+    async itemActivate(itemId){
+        const url = `/members/items/activate/${ itemId }`
+        const options = { method: 'PUT', }
+        return await this.#fetch(url, options)
+    }
+    /**
      * Deletes the item from the server.
      * @param {Guid} itemId - The collection item id
      * @returns {Object} - The item object: { item, message, success, }

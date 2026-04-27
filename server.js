@@ -146,11 +146,15 @@ app.use(async (ctx, next) => {
 		try {
 			await next()
 		} catch (err) {
+			const clientDisconnect = err.code==='ECONNRESET' || err.code==='ERR_STREAM_PREMATURE_CLOSE'
 			ctx.status = err.statusCode || err.status || 500
 			ctx.body = {
 				message: err.message
 			}
-			console.error(err)
+			if(clientDisconnect)
+				console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
+			else
+				console.error(err)
 		}
 	})
 	.use(async (ctx,next)=>{
