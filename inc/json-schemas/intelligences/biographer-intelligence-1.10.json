@@ -91,11 +91,12 @@
           "model": "gpt-4.1-mini",
           "provider": "openai",
           "type": "prompt",
-          "version": 4
+          "version": 13
         }
     ],
     "variables": [
       "bio",
+      "bot_name",
       "dob",
       "interests",
       "memberFirstName",
