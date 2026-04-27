@@ -158,9 +158,9 @@ app.use(async (ctx, next) => {
 			?? true
 		ctx.session.signup = ctx.session.signup
 			?? false
-		ctx.session.digitalSelf = ctx.session.digitalSelf
+		ctx.session.DigitalSelf = ctx.session.DigitalSelf
 			?? ctx.SystemAvatar
-		ctx.state.digitalSelf = ctx.session.digitalSelf
+		ctx.state.DigitalSelf = ctx.session.DigitalSelf
 		ctx.state.locked = ctx.session.locked
 		ctx.state.menu = ctx.SystemAvatar.menu
 		ctx.state.subdomain = ctx.hostname?.split('.')?.[0]

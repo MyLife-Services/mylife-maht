@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 import path from 'path'
 import EventEmitter from 'events'
 import { Marked } from 'marked'
@@ -1549,7 +1549,7 @@ class DigitalSelf extends EventEmitter {
         return Bot.bot
     }
     /**
-     * Upload files to via Avatar.
+     * Upload files to via digitalSelf.
      * @param {File[]} files - The array of files to upload.
      * @returns {boolean} - true if upload successful.
      */
@@ -1928,7 +1928,7 @@ class DigitalSelf extends EventEmitter {
     }
     set setupComplete(complete){
         if(complete && !this.setupComplete){
-            this.#factory.avatarSetupComplete(this.id) // save to cosmos
+            this.#factory.digitalSelfSetupComplete(this.id) // save to cosmos
             this.#setupComplete = true
         }
     }
@@ -3325,7 +3325,7 @@ function mHelpIncludePreamble(type, isMyLife){
  */
 async function mInit(factory, llmServices, DigitalSelf, botAgent, assetAgent){
     /* initial assignments */
-    const { backupResponses, being, frontendInstructions, mbr_id, setupComplete=true, ...digitalSelfProperties } = factory.globals.sanitize(await factory.avatarProperties())
+    const { backupResponses, being, frontendInstructions, mbr_id, setupComplete=true, ...digitalSelfProperties } = factory.globals.sanitize(await factory.digitalSelfProperties())
     Object.assign(DigitalSelf, digitalSelfProperties)
     if(!factory.isMyLife){
         DigitalSelf.setupComplete = setupComplete

@@ -2,23 +2,23 @@
 /* module export functions */
 async function server(ctx){
     const { sid, } = ctx.params
-    const { digitalSelf: Avatar, } = ctx.state
-    if(!Avatar.isMyLife)
+    const { DigitalSelf, } = ctx.state
+    if(!DigitalSelf.isMyLife)
         return ctx.throw(401, 'Unauthorized access to Nanda server')
-    ctx.body = await Avatar.nandaServer(sid)
+    ctx.body = await DigitalSelf.nandaServer(sid)
 }
 async function serverRatings(ctx){
     const { sid, } = ctx.params
-    const { digitalSelf: Avatar, } = ctx.state
-    if(!Avatar.isMyLife)
+    const { DigitalSelf, } = ctx.state
+    if(!DigitalSelf.isMyLife)
         return ctx.throw(401, 'Unauthorized access to Nanda server ratings')
-    ctx.body = await Avatar.nandaServerRatings(sid)
+    ctx.body = await DigitalSelf.nandaServerRatings(sid)
 }
 async function servers(ctx){
-	const { digitalSelf: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(!DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to Nanda servers')
-	ctx.body = await Avatar.nandaServers()
+	ctx.body = await DigitalSelf.nandaServers()
 }
 /* exports */
 export {

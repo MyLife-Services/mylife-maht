@@ -793,7 +793,7 @@ function mAvatarProperties(core, globals){
 		id: coreId,
 		mbr_id,
 		names=['default-name-error'],
-		...avatarProperties
+		...digitalSelfProperties
 	} = core
 	const being = 'avatar'
 	const nickname = avatarName
@@ -826,10 +826,10 @@ function mAvatarProperties(core, globals){
 	]
 	const type = 'openai_gpt'
 	stripProperties.forEach(prop=>{
-		delete avatarProperties[prop]
+		delete digitalSelfProperties[prop]
 	})
 	return {
-		...avatarProperties,
+		...digitalSelfProperties,
 		being,
 		id,
 		mbr_id,

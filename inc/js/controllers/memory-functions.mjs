@@ -1,10 +1,10 @@
 ﻿/* module export functions */
 function acceptShareWarnings(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(!DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife memory')
-	ctx.body = Avatar.acceptShareWarnings(sid)
+	ctx.body = DigitalSelf.acceptShareWarnings(sid)
 }
 async function collectMemory(ctx){
 	// @todo - implement memory collection
@@ -16,10 +16,10 @@ async function collectMemory(ctx){
  */
 async function deleteShare(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
-	if(Avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(DigitalSelf.isMyLife)
 		return ctx.throw(401, 'MyLife cannot delete shares')
-	ctx.body = await Avatar.deleteShare(sid)
+	ctx.body = await DigitalSelf.deleteShare(sid)
 }
 /**
  * Gets an owned share from MyLife `shares` container.
@@ -28,9 +28,8 @@ async function deleteShare(ctx){
  */
 async function getShare(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: MemberAvatar, } = ctx.state
-	const { digitalSelf: SystemAvatar, } = ctx.SystemAvatar
-	ctx.body = await MemberAvatar.getShare(sid)
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.getShare(sid)
 }
 /**
  * Gets all owned relevant shares from MyLife `shares` container, either by item or member.
@@ -39,8 +38,8 @@ async function getShare(ctx){
  */
 async function getShares(ctx){
 	const { iid, } = ctx.params
-	const { digitalSelf: MemberAvatar, } = ctx.state
-	ctx.body = await MemberAvatar.getShares(iid)
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.getShares(iid)
 }
 /**
  * Ends a memory session.
@@ -52,8 +51,8 @@ async function endMemory(ctx){
 	const { Globals, MyLife, } = ctx
 	if(!Globals.isValidGuid(iid))
 		return ctx.throw(400, 'Invalid Item ID')
-	const { digitalSelf: avatar, } = ctx.state
-	ctx.body = await avatar.endMemory(iid)
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.endMemory(iid)
 }
 /**
  * Reliving a memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage they choose. The bot by default will:
@@ -65,26 +64,25 @@ async function reliveMemory(ctx){
 	const { Globals, MyLife, } = ctx
 	if(!Globals.isValidGuid(iid))
 		return ctx.throw(400, 'Invalid Item ID')
-	const { digitalSelf: avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	const { memberInput, } = ctx.request.body
-	console.log('Avatar::reliveMemory()::memberInput', memberInput, ctx.request.body)
-	ctx.body = await avatar.reliveMemory(iid, memberInput)
+	ctx.body = await DigitalSelf.reliveMemory(iid, memberInput)
 }
 async function shareCreate(ctx){
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	const shareData = ctx.request.body
-	if(Avatar.isMyLife)
+	if(DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife sharing system')
 	if(shareData.id)
 		shareData.id = undefined
-	ctx.body = await Avatar.shareCreate(shareData)
+	ctx.body = await DigitalSelf.shareCreate(shareData)
 }
 async function shareDelete(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
-	if(Avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife share delete')
-	ctx.body = await Avatar.deleteShare(sid)
+	ctx.body = await DigitalSelf.deleteShare(sid)
 }
 /**
  * Share a memory `Header` with frontend to determine warnings or restrictions.
@@ -93,10 +91,10 @@ async function shareDelete(ctx){
  */
 async function shareHeader(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(!DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife share header')
-	ctx.body = await Avatar.shareHeader(sid)
+	ctx.body = await DigitalSelf.shareHeader(sid)
 }
 /**
  * Submit memory `Feedback`.
@@ -105,7 +103,7 @@ async function shareHeader(ctx){
  */
 async function shareFeedback(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	ctx.throw(501, 'Not Implemented')
 }
 /**
@@ -116,13 +114,13 @@ async function shareFeedback(ctx){
 async function shareMemory(ctx){
 	const { sid, } = ctx.params
 	const { Globals, MyLife, } = ctx
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	if(!Globals.isValidGuid(sid))
 		return ctx.throw(400, 'Invalid Item ID')
-	if(!Avatar.isMyLife)
+	if(!DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife memory')
 	const { input, } = ctx.request.body
-	const Share = await Avatar.shareMemory(sid, input)
+	const Share = await DigitalSelf.shareMemory(sid, input)
 	ctx.body = Share.share
 }
 /**
@@ -132,26 +130,26 @@ async function shareMemory(ctx){
  */
 async function shareStop(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(!DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife share')
-	ctx.body = await Avatar.shareStop(sid)
+	ctx.body = await DigitalSelf.shareStop(sid)
 }
 async function shareUpdate(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	const shareData = ctx.request.body
-	if(Avatar.isMyLife)
+	if(DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife sharing system')
 	shareData.id = sid
-	ctx.body = await Avatar.shareUpdate(shareData)
+	ctx.body = await DigitalSelf.shareUpdate(shareData)
 }
 async function validateShare(ctx){
 	const { sid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
-	if(!Avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(!DigitalSelf.isMyLife)
 		return ctx.throw(401, 'Unauthorized access to MyLife share')
-	ctx.body = await Avatar.validateShare(sid)
+	ctx.body = await DigitalSelf.validateShare(sid)
 }
 /* exports */
 export {

@@ -101,11 +101,10 @@ class Bot {
 	}
 	/**
 	 * Chat with the active bot.
-	 * @todo - deprecate avatar in favor of either botAgent or `this`
 	 * @param {string} message - The member request
 	 * @param {string} originalMessage - The original message
 	 * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
-	 * @param {Avatar} avatar - The Member Avatar instance
+	 * @param {DigitalSelf} DigitalSelf - The Member DigitalSelf instance
 	 * @returns {Promise<Conversation>} - The Conversation instance updated with the chat exchange
 	 */
 	async chat(message, originalMessage, allowSave=true, avatar){
@@ -218,10 +217,10 @@ class Bot {
 	 * Retrieves a greeting message from the active bot.
 	 * @param {boolean} dynamic - Whether to use dynamic greetings (`true`) or static (`false`)
 	 * @param {string} greetingPrompt - The prompt for the dynamic greeting
-	 * @param {Avatar} Avatar - The Avatar instance
+	 * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
-	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last', Avatar){
+	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last', DigitalSelf){
 		if(dynamic && this.type!=='proxy')
 			return {
 				error: 'Cannot access dynamic greeting routine',
@@ -233,7 +232,7 @@ class Bot {
 			routine=this.#greetingRoutine
 		if(!firstAccess){
 			const greetings = dynamic
-				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory, Avatar)
+				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory, DigitalSelf)
 				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
 			responses.push(...greetings)
 		}
@@ -516,12 +515,12 @@ class Bot {
 /**
  * @class - BotAgent
  * @public
- * @description - BotAgent is an interface to assist in creating, managing and maintaining a Member Avatar's bots.
+ * @description - BotAgent is an interface to assist in creating, managing and maintaining a Member DigitalSelf's bots.
  */
 class BotAgent {
 	#activeBot
     #activeTeam
-    #digitalSelf
+    #DigitalSelf
     #bots
     #factory
 	#fileConversation
@@ -535,19 +534,19 @@ class BotAgent {
 	/**
 	 * Initializes the BotAgent instance.
 	 * @async
-	 * @param {Guid} Avatar - The Avatar instance
+	 * @param {Guid} DigitalSelf - The DigitalSelf instance
 	 * @param {string} vectorstoreId - The Vectorstore id
 	 * @returns {Promise<BotAgent>} - The BotAgent instance
 	 */
-    async init(digitalSelf){
-        if(!digitalSelf)
-            throw new Error('Avatar required')
-        this.#digitalSelf = digitalSelf
+    async init(DigitalSelf){
+        if(!DigitalSelf)
+            throw new Error('DigitalSelf required')
+        this.#DigitalSelf = DigitalSelf
 		this.#bots = []
-		this.#vectorstoreId = digitalSelf.vectorstoreId
+		this.#vectorstoreId = DigitalSelf.vectorstoreId
 		const teamData = await this.#factory.teams(true, 'member')
 		this.#teams = teamData.map(teamData=>new Team(teamData, this.#factory))
-		await mInit(this, this.#bots, this.#digitalSelf, this.#factory, this.#llm)
+		await mInit(this, this.#bots, this.#DigitalSelf, this.#factory, this.#llm)
 		return this
     }
 	/* public functions */
@@ -605,19 +604,19 @@ class BotAgent {
 	 * Chat with the active bot, mutating Conversation instance with the exchange.
 	 * @param {Conversation} Conversation - The Conversation instance
 	 * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
-	 * @param {Q/Avatar} Avatar - The Avatar instance
+	 * @param {Q/DigitalSelf} DigitalSelf - The DigitalSelf instance
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async chat(Conversation, allowSave=true, Avatar){
+	async chat(Conversation, allowSave=true, DigitalSelf){
 		if(!Conversation)
 			throw new Error('Conversation instance required')
 		Conversation.processStartTime
 		Conversation.exchangeStart(this.globals.newGuid)
-		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, Avatar)
+		await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, DigitalSelf)
 		return Conversation
 	}
 	/**
-	 * Initializes a conversation, currently only requested by System Avatar, but theoretically could be requested by any externally-facing Member Avatar as well. **note**: not in Q because it does not have a #botAgent yet.
+	 * Initializes a conversation, currently only requested by System DigitalSelf, but theoretically could be requested by any externally-facing Member DigitalSelf as well. **note**: not in Q because it does not have a #botAgent yet.
 	 * @param {string} type - The type of conversation, defaults to `chat`
 	 * @param {string} form - The form of conversation, defaults to `system-avatar`
 	 * @param {string} prompt - The prompt for the conversation (optional)
@@ -655,7 +654,7 @@ class BotAgent {
      */
 	async evaluate(itemId){
 		// @stub - default to use general functioneer
-        const response = await this.#factory.evaluate(itemId, this.#digitalSelf.llmProvider, this.#digitalSelf)
+        const response = await this.#factory.evaluate(itemId, this.#DigitalSelf.llmProvider, this.#DigitalSelf)
 		return response
 	}
 	async genericBot(botType='avatar'){
@@ -700,7 +699,7 @@ class BotAgent {
      * @returns {string} - The greeting message from the active Bot
      */
     async greeting(dynamic=false){
-        const greeting = await this.activeBot.greeting(dynamic, undefined, this.#digitalSelf)
+        const greeting = await this.activeBot.greeting(dynamic, undefined, this.#DigitalSelf)
         return greeting
     }
 	/**
@@ -711,7 +710,7 @@ class BotAgent {
 	 */
 	async liveMemory(item, memberInput='NEXT'){
 		const { biographer, } = this
-		const { livingMemory, } = this.#digitalSelf
+		const { livingMemory, } = this.#DigitalSelf
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
 			memberInput = `## LIVE Memory Trigger\n### VARiABLES\nitemId: ${ item.id }\nsummary: "${ item.summary }"\n`
@@ -728,7 +727,7 @@ class BotAgent {
 		livingMemory.turns++
 		Conversation.exchangeStart()
 		console.log('BotAgent.liveMemory()', Conversation.prompt)
-		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.#digitalSelf)
+		await mCallLLM(Conversation, false, this.#llm, this.#factory, this.#DigitalSelf)
 		return livingMemory
 	}
     /**
@@ -757,14 +756,14 @@ class BotAgent {
         return true
     }
     /**
-     * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
+     * Cascade search for variable through: bot => botAgent => DigitalSelf => factory => factory.core; returns string even if complex object found.
      * @param {string} variable - Prompt variable name
      * @returns {string} - The prompt variable value
      */
     promptVariable(variable){
 		let variableValue = this.activeBot[variable]
 			?? this[variable]
-			?? this.#digitalSelf[variable] // synthetic digital self
+			?? this.#DigitalSelf[variable] // synthetic digital self
 			?? this.avatar[variable] // personal-avatar bot
 			?? this.#factory[variable] // botAgent factory
 			?? this.#factory.core[variable] // MyLife human core entry
@@ -786,7 +785,7 @@ class BotAgent {
      */
 	async proxyAccess(proxyId, botId, grant=true, skillId){
 		if(botId===this.avatarId && !grant)
-			return { error: 'Cannot revoke access to proxy agent for Avatar', success: false, }
+			return { error: 'Cannot revoke access to proxy agent for DigitalSelf', success: false, }
 		const Proxy = this.#findBot(proxyId)
         if(!Proxy)
             return { error: 'Proxy Agent cannot be found, cannot grant access.', success: false, }
@@ -832,7 +831,7 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botInstructionsVersion(type)
 		}
-		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#digitalSelf)
+		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#DigitalSelf)
 		return {
 			id: botId,
 			firstAccess,
@@ -884,10 +883,10 @@ class BotAgent {
 	 * @param {string} fileId - The file id
 	 * @param {string} fileName - The file name
 	 * @param {Number} processStartTime - The process start time, defaults to `Date.now()`
-	 * @param {Avatar} Avatar - The Avatar instance
+	 * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
 	 * @returns {Promise<Messages[]>} - The array of messages to respond with
 	 */
-	async summarize(fileId, fileName, processStartTime=Date.now(), Avatar){
+	async summarize(fileId, fileName, processStartTime=Date.now(), DigitalSelf){
 		if(!fileId?.length && !fileName?.length)
 			return responses
 		let prompts = []
@@ -899,7 +898,7 @@ class BotAgent {
 		if(!this.#fileConversation)
 			this.#fileConversation = await this.conversationStart('file-summary', 'avatar', prompt, processStartTime)
 		this.#fileConversation.prompt = prompt
-		await mCallLLM(this.#fileConversation, false, this.#llm, this.#factory, Avatar)
+		await mCallLLM(this.#fileConversation, false, this.#llm, this.#factory, DigitalSelf)
 		const responses = this.#fileConversation.getMessages()
         return responses
 	}
@@ -999,12 +998,12 @@ class BotAgent {
 		return Bot
 	}
 	/**
-	 * Gets the Avatar id for whom this BotAgent is conscripted.
+	 * Gets the DigitalSelf id for whom this BotAgent is conscripted.
 	 * @getter
-	 * @returns {string} - The Avatar id
+	 * @returns {string} - The DigitalSelf id
 	 */
 	get avatarId(){
-		return this.#digitalSelf?.id
+		return this.#DigitalSelf?.id
 	}
 	/**
 	 * Gets the Biographer bot for the BotAgent.
@@ -1100,7 +1099,7 @@ class Team {
  * Creates bot and returns associated `bot` object.
  * @module
  * @async
- * @param {Guid} avatarId - The Avatar id
+ * @param {Guid} avatarId - The DigitalSelf id
  * @param {string} vectorstore_id - The Vectorstore id
  * @param {Object} botData - The bot proto-data
  * @param {LLMServices} llm - The LLMServices instance (for injection to Bot)
@@ -1192,11 +1191,11 @@ async function mBotDelete(botId, BotAgent, llm, factory){
  * @param {string} greetingPrompt - The prompt for the greeting
  * @param {LLMServices} llm - OpenAI object
  * @param {AgentFactory} Factory - Agent Factory object
- * @param {Avatar} Avatar - The Avatar instance
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @returns {Promise<Array>} - The array of string messages to respond with
  */
-async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, Factory, Avatar){
-	let responses = await llm.getLLMResponse(thread_id, llmProvider, greetingPrompt, Factory, Avatar)
+async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, Factory, DigitalSelf){
+	let responses = await llm.getLLMResponse(thread_id, llmProvider, greetingPrompt, Factory, DigitalSelf)
 		?? [mDefaultGreetings]
 	responses = llm.extractResponses(responses)
     return responses
@@ -1391,10 +1390,10 @@ async function mBotUpdate(botData, options={}, Bot, factory){
  * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object required for function execution
- * @param {object} Avatar - Avatar object
+ * @param {object} DigitalSelf - DigitalSelf object
  * @returns {Promise<void>} - Alters Conversation instance by nature
  */
-async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
+async function mCallLLM(Conversation, allowSave=true, llm, factory, DigitalSelf){
     const { llmProvider, originalPrompt, processStartTime=Date.now(), prompt, thread_id, } = Conversation
 	if(!llmProvider?.id?.length)
 		throw new Error('No `llmProvider` intelligence id found in Conversation for `mCallLLM`.')
@@ -1402,7 +1401,7 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
         throw new Error('No Conversation found for `mCallLLM`.')
 	if(!prompt?.length)
 		throw new Error('No `prompt` found in Conversation for `mCallLLM`.')
-    const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, Avatar)
+    const responses = await llm.getLLMResponse(thread_id, llmProvider, prompt, factory, DigitalSelf)
 	if(!responses?.length)
 		return typeof responses==='boolean'
 			? responses
@@ -1665,14 +1664,14 @@ function mGetGPTResources(globals, toolName, vectorstoreId){
  * @module
  * @param {BotAgent} BotAgent - The BotAgent to initialize
  * @param {Bot[]} bots - The array of bots (empty on init)
- * @param {Avatar} Avatar - The Avatar instance
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @param {AgentFactory} factory - The factory instance
  * @param {LLMServices} llm - The LLMServices instance
  * @returns {void}
  */
-async function mInit(BotAgent, bots, Avatar, factory, llm){
+async function mInit(BotAgent, bots, DigitalSelf, factory, llm){
 	const { teams, vectorstoreId, } = BotAgent
-	bots.push(...await mInitBots(vectorstoreId, Avatar, factory, llm, teams))
+	bots.push(...await mInitBots(vectorstoreId, DigitalSelf, factory, llm, teams))
 	if(factory.isMyLife){
 		BotAgent.setActiveBot()
 		return
@@ -1683,17 +1682,17 @@ async function mInit(BotAgent, bots, Avatar, factory, llm){
 /**
  * Initializes active bots based upon criteria.
  * @param {string} vectorstore_id - The Vectorstore id
- * @param {Avatar} Avatar - The Avatar instance
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @param {AgentFactory} factory - The MyLife factory instance
  * @param {LLMServices} llm - The LLMServices instance
  * @returns {Bot[]} - The array of activated and available bots
  */
-async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
-	let bots = await factory.bots(Avatar?.id)
+async function mInitBots(vectorstore_id, DigitalSelf, factory, llm, teams=[]){
+	let bots = await factory.bots(DigitalSelf?.id)
 	if(bots?.length){
 		bots = bots.map(botData=>{
 			botData.vectorstore_id = vectorstore_id
-			botData.object_id = Avatar.id
+			botData.object_id = DigitalSelf.id
 			return new Bot(botData, llm, factory)
 		})
 	} else {
@@ -1705,16 +1704,16 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
 		bots = await Promise.all(
 			botTypes.map(async type=>{
 				const botData = {
-					object_id: Avatar.id,
+					object_id: DigitalSelf.id,
 					type,
 				}
 				if(type.includes('avatar'))
-					botData.bot_name = Avatar.nickname
-				const Bot = await mBotCreate(Avatar.id, vectorstore_id, botData, llm, factory)
+					botData.bot_name = DigitalSelf.nickname
+				const Bot = await mBotCreate(DigitalSelf.id, vectorstore_id, botData, llm, factory)
 				return Bot
 			})
 		)
-		Avatar.setupComplete = true
+		DigitalSelf.setupComplete = true
 	}
 	return bots
 }

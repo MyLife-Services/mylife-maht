@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+﻿import OpenAI from 'openai'
 import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
 import { mcpCall, } from './controllers/mcp-functions.mjs'
 /* module constants */
@@ -128,11 +128,11 @@ class LLMServices {
      * @param {string} conversation_id - Conversation id (from thread id)
      * @param {string} llmProvider - LLM provider object: { *id, model, provider, *type, variables, version, }
      * @param {string} input - Member input text
-     * @param {AgentFactory} factory - Avatar Factory object to process request
-     * @param {Avatar} Avatar - Avatar object
+     * @param {AgentFactory} factory - DigitalSelf Factory object to process request
+     * @param {DigitalSelf} DigitalSelf - DigitalSelf object
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar){
+    async getLLMResponse(conversation_id, llmProvider, input, factory, DigitalSelf){
         if(llmProvider.provider!=='openai')
             throw new Error(`LLM provider ${ llmProvider.provider ?? 'unknown' } not supported.`)
         let prompt = {}
@@ -140,7 +140,7 @@ class LLMServices {
             case 'prompt':
                 prompt.id = llmProvider.id
                 const promptVariables = Array.isArray(llmProvider?.variables)
-                    ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
+                    ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), DigitalSelf.promptVariable(v)]))
                     : llmProvider?.variables
                 if(promptVariables)
                     prompt.variables = promptVariables
@@ -185,7 +185,7 @@ class LLMServices {
                                             call.arguments = JSON.parse(call.arguments)
                                         const { call_id, id: function_id, name, status, } = call
                                         let { arguments: args, } = call
-                                        const toolResponse = await Avatar.llmFunctionCall(name, args)
+                                        const toolResponse = await DigitalSelf.llmFunctionCall(name, args)
                                         const { cancelResponse=false, deleteThread=false, ..._toolResponse } = toolResponse
                                         if(deleteThread)
                                             deleteConversation = true
@@ -211,7 +211,7 @@ class LLMServices {
                                 await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, true)
                                 return false
                             }
-                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, Avatar)
+                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, DigitalSelf)
                         }
                         default: {
                             console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)

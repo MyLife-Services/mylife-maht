@@ -1,4 +1,4 @@
-import BotAgent from "./bot-agent.mjs"
+﻿import BotAgent from "./bot-agent.mjs"
 import { Share, } from '../../models.mjs'
 import { Marked } from 'marked'
 /* module constants */
@@ -21,7 +21,7 @@ let mActor,
 /* class definitions */
 /**
  * @class Actor
- * An `actor` is a bot that can be used in an `experience` to interact with a Member Avatar. The Actor can be a system bot, (either a generic actor or an instance of `Q`), or a known bot specific to a Member Avatar.
+ * An `actor` is a bot that can be used in an `experience` to interact with a Member DigitalSelf. The Actor can be a system bot, (either a generic actor or an instance of `Q`), or a known bot specific to a Member DigitalSelf.
  */
 class Actor {
     #bot
@@ -44,7 +44,7 @@ class Actor {
 }
 /**
  * @class CastMember
- * A `cast member` is an `actor` that is part of the `cast` of an `experience`. The `cast member` can be a system actor, a system bot, or a known bot specific to a Member Avatar, but these aspects and characteristics are managed generically by the underlying Actor for now.
+ * A `cast member` is an `actor` that is part of the `cast` of an `experience`. The `cast member` can be a system actor, a system bot, or a known bot specific to a Member DigitalSelf, but these aspects and characteristics are managed generically by the underlying Actor for now.
  */
 class CastMember extends Actor {
     #factory
@@ -234,7 +234,7 @@ class Experience {
 /* ExperienceAgent class */
 /**
  * @class ExperienceAgent
- * Handles the `experience` process for a Member Avatar, with mutual integrity, allowing for internalized (but unrevealed) instance of the Member Avatar and the accompanying BotAgent. Can run one Experience at a time.
+ * Handles the `experience` process for a Member DigitalSelf, with mutual integrity, allowing for internalized (but unrevealed) instance of the Member DigitalSelf and the accompanying BotAgent. Can run one Experience at a time.
  */
 class ExperienceAgent {
     /* private properties */
@@ -251,10 +251,10 @@ class ExperienceAgent {
      * @param {BotAgent} BotAgent - BotAgent instance
      * @param {LLMServices} LLMServices - LLMServices instance
      * @param {Factory} Factory - Factory instance
-     * @param {Avatar} Avatar - Avatar instance
+     * @param {DigitalSelf} DigitalSelf - DigitalSelf instance
     */
-    constructor(obj={}, BotAgent, LLMServices, Factory, Avatar, avatarVariables){
-        this.#avatar = Avatar
+    constructor(obj={}, BotAgent, LLMServices, Factory, DigitalSelf, avatarVariables){
+        this.#avatar = DigitalSelf
         this.#botAgent = BotAgent
         this.#factory = Factory
         if(!mActor)
@@ -341,7 +341,7 @@ class ExperienceEvent {
     #order
     #portrayed
     constructor(obj){
-        const { action, id, order, portrayed, ..._obj } = obj // note: portrayed is forcibly assigned by Avatar
+        const { action, id, order, portrayed, ..._obj } = obj // note: portrayed is forcibly assigned by DigitalSelf
         this.#action = action
         this.#id = id
         this.#order = order
@@ -387,7 +387,7 @@ class ExperienceEvent {
 /* ShareAgent class */
 /**
  * @class ShareAgent
- * Handles the `sharing` process for Mylife currently only via System Avatar.
+ * Handles the `sharing` process for Mylife currently only via System DigitalSelf.
  */
 class ShareAgent {
     /* private properties */
@@ -461,14 +461,14 @@ class ShareAgent {
     /**
      * Get a memory `Header`.
 	 * @param {guid} instanceId - Share instanceId
-     * @param {Avatar} avatar - The Avatar object
+     * @param {DigitalSelf} DigitalSelf - The DigitalSelf object
      * @returns {Promise<object>} - The Share header object
      */
-    async header(instanceId, avatar){
+    async header(instanceId, DigitalSelf){
         const Share = this.share(instanceId)
         if(Share && !Share.header){
             let MemberAvatar = await this.#factory.avatarProxy(Share.mbr_id)
-            const shareData = await MemberAvatar.cleanShare(Share, avatar) // operates directly upon Shared Memory Share
+            const shareData = await MemberAvatar.cleanShare(Share, DigitalSelf) // operates directly upon Shared Memory Share
             Share.header = shareData
         }
         return Share.header

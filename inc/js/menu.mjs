@@ -1,6 +1,6 @@
-class Menu {
+﻿class Menu {
 	#menu
-	constructor(Avatar){
+	constructor(DigitalSelf){
 		this.#setMenu()
 	}
 	get menu(){

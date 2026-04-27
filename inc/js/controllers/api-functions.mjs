@@ -8,7 +8,7 @@ const mBotSecrets = JSON.parse(process.env.OPENAI_JWT_SECRETS)
  * @returns {Object[]} - Array of Experience Objects.
  */
 async function availableExperiences(ctx){
-    const { mbr_id } = ctx.state.digitalSelf
+    const { mbr_id } = ctx.state.DigitalSelf
     const experiences = await ctx.SystemAvatar.availableExperiences()
     const autoplay = experiences
         .find(experience=>experience.autoplay) // find first (of any) autoplay experience
@@ -58,12 +58,12 @@ async function experienceBuilder(ctx){
  */
 async function experienceCast(ctx){
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: Avatar, } = ctx.state
+    const { DigitalSelf, } = ctx.state
     const { xid, } = ctx.params
-    ctx.body = Avatar.manifest(xid)?.cast
+    ctx.body = DigitalSelf.manifest(xid)?.cast
 }
 /**
- * Conducts active Living-Experience for member. Passes data to avatar to manages the start, execution and completion of a member experience. Note: ctx.request.body is free JSON in order to tolerate a number of success/failure conditions.
+ * Conducts active Living-Experience for member. Passes data to DigitalSelf to manages the start, execution and completion of a member experience. Note: ctx.request.body is free JSON in order to tolerate a number of success/failure conditions.
  * @param {Koa} ctx - Koa Context object. **note** `ctx.request.body` is free JSON parsed by intelligence
  * @returns {Promise<object>} - Promise object represents object with following properties.
  * @property {boolean} success - Success status.
@@ -72,11 +72,11 @@ async function experienceCast(ctx){
  */
 async function experience(ctx){
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: Avatar, } = ctx.state
+    const { DigitalSelf, } = ctx.state
     const { xid, } = ctx.params
     const memberInput = ctx.request.body
     console.log('api-functions::experience()', memberInput, xid)
-    ctx.body = await Avatar.experience(xid, memberInput)
+    ctx.body = await DigitalSelf.experience(xid, memberInput)
 }
 /**
  * Request to end an active Living-Experience for member.
@@ -86,9 +86,9 @@ async function experience(ctx){
  */
 async function experienceEnd(ctx){
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: Avatar, } = ctx.state
+    const { DigitalSelf, } = ctx.state
     const { xid, } = ctx.params
-    ctx.body = Avatar.experienceEnd(xid)
+    ctx.body = DigitalSelf.experienceEnd(xid)
 }
 /**
  * Delivers the manifest of an experience. Manifests are the data structures that define the experience, including scenes, events, and other data. Experience must be "started" in order to request.
@@ -100,18 +100,18 @@ async function experienceEnd(ctx){
  */
 async function experienceManifest(ctx){
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: Avatar, } = ctx.state
+    const { DigitalSelf, } = ctx.state
     const { xid, } = ctx.params
-    ctx.body = Avatar.manifest(xid)
+    ctx.body = DigitalSelf.manifest(xid)
 }
 /**
  * Navigation array of scenes for experience.
  */
 async function experienceNavigation(ctx){
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: Avatar, } = ctx.state
+    const { DigitalSelf, } = ctx.state
     const { xid, } = ctx.params
-    ctx.body = Avatar.manifest(xid)?.navigation
+    ctx.body = DigitalSelf.manifest(xid)?.navigation
 }
 /**
  * Returns experiences relevant to member. If first request of session, will return mandatory system experience, if exists **and begin executing it**! On subsequent requests, just returns experiences.
@@ -122,14 +122,14 @@ async function experienceNavigation(ctx){
  */
 async function experiences(ctx){
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: Avatar, } = ctx.state
-    const experiencesObject = await Avatar.experiences()
+    const { DigitalSelf, } = ctx.state
+    const experiencesObject = await DigitalSelf.experiences()
     ctx.body = experiencesObject
 }
 async function experiencesLived(ctx){
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: Avatar, } = ctx.state
-    ctx.body = Avatar.experiencesLived
+    const { DigitalSelf, } = ctx.state
+    ctx.body = DigitalSelf.experiencesLived
 }
 /**
  * Validates member key and returns member data. Leverages the key validation structure to ensure payload is liegimate. Currently in use by OpenAI GPT and local Postman instance.
@@ -176,8 +176,8 @@ async function keyValidation(ctx){
  * @returns {Promise<void>}
  */
 async function logout(ctx){
-    const { digitalSelf: Avatar, } = ctx.state
-    await Avatar.logout(ctx)
+    const { DigitalSelf, } = ctx.state
+    await DigitalSelf.logout(ctx)
     ctx.status = 200
     ctx.body = { success: true, }
 }
@@ -213,8 +213,8 @@ async function obscure(ctx){
     const { itemId: iid, } = ctx.request?.body ?? {}
     if(!ctx.Globals.isValidGuid(iid))
         ctx.throw(400, 'Improper `itemId` provided in request')
-    const { digitalSelf: avatar, mbr_id, } = ctx.state
-    ctx.body = await avatar.obscure(mbr_id, iid)
+    const { DigitalSelf, mbr_id, } = ctx.state
+    ctx.body = await DigitalSelf.obscure(mbr_id, iid)
 }
 /**
  * Registration function for new members.
@@ -224,7 +224,7 @@ async function obscure(ctx){
  */
 async function register(ctx){
 	const registrationData = ctx.request.body
-    const { digitalSelf: avatar, } = ctx.state
+    const { DigitalSelf, } = ctx.state
 	const {
 		registrationInterests,
 		contact={}, // as to not elicit error destructuring
@@ -246,7 +246,7 @@ async function register(ctx){
     if (!ctx.Globals.isValidEmail(contact.email))
         ctx.throw(400, 'Invalid email format.')
 	registrationData.email = email // required at root for select
-	const registration = await avatar.registerCandidate(registrationData)
+	const registration = await DigitalSelf.registerCandidate(registrationData)
 	ctx.status = 200
     ctx.body = {
         success: true,
@@ -255,7 +255,7 @@ async function register(ctx){
     }
 }
 async function sharedMemories(ctx){
-    const { digitalSelf: SystemAvatar, } = ctx.state
+    const { DigitalSelf: SystemAvatar, } = ctx.state
     const memories = await SystemAvatar.sharedMemories()
     ctx.body = {
         success: true,
@@ -264,7 +264,7 @@ async function sharedMemories(ctx){
 }
 async function sharedMemory(ctx){
     const { sid, } = ctx.query
-    const { digitalSelf: SystemAvatar, } = ctx.state
+    const { DigitalSelf: SystemAvatar, } = ctx.state
     const memory = await SystemAvatar.sharedMemory(sid)
     ctx.body = {
         success: true,
@@ -316,8 +316,8 @@ async function upload(ctx){
     if(!Array.isArray(files))
         files = [files]
     await mAPIKeyValidation(ctx)
-    const { digitalSelf: avatar, } = ctx.state
-    const upload = await avatar.upload(files)
+    const { DigitalSelf, } = ctx.state
+    const upload = await DigitalSelf.upload(files)
     upload.type = type
     upload.message = `File(s) [type=${ type }] attempted upload, see "success".`,
     ctx.body = upload

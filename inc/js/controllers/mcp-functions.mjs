@@ -20,7 +20,7 @@ const mJsonRpcVersion = process.env.MCP_JSONRPC_Version,
  */
 async function mcpCall(ctx){
     const { state: {
-            avatar: Avatar, mcp, requestType, sessionMeta,
+            DigitalSelf, mcp, requestType, sessionMeta,
         } = {}
     } = ctx
     const { transportEntry, } = sessionMeta
@@ -148,7 +148,7 @@ async function mcpClientRequest(capabilities, Globals, transport, originalReques
  */
 async function mcpLogin(ctx){
     const { Globals, request: { body: { id, jsonrpc, params, }={}, }, state, } = ctx
-    const { avatar: Avatar, sessionMeta, } = state
+    const { DigitalSelf, sessionMeta, } = state
     const loginResult = await mMcpLogin(ctx, sessionMeta?.transportEntry, params, jsonrpc, id)
     return loginResult
 }
@@ -189,10 +189,10 @@ async function mcpProtocolValidation(ctx, next){
         ctx.session = existingKoaSession
         await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
         // Koa server will have mis-assigned ctx.state in faux session
-        ctx.state.digitalSelf = ctx.session.digitalSelf
+        ctx.state.DigitalSelf = ctx.session.DigitalSelf
         ctx.state.locked = ctx.session.locked
             ?? true
-        ctx.state.menu = ctx.state.digitalSelf?.menu
+        ctx.state.menu = ctx.state.DigitalSelf?.menu
         if(ctx.request.method==='GET'){
             const { transportEntry, } = sessionMeta
             await transportEntry.handleRequest(ctx.req, ctx.res)
@@ -208,11 +208,11 @@ async function mcpProtocolValidation(ctx, next){
  */
 async function mcpSessionEnd(ctx){
     ctx.status = 204
-    const { avatar: Avatar, sessionMeta, } = ctx.state
-    if(!Avatar || !sessionMeta)
+    const { DigitalSelf, sessionMeta, } = ctx.state
+    if(!DigitalSelf || !sessionMeta)
         return
     const { sessionId, } = sessionMeta
-    Avatar.logout(ctx)
+    DigitalSelf.logout(ctx)
     if(ctx.mcpSessionMeta.has(sessionId)){
         ctx.mcpSessionMeta.delete(sessionId)
         console.log(chalk.bgRed('✅ mcpSessionEnd()::Session ended'), sessionId)
@@ -263,7 +263,7 @@ function mcpSessionMeta(sessionId, sessionIdKoa, transportEntry){
     : {}
 }
 /**
- * Handles the System Avatar (Q) MCP request for streaming. Sets session metadata and starts the Stream (Streamable HTTP, SSE) transport.
+ * Handles the System DigitalSelf (Q) MCP request for streaming. Sets session metadata and starts the Stream (Streamable HTTP, SSE) transport.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<void>}
  */
@@ -353,7 +353,7 @@ async function mMcpCall(ctx, mcp){
         run,
         toolListChanged=false
     const { Globals, state, } = ctx
-    const { avatar: Avatar, locked, sessionMeta={}, requestType='system', } = state
+    const { DigitalSelf, locked, sessionMeta={}, requestType='system', } = state
     const { capabilities, clientInfo, initializeConfirmation, protocolVersion, requests, runs, sessionId, transportEntry, } = sessionMeta
     const { error: mcpError, id, jsonrpc, method, params={}, result: mcpResult, } = mcp
     const { arguments: args, name, _meta, uri, } = params
@@ -427,7 +427,7 @@ async function mMcpCall(ctx, mcp){
             switch(action.toLowerCase()){
                 case 'accept':
                     if(callback){
-                        const { error, result, success, } = await Avatar.mcpFunctionRequest('elicitation', callback, data, sessionMeta, ctx)
+                        const { error, result, success, } = await DigitalSelf.mcpFunctionRequest('elicitation', callback, data, sessionMeta, ctx)
                         console.log(chalk.bgBlue('mcpCall()::✅ Elicitation Request resolved with callback'), id, result)
                     }
                     break
@@ -450,7 +450,7 @@ async function mMcpCall(ctx, mcp){
                     await callback(text)
                 else if(typeof callback==='object' && !Array.isArray(callback)){
                     // look to original request for itemId (or possibly assign in sample data)
-                    const { error, result, success, } = await Avatar.mcpFunctionRequest('sampling', callback, text, sessionMeta, ctx)
+                    const { error, result, success, } = await DigitalSelf.mcpFunctionRequest('sampling', callback, text, sessionMeta, ctx)
                     console.log(chalk.bgBlue('mcpCall()::✅ Sampling Request resolved with callback'), id, result)
                 }
             }
@@ -479,7 +479,7 @@ async function mMcpCall(ctx, mcp){
                     } = params
                     const promptType = referenceType?.split('/')?.[1]
                     const reference = ( referenceName ?? referenceUri )?.trim()
-                    const { error: completeError, result: completeResult } = await Avatar.mcpCompletionRequest(promptType, reference, argument, contextArguments, sessionMeta, ctx)
+                    const { error: completeError, result: completeResult } = await DigitalSelf.mcpCompletionRequest(promptType, reference, argument, contextArguments, sessionMeta, ctx)
                     if(completeError)
                         error = completeError
                     else
@@ -495,19 +495,19 @@ async function mMcpCall(ctx, mcp){
         case 'prompts':
             switch(methodAction){
                 case 'get':
-                    if(!Avatar.isMyLife)
+                    if(!DigitalSelf.isMyLife)
                         break
-                    const { error: promptError, result: promptResult, } = await Avatar.mcpPromptRequest(id, name, args, sessionMeta, ctx)
+                    const { error: promptError, result: promptResult, } = await DigitalSelf.mcpPromptRequest(id, name, args, sessionMeta, ctx)
                     if(promptError)
                         error = promptError
                     else if(promptResult)
                         result = promptResult
                     break
                 case 'list':
-                    if(!Avatar.isMyLife)
+                    if(!DigitalSelf.isMyLife)
                         break
                     result = {
-                        prompts: Avatar.mcp.prompts,
+                        prompts: DigitalSelf.mcp.prompts,
                     }
                     break
             }
@@ -521,14 +521,14 @@ async function mMcpCall(ctx, mcp){
         case 'resources':
             switch(methodAction){
                 case 'list':
-                    if(!Avatar.isMyLife)
+                    if(!DigitalSelf.isMyLife)
                         break
                     result = {
-                        resources: [...Avatar.mcp.resources, ...Array.from(sessionMeta.resources.values())],
+                        resources: [...DigitalSelf.mcp.resources, ...Array.from(sessionMeta.resources.values())],
                     }
                     break
                 case 'read':
-                    if(!Avatar.isMyLife)
+                    if(!DigitalSelf.isMyLife)
                         break
                     const { uri: resourceUri, } = params
                     const resourceType = Globals.jsFunctionName(resourceUri.split('://')[0])
@@ -596,7 +596,7 @@ async function mMcpCall(ctx, mcp){
                             }
                             break
                         default: /* synthetic resource */
-                            const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await Avatar.mcpResourceRequest(resourceUri, sessionMeta, ctx)
+                            const { error: requestError, result: requestResult, resourceListChanged: requestResourceListChanged, } = await DigitalSelf.mcpResourceRequest(resourceUri, sessionMeta, ctx)
                             if(requestError)
                                 error = requestError
                             else if(requestResult)
@@ -612,16 +612,16 @@ async function mMcpCall(ctx, mcp){
                     }
                     break
                 case 'subscribe': // no response
-                    if(!Avatar.isMyLife)
+                    if(!DigitalSelf.isMyLife)
                         break
-                    await Avatar.mcpResourceSubscribe(uri, sessionMeta)
+                    await DigitalSelf.mcpResourceSubscribe(uri, sessionMeta)
                     break
                 case 'templates':
-                    if(!Avatar.isMyLife)
+                    if(!DigitalSelf.isMyLife)
                         break
                     switch(methodPluck){
                         case 'list':
-                            const resourceTemplates = Avatar.mcp.resourceTemplates
+                            const resourceTemplates = DigitalSelf.mcp.resourceTemplates
                             result = { resourceTemplates, }
                             break
                         default:
@@ -668,7 +668,7 @@ async function mMcpCall(ctx, mcp){
                         response,
                         structuredContent={},
                         total
-                    const { error: mcpError, preface: mcpPreface, response: mcpResponse, responseArrayName: mcpResponseArrayName=name+'Array', result: mcpResult, success: mcpSuccess=false, mcpSuffix, tool: mcpTool, toolListChanged: mcpToolListChanged=false, } = await Avatar.mcpFunction(name, args, sessionMeta, ctx)
+                    const { error: mcpError, preface: mcpPreface, response: mcpResponse, responseArrayName: mcpResponseArrayName=name+'Array', result: mcpResult, success: mcpSuccess=false, mcpSuffix, tool: mcpTool, toolListChanged: mcpToolListChanged=false, } = await DigitalSelf.mcpFunction(name, args, sessionMeta, ctx)
                         ?? {}
                     toolListChanged = mcpToolListChanged
                     if(mcpError)
@@ -720,11 +720,11 @@ async function mMcpCall(ctx, mcp){
                 case 'list':
                     let toolsList = []
                     const isSystem = requestType==='system'
-                    toolsList = Avatar.isMyLife && !isSystem
-                        ? Avatar.mcpProxy.tools
-                        : Avatar.mcp.tools
+                    toolsList = DigitalSelf.isMyLife && !isSystem
+                        ? DigitalSelf.mcpProxy.tools
+                        : DigitalSelf.mcp.tools
                     toolsList = toolsList
-                        .filter(tool=>( // @todo - push to security layer or avatar
+                        .filter(tool=>( // @todo - push to security layer or DigitalSelf
                                 isSystem
                             ||  !locked && (tool.mylife_auth_required ?? true)===true
                             ||  (locked && tool.mylife_auth_required===false)
@@ -885,7 +885,7 @@ async function mMcpInitializationChecks(ctx){
     let error,
         result,
         sessionMeta = ctx.state.sessionMeta
-    const { avatar: Avatar, mcp, requestType, } = ctx.state
+    const { DigitalSelf, mcp, requestType, } = ctx.state
     const { initialized, initializeConfirmation, transportEntry, } = sessionMeta
     const { id, jsonrpc, method, params: {
             capabilities,
@@ -893,15 +893,15 @@ async function mMcpInitializationChecks(ctx){
             protocolVersion,
         } = {},
     } = mcp ?? ctx.request.body
-    if(requestType==='system' && !Avatar.isMyLife)
+    if(requestType==='system' && !DigitalSelf.isMyLife)
         error = {
             code: 500,
             data: {
-                isSystemAvatar: Avatar.isMyLife,
+                isSystemAvatar: DigitalSelf.isMyLife,
                 mcpCall: mcp,
                 requestType,
             },
-            message: 'Avatar incorrectly configured, please contact support',
+            message: 'DigitalSelf incorrectly configured, please contact support',
         }
     if(!initialized){
         if(method!=='initialize')
@@ -914,9 +914,9 @@ async function mMcpInitializationChecks(ctx){
             }
         else {
             mMcpTestProtocol(jsonrpc, protocolVersion)
-            result = Avatar.isMyLife && requestType!=='system'
-                ? Avatar.mcpProxy
-                : Avatar.mcp
+            result = DigitalSelf.isMyLife && requestType!=='system'
+                ? DigitalSelf.mcpProxy
+                : DigitalSelf.mcp
             result.protocolVersion = protocolVersion /* under-report for compatibility */
             sessionMeta.capabilities = capabilities
             sessionMeta.clientInfo = clientInfo
@@ -958,15 +958,15 @@ async function mMcpLogin(ctx, transport, args, jsonrpc, id){
         await challenge(ctx, memberId, memberPassphrase)
         if(ctx.body)
             ctx.body = undefined // reset body to avoid double response
-        const { digitalSelf: Avatar, } = ctx.state
+        const { DigitalSelf, } = ctx.state
         result = {
             content: [{
-                text: `Welcome back, ${ Avatar.memberName }!\n It's me, ${ Avatar.name }.\nYou're now logged in to MyLife.`,
+                text: `Welcome back, ${ DigitalSelf.memberName }!\n It's me, ${ DigitalSelf.name }.\nYou're now logged in to MyLife.`,
                 type: 'text',
             }],
             isError: false,
         }
-        if(Avatar.isMyLife){ /* fail */
+        if(DigitalSelf.isMyLife){ /* fail */
             result.isError = true
             result.content = [{
                 text: `Unfortunately, the MyLife login failed with your credentials { mbr_id=${ memberId }, passphrase=${ memberPassphrase },}. Please try again.`,

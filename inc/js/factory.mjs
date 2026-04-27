@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import EventEmitter from 'events'
@@ -305,12 +305,12 @@ class BotFactory extends EventEmitter{
 		return challengeSuccessful
 	}
 	/**
-	 * Uses proxy of Member Avatar to manage alteration for a given share. **Note:** currently leveraging MyLife General Functioneer, but could be migrated to Personal Avatar instructions after testing.
+	 * Uses proxy of Member DigitalSelf to manage alteration for a given share. **Note:** currently leveraging MyLife General Functioneer, but could be migrated to Personal DigitalSelf instructions after testing.
 	 * @param {Share} Share - The Share instance
-	 * @param {Avatar} avatar - The Avatar instance to use for cleaning the share
+	 * @param {DigitalSelf} avatar - The DigitalSelf instance to use for cleaning the share
 	 * @returns {Share} - The cleaned Share instance
 	 */
-	async cleanShare(Share, Avatar){
+	async cleanShare(Share, DigitalSelf){
 		let prompt = '# CLEAN\n## Variables:\n'
 		const { anonymous, guessable, itemId, pov=1, restrictions, } = Share
 		const { name, names, } = this.core
@@ -326,7 +326,7 @@ class BotFactory extends EventEmitter{
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotLLMProvider, prompt, this, Avatar) // response = { preparedSummary, success, warnings, }
+		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotLLMProvider, prompt, this, DigitalSelf) // response = { preparedSummary, success, warnings, }
 		if(Array.isArray(response))
 			response = response[0] // flatten
 		shareData = {
@@ -358,22 +358,22 @@ class BotFactory extends EventEmitter{
 	 * @param {object} llmProvider - The llm properties for the agent: { *id, model, provider, *type, variables, version, }
      * @returns {object} - The Response object { instruction, responses, success, }
      */
-	async evaluate(itemId, llmProvider, Avatar){
+	async evaluate(itemId, llmProvider, DigitalSelf){
 		const { id, summary, } = await this.item(itemId)
 			?? {}
 		if(!id || !summary?.length){
-			Avatar.backupResponses = {
-				agent: Avatar.activeBot.type,
+			DigitalSelf.backupResponses = {
+				agent: DigitalSelf.activeBot.type,
 				message: `I was unable to evaluate the item: ${ !id ? 'item not found' : 'summary missing' }`,
 				type: 'system',
 			}
 			return {
 				instruction: null,
-				responses: [Avatar.backupResponses],
+				responses: [DigitalSelf.backupResponses],
 				success: false,
 			}
 		}
-		const evaluation = await mEvaluateItem(summary, llmProvider, this, Avatar)
+		const evaluation = await mEvaluateItem(summary, llmProvider, this, DigitalSelf)
 		return evaluation
 	}
 	/**
@@ -471,24 +471,24 @@ class BotFactory extends EventEmitter{
      * @param {string} conversation_id - The conversation id.
  	 * @param {object} llmProvider - The Help Bot's LLM provider
      * @param {string} helpRequest - The help request string.
-	 * @param {Avatar} avatar - The avatar instance.
+	 * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance.
 	 * @returns {Promise<Object>} - openai `message` objects.
 	 */
-	async help(conversation_id, llmProvider, helpRequest, avatar){
-		return await mHelp(conversation_id, llmProvider, helpRequest, this, avatar)
+	async help(conversation_id, llmProvider, helpRequest, DigitalSelf){
+		return await mHelp(conversation_id, llmProvider, helpRequest, this, DigitalSelf)
 	}
     /**
      * Given an itemId, obscures aspects of contents of the data record. Consults modular LLM with isolated request and saves outcome to database.
      * @param {Guid} itemId - Id of the item to obscure
-	 * @param {Avatar} Avatar - The avatar instance to use for obscuring
+	 * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance to use for obscuring
      * @returns {boolean} - Whether obscuring was successful or not
      */
-	async obscure(itemId, Avatar){
+	async obscure(itemId, DigitalSelf){
 		const { id, summary, relationships, } = await this.item(itemId)
 			?? {}
 		if(!id || !summary?.length){
-			Avatar.backupResponses = {
-				agent: Avatar.activeBot.type,
+			DigitalSelf.backupResponses = {
+				agent: DigitalSelf.activeBot.type,
 				message: `I was unable to obscure the item: ${ !id ? 'item not found' : 'summary missing' }`,
 				type: 'system',
 			}
@@ -496,7 +496,7 @@ class BotFactory extends EventEmitter{
 		}
 		const prompt = `# OBSCURE`
 		const provider = { ...mGeneralBotLLMProvider, variables: { id, summary, }, }
-		await mLLMServices.getLLMResponse(undefined, provider, prompt, this, Avatar)
+		await mLLMServices.getLLMResponse(undefined, provider, prompt, this, DigitalSelf)
 		return true
 	}
     /**
@@ -681,12 +681,12 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Retrieves or creates avatar properties from Member factory dataservices, or inherits the core data from Member class.
-	 * @returns {object} - Avatar properties.
+	 * @returns {object} - DigitalSelf properties.
 	 */
-	async avatarProperties(){
+	async digitalSelfProperties(){
 		return ( await this.dataservices.getAvatar() )
 	}
-	async avatarSetupComplete(avatarId){
+	async digitalSelfSetupComplete(avatarId){
 		await this.dataservices.patch(avatarId, { setupComplete: true })
 	}
 	/**
@@ -784,9 +784,9 @@ class AgentFactory extends BotFactory {
 		return this.alerts
 	}
 	/**
-	 * Retrieves member's Avatar data and creates singleton instance.
+	 * Retrieves member's DigitalSelf data and creates singleton instance.
 	 * @param {AgentFactory} Factory - The AgentFactory instance; optional, defaults to MyLife
-	 * @returns {Avatar} - The Avatar instance.
+	 * @returns {DigitalSelf} - The DigitalSelf instance.
 	 */
 	async getAvatar(Factory=this){
 		const _Avatar = await ( new DigitalSelf(Factory, this.#llmServices) ) // @todo - make non-generic LLM
@@ -806,12 +806,12 @@ class AgentFactory extends BotFactory {
 	/**
 	 * Creates the member instance.
 	 * @param {String} mbr_id - The member id
-	 * @returns {Promise<Avatar>} - The Member Avatar instance
+	 * @returns {Promise<DigitalSelf>} - The Member DigitalSelf instance
 	 */
 	async getMemberAvatar(mbr_id){
 		const Factory = await ( new AgentFactory(mbr_id) ).init()
-		const Avatar =  await this.getAvatar(Factory)
-		return Avatar
+		const DigitalSelf =  await this.getAvatar(Factory)
+		return DigitalSelf
 	}
 	isAvatar(_avatar){	//	when unavailable from general schemas
 		return (_avatar instanceof mSchemas.avatar)
@@ -1014,7 +1014,7 @@ class MyLifeFactory extends AgentFactory {
 	} // no init() for MyLife server
 	/* public functions */
 	/**
-	 * MyLife factory is able to hydrate a BotFactory instance of a Member Avatar.
+	 * MyLife factory is able to hydrate a BotFactory instance of a Member DigitalSelf.
 	 * @public
 	 * @param {string} mbr_id - The member id
 	 * @returns {object} - The hydrated bot instance
@@ -1101,7 +1101,7 @@ class MyLifeFactory extends AgentFactory {
 				const avatarData = await this.dataservices.addAvatar(memberAccount?.core)
 				return avatarData
 			} catch(error) { 
-				console.log(chalk.blueBright('Factory::createAccount()::create Avatar error'), chalk.bgRed(error))
+				console.log(chalk.blueBright('Factory::createAccount()::create DigitalSelf error'), chalk.bgRed(error))
 			}
 		}
 	}
@@ -1278,7 +1278,7 @@ class MyLifeFactory extends AgentFactory {
     /**
      * Test whether avatar is creating an account.
      * @getter
-     * @returns {boolean} - Avatar is in `accountCreation` mode (true) or not (false).
+     * @returns {boolean} - DigitalSelf is in `accountCreation` mode (true) or not (false).
      */
     get isCreatingAccount(){
         return this.#candidate?.mbr_id?.length
@@ -1289,7 +1289,7 @@ class MyLifeFactory extends AgentFactory {
     /**
      * Test whether factory is currently `validating` a session.
      * @getter
-     * @returns {boolean} - Avatar is in `registering` mode (true) or not (false).
+     * @returns {boolean} - DigitalSelf is in `registering` mode (true) or not (false).
      */
     get isValidated(){
 		return this.#candidate?.id?.length
@@ -1360,16 +1360,16 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
  * @param {string} summary - The summary to evaluate
  * @param {object} llmProvider - The LLM provider to use for evaluation
  * @param {AgentFactory} Factory - The Factory instance to use for evaluation
- * @param {Avatar} Avatar - The Avatar instance to use for evaluation
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance to use for evaluation
  * @returns {object} - The evaluation result, including success status and responses
  */
-async function mEvaluateItem(summary, llmProvider=mGeneralBotLLMProvider.llmProvider, Factory, Avatar){
+async function mEvaluateItem(summary, llmProvider=mGeneralBotLLMProvider.llmProvider, Factory, DigitalSelf){
 	let evaluation = {
 		responses: [],
 		success: false,
 	}
     const prompt = `Evaluate the included summary for clarity, dramatics, aesthetics, and completeness. Give top 2 recommendations to improve the summary. Do not repeat summary in response.\nSUMMARY:\n${summary}`
-    let responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt, Factory, Avatar)
+    let responses = await mLLMServices.getLLMResponse(undefined, llmProvider, prompt, Factory, DigitalSelf)
 	responses = mLLMServices.extractResponses(responses)
 	evaluation.success = responses.length
 	if(evaluation.success)
@@ -1501,11 +1501,11 @@ function mGenerateClassFromSchema(_schema) {
  * @param {object} llmProvider - The Help Bot's LLM provider
  * @param {string} helpRequest - The help request string
  * @param {AgentFactory} Factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation
- * @param {Avatar} Avatar - The avatar instance
+ * @param {DigitalSelf} DigitalSelf - The DigitalSelf instance
  * @returns {Promise<Object>} - openai `message` objects
  */
-async function mHelp(conversation_id, llmProvider, helpRequest, Factory, Avatar){
-	const response = await mLLMServices.getLLMResponse(conversation_id, llmProvider, helpRequest, Factory, Avatar)
+async function mHelp(conversation_id, llmProvider, helpRequest, Factory, DigitalSelf){
+	const response = await mLLMServices.getLLMResponse(conversation_id, llmProvider, helpRequest, Factory, DigitalSelf)
 	return response
 }
 /**

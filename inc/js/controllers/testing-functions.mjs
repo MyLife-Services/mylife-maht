@@ -8,9 +8,9 @@
 async function mission(ctx){
 	const { mid: missionId, } = ctx.params
 	const { body, method, } = ctx.request
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	body.missionId = missionId
-	ctx.body = await Avatar.mission(body, method)
+	ctx.body = await DigitalSelf.mission(body, method)
 }
 /**
  * Interact with AlphaDog to start/continue a mission.
@@ -20,22 +20,22 @@ async function mission(ctx){
 async function missionPlay(ctx){
 	const { mid: missionId, } = ctx.params
 	const { body, } = ctx.request
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	body.missionId = missionId
-	ctx.body = await Avatar.missionPlay(body)
+	ctx.body = await DigitalSelf.missionPlay(body)
 }
 /**
- * Get all available missions for the current avatar.
+ * Get all available missions for the current DigitalSelf.
  * @param {Koa} ctx - Koa context object
  * @returns {Promise<object[]>} - Array of available missions (`Mission.header`)
  */
 async function missions(ctx){
-	const { digitalSelf: Avatar, } = ctx.state
-	ctx.body = await Avatar.missions()
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.missions()
 }
 async function missionsAvailable(ctx){
-	const { digitalSelf: Avatar, } = ctx.state
-	ctx.body = await Avatar.missionsAvailable()
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.missionsAvailable()
 }
 /* exports */
 export {

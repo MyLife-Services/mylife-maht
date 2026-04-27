@@ -4,7 +4,7 @@ import {
 } from './api-functions.mjs'
 /* module export functions */
 /**
- * Renders the about page for the application. Visitors see the rendered page, members see the page as responses from their Avatar.
+ * Renders the about page for the application. Visitors see the rendered page, members see the page as responses from their DigitalSelf.
  * @param {Koa} ctx - Koa Context object
  * @returns {object|void} - Renders page in place (visitor) or Koa Context object (member)
  */
@@ -13,8 +13,8 @@ async function about(ctx){
 		ctx.state.title = `About MyLife`
 		await ctx.render('about')
 	} else {
-		const { digitalSelf: Avatar, } = ctx.state
-		const response = await Avatar.routine('about')
+		const { DigitalSelf, } = ctx.state
+		const response = await DigitalSelf.routine('about')
 		ctx.body = response
 	}
 }
@@ -25,11 +25,11 @@ async function about(ctx){
  */
 async function alerts(ctx){
 	const { aid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	if(aid)
-		ctx.body = await Avatar.alert(aid)
+		ctx.body = await DigitalSelf.alert(aid)
 	else
-		ctx.body = await Avatar.alerts()
+		ctx.body = await DigitalSelf.alerts()
 }
 /**
  * Challenge the member session with a passphrase.
@@ -49,22 +49,22 @@ async function challenge(ctx, memberId, memberPassphrase){
 		ctx.throw(400, `challenge request requires member id`)
 	if(!ctx.state.locked)
 		return true
-	const { digitalSelf: Avatar, } = ctx.state
-	const challengeSuccessful = await Avatar.challengeAccess(mid, passphrase)
+	const { DigitalSelf, } = ctx.state
+	const challengeSuccessful = await DigitalSelf.challengeAccess(mid, passphrase)
 	if(challengeSuccessful){
 		const { Conversation, } = ctx.session
 		ctx.session.locked = false
-		ctx.session.digitalSelf = await Avatar.mylifeMember(mid)
-		ctx.state.digitalSelf = ctx.session.digitalSelf
+		ctx.session.DigitalSelf = await DigitalSelf.mylifeMember(mid)
+		ctx.state.DigitalSelf = ctx.session.DigitalSelf
 		if(Conversation)
-			await Avatar.deleteChat(Conversation)
+			await DigitalSelf.deleteChat(Conversation)
 	}
 	ctx.body = !ctx.session.locked
 }
 async function collections(ctx){
 	const { type, } = ctx.params
-	const { digitalSelf: avatar, } = ctx.state
-	ctx.body = await avatar.collections(type)
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.collections(type)
 }
 /**
  * Given an itemId, evaluates aspects of contents of the data record.
@@ -73,8 +73,8 @@ async function collections(ctx){
  */
 async function evaluate(ctx){
 	const { iid, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
-	ctx.body = await Avatar.evaluate(iid)
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.evaluate(iid)
 }
 /**
  * Save feedback from the member.
@@ -83,9 +83,9 @@ async function evaluate(ctx){
  */
 async function feedback(ctx){
 	const { mid: message_id, } = ctx.params
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	const { isPositive=true, message, } = ctx.request.body
-	ctx.body = await Avatar.feedback(message_id, isPositive, message)
+	ctx.body = await DigitalSelf.feedback(message_id, isPositive, message)
 }
 /**
  * Get greetings for active situation.
@@ -99,10 +99,10 @@ async function greetings(ctx){
 	let { dyn: dynamic, } = ctx.query
 	if(typeof dynamic==='string')
 		dynamic = JSON.parse(dynamic)
-	const { digitalSelf: Avatar, } = ctx.state
-	const response = validateId?.length && Avatar.isMyLife
-		? await Avatar.validateRegistration(validateId)
-		: await Avatar.greeting(dynamic)
+	const { DigitalSelf, } = ctx.state
+	const response = validateId?.length && DigitalSelf.isMyLife
+		? await DigitalSelf.validateRegistration(validateId)
+		: await DigitalSelf.greeting(dynamic)
 	ctx.body = response
 }
 /**
@@ -116,8 +116,8 @@ async function help(ctx){
 	const { helpRequest, type=`general`, } = ctx.request?.body
 	if(!helpRequest?.length)
 		ctx.throw(400, `missing help request text`)
-	const { avatar } = ctx.state
-	const _avatar = type==='membership' ? avatar : ctx.SystemAvatar.avatar
+	const { DigitalSelf } = ctx.state
+	const _avatar = type==='membership' ? DigitalSelf : ctx.SystemAvatar.avatar
 	ctx.body = await _avatar.help(helpRequest, type)
 }
 /**
@@ -133,12 +133,12 @@ async function index(ctx){
 }
 async function item(ctx){
 	const { iid: id, } = ctx.params
-	const { digitalSelf: avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	const { method, } = ctx.request
 	const item = ctx.request.body // always `{}` by default
 	if(!item?.id && id?.length)
 		item.id = id
-	ctx.body = await avatar.item(item, method, false)
+	ctx.body = await DigitalSelf.item(item, method, false)
 }
 /**
  * Logout the member from the system.
@@ -146,8 +146,8 @@ async function item(ctx){
  * @returns {void} - Redirects to the home page
  */
 async function logout(ctx){
-	const { avatar: Avatar, locked, } = ctx.state
-	await Avatar.logout(ctx)
+	const { DigitalSelf, locked, } = ctx.state
+	await DigitalSelf.logout(ctx)
 	ctx.redirect('/')
 }
 /**
@@ -158,8 +158,8 @@ async function logout(ctx){
  * @returns {Object[]} - List of hosted members available for login.
  */
 async function loginSelect(ctx){
-	const { digitalSelf: avatar, } = ctx.state
-	ctx.body = await avatar.hostedMembers(process.env.MYLIFE_HOSTING_KEY)
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.hostedMembers(process.env.MYLIFE_HOSTING_KEY)
 }
 async function members(ctx){ // members home
 	await ctx.render('members')
@@ -171,22 +171,22 @@ async function members(ctx){ // members home
  */
 async function obscure(ctx){
 	const { iid, } = ctx.params
-	const { digitalSelf: avatar, } = ctx.state
-	ctx.body = await avatar.obscure(iid)
+	const { DigitalSelf, } = ctx.state
+	ctx.body = await DigitalSelf.obscure(iid)
 }
 /**
- * Reset the passphrase for the member's avatar.
+ * Reset the passphrase for the member's DigitalSelf.
  * @param {Koa} ctx - Koa Context object
  * @returns {boolean} - Whether or not passpharase successfully reset
  */
 async function passphraseReset(ctx){
-	const { digitalSelf: avatar, } = ctx.state
-	if(avatar?.isMyLife ?? true)
+	const { DigitalSelf, } = ctx.state
+	if(DigitalSelf?.isMyLife ?? true)
 		ctx.throw(400, `cannot reset system passphrase`)
 	const { passphrase } = ctx.request.body
 	if(!passphrase?.length)
 		ctx.throw(400, `passphrase required for reset`)
-	ctx.body = await avatar.resetPassphrase(passphrase)
+	ctx.body = await DigitalSelf.resetPassphrase(passphrase)
 }
 /**
  * Display the privacy policy page - ensure it can work in member view.
@@ -197,8 +197,8 @@ async function privacyPolicy(ctx){
 		ctx.state.title = `MyLife Privacy Policy`
 		await ctx.render('privacy-policy')
 	} else {
-		const { digitalSelf: Avatar, } = ctx.state
-		const response = await Avatar.routine('privacy')
+		const { DigitalSelf, } = ctx.state
+		const response = await DigitalSelf.routine('privacy')
 		ctx.body = response
 	}
 }
@@ -232,7 +232,7 @@ async function signup(ctx) {
 	if(( avatarName?.length < 3 ?? true ) && type==='register')
 		ctx.throw(400, 'Invalid input', {
 			success,
-			message: 'Invalid input: Avatar name must be between 3 and 64 characters: avatarNameInput',
+			message: 'Invalid input: DigitalSelf name must be between 3 and 64 characters: avatarNameInput',
 			payload: signupPacket,
 		})
 	signupPacket.id = ctx.SystemAvatar.newGuid
@@ -249,9 +249,9 @@ async function signup(ctx) {
     }
 }
 async function summarize(ctx){
-	const { digitalSelf: Avatar, } = ctx.state
+	const { DigitalSelf, } = ctx.state
 	const { fileId, fileName, } = ctx.request.body
-	ctx.body = await Avatar.summarize(fileId, fileName)
+	ctx.body = await DigitalSelf.summarize(fileId, fileName)
 }
 /**
  * Proxy for uploading files to the API.
@@ -259,10 +259,10 @@ async function summarize(ctx){
  * @returns {object} - The result of the upload as `ctx.body`.
  */
 async function upload(ctx){
-	const { digitalSelf: avatar, } = ctx.state
-	if(avatar.isMyLife)
+	const { DigitalSelf, } = ctx.state
+	if(DigitalSelf.isMyLife)
 		throw new Error('Only logged in members may upload files')
-	ctx.session.APIMemberKey = avatar.mbr_id
+	ctx.session.APIMemberKey = DigitalSelf.mbr_id
 	ctx.session.isAPIValidated = true
 	await apiUpload(ctx)
 }

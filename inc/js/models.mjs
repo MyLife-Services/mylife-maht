@@ -1,4 +1,4 @@
-/* imports */
+﻿/* imports */
 import { EventEmitter } from 'events'
 /* module constants */
 const mBeing = `story`,
@@ -339,7 +339,7 @@ class Item extends EventEmitter {
     #created=Date.now()
     #form
     #id
-    #immutableFields=['availableTypes', 'being', 'complete', 'id', 'item', 'itemCore', 'mbr_id', 'name', 'type', 'unsavedDuration', 'version'] // **note**: Avatar.populateObject() will prevent overwriting functions
+    #immutableFields=['availableTypes', 'being', 'complete', 'id', 'item', 'itemCore', 'mbr_id', 'name', 'type', 'unsavedDuration', 'version'] // **note**: DigitalSelf.populateObject() will prevent overwriting functions
     #lastSaved
     #llmServices
     #mbr_id
@@ -350,18 +350,18 @@ class Item extends EventEmitter {
     /**
      * @constructor
      * @param {object} item - Data object (optional)
-     * @param {Avatar} avatar - The Member Avatar instance
+     * @param {DigitalSelf} DigitalSelf - The Member DigitalSelf instance
      * @param {LLMServices} llmServices - The LLM services object
      */
-    constructor(item, avatar, llmServices){
-        if(!avatar || !llmServices)
-            throw new Error('Avatar and LLM services required')
-        if(avatar.isMyLife)
+    constructor(item, DigitalSelf, llmServices){
+        if(!DigitalSelf || !llmServices)
+            throw new Error('DigitalSelf and LLM services required')
+        if(DigitalSelf.isMyLife)
             throw new Error('MyLife cannot create stories')
         if(!item?.summary?.length)
             throw new Error('Item requires a summary')
         super()
-        this.#avatar = avatar
+        this.#avatar = DigitalSelf
         this.#llmServices = llmServices
         item = this.#avatar.sanitize(item)
         const {
