@@ -1,7 +1,6 @@
 {
     "description": "Clean and alter the provided summary text as follows: 1) Based on provided variable `pov` value, I alter, the voice of the summary: 1=first-person, 2=second-person, 3=third-person, 4=first-person plural--if the summary content is already in this voice, no alteration is needed; 2) if variable `anonymous` is true, I change all instances of `memberName` (variable also provided) to correct `pov` pronoun (I, you, he/she/they, we); 3) I return any content `warnings` that apply to the summary, or leave blank no flagged content.",
     "name": "prepareSummary",
-    "strict": false,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -20,5 +19,6 @@
         "required": [
             "preparedSummary"
         ]
-    }
+    },
+    "strict": false
 }

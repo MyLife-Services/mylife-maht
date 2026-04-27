@@ -6,6 +6,15 @@
 //	imports
 import Datamanager from "./datamanager.mjs"
 /**
+ * Array fields in this set are treated as append-only variants: use `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
+ * Arrays not in this set are replaced wholesale rather than appended to.
+ * Examples of append-only arrays: `feedback`, `validations`.
+ */
+const mAddOnlyArrayFields = new Set([
+    'feedback',
+	'validations',
+])
+/**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
  * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
@@ -212,6 +221,16 @@ class Dataservices {
 		return await this.datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
 	}
 	/**
+	 * Proxy to retrieve stored actions.
+	 * @returns {Object[]} - The collection of actions
+	 */
+	async collectionActions(){
+		return await this.getItems('action')
+	}
+	async collectionAssistantType(type){
+
+	}
+	/**
 	 * Proxy to retrieve stored conversations.
 	 * @returns {Object[]} - The collection of conversations
 	 */
@@ -289,6 +308,32 @@ class Dataservices {
      */
 	async collections(type){
 		switch(type){
+			case 'all':
+				return await Promise.all([
+					this.collectionConversations(),
+					this.collectionEntries(),
+					this.collectionLivedExperiences(),
+					this.collectionFiles(),
+					this.collectionMemories(),
+					this.collectionIssues(),
+					this.collectionValues(),
+				])
+					.then(([conversations, entries, experiences, files, memories, issues, values])=>[
+						...conversations,
+						...entries,
+						...experiences,
+						...files,
+						...memories,
+						...issues,
+						...values,
+					])
+					.catch(err=>{
+						console.log('Dataservices::collections()::error', err)
+						return []
+					})
+			case 'action':
+				return await this.collectionActions()
+			case 'chat':
 			case 'conversation':
 				return await this.collectionConversations()
 			case 'entry':
@@ -310,27 +355,9 @@ class Dataservices {
 				return await this.collectionValues()
 			case 'story':
 				return await this.collectionStories()
-			default:
-				return await Promise.all([
-					this.collectionConversations(),
-					this.collectionEntries(),
-					this.collectionLivedExperiences(),
-					this.collectionFiles(),
-					this.collectionMemories(),
-					this.collectionIssues(),
-					this.collectionValues(),
-				])
-					.then(([conversations, entries, experiences, files, memories])=>[
-						...conversations,
-						...entries,
-						...experiences,
-						...files,
-						...memories,
-					])
-					.catch(err=>{
-						console.log('Dataservices::collections()::error', err)
-						return []
-					})
+			default: // try to return based on assistantType
+				return this.collectionAssistantType(type)
+
 		}
 	}
 	/**
@@ -344,7 +371,7 @@ class Dataservices {
 		if(!type?.length)
 			throw new Error('ERROR::createBot::Bot `type` required.')
 		if(!this.globals.isValidGuid(id))
-			bot.id = this.globals.newGuid
+			bot.id = this.newGuid
 		bot.being = 'bot'
 		/* create bot */
 		return await this.pushItem(bot)
@@ -528,7 +555,7 @@ class Dataservices {
 	 * Retrieves items based on specified parameters.
 	 * @async
 	 * @public
-	 * @param {string} being - The type of items to retrieve.
+	 * @param {string} being - The type of items to retrieve (almost always required; currently optional for collection retrieval by Assistant Type, as could have several different beings)
 	 * @param {array} [selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [paramsArray=[]] - Additional query parameters.
 	 * @param {string} container_id - The container name to use, overriding default.
@@ -538,11 +565,12 @@ class Dataservices {
 	async getItems(being, selects=[], paramsArray=[], container_id, _mbr_id=this.mbr_id) {	//	paramsArray is array of objects { name: '${varName}' }
 		// @todo: incorporate date range functionality into this.getItems()
 		const prefix = 'u'
-		paramsArray.unshift({ name: '@being', value: being, })	//	add primary parameter to array at beginning
+		if(being?.length)
+			paramsArray.unshift({ name: '@being', value: being, })
 		const _selectFields = (selects.length)
 			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${prefix}.`+field)).join(',')
 			:	'*'
-		let query = `select ${ _selectFields } from ${ prefix }`	//	@being is required
+		let query = `select ${ _selectFields } from ${ prefix }`
 		paramsArray /* iterate array of parameters */
 			.forEach((param, index)=>{
 				const { name, type, value=null,  } = param
@@ -602,24 +630,42 @@ class Dataservices {
 	/**
 	 * Patches an item by its ID with the provided data.
 	 * @async
-	 * @param {string} id - The unique identifier for the item to be patched.
-	 * @param {Object} data - The data to patch the item with; object of key/value pairs to be transformed into patch operations.
-	 * @param {string} [path='/'] - The path for patching, defaults to root.
-	 * @returns {Promise<Object>} The result of the patch operation.
+	 * @param {string} id - The unique identifier for the item to be patched
+	 * @param {Object} data - The data to patch the item with; object of key/value pairs to be transformed into patch operations
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The partition ID to use, overriding default
+	 * @param {string} rootPath - The path for patching, defaults to '/'
+	 * @returns {Promise<Object>} The result of the patch operation
 	 */
-	async patch(id, data, containerId, partitionId, path = '/') {
-		const patchOperations = Object.keys(data)
-			.filter(key => !['id', 'being', 'mbr_id'].includes(key))
-			.map(key => {
-				return { op: 'add', path: path + key, value: data[key] }
-			})
+	async patch(id, data, containerId, partitionId, rootPath = '/'){
+		const patchOperations = []
+		id = id
+			?? data.id
+		if(!id?.length)
+			throw new Error('Dataservices::patch()::id required for patch operation.')
+		const etag = data._etag
+		delete data._etag
+		for(const key of Object.keys(data)){
+			if(['being', 'id', 'mbr_id'].includes(key))
+				continue
+			const value = data[key]
+			const path = rootPath + key
+			if(Array.isArray(value)){
+				if(mAddOnlyArrayFields.has(key)) /* Append-only arrays (e.g. feedback): additive */
+					for(const element of value) 
+						patchOperations.push({ op: 'add', path: path + '/-', value: element, })
+				else /* Canonical-state arrays: replace the whole field in one op */
+					patchOperations.push({ op: 'set', path, value, })
+			} else
+				patchOperations.push({ op: 'add', path, value, })
+		}
 		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations
 		while(patchOperations.length){
 			patchBatches.push(patchOperations.splice(0, 10))
 		}
 		let endResult
 		for(const batch of patchBatches){ // Perform the patch operation(s) for each batch
-			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id)
+			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id, etag)
 		}
 		return endResult
 	}
@@ -630,10 +676,11 @@ class Dataservices {
 	 * @param {Array<Object>} data - The data for patching, including the path and operation
 	 * @param {string} containerId - The container to use, overriding default
 	 * @param {string} partitionId - The partition ID to use, overriding default
+	 * @param {string} etag - The ETag value for concurrency control, optional but recommended to prevent conflicts
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(id, data, containerId, partitionId){
-		return await this.datamanager.patchItem(id, data, containerId, partitionId)
+	async patchItem(id, data, containerId, partitionId, etag){
+		return await this.datamanager.patchItem(id, data, containerId, partitionId, etag)
 	}
     /**
      * Pushes a new item to the data manager.
@@ -723,6 +770,10 @@ class Dataservices {
 		}
 		return candidate
 	}
+	/* getters/setters */
+	get newGuid(){
+		return this.globals.newGuid
+	}
 }
 /* modular functions */
 /**
@@ -764,7 +815,6 @@ function mAvatarProperties(core, globals){
 		"email",
 		'form',
 		'format',
-		'llm_id',
 		'messages',
 		'metadata',
 		'names',

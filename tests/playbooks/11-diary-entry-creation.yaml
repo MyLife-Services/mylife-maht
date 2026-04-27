@@ -1,0 +1,108 @@
+# MyLife Synthetic Testing Playbook
+# Movement 11 — Diary Entry Creation
+# Suite: Memory
+#
+# Purpose:
+#   Use the diary bot to create a diary entry through natural conversation.
+#   The synthetic operator generates its own diary entry — a specific day,
+#   event, or feeling. The diary bot should save it in one or a few exchanges
+#   and produce accurate metadata.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 10 — context.diaryBotId must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "11"
+  name: "Diary Entry Creation"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate:
+#
+#   vars.entryOpening    — opening message to the diary bot
+#
+#   vars.diaryNarrative  — a diary entry. 150–400 words.
+#                          A specific day, event, conversation, or feeling.
+#                          First person, direct and honest. Include at least:
+#                          one named person or role, one concrete action or
+#                          event, one specific emotion or internal reaction.
+#                          Diary voice is slightly more structured than
+#                          journaling — a record of what happened and how
+#                          you felt about it.
+#
+#   vars.expectedSalientPoints  — 4–6 concrete points you expect the diary
+#                                  bot to capture in the entry summary.
+
+sections:
+
+  - name: Ask how to get started
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.entryOpening}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    assess:
+      - is the response substantive?
+      - does it invite the member to record their day or event?
+      - is the voice appropriate for a diary assistant?
+
+  - name: Submit diary entry narrative
+    # Submit your entry. Watch for createItem instruction (up to 4 exchanges).
+    # Store itemId from the instruction payload.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.diaryNarrative}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.diaryItemId
+        value: response.instructions[command=createItem].itemId (if present)
+    assess:
+      - did the diary bot save the entry in this exchange?
+      - if not: continue exchanging until createItem appears or 4 exchanges reached
+      - is the bot's response appropriate — acknowledging what you wrote?
+
+  - name: Verify entry in collections
+    request:
+      method: GET
+      path: /members/collections/entry
+    assert:
+      - response is an array
+      - response contains an item where id == context.diaryItemId
+    store:
+      - key: context.verifiedDiaryItem
+        value: response item where id == context.diaryItemId
+    assess:
+      # You know what you submitted — judge each field:
+      - title: specific to your entry, captures main event or theme?
+      - keywords: cover named people, setting, actions, emotions from your entry?
+      - mood: matches emotional register of your entry?
+      - phaseOfLife: plausible for the narrator?
+      - summary: covers vars.expectedSalientPoints? at least 60 chars? coherent?
+
+      # Report:
+      - title: { value, specific, thematic }
+      - keywords: { count, coverage }
+      - mood: { actual, appropriate }
+      - phaseOfLife: { actual, plausible }
+      - summary: { length, salientCoverage, coherent }
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-11-diary-entry-creation.md"

@@ -789,7 +789,7 @@ function mEventInput(){
  * @returns {Object[]} - Array of event objects
  */
 async function mEvents(memberInput, xid=mExperience.id){
-    const { instruction, experience, success, } = await mGlobals.datamanager.experience(xid, memberInput)
+    const { instructions, experience, success, } = await mGlobals.datamanager.experience(xid, memberInput)
     if(!success)
         throw new Error(`Experience failed! ${ xid }`)
     const { autoplay, description, events, id, location, purpose, skippable, title, } = experience

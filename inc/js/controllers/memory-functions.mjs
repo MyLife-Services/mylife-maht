@@ -55,15 +55,6 @@ async function endMemory(ctx){
 	const { avatar, } = ctx.state
 	ctx.body = await avatar.endMemory(iid)
 }
-async function improveMemory(ctx){
-	const { iid, } = ctx.params
-	const { Globals, MyLife, } = ctx
-	if(!Globals.isValidGuid(iid))
-		return ctx.throw(400, 'Invalid Item ID')
-	const { avatar, } = ctx.state
-	const { memberInput, } = ctx.request.body
-	ctx.body = await avatar.reliveMemory(iid, memberInput)
-}
 /**
  * Reliving a memory is a unique MyLife `experience` that allows a user to relive a memory from any vantage they choose. The bot by default will:
  * @param {Koa} ctx - Koa context object
@@ -76,6 +67,7 @@ async function reliveMemory(ctx){
 		return ctx.throw(400, 'Invalid Item ID')
 	const { avatar, } = ctx.state
 	const { memberInput, } = ctx.request.body
+	console.log('Avatar::reliveMemory()::memberInput', memberInput, ctx.request.body)
 	ctx.body = await avatar.reliveMemory(iid, memberInput)
 }
 async function shareCreate(ctx){
@@ -166,7 +158,6 @@ export {
 	acceptShareWarnings,
     collectMemory,
 	deleteShare,
-    improveMemory,
 	endMemory,
 	getShare,
 	getShares,

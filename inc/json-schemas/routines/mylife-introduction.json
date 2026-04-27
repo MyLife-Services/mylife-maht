@@ -101,7 +101,7 @@
         {
           "default": "Personal Avatar",
           "variable": "<-bN->",
-          "replacement": "nickname"
+          "replacement": "bot_name"
         }
     ],
     "version": 1

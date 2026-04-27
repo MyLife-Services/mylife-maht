@@ -1,0 +1,116 @@
+# MyLife Synthetic Testing Playbook
+# Movement 07 — Journaler Entry Creation
+# Suite: Memory
+#
+# Purpose:
+#   Use the journaler bot to create a journal entry through natural conversation.
+#   The synthetic operator generates its own journal entry content — present-tense,
+#   interior voice, about a specific day or moment. The journaler should save it
+#   in one or a small number of exchanges and produce accurate metadata.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 06 — context.journalerBotId and context.journalerName must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "07"
+  name: "Journaler Entry Creation"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate:
+#
+#   vars.entryOpening    — your opening message to the journaler (ask how to get
+#                          started, or just say you want to log an entry)
+#
+#   vars.entryNarrative  — a journal entry you will submit. 150–400 words.
+#                          Write in first person, present or recent past tense.
+#                          Interior voice — a specific day, event, or feeling.
+#                          Make it emotionally specific and concrete. Include at
+#                          least one named person, one specific setting or object,
+#                          and one specific feeling or thought.
+#
+#   vars.expectedSalientPoints  — 4–6 concrete things you expect the journaler to
+#                                  capture in the summary: person, setting, emotion,
+#                                  etc. You know what you wrote — you are the judge.
+
+sections:
+
+  - name: Ask how to get started
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.entryOpening}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    assess:
+      - is the response substantive (not a one-liner)?
+      - does it invite the member to begin journaling?
+      - is the voice appropriate for a journaler (personal, encouraging)?
+
+  - name: Submit journal entry narrative
+    # Submit your prepared entry. The journaler should save it in 1–4 exchanges.
+    # Watch for a createItem instruction — that signals the entry was saved.
+    # If not saved on first exchange: continue the conversation naturally (up to
+    # 4 total exchanges) until createItem appears or you decide the bot cannot save.
+    # Store the itemId from the createItem instruction.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.entryNarrative}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.journalerItemId
+        value: response.instructions[command=createItem].itemId (if present)
+      - key: context.journalerExchanges
+        value: 1
+    assess:
+      - did the journaler save the entry in this exchange (createItem instruction present)?
+      - if not: continue exchanging (note each turn) until saved or 4 exchanges reached
+      - is the journaler's response empathetic and reflective of what you submitted?
+      - does the generated title feel specific and appropriate to your entry?
+
+  - name: Verify entry in collections
+    request:
+      method: GET
+      path: /members/collections/entry
+    assert:
+      - response is an array
+      - response contains an item where id == context.journalerItemId
+    store:
+      - key: context.verifiedJournalerItem
+        value: response item where id == context.journalerItemId
+    assess:
+      # You know what you submitted — judge each field against your entry:
+      - title: is it specific to your entry (not generic)? does it capture the main theme?
+      - keywords: do they cover the key people, places, feelings, and themes you included?
+      - mood: does it match the emotional register of your entry?
+      - phaseOfLife: is it plausible for the narrator's apparent stage of life?
+      - summary: does it cover your expectedSalientPoints?
+        note salientCoverage as N/M where M = len(vars.expectedSalientPoints)
+      - is the summary coherent and at least 80 characters?
+
+      # Report:
+      - title: { value, specific, thematic }
+      - keywords: { count, coverage }
+      - mood: { actual, appropriate }
+      - phaseOfLife: { actual, plausible }
+      - summary: { length, salientCoverage, coherent }
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-07-journaler-entry-creation.md"

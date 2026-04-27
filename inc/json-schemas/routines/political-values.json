@@ -13,7 +13,7 @@
 			"type": "political-stance"
 		}
 	],
-    "description": "Routine for the Political Values bot to introduce itself and explain how it guide members through their political values.",
+    "description": "Introductory greeting routine for MyLife Political Values bot.",
     "developers": [
         "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
         "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
@@ -22,7 +22,7 @@
         {
             "character": "values",
             "dialog": {
-                "message": "I am an Assistive Intelligence that helps MyLife members work through and evolve their personal values, especially as they relate to their political ideology."
+                "message": "I am an Assistive Intelligence that helps you work through and evolve your personal values, especially as they relate to your political ideology."
             }
         },
         {

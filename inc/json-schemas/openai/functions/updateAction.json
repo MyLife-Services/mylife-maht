@@ -1,7 +1,6 @@
 {
     "description": "Updates (overwrites) the `action` summary referenced by itemId",
     "name": "updateAction",
-    "strict": true,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -41,7 +40,9 @@
         },
         "required": [
             "itemId",
+            "steps",
             "summary"
         ]
-    }
+    },
+    "strict": true
 }
