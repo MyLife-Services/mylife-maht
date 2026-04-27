@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/bot.json",
-	"required": ["allowedBeings", "allowMultiple", "being", "bot_id", "id", "instructions",  "mbr_id", "model", "provider", "purpose", "type"],
+	"required": ["allowedBeings", "allowMultiple", "being", "id", "instructions",  "mbr_id", "provider", "purpose", "type"],
 	"type": "object",
 	"name": "Bot",
 	"properties": {
@@ -25,11 +25,6 @@
 			"description": "root constructor for bot in MyLife",
 			"type": "string"
 		},
-        "bot_id": {
-            "description": "gpt-assistant id",
-            "type": "string",
-            "$comment": "bot_id comes from openai specification specifically, @todo: move into provider-schema"
-        },
         "greeting": {
             "description": "greeting for bot",
             "type": "string",
@@ -78,5 +73,5 @@
         }
     },
     "additionalProperties": true,
-    "$comments": "at this juncture, additional props are critical; for example, dob is something we could ship along with any interests known, etc."
+    "$comments": "- 20260331: removed `bot_name` as it is now embedded in bot-type instructions\n- at this juncture, additional props are critical; for example, dob is something we could ship along with any interests known, etc."
 }

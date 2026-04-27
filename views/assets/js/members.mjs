@@ -142,15 +142,15 @@ function decorateActiveBot(){
  * @param {object} additionalFunctions - The additional functions object, coming from other module requests
  * @returns {void}
  */
-function enactInstruction(instruction, interfaceLocation='chat', additionalFunctions={}){
-    if(!instruction || interfaceLocation!='chat')
+function enactInstruction(instructions, interfaceLocation='chat', additionalFunctions={}){
+    if(!instructions?.length || interfaceLocation!='chat')
         return
     const functions = {
         addInput,
         addMessages,
         ...additionalFunctions, // overloads feasible
     }
-    globals.enactInstruction(instruction, functions)
+    globals.enactInstruction(instructions, functions)
 }
 function escapeHtml(text) {
     return globals.escapeHtml(text)
@@ -474,11 +474,11 @@ async function mAddMemberMessage(event){
     mAddMessage(memberMessage, 'member', 7)
     /* server request */
     const response = await submit(memberMessage)
-    let { instruction, responses=[], success=false, } = response
-    if(!success)
+    let { instructions, responses=[], success=false, } = response
+    if(!success && !responses.length)
         mAddMessage('I\'m sorry, I didn\'t understand that, something went wrong on the server. Please try again.')
-    if(!!instruction)
-        enactInstruction(instruction, 'chat', {
+    if(instructions?.length)
+        enactInstruction(instructions, 'chat', {
             createItem,
             updateItem,
             updateItemSummary,
@@ -636,7 +636,7 @@ async function mAddMessage(message, role='agent', typeDelay=2){
             chatFeedbackPositive.classList.remove('fa-spinner', 'spin')
             chatFeedbackPositive.classList.add(baseClass)
         }, 15000)
-        const saveMessage = `## PRINT\n${ message }\n`
+        const saveMessage = `## CREATE\n${ message }\n`
         const success = await submit(saveMessage, false)
         clearTimeout(feedbackTimeout)
         const successClass = success ? 'fa-check' : 'fa-exclamation-triangle'

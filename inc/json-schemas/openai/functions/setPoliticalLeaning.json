@@ -1,6 +1,6 @@
 {
-    "name": "setPoliticalLeaning",
     "description": "Get the political leaning of a member, such as liberal or conservative, matched to the enumerated list of political leanings in the system; if convicted, value may deviate from provided values",
+    "name": "setPoliticalLeaning",
     "parameters": {
         "additionalProperties": false,
         "type": "object",

@@ -138,9 +138,7 @@ async function item(ctx){
 	const item = ctx.request.body // always `{}` by default
 	if(!item?.id && id?.length)
 		item.id = id
-	const response = await avatar.item(item, method)
-	delete avatar.frontendInstruction
-	ctx.body = response
+	ctx.body = await avatar.item(item, method, false)
 }
 /**
  * Logout the member from the system.

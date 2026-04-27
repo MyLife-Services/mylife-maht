@@ -1,0 +1,85 @@
+{
+    "description": "Generate a complete `memory` Item with content, summary and metadata elements.",
+    "name": "createMemory",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "content": {
+                "description": "Condensed string of any Member quotations regarding `memory`",
+                "type": "string"
+            },
+            "form": {
+                "description": "MyLife Intelligence Form creating `memory` as listed in enum",
+                "enum": [
+                    "biographer",
+                    "diary",
+                    "journal"
+                ],
+                "type": "string"
+            },
+            "keywords": {
+                "description": "Keywords most relevant to `memory`",
+                "items": {
+                    "description": "Keyword from `memory` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "mood": {
+                "description": "Record member mood for summary as ascertained from `memory` content and interactions",
+                "type": "string"
+            },
+            "phaseOfLife": {
+                "description": "Phase of life, if indicated by `memory` content",
+                "enum": [
+                    "birth",
+                    "childhood",
+                    "adolescence",
+                    "teenage",
+                    "young-adult",
+                    "adulthood",
+                    "middle-age",
+                    "senior",
+                    "end-of-life",
+                    "past-life",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "relationships": {
+                "description": "Individuals (or pets) mentioned in `memory` content",
+                "type": "array",
+                "items": {
+                    "description": "Name of individual or pet in `memory`",
+                    "type": "string"
+                }
+            },
+            "summary": {
+                "description": "A complete `memory` summary composed of all salient points from member content",
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title for `memory` based on content",
+                "type": "string"
+            },
+            "type": {
+                "const": "memory",
+                "description": "MyLife System Item type `memory`; always use `memory` for type",
+                "type": "string"
+            }
+        },
+        "required": [
+            "content",
+            "form",
+            "keywords",
+            "mood",
+            "phaseOfLife",
+            "relationships",
+            "summary",
+            "title",
+            "type"
+        ]
+    },
+    "strict": true
+}

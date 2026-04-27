@@ -1,0 +1,307 @@
+# MyLife Synthetic Testing Playbook
+# Movement 01 — Login and Stage Setting
+# Suite: Overture
+#
+# Purpose:
+#   Establish that the synthetic consumer can authenticate, survey what is
+#   available, and verify the personal-avatar is operational. The last three
+#   sections confirm the avatar can be explicitly activated, renamed, and that
+#   its greeting routine correctly substitutes the member name and bot name.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md in this directory for the full operating protocol
+#   (session management, control flow keywords, assertion types, report format).
+#   Run sections in order. Abort if Section 1 (authenticate) does not pass.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+#   That file is gitignored — copy playbook.env.sample and fill in values.
+#   All ${VAR_NAME} references below are resolved from that file.
+
+movement:
+  number: "01"
+  name: "Login and Stage Setting"
+  suite: overture
+
+env:
+  file: playbook.env   # path relative to this playbook's directory
+  vars:
+    - MYLIFE_BASE_URL      # base URL for all requests
+    - SYNTHETIC_MBR_ID     # member id (avatarName|uuid format)
+    - SYNTHETIC_PASSPHRASE # passphrase for challenge endpoint
+
+# Cookie jar: all requests in this movement (and all subsequent movements)
+# share a single cookie jar. Pass -b / -c <jar-file> on every curl call,
+# or use the session.mjs request() wrapper which manages it automatically.
+
+sections:
+
+  - name: Authenticate synthetic account
+    request:
+      method: POST
+      path: /challenge/${SYNTHETIC_MBR_ID}
+      # URL-encode the member ID before substituting into the path.
+      # Member IDs contain a pipe character: avatarName|uuid
+      url_encode_path: true
+      body:
+        passphrase: ${SYNTHETIC_PASSPHRASE}
+    assert:
+      # The server returns the literal boolean true (not an object, not "true")
+      - response is exactly: true
+    on_fail: abort
+    # If authentication fails, all subsequent sections are meaningless.
+    # The synthetic consumer should report the auth error and stop.
+    store:
+      - key: authenticated
+        value: true
+
+  - name: Survey available teams
+    request:
+      method: GET
+      path: /members/teams
+    assert:
+      - response is an array
+      - response.length >= 1
+      - response contains an item where name == "memory"
+      # Teams expose which bot types are allowed and which collection types
+      # are queryable. Both fields must be present.
+      - each item in response has field: allowedBotTypes (array)
+      - each item in response has field: allowedItemTypes (array)
+      - each item in response has field: primaryCollectionTypes (array)
+      - each item in response has field: defaultActiveType (string)
+    store:
+      - key: context.teams
+        value: response
+        # Downstream movements derive creatableTypes and primaryCollectionTypes
+        # from this array. Preserve the full objects.
+      - key: context.teamNames
+        value: response[*].name
+    assess:
+      # Document which teams are present and what each governs.
+      # Expected at minimum: memory. May also include political, activism, etc.
+      - note the team names and their primaryCollectionTypes
+      - note which team holds defaultActiveType "personal-avatar"
+
+  - name: Survey available bots and creatable types
+    request:
+      method: GET
+      path: /members/bots
+    assert:
+      - response is an object
+      - response.activeBotId is a non-empty string
+      - response.bots is an array
+      - response.bots.length >= 1
+      # The active bot (response.bots[id == activeBotId]) must be type personal-avatar.
+      # This is the default session holder — always present, never retired.
+      - response.bots contains item where id == response.activeBotId and type == "personal-avatar"
+    store:
+      - key: context.activeBotId
+        value: response.activeBotId
+      - key: context.bots
+        value: response.bots
+      - key: context.creatableTypes
+        # Types that appear in context.teams[*].allowedBotTypes
+        # but are NOT already present in response.bots[*].type
+        derive: allowedBotTypes_from_teams MINUS existing_bot_types
+    assess:
+      # Document the current bot landscape so later movements know
+      # whether they need to create a bot or can activate an existing one.
+      - list each bot: id, type, name, itemForms
+      - list creatableTypes derived above
+      - note whether biographer, journaler, diary, personal-avatar bots already exist
+
+  - name: Activate personal-avatar
+    # Explicitly activate the avatar even though it already holds the session.
+    # This confirms the activate endpoint works for the avatar type and that
+    # the session bot id is properly echoed back.
+    request:
+      method: POST
+      path: /members/bots/activate/${context.bots[type=personal-avatar].id}
+      # Resolve the avatar id from context stored in section 3.
+    assert:
+      - response.success is exactly: true
+      - response.id or response.bot_id is a non-empty string matching the avatar id
+    store:
+      - key: context.activeBotId
+        value: response.id ?? response.bot_id
+      - key: context.avatarId
+        value: response.id ?? response.bot_id
+    on_fail: abort
+    # Without a confirmed active avatar, rename and routine are meaningless.
+
+  - name: Rename personal-avatar
+    # Choose a name at random from: Aria, Nova, Echo, Atlas, Lyra, Zephyr, Orion, Beacon
+    # Record the chosen name — it will be checked in the routine section.
+    vars:
+      chosenName: <pick randomly from [Aria, Nova, Echo, Atlas, Lyra, Zephyr, Orion, Beacon]>
+    request:
+      method: PUT
+      path: /members/bots/${context.avatarId}
+      body:
+        id: ${context.avatarId}
+        bot_name: ${chosenName}
+    assert:
+      - response.name == chosenName OR response.bot_name == chosenName
+    store:
+      - key: context.avatarName
+        value: ${chosenName}
+
+  - name: Run avatar greeting routine
+    request:
+      method: GET
+      path: /routine/avatar
+    assert:
+      - response.success is exactly: true
+      - response.routine is an object
+      - response.routine.events is an array with length >= 1
+      # Template variables must be substituted — neither literal placeholder may remain
+      - full dialog text (all events joined) does NOT contain the string "<-mN->"
+      - full dialog text does NOT contain the string "<-bN->"
+    assess:
+      # Check personalization quality — the synthetic should judge:
+      - confirm the member's first name appears somewhere in the dialog
+        (it replaces <-mN->; if it reads "MyLife Member" the substitution fell back to default)
+      - confirm context.avatarName ("${context.avatarName}") appears in the dialog
+        (it replaces <-bN->; absence means bot_name was not applied)
+      - note the opening line of event[0] — does the greeting feel coherent and welcoming?
+      - report: memberNameSubstituted, botNamePresent, routineTitle, eventCount
+
+  - name: Survey avatar buttons; fire routine and prompt types
+    # GET /members/bots/:id/buttons returns the button manifest for the bot.
+    # Button types: routine | prompt | passphrase | experience | instruction
+    # routine  → GET /routine/:value  (all must return success + events)
+    # prompt   → POST /members/ { botId, message: value, role: 'prompt' }
+    # experience is excluded (separate suite).
+    # passphrase is handled in sections 8-11.
+    request:
+      method: GET
+      path: /members/bots/${context.avatarId}/buttons
+    assert:
+      - response is an array
+      # Pass even if no prompt buttons exist — their absence is informational.
+      # The avatar currently has no prompt buttons, only routine and experience.
+    store:
+      - key: context.avatarButtons
+        value: response
+    assess:
+      - list all buttons with their type, label, and value
+      - note which types are present (expected: passphrase, routine, experience)
+    # Fire all routine buttons.
+    # for_each semantics: if source is empty, skip entirely — no sub-sections
+    # are executed and the parent section still passes. If source has items,
+    # iterate once per item, executing the nested do: block each time.
+    for_each:
+      - source: response[type=routine]
+        as: btn
+        do:
+          - name: "Fire routine button: ${btn.label}"
+            request:
+              method: GET
+              path: /routine/${btn.value}
+            assert:
+              - response.success is exactly: true
+              - response.routine.events is an array with length >= 1
+            assess:
+              - note the routine title and event count
+              - confirm neither <-mN-> nor <-bN-> appear literally in the dialog
+      # Fire all prompt buttons.
+      - source: response[type=prompt]
+        as: btn
+        do:
+          - name: "Fire prompt button: ${btn.label}"
+            request:
+              method: POST
+              path: /members/
+              body:
+                botId: ${context.avatarId}
+                message: ${btn.value}
+                role: prompt
+            assert:
+              - response.responses is a non-empty array
+            assess:
+              - note the bot's response content — does it address the prompt coherently?
+
+  - name: Change passphrase
+    # Appends "-test" to the current passphrase to create a temporary one.
+    # The session remains active after this call — no re-auth needed yet.
+    vars:
+      tempPassphrase: ${SYNTHETIC_PASSPHRASE}-test
+    request:
+      method: POST
+      path: /members/passphrase
+      body:
+        passphrase: ${tempPassphrase}
+    assert:
+      - response is exactly: true
+    store:
+      - key: context.tempPassphrase
+        value: ${tempPassphrase}
+    on_fail: abort
+    # If change fails, skip logout/re-auth — original passphrase is still valid.
+
+  - name: Logout
+    # GET /logout clears the session and redirects (HTTP 302) — no JSON body.
+    # Pass on any non-error status (2xx or 3xx). Real proof of logout comes
+    # from the next section: re-authentication must succeed with the new passphrase.
+    request:
+      method: GET
+      path: /logout
+      follow_redirects: false
+    assert:
+      - response status is 302 OR (>= 200 AND < 400)
+    on_fail: abort
+
+  - name: Re-authenticate with new passphrase
+    # Challenge endpoint with the temporary passphrase.
+    # If this passes, the passphrase change and logout both worked correctly.
+    request:
+      method: POST
+      path: /challenge/${SYNTHETIC_MBR_ID}
+      url_encode_path: true
+      body:
+        passphrase: ${context.tempPassphrase}
+    assert:
+      - response is exactly: true
+    on_fail: abort
+    # If re-auth fails, the passphrase may be in an unknown state.
+    # Do not attempt restore — flag for manual intervention.
+
+  - name: Restore original passphrase
+    # Resets the passphrase back to ${SYNTHETIC_PASSPHRASE} so playbook.env
+    # stays valid for all future runs without any manual intervention.
+    request:
+      method: POST
+      path: /members/passphrase
+      body:
+        passphrase: ${SYNTHETIC_PASSPHRASE}
+    assert:
+      - response is exactly: true
+    assess:
+      - if this section fails, playbook.env is OUT OF SYNC — the account passphrase
+        is currently "${context.tempPassphrase}" and must be manually restored
+
+  - name: Chat with personal-avatar — ask about MyLife
+    # First real conversational turn with the avatar. Sends a genuine member
+    # question to establish that the LLM pipeline is operational and that the
+    # avatar responds with appropriate context about MyLife's mission and purpose.
+    request:
+      method: POST
+      path: /members/
+      body:
+        botId: ${context.avatarId}
+        message: "What is MyLife, and what is it designed to help me do?"
+        role: member
+    assert:
+      - response.responses is a non-empty array
+    assess:
+      # Quality markers — the synthetic should judge:
+      - does the response mention MyLife by name?
+      - does it address MyLife's mission (nonprofit, digital legacy, memories, storytelling)?
+      - is the response personally framed (uses "you", "your", not generic)?
+      - does the response feel coherent and on-brand, or generic/off-topic?
+      - note word count — a one-sentence reply is a weak response for this question
+      - note the full response text for the movement report
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-01-login-and-stage-setting.md"

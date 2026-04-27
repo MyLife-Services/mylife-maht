@@ -1,0 +1,109 @@
+# MyLife Synthetic Testing Playbook
+# Movement 19 — Action Creation
+# Suite: Activism
+#
+# Purpose:
+#   Use the activism bot to create a civic action plan through natural
+#   conversation. The synthetic operator generates its own action plan —
+#   pragmatic, specific, with concrete steps and a timeframe. The bot should
+#   save it in one or a few exchanges and produce accurate metadata.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 18 — context.activismBotId must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "19"
+  name: "Action Creation"
+  suite: activism
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate:
+#
+#   vars.actionOpening   — opening message to the activism bot
+#
+#   vars.actionNarrative — a civic action plan. 200–500 words.
+#                          Pragmatic and concrete — not a stance or opinion,
+#                          but a plan for what you will DO. Include:
+#                          a specific local or political issue,
+#                          2–4 concrete action steps (attend, contact, join, speak),
+#                          a timeframe or goal,
+#                          and at least one constraint or honest limitation.
+#
+#   vars.expectedSalientPoints — 4–6 specific action elements (steps, goals,
+#                                 constraints) you expect to appear in the summary.
+#
+# Note: Action items may use different metadata fields than memory/entry/stance
+# (e.g., conviction, steps). Assess what fields are present and whether they
+# accurately reflect your plan.
+
+sections:
+
+  - name: Open conversation with activism bot
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.actionOpening}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    assess:
+      - does the bot invite the member to describe what they want to do?
+      - is the voice motivating and action-oriented?
+
+  - name: Submit civic action plan
+    # Submit your plan. Watch for createItem instruction (up to 4 exchanges).
+    # Store itemId from the createItem instruction.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.actionNarrative}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.actionItemId
+        value: response.instructions[command=createItem].itemId (if present)
+    assess:
+      - did the bot save the action plan in this exchange?
+      - if not: continue exchanging until createItem appears or 4 exchanges reached
+      - does the bot affirm the plan and engage with your specific steps?
+
+  - name: Verify action in collections
+    request:
+      method: GET
+      path: /members/collections/action
+    assert:
+      - response is an array
+      - response contains an item where id == context.actionItemId
+    store:
+      - key: context.verifiedAction
+        value: response item where id == context.actionItemId
+    assess:
+      # You know what you submitted — judge what fields the bot produced:
+      - title: does it capture the issue and action orientation? specific, not generic?
+      - note which metadata fields are present (keywords, mood, phaseOfLife, steps,
+        conviction, etc.) — action items may vary from memory/entry/stance
+      - summary: does it cover vars.expectedSalientPoints?
+        note salientCoverage as N/M
+      - is the summary coherent and actionable (not just descriptive)?
+
+      # Report:
+      - title: { value, specific, actionOriented }
+      - metadataFieldsPresent: list
+      - summary: { length, salientCoverage, coherent, actionable }
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-19-action-creation.md"

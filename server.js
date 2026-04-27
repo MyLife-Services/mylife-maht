@@ -1,4 +1,5 @@
 /** imports **/
+import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -13,7 +14,7 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/factory.mjs'
 /** variables **/
-const version = '0.0.40'
+const version = '0.0.41'
 const app = new Koa()
 const port = process.env.PORT
 	?? '3000'
@@ -145,11 +146,15 @@ app.use(async (ctx, next) => {
 		try {
 			await next()
 		} catch (err) {
+			const clientDisconnect = err.code==='ECONNRESET' || err.code==='ERR_STREAM_PREMATURE_CLOSE'
 			ctx.status = err.statusCode || err.status || 500
 			ctx.body = {
 				message: err.message
 			}
-			console.error(err)
+			if(clientDisconnect)
+				console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
+			else
+				console.error(err)
 		}
 	})
 	.use(async (ctx,next)=>{

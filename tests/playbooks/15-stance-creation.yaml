@@ -1,0 +1,123 @@
+# MyLife Synthetic Testing Playbook
+# Movement 15 — Stance Creation
+# Suite: Political
+#
+# Purpose:
+#   Use the political-stance bot to create a political stance through natural
+#   conversation. The synthetic operator generates its own stance on any policy
+#   issue — assertive, specific, policy-focused. The bot should save it in one
+#   or a few exchanges and produce accurate metadata.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 14 — context.stanceBotId must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "15"
+  name: "Stance Creation"
+  suite: political
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate:
+#
+#   vars.stanceOpening   — opening message to the stance bot
+#
+#   vars.stanceNarrative — your political stance on a specific policy issue.
+#                          300–600 words. Assertive and specific — take a real
+#                          position. Include: the core claim, specific policy
+#                          mechanisms you support or oppose, at least one
+#                          concrete example or comparison, and your reasoning.
+#                          This is your position, not a balanced overview.
+#
+#   vars.expectedSalientPoints — 5–7 specific claims or policy elements you
+#                                 expect the bot to capture in the summary.
+#                                 These should be verifiable by reading the
+#                                 final summary.
+#
+# Also activate the stance bot before running sections:
+#   POST /members/bots/activate/${context.stanceBotId} if not already active.
+
+sections:
+
+  - name: Activate stance bot
+    request:
+      method: POST
+      path: /members/bots/activate/${context.stanceBotId}
+    assert:
+      - response.success is exactly: true
+      - response.id == context.stanceBotId
+    store:
+      - key: context.activeBotId
+        value: response.id
+    assess:
+      - note firstAccess and version
+
+  - name: Open conversation with stance bot
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.stanceOpening}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    assess:
+      - does the bot invite the member to share their position?
+      - is the voice politically engaged (not neutral/journalistic)?
+
+  - name: Submit political stance
+    # Submit your stance. Watch for createItem instruction (up to 4 exchanges).
+    # Store the itemId from the createItem instruction payload.
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.stanceNarrative}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    store:
+      - key: context.stanceItemId
+        value: response.instructions[command=createItem].itemId (if present)
+    assess:
+      - did the bot save the stance in this exchange?
+      - if not: continue exchanging until createItem appears or 4 exchanges reached
+      - does the bot's response engage with your position rather than paraphrase neutrally?
+
+  - name: Verify stance in collections
+    request:
+      method: GET
+      path: /members/collections/stance
+    assert:
+      - response is an array
+      - response contains an item where id == context.stanceItemId
+    store:
+      - key: context.verifiedStance
+        value: response item where id == context.stanceItemId
+    assess:
+      # You know what you submitted — judge each field:
+      - title: does it capture the issue and your position? specific, not generic?
+      - keywords: do they cover the policy issue, mechanisms, and examples you cited?
+      - mood: does it reflect the conviction register of your stance
+              (pragmatic, assertive, concerned, determined, etc.)?
+      - summary: does it cover vars.expectedSalientPoints?
+        note salientCoverage as N/M
+
+      # Report:
+      - title: { value, issueCapture, positionCapture }
+      - keywords: { count, coverage }
+      - mood: { actual, appropriate }
+      - summary: { length, salientCoverage, coherent }
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-15-stance-creation.md"

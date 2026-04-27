@@ -1,0 +1,79 @@
+# MyLife Synthetic Testing Playbook
+# Movement 13 — Diary Cleanup
+# Suite: Memory
+#
+# Purpose:
+#   Delete the diary entry created in Movement 11, retire the diary bot created
+#   in Movement 10, and verify both are absent from their respective collections
+#   and bot lists.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movements 10 and 11 — context.diaryBotId and context.diaryItemId
+#   must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "13"
+  name: "Diary Cleanup"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+sections:
+
+  - name: Delete diary entry
+    request:
+      method: DELETE
+      path: /members/items/${context.diaryItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "removeItem"
+    assess:
+      - does the removeItem instruction carry the correct itemId?
+
+  - name: Retire diary bot
+    # The diary bot is retirable. Expect removeBot + setActiveBot instructions.
+    request:
+      method: DELETE
+      path: /members/bots/${context.diaryBotId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "removeBot"
+      - response.instructions contains an item where command == "setActiveBot"
+    store:
+      - key: context.diaryBotId
+        value: null
+    assess:
+      - does setActiveBot point to the personal-avatar?
+
+  - name: Verify entry absent from collections
+    request:
+      method: GET
+      path: /members/collections/entry
+    assert:
+      - response is an array
+      - response does NOT contain an item where id == context.diaryItemId
+    assess:
+      - entryAbsent: true/false
+
+  - name: Verify diary bot absent from bots list
+    request:
+      method: GET
+      path: /members/bots
+    assert:
+      - response.bots is an array (or response is an array)
+    assess:
+      - is a bot with type == "diary" absent from the list?
+      - diaryAbsent: true/false
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-13-diary-cleanup.md"
