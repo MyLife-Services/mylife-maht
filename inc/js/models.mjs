@@ -51,11 +51,9 @@ class Conversation extends EventEmitter {
         this.#thread = thread
         this.#bot_id = botId
         this.#form = form
-        this.#id = id
-            ?? this.#factory.newGuid
+        this.#id = id ?? this.#factory.newGuid
         this.#llmProvider = llmProvider
-        this.#mbr_id = mbr_id
-            ?? this.#factory.mbr_id
+        this.#mbr_id = mbr_id ?? this.#factory.mbr_id
         this.name = `conversation_${ this.#mbr_id }_${ this.#id }`
         this.#type = type
         Object.assign(this, _obj)
@@ -97,17 +95,6 @@ class Conversation extends EventEmitter {
      */
     addThread(conversation_id){
         this.#threads.add(conversation_id)
-    }
-    conversation(){
-        return {
-            bot_id: this.bot_id,
-            id: this.#id,
-            form: this.form,
-            mbr_id: this.mbr_id,
-            name: this.name,
-            thread: this.thread,
-            type: this.type,
-        }
     }
     /**
      * Starts an exchange within the conversation by exchange id, or defaults to new guid
@@ -202,6 +189,27 @@ class Conversation extends EventEmitter {
     }
     set botId(botId){
         this.bot_id = botId
+    }
+    get conversationCore(){
+        return {
+            bot_id: this.bot_id,
+            form: this.form,
+            id: this.#id,
+            mbr_id: this.mbr_id,
+            name: this.name,
+            thread: this.thread,
+            type: this.type,
+        }
+    }
+    get conversation(){
+        return {
+            ...this.conversationCore,
+            exchanges: [...this.#exchanges],
+            exchangeId: this.exchangeId,
+            isSaved: this.isSaved,
+            llmProvider: this.llmProvider,
+            messages: this.messages,
+        }
     }
     get exchangeId(){
         return this.#activeExchangeId

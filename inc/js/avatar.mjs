@@ -1068,7 +1068,7 @@ class Avatar extends EventEmitter {
     getConversations(type='chat'){
         return this.conversations
             .filter(_=>_?.type===type)
-            .map(conversation=>(mPruneConversation(conversation)))
+            .map(c=>c.conversationCore)
     }
     /**
      * Get a static or dynamic greeting from active bot.
@@ -4091,16 +4091,6 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
         error,
         result,
         toolListChanged: true, // true for switching bots, as they have different skills
-    }
-}
-function mPruneConversation(conversation){
-    const { bot_id, form, id, name, type, } = conversation
-    return {
-        bot_id,
-        form,
-        id,
-        name,
-        type,
     }
 }
 function mPruneEvent(Event, sid){
