@@ -292,16 +292,13 @@ class Message extends EventEmitter {
         } catch(e){}
     }
     get message(){
-        return this
-    }
-    get role(){
-        return this.#role
+        return this.messageCore
     }
     /**
      * Get the message in micro format for storage.
      * @returns {object} - The message in micro format
      */
-    get micro(){
+    get messageCore(){
         return {
             content: this.content,
             created_at: this.created_at ?? Date.now(),
@@ -309,6 +306,9 @@ class Message extends EventEmitter {
             response_id: this.response_id,
             role: this.role,
         }
+    }
+    get role(){
+        return this.#role
     }
 }
 /**
@@ -941,7 +941,7 @@ async function mSaveConversation(Conversation, factory){
     } = Conversation
     let messages = Conversation.getMessages(false, true)
     messages = messages
-        .map(_msg=>_msg.micro)
+        .map(_msg=>_msg.messageCore)
     if(!isSaved){
         const _newConversation = {
             being,
