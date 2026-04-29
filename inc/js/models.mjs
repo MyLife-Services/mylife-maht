@@ -341,7 +341,6 @@ class Item extends EventEmitter {
     #id
     #immutableFields=['availableTypes', 'being', 'complete', 'id', 'item', 'itemCore', 'mbr_id', 'name', 'type', 'unsavedDuration', 'version'] // **note**: Avatar.populateObject() will prevent overwriting functions
     #lastSaved
-    #llmServices
     #mbr_id
     #name
     #summary
@@ -351,9 +350,8 @@ class Item extends EventEmitter {
      * @constructor
      * @param {object} item - Data object (optional)
      * @param {Avatar} avatar - The Member Avatar instance
-     * @param {LLMServices} llmServices - The LLM services object
      */
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         if(!avatar || !llmServices)
             throw new Error('Avatar and LLM services required')
         if(avatar.isMyLife)
@@ -362,7 +360,6 @@ class Item extends EventEmitter {
             throw new Error('Item requires a summary')
         super()
         this.#avatar = avatar
-        this.#llmServices = llmServices
         item = this.#avatar.sanitize(item)
         const {
             assistantType,

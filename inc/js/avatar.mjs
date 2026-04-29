@@ -848,11 +848,8 @@ class Avatar extends EventEmitter {
         const collections = ( await this.#factory.collections(type) ?? [] )
             .map(item=>{
                 switch(type){
-                    case 'entry':
-                    case 'memory':
-                        return mPruneItem(item)
                     case 'experience':
-                    case 'lived-experience':
+                    case 'lived-experience': {
                         const {
                             completed=true,
                             description,
@@ -871,10 +868,10 @@ class Avatar extends EventEmitter {
                             title,
                             variables,
                         }
-                    case 'story':
-                        throw new Error('Story collection not yet implemented.')
+                    }
                     default:
-                        return item
+                        const Item = mItem(item, this, this.#llmServices)
+                        return Item.item
                 }
             })
         return collections
@@ -2810,8 +2807,9 @@ function mAvatarDropdown(globals, Avatar){
  * @returns {object} - { instructions, item, responses, success, ...rest }
  */
 function mBuildResponse(Avatar, { item, responses=[], success=false, ...rest }){
-    if(item)
-        item = mPruneItem(item)
+    item = !!item && !(item instanceof Item)
+        ? mItem(item, Avatar)
+        : item
     if(!responses?.length){
         if(!Avatar.backupResponses.length)
             Avatar.backupResponses = {
@@ -2823,7 +2821,7 @@ function mBuildResponse(Avatar, { item, responses=[], success=false, ...rest }){
     }
     const response = {
         instructions: Avatar.frontendInstructions,
-        item,
+        item: item?.item,
         responses,
         success,
         ...rest,
@@ -3128,14 +3126,13 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
  * @param {object} response - The initial response object to be updated based on the function call outcome
  * @param {object} data - The arguments provided for the function call
  * @param {Avatar} Avatar - The avatar instance (`this`)
- * @param {LLM} llm - The LLM instance for any necessary processing during item creation
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary creation operation
  */
-async function mFunction_createSummary(type, response, data, Avatar, llm){
-    const Item = new mItemMap[type ?? 'Item'](data, Avatar, llm)
+async function mFunction_createSummary(type, response, data, Avatar){
+    const Item = mItem(data, Avatar)
     response.success = await Item.save()
     if(response.success){
-        Avatar.frontendInstructions = { command: 'createItem', itemId: Item.id, item: mPruneItem(Item.item), }
+        Avatar.frontendInstructions = { command: 'createItem', itemId: Item.id, item: Item.item, }
         response.action = `Creation was successful; **important AI reference**, REMEMBER itemId: ${ Item.id }; inform member that they can find and click on the item in the appropriate collection list (${ type }) to make it active for discussion and further updates`
     } else
         response.action = `error creating summary for given argument title: ${ data?.title ?? 'New Item' } - DO NOT TRY AGAIN until member asks for it`
@@ -3149,12 +3146,12 @@ async function mFunction_createSummary(type, response, data, Avatar, llm){
 async function mFunction_getSummary(response, Avatar){
     const { function: functionName, itemId, summaryOnly=true, } = response
     try {
-        const item = await Avatar.item({ id: itemId, }, 'GET', true)
-        if(!item?.id?.length || !item.summary?.length)
+        const Item = await Avatar.item({ id: itemId, }, 'GET', true)
+        if(!Item?.id?.length || !Item.summary?.length)
             throw new Error(`No summary found for item ${ itemId }`)
         response.item = summaryOnly
-            ? { id: item.id, summary: item.summary, }
-            : mPruneItem(item)
+            ? { id: Item.id, summary: Item.summary, }
+            : Item.item
         response.action = 'Requested content found in `item` field, share info with member'
         response.success = true
     } catch(err) { // on fail, send back the current collection with `{ id, title, }` in order to suffuse intelligence with most recent options
@@ -3334,18 +3331,17 @@ async function mInit(factory, llmServices, Avatar, botAgent, assetAgent){
 /**
  * Instantiates a new item and returns the item object.
  * @param {object} item - The item data
- * @param {Avatar} avatar - The avatar instance
- * @param {LLMServices} llmServices - The llm instance
+ * @param {Avatar} Avatar - The Avatar instance
  * @returns {Item} - The item object (or any extender class: Action, Stance, Value, Memory, etc)
  */
-function mItem(item, avatar, llmServices){
+function mItem(item, Avatar){
     /* validate request */
     let Item
     const {
         assistantType,
         content,
         form,
-        id=avatar.newGuid,
+        id=Avatar.newGuid,
         type='memory',
     } = item
     const { // derived defaults
@@ -3362,27 +3358,27 @@ function mItem(item, avatar, llmServices){
         },
         ...{ // forced fields
             id,
-            mbr_id: avatar.mbr_id,
-            name: `${ type }_${ form }_${ title.substring(0,64) }_${ avatar.mbr_id }`,
+            mbr_id: Avatar.mbr_id,
+            name: `${ type }_${ form }_${ title.substring(0,64) }_${ Avatar.mbr_id }`,
         }
     }
     try {
         switch(type.toLowerCase()){
             case 'action':
-                Item = new Action(item, avatar, llmServices)
+                Item = new Action(item, Avatar)
                 break
             case 'entry':
-                Item = new Entry(item, avatar, llmServices)
+                Item = new Entry(item, Avatar)
                 break
             case 'issue':
-                Item = new Issue(item, avatar, llmServices)
+                Item = new Issue(item, Avatar)
                 break
             case 'value':
-                Item = new Value(item, avatar, llmServices)
+                Item = new Value(item, Avatar)
                 break
             case 'memory':
             default:
-                Item = new Memory(item, avatar, llmServices)
+                Item = new Memory(item, Avatar)
                 break
         }
     } catch(error){
@@ -4142,47 +4138,6 @@ function mPruneExperience(Experience){
         title,
         xid: id,
     }
-}
-/**
- * Returns a frontend-ready collection item object, pruned of cosmos database fields.
- * @module
- * @param {object} document - The collection item object to prune
- * @returns {object} - The pruned collection item object
- */
-function mPruneItem(item){
-    const {
-        assistantType,
-        being,
-        complete=false,
-        form,
-        id,
-        keywords,
-        mood,
-        phaseOfLife,
-        relationships,
-        shares=[],
-        summary,
-        title,
-        type,
-        version=1.0,
-    } = item
-    item = {
-        assistantType,
-        being,
-        complete,
-        form,
-        id,
-        keywords,
-        mood,
-        phaseOfLife,        
-        relationships,
-        shares,
-        summary,
-        title,
-        type,
-        version,
-    }
-    return item
 }
 /**
  * Returns frontend-ready Message object after logic mutation.
