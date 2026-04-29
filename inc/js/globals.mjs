@@ -4,26 +4,47 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import EventEmitter from 'events'
 /* constants */
-const mAiJsFunctions = await mParseFunctions()
-const mMCPFunctions = await mParseFunctions('/mcp/tools')
+const mAgentCards = await mParseFunctions('/a2a/cards')
+const mBotTools = await mParseFunctions()
 const mEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const mForbiddenCosmosFields = ['$', '_', ' ', '@', '#',]
 const mForbiddenValues = [undefined, null, NaN]
 const mGuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i	//	regex for GUID validation
-const mOpenAIBotModel = process.env.OPENAI_MODEL_CORE_BOT
-	?? 'gpt-4o'
+const mMCPTools = await mParseFunctions('/mcp/tools')
+const mOpenAIBotModel = process.env.OPENAI_MODEL_CORE_BOT ?? 'gpt-4o-mini'
+const mSchemas = await mLoadSchemas()
 const mUrlRegex = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)(:[0-9]{1,5})?(\/\S*)?$/
+console.log('<-----Globals module loaded----->')
 /**
  * Globals class holds all of the sensitive data and functionality. It exists as a singleton.
  * @class
  * @extends EventEmitter
- * @todo - Since traced back to Maht Globals, this could be converted to the VM and hold that code
  */
 class Globals extends EventEmitter {
 	constructor() {
 		super()
 	}
 	/* public functions */
+	/**
+	 * Get an agent card by agent ID.
+	 * @param {string} agentId - The ID of the agent
+	 * @returns {object|null} - The agent card object or null if not found
+	 */
+	agentCard(agentId){
+		return mAgentCards[agentId]
+	}
+	/**
+	 * Get a GPT Javascript function by name.
+	 * @param {string} name - the name of the function to retrieve
+	 * @returns {object} - {type: 'function', function, } - the function object
+	 */
+	botTool(name){
+		let response
+		const tool = this.botTools?.[name]
+		if(tool)
+			response = { type: 'function', function: tool, }
+		return response
+	}
 	/**
 	 * Chunk an array into smaller arrays and returns as an Array.
 	 * @param {Array} array - Array to chunk
@@ -39,7 +60,7 @@ class Globals extends EventEmitter {
 	}
 	/**
 	 * Clears a const array with nod to garbage collection.
-	 * @param {Array} a - the array to clear.
+	 * @param {Array} a - the array to clear
 	 * @returns {void}
 	 */
 	clearArray(a){
@@ -86,18 +107,6 @@ class Globals extends EventEmitter {
 				}
 			},
 		}
-	}
-	/**
-	 * Get a GPT Javascript function by name.
-	 * @param {string} name - the name of the function to retrieve.
-	 * @returns {object} - {type: 'function', function, } - the function object.
-	 */
-	getGPTJavascriptFunction(name){
-		let response
-		const gptFunction = this.GPTJavascriptFunctions?.[name]
-		if(gptFunction)
-			response = { type: 'function', function: gptFunction, }
-		return response
 	}
 	getRegExp(text, isGlobal=false) {
 		if (typeof text !== 'string' || !text.length)
@@ -207,24 +216,56 @@ class Globals extends EventEmitter {
 		return Object.entries(_obj).map(([k, v]) => `${k}: ${v}`).join(', ')
 	}
 	/*	getters/setters */
+	get agentCards(){
+		return mAgentCards
+	}
+	get botTools(){
+		return mBotTools
+	}
 	get currentOpenAIBotModel(){
 		return mOpenAIBotModel
 	}
-	get GPTJavascriptFunctions(){
-		return mAiJsFunctions
-	}
-	get MCPFunctions(){
-		return mMCPFunctions
+	get mcpTools(){
+		return mMCPTools
 	}
 	get newGuid(){
 		return crypto.randomUUID()
+	}
+	get schemas(){
+		return mSchemas
 	}
 	get uploadPath(){
 		return './.uploads/.tmp/'
 	}
 }
 /* modular functions */
-async function mParseFunctions(route='/openai/functions'){
+/**
+ * Reads all JSON files from the json-schemas root directory and returns them as an array of parsed objects.
+ * Skips subdirectories and non-JSON files.
+ * @returns {Promise<object[]>} - Array of parsed JSON schema objects
+ */
+async function mLoadSchemas(){
+	const __filename = fileURLToPath(import.meta.url)
+	const __dirname = path.dirname(__filename)
+	const schemasPath = path.join(__dirname, '..', 'json-schemas')
+	const files = await fs.readdir(schemasPath)
+	const schemas = []
+	for(const file of files){
+		const filePath = path.join(schemasPath, file)
+		const stat = await fs.lstat(filePath)
+		if(!stat.isFile() || path.extname(file) !== '.json')
+			continue
+		const data = await fs.readFile(filePath, 'utf8')
+		schemas.push(JSON.parse(data))
+	}
+	return schemas
+}
+/**
+ * Reads all JSON files from a specified json-schemas subdirectory and returns them as an object with file names as keys and parsed objects as values.
+ * @param {string} route - the subdirectory of json-schemas to read from, defaults to '/functions'
+ * @returns {Promise<object>} - Object with file names (without extension) as keys and parsed JSON objects as values
+ */
+async function mParseFunctions(route='/functions'){
 	const __filename = fileURLToPath(import.meta.url)
     const __dirname = path.dirname(__filename)
 	const jsonFolder = 'json-schemas' + route
@@ -238,8 +279,10 @@ async function mParseFunctions(route='/openai/functions'){
 			continue
 		const data = await fs.readFile(filePath, 'utf8')
 		const jsonObject = JSON.parse(data)
-		const fileNameWithoutExtension = path.basename(file, path.extname(file))
-		jsonObjects[fileNameWithoutExtension] = jsonObject
+		const key = path.basename(file, path.extname(file)) ?? undefined
+		if(!key)
+			continue
+		jsonObjects[key] = jsonObject
 	}
 	return jsonObjects
 }

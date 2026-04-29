@@ -96,14 +96,14 @@ class Bot {
 		return this.activeItemId===itemId
 	}
 	/**
-	 * Adds a tool to the bot's tool list if available from Globals.GPTJavascriptFunctions and not already present.
+	 * Adds a tool to the bot's tool list if available from Globals.botTools and not already present.
 	 * @param {string} toolName - Name of function/tool to 
 	 * @returns {boolean} - Whether the tool was added/available
 	 */
 	addTool(toolName){
 		if(this.hasTool(toolName))
 			return true
-		const tool = this.globals.getGPTJavascriptFunction(toolName)
+		const tool = this.globals.botTool(toolName)
 		if(!!tool)
 			this.tools.push(tool)
 		return !!tool
@@ -1138,10 +1138,8 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
         description,
 		purpose,
     } = botData
-	bot_name ??= defaultBotName
-		?? `My ${ typeShort }`
-	description ??= purpose
-		?? `I am a ${ typeShort } for ${ factory.memberName }`
+	bot_name ??= defaultBotName ?? `My ${ typeShort }`
+	description ??= purpose ?? `I am a ${ typeShort } for ${ factory.memberName }`
 	const validBotData = {
 		being: 'bot', // intentionally hard-coded
 		bot_name,
@@ -1217,68 +1215,20 @@ async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me en
  * @module
  * @param {AgentFactory} factory - The Factory instance
  * @param {Object} botData - The bot proto-data
- * @returns {object} - The intermediary bot instructions object: { instructions, version, }
+ * @returns {object} - The intermediary bot instructions object: { defaults, greetings, instructions, tools, version, }
  */
 function mBotInstructions(factory, botData={}){
 	const { agentInstructions, type, } = botData
 	if(!type?.length)
 		return
-    let { defaults={}, greeting, greetings=[], instructions, limit=16000, version=1.0, } = factory.botInstructions(type)
-    if(!instructions) // @stub - custom must have instruction loophole
-		throw new Error(`bot instructions not found for type: ${ type }`)
-    let {
-		general,
-		purpose='',
-		preamble='',
-		prefix='',
-		references=[],
-		replacements=[],
-		suffix='', // example: data privacy info
-		team='',
-		voice='',
-	} = instructions
-    /* compile instructions */
-    switch(type){
-		case 'activism':
-		case 'political-stance':
-		case 'political-values':
-			instructions = preamble
-				+ prefix
-				+ general
-				+ voice
-				+ team
-			break
-		case 'avatar':
-        case 'personal-avatar':
-            instructions = preamble
-                + general
-				+ voice
-            break
-		case 'biographer':
-        case 'journaler':
-		case 'personal-biographer':
-            instructions = preamble
-                + purpose
-                + prefix
-                + general
-				+ voice
-            break
-		case 'diary':
-            instructions = purpose
-				+ preamble
-				+ prefix
-                + general
-				+ suffix
-				+ voice
-			break
-        default:
-            instructions = general
-            break
-    }
-	const allInstructions = agentInstructions?.flatMap(item=>item.instructions.map(inst=>inst.instruction))
-	if(allInstructions?.length) // append custom instructions
-		instructions += '\nEXTERNAL AGENT CALL ABILITY\nIf member requests information defined in any of the purposes below, call your tool action: `callExternalAgent` with the appropriate `agentId`, `skillId`, and `request` parameters. **note**: request is formulated to get the appropriate answer to the member question. When receiving answer from external agent, include in your response to the member the fact that you queried an external source.\n' + allInstructions.join('\n')
-	instructions = instructions.trim()
+    let { defaults={}, greeting, greetings=[], limit=16000, version=1.0, } = factory.botTemplate(type)
+	let instructions = factory.botInstructions(type)
+	const allInstructions = agentInstructions
+		?.flatMap(item=>item.instructions.map(inst=>inst.instruction))
+		.join('\n')
+		.trim()
+	if(allInstructions) // append custom instructions
+		instructions += '\nEXTERNAL AGENT CALL ABILITY\nIf member requests information defined in any of the purposes below, call your tool action: `callExternalAgent` with the appropriate `agentId`, `skillId`, and `request` parameters. **note**: request is formulated to get the appropriate answer to the member question. When receiving answer from external agent, include in your response to the member the fact that you queried an external source.\n' + allInstructions
 	/* greetings */
 	if(greeting?.length)
 		greetings.unshift(greeting)
@@ -1330,10 +1280,12 @@ function mBotInstructions(factory, botData={}){
         }
     })
 	instructions = instructions.slice(0, limit)
+	const tools = factory.botTools(type)
 	const response = {
 		defaults,
 		greetings,
 		instructions,
+		tools,
 		version,
 	}
 	return response
@@ -1564,15 +1516,15 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 	switch(type){
 		case 'activism':
 			tools.push(
-				globals.getGPTJavascriptFunction('callAvatar'),
-				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('createAction'),
-				globals.getGPTJavascriptFunction('getAction'),
-				globals.getGPTJavascriptFunction('getGeography'),
-				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
-				globals.getGPTJavascriptFunction('getStance'),
-				globals.getGPTJavascriptFunction('getValue'),
-				globals.getGPTJavascriptFunction('updateAction'),
+				globals.botTool('callAvatar'),
+				globals.botTool('changeTitle'),
+				globals.botTool('createAction'),
+				globals.botTool('getAction'),
+				globals.botTool('getGeography'),
+				globals.botTool('getPoliticalLeaning'),
+				globals.botTool('getStance'),
+				globals.botTool('getValue'),
+				globals.botTool('updateAction'),
 			)
 			includeSearch = true
 			break
@@ -1581,21 +1533,21 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'personal-assistant':
 		case 'personal-avatar':
 			tools.push(
-				globals.getGPTJavascriptFunction('callExternalAgent'),
-				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('getSummary'),
+				globals.botTool('callExternalAgent'),
+				globals.botTool('changeTitle'),
+				globals.botTool('getSummary'),
 			)
 			includeSearch = true
 			break
 		case 'biographer':
 		case 'personal-biographer':
 			tools.push(
-				globals.getGPTJavascriptFunction('callAvatar'),
-				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('endReliving'),
-				globals.getGPTJavascriptFunction('getSummary'),
-				globals.getGPTJavascriptFunction('itemSummary'),
-				globals.getGPTJavascriptFunction('updateSummary'),
+				globals.botTool('callAvatar'),
+				globals.botTool('changeTitle'),
+				globals.botTool('endReliving'),
+				globals.botTool('getSummary'),
+				globals.botTool('itemSummary'),
+				globals.botTool('updateSummary'),
 			)
 			includeSearch = true
 			break
@@ -1605,39 +1557,39 @@ function mGetAIFunctions(type, globals, vectorstoreId){
 		case 'diary':
 		case 'journaler':
 			tools.push(
-				globals.getGPTJavascriptFunction('callAvatar'),
-				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('getSummary'),
-				globals.getGPTJavascriptFunction('itemSummary'),
-				globals.getGPTJavascriptFunction('updateSummary'),
+				globals.botTool('callAvatar'),
+				globals.botTool('changeTitle'),
+				globals.botTool('getSummary'),
+				globals.botTool('itemSummary'),
+				globals.botTool('updateSummary'),
 			)
 			includeSearch = true
 			break
 		case 'political-stance':
 			tools.push(
-				globals.getGPTJavascriptFunction('callAvatar'),
-				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('createStance'),
-				globals.getGPTJavascriptFunction('getGeography'),
-				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
-				globals.getGPTJavascriptFunction('getStance'),
-				globals.getGPTJavascriptFunction('setGeography'),
-				globals.getGPTJavascriptFunction('setPoliticalLeaning'),
-				globals.getGPTJavascriptFunction('updateStance'),
+				globals.botTool('callAvatar'),
+				globals.botTool('changeTitle'),
+				globals.botTool('createStance'),
+				globals.botTool('getGeography'),
+				globals.botTool('getPoliticalLeaning'),
+				globals.botTool('getStance'),
+				globals.botTool('setGeography'),
+				globals.botTool('setPoliticalLeaning'),
+				globals.botTool('updateStance'),
 			)
 			includeSearch = true
 			break
 		case 'political-values':
 			tools.push(
-				globals.getGPTJavascriptFunction('callAvatar'),
-				globals.getGPTJavascriptFunction('changeTitle'),
-				globals.getGPTJavascriptFunction('createValue'),
-				globals.getGPTJavascriptFunction('getGeography'),
-				globals.getGPTJavascriptFunction('getPoliticalLeaning'),
-				globals.getGPTJavascriptFunction('getStance'),
-				globals.getGPTJavascriptFunction('getValue'),
-				globals.getGPTJavascriptFunction('setValuesBackground'),
-				globals.getGPTJavascriptFunction('updateValue'),
+				globals.botTool('callAvatar'),
+				globals.botTool('changeTitle'),
+				globals.botTool('createValue'),
+				globals.botTool('getGeography'),
+				globals.botTool('getPoliticalLeaning'),
+				globals.botTool('getStance'),
+				globals.botTool('getValue'),
+				globals.botTool('setValuesBackground'),
+				globals.botTool('updateValue'),
 			)
 			includeSearch = true
 			break

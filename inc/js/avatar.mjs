@@ -3,7 +3,6 @@ import path from 'path'
 import EventEmitter from 'events'
 import { Marked } from 'marked'
 import { fileURLToPath } from 'url'
-import fs from 'fs/promises'
 import initRouter from './routes.mjs'
 import AlphaDog from './agents/project/alpha-dog.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
@@ -355,10 +354,6 @@ const mMcpMap = { /* all returns SHOULD be in { error, result, success, values, 
     },
     // add mappings as needed
 }
-const mMcpTools = await mInitializeExternalTools(
-    'mcp',
-    path.resolve(path.dirname(__dirpath), '..', 'json-schemas/mcp/tools/')
-)
 /**
  * @class - Avatar
  * @extends EventEmitter
@@ -1079,22 +1074,6 @@ class Avatar extends EventEmitter {
             .map(conversation=>(mPruneConversation(conversation)))
     }
     /**
-     * Get MCP tools for bot.
-     * @todo - convert "mylife_" nodes into one "mylife" node with sub-objects
-     * @param {string} type - The type of tools to retrieve, defaults to `avatar`
-     * @param {boolean} allowAny - Whether to allow tools of type `any`, defaults to `true`
-     * @returns {Array} - The array of MCP tools
-     */
-    getMcpTools(type=this.activeBot.type, allowAny=true){
-        type = type.split('-').pop()
-        const mcpTools = mMcpTools
-            .filter(tool=>
-                    tool.mylife_bots?.includes(type)
-                || ( allowAny && tool.mylife_bots?.includes('any'))
-            )
-        return mcpTools
-    }
-    /**
      * Get a static or dynamic greeting from active bot.
      * @param {boolean} dynamic - Whether to use LLM for greeting
      * @returns {Object} - The greeting Response object: { instruction, responses, routine, success, }
@@ -1253,6 +1232,22 @@ class Avatar extends EventEmitter {
      */
     async mcpResourceRequest(uri, sessionMeta, ctx){
         return await mMcpResourceRequest(uri, sessionMeta, ctx, this.#factory, this)
+    }
+    /**
+     * Get MCP tools for bot.
+     * @todo - convert "mylife_" nodes into one "mylife" node with sub-objects
+     * @param {string} type - The type of tools to retrieve, defaults to `avatar`
+     * @param {boolean} allowAny - Whether to allow tools of type `any`, defaults to `true`
+     * @returns {Array} - The array of MCP tools
+     */
+    mcpTools(type=this.activeBot.type, allowAny=true){
+        type = type.split('-').pop()
+        const mcpTools = this.globals.mcpTools
+            .filter(tool=>
+                    tool.mylife_bots?.includes(type)
+                || ( allowAny && tool.mylife_bots?.includes('any'))
+            )
+        return mcpTools
     }
     /**
      * Migrates a bot to a new, presumed combined (with internal or external) bot.
@@ -1599,7 +1594,6 @@ class Avatar extends EventEmitter {
     /* getters/setters */
     /**
      * Get the active bot. If no active bot, return this as default chat engine.
-     * @getter
      * @returns {object} - The active bot.
      */
     get activeBot(){
@@ -1607,7 +1601,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the active bot id.
-     * @getter
      * @returns {string} - The active bot id.
      */
     get activeBotId(){
@@ -1615,7 +1608,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the age of the member.
-     * @getter
      * @returns {number} - The member's age.
      */
     get age(){
@@ -1646,7 +1638,6 @@ class Avatar extends EventEmitter {
     /**
      * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
      * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
-     * @getter
      * @returns {string} The object being the avatar is emulating.
     */
     get being(){
@@ -1654,7 +1645,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the birthdate of _member_ from `#factory`.
-     * @getter
      * @returns {string} - The member's birthdate.
      */
     get birthdate(){
@@ -1664,7 +1654,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the birthplace of _member_ from `#factory`.
-     * @getter
      * @returns {string} - The member's birthplace.
      */
     get birthplace(){
@@ -1674,7 +1663,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Returns Member Avatar's Bot instances.
-     * @getter
      * @returns {Bot[]} - Array of Bot instances
      */
     get bots(){
@@ -1682,7 +1670,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the bot agent if avatar is MyLife, member bot-agents are securitized
-     * @getter
      * @returns {BotAgent|null} - The bot agent if avatar is MyLife, otherwise null
      */
     get botAgent(){
@@ -1690,7 +1677,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get uninstantiated class definition for conversation. If getting a specific conversation, use .conversation(id).
-     * @getter
      * @returns {class} - class definition for conversation
      */
     get conversation(){
@@ -1698,7 +1684,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get full list of conversations active in Member Avatar. Use `getConversation(id)` for specific. **Note**: Currently `.conversation` references a class definition.
-     * @getter
      * @returns {Conversation[]} - The list of conversations
      */
     get conversations(){
@@ -1709,7 +1694,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the datacore.
-     * @getter
      * @returns {object} - The Member's datacore.
      */
     get core(){
@@ -1727,7 +1711,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the current experience location (or pointer). Should always map to the last event being sent, if inspecting an array of events via `api.experience()`.
-     * @getter
      * @returns {object} - The current experience location.
      */
     get experienceLocation(){
@@ -1735,7 +1718,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Returns List of Member's Lived Experiences.
-     * @getter
      * @returns {Object[]} - List of Member's Lived Experiences.
      */
     get experiencesLived(){
@@ -1743,7 +1725,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set the experiences lived.
-     * @setter
      * @param {array} livedExperiences - The new experiences lived.
      * @returns {void}
      */
@@ -1777,7 +1758,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the current living experience.
-     * @getter
      * @returns {object} - The current living experience.
      */
     get livingExperience(){
@@ -1785,7 +1765,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the `active` reliving memory.
-     * @getter
      * @returns {object[]} - The active reliving memories
      */
     get livingMemory(){
@@ -1794,7 +1773,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set the `active` reliving memory.
-     * @setter
      * @param {Object} livingMemory - The new active reliving memory (or `null`)
      * @returns {void}
      */
@@ -1807,7 +1785,6 @@ class Avatar extends EventEmitter {
     /**
      * Get the guid portion of member id.
      * @todo - deprecate to `mbr_sysId`
-     * @getter
      * @returns {guid} - The member's core guid.
      */
     get mbr_id_id(){
@@ -1816,7 +1793,6 @@ class Avatar extends EventEmitter {
     /**
      * Get the system name portion of member id.
      * @todo - deprecate to `mbr_sysName`
-     * @getter
      * @returns {guid} - The member's system name.
      */
     get mbr_name(){
@@ -1824,7 +1800,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the guid portion of member id.
-     * @getter
      * @returns {guid} - The member's core guid.
      */
     get mbr_sysId(){
@@ -1832,21 +1807,19 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the system name portion of member id.
-     * @getter
      * @returns {guid} - The member's system name.
      */
     get mbr_sysName(){
         return this.#factory.mbr_name
     }
     /**
-     * Get the Member Avatar's mcp self-definition package.
-     * @getter
+     * Get the Member Avatar's mcp self-definition package. Resets currently for every call as it reflects activeBot abilities.
+     * @todo - push logic down to active bot
      * @returns {object} - The mcp self-definition package
      */
     get mcp(){
-        this.#mcp.tools = [] // reset tools each call
-        const botTools = this.getMcpTools()
-        botTools.forEach(tool=>{
+        this.#mcp.tools = []
+        this.mcpTools().forEach(tool=>{
             if(!this.#mcp.tools?.some(t=>t.name===tool.name))
                 this.#mcp.tools.push(tool)
         })
@@ -1866,7 +1839,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get uninstantiated class definition for message.
-     * @getter
      * @returns {class} - class definition for message
      */
     get message(){
@@ -1874,7 +1846,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the mode.
-     * @getter
      * @returns {string} - The current active mode.
      */
     get mode(){
@@ -1882,7 +1853,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the name of the avatar. Note: this.name is normally the Cosmos nomenclature, so we do not write to it, and use it's value as a last resort.
-     * @getter
      * @returns {string} - The avatar name.
      */
     get name(){
@@ -1890,7 +1860,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Proxy to set the nickname of the avatar.
-     * @setter
      * @param {string} name - The new avatar nickname.
      * @returns {void}
      */
@@ -1899,7 +1868,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get experience scene navigation array.
-     * @getter
      * @returns {Object[]} - The scene navigation array for the experience.
      * @property {Guid} id - The scene id.
      * @property {string} description - The scene description.
@@ -1914,7 +1882,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Creates a new guid via `this.#factory`.
-     * @getter
      * @returns {Guid} - The new guid
      */
     get newGuid(){
@@ -1922,7 +1889,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Get the nickname of the avatar.
-     * @getter
      * @returns {string} - The avatar nickname.
      */
     get nickname(){
@@ -1930,7 +1896,6 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set the nickname of the avatar; only set if different from name.
-     * @setter
      * @param {string} nickname - The new avatar nickname.
      * @returns {void}
      */
@@ -1960,7 +1925,6 @@ class Avatar extends EventEmitter {
 	}
     /**
      * Set vectorstore id, both in memory and storage.
-     * @setter
      * @param {string} vectorstoreId - The vectorstore id.
      * @returns {void}
      */
@@ -2743,7 +2707,6 @@ class Q extends Avatar {
     /**
      * Get the "avatar's" being, or more precisely the name of the being (affiliated object) the evatar is emulating.
      * Avatars are special case and are always avatars, so when we query them non-internally for system purposes (in which case we understand we need to go directly to factory.core.being) we display the underlying essence of the datacore; could put this in its own variable, but this seems protective _and_ gives an access point for alterations.
-     * @getter
      * @returns {string} The object being the avatar is emulating.
     */
     get being(){  
@@ -2757,14 +2720,13 @@ class Q extends Avatar {
     }
     /**
      * Get the MyLife MCP self-definition package. Note that it will populate the internal memory for this avatar, so tool updates will only be reflected on server restart.
-     * @getter
      * @returns {object} - The MyLife MCP self-definition package
      */
     get mcp(){
-        const mcp = this.#mcp
-        if(!mcp?.tools?.length)
-            this.#mcp.tools = mMcpTools.filter(tool=>tool.mylife_system_access === true)
-        return mcp
+        this.#mcp.tools ??= Object.values(this.globals.mcpTools)
+            .filter(tool=>tool.mylife_auth_required===false)
+            .sort((a, b) => a.name.localeCompare(b.name))
+        return this.#mcp
     }
     get mcpProxy(){
         const mcp = super.mcp
@@ -3368,40 +3330,6 @@ async function mInit(factory, llmServices, Avatar, botAgent, assetAgent){
         .init()
     /* lived-experiences */
     Avatar.experiencesLived = await factory.experiencesLived(false)
-}
-/**
- * Initializes MCP tools from the JSON schema directory.
- * @todo - create external toolType variants (A2A)
- * @param {string} mcpToolsPath - The path to the MCP tools directory
- * @returns {Promise<Array>} - Returns the MCP tools array
- */
-async function mInitializeExternalTools(toolType='mcp', toolsPath){
-    const tools = [],
-        toolsFiles = []
-    try { /* directory and file access */
-        toolsFiles.push(...await fs.readdir(toolsPath))
-    } catch(err) {
-        console.warn(`Error loading ${ toolsPath } tools: ${ err.message }`, err)
-    }
-    try { /* populate skills */
-        if(toolsFiles.length)
-            for(const file of toolsFiles)
-                if(file.endsWith('.json'))
-                    try {
-                        const fileContent = await fs.readFile(path.resolve(toolsPath, file), 'utf8')
-                        const toolData = JSON.parse(fileContent)
-                        toolData.name = toolData.name
-                            ?? file.replace('.json', '')
-                        tools.push(toolData)
-                    } catch(parseErr) {
-                        console.error(`Error parsing  ${ toolType } tool file: ${parseErr.message}`, file)
-                    }
-        else
-            console.warn(`No ${ toolType } tools found in ${ toolsPath } directory.`)
-    } catch(err){
-        console.warn(`Error initializing ${ toolType } tools: ${ err.message }`, err)
-    }
-    return tools
 }
 /**
  * Instantiates a new item and returns the item object.

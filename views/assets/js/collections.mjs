@@ -60,7 +60,7 @@ async function init(){
     if(Array.isArray(allowedItemTypes) && allowedItemTypes.length)
         mAvailableCollections.push(...allowedItemTypes)
     mCollectionHighlights = activeTeam()?.primaryCollectionTypes ?? []
-    mShadows = await globals.datamanager.shadows() // @stub: transition to collection-specific
+    mShadows = await globals.datamanager.shadows() // @stub: transition to bot-specific
     /* initilize data for collections */
     for(const collectionType of mAvailableCollections) // populates mCollectionItems
         await mInitializeCollectionData(collectionType, isHighlightedCollection(collectionType))
