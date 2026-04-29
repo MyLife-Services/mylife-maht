@@ -296,9 +296,9 @@ class Message extends EventEmitter {
     get micro(){
         return {
             content: this.content,
-            created_at: this.created_at
-                ?? Date.now(),
+            created_at: this.created_at ?? Date.now(),
             id: this.id,
+            response_id: this.response_id,
             role: this.role,
         }
     }
