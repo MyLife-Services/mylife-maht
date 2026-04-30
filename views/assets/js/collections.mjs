@@ -1285,7 +1285,7 @@ async function mShadow(event){
     const shadow = mShadows.find(shadow=>shadow.id===shadowId)
     if(!shadow || !item)
         return
-    const { categories, id, text, type, } = shadow // type enum: [agent, member]
+    const { categories, id, text, type='member', } = shadow // type enum: [agent, member]
     switch(type){
         case 'agent': /* agent shadows go directly to server for answer */
             addMessage(text, 'member')

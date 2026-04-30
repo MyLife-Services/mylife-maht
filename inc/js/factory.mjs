@@ -38,62 +38,6 @@ const mMailer = nodemailer.createTransport({
 })
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
 const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
-const mShadows = [
-	{
-		being: 'shadow',
-		categories: ['personal', 'location'],
-		form: 'story',
-		id: '0087b3ec-956e-436a-9272-eceed5e97ad0',
-		proxy: '/shadow',
-		text: `At the time, I was living at...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['relations',],
-		form: 'story',
-		id: '0aac1ca3-a9d2-4587-ad9f-3e85e5391f44',
-		proxy: '/shadow',
-		text: `Some people involved were...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['reflection', 'personal'],
-		form: 'story',
-		id: '040850c1-9991-46be-b962-8cf4ad9cfb24',
-		proxy: '/shadow',
-		text: `In hindsight, I wish I had...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['personal', 'thoughts'],
-		form: 'story',
-		id: '447b70e7-a443-4165-becf-fbd74265a618',
-		proxy: '/shadow',
-		text: `I remember thinking...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['personal', 'observation'],
-		form: 'story',
-		id: '6465905a-328e-4df1-8d3a-c37c3e05e227',
-		proxy: '/shadow',
-		text: `The mood of the scene was...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['personal', 'reflection', 'observation'],
-		form: 'story',
-		id: 'e61616c7-00f9-4c23-9394-3df7e98f71e0',
-		proxy: '/shadow',
-		text: `This was connected to larger themes in my life by ...`,
-		type: 'member',
-	},
-]
 const vmClassGenerator = vm.createContext({
 	exports: {},
 	console: console,
@@ -178,6 +122,15 @@ class BotFactory extends EventEmitter{
 			undefined,
 			mbr_id
 		)
+	}
+	/**
+	 * Returns bot shadows for a given bot type, if they exist in the bot instructions.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @returns {object[]} - The bot shadows
+	 */
+	botShadows(type){
+		return this.botTemplate(type)?.shadows ?? []
 	}
 	/**
 	 * Gets a member's bots, or specific bot types.
@@ -276,10 +229,19 @@ class BotFactory extends EventEmitter{
 		return this.botTemplate(type)?.retirable ?? false
 	}
 	/**
+	 * Returns bot shadows for a given bot type, if they exist in the bot instructions.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @returns {object[]} - The bot shadows
+	 */
+	botShadows(type){
+		return this.botTemplate(type)?.shadows ?? []
+	}
+	/**
 	 * Returns bot complete build Template.
 	 * @public
 	 * @param {string} type - The bot type
-	 * @returns {object} - The bot instructions
+	 * @returns {object[]} - The bot shadows
 	 */
 	botTemplate(type=mDefaultBotType){
 		return mBotInstructions[type] ?? {}
@@ -518,14 +480,6 @@ class BotFactory extends EventEmitter{
             throw new Error('Passphrase required for reset.')
         return await this.dataservices.resetPassphrase(passphrase)
     }
-	/**
-	 * Gets the list of shadows.
-	 * @param {Guid} itemId - The itemId (or type?) to filter shadow return.
-	 * @returns {object[]} - The shadows.
-	 */
-	shadows(itemId){
-		return mShadows
-	}
 	/**
 	 * Gets a collection of stories of a certain format.
 	 * @param {string} form - The form of the stories to retrieve

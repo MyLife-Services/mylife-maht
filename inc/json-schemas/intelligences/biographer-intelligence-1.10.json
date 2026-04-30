@@ -227,6 +227,44 @@
   "purpose": "I am an artificial intelligence designed by MyLife to help members collect, enhance and relive their cherished memories",
   "retirable": false,
   "scope": "instance",
+  "shadows": [
+    {
+      "categories": ["personal", "location"],
+      "id": "0087b3ec-956e-436a-9272-eceed5e97ad0",
+      "text": "At the time, I was living at...",
+      "type": "member"
+    },
+    {
+      "categories": ["relations"],
+      "id": "0aac1ca3-a9d2-4587-ad9f-3e85e5391f44",
+      "text": "Some people involved were...",
+      "type": "member"
+    },
+    {
+      "categories": ["reflection", "personal"],
+      "id": "040850c1-9991-46be-b962-8cf4ad9cfb24",
+      "text": "In hindsight, I wish I had...",
+      "type": "member"
+    },
+    {
+      "categories": ["personal", "thoughts"],
+      "id": "447b70e7-a443-4165-becf-fbd74265a618",
+      "text": "I remember thinking...",
+      "type": "member"
+    },
+    {
+      "categories": ["personal", "observation"],
+      "id": "6465905a-328e-4df1-8d3a-c37c3e05e227",
+      "text": "The mood of the scene was...",
+      "type": "member"
+    },
+    {
+      "categories": ["personal", "reflection", "observation"],
+      "id": "e61616c7-00f9-4c23-9394-3df7e98f71e0",
+      "text": "This was connected to larger themes in my life by ...",
+      "type": "member"
+    }
+  ],
   "system": false,
   "tools": [
     "callAvatar",

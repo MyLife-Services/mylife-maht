@@ -1454,11 +1454,15 @@ class Avatar extends EventEmitter {
         return response
     }
     /**
-     * Gets the list of shadows.
+     * Gets the list of shadows for a given bot type, resolved from bot id if provided.
+     * @param {Guid} bid - The bot id (optional); defaults to personal-biographer shadows
      * @returns {Object[]} - Array of shadow objects.
      */
-    async shadows(){
-        return await this.#factory.shadows()
+    async shadows(bid){
+        const type = bid?.length
+            ? (await this.bot(bid))?.type
+            : 'personal-biographer'
+        return this.#factory.botShadows(type)
     }
     async share(sid){
         return await this.#ShareAgent.share(sid)

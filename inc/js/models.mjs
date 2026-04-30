@@ -360,8 +360,8 @@ class Item extends EventEmitter {
      * @param {Avatar} avatar - The Member Avatar instance
      */
     constructor(item, avatar){
-        if(!avatar || !llmServices)
-            throw new Error('Avatar and LLM services required')
+        if(!avatar)
+            throw new Error('Avatar required')
         if(avatar.isMyLife)
             throw new Error('MyLife cannot create stories')
         if(!item?.summary?.length)
@@ -532,33 +532,33 @@ class Item extends EventEmitter {
 }
 class Action extends Item {
     #availableForms=['environmental', 'personal', 'political', 'relational', 'social', 'other']
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'action'
         item.type = 'action'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Entry extends Item {
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'story'
         item.type = 'entry'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Memory extends Item {
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'story'
         item.type = 'memory'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Stance extends Item {
     #availableTypes=['issue', 'personal', 'relational', 'value', 'other']
     /* unique fields: #backgrounds, #conviction, #emotional_intensity */
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'stance'
         item.type ??= 'personal'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
     /* public functions */
     allowedType(type){
@@ -567,15 +567,15 @@ class Stance extends Item {
 }
 class Issue extends Stance {
     /* unique fields: #geography, #issue, #values */
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.type = 'issue'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Value extends Stance {
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.type = 'value'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 /* Share classes */
