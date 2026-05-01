@@ -278,7 +278,7 @@ async function routine(script, clearChat=false){
                 id,
             }
         const Bot = getBot(id)
-        character.bot_id = Bot.id
+        character.Bot = Bot
         return character
     }
     function routineAdvance(){

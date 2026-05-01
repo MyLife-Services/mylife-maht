@@ -1,5 +1,6 @@
 /* imports */
 import { EventEmitter } from 'events'
+import { Marked } from 'marked'
 /* module constants */
 const mBeing = `story`,
     mShareGratitude = `Thank you for letting us share this narrative with you! I hope you enjoyed it as much as I did.`,
@@ -24,7 +25,7 @@ class Consent extends EventEmitter {
 class Conversation extends EventEmitter {
     #activeExchangeId
     #being='chat'
-    #bot_id
+    #Bot
     #exchanges = new Set() //  utilized for tracking exchanges related to conversation
     #factory
     #form
@@ -36,7 +37,7 @@ class Conversation extends EventEmitter {
     #thread
     #threads = new Set()
     #type
-    constructor(obj, factory, botId, llmProvider, thread){
+    constructor(obj, factory, Bot, llmProvider, thread){
         if(!factory || !llmProvider)
             throw new Error('Factory and LLM properties required')
         super()
@@ -49,7 +50,7 @@ class Conversation extends EventEmitter {
         } = obj
         this.#factory = factory
         this.#thread = thread
-        this.#bot_id = botId
+        this.#Bot = Bot
         this.#form = form
         this.#id = id ?? this.#factory.newGuid
         this.#llmProvider = llmProvider
@@ -69,11 +70,11 @@ class Conversation extends EventEmitter {
         const { id, } = message
         if(this.#messages.find(message=>message.id===id))
             return this.messages
-        if(!(message instanceof this.#factory.message)){
+        if(!(message instanceof Message)){
             if(typeof message!=='object')
                 message = { content: message, }
             message.exchangeId = this.exchangeId
-            message = new (this.#factory.message)(message)
+            message = new Message(message, this.Bot, this.type)
         }
         this.#messages = [message, ...this.messages]
         return this.messages
@@ -85,7 +86,7 @@ class Conversation extends EventEmitter {
      * @returns {Object[]} - The updated messages array
      */
     addMessages(messages){
-        messages.forEach(message => this.addMessage(message))
+        messages.forEach(message =>this.addMessage(message))
         return this.messages
     }
     /**
@@ -120,6 +121,7 @@ class Conversation extends EventEmitter {
     /**
      * Get the messages for the conversation.
      * @public
+     * @param {boolean} condensed - Whether or not to return a condensed version of the messages, defaults to `true` which will prune messages for frontend consumption
      * @param {boolean} agentOnly - Whether or not to get only agent messages
      * @param {boolean} currentExchangeOnly - Whether or not to get only messages from the current exchange; defaults to `false` will return all exchanges
      * @param {string} conversation_id - The conversation id to get messages for (optional)
@@ -127,8 +129,9 @@ class Conversation extends EventEmitter {
      * @param {boolean} chronological - Whether or not to return messages in chronological order, defaults to `true`, oldest first
      * @returns {Message[]} - The messages array
      */
-    getMessages(agentOnly=true, currentExchangeOnly=false, conversation_id, exchangeId, chronological=true){
+    getMessages(condensed=false, agentOnly=true, currentExchangeOnly=true, conversation_id, exchangeId, chronological=true, processingStartTime=Date.now()){
         let messages = this.messages
+        const trace = new Error().stack
         if(agentOnly)
             messages = messages.filter(message=>['member', 'user'].indexOf(message.role) < 0)
         if(currentExchangeOnly)
@@ -142,6 +145,8 @@ class Conversation extends EventEmitter {
             messages = messages.filter(message=>message.exchangeId===exchangeId)
         if(chronological)
             messages = messages.sort((a, b) => a.created_at - b.created_at)
+        if(condensed)
+            messages = messages.map(message=>message.message)
         return messages
     }
     /**
@@ -177,18 +182,16 @@ class Conversation extends EventEmitter {
         return this.#being
     }
     get bot_id(){
-        return this.#bot_id
-    }
-    set bot_id(botId){
-        if(!this.#factory.globals.isValidGuid(botId))
-            throw new Error(`Invalid bot id: ${ botId }`)
-        this.#bot_id = botId
+        return this.#Bot.id
     }
     get botId(){
         return this.bot_id
     }
-    set botId(botId){
-        this.bot_id = botId
+    get Bot(){
+        return this.#Bot
+    }
+    set Bot(Bot){
+        this.#Bot = Bot
     }
     get conversationCore(){
         return {
@@ -264,17 +267,20 @@ class Conversation extends EventEmitter {
  */
 class Message extends EventEmitter {
     #being='message'
+    #Bot
     #content
     #role
-    constructor(obj){
+    #type
+    constructor(obj, Bot, type='chat'){
         super()
-        const { content, message, role='system', ..._obj } = obj
-        _obj.created_at = _obj.created_at
-            ?? Date.now()
-        Object.assign(this, _obj)
+        const { content, message, role='system', type: discardType, ..._obj } = obj
+        this.#Bot = Bot
+        this.#role = role
+        this.#type = type
         try{
-            this.#role = role
-            this.#content = mAssignContent(content ?? message ?? obj)
+            _obj.created_at ??= Date.now()
+            Object.assign(this, _obj)
+            this.#content = mAssignContent(content ?? message ?? obj) ?? ''
         } catch(e){
             this.#content = ''
         }
@@ -282,6 +288,9 @@ class Message extends EventEmitter {
     /* getters/setters */
     get being(){
         return this.#being
+    }
+    get Bot(){
+        return this.#Bot
     }
     get content(){
         return this.#content
@@ -292,7 +301,7 @@ class Message extends EventEmitter {
         } catch(e){}
     }
     get message(){
-        return this.messageCore
+        return mPruneMessage(this, this.#type, this.Bot.id, this.Bot.type)
     }
     /**
      * Get the message in micro format for storage.
@@ -302,6 +311,7 @@ class Message extends EventEmitter {
         return {
             content: this.content,
             created_at: this.created_at ?? Date.now(),
+            exchangeId: this.exchangeId,
             id: this.id,
             response_id: this.response_id,
             role: this.role,
@@ -309,6 +319,9 @@ class Message extends EventEmitter {
     }
     get role(){
         return this.#role
+    }
+    get type(){
+        return this.#type
     }
 }
 /**
@@ -921,6 +934,44 @@ function mAssignContent(obj){
     }
 }
 /**
+ * Returns frontend-ready Message object after logic mutation.
+ * @module
+ * @private
+ * @param {string} message - The text of LLM message; can parse array of messages from openAI
+ * @param {string} type - The type of message, defaults to chat
+ * @param {Guid} activeBotId - The Active Bot id property
+ * @param {string} activeBotType - The Active Bot type property, defaults to 'server'
+ * @param {number} processStartTime - The time the process started, defaults to function call
+ * @returns {object} - The pruned message object
+ */
+function mPruneMessage(message, type='chat', activeBotId, activeBotType='server', processStartTime=Date.now()){
+    /* parse message */
+    let content=''
+    const { content: messageContent=message, } = message
+    const rLines = /\n{2,}/g
+    const rSource = /【.*?\】/gs
+    content = Array.isArray(messageContent)
+        ? messageContent.reduce((acc, item) => {
+            if (item?.type==='text' && item?.text?.value){
+                acc += item.text.value + '\n'
+            }
+            return acc
+        }, '')
+        : messageContent
+    content = content // .replace(rLines, '\n')
+        .replace(rSource, '') // remove OpenAI LLM "source" references
+    message = new Marked().parse(content)
+    const messageResponse = {
+        activeBotId,
+        agent: activeBotType,
+        message,
+        response_time: Date.now()-processStartTime,
+        type,
+    }
+    return messageResponse
+}
+
+/**
  * Consumes a conversation object and uses supplied factory to (create/)save it to MyLife CosmosDB. Each session conversation is saved as a separate document, and a given thread may span many conversations, so cross-checking by thread_id will be required when rounding up and consolidating summaries for older coversations.
  * @param {AgentFactory} factory - Factory instance
  * @param {Conversation} Conversation - Conversation instance
@@ -939,7 +990,7 @@ async function mSaveConversation(Conversation, factory){
         thread,
         type,
     } = Conversation
-    let messages = Conversation.getMessages(false, true)
+    let messages = Conversation.messages.map(message=>message.messageCore)
     messages = messages
         .map(_msg=>_msg.messageCore)
     if(!isSaved){

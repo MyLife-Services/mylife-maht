@@ -4,6 +4,7 @@ import EventEmitter from 'events'
 import { Marked } from 'marked'
 import { fileURLToPath } from 'url'
 import initRouter from './routes.mjs'
+import { Message, } from './models.mjs'
 import AlphaDog from './agents/project/alpha-dog.mjs'
 import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
@@ -461,7 +462,7 @@ class Avatar extends EventEmitter {
                     + summary
         }
         const Conversation = await this.activeBot.chat(message, originalMessage, mAllowSave, this)
-        responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true) ?? [], 'chat', Conversation.processStartTime)
+        responses = Conversation.getMessages(true)
         if(responses.length)
             success = true
         else {
@@ -676,10 +677,14 @@ class Avatar extends EventEmitter {
             type: 'system',
         }
         /* execute request */
-        responses.push(...await this.#botAgent.summarize(fileId, fileName, processStartTime))
+        responses.push(...await this.#botAgent.summarize(fileId, fileName, processStartTime, this))
         /* respond request */
         if(responses?.length){
-            responses = mPruneMessages(this.avatar.id, responses, 'mylife-file-summary', processStartTime)
+            responses = responses.map(response=>{
+                response = new Message({ content: response, }, this.avatar, 'mylife-file-summary')
+                    .message
+                return response
+            })
             success = true
         }
         return mBuildResponse(this, { responses, success, })
@@ -941,10 +946,13 @@ class Avatar extends EventEmitter {
      * @returns {Object} - The Response object { instruction, responses, success, }
      */
     async evaluate(itemId){
-        const response = await this.#botAgent.evaluate(itemId)
-        if(response.success && response.responses.length)
-            response.responses = mPruneMessages(this.activeBotId, response.responses, 'evaluation', response.processStartTime)
-        return response
+        let { responses, success=false } = await this.#botAgent.evaluate(itemId)
+        if(success && responses.length)
+            responses = responses.map(response=>
+                response = new Message({ content: response, }, this.activeBot, 'evaluation')
+                    .message
+            )
+        return { responses, success }
     }
     /**
      * Starts, continues or resumes a specific experience.
@@ -1080,7 +1088,7 @@ class Avatar extends EventEmitter {
         const { routine, success, } = botGreeting
         let { responses, } = botGreeting
         responses = responses
-            .map(greeting=>mPruneMessage(this.activeBotId, greeting, 'greeting'))
+            .map(greeting=>new Message(greeting, this.activeBot, 'greeting'))
         return {
             responses,
             routine,
@@ -1110,7 +1118,7 @@ class Avatar extends EventEmitter {
             conversation.save()
         else
             console.log('MemberAvatar::help()::BYPASS-SAVE', conversation.message.content)
-        const response = mPruneMessages(this.activeBotId, helpResponseArray, 'help', processStartTime)
+        const response = conversation.getMessages(true)
         return response
     }
     /**
@@ -1678,13 +1686,6 @@ class Avatar extends EventEmitter {
         return this.isMyLife ? this.#botAgent : null
     }
     /**
-     * Get uninstantiated class definition for conversation. If getting a specific conversation, use .conversation(id).
-     * @returns {class} - class definition for conversation
-     */
-    get conversation(){
-        return this.#factory.conversation
-    }
-    /**
      * Get full list of conversations active in Member Avatar. Use `getConversation(id)` for specific. **Note**: Currently `.conversation` references a class definition.
      * @returns {Conversation[]} - The list of conversations
      */
@@ -1838,13 +1839,6 @@ class Avatar extends EventEmitter {
     }
     get memberName(){
         return this.#factory.memberName
-    }
-    /**
-     * Get uninstantiated class definition for message.
-     * @returns {class} - class definition for message
-     */
-    get message(){
-        return this.#factory.message
     }
     /**
      * Get the mode.
@@ -2163,7 +2157,7 @@ class Q extends Avatar {
             message = `CREATE ACCOUNT PHASE: ${ message }`
 		Conversation.prompt = message
 		await this.botAgent.chat(Conversation, mAllowSave, this) // call bot-agent, **not** bot explicitly when system avatar
-        const responses = mPruneMessages(this.activeBotId, Conversation.getMessages(true, true), 'chat', Conversation?.processStartTime)
+        const responses = Conversation.getMessages(true)
         return mBuildResponse(this, { responses, success: true })
     }
     /**
@@ -2207,8 +2201,9 @@ class Q extends Avatar {
         const { routine, success, } = greeting
         let { responses, } = greeting
         responses = responses.map(response=>{
-            response = mPruneMessage(undefined, response, 'greeting')
-            delete response.activeBotId
+            response = new Message({ content: response, }, this.activeBot, 'greeting')
+                .message
+            delete response.activeBotId // given Q
             return response
         })
         return {
@@ -2846,24 +2841,24 @@ function mBuildResponse(Avatar, { item, responses=[], success=false, ...rest }){
 }
 /**
  * Creates frontend system message from message String/Object.
- * @param {Guid} botId - The bot id
+ * @param {Guid} activeBotId - The bot id
  * @param {String|Message} message - The message to be pruned
  * @param {messageClassDefinition} messageClassDefinition - The message class definition
  * @returns 
  */
-function mCreateSystemMessage(botId, message, messageClassDefinition){
+function mCreateSystemMessage(activeBotId, message, messageClassDefinition){
     if(!(message instanceof messageClassDefinition)){
-        const content = message?.content
+        message = message?.content
             ?? message?.message
             ?? message
-        message = new messageClassDefinition({
-            content,
-            role: 'assistant',
-            type: 'system'
-        })
+    } else
+        message = message.content
+    return {
+        activeBotId,
+        agent: 'system',
+        message,
+        type: 'system',
     }
-    message = mPruneMessage(botId, message, 'system')
-    return message
 }
 /**
  * Creates item data diff object for updateItem calls, comparing current item data with saved item data and returning only the fields that have changed.
@@ -3871,7 +3866,7 @@ async function mcp_chat(mcpdata, sessionMeta, ctx, factory, Avatar){
     const Conversation = await Avatar.chat(message, message, true, Avatar.avatar)
     const content = Conversation?.responses?.length
         ? Conversation.responses.map(response=>({ text: response.message, type: 'text', }))
-        : Conversation.getMessages(null, true).map(message=>({ text: message.content, type: 'text', }))
+        : Conversation.getMessages(false, null, true).map(message=>({ text: message.content, type: 'text', }))
     const result = {
         content,
         isError: false,
@@ -4144,57 +4139,6 @@ function mPruneExperience(Experience){
     }
 }
 /**
- * Returns frontend-ready Message object after logic mutation.
- * @module
- * @private
- * @param {Guid} activeBotId - The Active Bot id property
- * @param {string} message - The text of LLM message; can parse array of messages from openAI
- * @param {string} type - The type of message, defaults to chat
- * @param {number} processStartTime - The time the process started, defaults to function call
- * @returns {object} - The pruned message object
- */
-function mPruneMessage(activeBotId, message, type='chat', processStartTime=Date.now()){
-    /* parse message */
-    let agent='server',
-        content='',
-        response_time=Date.now()-processStartTime
-    const { content: messageContent=message, } = message
-    const rLines = /\n{2,}/g
-    const rSource = /【.*?\】/gs
-    content = Array.isArray(messageContent)
-        ? messageContent.reduce((acc, item) => {
-            if (item?.type==='text' && item?.text?.value){
-                acc += item.text.value + '\n'
-            }
-            return acc
-        }, '')
-        : messageContent
-    content = content // .replace(rLines, '\n')
-        .replace(rSource, '') // remove OpenAI LLM "source" references
-    message = new Marked().parse(content)
-    const messageResponse = {
-        activeBotId,
-        agent,
-        message,
-        response_time,
-        type,
-    }
-    return messageResponse
-}
-/**
- * Prune an array of Messages and return.
- * @param {Guid} botId - The Active Bot id property
- * @param {Object[]} messageArray - The array of messages to prune
- * @param {string} type - The type of message, defaults to chat
- * @param {number} processStartTime - The time the process started, defaults to function call
- * @returns {Object[]} - Concatenated message object
- */
-function mPruneMessages(botId, messageArray, type='chat', processStartTime=Date.now()){
-    messageArray = messageArray
-        .map(message=>mPruneMessage(botId, message, type, processStartTime))
-    return messageArray
-}
-/**
  * Returns a narration packet for a memory reliving. Will allow for and accommodate the incorporation of helpful data _from_ the avatar member into the memory item `summary` and other metadata. The bot by default will:
  * - break memory into `scenes` (2 to 5) set scene, ask for input [determine default what] 2) develop action, dramatize, describe input mechanic 3) conclude scene, moralize - what did you learn? then share what you feel author learned
  * - perform/narrate the memory as scenes describe
@@ -4229,8 +4173,7 @@ async function mReliveMemoryNarration(item, memberInput, BotAgent, Avatar){
     }
     if(!Avatar.frontendInstructions.length)
         Avatar.frontendInstructions = defaultInstruction
-    const responses = Conversation.getMessages(true, true)
-        .map(message=>mPruneMessage(botId, message, type))
+    const responses = Conversation.getMessages(true)
     return mBuildResponse(Avatar, { item, responses, success: true })
 }
 /**

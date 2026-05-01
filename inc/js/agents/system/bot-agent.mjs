@@ -1,4 +1,5 @@
 /* imports */
+import { Conversation, Message, } from '../../models.mjs'
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
 const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
@@ -194,7 +195,7 @@ class Bot {
 		if(!this.#conversation){
 			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
-			this.#conversation = await mConversationStart('chat', type, id, thread_id, llmProvider, this.#llm, this.#factory, message)
+			this.#conversation = await mConversationStart('chat', type, this, thread_id, llmProvider, this.#llm, this.#factory, message)
 			if(thread_id!==this.conversation.thread_id)
 				this.setThread(this.conversation.thread_id) // saves new id to bot file
 			if(type!=='proxy' && !thread_id?.length){
@@ -637,13 +638,13 @@ class BotAgent {
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
 	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmProvider, mbr_id, useActive=true){
-		const bot = useActive && !!this.activeBot ? this.activeBot : this.avatar
-		let { id, llmProvider, } = bot
+		const Bot = useActive && !!this.activeBot ? this.activeBot : this.avatar
+		let { llmProvider, } = Bot
 		if(type==='experience')
 			llmProvider = this.#factory.actor.llmProvider
 		else if(type==='script' && scriptAdvisorLlmProvider?.id?.length)
 			llmProvider = scriptAdvisorLlmProvider
-    	const Conversation = await mConversationStart(type, form, id, undefined, llmProvider, this.#llm, this.#factory, prompt, undefined, mbr_id)
+    	const Conversation = await mConversationStart(type, form, Bot, undefined, llmProvider, this.#llm, this.#factory, prompt, undefined, mbr_id)
 		return Conversation
 	}
 	/**
@@ -725,7 +726,7 @@ class BotAgent {
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
 			memberInput = `## LIVE Memory Trigger\n### VARiABLES\nitemId: ${ item.id }\nsummary: "${ item.summary }"\n`
-			const Conversation = await mConversationStart('memory', type, botId, undefined, llmProvider, this.#llm, this.#factory, memberInput)
+			const Conversation = await mConversationStart('memory', type, biographer, undefined, llmProvider, this.#llm, this.#factory, memberInput)
 			Conversation.action = 'living'
 			Conversation.itemId = item.id
 			livingMemory.Conversation = Conversation
@@ -911,7 +912,7 @@ class BotAgent {
 			this.#fileConversation = await this.conversationStart('file-summary', 'member-avatar', prompt, processStartTime)
 		this.#fileConversation.prompt = prompt
 		await mCallLLM(this.#fileConversation, false, this.#llm, this.#factory, Avatar)
-		const responses = this.#fileConversation.getMessages()
+		const responses = this.#fileConversation.getMessages(true)
         return responses
 	}
 	/**
@@ -1447,7 +1448,7 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @module
  * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, system, etc.; defaults to `chat`
  * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
- * @param {string} botId - The bot id
+ * @param {string} Bot - The Bot instance
  * @param {string} conversation_id - The conversation id
  * @param {object} llmProvider - The properties for the llm agent: { *id, model, provider, *type, variables, version, }
  * @param {LLMServices} llm - The LLMServices instance
@@ -1457,19 +1458,19 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @param {string} mbr_id_Override - The member id to use for conversation (optional)
  * @returns {Conversation} - The conversation object
  */
-async function mConversationStart(type='chat', form='system', botId, conversation_id, llmProvider, llm, factory, prompt, messages, mbr_id_Override){
+async function mConversationStart(type='chat', form='system', Bot, conversation_id, llmProvider, llm, factory, prompt, messages, mbr_id_Override){
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
 	const metadata = {
-			bot_id: botId,
+			bot_id: Bot.id,
 			conversation_id: id,
 		},
 		processStartTime = Date.now(),
 		thread = (form!=='proxy')
 			? await llm.conversation(conversation_id, messages, metadata)
 			: null
-	const Conversation = new (factory.conversation)(
+	return new Conversation(
 		{
 			form,
 			id,
@@ -1479,11 +1480,10 @@ async function mConversationStart(type='chat', form='system', botId, conversatio
 			type,
 		},
 		factory,
-		botId,
+		Bot,
 		llmProvider,
 		thread,
 	)
-	return Conversation
 }
 /**
  * Deletes thread and conversation (optional) from LLM and Cosmos, respectively.
