@@ -1,6 +1,5 @@
 /* imports */
 import chalk from 'chalk'
-import fs from 'fs/promises'
 import path from 'path'
 import Globals from '../globals.mjs'
 import { mcpLogin, } from './mcp-functions.mjs'
@@ -35,23 +34,8 @@ const mA2AProviders = [
     }
 ]
 const mA2ATimeout = 20000 // 20 seconds
-const mAgentCards = {},
-    mAgentCardsPath = path.join(
-        process.cwd(),
-        'inc',
-        'json-schemas',
-        'a2a',
-        'cards'
-    ),
-    mContracts = {},
-    mContractsPath = path.join(
-        process.cwd(),
-        'inc',
-        'json-schemas',
-        'a2a',
-        'contracts'
-    ),
-    mHandlers = { /* A2A handlers, represent piping between avatars and performed services/capabilities */
+const mGlobals = new Globals()
+const mHandlers = { /* A2A handlers, represent piping between avatars and performed services/capabilities */
         getMyLifeInfo: async (ctx, params)=>{
             const { avatar: Avatar, } = ctx.state
             if(!Avatar?.isMyLife)
@@ -110,15 +94,6 @@ const mAgentCards = {},
         mylifeLogout: "logout",
         registerForMyLifeMembership: "register",
     }
-/* load agent cards */
-try {
-    const files = await fs.readdir(mAgentCardsPath)
-    for(const file of files)
-        await addFiletoObject(mAgentCards, file, mAgentCardsPath)
-    console.log(chalk.blueBright(`Loaded A2A agent cards into memory from ${mAgentCardsPath}`))
-} catch(err) {
-    console.error(chalk.redBright(`Error loading A2A agent cards: ${err.message}`))
-}
 /* load data contracts (when available) */
 /*
 try {
@@ -134,7 +109,7 @@ try {
 async function a2aCall(ctx){
     const { a2aAgentId, } = ctx.state
     ctx.set('Content-Type', 'application/json')
-    const card = agentCard(a2aAgentId)
+    const card = mGlobals.agentCard(a2aAgentId)
     const { id, jsonrpc, method, params: { kind, messageId, metadata={}, parts, role, }, } = ctx.request.body
     /* jsonrpc validation */
     if(jsonrpc !== '2.0')
@@ -206,7 +181,7 @@ async function a2aCall(ctx){
  */
 async function a2aCard(ctx){
     const { a2aAgentId, } = ctx.state
-    const card = agentCard(a2aAgentId)
+    const card = mGlobals.agentCard(a2aAgentId)
     ctx.set('Content-Type', 'application/json')
     if(!card)
         return sendError(ctx, 404, -32601, `Agent card not found: ${ a2aAgentId }`, { type: 'not_found' })
@@ -428,8 +403,7 @@ async function addFiletoObject(obj, fileName, dir){
  * @returns {object|null} - The agent card object or null if not found
  */
 function agentCard(agentId){
-    const agentCard = mAgentCards[agentId]
-    return agentCard
+    return mGlobals.agentCard(agentId)
 }
 async function botProxy(ctx){
     const { avatar: Avatar, } = ctx.state
@@ -563,7 +537,7 @@ function convertMCPToA2A(ctx, mcpData){
  * @param {string|null} request - The request to pass to external agent
  * @returns {object} - The A2A JSON-RPC message object
  */
-function createA2ARequest(id=Globals.newGuid, messageId=Globals.newGuid, method, request){
+function createA2ARequest(id=crypto.randomUUID(), messageId=crypto.randomUUID(), method, request){
     console.log('createA2ARequest', { id, messageId, method, request, })
     const action = method.split('/')?.[1]
     const context = method.split('/')[0]

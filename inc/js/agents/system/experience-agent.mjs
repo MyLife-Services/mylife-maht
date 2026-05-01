@@ -9,15 +9,9 @@ const mAvailableEventActionMap = {
     },
     input: {},
 }
-const mDefaultScriptAdvisorLLMProvider = {
-	id: 'pmpt_69cf328930e081938c3e37184cfb6f37056f074234ed5663',
-	model: 'gpt-4o-mini',
-	provider: 'openai',
-	type: 'prompt',
-	version: 2
-}
 let mActor,
-    mActorQ
+    mScriptAdvisor,
+    mSystemActorQ
 /* class definitions */
 /**
  * @class Actor
@@ -26,7 +20,7 @@ let mActor,
 class Actor {
     #bot
     constructor(Bot){
-        // @todo - In system cases (Actor and Q), this is a data object not an instance!
+        // @todo - In system cases (General Actor), this is a data object not an instance
         this.#bot = Bot
     }
     /* getters/setters */
@@ -257,15 +251,14 @@ class ExperienceAgent {
         this.#avatar = Avatar
         this.#botAgent = BotAgent
         this.#factory = Factory
-        if(!mActor)
-            mActor = Factory.actor
-        if(!mActorQ)
-            mActorQ = Factory.actorQ
         this.#llm = LLMServices
         obj = this.#factory.globals.sanitize(obj)
         Object.assign(this, obj)
         this.id = this.#factory.newGuid
         this.#variables = avatarVariables
+        if(Avatar.isMyLife)
+            initExperienceAgentModule(Avatar)
+        console.log('<-----ExperienceAgent module initialized----->', Avatar.mbr_id)
     }
     /* public functions */
     /**
@@ -318,10 +311,10 @@ class ExperienceAgent {
     }
     /* getters/setters */
 	get actor(){
-		return this.#factory.actor
+		return mActor
 	}
 	get actorQ(){
-		return this.#factory.actorQ
+		return mSystemActorQ
 	}
     get mbr_id(){
         return this.#avatar.mbr_id
@@ -606,6 +599,12 @@ class ShareAgent {
         return shareId
     }
 }
+/* public functions */
+function initExperienceAgentModule(SystemAvatar){
+    mActor = SystemAvatar.botTemplate('general-actor')
+    mScriptAdvisor = SystemAvatar.botTemplate('general-script-advisor')
+    mSystemActorQ = SystemAvatar
+}
 /* module functions */
 /**
  * Creates cast and returns associated `cast` object.
@@ -623,11 +622,11 @@ function mCast(cast, botAgent, Factory){
         switch(type.toLowerCase()){
             case 'actor': // system actor
             case 'system':
-                Bot = Factory.actor
+                Bot = mActor
                 break
             case 'mylife': // Q
             case 'q':
-                Bot = Factory.actorQ
+                Bot = mSystemActorQ
                 break
             case 'bot': // identified member-specific bot
             case 'member':

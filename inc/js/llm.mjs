@@ -215,7 +215,7 @@ class LLMServices {
                         }
                         default: {
                             console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
-                            llmMessages.push(...messages.map(message => mMessageConvert(this.provider, message)))
+                            llmMessages.push(...messages.map(message => mMessageConvert(this.provider, message, response_id)))
                             return llmMessages
                         }
                     }
@@ -477,9 +477,10 @@ async function mMessages(openai, conversation_id, msg_id){
  * @module
  * @param {string} provider - LLM provider
  * @param {string} message - message text 
+ * @param {string} response_id - response id to associate with message for traceability (optional)
  * @returns {object} - synthetic openai `message` object
  */
-function mMessageConvert(provider, message){
+function mMessageConvert(provider, message, response_id){
     let messageConverted = {}
     switch(provider){
         default:
@@ -487,6 +488,7 @@ function mMessageConvert(provider, message){
                 messageConverted.content = { text: message, type: 'input_text', }
                 messageConverted.id = crypto.randomUUID()
                 messageConverted.role = 'assistant'
+                messageConverted.response_id = response_id
                 messageConverted.status = 'completed'
                 messageConverted.type = 'message'
             } else

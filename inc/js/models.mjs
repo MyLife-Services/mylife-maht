@@ -51,11 +51,9 @@ class Conversation extends EventEmitter {
         this.#thread = thread
         this.#bot_id = botId
         this.#form = form
-        this.#id = id
-            ?? this.#factory.newGuid
+        this.#id = id ?? this.#factory.newGuid
         this.#llmProvider = llmProvider
-        this.#mbr_id = mbr_id
-            ?? this.#factory.mbr_id
+        this.#mbr_id = mbr_id ?? this.#factory.mbr_id
         this.name = `conversation_${ this.#mbr_id }_${ this.#id }`
         this.#type = type
         Object.assign(this, _obj)
@@ -97,17 +95,6 @@ class Conversation extends EventEmitter {
      */
     addThread(conversation_id){
         this.#threads.add(conversation_id)
-    }
-    conversation(){
-        return {
-            bot_id: this.bot_id,
-            id: this.#id,
-            form: this.form,
-            mbr_id: this.mbr_id,
-            name: this.name,
-            thread: this.thread,
-            type: this.type,
-        }
     }
     /**
      * Starts an exchange within the conversation by exchange id, or defaults to new guid
@@ -203,6 +190,27 @@ class Conversation extends EventEmitter {
     set botId(botId){
         this.bot_id = botId
     }
+    get conversationCore(){
+        return {
+            bot_id: this.bot_id,
+            form: this.form,
+            id: this.#id,
+            mbr_id: this.mbr_id,
+            name: this.name,
+            thread: this.thread,
+            type: this.type,
+        }
+    }
+    get conversation(){
+        return {
+            ...this.conversationCore,
+            exchanges: [...this.#exchanges],
+            exchangeId: this.exchangeId,
+            isSaved: this.isSaved,
+            llmProvider: this.llmProvider,
+            messages: this.messages,
+        }
+    }
     get exchangeId(){
         return this.#activeExchangeId
     }
@@ -284,23 +292,23 @@ class Message extends EventEmitter {
         } catch(e){}
     }
     get message(){
-        return this
-    }
-    get role(){
-        return this.#role
+        return this.messageCore
     }
     /**
      * Get the message in micro format for storage.
      * @returns {object} - The message in micro format
      */
-    get micro(){
+    get messageCore(){
         return {
             content: this.content,
-            created_at: this.created_at
-                ?? Date.now(),
+            created_at: this.created_at ?? Date.now(),
             id: this.id,
+            response_id: this.response_id,
             role: this.role,
         }
+    }
+    get role(){
+        return this.#role
     }
 }
 /**
@@ -341,7 +349,6 @@ class Item extends EventEmitter {
     #id
     #immutableFields=['availableTypes', 'being', 'complete', 'id', 'item', 'itemCore', 'mbr_id', 'name', 'type', 'unsavedDuration', 'version'] // **note**: Avatar.populateObject() will prevent overwriting functions
     #lastSaved
-    #llmServices
     #mbr_id
     #name
     #summary
@@ -351,18 +358,16 @@ class Item extends EventEmitter {
      * @constructor
      * @param {object} item - Data object (optional)
      * @param {Avatar} avatar - The Member Avatar instance
-     * @param {LLMServices} llmServices - The LLM services object
      */
-    constructor(item, avatar, llmServices){
-        if(!avatar || !llmServices)
-            throw new Error('Avatar and LLM services required')
+    constructor(item, avatar){
+        if(!avatar)
+            throw new Error('Avatar required')
         if(avatar.isMyLife)
             throw new Error('MyLife cannot create stories')
         if(!item?.summary?.length)
             throw new Error('Item requires a summary')
         super()
         this.#avatar = avatar
-        this.#llmServices = llmServices
         item = this.#avatar.sanitize(item)
         const {
             assistantType,
@@ -527,33 +532,33 @@ class Item extends EventEmitter {
 }
 class Action extends Item {
     #availableForms=['environmental', 'personal', 'political', 'relational', 'social', 'other']
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'action'
         item.type = 'action'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Entry extends Item {
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'story'
         item.type = 'entry'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Memory extends Item {
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'story'
         item.type = 'memory'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Stance extends Item {
     #availableTypes=['issue', 'personal', 'relational', 'value', 'other']
     /* unique fields: #backgrounds, #conviction, #emotional_intensity */
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.being = 'stance'
         item.type ??= 'personal'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
     /* public functions */
     allowedType(type){
@@ -562,15 +567,15 @@ class Stance extends Item {
 }
 class Issue extends Stance {
     /* unique fields: #geography, #issue, #values */
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.type = 'issue'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 class Value extends Stance {
-    constructor(item, avatar, llmServices){
+    constructor(item, avatar){
         item.type = 'value'
-        super(item, avatar, llmServices)
+        super(item, avatar)
     }
 }
 /* Share classes */
@@ -936,7 +941,7 @@ async function mSaveConversation(Conversation, factory){
     } = Conversation
     let messages = Conversation.getMessages(false, true)
     messages = messages
-        .map(_msg=>_msg.micro)
+        .map(_msg=>_msg.messageCore)
     if(!isSaved){
         const _newConversation = {
             being,

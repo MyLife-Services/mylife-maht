@@ -31,6 +31,11 @@ class Dataservices {
      */
     #Datamanager
     /**
+     * Shared global utilities injected at construction time (validation, document helpers, etc.).
+     * @private
+     */
+    #Globals
+    /**
      * Identifies a specific partition or segment of the data storage
      * that this instance of Dataservices interacts with. Useful for multi-tenant
      * architectures or when data is sharded.
@@ -47,9 +52,12 @@ class Dataservices {
     /**
      * Constructor for Dataservices class.
      * @param {string} _mbr_id - Member ID to partition data.
+     * @param {Globals} Globals - Shared global utilities instance.
      */
-	constructor(_mbr_id){
+	constructor(_mbr_id, Globals){
 		this.#partitionId = _mbr_id
+		this.#Globals = Globals
+		this.#Datamanager = new Datamanager(this.#partitionId)
 	}
     /**
      * Initializes the Datamanager instance and sets up core data.
@@ -58,10 +66,9 @@ class Dataservices {
      * @returns {Dataservices} The instance of Dataservices.
      */
 	async init(){
-		this.#Datamanager = new Datamanager(this.#partitionId)
 		await this.#Datamanager.init()
 		const _excludeProperties = { '_none': true, }	//	populate if exclusions are required
-		const core = Object.entries(this.datamanager.core)	//	array of arrays
+		const core = Object.entries(this.#Datamanager.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
 				const _charExlusions = ['_','@','$','%','!','*',' ']
 				return !(
@@ -78,12 +85,6 @@ class Dataservices {
 	//	getters/setters
 	get core(){
 		return this.#core
-	}
-	get datamanager(){
-		return this.#Datamanager
-	}
-	get globals(){
-		return this.datamanager.globals
 	}
 	get id(){
 		return this.partitionId.split('|')[1]
@@ -106,7 +107,7 @@ class Dataservices {
 	async addAvatar(core){
 		if(!this.isMyLife)
 			throw new Error('MyLife avatar required for addAvatar()', this.mbr_id)
-		return await this.pushItem(mAvatarProperties(core, this.globals))
+		return await this.pushItem(mAvatarProperties(core, this.#Globals))
 	}
 	/**
 	 * Upon MyLife account creation, generates `core` and saves to database.
@@ -126,7 +127,7 @@ class Dataservices {
 			being: 'core',
 			id,
 			form: 'human',
-			name: this.globals.createDocumentName(mbr_id, id, 'core'),
+			name: this.#Globals.createDocumentName(mbr_id, id, 'core'),
 			mbr_id,
 		}
 		core = await this.pushItem(core)
@@ -218,7 +219,7 @@ class Dataservices {
 	 * @returns {Promise<boolean>} - `true` if challenge is successful
      */
 	async challengeAccess(mbr_id, passphrase, caseInsensitive){
-		return await this.datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
+		return await this.#Datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
 	}
 	/**
 	 * Proxy to retrieve stored actions.
@@ -370,7 +371,7 @@ class Dataservices {
 		const { id, type, } = bot
 		if(!type?.length)
 			throw new Error('ERROR::createBot::Bot `type` required.')
-		if(!this.globals.isValidGuid(id))
+		if(!this.#Globals.isValidGuid(id))
 			bot.id = this.newGuid
 		bot.being = 'bot'
 		/* create bot */
@@ -388,7 +389,7 @@ class Dataservices {
 	async deleteItem(id, containerId, partitionId=this.mbr_id){
 		if(!id?.length)
 			return false
-		const success = await this.datamanager.deleteItem(id, containerId, partitionId)
+		const success = await this.#Datamanager.deleteItem(id, containerId, partitionId)
 		return success
 	}
 	async findRegistrationByEmail(_email){
@@ -430,7 +431,7 @@ class Dataservices {
 		]
 		const query = `SELECT * FROM c WHERE c.being = @being AND @currentDate >= c.timestampRange['start'] AND @currentDate <= c.timestampRange['end']`
 
-		return await this.datamanager.getItems(
+		return await this.#Datamanager.getItems(
 			{ query: query, parameters: paramsArray },
 			'system',
 		)
@@ -501,7 +502,7 @@ class Dataservices {
 		if(!id)
 			return null
 		try{
-			return await this.datamanager.getItem(
+			return await this.#Datamanager.getItem(
 				id,
 				container_id,
 				{ partitionKey: mbr_id, populateQuotaInfo: false, },
@@ -586,7 +587,7 @@ class Dataservices {
 				query += appendValue
 		})
 		try {
-			const items = await this.datamanager.getItems(
+			const items = await this.#Datamanager.getItems(
 				{ query: query, parameters: paramsArray, },
 				container_id,
 				{
@@ -625,7 +626,7 @@ class Dataservices {
 	 * @returns {Promise<Array>} - Array of string ids, one for each hosted member.
 	 */
 	async hostedMembers(validations){
-		return await this.datamanager.hostedMembers(validations)
+		return await this.#Datamanager.hostedMembers(validations)
 	}
 	/**
 	 * Patches an item by its ID with the provided data.
@@ -680,7 +681,7 @@ class Dataservices {
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
 	async patchItem(id, data, containerId, partitionId, etag){
-		return await this.datamanager.patchItem(id, data, containerId, partitionId, etag)
+		return await this.#Datamanager.patchItem(id, data, containerId, partitionId, etag)
 	}
     /**
      * Pushes a new item to the data manager.
@@ -691,7 +692,7 @@ class Dataservices {
      * @returns {Promise<Object>} The result of the push operation
      */
 	async pushItem(data, containerId){
-		return await this.datamanager.pushItem(data, containerId)
+		return await this.#Datamanager.pushItem(data, containerId)
 	}
     /**
      * Allows member to reset passphrase.
@@ -722,7 +723,7 @@ class Dataservices {
 	 * @returns {object} - The share object from database with Item in-built
 	 */
 	async share(sid, type){
-		const shared = await this.datamanager.share(sid, type)
+		const shared = await this.#Datamanager.share(sid, type)
 		return shared
 	}
 	/**
@@ -734,7 +735,7 @@ class Dataservices {
 	async testPartitionKey(mbr_id){
 		if(!this.isMyLife)
 			return false
-		return await this.datamanager.testPartitionKey(mbr_id)
+		return await this.#Datamanager.testPartitionKey(mbr_id)
 	}
 	/**
 	 * Sets a bot in the database.
@@ -762,7 +763,7 @@ class Dataservices {
 			throw new Error(`Registration not found: ${ candidateId }`)
 		const { avatarName, id, } = candidate
 		if(id?.length){
-			candidate.mbr_id = this.globals.createMbr_id(avatarName, id) // overwrites MyLife mbr_id
+			candidate.mbr_id = this.#Globals.createMbr_id(avatarName, id) // overwrites MyLife mbr_id
 			const exists = await this.testPartitionKey(candidate.mbr_id)
 			if(exists)
 				throw new Error('Registrant already a member!')
@@ -772,7 +773,7 @@ class Dataservices {
 	}
 	/* getters/setters */
 	get newGuid(){
-		return this.globals.newGuid
+		return this.#Globals.newGuid
 	}
 }
 /* modular functions */
@@ -783,10 +784,10 @@ class Dataservices {
  * @property {Guid} avatarId - Avatar id
  * @property {Guid} id - Member core id
  * @property {string} mbr_id - Member id
- * @param {object} globals - Globals object
+ * @param {object} Globals - Globals object
  * @returns {object} - Avatar property data package
  */
-function mAvatarProperties(core, globals){
+function mAvatarProperties(core, Globals){
 	const {
 		avatarId: id,
 		avatarName,
@@ -797,7 +798,7 @@ function mAvatarProperties(core, globals){
 	} = core
 	const being = 'avatar'
 	const nickname = avatarName
-		?? globals.sysName(mbr_id)
+		?? Globals.sysName(mbr_id)
 	const name = `avatar_${ nickname }_${ id }`
 	const object_id = id
 	const parent_id = object_id

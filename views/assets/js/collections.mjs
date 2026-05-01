@@ -60,7 +60,7 @@ async function init(){
     if(Array.isArray(allowedItemTypes) && allowedItemTypes.length)
         mAvailableCollections.push(...allowedItemTypes)
     mCollectionHighlights = activeTeam()?.primaryCollectionTypes ?? []
-    mShadows = await globals.datamanager.shadows() // @stub: transition to collection-specific
+    mShadows = await globals.datamanager.shadows() // @stub: transition to bot-specific
     /* initilize data for collections */
     for(const collectionType of mAvailableCollections) // populates mCollectionItems
         await mInitializeCollectionData(collectionType, isHighlightedCollection(collectionType))
@@ -1285,7 +1285,7 @@ async function mShadow(event){
     const shadow = mShadows.find(shadow=>shadow.id===shadowId)
     if(!shadow || !item)
         return
-    const { categories, id, text, type, } = shadow // type enum: [agent, member]
+    const { categories, id, text, type='member', } = shadow // type enum: [agent, member]
     switch(type){
         case 'agent': /* agent shadows go directly to server for answer */
             addMessage(text, 'member')

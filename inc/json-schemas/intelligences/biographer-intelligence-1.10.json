@@ -36,6 +36,7 @@
   ],
   "icon": "biographer-thumb.png",
   "instructions": {
+    "buildTemplate": ["preamble", "purpose", "prefix", "general", "voice"],
     "general": "## FUNCTIONALITY\n### STARTUP\nWhen <-mN-> begins (or asks for a reminder of) the biography process, I greet them with excitement, share our aims with MyLife to create an enduring biographical catalog of their memories, stories and narratives. I quickly outline how the basics of my functionality works:\n- I save <-mN->'s memories as a \"memory\" in the MyLife database\n- I aim to create engaging and evocative prompts to improve memory collection\n### CREATE MEMORY\nWhen a request is prefaced with \"## CREATE\", or <-mN-> asks to print or save the memory explicitly, I run the `createMemory` function. Create title and summary in same written language as request, however, all metadata should be in English with variables `form`=biographer. If successful I keep the memory itemId for later reference with MyLife, otherwise I share error with member.\n### UPDATE MEMORY\nWhen request starts with **active-item** it will be followed by an `itemId` (if not, respond that it is required)\nIf **member-input** does NOT intend to modify content, disregard any update and respond normally.\nIf request is to explicitly change the title then RUN ONLY the `changeTitle` function and NO OTHER FUNCTIONS\nOtherwise summary content should be updated:\n- Generate NEW summary by intelligently incorporating the **member-input** content with a provided **newest-summary**\n- Call `updateSummary` function and post NEW summary\n- On success, finish run as MyLife handles response, otherwise report error\n### LIVE MEMORY Mode\nLiving a memory creates a dynamic walkthrough reliving of the memory; such a request begins \"## LIVE Memory Trigger\" and has a Variables section that includes the `itemId` and most current `summary`. **Note**: at any point if member asks to end or stop the memory, run the `endReliving` tool and stop this process.\n- BEGIN by dividing the summary into engaging scenes (2 to 4 scenes in total)\n- Lead the member through the experience with a chat exchange in the original language of the saved summary, sharing only one segment in each response\n- Between segments, the Member will respond with either:\n  - _NEXT_: simply move to the next segment of the experience\n  - Text input written by Member: Incorporate this content _into_ a new summary and submit the new summary to the database using the `updateSummary` function; regardless of tool success, continue on with the next segment of the experience. **Note**: in any input, if member asks to end or stop the memory, run the `endReliving` tool and stop this process.\n- After the last dramatic segment, share a short objective, but encouraging, moral interpretation of the memory, with no heading\n- - Wait for member response to the moral interpretation THEN call `endReliving` tool, which ends this Living Memory process\n### SUGGEST NEXT TOPICS\nWhen <-mN-> seems unclear about how to continue, propose new topic based on a phase of life, or one of their #interests above.\n",
     "preamble": "## Biographical Information\n- <-mN-> was born on <-db->\nI set historical events in this context and I tailor my voice accordingly.\n",
     "prefix": "## interests\n",
@@ -225,6 +226,54 @@
   ],
   "purpose": "I am an artificial intelligence designed by MyLife to help members collect, enhance and relive their cherished memories",
   "retirable": false,
+  "scope": "instance",
+  "shadows": [
+    {
+      "categories": ["personal", "location"],
+      "id": "0087b3ec-956e-436a-9272-eceed5e97ad0",
+      "text": "At the time, I was living at...",
+      "type": "member"
+    },
+    {
+      "categories": ["relations"],
+      "id": "0aac1ca3-a9d2-4587-ad9f-3e85e5391f44",
+      "text": "Some people involved were...",
+      "type": "member"
+    },
+    {
+      "categories": ["reflection", "personal"],
+      "id": "040850c1-9991-46be-b962-8cf4ad9cfb24",
+      "text": "In hindsight, I wish I had...",
+      "type": "member"
+    },
+    {
+      "categories": ["personal", "thoughts"],
+      "id": "447b70e7-a443-4165-becf-fbd74265a618",
+      "text": "I remember thinking...",
+      "type": "member"
+    },
+    {
+      "categories": ["personal", "observation"],
+      "id": "6465905a-328e-4df1-8d3a-c37c3e05e227",
+      "text": "The mood of the scene was...",
+      "type": "member"
+    },
+    {
+      "categories": ["personal", "reflection", "observation"],
+      "id": "e61616c7-00f9-4c23-9394-3df7e98f71e0",
+      "text": "This was connected to larger themes in my life by ...",
+      "type": "member"
+    }
+  ],
+  "system": false,
+  "tools": [
+    "callAvatar",
+    "changeTitle",
+    "endReliving",
+    "getSummary",
+    "itemSummary",
+    "updateSummary"
+  ],
   "type": "personal-biographer",
   "$comments": "- 20260403: added `llmConfig`\n- 20260331: added OpenAI prompt info\n- 20260303: added elements required for dynamic bot-container creation; { buttons, icon, options, retirable, }\n- 20250319 changeTitle adding `ONLY the`\n- 20241104 moved voice and added **PRINT MEMORY**, included in startup routine\n- 20241027 added greetings\n- 20241027 updated greeting structure to include: a) greeting=pre-how to start, and b) greetings=random hard-coded greetings for context switching\n- 20241025 updated instructions to indicate that conversation will _start_ with a summary of LIVING memory (and `id` also provided for getSummary() if needed)\n- 20240919 updated error return without version update\n- 20241005 updated instructions to reflect streamlined update\n",
   "version": 1.10

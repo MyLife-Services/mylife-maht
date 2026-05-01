@@ -142,6 +142,7 @@ _Router.get('/privacy-policy', privacyPolicy)
 _Router.get('/routine', routine)
 _Router.get('/routine/:rid', routine)
 _Router.get('/shadows', shadows)
+_Router.get('/shadows/:bid', shadows)
 _Router.get('/signup', status_signup)
 _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous

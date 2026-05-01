@@ -1,5 +1,4 @@
 /* imports */
-import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import EventEmitter from 'events'
 import nodemailer from 'nodemailer'
@@ -7,6 +6,7 @@ import util from 'util'
 import vm from 'vm'
 import { Avatar, Q, } from './avatar.mjs'
 import Dataservices from './dataservices.mjs'
+import Globals from './globals.mjs'
 import LLMServices from './llm.mjs'
 import Menu from './menu.mjs'
 import { Conversation, Message } from './models.mjs'
@@ -16,10 +16,9 @@ const {
 	MAHT_EMAIL_PASSWORD,
 	MYLIFE_SERVER_MBR_ID: mPartitionId,
 } = process.env
-const mDataservices = await new Dataservices(mPartitionId).init()
-const mDisallowedCoreKeys = ['avatar_id', 'mbr_id', 'id', 'being'] // keys that cannot be reset in `.core`
 const mBotInstructions = {}
 const mDefaultBotType = 'personal-avatar'
+const mDisallowedCoreKeys = ['avatar_id', 'mbr_id', 'id', 'being'] // keys that cannot be reset in `.core`
 const mExcludeProperties = {
 	$schema: true,
 	$id: true,
@@ -28,17 +27,7 @@ const mExcludeProperties = {
 	definitions: true,
 	name: true
 }
-const mGeneralBotLLMProvider = {
-	id: 'pmpt_69cf2f27034c8197a8f4e9daf045f5fc0d2cca8567b4c8cb',
-	model: 'gpt-4o-nano',
-	provider: 'openai',
-	type: 'prompt',
-	variables: {
-		id: null,
-		summary: null,
-	},
-	version: 1
-}
+const mGlobals = new Globals()
 const mLLMServices = new LLMServices()
 const mMailer = nodemailer.createTransport({
     service: 'gmail',
@@ -47,71 +36,8 @@ const mMailer = nodemailer.createTransport({
         pass: MAHT_EMAIL_PASSWORD,   // App-specific password or OAuth token
     }
 })
-const mPath = './inc/json-schemas'
 const mReservedJSCharacters = [' ', '-', '!', '@', '#', '%', '^', '&', '*', '(', ')', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', "'", '<', '>', ',', '.', '?', '/', '~', '`']
 const mReservedJSWords = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'enum', 'await', 'implements', 'package', 'protected', 'interface', 'private', 'public', 'null', 'true', 'false', 'let', 'static']
-const mShadows = [
-	{
-		being: 'shadow',
-		categories: ['personal', 'location'],
-		form: 'story',
-		id: '0087b3ec-956e-436a-9272-eceed5e97ad0',
-		name: 'shadow_0087b3ec-956e-436a-9272-eceed5e97ad0',
-		proxy: '/shadow',
-		text: `At the time, I was living at...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['relations',],
-		form: 'story',
-		id: '0aac1ca3-a9d2-4587-ad9f-3e85e5391f44',
-		name: 'shadow_0aac1ca3-a9d2-4587-ad9f-3e85e5391f44',
-		proxy: '/shadow',
-		text: `Some people involved were...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['reflection', 'personal'],
-		form: 'story',
-		id: '040850c1-9991-46be-b962-8cf4ad9cfb24',
-		name: 'shadow_040850c1-9991-46be-b962-8cf4ad9cfb24',
-		proxy: '/shadow',
-		text: `In hindsight, I wish I had...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['personal', 'thoughts'],
-		form: 'story',
-		id: '447b70e7-a443-4165-becf-fbd74265a618',
-		name: 'shadow_447b70e7-a443-4165-becf-fbd74265a618',
-		proxy: '/shadow',
-		text: `I remember thinking...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['personal', 'observation'],
-		form: 'story',
-		id: '6465905a-328e-4df1-8d3a-c37c3e05e227',
-		name: 'shadow_6465905a-328e-4df1-8d3a-c37c3e05e227',
-		proxy: '/shadow',
-		text: `The mood of the scene was...`,
-		type: 'member',
-	},
-	{
-		being: 'shadow',
-		categories: ['personal', 'reflection', 'observation'],
-		form: 'story',
-		id: 'e61616c7-00f9-4c23-9394-3df7e98f71e0',
-		name: 'shadow_e61616c7-00f9-4c23-9394-3df7e98f71e0',
-		proxy: '/shadow',
-		text: `This was connected to larger themes in my life by ...`,
-		type: 'member',
-	},
-]
 const vmClassGenerator = vm.createContext({
 	exports: {},
 	console: console,
@@ -122,20 +48,23 @@ const vmClassGenerator = vm.createContext({
 //	eventEmitter: EventEmitter,
 })
 /* dependent constants and functions */
-const mActor = await mDataservices.bot(undefined, 'actor')
-const mActorQ = await mDataservices.bot(undefined, 'personal-avatar')
+// MyLife Datamanager
+const mDataservices = await new Dataservices(mPartitionId, mGlobals).init()
+// MyLife constructs
 const mAlerts = {
 	system: await mDataservices.getAlerts(), // not sure if we need other types in global module, but feasibly historical alerts could be stored here, etc.
 }
 // @todo: capitalize hard-codings as per actual schema classes
 const mSchemas = {
-	...await mLoadSchemas(),
+	...await mBuildSchemas(),
 	dataservices: Dataservices,
 	menu: Menu,
 }
 /* module construction functions */
 mConfigureSchemaPrototypes()
 await mPopulateBotInstructions() // populates mBotInstructions
+/* modular infrastructure bots */
+const mGeneralFunctioneer = mBotInstructions['general-functioneer']
 /* logging/reporting */
 console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
 /* module classes */
@@ -160,7 +89,7 @@ class BotFactory extends EventEmitter{
 	 */
 	async init(_mbr_id=this.mbr_id){
 		this.#mbr_id = _mbr_id
-		this.#dataservices = new Dataservices(this.mbr_id)
+		this.#dataservices = new Dataservices(this.mbr_id, mGlobals)
 		await this.#dataservices.init()
 		this.core.avatar_id = this.core.avatar_id
 			?? (await this.dataservices.getAvatar())?.id
@@ -193,83 +122,13 @@ class BotFactory extends EventEmitter{
 		)
 	}
 	/**
-	 * Returns bot buttons for a given bot type, if they exist in the bot instructions.
+	 * Returns bot shadows for a given bot type, if they exist in the bot instructions.
 	 * @public
 	 * @param {string} type - The bot type
-	 * @return {object[]} - The bot buttons
+	 * @returns {object[]} - The bot shadows
 	 */
-	botButtons(type){
-		return mBotInstructions[type]?.buttons
-			?? []
-	}
-	/**
-	 * Returns bot icon URL for a given bot type, if it exists in the bot instructions.
-	 * @param {string} type - The bot type
-	 * @returns {string} - The bot icon URL
-	 */
-	botIcon(type){
-		return mBotInstructions[type]?.icon
-	}
-	/**
-	 * Returns bot instruction set.
-	 * @public
-	 * @param {string} type - The bot type
-	 * @returns {object} - The bot instructions
-	 */
-	botInstructions(type='personal-avatar'){
-		return mBotInstructions[type]
-			?? {}
-	}
-	/**
-	 * Returns bot instructions version.
-	 * @param {string} type - The bot type.
-	 * @returns {number} - The bot instructions version.
-	 */
-	botInstructionsVersion(type){
-		return mBotInstructions[type]?.version
-			?? 1.0
-	}
-	/**
-	 * Returns bot item forms, which are the various content forms that a bot can utilize for output, such as memory, chat, entry, stance, etc. If not specified in the bot instructions, defaults to an empty array.
-	 * @param {string} type - The bot type
-	 * @returns {Array} - The bot item forms by string
-	 */
-	botItemForms(type){
-		return mBotInstructions[type]?.itemForms
-			?? []
-	}
-	/**
-	 * Returns bot LLM provider properties, which are the properties of the LLM that the bot utilizes, such as provider, model, and prompt. If not specified in the bot instructions, defaults to an empty object.
-	 * @param {string} type - The bot type
-	 * @param {string} provider - Chosen LLM provider (optional)
-	 * @return {object|null} - The LLM properties (for specific provider): { id, model, provider, type, variables, version, }
-	 */
-	botLLMProvider(type, provider){
-		const { defaultProvider, providers, variables, } = mBotInstructions[type]?.llmProviders ?? {}
-		let providerConfig = null
-		provider = provider ?? defaultProvider
-		providerConfig = providers?.find(p=>p.provider===provider) ?? providers?.[0]
-		if(providerConfig && variables)
-			providerConfig = { ...providerConfig, variables, }
-		return providerConfig
-	}
-	/**
-	 * Returns bot options, which are a distilled version of the bot instructions meant to be more easily parsed by a bot instance and used for decision-making and prompting.
-	 * @public
-	 * @param {string} type - The bot type
-	 * @return {object[]} - The bot options
-	 */
-	botOptions(type){
-		return mBotInstructions[type]?.options
-			?? []
-	}
-	/**
-	 * Returns bot retirability, which indicates whether the bot can be retired by the member or not. If not specified in the bot instructions, defaults to `true`.
-	 * @param {string} type - The bot type
-	 * @returns {boolean} - The bot retirability
-	 */
-	botRetirable(type){
-		return mBotInstructions[type]?.retirable
+	botShadows(type){
+		return this.botTemplate(type)?.shadows ?? []
 	}
 	/**
 	 * Gets a member's bots, or specific bot types.
@@ -291,6 +150,115 @@ class BotFactory extends EventEmitter{
 			_params,
 		)
 		return bots
+	}
+	/**
+	 * Returns bot buttons for a given bot type, if they exist in the bot instructions.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @return {object[]} - The bot buttons
+	 */
+	botButtons(type){
+		return this.botTemplate(type)?.buttons ?? []
+	}
+	/**
+	 * Returns bot icon URL for a given bot type, if it exists in the bot instructions.
+	 * @param {string} type - The bot type
+	 * @returns {string} - The bot icon URL
+	 */
+	botIcon(type){
+		return this.botTemplate(type)?.icon
+	}
+	/**
+	 * Returns bot instructions fully personalized.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @returns {string} - The bot instructions
+	 */
+	botInstructions(type){
+		const { instructions, } = this.botTemplate(type) ?? {}
+		return mBuildBotInstructions(instructions)
+	}
+	/**
+	 * Returns bot instructions version.
+	 * @param {string} type - The bot type.
+	 * @returns {number} - The bot instructions version.
+	 */
+	botInstructionsVersion(type){
+		return this.botTemplate(type)?.version ?? 1.0
+	}
+	/**
+	 * Returns bot item forms, which are the various content forms that a bot can utilize for output, such as memory, chat, entry, stance, etc. If not specified in the bot instructions, defaults to an empty array.
+	 * @param {string} type - The bot type
+	 * @returns {Array} - The bot item forms by string
+	 */
+	botItemForms(type){
+		return this.botTemplate(type)?.itemForms ?? []
+	}
+	/**
+	 * Returns bot LLM provider properties, which are the properties of the LLM that the bot utilizes, such as provider, model, and prompt. If not specified in the bot instructions, defaults to an empty object.
+	 * @param {string} type - The bot type
+	 * @param {string} provider - Chosen LLM provider (optional)
+	 * @return {object|null} - The LLM properties (for specific provider): { id, model, provider, type, variables, version, }
+	 */
+	botLLMProvider(type, provider){
+		const { defaultProvider, providers, variables, } = this.botTemplate(type)?.llmProviders ?? {}
+		let providerConfig = null
+		provider = provider ?? defaultProvider
+		providerConfig = providers?.find(p=>p.provider===provider) ?? providers?.[0]
+		if(providerConfig && variables)
+			providerConfig = { ...providerConfig, variables, }
+		return providerConfig
+	}
+	/**
+	 * Returns bot options, which are a distilled version of the bot instructions meant to be more easily parsed by a bot instance and used for decision-making and prompting.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @return {object[]} - The bot options
+	 */
+	botOptions(type){
+		return this.botTemplate(type)?.options ?? []
+	}
+	/**
+	 * Returns bot retirability, which indicates whether the bot can be retired by the member or not. If not specified in the bot instructions, defaults to `true`.
+	 * @param {string} type - The bot type
+	 * @returns {boolean} - The bot retirability
+	 */
+	botRetirable(type){
+		return this.botTemplate(type)?.retirable ?? false
+	}
+	/**
+	 * Returns bot shadows for a given bot type, if they exist in the bot instructions.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @returns {object[]} - The bot shadows
+	 */
+	botShadows(type){
+		return this.botTemplate(type)?.shadows ?? []
+	}
+	/**
+	 * Returns bot complete build Template.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @returns {object[]} - The bot shadows
+	 */
+	botTemplate(type=mDefaultBotType){
+		return mBotInstructions[type] ?? {}
+	}
+	/**
+	 * Returns bot toolset, either as a direct array or a completed JSON version of tool specifics from JSON-SCHEMA files.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @param {boolean} expanded - Whether to return full tool instructions or not; defaults to `true`
+	 * @return {object[]} - The bot tools, either as an array of tool names or an array of tool instruction objects depending on `expanded` parameter
+	 */
+	botTools(type, expanded=true){
+		const toolSet = mBotInstructions[type]?.tools ?? []
+		if(!expanded)
+			return toolSet
+		const tools = toolSet
+			.map(toolName=>this.tools[toolName])
+			.filter(Boolean)
+		return tools
 	}
 	/**
 	 * Accesses Dataservices to challenge access to a member's account.
@@ -326,7 +294,7 @@ class BotFactory extends EventEmitter{
 		if(anonymous)
 			prompt += `- anonymous=true\n- memberName=${ memberName }\n`
 		prompt += `- pov=${ pov }\n- summary: ${ summary }`
-		response = await this.#llmServices.getLLMResponse(undefined, mGeneralBotLLMProvider, prompt, this, Avatar) // response = { preparedSummary, success, warnings, }
+		response = await this.#llmServices.getLLMResponse(undefined, mGetProvider(mGeneralFunctioneer?.llmProviders), prompt, this, Avatar) // response = { preparedSummary, success, warnings, }
 		if(Array.isArray(response))
 			response = response[0] // flatten
 		shareData = {
@@ -359,8 +327,7 @@ class BotFactory extends EventEmitter{
      * @returns {object} - The Response object { instruction, responses, success, }
      */
 	async evaluate(itemId, llmProvider, Avatar){
-		const { id, summary, } = await this.item(itemId)
-			?? {}
+		const { id, summary, } = await this.item(itemId) ?? {}
 		if(!id || !summary?.length){
 			Avatar.backupResponses = {
 				agent: Avatar.activeBot.type,
@@ -495,7 +462,7 @@ class BotFactory extends EventEmitter{
 			return false
 		}
 		const prompt = `# OBSCURE`
-		const provider = { ...mGeneralBotLLMProvider, variables: { id, summary, }, }
+		const provider = { ...mGetProvider(mGeneralFunctioneer?.llmProviders), variables: { id, summary, }, }
 		await mLLMServices.getLLMResponse(undefined, provider, prompt, this, Avatar)
 		return true
 	}
@@ -511,14 +478,6 @@ class BotFactory extends EventEmitter{
             throw new Error('Passphrase required for reset.')
         return await this.dataservices.resetPassphrase(passphrase)
     }
-	/**
-	 * Gets the list of shadows.
-	 * @param {Guid} itemId - The itemId (or type?) to filter shadow return.
-	 * @returns {object[]} - The shadows.
-	 */
-	async shadows(itemId){
-		return mShadows
-	}
 	/**
 	 * Gets a collection of stories of a certain format.
 	 * @param {string} form - The form of the stories to retrieve
@@ -557,12 +516,6 @@ class BotFactory extends EventEmitter{
 		return bot
 	}
 	/* getters/setters */
-	get actor(){
-		return mActor
-	}
-	get actorQ(){
-		return mActorQ
-	}
 	get avatarId(){
 		return this.core?.avatar_id
 	}
@@ -599,7 +552,14 @@ class BotFactory extends EventEmitter{
 		return this
 	}
 	get globals(){
-		return this.dataservices.globals
+		return mGlobals
+	}
+	/**
+	 * Returns the full tool registry, keyed by tool function name.
+	 * @returns {object}
+	 */
+	get tools(){
+		return mGlobals.botTools
 	}
 	/**
 	 * Returns whether or not the factory is the MyLife server, as various functions are not available to the server and some _only_ to the server.
@@ -608,7 +568,7 @@ class BotFactory extends EventEmitter{
 	get isMyLife(){
 		return mIsMyLife(this.mbr_id)
 	}
-	/**
+		/**
 	 * Returns the ExperieceLived class definition.
 	 * @returns {object} - The ExperienceLived class definition.
 	 */
@@ -1339,6 +1299,20 @@ function assignClassPropertyValues(propertyDefinition){
 			}
 	}
 }
+/**
+ * Builds bot instructions from a template or general instructions. If a build template is provided, it will concatenate the specified sections of the instructions. If no build template is provided, it will use the general instructions.
+ * @param {object} instructions - The instructions object containing buildTemplate and general instructions
+ * @returns {string} - The concatenated instructions string
+ */
+function mBuildBotInstructions(instructions){
+	const { buildTemplate=['general'], } = instructions
+	instructions = buildTemplate
+		.map(section=>instructions[section])
+		.filter(Boolean)
+		.join('')
+		.trim()
+	return instructions
+}
 function mBytes(_object){
 	return util.inspect(_object).length
 }
@@ -1363,7 +1337,7 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
  * @param {Avatar} Avatar - The Avatar instance to use for evaluation
  * @returns {object} - The evaluation result, including success status and responses
  */
-async function mEvaluateItem(summary, llmProvider=mGeneralBotLLMProvider.llmProvider, Factory, Avatar){
+async function mEvaluateItem(summary, llmProvider=mGetProvider(mGeneralFunctioneer?.llmProviders), Factory, Avatar){
 	let evaluation = {
 		responses: [],
 		success: false,
@@ -1495,6 +1469,17 @@ function mGenerateClassFromSchema(_schema) {
 	return _class
 }
 /**
+ * Retrieves the specified LLM provider from the list of available providers.
+ * @param {object} llmProviders - llmProviders object
+ * @param {string} providerName - specific provider name (optional); defaults to `providers.defaultProvider` ?? 'openai'
+ * @returns {object|null} - The specified LLM provider
+ */
+function mGetProvider(llmProviders, providerName=llmProviders?.defaultProvider ?? 'openai'){
+	const { providers=[], } = llmProviders ?? {}
+	const provider = providers.find(p =>p.provider===providerName)
+	return provider ?? null
+}
+/**
  * Take help request about MyLife and consults appropriate engine for response.
  * @requires mLLMServices - equivalent of default MyLife dataservices/factory
  * @param {string} conversation_id - The provider's conversation id
@@ -1516,34 +1501,24 @@ async function mHelp(conversation_id, llmProvider, helpRequest, Factory, Avatar)
 function mIsMyLife(_mbr_id){
 	return _mbr_id===mPartitionId
 }
-async function mLoadSchemas(){
-	try{
-		let _filesArray = await (fs.readdir(mPath))
-		_filesArray = _filesArray.filter(_filename => _filename.split('.')[1] === 'json')
-		const _schemasArray = (await Promise.all(
-			_filesArray.map(
-				async _filename => {
-					const _file = await fs.readFile(`${mPath}/${_filename}`, 'utf8')
-					const _fileContent = JSON.parse(_file)
-					let _classArray = mSanitizeSchema(_fileContent)
-					// generate classes from schema array
-					_classArray = _classArray.map(_class => {
-						const _classObject = mGenerateClassFromSchema(_class)
-						return _classObject
-					})
-					return _classArray
-				}
-			)
-		))
-			.flat()
-		const _schemasObject =  _schemasArray.reduce((_schema, _class) => {
-			_schema[_class.name] = _class
-			return _schema
+/**
+ * Builds the schemas object by loading raw JSON from globals and processing each through the sanitize/generate pipeline.
+ * @returns {Promise<object>} - Object keyed by class name, value is the generated class
+ */
+async function mBuildSchemas(){
+	const rawSchemas = await mGlobals.schemas
+	const classArray = rawSchemas
+		.flatMap(schema=>{
+			try { return mSanitizeSchema(schema) }
+			catch(_){ return [] }
+		})
+		.map(cls => mGenerateClassFromSchema(cls))
+	const schemas = classArray
+		.reduce((obj, cls) => {
+			obj[cls.name] = cls
+			return obj
 		}, {})
-		return _schemasObject
-	} catch(err){
-		console.log(err)
-	}
+	return schemas
 }
 /**
  * Populates the `mBotInstructions` object with instruction sets retrieved from the dataservices. Each instruction set is categorized by its `type` property, allowing for organized access to different types of bot instructions.
@@ -1551,11 +1526,11 @@ async function mLoadSchemas(){
  * @returns {Promise<void>} - Resolves when the bot instructions have been populated in modular space
  */
 async function mPopulateBotInstructions(){
-	const instructionSets = await mDataservices.botInstructions()
-	instructionSets
-		.forEach(instructionSet=>{
-			const { type, } = instructionSet
-			mBotInstructions[type] = instructionSet
+	const botTemplates = await mDataservices.botInstructions()
+	botTemplates
+		.forEach(template=>{
+			const { type, } = template
+			mBotInstructions[type] = template
 		})
 }
 /**

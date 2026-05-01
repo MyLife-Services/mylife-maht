@@ -2,9 +2,7 @@
 //	import { DefaultAzureCredential } from "@azure/identity"
 import { CosmosClient } from '@azure/cosmos'
 import Config from './datasource-config.mjs'
-import Globals from './globals.mjs'
 /* module constants */
-const mGlobals = new Globals()
 //	define class
 class Datamanager {
 	#containers
@@ -173,7 +171,7 @@ class Datamanager {
 		if(!being?.length)
 			throw new Error('property `being` is required')
 		if(!id?.length)
-			item.id = this.globals.newGuid
+			item.id = crypto.randomUUID()
 		if(!mbr_id?.length)
 			item.mbr_id = this.#partitionId
 		const { resource: doc } = await this.#containers[containerId]
@@ -227,9 +225,6 @@ class Datamanager {
 	*/
 	get core(){
 		return this.#core?.resource
-	}
-	get globals(){
-		return mGlobals
 	}
 	get mbr_id(){
 		return this.core.mbr_id
