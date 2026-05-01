@@ -34,6 +34,7 @@ const mA2AProviders = [
     }
 ]
 const mA2ATimeout = 20000 // 20 seconds
+const mGlobals = new Globals()
 const mHandlers = { /* A2A handlers, represent piping between avatars and performed services/capabilities */
         getMyLifeInfo: async (ctx, params)=>{
             const { avatar: Avatar, } = ctx.state
@@ -108,7 +109,7 @@ try {
 async function a2aCall(ctx){
     const { a2aAgentId, } = ctx.state
     ctx.set('Content-Type', 'application/json')
-    const card = Globals.agentCard(a2aAgentId)
+    const card = mGlobals.agentCard(a2aAgentId)
     const { id, jsonrpc, method, params: { kind, messageId, metadata={}, parts, role, }, } = ctx.request.body
     /* jsonrpc validation */
     if(jsonrpc !== '2.0')
@@ -180,7 +181,7 @@ async function a2aCall(ctx){
  */
 async function a2aCard(ctx){
     const { a2aAgentId, } = ctx.state
-    const card = agentCard(a2aAgentId)
+    const card = mGlobals.agentCard(a2aAgentId)
     ctx.set('Content-Type', 'application/json')
     if(!card)
         return sendError(ctx, 404, -32601, `Agent card not found: ${ a2aAgentId }`, { type: 'not_found' })
@@ -402,7 +403,7 @@ async function addFiletoObject(obj, fileName, dir){
  * @returns {object|null} - The agent card object or null if not found
  */
 function agentCard(agentId){
-    return Globals.agentCard(agentId)
+    return mGlobals.agentCard(agentId)
 }
 async function botProxy(ctx){
     const { avatar: Avatar, } = ctx.state
