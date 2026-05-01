@@ -1088,15 +1088,16 @@ class Avatar extends EventEmitter {
         }
     }
     /**
-     * Request help about MyLife. **caveat** - correct avatar should have been selected prior to calling.
+     * Request help about MyLife
+     * @todo - rewrite to use prompts, modern pipeline
      * @param {string} helpRequest - The help request text
      * @param {string} type - The type of help request
      * @returns {Promise<Object>} - openai `message` objects
      */
     async help(helpRequest, type){
-        const processStartTime = Date.now()
         if(!helpRequest?.length)
             throw new Error('Help request required.')
+        const processStartTime = Date.now()
         helpRequest = mHelpIncludePreamble(type, this.isMyLife) + helpRequest
         const { thread_id, } = this.activeBot
         const { id, llmProvider, } = this.helpBots?.find(bot=>(bot?.subType ?? 'general')===type)
@@ -1947,7 +1948,7 @@ class Avatar extends EventEmitter {
 class Q extends Avatar {
     #connectorAgent // connector agent for MyLife
     #conversations = []
-    #factory // same reference as Avatar, but wish to keep private from public interface; don't touch my factory, man!
+    #factory // same reference as Avatar, but privatized to system avatar
     #hostedMembers = [] // MyLife-hosted members
     #llmServices // ref _could_ differ from Avatar, but for now, same
     #mcp={
@@ -2535,6 +2536,15 @@ class Q extends Avatar {
     async avatarProxy(mbr_id){
         const avatar = await this.#factory.avatarProxy(mbr_id)
         return avatar
+    }
+	/**
+	 * Returns bot complete build Template.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @returns {object[]} - The bot shadows
+	 */
+    botTemplate(type){
+        return this.#factory.botTemplate(type)
     }
 	/**
 	 * Accesses core data to challenge access to a member's account.

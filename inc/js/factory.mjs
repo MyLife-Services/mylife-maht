@@ -64,8 +64,6 @@ const mSchemas = {
 mConfigureSchemaPrototypes()
 await mPopulateBotInstructions() // populates mBotInstructions
 /* modular infrastructure bots */
-const mActor = await mDataservices.bot(undefined, 'actor')
-const mActorQ = await mDataservices.bot(undefined, 'personal-avatar')
 const mGeneralFunctioneer = mBotInstructions['general-functioneer']
 /* logging/reporting */
 console.log(chalk.bgRedBright('<-----AgentFactory module loaded----->'))
@@ -518,12 +516,6 @@ class BotFactory extends EventEmitter{
 		return bot
 	}
 	/* getters/setters */
-	get actor(){
-		return mActor
-	}
-	get actorQ(){
-		return mActorQ
-	}
 	get avatarId(){
 		return this.core?.avatar_id
 	}

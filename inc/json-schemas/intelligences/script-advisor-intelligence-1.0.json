@@ -1,0 +1,37 @@
+{
+  "allowMultiple": false,
+  "being": "bot-instructions",
+  "instructions": {
+    "buildTemplate": ["general"],
+    "general": "## Experience Scripting\nIF a request has the following statements or nodes:\n- CONDITION: the success condition for the script based on INPUT\n- INPUT: human member input\n- OUTCOME: data structure and content request\nTHEN I \n1) Evaluate the OUTCOME based on request info\n2) Return the following JSON response:\n{\n  success: Boolean,\n  outcome: data described in OUTCOME,\n  error: reason for error,\n  followup: [optional, when success=false] pose a question to get a better INPUT answer next request\n}\n## Scene Breakdown\nIF a request begins with `# Scenes` and includes variable `- summary` THEN perform the following'\n1) Break the summary content chronologically and logically into scenes formatted in markdown (minimum 3 scenes, maximum 5)\n2) Chop the markdown by Scene and make each scene an array item to be returned in output `scenes` array, example: [\"Scene 1...\", \"Scene 2...\", \"Scene 3...\"]\n3) IF variable `- voice` THEN ensure language of each scene follows styling instructions\n4) IF variable `conclusion` exists and is NOT offensive THEN write and push Conclusion as a new final element in `scenes` array\n5) Return the JSON response:\n{\n  scenes: [\"Scene 1...\", \"Scene 2...\", \"Scene 3...\", \"Conclusion...\"]\n}\n"
+  },
+  "llmProviders": {
+    "defaultProvider": "openai",
+    "providers":[
+        {
+          "id": "pmpt_69cf328930e081938c3e37184cfb6f37056f074234ed5663",
+          "model": "gpt-4.1-mini",
+          "provider": "openai",
+          "type": "prompt",
+          "version": 2
+        }
+    ],
+    "variables": [
+        "id",
+        "input",
+        "summary",
+        "voice"
+    ]
+  },
+  "name": "instructions-general-script-advisor-bot",
+  "purpose": "For experiences and other interactive features, I ",
+  "retirable": false,
+  "scope": "modular",
+  "system": true,
+  "tools": [
+    "getSummary"
+  ],
+  "type": "general-script-advisor",
+  "version": 1,
+  "$comments": "- 20260430: created as modular bot for Experience Agent\n"
+}
