@@ -179,14 +179,6 @@ class BotFactory extends EventEmitter{
 		return mBuildBotInstructions(instructions)
 	}
 	/**
-	 * Returns bot instructions version.
-	 * @param {string} type - The bot type.
-	 * @returns {number} - The bot instructions version.
-	 */
-	botInstructionsVersion(type){
-		return this.botTemplate(type)?.version ?? 1.0
-	}
-	/**
 	 * Returns bot item forms, which are the various content forms that a bot can utilize for output, such as memory, chat, entry, stance, etc. If not specified in the bot instructions, defaults to an empty array.
 	 * @param {string} type - The bot type
 	 * @returns {Array} - The bot item forms by string
@@ -259,6 +251,14 @@ class BotFactory extends EventEmitter{
 			.map(toolName=>this.tools[toolName])
 			.filter(Boolean)
 		return tools
+	}
+	/**
+	 * Returns bot instructions version.
+	 * @param {string} type - The bot type.
+	 * @returns {number} - The bot instructions version.
+	 */
+	botVersion(type){
+		return this.botTemplate(type)?.version ?? 1.0
 	}
 	/**
 	 * Accesses Dataservices to challenge access to a member's account.
@@ -648,6 +648,20 @@ class AgentFactory extends BotFactory {
 	}
 	async avatarSetupComplete(avatarId){
 		await this.dataservices.patch(avatarId, { setupComplete: true })
+	}
+	/**
+	 * Compacts messages by sending them to the LLM with a prompt to return a condensed version that maintains all important information. This is useful for reducing token usage while preserving key details in conversations.
+	 * @param {string} messages - string-flattened array of messages to compact
+	 * @returns {string} - The compacted message summary
+	 */
+	async compactMessages(messages){
+		const systemInstruction = `I am a summarizer of chat histories. Given a chat message history, I produce a comprehensive summary that preserves all important **member provided facts and other information**, including any GUIDs and associated titles for items. The user in this history is MyLife member ${ this.memberName }, and I am the assistant.`
+		const userContent = `## Summarize this history:\n${ messages }`
+		const model = mGetProvider(mGeneralFunctioneer?.llmProviders)?.model ?? 'gpt-4.1-nano'
+		const { annotations=[], content, } = await mLLMServices.chatCompletion(systemInstruction, userContent, model)
+		if(annotations?.length)
+			content += `\n## Annotations:\n${ annotations.map(a=>a.url_citation?.title + ': ' + a.url_citation?.url).join('\n') }`
+		return content
 	}
 	/**
 	 * Creates a new collection item in the member's container.
