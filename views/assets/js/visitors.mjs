@@ -564,7 +564,7 @@ async function mSubmitInput(event, message){
         return
     event.stopPropagation()
 	event.preventDefault()
-    mGlobals.toggleChatInput(false)
+    mGlobals.toggleMemberInput(false)
     const awaitButton = mGlobals.await('Connecting with Citizens for Rational Government...')
     mGlobals.addChatElement(awaitButton)
     const chatData = {
@@ -574,12 +574,8 @@ async function mSubmitInput(event, message){
 	const { responses, success, } = await mGlobals.datamanager.submitChat(chatData)
     mGlobals.expunge(awaitButton)
     await mAddMessages(responses, 'agent', 2)
-    /*
-	for(const gptMessage of responses)
-		await mAddMessage(gptMessage.message, 'agent', 2)
-    */
     mGlobals.chatInput = null
-    mGlobals.toggleChatInput()
+    mGlobals.toggleMemberInput()
 }
 /**
  * Submits the signup form to the server.
