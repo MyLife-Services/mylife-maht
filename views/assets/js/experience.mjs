@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
                 throw new Error('mInitializePageListeners()::launchExperience::no experience found in `mExperiences`')
             stageTransition(experienceId, false)
         })
-})
+}, { once: true })
 /* public functions */
 /**
  * End experience on server and onscreen.
@@ -251,7 +251,7 @@ async function routine(script, clearChat=false){
     /* execute request */
     if(clearChat || scriptClearChat)
         clearSystemChat()
-    toggleMemberInput(false)
+    toggleMemberInput(false, false)
     document.addEventListener("keydown",e=>{
         if(e.key==='Escape')
             routineEnd()
@@ -263,7 +263,7 @@ async function routine(script, clearChat=false){
         const timer = setTimeout(()=>{
             routineExecute(event)
             if(index===(events.length-1))
-                toggleMemberInput(true)
+                toggleMemberInput(true, false)
             activeTimers.shift()
         }, ( index * pause * 1000 ))
         activeTimers.push(timer)
@@ -307,7 +307,7 @@ async function routine(script, clearChat=false){
     function routineEnd(aborted=true){
         interrupted = true
         activeTimers.forEach(clearTimeout)
-        toggleMemberInput(true)
+        toggleMemberInput(true, false)
         if(aborted)
             addMessage(routineAbortMessage, 'error')
     }
@@ -1017,7 +1017,7 @@ function mToggleInputLane(display=true, hidden=false){
     switch(mBackdrop){
         case 'chat':
         case 'interface':
-            toggleMemberInput(display)
+            toggleMemberInput(display, false)
             break
         case 'full':
         default:

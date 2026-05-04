@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     /* execute Share */
     if(activeShare)
         mShareStart(activeShareId)
-})
+}, { once: true })
 /* public functions */
 function about(){
     mRoutine('about')

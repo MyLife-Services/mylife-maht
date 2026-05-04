@@ -1248,11 +1248,12 @@ class Globals {
     /**
      * Toggles the chat input field.
      * @param {boolean} display - Whether or not to display the chat input field, defaults to `true`
+     * @param {boolean} eraseValue - Whether or not to erase the chat input field value when toggling, defaults to `true`
      * @param {DOMTokenList} classList - Class list of the chat input field to add or remove
      * @returns {void}
      */
-    toggleChatInput(display=true, classList){
-        mToggleChatInput(display, classList)
+    toggleChatInput(display=true, eraseValue=true, classList='slide-up'){
+        mToggleChatInput(display, eraseValue, classList)
     }
     /**
      * Toggles the visibility of an element with option to force state.
@@ -1912,17 +1913,21 @@ function mToggleHelpSubmit(event){
 }
 /**
  * Toggles the chat input container based on `input` or other request.
+ * @requires mChatInputContainer
+ * @requires mChatInputField
  * @param {Boolean} display - Whether to display the chat input container
  * @param {DOMTokenList} classList - Class list to add or remove from the chat input container
+ * @param {Boolean} eraseValue - Whether or not to erase the chat input field value when toggling, defaults to `true`
  * @returns {void}
  */
-function mToggleChatInput(display, classList){
+function mToggleChatInput(display, eraseValue, classList){
+    if(eraseValue)
+        mChatInputField.value = null
     if(display){
-        mShow(mChatInputContainer)
         mChatInputField.focus()
         if(classList)
             mChatInputField.classList.add(classList)
-        mChatInputField.value = null
+        mShow(mChatInputContainer)
     } else {
         mHide(mChatInputContainer)
         mChatInputField.classList.remove('fade-in')

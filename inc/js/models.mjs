@@ -990,9 +990,7 @@ async function mSaveConversation(Conversation, factory){
         thread,
         type,
     } = Conversation
-    let messages = Conversation.messages.map(message=>message.messageCore)
-    messages = messages
-        .map(_msg=>_msg.messageCore)
+    const messages = Conversation.messages.map(message=>message.messageCore)
     if(!isSaved){
         const _newConversation = {
             being,
