@@ -51,7 +51,6 @@ import {
 	alerts,
 	challenge,
 	collections,
-    disclaimer,
 	evaluate,
 	feedback,
 	greetings,

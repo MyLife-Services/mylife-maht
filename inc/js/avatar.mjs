@@ -920,14 +920,6 @@ class Avatar extends EventEmitter {
     async deleteShare(sid){
         return await this.#ShareAgent.delete(sid)
     }
-    /**
-     * Get the disclaimer for the active bot or generic from #botAgent
-     * @param {Guid} botId - The bot id (optional, defaults to active bot)
-     * @returns {object} - The disclaimer response for the bot or system
-     */
-    async disclaimer(botId){
-        return await this.#botAgent.disclaimer(botId)
-    }
 	/**
 	 * Submits a new diary or journal entry to MyLife. Currently called both from API _and_ LLM function.
      * @todo - deprecate to `item` function
