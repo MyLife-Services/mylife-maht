@@ -12,6 +12,7 @@ import Datamanager from "./datamanager.mjs"
  */
 const mAddOnlyArrayFields = new Set([
     'feedback',
+	'messages',
 	'validations',
 ])
 /**
