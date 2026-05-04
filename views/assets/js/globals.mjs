@@ -116,8 +116,8 @@ class Datamanager {
         const response = await this.#fetch(url)
         return response
     }
-    async botActivate(botId){
-        const url = `/members/bots/activate/${ botId }`
+    async botActivate(botId, system=false){
+        const url = `${ !system ? '/members' : '' }/bots/activate/${ botId }`
         const options = {
             method: 'POST',
             headers: {
@@ -795,7 +795,7 @@ class Globals {
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
             mLogoutButton = document.getElementById('navigation-logout')
             mMainContent = document.getElementById('main-content')
-            mNavigation = document.getElementById('page-header')
+            mNavigation = document.getElementById('navigation-container')
             mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')

@@ -44,13 +44,13 @@
                 ...click anywhere to continue...
             </div>
         </div><!-- growing button until bright, and then alpha occluding to cover entire screen except for dialog, if any... -->
-		<nav id="navigation-container" class="top-nav">
-			<% include assets/html/_navbar %>
-		</nav>
 		<div id="alert-container" class="alert-container">
 			<% include assets/html/_alerts %>
 		</div>
 	</div>
+	<nav id="navigation-container" class="top-nav">
+		<% include assets/html/_navbar %>
+	</nav>
 	<div id="main-content" class="main-content hide">
 		<div class="page-container">
 			<%- body %><!-- koa-ejs body inclusion -->
