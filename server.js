@@ -13,9 +13,11 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/factory.mjs'
 /** variables **/
+const version = '0.2.0'
+const app = new Koa()
+const port = process.env.PORT ?? '3000'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const app = new Koa()
 const MemoryStore = new session.MemoryStore()
 const mimeTypesToExtensions = {
 	/* text formats */
@@ -65,8 +67,6 @@ const mimeTypesToExtensions = {
   'video/x-flv': ['.flv'],
   'video/quicktime': ['.mov'],
 }
-const port = process.env.PORT ?? 3000
-const version = '0.1.01'
 /** dependent variables */
 const C4RG_Intelligence = await SystemAvatar // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
 if(!process.env.MYLIFE_HOSTING_KEY || process.env.MYLIFE_HOSTING_KEY !== C4RG_Intelligence.hosting_key)
@@ -106,11 +106,15 @@ app
 		try {
 			await next()
 		} catch (err) {
+			const clientDisconnect = err.code==='ECONNRESET' || err.code==='ERR_STREAM_PREMATURE_CLOSE'
 			ctx.status = err.statusCode || err.status || 500
 			ctx.body = {
 				message: err.message
 			}
-			console.error(err)
+			if(clientDisconnect)
+				console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
+			else
+				console.error(err)
 		}
 	})
 	.use(async (ctx,next)=>{

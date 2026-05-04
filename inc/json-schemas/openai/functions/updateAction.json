@@ -1,0 +1,48 @@
+{
+    "description": "Updates (overwrites) the `action` summary referenced by itemId",
+    "name": "updateAction",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Id of `action` summary to update",
+                "type": "string"
+            },
+            "steps": {
+                "description": "The new updated and **complete** step-by-step instructions for how to execute `action`, only include if updating steps, otherwise omit",
+                "items": {
+                    "additionalProperties": false,
+                    "description": "Step from `action` instructions",
+                    "properties": {
+                        "content": {
+                            "description": "Instruction content for this step",
+                            "type": "string"
+                        },
+                        "order": {
+                            "description": "Order of this step in overall instructions",
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    "required": [
+                        "content",
+                        "order"
+                    ],
+                    "type": "object"
+                },
+                "type": "array"
+            },
+            "summary": {
+                "description": "The new updated and **complete** `action` summary",
+                "type": "string"
+            }
+        },
+        "required": [
+            "itemId",
+            "steps",
+            "summary"
+        ]
+    },
+    "strict": true
+}

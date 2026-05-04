@@ -2161,7 +2161,7 @@ input, select, textarea {
 
 /* Page Wrapper */
 
-	#page-wrapper > section {
+	#page-header > section {
 		margin-bottom: 0;
 	}
 
@@ -2625,7 +2625,7 @@ input, select, textarea {
 
 		/* Nav */
 
-			#page-wrapper {
+			#page-header {
 				-moz-backface-visibility: hidden;
 				-webkit-backface-visibility: hidden;
 				-ms-backface-visibility: hidden;
@@ -2764,7 +2764,7 @@ input, select, textarea {
 					color: black;
 				}
 
-			body.navPanel-visible #page-wrapper {
+			body.navPanel-visible #page-header {
 				-moz-transform: translateX(275px);
 				-webkit-transform: translateX(275px);
 				-ms-transform: translateX(275px);

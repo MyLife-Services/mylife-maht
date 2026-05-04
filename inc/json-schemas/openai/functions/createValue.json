@@ -1,0 +1,85 @@
+{
+    "description": "Generate a complete `item` document (form of `value`) with summary and metadata elements. JSON outline here is useful, but any details in prompt instructions should override.",
+    "name": "createValue",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "backgrounds": {
+                "description": "Background Influences (ethical, ideological, philosophical, etc.) related to `value`",
+                "type": "array",
+                "items": {
+                    "description": "Specific background influence related to `value`",
+                    "enum": [
+                        "culture",
+                        "education",
+                        "experience",
+                        "philosophy",
+                        "religion",
+                        "upbringing",
+                        "other"
+                    ],
+                    "type": "string"
+                }
+            },
+            "content": {
+                "description": "Include entire, or snippets, original Member conversation regarding this `value`",
+                "type": "string"
+            },
+            "conviction": {
+                "description": "Conviction level of `stance` from 0-10, where 0 is no conviction and 10 is full conviction",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10
+            },
+            "emotional_intensity": {
+                "description": "Emotional intensity level of `stance` from 0-10, where 0 is no emotional intensity and 10 is high emotional intensity",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10
+            },            
+            "form": {
+                "default": "political",
+                "description": "MyLife System Form of `value`; political-values bots should use `political` form, all others should use `personal`",
+                "enum": [
+                    "personal",
+                    "political"
+                ],
+                "type": "string"
+            },
+            "keywords": {
+                "description": "Keywords most relevant to `value`, include any relevant ideology, movement, or issue keywords for political values",
+                "items": {
+                    "description": "Keyword from `value` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "summary": {
+                "description": "A complete `value` summary composed of all salient points and related points from member content; **note**: This type of summary should include at least the first two parts: 1) What: A summary of the `value` expression itself, 2) Why: Why the member holds this `value` in their life and/or worldview, and 3) How: How the member enacts this `value` in their life, or stories thereof (optional)",
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title for `value` based on content",
+                "type": "string"
+            },
+            "type": {
+                "const": "value",
+                "description": "MyLife System type of item",
+                "type": "string"
+            }
+        },
+        "required": [
+            "backgrounds",
+            "content",
+            "conviction",
+            "emotional_intensity",
+            "form",
+            "keywords",
+            "summary",
+            "title",
+            "type"
+        ]
+    },
+    "strict": false
+}

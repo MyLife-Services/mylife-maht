@@ -1,7 +1,6 @@
 {
     "description": "Allows narrator to end the reliving of a summary.",
     "name": "endReliving",
-    "strict": true,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -14,5 +13,6 @@
         "required": [
             "itemId"
         ]
-    }
+    },
+    "strict": true
 }

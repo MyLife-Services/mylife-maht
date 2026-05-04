@@ -9,7 +9,13 @@ const mAvailableEventActionMap = {
     },
     input: {},
 }
-const mDefaultScriptAdvisorLLMId = 'asst_NonLpXQ5maLpIciwxwGqsMwV'
+const mDefaultScriptAdvisorLLMProvider = {
+	id: 'pmpt_69cf328930e081938c3e37184cfb6f37056f074234ed5663',
+	model: 'gpt-4o-mini',
+	provider: 'openai',
+	type: 'prompt',
+	version: 2
+}
 let mActor,
     mActorQ
 /* class definitions */
@@ -96,7 +102,7 @@ class Experience {
     #navigation
     #running=false
     #scenes
-    #scriptAdvisorLlmId
+    #scriptAdvisorLlmProvider
     #scriptDialog
     #scriptVariables
     #variables
@@ -119,8 +125,8 @@ class Experience {
         this.#factory = Factory
         this.#llm = llm
         this.#id = id
-        this.#scriptAdvisorLlmId = scriptAdvisorBotId
-            ?? mDefaultScriptAdvisorLLMId
+        this.#scriptAdvisorLlmProvider = scriptAdvisorBotId
+            ?? mDefaultScriptAdvisorLLMProvider.id
         this.#scriptVariables = scriptVariables
         this.#cast = mCast(cast, this.#botAgent, this.#factory)
         this.#location = mLocation(this)
@@ -200,8 +206,8 @@ class Experience {
     get script(){
         return this.scenes
     }
-    get scriptAdvisorLlmId(){
-        return this.#scriptAdvisorLlmId
+    get scriptAdvisorLlmProvider(){
+        return this.#scriptAdvisorLlmProvider
     }
     get scriptDialog(){
         return this.#scriptDialog
@@ -486,12 +492,15 @@ class ShareAgent {
         await Share.play(input)
         return Share
     }
+    /**
+     * Returns a Share instance by either instanceId (continue) or shareId(create).
+     * @param {Guid} instanceId - The Share instance id (optional)
+     * @param {Guid} shareId - The Share id (optional)
+     * @returns {Share} - The Share instance
+     */
     share(instanceId, shareId){
-        let Share
-        if(this.#factory.globals.isValidGuid(instanceId))
-            Share = this.#shares.find(share=>share.instanceId===instanceId)
-        else if(this.#factory.globals.isValidGuid(shareId))
-            Share = this.#shares.find(share=>share.id===shareId)
+        const Share = this.#shares.find(share=>share?.instanceId===instanceId)
+            ?? this.#shares.find(share=>share?.id===shareId)
         return Share
     }
     /**
@@ -510,7 +519,7 @@ class ShareAgent {
         if(Share.voice?.length)
             prompt += `- voice: ${ Share.voice }\n`
         prompt += `- summary: ${ Share.summary }`
-        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMId, prompt)
+        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMProvider, prompt, this.#factory, this.#avatar)
         if(messages?.[0]){
             const { content, thread_id, } = messages[0]
             const message = content
@@ -543,7 +552,7 @@ class ShareAgent {
                 shareData.scenes = scenes
             }
             if(thread_id?.length)
-                this.#llm.deleteThread(thread_id) // no await
+                this.#llm.deleteConversation(thread_id) // no await
         }
         /* set Conversation */
         shareData.Conversation = await this.#avatar.conversationStart('share', 'share-agent', Share.mbr_id)
@@ -741,21 +750,18 @@ async function mEventDialog(Event, Experience, iteration=0){
             if(!dialogPrompt)
                 throw new Error('Dynamic script requested, no prompt identified')
             let prompt = dialogPrompt
-            const { cast, memberDialog, scriptAdvisorBotId, scriptDialog, variables: experienceVariables, } = Experience
+            const { cast, memberDialog, scriptDialog, variables: experienceVariables, } = Experience
             const castMember = cast.find(castMember=>castMember.id===characterId)
-            const { bot, } = castMember
-            const { llm_id, id, } = bot
-            if(!llm_id || !id)
-                throw new Error(`mEventDialog()::Bot id: ${ characterId } not found in cast`)
-            scriptDialog.llm_id = llm_id
-                ?? scriptAdvisorBotId
+            const { bot: { id, }, } = castMember
+            if(!id)
+                throw new Error(`mEventDialog():: ${ characterId } not found in castMembers`)
             if(example?.length)
                 prompt = `using example: "${ example }";\n` + prompt
             if(dialogVariables.length)
                 prompt = mReplaceVariables(prompt, dialogVariables, experienceVariables)
             const messages = await Experience.getScriptDialog(prompt)
             if(!messages?.length)
-                console.log('mEventDialog::no messages returned from LLM', prompt, llm_id)
+                console.log('mEventDialog::no messages returned from LLM', prompt, scriptDialog)
             scriptDialog.addMessages(messages)
             memberDialog.addMessage(scriptDialog.mostRecentDialog)
             const responseDialog = new Marked().parse(memberDialog.mostRecentDialog)
@@ -835,18 +841,12 @@ async function mEventInput(memberInput, Event, Experience, iteration=0){
     if(input.outcome?.trim()?.length)
         prompt += 'OUTCOME: return JSON-parsable object = '
             + input.outcome.trim()
-    const scriptAdvisorBotId = Experience.scriptAdvisorBotId
-        ?? Experience.cast.find(castMember=>castMember.id===cid)?.bot?.llm_id
-        ?? Experience.cast[0]?.bot?.llm_id
     const scriptConsultant = scriptAdvisor
         ?? scriptDialog
         ?? dialog
-    scriptConsultant.llm_id = scriptAdvisorBotId
     const messages = await Experience.getScriptDialog(prompt)
-    if(!messages?.length){
-        console.log('mEventInput::no messages returned from LLM', prompt, scriptAdvisorBotId, scriptConsultant)
-        throw new Error('No messages returned from LLM')
-    }
+    if(!messages?.length)
+        throw new Error(`No messages returned from LLM: { prompt: "${ prompt }", scriptConsultant: ${ JSON.stringify(scriptConsultant) } }`)
     scriptConsultant.addMessages(messages)
     /* validate return from LLM */
     let evaluationResponse = scriptConsultant.mostRecentDialog

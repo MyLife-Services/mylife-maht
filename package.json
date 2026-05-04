@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "start": "node bootstrap.js",
-    "start-dev": "dotenv -e .env node bootstrap.js",
     "dev": "npm i && nodemon bootstrap.js"
   },
   "nodemonConfig": {
@@ -19,13 +18,12 @@
       ".git/*",
       "views/*",
       "inc/js/deprecated/*",
-      "inc/json-schemas/in-progress/*"
+      "inc/json-schemas/*"
     ],
     "watch": [
       "bootstrap.js",
       "server.js",
-      "inc/js/*",
-      "inc/json-schemas/*"
+      "inc/js/*"
     ]
   },
   "repository": {
@@ -49,32 +47,33 @@
   },
   "homepage": "https://github.com/Citizens-for-Rational-Government/C4RG-intelligent-platform#readme",
   "dependencies": {
-    "@azure/cosmos": "^4.9.0",
-    "@azure/identity": "^4.13.0",
+    "@anthropic-ai/sdk": "^0.87.0",
+    "@azure/cosmos": "^4.9.2",
+    "@azure/identity": "^4.10.2",
+    "@huggingface/transformers": "^4.0.1",
     "@koa/cors": "^5.0.0",
-    "@modelcontextprotocol/sdk": "^1.25.3",
-    "applicationinsights": "^3.13.0",
-    "chalk": "^5.6.2",
+    "@koa/router": "^15.4.0",
+    "@modelcontextprotocol/sdk": "^1.15.0",
+    "chalk": "^5.4.1",
     "dotenv": "^16.4.5",
-    "koa": "^3.1.1",
-    "koa-body": "^7.0.1",
+    "koa": "^3.2.0",
+    "koa-body": "^6.0.1",
     "koa-connect": "^2.1.0",
     "koa-generic-session": "^2.3.1",
     "koa-mount": "^4.2.0",
-    "koa-router": "^14.0.0",
     "koa-static": "^5.0.0",
-    "marked": "^17.0.1",
+    "marked": "^16.0.0",
     "nodemailer": "^8.0.5",
-    "openai": "^6.16.0"
+    "openai": "^6.33.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.10"
   },
-  "disabledDependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+  "deprecatedDependencies": {
     "ajv": "^8.17.1",
-    "dotenv-cli": "^11.0.0",
-    "form-data": "^4.0.5",
-    "koa-ejs": "^4.3.0"
+    "dotenv-cli": "^8.0.0",
+    "form-data": "^4.0.3",
+    "js-guid": "^1.0.2",
+    "koa-router": "^13.1.1"
   }
 }

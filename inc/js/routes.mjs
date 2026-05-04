@@ -1,9 +1,13 @@
 /* imports */
-import Router from 'koa-router'
+import Router from '@koa/router'
 import {
     a2aCard,
     a2aCall,
     a2aContract,
+    botProxy,
+    botProxyAccess,
+    botProxyCreate,
+    botProxyRefresh,
 } from './controllers/a2a-functions.mjs'
 import {
     availableExperiences,
@@ -24,39 +28,44 @@ import {
     tokenValidation,
 } from './controllers/api-functions.mjs'
 import {
-    about,
-    activateBot,
-    alerts,
-    bots,
-    challenge,
+	activateBot,
+    activateItem,
+    bot,
+	bots,
+    botButtons,
+    botOptions,
     chat,
-    collections,
-    createBot,
-    disclaimer,
-    evaluate,
-    feedback,
-    greetings,
-    help,
-    index,
-    item,
-    logout,
-    loginSelect,
-    members,
-    migrateBot,
-    migrateChat,
-    obscure,
-    passphraseReset,
-    privacyPolicy,
+	createBot,
+	migrateBot,
+	migrateChat,
     retireBot,
     retireChat,
     routine,
     shadows,
-    signup,
-    summarize,
-    team,
-    teams,
+	team,
+	teams,
     updateBotInstructions,
-    upload,
+} from './controllers/bot-functions.mjs'
+import {
+	about,
+	alerts,
+	challenge,
+	collections,
+	evaluate,
+	feedback,
+	greetings,
+	help,
+	index,
+	item,
+	logout,
+	loginSelect,
+	members,
+	obscure,
+	passphraseReset,
+	privacyPolicy,
+	signup,
+	summarize,
+	upload,
 } from './controllers/functions.mjs'
 import {
     acceptShareWarnings,
@@ -65,7 +74,6 @@ import {
     endMemory,
     getShare,
     getShares,
-    improveMemory,
     reliveMemory,
     shareCreate,
     shareDelete,
@@ -78,6 +86,7 @@ import {
 } from './controllers/memory-functions.mjs'
 import {
     mcpCall,
+    mcpProtocolValidation,
     mcpSessionEnd,
     mcpSessionInfo,
     mcpStream,
@@ -120,7 +129,6 @@ _Router.get('/alphadog/mission', mission)
 _Router.get('/alphadog/mission/:mid', mission)
 _Router.get('/alphadog/missions', missions)
 _Router.get('/alphadog/missions/available', missionsAvailable)
-_Router.get('/disclaimer', disclaimer)
 _Router.get('/experiences', availableExperiences)
 _Router.get('/greeting', greetings)
 _Router.get('/greetings', greetings)
@@ -159,7 +167,6 @@ _apiRouter.get('/logout', apiLogout)
 _apiRouter.get('/memories', sharedMemories)
 _apiRouter.get('/memories/memory', sharedMemory)
 _apiRouter.get('/memories/memory/:sid', sharedMemory)
-_apiRouter.get('/disclaimer', disclaimer)
 _apiRouter.head('/keyValidation/:mid', keyValidation)
 _apiRouter.patch('/experiences/:mid/experience/:xid/cast', experienceCast)
 _apiRouter.patch('/experiences/:mid/experience/:xid/end', experienceEnd)
@@ -190,21 +197,29 @@ _memberRouter.delete('/bots/:bid', bots)
 _memberRouter.delete('/items/:iid', item)
 _memberRouter.delete('/share/:sid', shareDelete)
 _memberRouter.get('/', members)
+_memberRouter.get('/bot', bot)
+_memberRouter.get('/bot/:bid', bot)
 _memberRouter.get('/bots', bots)
 _memberRouter.get('/bots/:bid', bots)
+_memberRouter.get('/bots/:bid/buttons', botButtons)
+_memberRouter.get('/bots/:bid/options', botOptions)
+_memberRouter.get('/bots/proxy/:pid/refresh', botProxyRefresh)
 _memberRouter.get('/collections', collections)
 _memberRouter.get('/collections/:type', collections)
-_memberRouter.get('/disclaimer', disclaimer)
 _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/greetings', greetings)
-_memberRouter.get('/item/:iid', item)
-_memberRouter.get('/share/:sid', getShare)
+_memberRouter.get('/items/:iid', item)
 _memberRouter.get('/share/delete/:sid', deleteShare)
+_memberRouter.get('/share/:sid', getShare) // keep last — catches /:sid after specific sub-paths
 _memberRouter.get('/shares', getShares)
 _memberRouter.get('/shares/:iid', getShares)
+_memberRouter.get('/team', team)
+_memberRouter.get('/team/:tid', team)
 _memberRouter.get('/teams', teams)
+_memberRouter.patch('/bots/proxy/:pid', botProxy)
+_memberRouter.patch('/bots/proxy/:pid/access', botProxyAccess)
 _memberRouter.patch('/experience/:xid', experience)
 _memberRouter.patch('/experience/:xid/end', experienceEnd)
 _memberRouter.patch('/experience/:xid/manifest', experienceManifest)
@@ -213,12 +228,13 @@ _memberRouter.patch('/memory/end/:iid', endMemory)
 _memberRouter.patch('/share/:sid', shareUpdate)
 _memberRouter.post('/', chat)
 _memberRouter.post('/bots', bots)
-_memberRouter.post('/bots/create', createBot)
 _memberRouter.post('/bots/activate/:bid', activateBot)
+_memberRouter.post('/bots/create', createBot)
+_memberRouter.post('/bots/proxy', botProxyCreate)
 _memberRouter.post('/evaluate/:iid', evaluate)
 _memberRouter.post('/feedback', feedback)
 _memberRouter.post('/feedback/:mid', feedback)
-_memberRouter.post('/item', item)
+_memberRouter.post('/items', item)
 _memberRouter.post('/migrate/bot/:bid', migrateBot)
 _memberRouter.post('/migrate/chat/:bid', migrateChat)
 _memberRouter.post('/obscure/:iid', obscure)
@@ -226,11 +242,12 @@ _memberRouter.post('/passphrase', passphraseReset)
 _memberRouter.post('/retire/chat/:bid', retireChat)
 _memberRouter.post('/share', shareCreate)
 _memberRouter.post('/summarize', summarize)
-_memberRouter.post('/teams/:tid', team)
+_memberRouter.post('/teams/activate/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
-_memberRouter.put('/item/:iid', item)
+_memberRouter.put('/items/activate/:iid', activateItem)
+_memberRouter.put('/items/:iid', item) // keep last — catches /:iid after specific sub-paths
 /* mcp member-avatar routes */
 _mcpMemberRouter.use(async (ctx, next)=>{
     ctx.state.requestType = 'member'
@@ -305,117 +322,6 @@ function status(ctx){ //	currently returns reverse "locked" status, could send o
  */
 function status_signup(ctx){
 	ctx.body = ctx.session.signup
-}
-/**
- * Validates the MCP authorization header.
- * @param {Koa} ctx - Koa context object
- * @throws {Error} Throws an error if the authorization header is missing, invalid, or the token is not found
- */
-function mcpAuthorize(ctx){
-    // for now, given NANDA and Claude, ignore bearer token for time being
-    return
-    const { headers } = ctx
-    if(!headers.authorization)
-        ctx.throw(403, 'Missing Authorization Header')
-    const [scheme, token] = headers.authorization.split(' ')
-    if(scheme !== 'Bearer' || !token?.length)
-        ctx.throw(403, 'Invalid Authorization Header')
-    if(!mClientEntities?.[token])
-        ctx.throw(403, 'Invalid or expired token')
-}
-/**
- * Handles MCP errors by force-returning (as direct response, no stream) the response status and well-formed MCP `Error`.
- */
-function mMcpError(ctx, errorCode=404, code=-32001, message='unknown failure', id){
-    ctx.status = errorCode
-    ctx.body = {
-        jsonrpc: '2.0',
-        id,
-        error: {
-            code,
-            message,
-        },
-    }
-}
-/**
- * Validates the MCP protocol request.
- * @param {Koa} ctx - Koa context object
- * @param {function} next - Koa next function
- */
-async function mcpProtocolValidation(ctx, next){
-    if(!ctx.state.requestType)
-        ctx.state.requestType = 'system'
-    mcpValidateRequestOrigin(ctx) // confirm bearer always
-    mcpAuthorize(ctx) // confirm bearer always
-    ctx.state.mcp = ctx.request?.body
-    let sessionId
-    sessionId = ctx.request.query?.sessionId /* 2024-11-05 MCP Protocol Validation */
-        ?? ctx.get('Mcp-Session-Id') /* 2025-03-26 MCP Protocol Validation Header */
-    if(sessionId?.length){
-        ctx.state.sessionMeta = ctx.mcpSessionMeta.get(sessionId)
-        const { sessionMeta, } = ctx.state
-        if(!sessionMeta){
-            if(ctx.request.method==='DELETE') // MCP DELETE disconnects the session; here via next() (`mcpSessionEnd()`)
-                return await next()
-            mMcpError(ctx, 404, -32001, `Session Unauthorized; sessionId=${ sessionId }`, ctx.state.mcp?.id)
-            return // not awaiting next() here
-        }
-        const { sessionIdKoa, } = sessionMeta
-        if(!sessionIdKoa?.length)
-            ctx.throw(404, 'Unknown session; cannot communicate with Koa')
-        /* validate Koa session */
-        const prefix = 'koa:sess:'
-        const existingKoaSession = await ctx.MemoryStore.get(prefix+sessionIdKoa)
-        if(!existingKoaSession)
-            ctx.throw(404, 'Unknown session; cannot find existing Koa session')
-        ctx.session = existingKoaSession
-        await ctx.MemoryStore.destroy(prefix+ctx.sessionId) // destroy temporary blank session created by Koa
-        // Koa server will have mis-assigned ctx.state in faux session
-        ctx.state.avatar = ctx.session.avatar
-        ctx.state.locked = ctx.session.locked
-            ?? true
-        if(ctx.request.method==='GET'){
-            const { transportEntry, } = sessionMeta
-            await transportEntry.handleRequest(ctx.req, ctx.res)
-        }
-    } else
-        await mcpStream(ctx) // no session set if not streaming
-    await next()
-}
-/**
- * Handles unsupported MCP requests.
- * @param {Koa} ctx - Koa context object
- */
-function mcpUnsupported(ctx){
-    ctx.throw(405, 'Unsupported MCP request. Please use POST /mcp.')
-}
-/**
- * Validates the request origin for MCP requests.
- * @param {Koa} ctx - Koa context object
- */
-function mcpValidateRequestOrigin(ctx){
-    // @todo - confirm that transport handles CORS headers correctly
-    const origin = ctx.headers.origin
-    if(!origin){
-        // console.log('No Origin Header')
-        return
-    }
-    const trustedOrigins = [
-        // 'http://good.com',
-    ]
-    const blockedOrigins = [
-        // 'http://evil.com',
-    ]
-    const isTrusted = trustedOrigins.includes(origin)
-    const isBlocked = blockedOrigins.includes(origin)
-    if(isBlocked){ // Block if explicitly blacklisted
-        console.log(`Blocked Origin: ${origin}`)
-        ctx.throw(403, `Access denied from origin: ${origin}`)
-    }
-    if(trustedOrigins.length > 0 && !isTrusted){
-        console.log(`Unrecognized Origin: ${origin}`)
-        ctx.throw(403, `Origin not allowed: ${origin}`)
-    }
 }
 /**
  * Routes external requests based on subdomain.

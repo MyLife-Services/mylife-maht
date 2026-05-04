@@ -1,5 +1,35 @@
 /* imports */
 import {
+    activeBot,
+    activeChat,
+    activeClose,
+    activeItem,
+    activeStatus,
+    activeTeam,
+    activeTitle,
+    createItem,
+    endMemory,
+    getAction,
+    getBot,
+    getBotIcon,
+    getBots,
+    getBotsByForm,
+    getItem,
+    initBots,
+    isAvatar,
+    refreshCollection,
+    setActiveBot,
+    setActiveItem,
+    toggleBotContainers,
+    togglePopup,
+    unsetActiveItem,
+    updateActiveItemTitle,
+    updateItem,
+    updateItemSummary,
+    updateItemTitle,
+    updateTitle,
+} from './bots.mjs'
+import {
     experienceEnd,
     experiencePlay,
     experiences as _experiences,
@@ -8,28 +38,11 @@ import {
     routine,
     submitInput,
 } from './experience.mjs'
-import {
-    activeBot,
-    createItem,
-    endMemory,
-    getAction,
-    getBot,
-    getBotIcon,
-    getItem,
-    refreshCollection,
-    setActiveBot as _setActiveBot,
-    togglePopup,
-    updateItem,
-    updateItemSummary,
-    updateItemTitle,
-    updateTitle,
-} from './bots.mjs'
 import Globals from './globals.mjs'
 /* variables */
 /* constants */
 const globals = new Globals()
-const mainContent = globals.mainContent,
-    navigation = globals.navigation,
+const navigation = globals.navigation,
     sidebar = globals.sidebar
 window.about = about
 window.privacyPolicy = privacyPolicy
@@ -37,35 +50,25 @@ window.privacyPolicy = privacyPolicy
 let mAutoplay=false,
     mChatBubbleCount=0,
     mMemberId
+let activePopup = null, // dragging vars
+    isDragging = false,
+    offsetX = 0,
+    offsetY = 0
 /* page div variables */
-let botBar,
-    chatActiveItem,
-    chatActiveThumb,
-    mChatRefresh,
-    mLogout,
-    pageLoader,
-    sceneContinue,
-    screen,
-    spinner,
-    transport
-/* page load listener */
-document.addEventListener('DOMContentLoaded', async event=>{
-    /* post-DOM population constants */
-    botBar = document.getElementById('bot-bar')
-    chatActiveItem = document.getElementById('chat-active-item')
-    chatActiveThumb = document.getElementById('chat-active-item-thumb')
-    mChatRefresh = document.getElementById('chat-refresh')
+const mChatRefresh = document.getElementById('chat-refresh'),
     mLogout = document.getElementById('navigation-logout')
-    pageLoader = document.getElementById('page-loader')
-    sceneContinue = document.getElementById('experience-continue')
-    spinner = document.getElementById('agent-spinner')
-    transport = document.getElementById('experience-transport')
-    screen = document.getElementById('experience-modal')
+const mLoader = document.getElementById('page-loader')
+const sceneContinue = document.getElementById('experience-continue')
+const screen = document.getElementById('experience-modal')
+const spinner = document.getElementById('agent-spinner')
+const transport = document.getElementById('experience-transport')
+/* page load listener */
+
+document.addEventListener('DOMContentLoaded', async event=>{
     /* determine mode, default = member bot interface */
     await mInitialize() // throws if error
     stageTransition()
     unsetActiveAction()
-    console.log('members.mjs::DOMContentLoaded')
 })
 /* public functions */
 /**
@@ -99,7 +102,7 @@ function addMessage(message, role, typeDelay){
 /**
  * Pushes an array of messages to the chat column.
  * @param {String[]} messages - The array of string messages to add to the chat column.
- * @param {String} role - The role of the message, default=`agent`
+ * @param {String} role - The role of the message, uses `type` of bot to trigger CSS
  * @param {number} typeDelay - The delay between typing each character, default=`2`
  * @param {number} responseDelay - The delay between each message, default=`3` seconds
  * @returns {void}
@@ -130,6 +133,25 @@ function decorateActiveBot(){
     const { id, name, } = activeBot()
     globals.chatInputPlaceholder = `Type your message to ${ name }...`
 }
+/**
+ * Consumes instruction object and performs the requested actions.
+ * @todo - all interfaceLocations supported
+ * @todo - currently just force-feeding _all_ the functions I need; make more contextual
+ * @param {object} instruction - The instruction object
+ * @param {string} interfaceLocation - The interface location, default=`chat`
+ * @param {object} additionalFunctions - The additional functions object, coming from other module requests
+ * @returns {void}
+ */
+function enactInstruction(instructions, interfaceLocation='chat', additionalFunctions={}){
+    if(!instructions?.length || interfaceLocation!='chat')
+        return
+    const functions = {
+        addInput,
+        addMessages,
+        ...additionalFunctions, // overloads feasible
+    }
+    globals.enactInstruction(instructions, functions)
+}
 function escapeHtml(text) {
     return globals.escapeHtml(text)
 }
@@ -143,15 +165,6 @@ function experiences(){
  */
 function expunge(element){
     return globals.expunge(element)
-}
-/**
- * Gets the active chat item id to send to server.
- * @requires chatActiveItem
- * @returns {Guid} - The return is the active item ID.
- */
-function getActiveItemId(){
-    const id = chatActiveItem.dataset?.id?.split('_')?.pop()
-    return id
 }
 /**
  * Proxy for Globals.hide().
@@ -179,23 +192,15 @@ function introduction(){
     routine('introduction')
 }
 /**
- * Consumes instruction object and performs the requested actions.
- * @todo - all interfaceLocations supported
- * @todo - currently just force-feeding _all_ the functions I need; make more contextual
- * @param {object} instruction - The instruction object
- * @param {string} interfaceLocation - The interface location, default=`chat`
- * @param {object} additionalFunctions - The additional functions object, coming from other module requests
- * @returns {void}
+ * Gets the main content element.
+ * @public
+ * @returns {HTMLElement} - The return is the main content element
  */
-function enactInstruction(instruction, interfaceLocation='chat', additionalFunctions={}){
-    if(!instruction || interfaceLocation!='chat')
-        return
-    const functions = {
-        addInput,
-        addMessages,
-        ...additionalFunctions, // overloads feasible
-    }
-    globals.enactInstruction(instruction, functions)
+function mainContent(){
+    return globals.mainContent
+}
+function overlays(){
+    return globals.overlays
 }
 /**
  * Presents the `privacy-policy` page as a routine.
@@ -256,8 +261,6 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 /**
  * Sets the active item to an `action` determined by the requesting bot.
  * @public
- * @requires chatActiveItem
- * @requires chatActiveThumb
  * @param {object} instructions - The action object describing how to populate { button, callback, icon, status, text, thumb, }.
  * @property {string} button - The button text; if false-y, no button is displayed
  * @property {function} callback - The callback function to execute on button click
@@ -270,22 +273,14 @@ function replaceElement(element, newType, retainValue=true, onEvent, listenerFun
 function setActiveAction(instructions){
     if(!instructions)
         return
-    globals.clearDataset(chatActiveItem.dataset)
-    chatActiveItem.dataset.inAction = "true"
+    activeItem().inAction = true
     const { button, callback, icon, status, text, thumb, } = instructions
     const activeButton = document.getElementById('chat-active-item-button')
     const activeClose = document.getElementById('chat-active-item-close')
     const activeIcon = document.getElementById('chat-active-item-icon')
     const activeStatus = document.getElementById('chat-active-item-status')
     const activeTitle = document.getElementById('chat-active-item-title')
-    globals.clearDataset(chatActiveThumb.dataset)
-    chatActiveThumb.className = 'fas chat-active-action-thumb'
-    if(thumb?.length)
-        chatActiveThumb.src = thumb
-    else
-        hide(chatActiveThumb)
     if(activeIcon){
-        globals.clearDataset(activeIcon.dataset)
         activeIcon.className = 'fas chat-active-action-icon'
         if(icon?.length)
             activeIcon.classList.add(icon)
@@ -293,16 +288,13 @@ function setActiveAction(instructions){
             hide(activeIcon)
     }
     if(activeStatus){
-        globals.clearDataset(activeStatus.dataset)
         activeStatus.className = 'chat-active-action-status'
-        activeStatus.removeEventListener('click', mToggleItemPopup)
         if(status?.length)
             activeStatus.textContent = status
         else
             hide(activeStatus)
     }
     if(activeButton){
-        globals.clearDataset(activeButton.dataset)
         activeButton.className = 'button chat-active-action-button'
         if(button?.length){
             activeButton.textContent = button
@@ -314,7 +306,6 @@ function setActiveAction(instructions){
             hide(activeButton)
     }
     if(activeTitle){
-        globals.clearDataset(activeTitle.dataset)
         activeTitle.className = 'chat-active-action-title'
         if(text?.length)
             activeTitle.textContent = text
@@ -322,92 +313,9 @@ function setActiveAction(instructions){
             hide(activeTitle)
     }
     if(activeClose){
-        globals.clearDataset(activeClose.dataset)
         activeClose.addEventListener('click', unsetActiveAction, { once: true })
     }
-    show(chatActiveItem)
-}
-/**
- * Proxy to set the active bot (via `bots.mjs`).
- * @public
- * @async
- * @returns {Promise<void>} - The return is its own success.
- */
-async function setActiveBot(){
-    return await _setActiveBot(...arguments)
-}
-/**
- * Sets the active item, ex. `memory`, `entry` in the chat system for member operation(s).
- * @public
- * @requires chatActiveItem
- * @param {Guid} itemId - The item id to set as active
- * @returns {void}
- */
-function setActiveItem(itemId){
-    globals.clearDataset(chatActiveItem.dataset)
-    if(!globals.isGuid(itemId))
-        return
-    const popup = document.getElementById(`popup-container_${ itemId }`)
-    if(!popup)
-        return
-    const { form='journal', title, type, } = popup.dataset
-    const activeButton = document.getElementById('chat-active-item-button')
-    const activeClose = document.getElementById('chat-active-item-close')
-    const activeIcon = document.getElementById('chat-active-item-icon')
-    const activeStatus = document.getElementById('chat-active-item-status')
-    const activeTitle = document.getElementById('chat-active-item-title')
-    if(activeButton)
-        hide(activeButton)
-    if(activeClose){
-        activeClose.className = 'fas fa-times chat-active-item-close'
-        activeClose.addEventListener('click', unsetActiveItem, { once: true })
-    }
-    if(activeIcon){
-        activeIcon.className = 'fas fa-square chat-active-item-icon'
-    }
-    if(activeStatus){
-        activeStatus.className = 'chat-active-item-status'
-        activeStatus.dataset.itemId = itemId
-        activeStatus.textContent = 'Active: '
-        activeStatus.addEventListener('click', mToggleItemPopup)
-    }
-    if(activeTitle){
-        activeTitle.innerHTML = ''
-        const activeText = document.createElement('div')
-        activeText.classList.add('chat-active-item-title-text')
-        activeText.dataset.itemId = itemId
-        activeText.id = `chat-active-item-title-text_${ itemId }`
-        activeText.innerHTML = title
-        /* append activeTitle */
-        activeTitle.appendChild(activeText)
-        activeTitle.className = 'chat-active-item-title'
-        activeTitle.dataset.itemId = itemId
-        activeTitle.dataset.popupId = popup.id
-        activeTitle.dataset.title = title
-        activeTitle.addEventListener('dblclick', updateTitle, { once: true })
-    }
-    chatActiveItem.dataset.form = form
-    chatActiveItem.dataset.id = itemId
-    chatActiveItem.dataset.inAction = "false"
-    chatActiveItem.dataset.itemId = itemId
-    chatActiveItem.dataset.type = type
-    function getBotType(itemType){
-        switch(itemType){
-            case 'memory':
-                return 'biographer'
-            case 'entry':
-                return form==='journal'
-                    ? 'journaler'
-                    : 'diary'
-            default:
-                return 'avatar'
-        }
-    }
-    const botType = getBotType(type)
-    const { id, } = getBot(botType)
-    if(id)
-        setActiveBot(id, false)
-    show(chatActiveItem)
+    show(activeChat())
 }
 /**
  * Proxy for Globals.show().
@@ -426,7 +334,7 @@ function show(){
  */
 function showMemberInterface(){
     hide(screen)
-    show(mainContent)
+    show(mainContent())
     show(systemChat)
 }
 /**
@@ -450,7 +358,24 @@ function stageTransition(experienceId){
         mStageTransitionMember()
 }
 /**
- * Start experience onscreen, displaying welcome ande loading remaining data. Passthrough to `experience.mjs::experienceStart()`.
+ * Initiates drag of popups, currently only used for item popups.
+ * @public
+ * @param {HTMLElement} popup - The popup element to drag
+ * @param {Event} e - The mouse event object from the initiating event listener
+ * @return {void}
+ */
+function startDrag(popup, e){
+    isDragging = true
+    activePopup = popup
+    const rect = activePopup.getBoundingClientRect()
+    activePopup.style.left = rect.left + 'px'
+    activePopup.style.top = rect.top + 'px'
+    activePopup.style.transform = 'none'
+    offsetX = e.clientX - rect.left
+    offsetY = e.clientY - rect.top
+}
+/**
+ * Start experience onscreen, displaying welcome and loading remaining data. Passthrough to `experience.mjs::experienceStart()`.
  * @public
  * @param {Guid} experienceId - The Experience id
  * @returns {void}
@@ -461,40 +386,41 @@ async function startExperience(experienceId){
 /**
  * Submits a message to MyLife Member Services chat.
  * @async
- * @requires chatActiveItem
  * @param {string} message - The message to submit
+ * @param {string} role - The role of the message, default=`member`
  * @param {boolean} hideMemberChat - The hide member chat flag, default=`true`
  * @returns {Promise<object>} - The return is the chat response object: { instruction, responses, success, }
  */
-async function submit(message){
+async function submit(message, role='member', hideMemberChat=true){
 	if(!message?.length)
 		return
-    toggleMemberInput(false)
+    if(hideMemberChat)
+        toggleMemberInput(false)
     const awaitBar = globals.await(`Connecting with ${ activeBot().name }...`)
     globals.addChatElement(awaitBar)
-    const { itemId, } = chatActiveItem.dataset
+    const { id: itemId, } = activeItem()
     const { id: botId, } = activeBot()
 	const request = {
         botId,
         itemId,
         message,
-        role: 'member',
+        role,
     }
 	const response = await globals.datamanager.submitChat(request, true)
     globals.expunge(awaitBar)
-    toggleMemberInput(true)
+    if(hideMemberChat)
+        toggleMemberInput(true)
     return response
 }
 /**
  * Toggles the member input between input and server `waiting`.
  * @public
- * @param {boolean} display - Whether to show/hide (T/F), default `true`.
- * @param {boolean} hidden - Whether to force-hide (T/F), default `false`. **Note**: used in `experience.mjs`
- * @param {boolean} connectingText - The server-connecting text, default: `Connecting with `.
+ * @param {boolean} display - Whether to show/hide (T/F), default `true`
+ * @param {boolean} eraseValue - Whether to erase the input value, default `true`
  * @returns {void}
  */
-function toggleMemberInput(display=true){
-    globals.toggleChatInput(display, 'slide-up')
+function toggleMemberInput(display=true, eraseValue=true){
+    globals.toggleChatInput(display, eraseValue)
 }
 /**
  * Toggles the visibility of an element with option to force state.
@@ -508,39 +434,10 @@ function toggleVisibility(){
 /**
  * Unsets the active action in the chat system.
  * @public
- * @requires chatActiveItem
- * @requires chatActiveThumb
  * @returns {void}
  */
 function unsetActiveAction(){
-    globals.clearDataset(chatActiveItem.dataset)
-    hide(chatActiveThumb)
-    hide(chatActiveItem)
-}
-/**
- * Unsets the active item in the chat system.
- * @public
- * @requires chatActiveItem
- * @returns {void}
- */
-function unsetActiveItem(){
-    globals.clearDataset(chatActiveItem.dataset)
-    hide(chatActiveItem)
-}
-/**
- * Updates the active item title in the chat system, display-only.
- * @public
- * @param {Guid} itemId - The item ID
- * @param {string} title - The title to set
- * @returns {void}
- */
-function updateActiveItemTitle(itemId, title){
-    const chatActiveItemText = document.getElementById('chat-active-item-title')
-    const chatActiveItemTitle = document.getElementById(`chat-active-item-title-text_${ itemId }`)
-    const { itemId: id, } = chatActiveItemText.dataset
-    if(id!==itemId)
-        throw new Error('updateActiveItemTitle::Error()::`itemId`\'s do not match')
-    chatActiveItemTitle.innerHTML = title
+    unsetActiveItem()
 }
 /**
  * Waits for user action.
@@ -576,11 +473,11 @@ async function mAddMemberMessage(event){
     mAddMessage(memberMessage, 'member', 7)
     /* server request */
     const response = await submit(memberMessage)
-    let { instruction, responses=[], success=false, } = response
-    if(!success)
+    let { instructions, responses=[], success=false, } = response
+    if(!success && !responses.length)
         mAddMessage('I\'m sorry, I didn\'t understand that, something went wrong on the server. Please try again.')
-    if(!!instruction)
-        enactInstruction(instruction, 'chat', {
+    if(instructions?.length)
+        enactInstruction(instructions, 'chat', {
             createItem,
             updateItem,
             updateItemSummary,
@@ -738,7 +635,7 @@ async function mAddMessage(message, role='agent', typeDelay=2){
             chatFeedbackPositive.classList.remove('fa-spinner', 'spin')
             chatFeedbackPositive.classList.add(baseClass)
         }, 15000)
-        const saveMessage = `## PRINT\n${ message }\n`
+        const saveMessage = `## CREATE\n${ message }\n`
         const success = await submit(saveMessage, false)
         clearTimeout(feedbackTimeout)
         const successClass = success ? 'fa-check' : 'fa-exclamation-triangle'
@@ -769,10 +666,8 @@ async function mAddMessage(message, role='agent', typeDelay=2){
  * @returns {Promise<boolean>} - The return is a boolean indicating success.
  */
 async function mInitialize(){
-    /* retrieve primary collections */
-    await refreshCollection('memory') // memories required
-    /* page listeners */
     mInitializePageListeners()
+    await initBots()
 }
 /**
  * Initialize page listeners.
@@ -786,7 +681,6 @@ function mInitializePageListeners(){
     const currentPath = window.location.pathname // Get the current path
     const navigationLinks = document.querySelectorAll('.navigation-nav .navigation-link') // Select all nav links
     navigationLinks.forEach(link=>{
-        console.log('link', link)
         if(link.getAttribute('href')===currentPath){
             link.classList.add('active') // Add 'active' class to the current link
             link.addEventListener('click', event=>{
@@ -794,19 +688,31 @@ function mInitializePageListeners(){
             })
         }
     })
+    /* dragging events */
+    document.addEventListener('mousemove', (e)=>{
+        if(!isDragging || !activePopup)
+            return
+        const maxLeft = window.innerWidth * 0.4 // 40vw
+        let newLeft = e.clientX - offsetX
+        let newTop = e.clientY - offsetY
+        if (newLeft > maxLeft) newLeft = maxLeft
+        activePopup.style.left = newLeft + 'px'
+        activePopup.style.top = newTop + 'px'
+    })
+    document.addEventListener('mouseup', ()=>{
+        isDragging = false
+    })
 }
 /**
  * Primitive step to set a "modality" or intercession for the member chat.
  * @public
- * @requires chatActiveItem
  * @param {Guid} itemId - The Active Item ID
  * @param {Guid} shadowId - The shadow ID
  * @param {string} value - The value to seed the input with
  * @param {string} placeholder - The placeholder to seed the input with (optional)
  */
 function seedInput(itemId, shadowId, value, placeholder){
-    chatActiveItem.dataset.itemId = itemId
-    chatActiveItem.dataset.shadowId = shadowId
+    setActiveItem({ id: itemId, shadowId, })
     globals.seedInput(value, placeholder)
 }
 /**
@@ -821,7 +727,6 @@ function sceneTransition(type='interface'){
     globals.ChatSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
     hide(navigation)
-    hide(botBar)
     globals.toggleChatInput(false)
     /* type specifics */
     switch(type){
@@ -846,23 +751,22 @@ function mStageTransitionMember(includeSidebar=true){
     globals.ChatSubmit.addEventListener('click', mAddMemberMessage)
     hide(transport)
     hide(screen)
-    hide(pageLoader)
-    show(mainContent)
+    hide(mLoader)
+    show(mainContent())
     show(navigation)
     show(sidebar)
     show(globals.ChatContainer)
-    if(includeSidebar && sidebar){
+    if(includeSidebar && sidebar)
         show(sidebar)
-        if(botBar)
-            show(botBar)
-    }
 }
+/* DEPRECATE?
 function mToggleItemPopup(event){
     event.stopPropagation()
     event.preventDefault()
-    const { itemId, } = event.target.dataset
+    const itemId = activeItem()?.id
     togglePopup(itemId, true)
 }
+*/
 /**
  * Typewrites a message to a chat bubble.
  * @param {HTMLDivElement} chatBubble - The chat bubble element.
@@ -888,6 +792,9 @@ function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay){
 }
 /* exports */
 export {
+    activeBot,
+    activeItem,
+    activeTeam,
     addInput,
     addMessage,
     addMessages,
@@ -895,10 +802,10 @@ export {
     decorateActiveBot,
     escapeHtml,
     experiences,
-    expunge,
-    getActiveItemId,
-    globals,
-    hide,
+    getBot,
+    getBotIcon,
+    getBots,
+    getBotsByForm,
     inExperience,
     introduction,
     enactInstruction,
@@ -909,17 +816,22 @@ export {
     seedInput,
     setActiveAction,
     setActiveBot,
-    setActiveItem,
-    show,
     showMemberInterface,
     showSidebar,
     stageTransition,
+    startDrag,
     startExperience,
     submit,
     toggleMemberInput,
+    toggleBotContainers,
     toggleVisibility,
     unsetActiveAction,
-    unsetActiveItem,
-    updateActiveItemTitle,
     waitForUserAction,
+    /* globals */
+    expunge,
+    globals,
+    hide,
+    mainContent,
+    overlays,
+    show,
 }

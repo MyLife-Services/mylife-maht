@@ -19,21 +19,6 @@ async function about(ctx){
 	}
 }
 /**
- * Activate a specific Bot.
- * @public
- * @async
- * @param {object} ctx - Koa Context object
- * @returns {object} - Activated Response object: { id, greeting, success, version, versionUpdate, }
- */
-async function activateBot(ctx){
-	const { bid, } = ctx.params
-	if(!ctx.Globals.isValidGuid(bid))
-		ctx.throw(400, `missing bot id`)
-	const { avatar: Avatar, } = ctx.state
-	const response =await Avatar.setActiveBot(bid)
-	ctx.body = response
-}
-/**
  * Get alerts (or specific alert) for the member/visitor.
  * @param {Koa} ctx - Koa Context object
  * @returns {Object[]} - The array of alerts
@@ -45,49 +30,6 @@ async function alerts(ctx){
 		ctx.body = await Avatar.alert(aid)
 	else
 		ctx.body = await Avatar.alerts()
-}
-/**
- * Manage bots for the member.
- * @param {Koa} ctx - Koa Context object
- * @returns {object} - Koa Context object
- */
-async function bots(ctx){
-	const { bid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	const bot = ctx.request.body
-		?? {}
-	switch(ctx.method){
-		case 'DELETE': // retire bot
-			if(!ctx.Globals.isValidGuid(bid))
-				ctx.throw(400, `missing bot id`)
-			ctx.body = await Avatar.retireBot(bid)
-			break
-		case 'POST': // create new bot
-			ctx.body = await Avatar.createBot(bot)
-			break
-		case 'PUT': // update bot
-			ctx.body = await Avatar.updateBot(bot)
-			break
-		case 'GET':
-		default:
-			if(bid?.length){ // specific bot
-				ctx.body = await Avatar.getBot(bid)
-			} else {
-				const bots = await Avatar.getBots()
-				let { activeBotId, greeting, } = Avatar
-				if(!activeBotId){
-					const { id, greeting: activeGreeting } = await Avatar.setActiveBot()
-					activeBotId = id
-					greeting = activeGreeting
-				}
-				ctx.body = { // wrap bots
-					activeBotId,
-					bots,
-					greeting,
-				}
-			}
-			break
-	}
 }
 /**
  * Challenge the member session with a passphrase.
@@ -119,47 +61,10 @@ async function challenge(ctx, memberId, memberPassphrase){
 	}
 	ctx.body = !ctx.session.locked
 }
-/**
- * Chat with the Member or System Avatar's intelligence.
- * @public
- * @async
- * @param {Koa} ctx - Koa Context object
- * @returns {object} - The response from the chat in `ctx.body`
- * @property {object} instruction - Instructionset for the frontend to execute (optional)
- * @property {Object[]} responses - Response messages from Avatar intelligence
- */
-async function chat(ctx){
-	const { botId, itemId, message, } = ctx.request.body
-		?? {} /* body nodes sent by frontend */
-	if(!message?.length)
-			ctx.throw(400, 'missing `message` content')
-	const { avatar: Avatar, } = ctx.state
-	if(botId?.length && botId!==Avatar.activeBotId)
-		throw new Error(`Bot ${ botId } not currently active; chat() requires active bot`)
-	const response = await Avatar.chat(message, itemId, ctx.session)
-	ctx.body = response
-}
 async function collections(ctx){
 	const { type, } = ctx.params
 	const { avatar, } = ctx.state
 	ctx.body = await avatar.collections(type)
-}
-async function createBot(ctx){
-	const { teamId, type, } = ctx.request.body
-	const { avatar, } = ctx.state
-	const bot = { teams: [], type, } // `type` only requirement to create a known, MyLife-typed bot
-	if(teamId?.length)
-		bot.teams.push(teamId)
-	ctx.body = await avatar.createBot(bot)
-}
-/**
- * Get the disclaimer for the active bot or generic.
- * @param {Koa} ctx - Koa Context object
- * @returns {object} - The disclaimer response for the bot or system
- */
-async function disclaimer(ctx){
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.disclaimer()
 }
 /**
  * Given an itemId, evaluates aspects of contents of the data record.
@@ -229,14 +134,11 @@ async function index(ctx){
 async function item(ctx){
 	const { iid: id, } = ctx.params
 	const { avatar, } = ctx.state
-	const { globals, } = avatar
 	const { method, } = ctx.request
 	const item = ctx.request.body // always `{}` by default
 	if(!item?.id && id?.length)
 		item.id = id
-	const response = await avatar.item(item, method)
-	delete avatar.frontendInstruction
-	ctx.body = response
+	ctx.body = await avatar.item(item, method, false)
 }
 /**
  * Logout the member from the system.
@@ -244,9 +146,7 @@ async function item(ctx){
  * @returns {void} - Redirects to the home page
  */
 async function logout(ctx){
-	const { avatar: Avatar, } = ctx.state
-	if(!Avatar?.isMyLife ?? true)
-		ctx.throw(400, `cannot logout from system avatar`)
+	const { avatar: Avatar, locked, } = ctx.state
 	await Avatar.logout(ctx)
 	ctx.redirect('/')
 }
@@ -263,16 +163,6 @@ async function loginSelect(ctx){
 }
 async function members(ctx){ // members home
 	await ctx.render('members')
-}
-async function migrateBot(ctx){
-	const { bid, } = ctx.params
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.migrateBot(bid)
-}
-async function migrateChat(ctx){
-	const { bid, } = ctx.params
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.migrateChat(bid)
 }
 /**
  * Given an itemId, obscures aspects of contents of the data record.
@@ -311,45 +201,6 @@ async function privacyPolicy(ctx){
 		const response = await Avatar.routine('privacy')
 		ctx.body = response
 	}
-}
-/**
- * Direct request from member to retire a bot.
- * @param {Koa} ctx - Koa Context object
- */
-async function retireBot(ctx){
-	ctx.method = 'DELETE'
-	return await this.bots(ctx)
-}
-/**
- * Direct request from member to retire a chat (via bot).
- * @param {Koa} ctx - Koa Context object
- */
-async function retireChat(ctx){
-	const { avatar: Avatar, } = ctx.state
-	const { bid, } = ctx.params
-	if(!bid?.length)
-		ctx.throw(400, `missing bot id`)
-	const response = await Avatar.retireChat(bid)
-	ctx.body = response
-}
-/**
- * Routines are pre-composed scripts that can be run on-demand. They animate HTML content formatted by <section>.
- * @param {Koa} ctx - Koa Context object
- */
-async function routine(ctx){
-	const { rid, } = ctx.params
-	const { avatar: Avatar, } = ctx.state
-	const response = await Avatar.routine(rid)
-	ctx.body = response
-}
-/**
- * Gets the list of shadows.
- * @returns {Object[]} - Array of shadow objects.
- */
-async function shadows(ctx){
-	const { avatar, } = ctx.state
-	const response = await avatar.shadows()
-	ctx.body = response
 }
 async function signup(ctx) {
     const { avatarName, email, humanName, type='newsletter', } = ctx.request.body
@@ -403,38 +254,6 @@ async function summarize(ctx){
 	ctx.body = await Avatar.summarize(fileId, fileName)
 }
 /**
- * Get a specified team, its details and bots, by id for the member.
- * @param {Koa} ctx - Koa Context object
- * @returns {object} - Team object
- */
-async function team(ctx){
-	const { tid, } = ctx.params
-	if(!tid?.length)
-		ctx.throw(400, `missing team id`)
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.team(tid)
-}
-/**
- * Get a list of available teams and their default details.
- * @param {Koa} ctx - Koa Context object.
- * @returns {Object[]} - List of team objects.
- */
-async function teams(ctx){
-	const { avatar: Avatar, } = ctx.state
-	ctx.body = await Avatar.teams()
-}
-async function updateBotInstructions(ctx){
-	const { bid, } = ctx.params
-	if(!bid?.length)
-		ctx.throw(400, `missing bot id`)
-	const { avatar, } = ctx.state
-	const bot = await avatar.updateBotInstructions(bid)
-	ctx.body = {
-		bot,
-		success: !!bot,
-	}
-}
-/**
  * Proxy for uploading files to the API.
  * @param {Koa} ctx - Koa Context object
  * @returns {object} - The result of the upload as `ctx.body`.
@@ -450,14 +269,9 @@ async function upload(ctx){
 /* exports */
 export {
 	about,
-	activateBot,
 	alerts,
-	bots,
 	challenge,
-	chat,
 	collections,
-	createBot,
-	disclaimer,
 	evaluate,
 	feedback,
 	greetings,
@@ -467,19 +281,10 @@ export {
 	logout,
 	loginSelect,
 	members,
-    migrateBot,
-    migrateChat,
 	obscure,
 	passphraseReset,
 	privacyPolicy,
-	retireBot,
-	retireChat,
-	routine,
-	shadows,
 	signup,
 	summarize,
-	team,
-	teams,
-	updateBotInstructions,
 	upload,
 }

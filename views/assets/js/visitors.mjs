@@ -7,7 +7,9 @@ const hide = mGlobals.hide
 const retract = mGlobals.retract
 const show = mGlobals.show
 /* variables */
-let mAvatarIcon='majoritarian.png',
+let mAwaitingResponse = false,
+    mAwaitingResponseId = 0,
+    mAvatarIcon='majoritarian.png',
     mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultPauseDelay = 5, // in seconds
@@ -56,13 +58,13 @@ document.addEventListener('DOMContentLoaded', async event=>{
         hideChat = true
     mShowPage(hideChat)
     if(messages.length)
-        mAddMessages(messages, 'agent')
+        await mAddMessages(messages, 'agent')
         if(input)
             mGlobals.addChatElement(input)
     /* execute Share */
     if(activeShare)
         mShareStart(activeShareId)
-})
+}, { once: true })
 /* public functions */
 function about(){
     mRoutine('about')
@@ -78,7 +80,7 @@ function privacyPolicy(){
  * @param {String} role - The role of the originator of the message
  * @param {Number} typeDelay - The delay between typing each character
  * @param {Function} callback - The callback function to execute after the message is added
- * @returns {HTMLElement} - The chat message element
+ * @returns {Promise<HTMLElement>} - The chat message element
  */
 async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, callback){
     const isSynthetic = !['chat', 'guest', 'member', 'user', 'visitor'].includes(role)
@@ -122,7 +124,7 @@ async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, c
     mGlobals.addChatElement(chatMessage)
     if(!message.startsWith('<section>')) // fixes issues with inline flex blocks; ex. <b>...</b>
         message = `<section>${message}</section>`
-    mTypeMessage(chatBubble, message, typeDelay, callback)
+    await mTypeMessage(chatBubble, message, typeDelay, callback)
     return chatMessage
 }
 /**
@@ -132,13 +134,15 @@ async function mAddMessage(message, role='agent', typeDelay=mDefaultTypeDelay, c
  * @param {String} role - The role of the originator of the message
  * @param {Number} typeDelay - The delay between typing each character
  * @param {Number} pause - The delay between each message
- * @returns {HTMLElement} - The chat message element
+ * @returns {Promise<HTMLElement[]>} - The chat message elements
  */
 async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, pause=5) {
+    const chatMessages = []
     for(let i = 0; i < messages.length; i++){
-        const message = messages[i]
+        const message = messages[i]?.message ?? messages[i]
         await new Promise(async resolve=>{
-            await mAddMessage(message, role, typeDelay)
+            const chatMessage = await mAddMessage(message, role, typeDelay)
+            chatMessages.push(chatMessage)
             if (i===messages.length - 1) {
                 resolve()
             } else {
@@ -151,6 +155,7 @@ async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, pause=5
             }
         });
     }
+    return chatMessages
 }
 /**
  * Add `user` type message to the chat column.
@@ -160,11 +165,11 @@ async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, pause=5
 async function mAddUserMessage(event){
     event.preventDefault()
     const userMessage = mGlobals.chatInput
-    if(!userMessage.length)
+    if(!userMessage.length || mAwaitingResponse)
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
-    await mAddMessage(message, 'member', 2)
-    mSubmitInput(event, message)
+    mAddMessage(message, 'member', 2)
+    await mSubmitInput(event, message)
 }
 /**
  * Creates a challenge element for the user to enter their passphrase. Simultaneously sets modular variables to the instantion of the challenge element. Unclear what happens if multiples are attempted to spawn, but code shouldn't allow for that, only hijax. See the `@required` for elements that this function generates and associates.
@@ -223,22 +228,8 @@ function mCreateChallengeElement(){
 async function mDisclaimer(e, dynamic=false){
     e.preventDefault()
     e.stopPropagation()
-    let awaitButton
-    if(dynamic){
-        mGlobals.toggleChatInput(false)
-        awaitButton = mGlobals.await('Retrieving disclaimer from server...')
-    }
     hide(disclaimerButton)
-    const response = await mGlobals.datamanager.disclaimer()
-    if(dynamic){
-        mGlobals.toggleChatInput(true)
-        mGlobals.expunge(awaitButton)
-    }
-    if(response?.success)
-        for(const message of response.responses)
-            mAddMessage(message.message, 'system', 12)
-    else
-        mAddMessage('Failed to retrieve disclaimer.', 'system', 6)
+    await mRoutine('disclaimer', 'Retrieving disclaimer...')
     setTimeout(_=>{
         disclaimerButton.addEventListener('click', mDisclaimer, { once: true })
         show(disclaimerButton)
@@ -254,10 +245,9 @@ async function mDisclaimer(e, dynamic=false){
  */
 async function mFetchStart(activeBotId){
     const isSignedUp = await mGlobals.datamanager.signupStatus()
-    if(mGlobals.isGuid(mMissionId)){
-        const missions = await mGlobals.datamanager.availableMissions()
-        console.log('missions', missions)
-    }
+    let missions
+    if(mGlobals.isGuid(mMissionId))
+        missions = await mGlobals.datamanager.availableMissions()
     !isSignedUp
         ? hide(signupSuccess)
         : mSignupSuccess()
@@ -287,6 +277,7 @@ async function mFetchStart(activeBotId){
     return {
         input,
         messages,
+        missions,
     }
 }
 /**
@@ -295,6 +286,13 @@ async function mFetchStart(activeBotId){
  * @returns {void}
  */
 function mInitializeListeners(){
+    document.addEventListener('keydown', e=>{
+        if(e.key === 'Escape' && !mAwaitingResponse){
+            console.log('mAwaitingRespons::listener', mAwaitingResponse)
+            mAwaitingResponseId++ // orphans any in-flight submit
+            mGlobals.toggleChatInput()
+        }
+    })
     document.getElementById('chat-input-submit')?.addEventListener('click', mAddUserMessage)
     disclaimerButton?.addEventListener('click', mDisclaimer, { once: true })
     signupButton?.addEventListener('click', mSubmitSignup)
@@ -339,9 +337,20 @@ async function mLoadStart(activeBotId){
  * @param {string} routineName - The routine name to execute
  * @returns {Promise<void>}
  */
-async function mRoutine(routineName){
+async function mRoutine(routineName, awaitText='Awaiting response...'){
     hide(mGlobals.MemberChat)
+    const awaitButton = mGlobals.await(awaitText)
+    mGlobals.addChatElement(awaitButton)
+    const generation = ++mAwaitingResponseId
+    let inProcess = false
+    console.log('mRoutine', mAwaitingResponse)
+    if(mAwaitingResponse)
+        inProcess = true
+    mAwaitingResponse = true
     const { error, responses=[], routine: routineScript, success, } = await mGlobals.datamanager.routine(routineName)
+    if(!inProcess)
+        mAwaitingResponse = false
+    mGlobals.expunge(awaitButton)
     if(success && routineScript){
         const { events: _events, pause, title, typeSpeed, } = routineScript
         const events = _events
@@ -354,8 +363,10 @@ async function mRoutine(routineName){
     } else if(responses?.length)
         await mAddMessages(responses, 'system', typeSpeed, pause)
     else if(error.message)
-        mAddMessage(error.message, 'error', 1)
-    show(mGlobals.MemberChat)
+        await mAddMessage(error.message, 'error', 1)
+    if(!mAwaitingResponse && generation===mAwaitingResponseId)
+        mGlobals.toggleChatInput(true, false)
+    console.log(`${ routineName } routine completed`)
 }
 /**
  * Leads interface through a shared memory.
@@ -532,7 +543,6 @@ function mShowPage(hideChat=false){
         hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){
-    console.log('mSignupSuccess')
     retract(signupForm)
     show(signupSuccess)
 }
@@ -568,25 +578,25 @@ async function mSubmitChallenge(event){
  * @param {string} message - The message to submit. 
  */
 async function mSubmitInput(event, message){
-    if(!message)
+    if(!message || mAwaitingResponse)
         return
     event.stopPropagation()
 	event.preventDefault()
-    mGlobals.toggleChatInput(false)
+    const generation = ++mAwaitingResponseId
+    mGlobals.toggleChatInput(false, false)
     const awaitButton = mGlobals.await('Connecting with Citizens for Rational Government...')
     mGlobals.addChatElement(awaitButton)
-    console.log('mSubmitInput', message, awaitButton)
     const chatData = {
         message,
         role: 'user',
     }
-	const { responses, success, } = await mGlobals.datamanager.submitChat(chatData)
-	responses.forEach(gptMessage=>{
-		mAddMessage(gptMessage.message, 'agent', 2)
-	})
+    mAwaitingResponse = true
+	const { error, responses, success, } = await mGlobals.datamanager.submitChat(chatData)
+    mAwaitingResponse = false
     mGlobals.expunge(awaitButton)
-    mGlobals.chatInput = null
-    mGlobals.toggleChatInput()
+    await mAddMessages(error ? [error] : responses, 'agent', 2)
+    if(generation===mAwaitingResponseId)
+        mGlobals.toggleChatInput()
 }
 /**
  * Submits the signup form to the server.
@@ -640,29 +650,32 @@ function mToggleChallengeSubmitButton(event){
 }
 /**
  * Types a message in the chat bubble.
- * @param {HTMLDivElement} chatBubble - The chat bubble element.
- * @param {string} message - The message to type.
- * @param {number} typeDelay - The delay between typing each character.
- * @returns {void}
+ * @param {HTMLDivElement} chatBubble - The chat bubble element
+ * @param {string} message - The message to type
+ * @param {number} typeDelay - The delay between typing each character
+ * @returns {Promise<void>} - allows await for typing to finish before proceeding
  */
 function mTypeMessage(chatBubble, message, typeDelay=mDefaultTypeDelay, callback){
-    let i = 0
-    let tempMessage = ''
-    function _typewrite() {
-        if(i <= message.length ?? 0){
-            tempMessage += message.charAt(i)
-            chatBubble.innerHTML = ''
-            chatBubble.insertAdjacentHTML('beforeend', tempMessage)
-            i++
-            setTimeout(_typewrite, typeDelay) // Adjust the typing speed here (50ms)
-        } else {
-            chatBubble.setAttribute('status', 'done')
-            if(callback)
-                callback()
+    return new Promise(resolve=>{
+        let i = 0
+        let tempMessage = ''
+        function _typewrite() {
+            if(i <= message.length ?? 0){
+                tempMessage += message.charAt(i)
+                chatBubble.innerHTML = ''
+                chatBubble.insertAdjacentHTML('beforeend', tempMessage)
+                i++
+                setTimeout(_typewrite, typeDelay)
+            } else {
+                chatBubble.setAttribute('status', 'done')
+                if(callback)
+                    callback()
+                resolve()
+            }
+            mGlobals.scrollBottom()
         }
-        mGlobals.scrollBottom()
-    }
-    _typewrite()
+        _typewrite()
+    })
 }
 /**
  * Updates the form input and button states based on the input fields.
