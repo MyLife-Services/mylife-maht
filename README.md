@@ -133,7 +133,7 @@ Before you begin, ensure you have the following installed on your machine:
 
    This command reads the `package.json` file and installs all the required Node.js packages listed in it.
 
-3. **Environment Setup**: The application requires an environment setup. Create a `.env` file in the root of your project and add the necessary environment variables. Refer to the provided `.env.example` file for required keys. MyLife plans to offer self-retrieval keys for any data transfers, but for the time being, if you wish to run a hosted solution for friends, family or other community congregation, you will have to be vetted internally by connectingm with our technical leads @stratfordCircle Steve Kenney or @Mookse Erik Jespersen also reachable at <mylife.president@gmail.com>.
+3. **Environment Setup**: The application requires an environment setup. Create a `.env` file in the root of your project and add the necessary environment variables. Refer to the provided `.env.example` file for required keys. MyLife plans to offer self-retrieval keys for any data transfers, but for the time being, if you wish to run a hosted solution for friends, family or other community congregation, you will have to be vetted internally by connecting with our technical leads @stratfordCircle Steve Kenney or @Mookse Erik Jespersen also reachable at <erikj@humanremembranceproject.org>.
 
 4. **Run the application**: After installing the dependencies and setting up the environment, you can start the application.
 
@@ -166,7 +166,7 @@ MyLife itself is an open-source project and, aside from LLM technologies at the 
    - Utilizes Koa.js, a web framework for Node.js, which is known for its lightweight and modular nature. Koa's middleware stack flows in a stack-like manner, allowing for more expressive and robust server-side development.
 
 2. **Data Handling and Services**
-   - The application uses Azure Cosmos DB and PostgreSQL databases for data management, as indicated in the `mylife-data-service.js` file.
+   - The application uses Azure Cosmos DB and PostgreSQL databases for data management, as indicated in the `dataservices.mjs` file.
    - It employs a data service layer (`Dataservices` class) to manage interactions with the data layers, offering methods for CRUD operations, handling avatars, bots, alerts, and other core elements.
 
 3. **Bot Functionality and Intelligence Management**
@@ -174,7 +174,7 @@ MyLife itself is an open-source project and, aside from LLM technologies at the 
    - OpenAI's GPT-3 model is integrated for generating responses and interacting with users through bots, as observed in the `avatar.mjs` and `factory.mjs` files.
 
 4. **Session Management**
-   - Managed through the `MylifeMemberSession` class, handling user sessions, consents, and alerts.
+   - Managed through the Koa Session, for extensibility, an app managed variable: `app.context.mcpSessionMeta` contains all of the active transports and unique information to connect multiple streams to one session.
    - Utilizes EventEmitter for managing and emitting custom events.
 
 5. **Routing and API Handling**
@@ -195,12 +195,9 @@ MyLife itself is an open-source project and, aside from LLM technologies at the 
    - `chalk` for terminal string styling.
 
 2. **Utilities and Helpers**
-   - `ajv` for JSON schema validation.
-   - `js-guid` for GUID generation.
    - `marked` for markdown parsing.
 
 3. **Development Tools**
-   - `eslint` for code linting.
    - `nodemon` for automatically restarting the node application when file changes are detected.
 
 4. **Miscellaneous**
@@ -241,7 +238,7 @@ SOFTWARE.
 ### Contact
 
 You may contact either Erik Jespersen @Mookse or Steve Kenney @stratfordCircle at github with any technical questions.
-Additionally, you could visit the main [MyLife website](https://humanremembranceproject.org) at <mylife.president@gmail.com>.
+Additionally, you could visit the main [MyLife website](https://humanremembranceproject.org) at <erikj@humanremembranceproject.org>.
 
 ### Appendix Notes
 

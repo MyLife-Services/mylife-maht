@@ -23,6 +23,11 @@
 			"dialog": {
 				"message": "<em>MyLife</em>'s primary mission and objective is to provide a durable, enduring internet-enabled platform for individuals to collect, curate, and share personal media and information in perpetuity. As a legally recognized nonprofit organization, we're poised to be a trusted humanist platform for digital memorialization, personal storytelling, and first-hand accounting to offer our insights as direct data contributions to help shape, support and improve the prospects of future humanity."
 			}
+		},
+		{
+			"dialog": {
+				"message": "Without any further ado, let's get started, <-mN->! To begin, tell me about a particular memory on your mind, or maybe a period of your life you'd like to explore."
+			}
 		}
 	],
     "name": "routine_biographer",

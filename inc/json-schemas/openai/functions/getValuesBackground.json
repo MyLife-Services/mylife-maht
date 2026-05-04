@@ -1,0 +1,10 @@
+{
+    "name": "getValuesBackground",
+    "description": "Get the values background information for a member, identifying their cultural, educational, philosophical, religious, and upbringing (and other) influences.",
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+    },
+    "strict": true
+}

@@ -1,0 +1,25 @@
+{
+    "description": "Gets `value` data by `itemId`; refer to its GUID identifier `id`, no other retrieval will work",
+    "name": "getValue",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Guid id of `value` data to retrieve",
+                "format": "uuid",
+                "type": "string"
+            },
+            "summaryOnly": {
+                "default": true,
+                "description": "When `true` retrieve _just_ the item summary, use `false` to get entire object with metadata; most cases, summary is sufficient unless you or member is trying to display or update metadata",
+                "type": "boolean"
+            }
+        },
+        "required": [
+            "itemId",
+            "summaryOnly"
+        ]
+    },
+    "strict": true
+}

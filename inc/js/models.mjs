@@ -1,11 +1,328 @@
 /* imports */
 import { EventEmitter } from 'events'
 /* module constants */
-const mAvailableForms = ['entry', 'memory'],
-    mBeing = `story`,
+const mBeing = `story`,
     mShareGratitude = `Thank you for letting us share this narrative with you! I hope you enjoyed it as much as I did.`,
     mShareScopes = ['group', 'members', 'private', 'public'],
     mVersion = 1.00
+/**
+ * @class - Consent
+ * @extends EventEmitter
+ * @description A `Consent` is a class that represents a consent object in the datacore or vectorstore, referenced by a consent-agent intelligence to inform outgoing processes on whether the content suggested in the request or response is allowable.
+ */
+class Consent extends EventEmitter {
+    constructor(obj) {
+        super()
+        Object.assign(this, obj)
+    }
+    //  public functions
+    async allow(_request){
+        //	this intends to evolve in near future, but is currently only a pass-through with some basic structure alluding to future functionality
+        return true
+    }
+}
+class Conversation extends EventEmitter {
+    #activeExchangeId
+    #being='chat'
+    #bot_id
+    #exchanges = new Set() //  utilized for tracking exchanges related to conversation
+    #factory
+    #form
+    #id
+    #llmProvider
+    #mbr_id
+    #messages = []
+    #saved = false
+    #thread
+    #threads = new Set()
+    #type
+    constructor(obj, factory, botId, llmProvider, thread){
+        if(!factory || !llmProvider)
+            throw new Error('Factory and LLM properties required')
+        super()
+        const {
+            form='system-avatar',
+            id,
+            mbr_id,
+            type='chat',
+            ..._obj
+        } = obj
+        this.#factory = factory
+        this.#thread = thread
+        this.#bot_id = botId
+        this.#form = form
+        this.#id = id
+            ?? this.#factory.newGuid
+        this.#llmProvider = llmProvider
+        this.#mbr_id = mbr_id
+            ?? this.#factory.mbr_id
+        this.name = `conversation_${ this.#mbr_id }_${ this.#id }`
+        this.#type = type
+        Object.assign(this, _obj)
+    }
+    /* public functions */
+    /**
+     * Adds a `Message` instances to the conversation.
+     * @public
+     * @param {Object|Message} message - Message instance or object data to add
+     * @returns {Object[]} - The updated messages array
+     */
+    addMessage(message){
+        const { id, } = message
+        if(this.#messages.find(message=>message.id===id))
+            return this.messages
+        if(!(message instanceof this.#factory.message)){
+            if(typeof message!=='object')
+                message = { content: message, }
+            message.exchangeId = this.exchangeId
+            message = new (this.#factory.message)(message)
+        }
+        this.#messages = [message, ...this.messages]
+        return this.messages
+    }
+    /**
+     * Adds an array of `Message` instances to the conversation.
+     * @public
+     * @param {Object[]} messages - Array of messages to add
+     * @returns {Object[]} - The updated messages array
+     */
+    addMessages(messages){
+        messages.forEach(message => this.addMessage(message))
+        return this.messages
+    }
+    /**
+     * Adds a conversation id to the conversation archive
+     * @param {string} conversation_id - The conversation id to add to thread
+     * @returns {void}
+     */
+    addThread(conversation_id){
+        this.#threads.add(conversation_id)
+    }
+    conversation(){
+        return {
+            bot_id: this.bot_id,
+            id: this.#id,
+            form: this.form,
+            mbr_id: this.mbr_id,
+            name: this.name,
+            thread: this.thread,
+            type: this.type,
+        }
+    }
+    /**
+     * Starts an exchange within the conversation by exchange id, or defaults to new guid
+     * @param {string} exchangeId - The exchange id (uuid) to start, or defaults to new guid if not provided
+     * @returns {void}
+     */
+    exchangeStart(exchangeId=this.#factory.newGuid){
+        this.#activeExchangeId = exchangeId
+        this.#exchanges.add(exchangeId)
+    }
+    /**
+     * Get the message by id, or defaults to last message added.
+     * @public
+     * @param {Guid} messageId - The message id
+     * @returns {Message} - The `Message` instance
+     */
+    getMessage(messageId){
+        const Message = messageId?.length
+            ? this.getMessages().find(message=>message.id===messageId)
+            : this.message
+        return Message
+    }
+    /**
+     * Get the messages for the conversation.
+     * @public
+     * @param {boolean} agentOnly - Whether or not to get only agent messages
+     * @param {boolean} currentExchangeOnly - Whether or not to get only messages from the current exchange; defaults to `false` will return all exchanges
+     * @param {string} conversation_id - The conversation id to get messages for (optional)
+     * @param {string} exchangeId - The exchange id to get messages for (optional)
+     * @param {boolean} chronological - Whether or not to return messages in chronological order, defaults to `true`, oldest first
+     * @returns {Message[]} - The messages array
+     */
+    getMessages(agentOnly=true, currentExchangeOnly=false, conversation_id, exchangeId, chronological=true){
+        let messages = this.messages
+        if(agentOnly)
+            messages = messages.filter(message=>['member', 'user'].indexOf(message.role) < 0)
+        if(currentExchangeOnly)
+            if(this.#activeExchangeId?.length)
+                messages = messages.filter(message=>message.exchangeId===this.exchangeId)
+            else if(this.#exchanges.size)
+                messages = messages.filter(message=>message.exchangeId===[...this.#exchanges][this.#exchanges.size-1]) // get last <uuid> in set
+        if(conversation_id?.length)
+            messages = messages.filter(message=>message.thread_id===conversation_id)
+        if(exchangeId?.length)
+            messages = messages.filter(message=>message.exchangeId===exchangeId)
+        if(chronological)
+            messages = messages.sort((a, b) => a.created_at - b.created_at)
+        return messages
+    }
+    /**
+     * Removes a thread id from the conversation archive
+     * @param {string} conversation_id - The conversation id to remove
+     * @returns {void}
+     */
+    removeThread(conversation_id){
+        this.#threads.delete(conversation_id)
+    }
+    /**
+     * Sets the thread instance for the conversation.
+     * @param {object} thread - The thread instance
+     * @returns {void}
+     */
+    setThread(thread){
+        const { id: thread_id, } = thread
+        if(thread_id?.length && thread_id!=this.thread_id){
+            this.#threads.add(this.thread_id)
+            this.#thread = thread
+        }
+    }
+    /**
+     * Saves the conversation to the MyLife Database.
+     * @async
+     * @returns {void}
+     */
+    async save(){
+        this.#saved = await mSaveConversation(this, this.#factory)
+    }
+    /* public getters/setters */
+    get being(){
+        return this.#being
+    }
+    get bot_id(){
+        return this.#bot_id
+    }
+    set bot_id(botId){
+        if(!this.#factory.globals.isValidGuid(botId))
+            throw new Error(`Invalid bot id: ${ botId }`)
+        this.#bot_id = botId
+    }
+    get botId(){
+        return this.bot_id
+    }
+    set botId(botId){
+        this.bot_id = botId
+    }
+    get exchangeId(){
+        return this.#activeExchangeId
+    }
+    get form(){
+        return this.#form
+    }
+    get id(){
+        return this.#id
+    }
+    get isSaved(){ //Whether or not the conversation has _ever_ been saved
+        return this.#saved
+    }
+    get llmProvider(){
+        return this.#llmProvider
+    }
+    get mbr_id(){
+        return this.#mbr_id
+    }
+    get message(){ // Get the most recently added message
+        return this.messages[0]
+    }
+    get messages(){
+        return this.#messages
+    }
+    get mostRecentDialog(){ // Gets most recent dialog contribution to conversation
+        return this.message.content
+    }
+    get thread(){
+        return this.#thread
+    }
+    set thread(thread){
+        this.setThread(thread)
+    }
+    get thread_id(){
+        return this.thread.id
+    }
+    get threadId(){
+        return this.thread_id
+    }
+    get threads(){
+        return this.#threads
+    }
+    get type(){
+        return this.#type
+    }
+}
+/**
+ * Message class
+ * @class
+ * @param {object} obj - The object to construct the message from
+ */
+class Message extends EventEmitter {
+    #being='message'
+    #content
+    #role
+    constructor(obj){
+        super()
+        const { content, message, role='system', ..._obj } = obj
+        _obj.created_at = _obj.created_at
+            ?? Date.now()
+        Object.assign(this, _obj)
+        try{
+            this.#role = role
+            this.#content = mAssignContent(content ?? message ?? obj)
+        } catch(e){
+            this.#content = ''
+        }
+    }
+    /* getters/setters */
+    get being(){
+        return this.#being
+    }
+    get content(){
+        return this.#content
+    }
+    set content(_content){
+        try{
+            this.#content = mAssignContent(_content)
+        } catch(e){}
+    }
+    get message(){
+        return this
+    }
+    get role(){
+        return this.#role
+    }
+    /**
+     * Get the message in micro format for storage.
+     * @returns {object} - The message in micro format
+     */
+    get micro(){
+        return {
+            content: this.content,
+            created_at: this.created_at
+                ?? Date.now(),
+            id: this.id,
+            role: this.role,
+        }
+    }
+}
+/**
+ * @class - File
+ * @extends EventEmitter
+ * @description A `File` is a class that represents a file in the datacore or vectorstore
+ */
+class File extends EventEmitter {
+    #contents   //  utilized _only_ for text files
+    constructor(_obj) {
+        super()
+        Object.assign(this, _obj)
+    }
+    //  public functions
+    async init(){
+        //  self-validation
+        if(!this.contents && this.type=='text')
+            throw new Error('No contents provided for text file; will not store')
+    }
+    //  public getters/setters
+    //  private functions
+}
 /**
  * @class - Item
  * @extends EventEmitter
@@ -13,17 +330,20 @@ const mAvailableForms = ['entry', 'memory'],
  */
 class Item extends EventEmitter {
     #additionalProperties
-    #availableForms = mAvailableForms
+    #assistantType
+    #availableTypes=['entry', 'memory']
     #avatar
-    #being=mBeing
+    #being
     #complete=false
+    #content
     #created=Date.now()
     #form
     #id
+    #immutableFields=['availableTypes', 'being', 'complete', 'id', 'item', 'itemCore', 'mbr_id', 'name', 'type', 'unsavedDuration', 'version'] // **note**: Avatar.populateObject() will prevent overwriting functions
     #lastSaved
-    #llm_id
     #llmServices
     #mbr_id
+    #name
     #summary
     #type
     #version
@@ -45,41 +365,58 @@ class Item extends EventEmitter {
         this.#llmServices = llmServices
         item = this.#avatar.sanitize(item)
         const {
+            assistantType,
             being,
             complete,
+            content,
             form,
             id=this.#avatar.newGuid,
-            llm_id,
             mbr_id,
+            name,
             summary='',
             type,
             version=mVersion,
             ...additionalProperties
         } = item
         this.#additionalProperties = additionalProperties
+        this.#being = being
+            ?? mBeing
+        this.#content = content
         this.#form = form
         this.#id = id
-        this.#llm_id = llm_id
         this.#mbr_id = avatar.mbr_id
         this.#summary = summary
         this.#type = type
         this.#version = version
         this.#avatar.populateObject(this, this.#additionalProperties)
+        this.#assistantType = assistantType
+            ?? this.#avatar.getAssistantType(form, type)
+        this.#name = `${ this.type }_${ this.title ?? 'Untitled' }_${ this.mbr_id }_${ this.id }`
     }
     /* public functions */
+    allowedType(type){
+        return this.#availableTypes.includes(type)
+    }
     async create(){
         await this.#avatar.itemCreate(this.item)
         this.#lastSaved = Date.now()
+        return true
     }
     /**
      * Save the item to the datacore, and updates the next mechanical version.
-     * @param {object} data - Data object describing fields to be saved (optional), defaults to allowable fields
-     * @returns {Promise<void>}
+     * @returns {Promise<boolean>} - Returns true if save was successful, false if an error occurred
      */
-    async save(data=this.item){
-        await this.#avatar.itemUpdate(data)
-        this.updateVersion()
+    async save(){
+        try {
+            this.#lastSaved
+                ? await this.update(this.item)
+                : await this.create()
+        } catch(err) {
+            console.log('Error saving item:', err)
+            return false
+        }
         this.#lastSaved = Date.now()
+        return true
     }
     /**
      * Update the item with valid new data.
@@ -88,12 +425,13 @@ class Item extends EventEmitter {
      * @returns {Promise<void>}
      */
     async update(data, save=true){
-        delete data.itemId
-        const immutableFields = ['being', 'id', 'llm_id', 'mbr_id', 'type']
-        this.#avatar.populateObject(this, data, immutableFields)
-        this.updateVersion()
+        const clean = { ...data, }
+        delete clean.itemId
+        if(data!==this.item)
+            this.#avatar.populateObject(this, clean, this.#immutableFields)
         if(save)
-            await this.save(data)
+            await this.#avatar.itemUpdate({...clean, id: this.id, })
+        this.updateVersion()
     }
     /**
      * Update the item version.
@@ -107,26 +445,44 @@ class Item extends EventEmitter {
             this.#version = Math.floor(this.#version) + 1.0
     }
     /* getters/setters */
+    get availableTypes(){
+        return this.#availableTypes
+    }
+    get assistantType(){
+        return this.#assistantType
+    }
     get being(){
         return this.#being
     }
     get complete(){
         return this.#complete
     }
+    get content(){
+        return this.#content
+    }
+    set content(value){
+        if(typeof value==='string' && value?.length)
+            this.#content = value
+    }
     get form(){
         return this.#form
+    }
+    set form(value){ /* @stub - currently no gates on form */
+        this.#form = value
     }
     get id(){
         return this.#id
     }
     get itemCore(){
         return {
+            assistantType: this.assistantType,
             being: this.being,
             complete: this.complete,
+            content: this.content,
             form: this.form,
             id: this.id,
-            llm_id: this.llm_id,
             mbr_id: this.mbr_id,
+            name: this.#name,
             summary: this.summary,
             type: this.type,
             version: this.version,
@@ -137,9 +493,6 @@ class Item extends EventEmitter {
             ...this.#additionalProperties,
             ...this.itemCore,
         }
-    }
-    get llm_id(){
-        return this.#llm_id
     }
     get mbr_id(){
         return this.#mbr_id
@@ -165,38 +518,62 @@ class Item extends EventEmitter {
         return this.#type
     }
     set type(value){
-        if(this.#availableForms.indexOf(value)!==-1)
+        if(this.allowedType(value))
             this.#type = value
     }
     get version(){
         return this.#version
     }
 }
-class Entry extends Item {
-    #content
+class Action extends Item {
+    #availableForms=['environmental', 'personal', 'political', 'relational', 'social', 'other']
     constructor(item, avatar, llmServices){
-        const { content, ..._item } = item
-        _item.type = 'entry'
-        super(_item, avatar, llmServices)
-        this.#content = content
+        item.being = 'action'
+        item.type = 'action'
+        super(item, avatar, llmServices)
     }
-    /* getters/setters */
-    get itemCore(){
-        return {
-            ...super.itemCore,
-            content: this.#content,
-        }
-    }
-    get content(){
-        return this.#content
+}
+class Entry extends Item {
+    constructor(item, avatar, llmServices){
+        item.being = 'story'
+        item.type = 'entry'
+        super(item, avatar, llmServices)
     }
 }
 class Memory extends Item {
     constructor(item, avatar, llmServices){
+        item.being = 'story'
         item.type = 'memory'
         super(item, avatar, llmServices)
     }
 }
+class Stance extends Item {
+    #availableTypes=['issue', 'personal', 'relational', 'value', 'other']
+    /* unique fields: #backgrounds, #conviction, #emotional_intensity */
+    constructor(item, avatar, llmServices){
+        item.being = 'stance'
+        item.type ??= 'personal'
+        super(item, avatar, llmServices)
+    }
+    /* public functions */
+    allowedType(type){
+        return this.#availableTypes.includes(type)
+    }
+}
+class Issue extends Stance {
+    /* unique fields: #geography, #issue, #values */
+    constructor(item, avatar, llmServices){
+        item.type = 'issue'
+        super(item, avatar, llmServices)
+    }
+}
+class Value extends Stance {
+    constructor(item, avatar, llmServices){
+        item.type = 'value'
+        super(item, avatar, llmServices)
+    }
+}
+/* Share classes */
 /**
  * @class - Share
  * @extends EventEmitter
@@ -447,7 +824,9 @@ class Share extends EventEmitter {
             anonymous: this.anonymous,
             guessable: this.guessable,
             id: this.instanceId,
+            itemId: this.itemId,
             scope: this.scope,
+            shareId: this.id,
             title: this.title,
             type: this.type,
             warnings: this.warnings,
@@ -489,6 +868,98 @@ class Share extends EventEmitter {
 }
 /* module functions */
 /**
+ * Assigns content (from _message.message) to message object.
+ * @module
+ * @public
+ * @param {any} obj - Element to assign to `content` property
+ * @returns {string} - message text content
+ */
+function mAssignContent(obj){
+    const contentErrorMessage = 'No content found.'
+    const keyIncludes = ['category', 'content', 'input', 'message', 'text', 'value']
+    switch(typeof obj){
+        case 'undefined':
+            throw new Error(contentErrorMessage)
+        case 'object':
+            if(Array.isArray(obj)){
+                if(!obj.length)
+                    throw new Error(contentErrorMessage)
+                for(const element of obj){
+                    try{
+                        const content = mAssignContent(element)
+                        return content
+                    } catch(e){
+                        if(e.message===contentErrorMessage)
+                            continue
+                    }
+                }
+                throw new Error(contentErrorMessage)
+            }
+            for(const key in obj){
+                try{
+                    if(keyIncludes.includes(key)){
+                        const content = mAssignContent(obj[key])
+                        return content
+                    }
+                } catch(e){
+                    if(e.message===contentErrorMessage)
+                        continue
+                }
+            }
+            throw new Error(contentErrorMessage)
+        case 'string':
+            if(!obj.trim().length)
+                throw new Error(contentErrorMessage)
+            return obj.trim()
+        default:
+            return `${obj}`
+    }
+}
+/**
+ * Consumes a conversation object and uses supplied factory to (create/)save it to MyLife CosmosDB. Each session conversation is saved as a separate document, and a given thread may span many conversations, so cross-checking by thread_id will be required when rounding up and consolidating summaries for older coversations.
+ * @param {AgentFactory} factory - Factory instance
+ * @param {Conversation} Conversation - Conversation instance
+ * @returns {Promise<void>}
+ */
+async function mSaveConversation(Conversation, factory){
+    const {
+        being,
+        bot_id,
+        form,
+        id,
+        itemId,
+        isSaved=false,
+        mbr_id,
+        name,
+        thread,
+        type,
+    } = Conversation
+    let messages = Conversation.getMessages(false, true)
+    messages = messages
+        .map(_msg=>_msg.micro)
+    if(!isSaved){
+        const _newConversation = {
+            being,
+            bot_id,
+            form,
+            id,
+            itemId,
+            messages,
+            mbr_id,
+            name,
+            thread,
+            type,
+        }
+        const newConversation = await factory.dataservices.pushItem(_newConversation)
+        return !!newConversation
+    }
+    const updatedConversation = await factory.dataservices.patch(
+        id,
+        { mbr_id, messages, }
+    )
+    return !!updatedConversation
+}
+/**
  * Validate a guess against a Member name.
  * @param {String} memberName - The Member name to validate
  * @param {String} input - The input to validate against Member name
@@ -506,7 +977,14 @@ function mValidateGuess(memberName, input){
 }
 /* exports */
 export {
+    Action,
+    Conversation,
     Entry,
+    Issue,
+    Item,
 	Memory,
+    Message,
     Share,
+    Stance,
+    Value,
 }

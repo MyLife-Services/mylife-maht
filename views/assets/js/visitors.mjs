@@ -254,10 +254,9 @@ async function mDisclaimer(e, dynamic=false){
  */
 async function mFetchStart(activeBotId){
     const isSignedUp = await mGlobals.datamanager.signupStatus()
-    if(mGlobals.isGuid(mMissionId)){
-        const missions = await mGlobals.datamanager.availableMissions()
-        console.log('missions', missions)
-    }
+    let missions
+    if(mGlobals.isGuid(mMissionId))
+        missions = await mGlobals.datamanager.availableMissions()
     !isSignedUp
         ? hide(signupSuccess)
         : mSignupSuccess()
@@ -287,6 +286,7 @@ async function mFetchStart(activeBotId){
     return {
         input,
         messages,
+        missions,
     }
 }
 /**
@@ -532,7 +532,6 @@ function mShowPage(hideChat=false){
         hide(mGlobals.MemberChat)
 }
 function mSignupSuccess(){
-    console.log('mSignupSuccess')
     retract(signupForm)
     show(signupSuccess)
 }
@@ -575,7 +574,6 @@ async function mSubmitInput(event, message){
     mGlobals.toggleChatInput(false)
     const awaitButton = mGlobals.await('Connecting with Citizens for Rational Government...')
     mGlobals.addChatElement(awaitButton)
-    console.log('mSubmitInput', message, awaitButton)
     const chatData = {
         message,
         role: 'user',

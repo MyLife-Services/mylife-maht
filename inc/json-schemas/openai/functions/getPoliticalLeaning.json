@@ -1,0 +1,10 @@
+{
+    "name": "getPoliticalLeaning",
+    "description": "Get the political leaning information for a member, identifying their political affiliation or ideological stance.",
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+    },
+    "strict": true
+}

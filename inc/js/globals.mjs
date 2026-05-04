@@ -3,7 +3,6 @@ import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import EventEmitter from 'events'
-import { randomUUID } from 'crypto'
 /* constants */
 const mAiJsFunctions = await mParseFunctions()
 const mMCPFunctions = await mParseFunctions('/mcp/tools')
@@ -13,6 +12,7 @@ const mForbiddenValues = [undefined, null, NaN]
 const mGuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i	//	regex for GUID validation
 const mOpenAIBotModel = process.env.OPENAI_MODEL_CORE_BOT
 	?? 'gpt-4o'
+const mUrlRegex = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)(:[0-9]{1,5})?(\/\S*)?$/
 /**
  * Globals class holds all of the sensitive data and functionality. It exists as a singleton.
  * @class
@@ -93,12 +93,11 @@ class Globals extends EventEmitter {
 	 * @returns {object} - {type: 'function', function, } - the function object.
 	 */
 	getGPTJavascriptFunction(name){
-		if(!name?.length)
-			throw new Error('getGPTJavascriptFunction() expects a function name as parameter')
-		return {
-			type: 'function',
-			function: this.GPTJavascriptFunctions[name]
-		}
+		let response
+		const gptFunction = this.GPTJavascriptFunctions?.[name]
+		if(gptFunction)
+			response = { type: 'function', function: gptFunction, }
+		return response
 	}
 	getRegExp(text, isGlobal=false) {
 		if (typeof text !== 'string' || !text.length)
@@ -111,9 +110,25 @@ class Globals extends EventEmitter {
 	isValidGuid(text){
 		return typeof text === 'string' && mGuidRegex.test(text)
 	}
+	isValidUrl(url){
+		if(typeof url==='string' && !/^https?:\/\//i.test(url))
+			url = 'http://' + url
+		return typeof url==='string' && mUrlRegex.test(url)
+	}
 	isValidVersion(version) {
 		const regex = /^\d+\.\d+\.\d+$/
 		return typeof version === 'string' && regex.test(version)
+	}
+	/**
+	 * Converts a snake_case function name to camelCase.
+	 * @param {string} functionName - The snake_case function name
+	 * @returns {string} - The camelCase function name
+	 */
+	jsFunctionName(functionName){
+		return functionName
+			.replace(/_(\w)/g, (_, letter)=>letter.toUpperCase())
+			.replace(/-(\w)/g, (_, letter)=>letter.toUpperCase())
+			.replace(/^\w/, c=>c.toLowerCase()) // ensure first character is lowercase
 	}
 	/**
 	 * Populate an object with data, alters in place the incoming class instance.
@@ -201,8 +216,8 @@ class Globals extends EventEmitter {
 	get MCPFunctions(){
 		return mMCPFunctions
 	}
-	get newGuid(){	//	this.newGuid
-		return randomUUID()
+	get newGuid(){
+		return crypto.randomUUID()
 	}
 	get uploadPath(){
 		return './.uploads/.tmp/'

@@ -1,0 +1,23 @@
+{
+    "description": "Updates (overwrites) the `stance` summary referenced by itemId",
+    "name": "updateStance",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "itemId": {
+                "description": "Id of `stance` summary to update",
+                "type": "string"
+            },
+            "summary": {
+                "description": "The new updated and **complete** `stance` summary",
+                "type": "string"
+            }
+        },
+        "required": [
+            "itemId",
+            "summary"
+        ]
+    },
+    "strict": true
+}

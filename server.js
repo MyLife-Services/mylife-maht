@@ -13,6 +13,9 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/factory.mjs'
 /** variables **/
+const version = '0.2.0'
+const app = new Koa()
+const port = process.env.PORT ?? '3000'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const app = new Koa()
@@ -106,11 +109,15 @@ app
 		try {
 			await next()
 		} catch (err) {
+			const clientDisconnect = err.code==='ECONNRESET' || err.code==='ERR_STREAM_PREMATURE_CLOSE'
 			ctx.status = err.statusCode || err.status || 500
 			ctx.body = {
 				message: err.message
 			}
-			console.error(err)
+			if(clientDisconnect)
+				console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
+			else
+				console.error(err)
 		}
 	})
 	.use(async (ctx,next)=>{

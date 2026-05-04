@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/schema",
 	"$id": "https://maht.azurewebsites.net/inc/json-schemas/bot.json",
-	"required": ["allowedBeings", "allowMultiple", "being", "id", "instructions", "llm_id", "mbr_id", "model", "provider", "purpose", "type"],
+	"required": ["allowedBeings", "allowMultiple", "being", "id", "instructions",  "mbr_id", "provider", "purpose", "type"],
 	"type": "object",
 	"name": "Bot",
 	"properties": {
@@ -54,7 +54,7 @@
         "provider": {
             "description": "provider of bot",
             "default": "openai",
-            "enum": ["azure", "meta", "mylife", "openai", "other"],
+            "enum": ["azure", "external", "meta", "mylife", "openai", "other"],
             "type": "string",
             "$comment": "@todo: breakout into $def for provider, ergo we can include in ecosystem as partner, etc."
         },
@@ -77,5 +77,5 @@
         }
     },
     "additionalProperties": true,
-    "$comments": "at this juncture, additional props are critical; for example, dob is something we could ship along with any interests known, etc."
+    "$comments": "- 20260331: removed `bot_name` as it is now embedded in bot-type instructions\n- at this juncture, additional props are critical; for example, dob is something we could ship along with any interests known, etc."
 }

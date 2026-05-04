@@ -36,6 +36,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mLoaded = false,
     mLogoutButton,
     mMainContent,
+    mOverlays,
     mNavigation,
     mNavigationHamburger,
     mNavigationHelp,
@@ -109,6 +110,12 @@ class Datamanager {
         const responses = await this.#fetch(url)
         return responses
     }
+    async bot(botId){
+        const botURL = botId?.length ? `/${ botId }` : ''
+        const url = `/members/bot` + botURL
+        const response = await this.#fetch(url)
+        return response
+    }
     async botActivate(botId, system=false){
         const url = `${ !system ? '/members' : '' }/bots/activate/${ botId }`
         const options = {
@@ -121,8 +128,17 @@ class Datamanager {
         return response
     }
     /**
+     * Fetches the buttons for a specified bot.
+     * @param {Guid} botId - bot id
+     * @returns {Object[]} - array of bot button objects: { endpoint, id, label, order, type, value, }
+     */
+    async botButtons(botId){
+        const url = `/members/bots/${ botId }/buttons`
+        const response = await this.#fetch(url)
+        return response
+    }
+    /**
      * Request bot be created on server.
-     * @requires mActiveTeam
      * @param {string} type - bot type
      * @returns {object} - Bot object from server.
      */
@@ -136,6 +152,55 @@ class Datamanager {
             body: JSON.stringify(botData)
         }
         const response = this.#fetch(url, options)
+        return response
+    }
+    /**
+     * Fetches the options for a specified bot.
+     * @param {Guid} botId - bot id
+     * @returns {Object[]} - array of bot option objects: { endpoint, id, label, options, order, placeholder, title, type, variable, }
+     */
+    async botOptions(botId){
+        const url = `/members/bots/${ botId }/options`
+        const response = await this.#fetch(url)
+        return response
+    }
+    /**
+     * Request bot proxy be created on server.
+     * @param {object} botData - bot data { auth, id, type, url, }
+     * @property {object} auth - The authentication data, if required
+     * @property {string} id - The teamId agent is assigned to
+     * @property {string} type - only 'proxy' supported
+     * @property {string} url - The external A2A *agent card* URL
+     * @returns {object} - Bot object from server
+     */
+    async botProxy(botData){
+        botData.type = 'proxy' // enforce type
+        const url = `/members/bots/proxy`
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(botData)
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async botProxyAccess(proxyId, botId, grant){
+        const url = `/members/bots/proxy/${ proxyId }/access`
+        const options = {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ botId, grant, })
+        }
+        const response = await this.#fetch(url, options)
+        return response
+    }
+    async botProxyRefresh(proxyId){
+        const url = `/members/bots/proxy/${ proxyId }/refresh`
+        const response = await this.#fetch(url)
         return response
     }
     async botRetire(bot_id){
@@ -271,7 +336,6 @@ class Datamanager {
             },
             method: 'PATCH',
         }
-        console.log(`experience: ${ url }`, body, options)
         const response = await this.#fetch(url, options)
         return response
     }
@@ -371,6 +435,16 @@ class Datamanager {
         return response
     }
     /**
+     * Persists the last active item id for the member session. Fire-and-forget safe.
+     * @param {Guid} itemId - The item id to persist as last active
+     * @returns {Promise<boolean>} - `true` if persisted successfully
+     */
+    async itemActivate(itemId){
+        const url = `/members/items/activate/${ itemId }`
+        const options = { method: 'PUT', }
+        return await this.#fetch(url, options)
+    }
+    /**
      * Deletes the item from the server.
      * @param {Guid} itemId - The collection item id
      * @returns {Object} - The item object: { item, message, success, }
@@ -389,7 +463,7 @@ class Datamanager {
      * @returns {Object} - The response object: { item, success, }
      */
     async itemUpdate(itemId, summary, emoticons){
-        const url = `/members/item/${ itemId }`
+        const url = `/members/items/${ itemId }`
         const options = {
             method: 'PUT',
             headers: {
@@ -409,7 +483,7 @@ class Datamanager {
     async itemUpdateTitle(itemId, title){
         if(!title?.length)
             throw new Error(`No title provided for title update`)
-        const url = `/members/item/${ itemId }`
+        const url = `/members/items/${ itemId }`
         const options = {
             method: 'PUT',
             headers: {
@@ -508,7 +582,6 @@ class Datamanager {
      */
     async share(shareId, input){
         const url = `/share/${ shareId }`
-        console.log(`share: ${ shareId }`, input)
         const options = {
             body: JSON.stringify({ input, }),
             headers: {
@@ -657,22 +730,25 @@ class Datamanager {
         return response
     }
     /**
-     * Fetches the team for a specified team ID.
-     * @param {Guid} teamId - The team name
+     * Fetches the team for a specified team ID; returns active team if teamId is null.
+     * @param {Guid|null} teamId - The team ID; if null, will return active team
      * @returns {Object}- The team object: { id, name, etc. }
      */
     async team(teamId){
-
+        const teamURL = teamId?.length ? `/${ teamId }` : ''
+        const url = `/members/team` + teamURL
+        const response = await this.#fetch(url)
+        return response
     }
     /**
-     * Sets the active Team.
+     * Sets the active Team by ID.
      * @param {Guid} teamId - The team ID
      * @returns {Object} - The response object
      */
     async teamActivate(teamId){
-        const url = `/members/teams/${ teamId }`
+        const url = `/members/teams/activate/${ teamId }`
         const options = {
-            method: 'POST', 
+            method: 'POST',
         }
         const response = await this.#fetch(url, options)
         return response 
@@ -732,8 +808,9 @@ class Globals {
             mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
-            mPage = document?.getElementById('page-header')
-                ?? document?.getElementById('page-wrapper')
+            mNavigationMenu = document.getElementById('navigation-menu')
+            mOverlays = document.getElementById('overlays')
+            mPage = document.getElementById('page-header')
             mSidebar = document.getElementById('sidebar')
                 ?? document.getElementById('bot-container')
             /* element initialization */
@@ -868,19 +945,6 @@ class Globals {
 		a.length = 0
 	}
     /**
-     * Operates on a dataset to clear all frontend-defined keys.
-     * @param {DOMStringMap} dataset - The dataset to clear
-     * @returns {void}
-     */
-    clearDataset(dataset){
-        if(!(dataset instanceof DOMStringMap))
-            return
-        for(let key in dataset){
-            if(dataset.hasOwnProperty(key))
-                delete dataset[key]
-        }
-    }
-    /**
      * Clears an element of its contents, brute force currently via innerHTML.
      * @param {HTMLElement} element - The element to clear.
      * @returns {void}
@@ -890,25 +954,18 @@ class Globals {
     }
     /**
      * Consumes instruction object and performs the requested actions.
-     * @param {object} instruction - The instruction object: { command, input, inputs, item, itemId, summary, title, }
+     * @param {object} instruction - The instruction object: { command, id, input, inputs, item, itemId, livingMemoryId, summary, title, }
      * @param {object} functions - Object with access to injected functions, populated by case
      * @returns {void}
      */
-    enactInstruction(instruction, functions){
-        const { command, input, inputs=[], item, itemId, livingMemoryId, summary, title, } = instruction
-        const {
-            addInput,
-            addMessages,
-            createItem,
-            endMemory,
-            removeItem,
-            updateItem,
-            updateItemSummary,
-            updateItemTitle,
-        } = functions
+    enactInstruction(instruction, functions={}){
+        if(Array.isArray(instruction))
+            return instruction.forEach(i=>this.enactInstruction(i, functions) ) // always void return, these are command-only instructions
+        const { command, id, input, inputs=[], item, itemId, livingMemoryId, summary, title, } = instruction
         switch(command){
             case 'createInput':
-            case 'createInputs':
+            case 'createInputs': {
+                const { addInput, addMessages, } = functions
                 if(typeof addInput!=='function' || typeof addMessages!=='function')
                     return
                 this.removeDisappearingElements()
@@ -930,11 +987,11 @@ class Globals {
                         inputObject.value = prompt
                         if(endpoint)
                             inputObject.addEventListener('click', async event=>{
-                                const { instruction: dynamicInputResponseInstruction, responses, success, } = await mDatamanager.dynamicInput(endpoint, { method, })
+                                const { instructions: dynamicInputResponseInstructions, responses, success, } = await mDatamanager.dynamicInput(endpoint, { method, })
                                 if(responses?.length && success){
                                     addMessages(responses)
-                                    if(!!dynamicInputResponseInstruction)
-                                        this.enactInstruction(dynamicInputResponseInstruction, functions)
+                                    if(dynamicInputResponseInstructions?.length)
+                                        this.enactInstruction(dynamicInputResponseInstructions, functions)
                                 }
                                 this.expunge(inputObject)
                             }, { once: true })
@@ -943,41 +1000,68 @@ class Globals {
                     addInput(inputElement, interfaceLocation)
                 }
                 return
-            case 'createItem':
-                if(!item || typeof createItem!=='function')
+            }
+            case 'createItem': {
+                const { createItem, } = functions
+                if(typeof createItem!=='function')
                     return
+                console.log('Globals::creating item', item)
                 createItem(item)
                 return
+            }
             case 'endLiving': // server has already ended, call frontend cleanup
             case 'endMemory':
-            case 'endReliving':
+            case 'endReliving': {
+                const { endMemory, } = functions
                 if(!itemId?.length || typeof endMemory!=='function')
                     return
                 endMemory(itemId)
                 return
-            case 'error':
+            }
+            case 'error': {
                 return
-            case 'removeBot': // retireBot in Avatar
-            return
-            case 'removeItem':
-                if(typeof removeItem !== 'function')
+            }
+            case 'removeBot': { // retireBot in Avatar
+                const { removeBot, } = functions
+                if(!id?.length || typeof removeBot!=='function')
+                    return
+                removeBot(id)
+                return
+            }
+            case 'removeItem': {
+                const { removeItem, } = functions
+                if(!itemId?.length || typeof removeItem!=='function')
                     return
                 removeItem(itemId)
                 return
-            case 'updateItem':
+            }
+            case 'setActiveBot': {
+                const { setActiveBot, } = functions
+                if(!id?.length || typeof setActiveBot!=='function')
+                    return
+                setActiveBot(id)
+                return
+            }
+            case 'updateItem': {
+                const { updateItem, } = functions
                 if(typeof updateItem!=='function')
                     return
-                updateItem(item)
+                updateItem()
                 return
-            case 'updateItemSummary':
-                if(typeof updateItemSummary!=='function')
+            }
+            case 'updateItemSummary': {
+                const { updateItemSummary, } = functions
+                if(!itemId?.length || typeof updateItemSummary!=='function')
                     return
                 updateItemSummary(itemId, summary)
                 return
-            case 'updateItemTitle':
-                if(typeof updateItemTitle!=='function')
+            }
+            case 'updateItemTitle': {
+                const { updateItemTitle, } = functions
+                if(!itemId?.length || typeof updateItemTitle!=='function')
                     return
                 updateItemTitle(itemId, title)
+            }
             default:
                 return
         }
@@ -1009,6 +1093,19 @@ class Globals {
             return
         this.hide(element) /* trigger any animations */
         element.remove()
+    }
+    /**
+     * Utility function to extract guid from string, used primarily for element ids that contain guids.
+     * @param {string} string - The string id that may contain guid
+     * @param {number} [index] - The index of the guid to extract if multiple are present
+     * @returns {string} - The extracted guid or original string if no guid found
+     */
+    extractId(string, index=0){
+        const guidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/ig
+        const matches = string.match(guidRegex) ?? [string]
+        return matches?.[index]
+            ?? matches?.[index-1]
+            ?? string
     }
     /**
      * Returns the avatar object if poplated by on-page EJS script.
@@ -1086,6 +1183,38 @@ class Globals {
         } catch(e){
             return false
         }
+    }
+    /**
+     * Determines whether an element is hidden via class or inline styles.
+     * @param {HTMLElement} element - The element to check for visibility
+     * @returns {boolean} - Whether the element is hidden
+     */
+    isHidden(element){
+        const { classList, } = element
+        const { display, visibility, } = getComputedStyle(element)
+        const hidden = element.classList.contains('hide')
+            || element.classList.contains('hidden')
+            || element.classList.contains('fade-out')
+            || (display ?? 'none') === 'none'
+            || (visibility ?? 'hidden') === 'hidden'
+        return hidden
+    }
+    /**
+     * Determines whether the bot is a `proxy agent` given `type`.
+     * @param {string} type - The type to check
+     * @returns {boolean} - Whether the bot is a `proxy agent`
+     */
+    isProxy(type){
+        return type=='proxy'
+    }
+    /**
+     * Pluralizes the last word in a string.
+     * @param {string} phrase - The content to pluralize
+     * @param {boolean} allCaps - Whether to capitalize all words in the phrase, defaults to `false` (only capitalizes first word)
+     * @returns {string} - The pluralized content
+     */
+    pluralize(phrase, allCaps=false){
+        return mPluralize(phrase, allCaps)
     }
     /**
      * Remove an element from the DOM based upon its class name of `input-disappear`.
@@ -1214,6 +1343,9 @@ class Globals {
     }
     get newGuid(){ 
         return mNewGuid()
+    }
+    get overlays(){
+        return mOverlays
     }
     get page(){
         return mPage
@@ -1578,7 +1710,9 @@ function mGetHelpInitiatorContent(type){
 function mHide(element, callbackFunction){
     if(!element)
         return
-    element.classList.remove('show')
+    try{
+        element.classList.remove('show')
+    } catch(e) { console.log('mHide::classList error', e, element, callbackFunction) }
     if(element.getAnimations().length){
         element.addEventListener('animationend', function() {
             element.classList.add('hide')
@@ -1621,6 +1755,39 @@ async function mLogout(){
         window.location.href = '/'
     else
         console.error('mLogout::failure', response)
+}
+/**
+ * Pluralizes the last word in a string.
+ * @param {string} phrase - The content to pluralize
+ * @param {boolean} allCaps - Whether to capitalize all words in the phrase
+ * @returns {string} - The pluralized content
+ */
+function mPluralize(phrase, allCaps){
+    if(typeof phrase !== 'string')
+        return phrase
+    phrase = phrase.trim()
+    const parts = phrase.split(/\s+/)
+    let lastWord = parts.pop()
+    // Basic pluralization rules
+    if(lastWord.endsWith('y') && !/[aeiou]y$/i.test(lastWord))
+        lastWord = lastWord.slice(0, -1) + 'ies'
+    else if (/(s|sh|ch|x|z)$/i.test(lastWord))
+        lastWord = lastWord + 'es'
+    else
+        lastWord = lastWord + 's'
+    parts.push(lastWord)
+    const response = parts
+        .map((part, index)=>{
+            if(allCaps || index===0)
+                part = capitalize(part)
+            return part
+        })
+        .join(' ')
+    return response
+    function capitalize(word){
+        word = word.trim()
+        return word.charAt(0).toUpperCase() + word.slice(1)
+    }
 }
 /**
  * Scrolls overflow of passed element to bottom.

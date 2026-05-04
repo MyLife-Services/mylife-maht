@@ -6,26 +6,27 @@
 //	imports
 import Datamanager from "./datamanager.mjs"
 /**
+ * Array fields in this set are treated as append-only variants: use `op: 'add'` with the `/-` path suffix so each element is pushed atomically without overwriting concurrent writes.
+ * Arrays not in this set are replaced wholesale rather than appended to.
+ * Examples of append-only arrays: `feedback`, `validations`.
+ */
+const mAddOnlyArrayFields = new Set([
+    'feedback',
+	'validations',
+])
+/**
  * The Dataservices class.
  * This class provides methods to interact with the data layers of the MyLife platform, predominantly the Azure Cosmos and PostgreSQL database.
  * Any new Dataservices class is instantiated with a member id, which is used to identify the member in the database, and retrieve the core data for that member.
  */
 class Dataservices {
-	/**
-	 * Identifies currently available selection sub-types (i.e., `being`=@var) for the data service.
-	 * @private
-	 */
-	#collectionTypes = ['chat', 'conversation', 'entry', 'lived-experience', 'file', 'story']
     /**
-     * Represents the core functionality of the data service. This property
-     * objectifies core data to make it more manageable and structured,
-     * as opposed to presenting raw output.
+     * Represents the core information about the member.
      * @private
      */
     #core
     /**
-     * Manages various data-related operations. It could be responsible for
-     * handling data transactions, CRUD operations, etc., depending on its implementation.
+     * Manager for data-related operations based on long-term storage types; currently Cosmos NoSQL.
      * @private
      */
     #Datamanager
@@ -58,7 +59,7 @@ class Dataservices {
      */
 	async init(){
 		this.#Datamanager = new Datamanager(this.#partitionId)
-		await this.#Datamanager.init()	//	init datamanager
+		await this.#Datamanager.init()
 		const _excludeProperties = { '_none': true, }	//	populate if exclusions are required
 		const core = Object.entries(this.datamanager.core)	//	array of arrays
 			.filter((_prop)=>{	//	filter out excluded properties
@@ -101,8 +102,8 @@ class Dataservices {
 	//	public functions
 	/**
 	 * Upon MyLife account creation, generates `core` and saves to database.
-	 * @param {object} core - Data object containing member's initial core data from which avatar object will be derived.
-	 * @returns (object) - The saved avatar data object.
+	 * @param {object} core - Data object containing member's initial core data from which avatar object will be derived
+	 * @returns {object} - The saved avatar data object
 	 */
 	async addAvatar(core){
 		if(!this.isMyLife)
@@ -111,8 +112,8 @@ class Dataservices {
 	}
 	/**
 	 * Upon MyLife account creation, generates `core` and saves to database.
-	 * @param {object} core - Data object containing member's initial core data.
-	 * @returns (object) - The core object.
+	 * @param {object} core - Data object containing member's initial core data
+	 * @returns {object} - The core object
 	 */
 	async addCore(core){
 		const { id, mbr_id, } = core
@@ -177,9 +178,9 @@ class Dataservices {
 	}
 	/**
 	 * Gets all bots of a given type for a given member.
-	 * @param {string} type - The bot type.
-	 * @param {string} mbr_id - The member id.
-	 * @returns {array} - The bots or empty array if no bots found.
+	 * @param {string} type - The bot type
+	 * @param {string} mbr_id - The member id
+	 * @returns {Object[]} - The bots or empty array if no bots found
 	 */
 	async bots(type, mbr_id=this.mbr_id){
 		if(type){
@@ -196,11 +197,12 @@ class Dataservices {
 	}
 	/**
 	 * Retrieves a specific bot instruction by its ID.
-	 * @param {string} _type - The type of bot instruction.
-	 * @returns {array} - An array of bot instruction or `undefined` if no bot instruction found.
+	 * @param {string} _type - The type of bot instruction
+	 * @returns {Object[]} - An array of bot instruction or `undefined` if no bot instruction found
 	 */
 	async botInstructions(_type){
-		if(_type?.length) _type = [{ name: '@type', value: _type }]
+		if(_type?.length) 
+			_type = [{ name: '@type', value: _type }]
 		return await this.getItems(
 			'bot-instructions',
 			undefined,
@@ -221,15 +223,25 @@ class Dataservices {
 		return await this.datamanager.challengeAccess(mbr_id, passphrase, caseInsensitive)
 	}
 	/**
+	 * Proxy to retrieve stored actions.
+	 * @returns {Object[]} - The collection of actions
+	 */
+	async collectionActions(){
+		return await this.getItems('action')
+	}
+	async collectionAssistantType(type){
+
+	}
+	/**
 	 * Proxy to retrieve stored conversations.
-	 * @returns {array} - The collection of conversations.
+	 * @returns {Object[]} - The collection of conversations
 	 */
 	async collectionConversations(){
 		return await this.getItems('chat')
 	}
 	/**
 	 * Proxy to retrieve journal entry items.
-	 * @returns {array} - The journal entry items.
+	 * @returns {Object[]} - The journal entry items
 	 */
 	async collectionEntries(){
 		return await this.getItemsByFields(
@@ -239,21 +251,21 @@ class Dataservices {
 	}
 	/**
 	 * Proxy to retrieve lived experiences.
-	 * @returns {array} - The lived experiences.
+	 * @returns {Object[]} - The lived experiences
 	 */
 	async collectionLivedExperiences(){
 		return await this.getItems('lived-experience')
 	}
 	/**
 	 * Proxy to retrieve files.
-	 * @returns {array} - The member's files.
+	 * @returns {Object[]} - The member's files
 	 */
 	async collectionFiles(){
 		return await this.getItems('file')
 	}
 	/**
 	 * Proxy to retrieve biographical items.
-	 * @returns {array} - The biographical items
+	 * @returns {Object[]} - The biographical items
 	 */
 	async collectionMemories(){
 		return await this.getItemsByFields(
@@ -262,8 +274,28 @@ class Dataservices {
 		)
 	}
 	/**
+	 * Proxy to retrieve stances.
+	 * @returns {Object[]} - The stances
+	 */
+	async collectionIssues(){
+		return await this.getItemsByFields(
+			'stance',
+			[{ name: '@type', value: 'issue' }],
+		)
+	}
+	/**
+	 * Proxy to retrieve values.
+	 * @returns {Object[]} - The values
+	 */
+	async collectionValues(){
+		return await this.getItemsByFields(
+			'stance',
+			[{ name: '@type', value: 'value' }],
+		)
+	}
+	/**
 	 * Proxy to retrieve all story items.
-	 * @returns {array} - The story items
+	 * @returns {Object[]} - The story items
 	 */
 	async collectionStories(){
 		return await this.getItems('story')
@@ -273,11 +305,37 @@ class Dataservices {
 	 * @todo - only roughed in by hand atm
 	 * @public
 	 * @async
-     * @param {string} type - The type of collection to retrieve, `false`-y = all.
-     * @returns {array} - The collection items with no wrapper.
+     * @param {string} type - The type of collection to retrieve, `false`-y = all
+     * @returns {Object[]} - The collection items with no wrapper
      */
 	async collections(type){
 		switch(type){
+			case 'all':
+				return await Promise.all([
+					this.collectionConversations(),
+					this.collectionEntries(),
+					this.collectionLivedExperiences(),
+					this.collectionFiles(),
+					this.collectionMemories(),
+					this.collectionIssues(),
+					this.collectionValues(),
+				])
+					.then(([conversations, entries, experiences, files, memories, issues, values])=>[
+						...conversations,
+						...entries,
+						...experiences,
+						...files,
+						...memories,
+						...issues,
+						...values,
+					])
+					.catch(err=>{
+						console.log('Dataservices::collections()::error', err)
+						return []
+					})
+			case 'action':
+				return await this.collectionActions()
+			case 'chat':
 			case 'conversation':
 				return await this.collectionConversations()
 			case 'entry':
@@ -286,37 +344,28 @@ class Dataservices {
 				return await this.collectionLivedExperiences()
 			case 'file':
 				return await this.collectionFiles()
+			case 'issue':
+			case 'issues':
+			case 'stance':
+				return await this.collectionIssues()
 			case 'item':
 				return []
 			case 'memory':
 				return await this.collectionMemories()
+			case 'value':
+			case 'values':
+				return await this.collectionValues()
 			case 'story':
 				return await this.collectionStories()
-			default:
-				return await Promise.all([
-					this.collectionConversations(),
-					this.collectionEntries(),
-					this.collectionLivedExperiences(),
-					this.collectionFiles(),
-					this.collectionMemories(),
-				])
-					.then(([conversations, entries, experiences, files, memories])=>[
-						...conversations,
-						...entries,
-						...experiences,
-						...files,
-						...memories,
-					])
-					.catch(err=>{
-						console.log('Dataservices::collections()::error', err)
-						return []
-					})
+			default: // try to return based on assistantType
+				return this.collectionAssistantType(type)
+
 		}
 	}
 	/**
 	 * Creates a new bot in the database.
-	 * @param {object} bot - The bot object to create.
-	 * @returns {object} - The bot object.
+	 * @param {object} bot - The bot object to create
+	 * @returns {object} - The bot object
 	 */
 	async createBot(bot){
 		/* validation */
@@ -324,7 +373,7 @@ class Dataservices {
 		if(!type?.length)
 			throw new Error('ERROR::createBot::Bot `type` required.')
 		if(!this.globals.isValidGuid(id))
-			bot.id = this.globals.newGuid
+			bot.id = this.newGuid
 		bot.being = 'bot'
 		/* create bot */
 		return await this.pushItem(bot)
@@ -336,7 +385,7 @@ class Dataservices {
 	 * @param {Guid} id - The id of the item to delete
 	 * @param {string} containerId - The container to use, overriding default
 	 * @param {string} partitionId - The member id (or other) to use, overriding default
-     * @returns {boolean} - true if item deleted successfully.
+     * @returns {boolean} - true if item deleted successfully
      */
 	async deleteItem(id, containerId, partitionId=this.mbr_id){
 		if(!id?.length)
@@ -362,8 +411,8 @@ class Dataservices {
 	 * Retrieves a specific alert by its ID. _Currently placehoder_.
 	 * @async
 	 * @public
-	 * @param {string} _alert_id - The unique identifier for the alert.
-	 * @returns {Promise<Object>} The alert corresponding to the provided ID.
+	 * @param {string} _alert_id - The unique identifier for the alert
+	 * @returns {Promise<Object>} The alert corresponding to the provided ID
 	 */
 	async getAlert(_alert_id){
 		return await this.getItem(_alert_id, 'system')
@@ -373,8 +422,8 @@ class Dataservices {
 	 * This method is typically used to get all alert entities under a specific object.
 	 * @async
 	 * @public
-	 * @param {string} _object_id - The parent object ID to search for associated alerts.
-	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID.
+	 * @param {string} _object_id - The parent object ID to search for associated alerts
+	 * @returns {Promise<Array>} An array of alerts associated with the given parent ID
 	 */
 	async getAlerts(){	
 		const paramsArray = [
@@ -508,7 +557,7 @@ class Dataservices {
 	 * Retrieves items based on specified parameters.
 	 * @async
 	 * @public
-	 * @param {string} being - The type of items to retrieve.
+	 * @param {string} being - The type of items to retrieve (almost always required; currently optional for collection retrieval by Assistant Type, as could have several different beings)
 	 * @param {array} [selects=[]] - Fields to select; if empty, selects all fields.
 	 * @param {Array<Object>} [paramsArray=[]] - Additional query parameters.
 	 * @param {string} container_id - The container name to use, overriding default.
@@ -517,21 +566,30 @@ class Dataservices {
 	 */
 	async getItems(being, selects=[], paramsArray=[], container_id, _mbr_id=this.mbr_id) {	//	paramsArray is array of objects { name: '${varName}' }
 		// @todo: incorporate date range functionality into this.getItems()
-		const _prefix = 'u'
-		paramsArray.unshift({ name: '@being', value: being })	//	add primary parameter to array at beginning
+		const prefix = 'u'
+		if(being?.length)
+			paramsArray.unshift({ name: '@being', value: being, })
 		const _selectFields = (selects.length)
-			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${_prefix}.`+field)).join(',')
+			?	[...new Set([...this.#rootSelect, ...selects])].map(field=>(`${prefix}.`+field)).join(',')
 			:	'*'
-		let query = `select ${_selectFields} from ${_prefix}`	//	@being is required
-		paramsArray	//	iterate through parameters
-			.forEach(param=>{	//	param is an object of name, value pairs
-				query += (param.name==='@being')
-					?	` where ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
-					:	` and ${_prefix}.${param.name.split('@')[1]}=${param.name}`	//	only manages string so far
+		let query = `select ${ _selectFields } from ${ prefix }`
+		paramsArray /* iterate array of parameters */
+			.forEach((param, index)=>{
+				const { name, type, value=null,  } = param
+				let dbName = name
+				if(!dbName?.length || ( dbName.length===1 && dbName==='@' ))
+					return
+				if(!dbName.startsWith('@'))
+					dbName = '@' + dbName
+				query += ` ${ index === 0 ? 'where' : 'and' } `
+				const appendValue = type==='contains'
+					? `contains(lower(${ prefix }.${ dbName.slice(1) }), lower(${ dbName }))`
+					: `${ prefix }.${ dbName.slice(1) }=${ dbName }`
+				query += appendValue
 		})
 		try {
 			const items = await this.datamanager.getItems(
-				{ query: query, parameters: paramsArray },
+				{ query: query, parameters: paramsArray, },
 				container_id,
 				{
 					partitionKey: _mbr_id,
@@ -540,7 +598,7 @@ class Dataservices {
 			)
 			return items
 		} catch(_error) {
-			console.log('Dataservices::getItems()::error', _error, being, query, paramsArray, container_id,)
+			console.log('Dataservices::getItems()::error', _error, being, query, paramsArray, container_id)
 		}
 	}
 	/**
@@ -576,31 +634,32 @@ class Dataservices {
 	 * @async
 	 * @param {string} id - The unique identifier for the item to be patched
 	 * @param {Object} data - The data to patch the item with; object of key/value pairs to be transformed into patch operations
+	 * @param {string} containerId - The container to use, overriding default
+	 * @param {string} partitionId - The partition ID to use, overriding default
 	 * @param {string} rootPath - The path for patching, defaults to '/'
 	 * @returns {Promise<Object>} The result of the patch operation
 	 */
 	async patch(id, data, containerId, partitionId, rootPath = '/'){
 		const patchOperations = []
-		id = id ?? data.id
+		id = id
+			?? data.id
 		if(!id?.length)
 			throw new Error('Dataservices::patch()::id required for patch operation.')
+		const etag = data._etag
+		delete data._etag
 		for(const key of Object.keys(data)){
-			if(['id', 'being', 'mbr_id'].includes(key))
+			if(['being', 'id', 'mbr_id'].includes(key))
 				continue
-			let op = 'add'
 			const value = data[key]
 			const path = rootPath + key
-			if(Array.isArray(value))
-				for(const element of value){
-					const elementPath = path + '/-'
-					patchOperations.push({
-						op,
-						path: elementPath,
-						value: element,
-					})
-            	}
-			else
-				patchOperations.push({ op, path, value, })
+			if(Array.isArray(value)){
+				if(mAddOnlyArrayFields.has(key)) /* Append-only arrays (e.g. feedback): additive */
+					for(const element of value) 
+						patchOperations.push({ op: 'add', path: path + '/-', value: element, })
+				else /* Canonical-state arrays: replace the whole field in one op */
+					patchOperations.push({ op: 'set', path, value, })
+			} else
+				patchOperations.push({ op: 'add', path, value, })
 		}
 		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations
 		while(patchOperations.length){
@@ -608,7 +667,7 @@ class Dataservices {
 		}
 		let endResult
 		for(const batch of patchBatches){ // Perform the patch operation(s) for each batch
-			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id)
+			endResult = await this.patchItem(id, batch, containerId, partitionId ?? data?.mbr_id, etag)
 		}
 		return endResult
 	}
@@ -619,10 +678,11 @@ class Dataservices {
 	 * @param {Array<Object>} data - The data for patching, including the path and operation
 	 * @param {string} containerId - The container to use, overriding default
 	 * @param {string} partitionId - The partition ID to use, overriding default
+	 * @param {string} etag - The ETag value for concurrency control, optional but recommended to prevent conflicts
 	 * @returns {Promise<Object>} The result of the patch operation.
 	 */
-	async patchItem(id, data, containerId, partitionId){
-		return await this.datamanager.patchItem(id, data, containerId, partitionId)
+	async patchItem(id, data, containerId, partitionId, etag){
+		return await this.datamanager.patchItem(id, data, containerId, partitionId, etag)
 	}
     /**
      * Pushes a new item to the data manager.
@@ -712,6 +772,10 @@ class Dataservices {
 		}
 		return candidate
 	}
+	/* getters/setters */
+	get newGuid(){
+		return this.globals.newGuid
+	}
 }
 /* modular functions */
 /**
@@ -753,7 +817,6 @@ function mAvatarProperties(core, globals){
 		"email",
 		'form',
 		'format',
-		'llm_id',
 		'messages',
 		'metadata',
 		'names',
