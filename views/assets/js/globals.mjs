@@ -41,6 +41,7 @@ let mActiveHelpType, // active help type, currently entire HTMLDivElement
     mNavigationHamburger,
     mNavigationHelp,
     mNavigationHelpIcon,
+    mNavigationMenu,
     mPage,
     mPlaceholder,
     mRecognition,
@@ -804,7 +805,7 @@ class Globals {
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
             mLogoutButton = document.getElementById('navigation-logout')
             mMainContent = document.getElementById('main-content')
-            mNavigation = document.getElementById('page-header')
+            mNavigation = document.getElementById('navigation-container')
             mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
