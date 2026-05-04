@@ -70,7 +70,7 @@ class ConnectorAgent {
     async refreshProxy(url){
         if(!this.globals.isValidUrl(url))
             return { error: 'Invalid bot data', success: false, }
-        const botData = {}
+        const botData = { url, }
         botData.card = await this.#agentCard(url)
         this.#updateProxyByCard(botData, false) // avoid member-assigned updates; **note**: updates botData in place
         return botData
