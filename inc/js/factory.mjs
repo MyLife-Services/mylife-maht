@@ -8,7 +8,6 @@ import vm from 'vm'
 import { Avatar, Q, } from './avatar.mjs'
 import Dataservices from './dataservices.mjs'
 import LLMServices from './llm.mjs'
-import Menu from './menu.mjs'
 import { Conversation, Message } from './models.mjs'
 /* module constants */
 const {
