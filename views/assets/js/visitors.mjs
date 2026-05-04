@@ -582,8 +582,8 @@ async function mSubmitInput(event, message){
         return
     event.stopPropagation()
 	event.preventDefault()
-    mGlobals.toggleChatInput(false, false)
     const generation = ++mAwaitingResponseId
+    mGlobals.toggleChatInput(false, false)
     const awaitButton = mGlobals.await('Connecting with Citizens for Rational Government...')
     mGlobals.addChatElement(awaitButton)
     const chatData = {
@@ -591,10 +591,10 @@ async function mSubmitInput(event, message){
         role: 'user',
     }
     mAwaitingResponse = true
-	const { responses, success, } = await mGlobals.datamanager.submitChat(chatData)
+	const { error, responses, success, } = await mGlobals.datamanager.submitChat(chatData)
     mAwaitingResponse = false
     mGlobals.expunge(awaitButton)
-    await mAddMessages(responses, 'agent', 2)
+    await mAddMessages(error ? [error] : responses, 'agent', 2)
     if(generation===mAwaitingResponseId)
         mGlobals.toggleChatInput()
 }
