@@ -18,7 +18,6 @@ const app = new Koa()
 const port = process.env.PORT ?? '3000'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const app = new Koa()
 const MemoryStore = new session.MemoryStore()
 const mimeTypesToExtensions = {
 	/* text formats */
@@ -68,8 +67,6 @@ const mimeTypesToExtensions = {
   'video/x-flv': ['.flv'],
   'video/quicktime': ['.mov'],
 }
-const port = process.env.PORT ?? 3000
-const version = '0.1.01'
 /** dependent variables */
 const C4RG_Intelligence = await SystemAvatar // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
 if(!process.env.MYLIFE_HOSTING_KEY || process.env.MYLIFE_HOSTING_KEY !== C4RG_Intelligence.hosting_key)
