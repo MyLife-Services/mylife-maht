@@ -3,8 +3,8 @@
 		{
 			"icon": "activism-thumb",
 			"id": "activism",
-			"role": "Political Stance Bot",
-			"type": "political-stance"
+			"role": "Activist Bot",
+			"type": "activism"
 		}
 	],
     "description": "Introductory greeting routine for MyLife Activism bot.",

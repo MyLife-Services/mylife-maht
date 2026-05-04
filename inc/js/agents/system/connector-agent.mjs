@@ -188,7 +188,7 @@ class nandaRegistry {
 	}
     /* public functions */
     async init(email, password){
-        // await this.#authorize(email, password)
+        await this.#authorize(email, password)
         await this.#accountServers() // this.#attachedServers
         await this.#refreshNandaServers() // this.#cachedServers
         return this

@@ -15,7 +15,7 @@
 #
 # Environment:
 #   Load tests/playbooks/playbook.env before executing.
-#   That file is gitignored — copy playbook.env.sample and fill in values.
+#   That file is gitignored — look to playbook.env to fill in values.
 #   All ${VAR_NAME} references below are resolved from that file.
 
 movement:
