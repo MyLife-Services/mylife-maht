@@ -415,13 +415,12 @@ async function submit(message, role='member', hideMemberChat=true){
 /**
  * Toggles the member input between input and server `waiting`.
  * @public
- * @param {boolean} display - Whether to show/hide (T/F), default `true`.
- * @param {boolean} hidden - Whether to force-hide (T/F), default `false`. **Note**: used in `experience.mjs`
- * @param {boolean} connectingText - The server-connecting text, default: `Connecting with `.
+ * @param {boolean} display - Whether to show/hide (T/F), default `true`
+ * @param {boolean} eraseValue - Whether to erase the input value, default `true`
  * @returns {void}
  */
-function toggleMemberInput(display=true){
-    globals.toggleChatInput(display, 'slide-up')
+function toggleMemberInput(display=true, eraseValue=true){
+    globals.toggleChatInput(display, eraseValue)
 }
 /**
  * Toggles the visibility of an element with option to force state.

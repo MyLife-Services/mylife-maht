@@ -7,7 +7,9 @@ const hide = mGlobals.hide
 const retract = mGlobals.retract
 const show = mGlobals.show
 /* variables */
-let mAvatarIcon='majoritarian.png',
+let mAwaitingResponse = false,
+    mAwaitingResponseId = 0,
+    mAvatarIcon='majoritarian.png',
     mChallengeMemberId,
     mChatBubbleCount = 0,
     mDefaultPauseDelay = 5, // in seconds
@@ -62,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     /* execute Share */
     if(activeShare)
         mShareStart(activeShareId)
-})
+}, { once: true })
 /* public functions */
 function about(){
     mRoutine('about')
@@ -163,11 +165,11 @@ async function mAddMessages(messages, role, typeDelay=mDefaultTypeDelay, pause=5
 async function mAddUserMessage(event){
     event.preventDefault()
     const userMessage = mGlobals.chatInput
-    if(!userMessage.length)
+    if(!userMessage.length || mAwaitingResponse)
         return
     const message = mGlobals.escapeHtml(userMessage) // Escape the user message
     mAddMessage(message, 'member', 2)
-    mSubmitInput(event, message)
+    await mSubmitInput(event, message)
 }
 /**
  * Creates a challenge element for the user to enter their passphrase. Simultaneously sets modular variables to the instantion of the challenge element. Unclear what happens if multiples are attempted to spawn, but code shouldn't allow for that, only hijax. See the `@required` for elements that this function generates and associates.
@@ -284,6 +286,13 @@ async function mFetchStart(activeBotId){
  * @returns {void}
  */
 function mInitializeListeners(){
+    document.addEventListener('keydown', e=>{
+        if(e.key === 'Escape' && !mAwaitingResponse){
+            console.log('mAwaitingRespons::listener', mAwaitingResponse)
+            mAwaitingResponseId++ // orphans any in-flight submit
+            mGlobals.toggleChatInput()
+        }
+    })
     document.getElementById('chat-input-submit')?.addEventListener('click', mAddUserMessage)
     disclaimerButton?.addEventListener('click', mDisclaimer, { once: true })
     signupButton?.addEventListener('click', mSubmitSignup)
@@ -332,7 +341,10 @@ async function mRoutine(routineName, awaitText='Awaiting response...'){
     hide(mGlobals.MemberChat)
     const awaitButton = mGlobals.await(awaitText)
     mGlobals.addChatElement(awaitButton)
+    const generation = ++mAwaitingResponseId
+    mAwaitingResponse = true
     const { error, responses=[], routine: routineScript, success, } = await mGlobals.datamanager.routine(routineName)
+    mAwaitingResponse = false
     mGlobals.expunge(awaitButton)
     if(success && routineScript){
         const { events: _events, pause, title, typeSpeed, } = routineScript
@@ -347,8 +359,9 @@ async function mRoutine(routineName, awaitText='Awaiting response...'){
         await mAddMessages(responses, 'system', typeSpeed, pause)
     else if(error.message)
         await mAddMessage(error.message, 'error', 1)
-    show(mGlobals.MemberChat)
-    console.log(`${ routineName } routine complete`)
+    if(generation===mAwaitingResponseId)
+        mGlobals.toggleChatInput(true, false)
+    console.log(`${ routineName } routine completed`)
 }
 /**
  * Leads interface through a shared memory.
@@ -560,22 +573,25 @@ async function mSubmitChallenge(event){
  * @param {string} message - The message to submit. 
  */
 async function mSubmitInput(event, message){
-    if(!message)
+    if(!message || mAwaitingResponse)
         return
     event.stopPropagation()
 	event.preventDefault()
-    mGlobals.toggleMemberInput(false)
+    mGlobals.toggleChatInput(false, false)
+    const generation = ++mAwaitingResponseId
     const awaitButton = mGlobals.await('Connecting with Citizens for Rational Government...')
     mGlobals.addChatElement(awaitButton)
     const chatData = {
         message,
         role: 'user',
     }
+    mAwaitingResponse = true
 	const { responses, success, } = await mGlobals.datamanager.submitChat(chatData)
+    mAwaitingResponse = false
     mGlobals.expunge(awaitButton)
     await mAddMessages(responses, 'agent', 2)
-    mGlobals.chatInput = null
-    mGlobals.toggleMemberInput()
+    if(generation===mAwaitingResponseId)
+        mGlobals.toggleChatInput()
 }
 /**
  * Submits the signup form to the server.
