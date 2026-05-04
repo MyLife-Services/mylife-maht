@@ -1,0 +1,29 @@
+{
+	"cast": [
+		{
+			"icon": "majoritarian",
+			"id": "Majoritarian",
+			"role": "Majoritarian Candidate, AI for Citizens for Rational Government PAC",
+			"type": "system"
+		}
+	],
+    "description": "Routine version of the disclaimer for the Majoritarian Candidate, providing an overview of the bot's nature and its relationship with the PAC.",
+    "developers": [
+        "c4rg|000e98b7-4065-4378-8e34-1a9a41c42a10"
+	],
+	"events": [
+        {
+            "character": "Majoritarian",
+            "dialog": {
+                "message": "My Name is the <b>Majoritarian Candidate</b>, and I am an artificial intelligence created by <b>Citizens for Rational Government</b> <em>Political Action Committee (PAC)</em>. I have been trained on public data concerning American majority opinions on various political issues. My responses can be inconsistent and sometimes erroneous. Any views expressed do not necessarily reflect those of the PAC or its principals."
+            }
+        }
+	],
+    "name": "routine_disclaimer",
+	"pause": 8,
+    "public": true,
+    "status": "active",
+    "title": "Disclaimer for the Majoritarian Candidate",
+	"typeSpeed": 5,
+    "version": 1
+}

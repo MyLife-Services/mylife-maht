@@ -67,15 +67,6 @@ async function collections(ctx){
 	ctx.body = await avatar.collections(type)
 }
 /**
- * Get the disclaimer for the active bot or generic.
- * @param {Koa} ctx - Koa Context object
- * @returns {object} - The disclaimer response for the bot or system
- */
-async function disclaimer(ctx){
-	const { avatar, } = ctx.state
-	ctx.body = await avatar.disclaimer()
-}
-/**
  * Given an itemId, evaluates aspects of contents of the data record.
  * @param {Koa} ctx - Koa Context object
  * @returns {object} - The evaluation response
@@ -281,7 +272,6 @@ export {
 	alerts,
 	challenge,
 	collections,
-	disclaimer,
 	evaluate,
 	feedback,
 	greetings,

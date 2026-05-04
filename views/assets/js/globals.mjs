@@ -281,15 +281,6 @@ class Datamanager {
         return response
     }
     /**
-     * Fetches the disclaimer from the server.
-     * @returns {Promise<object>} - The disclaimer standard response { error, responses, success, }
-     */
-    async disclaimer(){
-        const url = `/disclaimer`
-        const response = await this.#fetch(url)
-        return response
-    }
-    /**
      * Calls a dynamic endpoint. Dynamic endpoints are sent from the server to the frontend during an instruction command that requires the creation of an input for a member to interact with.
      * @param {string} endpoint - The endpoint to fetch
      * @param {object} options - The fetch options, defaults to GET

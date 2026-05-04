@@ -1,10 +1,11 @@
 /* imports */
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
-const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
+const {
+	OPENAI_MAHT_GPT_OVERRIDE: mBot_idOverride,
+} = process.env
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
 const mDefaultBotType = mDefaultBotTypeArray[0]
-const mDefaultDisclaimer = 'I am an artificial intelligence created by Citizens for Rational Government Political Action Committee (PAC). My responses can be inconsistent and sometimes erroneous. Any views expressed do not necessarily reflect those of the PAC or its principals.'
 const mDefaultGreeting = 'avatar' // greeting routine
 const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
 const mDefaultIcon = 'default.png'
@@ -658,16 +659,6 @@ class BotAgent {
 			throw new Error('Conversation instance required')
 		await mDeleteChat(Conversation, localDelete, this.#llm, this.#factory)
 		return Conversation
-	}
-	/**
-	 * Get the disclaimer for the active bot or generic.
-	 * @param {Guid} botId - The bot id (optional, defaults to active bot)
-	 * @return {object} - The disclaimer response for the bot or system { error, responses, success, }
-	 */
-	async disclaimer(botId=this.activeBotId){
-		const { disclaimer: botDisclaimer=mDefaultDisclaimer, } = this.bot(botId)
-		const response = mResponses(mResponse(botDisclaimer, botId, 'server', 'disclaimer'))
-		return response
 	}
     /**
      * Given an itemId, evaluates aspects of item summary. Evaluate content is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
@@ -1525,7 +1516,6 @@ async function mConversationStart(type='chat', form='system', botId, conversatio
 	const metadata = {
 			bot_id: botId,
 			conversation_id: id,
-			llm_id,
 		},
 		processStartTime = Date.now(),
 		thread = (form!=='proxy')
