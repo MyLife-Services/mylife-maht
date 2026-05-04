@@ -342,9 +342,14 @@ async function mRoutine(routineName, awaitText='Awaiting response...'){
     const awaitButton = mGlobals.await(awaitText)
     mGlobals.addChatElement(awaitButton)
     const generation = ++mAwaitingResponseId
+    let inProcess = false
+    console.log('mRoutine', mAwaitingResponse)
+    if(mAwaitingResponse)
+        inProcess = true
     mAwaitingResponse = true
     const { error, responses=[], routine: routineScript, success, } = await mGlobals.datamanager.routine(routineName)
-    mAwaitingResponse = false
+    if(!inProcess)
+        mAwaitingResponse = false
     mGlobals.expunge(awaitButton)
     if(success && routineScript){
         const { events: _events, pause, title, typeSpeed, } = routineScript
@@ -359,7 +364,7 @@ async function mRoutine(routineName, awaitText='Awaiting response...'){
         await mAddMessages(responses, 'system', typeSpeed, pause)
     else if(error.message)
         await mAddMessage(error.message, 'error', 1)
-    if(generation===mAwaitingResponseId)
+    if(!mAwaitingResponse && generation===mAwaitingResponseId)
         mGlobals.toggleChatInput(true, false)
     console.log(`${ routineName } routine completed`)
 }
