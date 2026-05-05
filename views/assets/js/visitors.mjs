@@ -255,7 +255,7 @@ async function mFetchStart(activeBotId){
             break
         }
         default: {
-            const initialResponses = await mGlobals.datamanager.botActivate(activeBotId, true)?.responses
+            const initialResponses = (await mGlobals.datamanager.botActivate(activeBotId, true))?.responses
                 ?? await mGlobals.datamanager.greetings()
                 ?? [{
                         agent: 'avatar',
