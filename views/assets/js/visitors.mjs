@@ -245,7 +245,7 @@ async function mFetchStart(activeBotId){
             break
         case 'challenge':
         case 'login':
-        case 'select':
+        case 'select': {
             if(mChallengeMemberId){
                 await mAddMessage(`Please enter the passphrase for your account to continue...`, 'system', 6)
                 mGlobals.addChatElement(mCreateChallengeElement())
@@ -253,7 +253,8 @@ async function mFetchStart(activeBotId){
             } else
                 messages.push(`I'm sorry, I can't find the member you're looking for...`)
             break
-        default:
+        }
+        default: {
             const initialResponses = await mGlobals.datamanager.botActivate(activeBotId, true)?.responses
                 ?? await mGlobals.datamanager.greetings()
                 ?? [{
@@ -261,9 +262,9 @@ async function mFetchStart(activeBotId){
                         message: `Hello, I am <b>Q</b>, AI-Agent and corporate intelligence for the nonprofit member organization <b>MyLife</b>. <em>It looks like we may have encountered some error on startup, please try refreshing the page or coming back later.</em>`,
                         type: 'error',
                     }]
-            if(initialResponses?.length)
-                messages.push(...initialResponses)
+            messages.push(...initialResponses)
             break
+        }
     }
     return {
         input,
