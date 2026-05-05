@@ -240,9 +240,6 @@ async function mFetchStart(activeBotId){
     const messages = []
     let input // HTMLDivElement containing input element
     switch(mPageType){
-        case 'about':
-        case 'privacy-policy':
-            break
         case 'challenge':
         case 'login':
         case 'select': {
