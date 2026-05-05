@@ -122,15 +122,6 @@ class BotFactory extends EventEmitter{
 		)
 	}
 	/**
-	 * Returns bot shadows for a given bot type, if they exist in the bot instructions.
-	 * @public
-	 * @param {string} type - The bot type
-	 * @returns {object[]} - The bot shadows
-	 */
-	botShadows(type){
-		return this.botTemplate(type)?.shadows ?? []
-	}
-	/**
 	 * Gets a member's bots, or specific bot types.
 	 * @todo - develop bot class and implement hydrated instance
 	 * @public

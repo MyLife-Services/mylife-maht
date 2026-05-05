@@ -1,7 +1,7 @@
 /* module constants */
 const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
-const mAudioRecording = `<div><b>MyLife is listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
-const mDefaultHelpPlaceholderText = 'Help me, Q-bi Wan, Help me!'
+const mAudioRecording = `<div><b>I am listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
+const mDefaultHelpPlaceholderText = 'Help me, I\'m confused!'
 const mHelpInitiatorContent = {
     experiences: `I'll do my best to assist with an "experiences" request. Please type in your question or issue below and click "Send" to get started.`,
     interface: `I'll do my best to assist with an "interface" request. Please type in your question or issue below and click "Send" to get started.`,
@@ -53,15 +53,16 @@ class Datamanager {
     #url
     /**
      * Creates a new Datamanager.
-     * @param {String} type - The type of user, defaults to 'guest'
+     * @param {String} type - The type of user, defaults to 'visitor'
+     * @param {String} url - The base URL, defaults to window.location.origin
      */
-    constructor(type='guest'){
-        this.#url = window.location.origin
+    constructor(type='visitor', url=window.location.origin){
+        this.#url = url
         switch(type){
             case 'member':
                 this.#url += '/member'
                 break
-            case 'guest':
+            case 'visitor':
             default:
                 break
         }
@@ -564,7 +565,7 @@ class Datamanager {
         return response
     }
     /**
-     * Conducts a share of a memory with recipient guest.
+     * Conducts a share of a memory with recipient visitor.
      * @param {Guid} shareId - The share ID
      * @param {String} input - Whether or not to use dynamic greetings
      * @returns {Promise<object>} - The server response object
@@ -768,8 +769,7 @@ class Globals {
     constructor(){
         if(!mLoaded){
             /* constants */
-            mAvatarName = this.getAvatar()?.name
-                ?? 'MyLife'
+            mAvatarName = this.getAvatar()?.name ?? 'MyLife'
             mPlaceholder = `Type your message to ${ mAvatarName }...`
             /* elements */
             mChatAudioIcon = document.getElementById('audio-icon')
@@ -811,7 +811,17 @@ class Globals {
             }
             if(mChatAudioIcon)
                 mSpeechInitialization(this.checkChatInput)
-            this.init()
+            /* required existence checks */
+            if(!mChatContainer || !mChatSystem || !mDatamanager || !mMainContent || !mPage)
+                console.error('Critical global elements missing:', {
+                    mChatContainer,
+                    mChatSystem,
+                    mDatamanager,
+                    mMainContent,
+                    mPage,
+                })
+            else
+                this.init()
         }
     }
     /* public functions */
@@ -1813,6 +1823,8 @@ function mSetHelpType(event){
  * @returns {void}
  */
 function mShow(element, listenerFunction){
+    if(!element)
+        return
     element.addEventListener(
         'animationend',
         animationEvent=>mAnimationEnd(animationEvent, listenerFunction),

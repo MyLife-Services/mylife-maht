@@ -1,6 +1,6 @@
 {
   "name": "mylife-maht",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Maht is a an openai model trained on MyLife corporate private and public materials to assist the Board of Directors for MyLife in governance and growth of the organization in ethical, honest, transparent and impactful ways",
   "main": "server.js",
   "type": "module",

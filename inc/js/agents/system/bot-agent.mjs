@@ -2,7 +2,9 @@
 import { Conversation, Message, } from '../../models.mjs'
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
-const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
+const {
+	OPENAI_MAHT_GPT_OVERRIDE: mBot_idOverride,
+} = process.env
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
 const mDefaultBotType = mDefaultBotTypeArray[0]
 const mDefaultGreeting = 'avatar' // greeting routine
@@ -1433,12 +1435,14 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
 	Conversation.addMessage({
 		content: prompt,
 		created_at: processStartTime,
+		exchangeId: Conversation.exchangeId,
+		id: factory.newGuid,
 		originalPrompt,
 		role: 'member',
 		run_id: messageId,
 		thread_id: Conversation.thread_id,
 	})
-	Conversation.addMessages(botResponses)
+	Conversation.addMessages(responses)
 	if(allowSave)
 		Conversation.save() // no `await`
 }
@@ -1463,7 +1467,7 @@ async function mConversationStart(type='chat', form='system', Bot, conversation_
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
 	const metadata = {
-			bot_id: Bot.id,
+			botId: Bot.id,
 			conversation_id: id,
 		},
 		processStartTime = Date.now(),

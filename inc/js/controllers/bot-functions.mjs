@@ -8,7 +8,7 @@
 async function activateBot(ctx){
 	const { bid, } = ctx.params
 	if(!ctx.Globals.isValidGuid(bid))
-		ctx.throw(400, `missing bot id`)
+		return ctx.status = 204
 	const { avatar: Avatar, } = ctx.state
 	ctx.body =await Avatar.setActiveBot(bid)
 }

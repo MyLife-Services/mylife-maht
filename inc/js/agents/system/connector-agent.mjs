@@ -23,13 +23,17 @@ class ConnectorAgent {
         this.#nandaRegistry = mNandaRegistry
     }
     async init(nandaEmail=this.#nandaEmail, nandaPassword=this.#nandaPassword){
-        if(nandaEmail?.length && nandaPassword?.length){
-            this.#nandaEmail = nandaEmail
-            this.#nandaPassword = nandaPassword
-            const nandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init(nandaEmail, nandaPassword)
-            if(nandaRegistry?.authorized)
-                this.#nandaRegistry = nandaRegistry
-        }
+		try{
+	        if(nandaEmail?.length && nandaPassword?.length){
+	            this.#nandaEmail = nandaEmail
+	            this.#nandaPassword = nandaPassword
+	            const registryClient = await new nandaRegistry(mNandaRegistryUrl).init(nandaEmail, nandaPassword)
+	            if(registryClient?.authorized)
+	                this.#nandaRegistry = registryClient
+	        }
+		} catch(err) {
+			console.error('CONNECTOR-AGENT::Init() ERROR', err)
+		}
         return this
     }
     /* public functions */
@@ -66,7 +70,7 @@ class ConnectorAgent {
     async refreshProxy(url){
         if(!this.globals.isValidUrl(url))
             return { error: 'Invalid bot data', success: false, }
-        const botData = {}
+        const botData = { url, }
         botData.card = await this.#agentCard(url)
         this.#updateProxyByCard(botData, false) // avoid member-assigned updates; **note**: updates botData in place
         return botData
@@ -188,7 +192,7 @@ class nandaRegistry {
 	}
     /* public functions */
     async init(email, password){
-        await this.#authorize(email, password)
+        // await this.#authorize(email, password)
         await this.#accountServers() // this.#attachedServers
         await this.#refreshNandaServers() // this.#cachedServers
         return this
@@ -343,6 +347,10 @@ class nandaRegistry {
 }
 /* modular functions */
 /* bootstrapped functions */
-mNandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init()
+try{
+	mNandaRegistry = await new nandaRegistry(mNandaRegistryUrl).init()
+} catch(err) {
+	console.error('connector-agent.mjs::bootstrap::mNandaRegistry ERROR::', err)
+}
 /* module exports */
 export default ConnectorAgent
