@@ -165,17 +165,16 @@ class Dataservices {
 	/**
 	 * Get a bot specified by id or type.
 	 * @public
-	 * @param {string} id - The bot id.
-	 * @param {string} type - The bot type.
-	 * @returns {object} - The bot or `undefined` if no bot found.
+	 * @param {string} id - The bot id
+	 * @param {string} type - The bot type (optional)
+	 * @param {string} containerId - The container to use (optional)
+	 * @returns {object} - The bot or `undefined` if no bot found
 	 */
-	async bot(id, type='personal-avatar'){
-		if(id){
-			return await this.getItem(id)
-		} else {
-			const bots = await this.bots(type)
-			return bots[0]
-		}
+	async bot(id, type='personal-avatar', containerId){
+		if(id?.length)
+			return await this.getItem(id, containerId)
+		const bots = await this.bots(type)
+		return bots[0]
 	}
 	/**
 	 * Gets all bots of a given type for a given member.
@@ -496,17 +495,17 @@ class Dataservices {
 	 * @async
 	 * @public
 	 * @param {string} id - The unique identifier for the item.
-	 * @param {string} container_id - The container to use, overriding default: `Members`.
+	 * @param {string} containerId - The container to use, overriding default: `Members`.
 	 * @param {string} mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(id, container_id, mbr_id=this.mbr_id) {
-		if(!id)
+	async getItem(id, containerId, mbr_id=this.mbr_id) {
+		if(!id?.length)
 			return null
 		try{
 			return await this.datamanager.getItem(
 				id,
-				container_id,
+				containerId,
 				{ partitionKey: mbr_id, populateQuotaInfo: false, },
 			)
 		}
