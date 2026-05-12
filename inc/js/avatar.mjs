@@ -883,9 +883,20 @@ class Avatar extends EventEmitter {
                 }
             })
         return collections
-    }
+    }/**
+     * Configures the avatar's active bot and related settings based on provided parameters such as bot id, advertisement id, platform id, member id, etc. This function retrieves the active bot's configuration and applies any relevant advertisement or platform-specific variables to the bot's prompt variables. It returns a response object containing the active bot, instructions, missions, responses, routine, success status, variables, version, and version update information.
+     * @param {object} params - The parameters for configuring the avatar, which may include:
+     *   - adaid: Advertisement id (optional)
+     *   - aid: Advertisement id (optional)
+     *   - bid: Bot id (optional)
+     *   - mbr: Member id (optional)
+     *   - mid: Member id (optional)
+     *   - vld: Validation id (optional)
+     *   - type: Type of configuration (optional)
+     * @returns {Promise<object>} - The response object containing the configuration details.
+     */
     async configure(params={}){
-        const { aid, bid, mbr, mid, vld, type, ...rest } = params
+        const { adaid, aid, bid, mbr, mid, vld, type, ...rest } = params
         const response = {
             activeBot: undefined,
             instructions: undefined,
@@ -902,13 +913,30 @@ class Avatar extends EventEmitter {
             version: undefined,
             versionUpdate: undefined,
         }
-        const { activeBot, id, instructions, success, variables, ...activeBotResponse } = await this.setActiveBot(bid)
+        const { activeBot=this.activeBot, greeting: activeGreeting, id, instructions, success, variables={}, ...activeBotResponse } = await this.setActiveBot(bid)
+        activeBot.promptVariables = variables // cascade-00: bot variables from TEMPLATE, lowest priority
+        activeBot.promptVariables = rest // cascade-01: raw URL params, lowest priority
         response.success = success
         if(!response.success)
             return response
         response.activeBot = activeBot ?? id
-        if(aid?.length)
-            console.log('advertisement id provided', aid)
+        let requestGreeting = activeGreeting
+        if(aid?.length){
+            const { id: advertId, platforms={}, variables=[], ...advertisement } = this.activeBot.ads?.[aid] ?? {}
+            if(!!advertisement)
+                activeBot.promptVariables = advertisement // cascade-02
+            if(variables?.length)
+                activeBot.promptVariables = variables // cascade-03
+            const { copy, greeting: platformGreeting, id: platformId, name, site, variables: platformVariables, ...platform } = platforms?.[adaid]
+                    ?? platforms?.[0] // case of array
+                    ?? Object.values(platforms)?.[0] // case of object
+                    ?? {}
+            activeBot.promptVariables = platform // cascade-04
+            activeBot.promptVariables = platformVariables // cascade-05: highest priority
+            requestGreeting = platformGreeting ?? requestGreeting
+            const { responses, routine, success, } = await this.#botAgent.greeting(true, requestGreeting)
+            activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
+        }
         response.instructions = instructions
         Object.assign(response, activeBotResponse)
         return response
@@ -1134,6 +1162,7 @@ class Avatar extends EventEmitter {
         let { responses, } = botGreeting
         responses = responses
             .map(greeting=>mPruneMessage(this.activeBotId, greeting, 'greeting'))
+        console.log('greeting responses', responses)
         return {
             responses,
             routine,

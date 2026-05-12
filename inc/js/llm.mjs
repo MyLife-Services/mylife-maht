@@ -44,6 +44,30 @@ class LLMServices {
     }
     /* public methods */
     /**
+     * One-shot chat completion without conversation/thread overhead. [API documentation](https://developers.openai.com/api/reference/typescript/resources/chat/subresources/completions/methods/create)
+     * @param {string} systemInstruction - System-level instruction for the model
+     * @param {string} userContent - User content to process
+     * @param {string} [model='gpt-3.5-turbo'] - Model to use
+     * @returns {Promise<object|undefined>} - The assistant's response first choice `message`, or `undefined` on error { annotations, content, refusal, role, }
+     */
+    async chatCompletion(systemInstruction, userContent, model='gpt-3.5-turbo'){
+        try {
+            const messages = []
+            if(systemInstruction?.length)
+                messages.push({ role: 'system', content: systemInstruction })
+            if(userContent?.length)
+                messages.push({ role: 'user', content: userContent })
+            const completion = await this.openai.chat.completions.create({
+                model,
+                messages,
+            })
+            return completion.choices?.[0]?.message
+        } catch(error) {
+            console.error('LLMServices::chatCompletion()::error', error)
+            return undefined
+        }
+    }
+    /**
      * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
      * @param {string} conversation_id - conversation id
      * @param {string} message - array of messages (optional)
@@ -87,21 +111,35 @@ class LLMServices {
      * @param {String} provider - LLM provider
      * @returns {Array} - Array of extracted string responses
      */
-    extractResponses(llmResponses, provider){
+    extractResponses(llmResponses, provider, type='message'){
         if(!llmResponses?.length)
             return []
         const responses = []
         llmResponses.forEach(response=>{
-                if(typeof response==='string' && response.length)
-                    responses.push(response)
-                const { content, created_at, id, thread_id, } = response
-                if(!!content?.length)
-                    content.forEach(content=>{
-                        if(!!content?.text?.value?.length)
-                            responses.push(content.text.value)
-                    })
-
-            })
+            if(typeof response === 'string' && response.length)
+                responses.push(response)
+            else if(Array.isArray(response))
+                responses.push(...this.extractResponses(response, provider, type))
+            else {
+                const { content, created_at, id, output_text, text, thread_id, } = response
+                if(typeof content === 'string' && content.length)
+                    responses.push(content)
+                else if(Array.isArray(content))
+                    responses.push(...this.extractResponses(content, provider, type))
+                else {
+                    const _content = text ?? output_text ?? content?.text?.value ?? content?.text ?? content ?? null
+                    if(typeof _content === 'string' && _content.length){
+                        const response = {
+                            agent: 'system',
+                            message: _content,
+                            role: 'assistant',
+                            type,
+                        }
+                        responses.push(response)
+                    }
+                }
+            }
+        })
         return responses
     }
     /**
@@ -508,13 +546,14 @@ function mMessageConvert(provider, message){
  */
 async function mResponse(openai, conversation_id, prompt, input, metadata, instructionOverride, max_output_tokens=10240){
     const request = {
-        conversation: conversation_id,
         include: ['web_search_call.action.sources', 'file_search_call.results'],
         input,
         max_output_tokens,
         metadata,
         prompt,
     }
+    if(conversation_id?.length)
+        request.conversation = conversation_id
     if(instructionOverride?.length)
         request.instructions = instructionOverride
     const response = await openai.responses.create(request)
