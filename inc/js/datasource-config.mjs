@@ -3,6 +3,13 @@ class Config{
 	constructor(_mbr_id){
 		this.endpoint=process.env.MYLIFE_DB_ENDPOINT
 		this.rw_id=process.env.MYLIFE_DB_RW
+		this.campaigns={
+			id: process.env.MYLIFE_DB_NAME,
+			container: {
+				id: process.env.MYLIFE_CAMPAIGNS_DB_CONTAINER_NAME,
+				partitionId: 'campaign_id',
+			}
+		}
 		this.members={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {

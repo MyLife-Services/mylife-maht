@@ -25,6 +25,7 @@ class Datamanager {
 		this.#partitionId = _config.members.container.partitionId
 		this.#coreId = _config.members.container?.coreId ?? this.#partitionId.split('|')[1]
 		this.#containers = {
+			campaigns: this.database.container(_config.campaigns.container.id),
 			members: this.database.container(_config.members.container.id),
 			registration: this.database.container(_config.registration.container.id),
 			shares: this.database.container(_config.shares.container.id),

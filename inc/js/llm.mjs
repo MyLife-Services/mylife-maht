@@ -127,7 +127,12 @@ class LLMServices {
                 else if(Array.isArray(content))
                     responses.push(...this.extractResponses(content, provider, type))
                 else {
-                    const _content = text ?? output_text ?? content?.text?.value ?? content?.text ?? content ?? null
+                    const _content = text
+                        ?? output_text
+                        ?? content?.text?.value
+                        ?? content?.text
+                        ?? content
+                        ?? ""
                     if(typeof _content === 'string' && _content.length){
                         const response = {
                             agent: 'system',

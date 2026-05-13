@@ -1,0 +1,62 @@
+{
+  "description": "Initializes the record of a beginning campaign intelligent process; returns `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
+  "name": "campaignInitialize",
+  "parameters": {
+    "additionalProperties": false,
+    "type": "object",
+    "properties": {
+      "aid": {
+        "description": "The unique identifier of the campaign; **required**",
+        "format": "uuid",
+        "type": "string"
+      },
+      "adaid": {
+        "description": "The unique identifier of specific platform-based instance of campaign id; **can be null**",
+        "format": "uuid",
+        "type": "string"
+      },
+      "report": {
+        "description": "My interpretation of the visitor's initial interaction, including any distress flags, hooks and mood; **required**",
+        "properties": {
+          "distress_flags": {
+            "description": "Any noticed distress flags set by the visitor contact. Content that seems difficult for human",
+            "type": "string"
+          },
+          "hook": {
+            "description": "Given the visitor's first comment, what issue, emotion or idea resonated with them?",
+            "type": "string"
+          },
+          "mood": {
+            "description": "The mood of human visitor based on initial interaction",
+            "type": "string"
+          },
+          "stage": {
+            "const": "initialized",
+            "description": "The stage of the visitor in the campaign process, such as 'initialized', 'open', etc.",
+            "enum": [
+              "initialized",
+              "open",
+              "connected",
+              "activated",
+              "closed"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "variables": {
+        "additionalProperties": true,
+        "description": "The definition of unique variables, each as key/value pair in this object; ex., {\"emotions\": \"disappointment, frustration\", \"issues\": \"women's rights\"}; **can be empty**",
+        "type": "object"
+      }
+    },
+    "required": [
+      "aid",
+      "adaid",
+      "report",
+      "variables"
+    ]
+  },
+  "strict": true
+}

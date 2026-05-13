@@ -210,6 +210,16 @@ class Dataservices {
 			'system'
 		)
 	}
+	/**
+	 * Retrieves a specific campaign by its advertisement id and platform ad id.
+	 * @param {string} aid - Advertisement id
+	 * @param {string} adaid - Platform ad id (optional)
+	 * @returns {Object} - The campaign document object
+	 */
+	async campaign(aid, adaid){
+		const campaign = await this.getItem(adaid ?? aid, 'campaigns', aid)
+		return campaign
+	}
     /**
      * Challenges access to a member ID via passphrase, running against a stored procedure in the database.
      * @async

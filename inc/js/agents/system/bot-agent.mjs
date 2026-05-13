@@ -537,7 +537,7 @@ class Bot {
 			return
 		switch(true){
 			case typeof variables === 'string':
-				this.#promptVariables[variables] = this[variables] ?? null
+				this.#promptVariables[variables] = this[variables] ?? ''
 				break
 			case Array.isArray(variables):
 				for(const variable of variables)
@@ -545,10 +545,10 @@ class Bot {
 				break
 			case typeof variables === 'object':
 				if((variables.name || variables.key) && variables.value !== undefined)
-					this.#promptVariables[variables.name ?? variables.key] = variables.value
+					this.#promptVariables[variables.name ?? variables.key] = variables.value ?? ''
 				else
 					for(const [key, value] of Object.entries(variables))
-						this.#promptVariables[key] = value
+						this.#promptVariables[key] = value ?? ''
 				break
 		}
 	}
