@@ -944,7 +944,10 @@ class Avatar extends EventEmitter {
             activeBot.promptVariables.aid = aid
             activeBot.promptVariables.adaid = adaid
             requestGreeting = platformGreeting ?? requestGreeting
-            const { responses, routine, success, } = await this.#botAgent.greeting(true, requestGreeting)
+            const { responses, routine, } = await this.#botAgent.greeting(true, requestGreeting)
+            activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
+        } else {
+            const { responses, routine, } = await this.#botAgent.greeting()
             activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
         }
         response.instructions = instructions
