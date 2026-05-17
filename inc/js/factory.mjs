@@ -1033,6 +1033,25 @@ class MyLifeFactory extends AgentFactory {
 		return await mDataservices.bot(id, type, 'system')
 	}
 	/**
+	 * Retrieves a specific campaign by its advertisement id.
+	 * @param {Guid} aid - Advertisement id
+	 * @returns {Object} - The campaign document object
+	 */
+	async campaign(aid){
+		const campaign = await mDataservices.campaign(aid)
+		return campaign
+	}
+	async campaignInstanceCreate(Campaign){
+		const campaign = await mDataservices.campaignInstanceCreate(Campaign.core)
+		return campaign
+	}
+	async campaignInstanceSave(Campaign){
+		const { campaign_id, core, id, } = Campaign
+		const obj = await mExtractItemDataDiff(core, this, 'campaigns', campaign_id)
+		const campaign = await mDataservices.campaignInstanceSave(obj)
+		return id
+	}
+	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
 	 * @param {Guid} registrationId - The registration id.
@@ -1128,6 +1147,9 @@ class MyLifeFactory extends AgentFactory {
 	}
 	deleteItem(){
 		throw new Error('MyLife server cannot delete items')
+	}
+	async extractItemDataDiff(obj){
+		return await mExtractItemDataDiff(obj, this)
 	}
 	/**
 	 * Returns Array of hosted members based on validation requirements.
@@ -1495,6 +1517,32 @@ inspect(_all=false){
 }
 exports.${_className} = ${_className}`
 	return classCode
+}
+/**
+ * Creates item data diff object for updateItem calls, comparing current item data with saved item data and returning only the fields that have changed.
+ * @param {object} item - Item data already extracted from class
+ * @param {Factory} factory - The factory instance, used to retrieve saved item data for comparison
+ * @returns 
+ */
+async function mExtractItemDataDiff(item, factory, containerId, partitionId){
+    const updatedItem = {
+        id: item.id,
+    }
+	if(partitionId?.length && containerId?.length){ // update `item` with appropriate system keys
+		const partitionKeys = await factory.dataservices.partitionKeys(containerId)
+		for(const partitionKey of partitionKeys)
+			if(partitionKey!=='mbr_id' && partitionKey!=='id')
+				updatedItem[partitionKey] = item?.[partitionKey] ?? partitionId
+	}
+    const savedItem = await factory.item(updatedItem.id, containerId, partitionId)
+     for(const key of Object.keys(item)){
+        const newValue = item[key]
+        if(key==='id' || (savedItem?.[key] && newValue===savedItem[key]))
+            continue
+        updatedItem[key] = newValue
+    }
+    updatedItem._etag = savedItem?._etag
+    return updatedItem
 }
 function mGenerateClassFromSchema(_schema) {
 	const { name, properties } = _schema

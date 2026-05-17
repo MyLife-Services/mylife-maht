@@ -1,6 +1,7 @@
 {
-  "description": "Initializes the record of a beginning campaign intelligent process; returns `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
   "name": "campaignInitialize",
+  "description": "Initializes the record of a beginning campaign intelligent process; returns `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
+  "strict": true,
   "parameters": {
     "additionalProperties": false,
     "type": "object",
@@ -16,6 +17,7 @@
         "type": "string"
       },
       "report": {
+        "additionalProperties": false,
         "description": "My interpretation of the visitor's initial interaction, including any distress flags, hooks and mood; **required**",
         "properties": {
           "distress_flags": {
@@ -43,20 +45,19 @@
             "type": "string"
           }
         },
-        "type": "object"
-      },
-      "variables": {
-        "additionalProperties": true,
-        "description": "The definition of unique variables, each as key/value pair in this object; ex., {\"emotions\": \"disappointment, frustration\", \"issues\": \"women's rights\"}; **can be empty**",
+        "required": [
+          "distress_flags",
+          "hook",
+          "mood",
+          "stage"
+        ],
         "type": "object"
       }
     },
     "required": [
       "aid",
       "adaid",
-      "report",
-      "variables"
+      "report"
     ]
-  },
-  "strict": true
+  }
 }

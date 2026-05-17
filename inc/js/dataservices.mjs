@@ -13,6 +13,7 @@ import Datamanager from "./datamanager.mjs"
 const mAddOnlyArrayFields = new Set([
     'feedback',
 	'messages',
+	'reports',
 	'validations',
 ])
 /**
@@ -212,13 +213,24 @@ class Dataservices {
 	}
 	/**
 	 * Retrieves a specific campaign by its advertisement id and platform ad id.
-	 * @param {string} aid - Advertisement id
-	 * @param {string} adaid - Platform ad id (optional)
+	 * @param {Guid} aid - Advertisement id
 	 * @returns {Object} - The campaign document object
 	 */
-	async campaign(aid, adaid){
-		const campaign = await this.getItem(adaid ?? aid, 'campaigns', aid)
+	async campaign(aid){
+		const campaign = await this.getItem(aid, 'campaigns', aid)
 		return campaign
+	}
+	async campaignInstance(cid, campaign_id){
+		const campaign = await this.getItem(cid, 'campaigns', campaign_id)
+		return campaign
+	}
+	async campaignInstanceCreate(dataObj){
+		return await this.pushItem(dataObj, 'campaigns')
+	}
+	async campaignInstanceSave(dataObj){
+		const { campaign_id, id, } = dataObj
+		const savedcampaign = await this.patch(id, dataObj, 'campaigns', campaign_id)
+		return savedcampaign
 	}
     /**
      * Challenges access to a member ID via passphrase, running against a stored procedure in the database.
@@ -520,7 +532,7 @@ class Dataservices {
 			)
 		}
 		catch(error){
-			console.log('Dataservices::getItem()::error', error, id, mbr_id, container_id,)
+			console.log('Dataservices::getItem()::error', error, id, mbr_id, containerId)
 			return null
 		}
 	}
@@ -638,6 +650,14 @@ class Dataservices {
 	 */
 	async hostedMembers(validations){
 		return await this.datamanager.hostedMembers(validations)
+	}
+	/**
+	 * Retrieves partition key paths for a given container.
+	 * @param {string} containerId - The name of the container
+	 * @returns {Array<string>} An array of partition key paths for the specified container
+	 */
+	partitionKeys(containerId){
+		return this.datamanager.partitionKeys(containerId)
 	}
 	/**
 	 * Patches an item by its ID with the provided data.

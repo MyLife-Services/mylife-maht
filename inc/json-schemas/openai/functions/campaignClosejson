@@ -1,6 +1,6 @@
 {
-  "description": "Generates a report for a CLOSE event from the server; identifies `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
   "name": "campaignClose",
+  "description": "Generates a report for a CLOSE event from the server; identifies `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
   "parameters": {
     "additionalProperties": false,
     "type": "object",
@@ -30,15 +30,28 @@
               },
               "intensity": {
                 "description": "The intensity of the affect vector",
-                "enum": ["low", "medium", "high"],
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
                 "type": "string"
               }
             },
-            "required": ["label", "evidence", "intensity"]
+            "required": [
+              "label",
+              "evidence",
+              "intensity"
+            ]
           },
           "completion_status": {
             "description": "The reason for closing the campaign instance, such as 'visitor_requested', 'safety_exit', 'server_request', 'other'",
-            "enum": ["visitor_requested", "safety_exit", "server_request", "other"],
+            "enum": [
+              "visitor_requested",
+              "safety_exit",
+              "server_request",
+              "other"
+            ],
             "type": "string"
           },
           "contact": {
@@ -65,7 +78,13 @@
           "stage": {
             "const": "closed",
             "description": "The stage of the visitor in the campaign process",
-            "enum": ["initialized", "open", "connected", "activated", "closed"],
+            "enum": [
+              "initialized",
+              "open",
+              "connected",
+              "activated",
+              "closed"
+            ],
             "type": "string"
           },
           "turn_count": {
@@ -74,10 +93,23 @@
             "minimum": 0
           }
         },
-        "required": ["affect_vector", "completion_status", "contact", "distress_flags", "followup", "issues_discussed", "summary", "stage", "turn_count"]
+        "required": [
+          "affect_vector",
+          "completion_status",
+          "contact",
+          "distress_flags",
+          "followup",
+          "issues_discussed",
+          "summary",
+          "stage",
+          "turn_count"
+        ]
       }
     },
-    "required": ["cid", "report"]
+    "required": [
+      "cid",
+      "report"
+    ]
   },
   "strict": true
 }
