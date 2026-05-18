@@ -1055,7 +1055,6 @@ class Globals {
                 return
             }
             case 'setActiveBot': {
-                console.log('Globals::setting active bot', id)
                 const { setActiveBot, } = functions
                 if(!id?.length || typeof setActiveBot!=='function')
                     return
