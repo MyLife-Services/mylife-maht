@@ -1,0 +1,83 @@
+{
+  "description": "Generates a report for a CLOSE event from the server; identifies `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
+  "name": "campaignClose",
+  "parameters": {
+    "additionalProperties": false,
+    "type": "object",
+    "properties": {
+      "cid": {
+        "description": "The unique identifier of the campaign instance",
+        "format": "uuid",
+        "type": "string"
+      },
+      "report": {
+        "additionalProperties": false,
+        "description": "My interpretation of our successful CLOSE events, final thoughts on distress flags, hooks and mood",
+        "type": "object",
+        "properties": {
+          "affect_vector": {
+            "additionalProperties": false,
+            "description": "The improvement of emotional connection over this conversation",
+            "type": "object",
+            "properties": {
+              "label": {
+                "description": "The label/description of the affect vector, ex., 'alone -> felt understood'",
+                "type": "string"
+              },
+              "evidence": {
+                "description": "The evidence for the affect vector, such as 'the visitor seems more engaged and responsive than before'",
+                "type": "string"
+              },
+              "intensity": {
+                "description": "The intensity of the affect vector",
+                "enum": ["low", "medium", "high"],
+                "type": "string"
+              }
+            },
+            "required": ["label", "evidence", "intensity"]
+          },
+          "completion_status": {
+            "description": "The reason for closing the campaign instance, such as 'visitor_requested', 'safety_exit', 'server_request', 'other'",
+            "enum": ["visitor_requested", "safety_exit", "server_request", "other"],
+            "type": "string"
+          },
+          "contact": {
+            "description": "The contact information the visitor consensually provided, if any, from given name, to full name or even email or SSMS number; all of which we would take to reach back out if so instructed",
+            "type": "string"
+          },
+          "distress_flags": {
+            "description": "Any noticed distress flags set by the visitor contact. Content that seems difficult for human; comma-delimited",
+            "type": "string"
+          },
+          "followup": {
+            "default": false,
+            "description": "Whether the visitor expressed interest in follow-up contact or action",
+            "type": "boolean"
+          },
+          "issues_discussed": {
+            "description": "The issues discussed with the visitor, comma-delimited",
+            "type": "string"
+          },
+          "summary": {
+            "description": "A brief summary of the visitor's situation and mindset at the end of our interaction",
+            "type": "string"
+          },
+          "stage": {
+            "const": "closed",
+            "description": "The stage of the visitor in the campaign process",
+            "enum": ["initialized", "open", "connected", "activated", "closed"],
+            "type": "string"
+          },
+          "turn_count": {
+            "description": "Total number of substantive exchanges in the session",
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["affect_vector", "completion_status", "contact", "distress_flags", "followup", "issues_discussed", "summary", "stage", "turn_count"]
+      }
+    },
+    "required": ["cid", "report"]
+  },
+  "strict": true
+}
