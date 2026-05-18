@@ -976,6 +976,16 @@ class MyLifeFactory extends AgentFactory {
 		return Bot
 	}
 	/**
+	 * OVERLOAD: Retrieves a system-dimensioned bot by id or type
+	 * @overload
+	 * @param {Guid} id - The bot id to retrieve
+	 * @param {string} type - The bot Type
+	 * @returns {Promise<object|null>} - The bot data
+	 */
+	async bot(id, type){
+		return await mDataservices.bot(id, type, 'system')
+	}
+	/**
 	 * Compares registration email against supplied email to confirm `true`. **Note**: does not care if user enters an improper email, it will only fail the encounter, as email structure _is_ confirmed upon initial data write.
 	 * @param {string} email - The supplied email to confirm registration.
 	 * @param {Guid} registrationId - The registration id.

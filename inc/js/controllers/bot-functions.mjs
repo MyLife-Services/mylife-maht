@@ -7,10 +7,14 @@
  */
 async function activateBot(ctx){
 	const { bid, } = ctx.params
-	if(!ctx.Globals.isValidGuid(bid))
-		return ctx.status = 204
 	const { avatar: Avatar, } = ctx.state
-	ctx.body =await Avatar.setActiveBot(bid)
+	const { aid, } = ctx.body ?? {}
+	try{
+		ctx.body =await Avatar.setActiveBot(bid, aid)
+	} catch(err) {
+		console.log(`Error activating bot:`, err.message, bid, aid)
+		return ctx.status = 204
+	}
 }
 /**
  * Persists the last active item id for the member session. Called fire-and-forget from frontend.

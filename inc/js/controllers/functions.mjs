@@ -61,6 +61,11 @@ async function challenge(ctx, memberId, memberPassphrase){
 	}
 	ctx.body = !ctx.session.locked
 }
+/**
+ * Get collections of items by type.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Promise<Object[]} - The collections of the specified type
+ */
 async function collections(ctx){
 	const { type, } = ctx.params
 	const { avatar, } = ctx.state
@@ -281,6 +286,7 @@ export {
 	alerts,
 	challenge,
 	collections,
+	configure,
 	evaluate,
 	feedback,
 	greetings,

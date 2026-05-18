@@ -842,8 +842,8 @@ class Avatar extends EventEmitter {
     /**
      * Get member collection items.
      * @todo - trim return objects based on type
-     * @param {string} type - The type of collection to retrieve, `false`-y = all.
-     * @returns {array} - The collection items with no wrapper.
+     * @param {string} type - The type of collection to retrieve, `false`-y = all
+     * @returns {Promise<Object[]>} - The collection items with no wrapper
      */
     async collections(type){
         if(type==='file'){
@@ -945,6 +945,35 @@ class Avatar extends EventEmitter {
             const { responses, routine, } = await this.#botAgent.greeting()
             activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
         }
+        response.instructions = instructions
+        Object.assign(response, activeBotResponse)
+        return response
+    }
+    async configure(params={}){
+        const { aid, bid, mbr, mid, vld, type, ...rest } = params
+        const response = {
+            activeBot: undefined,
+            instructions: undefined,
+            missions: undefined,
+            responses: [{
+                agent: 'avatar',
+                message: `I'm sorry, I experienced an error while trying to load and confure my settings. Please try again later, and if the problem persists, contact support.`,
+                role: 'system',
+                type: 'greeting',
+            }],
+            routine: undefined,
+            success: false,
+            variables: { ...rest },
+            version: undefined,
+            versionUpdate: undefined,
+        }
+        const { activeBot, id, instructions, success, variables, ...activeBotResponse } = await this.setActiveBot(bid)
+        response.success = success
+        if(!response.success)
+            return response
+        response.activeBot = activeBot ?? id
+        if(aid?.length)
+            console.log('advertisement id provided', aid)
         response.instructions = instructions
         Object.assign(response, activeBotResponse)
         return response
@@ -1483,12 +1512,12 @@ class Avatar extends EventEmitter {
     }
     /**
      * Activate a specific Bot.
-     * @param {Guid} botId - The bot id
-     * @returns {object} - Activated Response object: { id, greeting, success, version, versionUpdate, }
+     * @param {Guid} bid - The bot id
+     * @param {boolean} dynamic - Whether to use LLM for greeting and activation, defaults to `false`
+     * @returns {object} - Activated Response object: { activeItemId, firstAccess, id, responses, routine, success, version, versionUpdate, }
      */
-    async setActiveBot(botId){
-        const dynamic = false
-        const response = await this.#botAgent.setActiveBot(botId, dynamic)
+    async setActiveBot(bid, dynamic=false){
+        const response = await this.#botAgent.setActiveBot(bid, dynamic)
         return response
     }
     /**
@@ -4121,7 +4150,7 @@ async function mcp_switch_bot(mcpdata, sessionMeta, ctx, factory, avatar){
             isError: true,
         }
     else {
-        const { id: botId, responses, success, } = await avatar.setActiveBot(id, false)
+        const { id: botId, responses, success, } = await avatar.setActiveBot(id, null, false)
         if(!success || botId!==id)
             result = {
                 content: [{

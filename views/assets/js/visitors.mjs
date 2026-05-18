@@ -7,6 +7,7 @@ const hide = mGlobals.hide
 const retract = mGlobals.retract
 const show = mGlobals.show
 /* variables */
+const mMissions = []
 let mAwaitingResponse = false,
     mAwaitingResponseId = 0,
     mAvatarIcon='Q.png',
@@ -14,13 +15,15 @@ let mAwaitingResponse = false,
     mChatBubbleCount = 0,
     mDefaultPauseDelay = 5, // in seconds
     mDefaultTypeDelay = 10,
-    mIconDirectory= 'png/',
-    mInitialBotId='',
+    mIconDirectory= 'images/icons/',
+    mInitialBotId='fb95a3de-bf22-4c62-857b-e6243870b18e',
+    mInitialURLParams = Object.fromEntries(new URLSearchParams(window.location.search)),
     mMissionId,
     mPageType = null,
     mPersonalAvatarIcon='dandelion-thumb.png',
     mRecognition,
     mRecognizingSpeech = false,
+    mShareId,
     mSignupType = 'newsletter',
     mIgnoreEnd = true
 /* page div variables */
@@ -43,27 +46,16 @@ let challengeError,
     signupSuccess
 /* page load */
 document.addEventListener('DOMContentLoaded', async event=>{
-    /* load data */
-    let activeShare=false,
-        activeShareId=new URLSearchParams(window.location.search).get('sid'),
-        hideChat=false
-    let { input, messages, } = await mLoadStart(mInitialBotId)
-    /* display page */
-    if(mGlobals.isGuid(activeShareId)){
-        activeShareId = await mGlobals.datamanager.validateShare(activeShareId) // set with instanceId as opposed to share document id
-        if(mGlobals.isGuid(activeShareId))
-            activeShare = true
-    }
-    if(mPageType==='select' || activeShare)
-        hideChat = true
-    mShowPage(hideChat)
-    if(messages.length)
+    let { instructions, messages, } = await mLoadStart()
+    mShowPage()
+    if(instructions?.length)
+        mGlobals.enactInstruction(instructions)
+    if(messages?.length)// messages can display prior to share, if extant
         await mAddMessages(messages, 'agent')
-        if(input)
-            mGlobals.addChatElement(input)
-    /* execute Share */
-    if(activeShare)
-        mShareStart(activeShareId)
+    if(mMissionId?.length)
+        mMissionStart()
+    if(mShareId?.length)
+        mShareStart(mShareId)
 }, { once: true })
 /* public functions */
 function about(){
@@ -224,21 +216,26 @@ function mCreateChallengeElement(){
 /**
  * Fetches the greeting messages or start routine from the server.
  * @private
+ * @requires mInitialURLParams
  * @requires mGlobals
  * @requires mPageType
- * @param {string} activeBotId - The active bot id (uuid) to fetch the start routine for (optional)
- * @returns {Object} - Fetch response object: { input, messages, }
+ * @returns {Object} - Fetch response object: { instructions,, messages, }
  */
-async function mFetchStart(activeBotId){
-    const isSignedUp = await mGlobals.datamanager.signupStatus()
-    let missions
-    if(mGlobals.isGuid(mMissionId))
-        missions = await mGlobals.datamanager.availableMissions()
+async function mFetchStart(){
+    /* config */
+    const challengeId = mInitialURLParams?.mbr,
+        instructions=[],
+        isSignedUp = await mGlobals.datamanager.signupStatus(),
+        messages = [],
+        pageType = mInitialURLParams?.type ?? window.location.pathname.split('/').pop(),
+    mChallengeMemberId = challengeId
+    mInitialURLParams.bid ??= mInitialBotId
+    mMissionId = mInitialURLParams.mid ?? mMissionId
+    mShareId = mInitialURLParams.sid ?? mShareId
+    mPageType = pageType
     !isSignedUp
         ? hide(signupSuccess)
         : mSignupSuccess()
-    const messages = []
-    let input // HTMLDivElement containing input element
     switch(mPageType){
         case 'challenge':
         case 'login':
@@ -264,9 +261,8 @@ async function mFetchStart(activeBotId){
         }
     }
     return {
-        input,
+        instructions,
         messages,
-        missions,
     }
 }
 /**
@@ -292,10 +288,9 @@ function mInitializeListeners(){
  * Determines page type and loads data.
  * @private
  * @requires mGlobals
- * @param {string} activeBotId - The active bot id (uuid) to fetch the start routine for (optional)
  * @returns {Message[]} - The response Message array.
  */
-async function mLoadStart(activeBotId){
+async function mLoadStart(){
     /* assign page div variables */
     disclaimerButton = document.getElementById('disclaimer')
     mainContent = mGlobals.mainContent
@@ -314,12 +309,19 @@ async function mLoadStart(activeBotId){
     /* load page */
     if(signupButton)
         signupButton.disabled = true
-    mChallengeMemberId = new URLSearchParams(window.location.search).get('mbr')
-    mMissionId = new URLSearchParams(window.location.search).get('mid')
-    mPageType = new URLSearchParams(window.location.search).get('type')
-        ?? window.location.pathname.split('/').pop()
-    const startObject = await mFetchStart(activeBotId)
-    return startObject
+    return await mFetchStart()
+}
+/**
+ * Determines if there is an active mission and starts it.
+ * @private
+ * @requires mMissionId
+ * @requires mMissions
+ * @returns {Promise<void>}
+ */
+async function mMissionStart(){
+    const missionData = mMissions.find(mission=>mission.id === mMissionId)
+    if(!mMissionId?.length || !!missionData)
+        return
 }
 /**
  * Retrieves and runs the requested routine.

@@ -8,7 +8,7 @@ const {
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
 const mDefaultBotType = mDefaultBotTypeArray[0]
 const mDefaultGreeting = 'avatar' // greeting routine
-const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
+const mDefaultGreetings = ['Welcome to Citizens for Rational Government! I am here to help you!']
 const mDefaultIcon = 'default.png'
 const mDefaultTeam = 'memory'
 const mProxyChatTypes = ['chat', 'conversation', 'converse',]
@@ -39,7 +39,7 @@ class Bot {
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed=true, retirable, type=mDefaultBotType, ..._botData } = botData
 		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData)
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
@@ -234,19 +234,20 @@ class Bot {
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
 	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last', Avatar){
-		if(dynamic && this.type!=='proxy')
-			return {
-				error: 'Cannot access dynamic greeting routine',
-				responses: ['I currently have no connection with my foundational intelligence, so my greeting is generic'],
-				success: false,
-			}
 		let firstAccess=this.#firstAccess,
 			responses=[],
 			routine=this.#greetingRoutine
-		if(!firstAccess){
+		if(!firstAccess || this.overrideRoutineGreeting){ // first access uses `routine`
+			const message = this.greetings?.[Math.floor(Math.random() * this.greetings.length)]
+				?? `Apologies, I am having trouble accessing my greetings at the moment. Please try again later.`
 			const greetings = dynamic
 				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory, Avatar)
-				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
+				: [{
+					agent: this.type,
+					message,
+					role: 'assistant',
+					type: 'greeting',
+				}]
 			responses.push(...greetings)
 		}
 		return {
@@ -824,38 +825,51 @@ class BotAgent {
 	 * Sets the active bot for the BotAgent.
 	 * @async
 	 * @param {Guid} botId - The Bot id
+	 * @param {Guid} aid - The advertisement id (optional)
 	 * @param {boolean} dynamic - Whether to use dynamic greetings, defaults to `false`
-     * @returns {object} - Activated Response object: { botId, greeting, success, version, versionUpdate, }
+     * @returns {object} - Activated Response object: { activeItemId, firstAccess, id, responses, routine, success, version, versionUpdate, }
 	 */
 	async setActiveBot(botId=this.avatar?.id, dynamic=false){
+		const initialBotId = this.#activeBot?.id,
+			instructions=[]
 		let success=false,
 			version=0.0,
 			versionUpdate=0.0
-		const Bot = this.#findBot(botId)
-		success = !!Bot
-		if(!success)
-			return
-		this.#activeBot = Bot
-		dynamic = dynamic && !this.#factory.isMyLife
-		if(this.#factory.isMyLife)
-			botId = null
-		else {
-			const { id, type, version: versionCurrent, } = Bot
-			botId = id
-			version = versionCurrent
-			versionUpdate = this.#factory.botInstructionsVersion(type)
+		let activeBot = this.#findBot(botId)
+		if(!activeBot){
+			const bot = await this.#factory.bot(botId, undefined, 'system') // asserts factory should look into System facades
+			if(!!bot)
+				activeBot = new Bot(bot, this.#llm, this.#factory)
 		}
-		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#avatar)
-		return {
-			id: botId,
-			activeItemId: Bot.activeItemId ?? null,
+		success = !!activeBot
+		if(!success)
+			return {
+				id: botId,
+				error: new Error('Bot not found with requested id: ' + botId, { status: 404, }),
+				success,
+			}
+		this.#activeBot = activeBot
+		const { id, type, version: versionCurrent, } = this.activeBot
+		if(this.activeBotId!==initialBotId)
+			instructions.push({
+				command: 'setActiveBot',
+				id,
+			})
+		version = versionCurrent
+		versionUpdate = this.#factory.botInstructionsVersion(type)
+		const { firstAccess, responses, routine, version: vGreeting, } = await this.activeBot.greeting(dynamic, null, this.#avatar)
+		const response = {
+			activeItemId: this.activeBot.activeItemId ?? null,
+			id,
+			instructions,
 			firstAccess,
 			responses,
 			routine,
 			success,
-			version,
+			version: vGreeting ?? version,
 			versionUpdate,
 		}
+		return response
 	}
 	/**
 	 * Sets the active team for the BotAgent if `teamId` valid; subsequently sets active bot.
