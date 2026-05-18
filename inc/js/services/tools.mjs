@@ -278,7 +278,7 @@ async function mFunction_changeTitle(response, toolArguments, Avatar){
         type: 'system',
     }
     if(!itemId?.length || !title?.length){
-        response.action = `Title Change Error: Apologize for lack of clarity; member should **first** click on the collection item (like a memory, story, etc) to identify it as active; upon doing so, the active item bar appears above chat bar. (function call requies "itemId" and "title" in arguments. Received itemId: ${ itemId }, title: ${ title })`
+        response.action = `Title Change Error: Apologize for lack of clarity; member should **first** click on the collection item (like a memory, story, etc) to identify it as active; upon doing so, the active item bar appears above chat bar. (function call requires "itemId" and "title" in arguments. Received itemId: ${ itemId }, title: ${ title })`
         response.cancelResponse = false
     }
     const { id, } = await Avatar.itemUpdate({ id: itemId, title, })
@@ -307,7 +307,7 @@ async function mFunction_changeTitle(response, toolArguments, Avatar){
  * @returns {Promise<void>} - Mutates `response` based on the success of the registration confirmation operation
  */
 async function mFunction_confirmRegistration(response, toolArguments, Factory){
-    const { email: confirmEmail, registrationId, } = toolArguments
+    let { email: confirmEmail, registrationId, } = toolArguments
     confirmEmail = confirmEmail.trim()
     if(!confirmEmail?.length)
         response.action = `No email provided for registration confirmation, ask for alternate email address for confirmation of registration and try this \`confirmRegistration\` tool this again`

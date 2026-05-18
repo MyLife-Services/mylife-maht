@@ -905,7 +905,7 @@ class Avatar extends EventEmitter {
             missions: undefined,
             responses: [{
                 agent: 'avatar',
-                message: `I'm sorry, I experienced an error while trying to load and confure my settings. Please try again later, and if the problem persists, contact support.`,
+                message: `I'm sorry, I experienced an error while trying to load and configure my settings. Please try again later, and if the problem persists, contact support.`,
                 role: 'system',
                 type: 'greeting',
             }],
@@ -1175,7 +1175,6 @@ class Avatar extends EventEmitter {
         let { responses, } = botGreeting
         responses = responses
             .map(greeting=>mPruneMessage(this.activeBotId, greeting, 'greeting'))
-        console.log('greeting responses', responses)
         return {
             responses,
             routine,

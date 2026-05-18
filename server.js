@@ -19,8 +19,12 @@ const {
 	MYLIFE_SESSION_TIMEOUT_MS,
 	PORT: MYLIFE_PORT,
 } = process.env
-const mPort = parseInt(MYLIFE_PORT) ?? 3000
-const mSessionTimeout = parseInt(MYLIFE_SESSION_TIMEOUT_MS) ?? 900000
+const mPort = parseInt(MYLIFE_PORT)!=='NaN'
+	? parseInt(MYLIFE_PORT)
+	: 3000
+const mSessionTimeout = parseInt(MYLIFE_SESSION_TIMEOUT_MS)!=='NaN'
+	? parseInt(MYLIFE_SESSION_TIMEOUT_MS)
+	: 900000
 /** variables **/
 const version = '0.2.0'
 const app = new Koa()
@@ -124,7 +128,7 @@ app
 		}
 	})
 	.use(async (ctx,next)=>{
-		ctx.session.avatar = ctx.SystemAvatar
+		ctx.session.avatar ??= ctx.SystemAvatar
 		ctx.session.locked ??= true
 		ctx.session.signup ??= false
 		ctx.session._lastAccess = Date.now()

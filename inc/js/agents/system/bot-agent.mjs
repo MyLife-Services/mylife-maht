@@ -198,7 +198,6 @@ class Bot {
 		if(!this.#conversation){
 			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
-			console.log('Bot.getConversation()::thread_id, thread', messages)
 			this.#conversation = await mConversationStart('chat', type, id, thread_id, llmProvider, this.#llm, this.#factory, messages)
 			if(thread_id!==this.conversation.thread_id)
 				this.setThread(this.conversation.thread_id) // saves new id to bot file
