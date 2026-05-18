@@ -894,7 +894,7 @@ class Avatar extends EventEmitter {
      *   - type: Type of configuration (optional)
      * @returns {Promise<object>} - The response object containing the configuration details.
      */
-    async configure(params={}){
+    async configure(params={}, session={}){
         const { adaid, aid, bid, mbr, mid, vld, type, ...rest } = params
         const response = {
             activeBot: undefined,
@@ -942,6 +942,9 @@ class Avatar extends EventEmitter {
             activeBot.promptVariables.adaid = adaid
             requestGreeting = platformGreeting ?? requestGreeting
             const { responses, routine, success, } = await this.#botAgent.greeting(true, requestGreeting)
+            activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
+        } else {
+            const { responses, routine, } = await this.#botAgent.greeting()
             activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
         }
         response.instructions = instructions
