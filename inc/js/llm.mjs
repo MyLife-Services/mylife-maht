@@ -44,6 +44,30 @@ class LLMServices {
     }
     /* public methods */
     /**
+     * One-shot chat completion without conversation/thread overhead. [API documentation](https://developers.openai.com/api/reference/typescript/resources/chat/subresources/completions/methods/create)
+     * @param {string} systemInstruction - System-level instruction for the model
+     * @param {string} userContent - User content to process
+     * @param {string} [model='gpt-3.5-turbo'] - Model to use
+     * @returns {Promise<object|undefined>} - The assistant's response first choice `message`, or `undefined` on error { annotations, content, refusal, role, }
+     */
+    async chatCompletion(systemInstruction, userContent, model='gpt-3.5-turbo'){
+        try {
+            const messages = []
+            if(systemInstruction?.length)
+                messages.push({ role: 'system', content: systemInstruction })
+            if(userContent?.length)
+                messages.push({ role: 'user', content: userContent })
+            const completion = await this.openai.chat.completions.create({
+                model,
+                messages,
+            })
+            return completion.choices?.[0]?.message
+        } catch(error) {
+            console.error('LLMServices::chatCompletion()::error', error)
+            return undefined
+        }
+    }
+    /**
      * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
      * @param {string} conversation_id - conversation id
      * @param {string} message - array of messages (optional)
@@ -252,28 +276,6 @@ class LLMServices {
      */
     async messages(conversation_id){
         return await mMessages(this.openai, conversation_id)
-    }
-    /**
-     * One-shot chat completion without conversation/thread overhead. [API documentation](https://developers.openai.com/api/reference/typescript/resources/chat/subresources/completions/methods/create)
-     * @param {string} systemInstruction - System-level instruction for the model
-     * @param {string} userContent - User content to process
-     * @param {string} [model='gpt-3.5-turbo'] - Model to use
-     * @returns {Promise<object|undefined>} - The assistant's response first choice `message`, or `undefined` on error { annotations, content, refusal, role, }
-     */
-    async chatCompletion(systemInstruction, userContent, model='gpt-3.5-turbo'){
-        try {
-            const completion = await this.openai.chat.completions.create({
-                model,
-                messages: [
-                    { role: 'system', content: systemInstruction, },
-                    { role: 'user', content: userContent, },
-                ],
-            })
-            return completion.choices?.[0]?.message
-        } catch(error) {
-            console.error('LLMServices::chatCompletion()::error', error)
-            return undefined
-        }
     }
     /**
      * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
