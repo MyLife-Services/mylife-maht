@@ -78,7 +78,7 @@ async function collections(ctx){
  */
 async function configure(ctx){
 	const { avatar: Avatar, } = ctx.state
-	ctx.body = await Avatar.configure(ctx.request.body)
+	ctx.body = await Avatar.configure(ctx.request.body, ctx.session)
 }
 /**
  * Given an itemId, evaluates aspects of contents of the data record.
