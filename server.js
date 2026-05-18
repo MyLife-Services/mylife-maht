@@ -161,7 +161,7 @@ app.listen(port, () => {	//	start the server
 })
 /* server routines */
 /* 10-minute interval */
-const sessionCheckInterval = 10 * 10 * 60 * 1000
+const sessionCheckInterval = 10 * 60 * 1000
 setInterval(async _=>{
 	/* session cleanup */
 	const now = Date.now(),
