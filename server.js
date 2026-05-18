@@ -170,7 +170,7 @@ app.use(async (ctx, next) => {
 		}
 	})
 	.use(async (ctx,next)=>{
-		ctx.session.avatar = ctx.SystemAvatar
+		ctx.session.avatar ??= ctx.SystemAvatar
 		ctx.session.locked ??= true
 		ctx.session.signup ??= false
 		ctx.session._lastAccess = Date.now()

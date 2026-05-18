@@ -8,7 +8,7 @@
 async function activateBot(ctx){
 	const { bid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
-	const { aid, } = ctx.body ?? {}
+	const { aid, } = ctx.request.body ?? {}
 	try{
 		ctx.body =await Avatar.setActiveBot(bid, aid)
 	} catch(err) {

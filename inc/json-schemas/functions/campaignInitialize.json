@@ -1,6 +1,7 @@
 {
-  "description": "Initializes the record of a beginning campaign intelligent process; returns `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
   "name": "campaignInitialize",
+  "description": "Initializes the record of a beginning campaign intelligent process; returns `cid` (campaign instance id) to be used for subsequent session calls in the same campaign process",
+  "strict": true,
   "parameters": {
     "additionalProperties": false,
     "type": "object",
@@ -16,6 +17,7 @@
         "type": "string"
       },
       "report": {
+        "additionalProperties": false,
         "description": "My interpretation of the visitor's initial interaction, including any distress flags, hooks and mood; **required**",
         "properties": {
           "distress_flags": {
@@ -29,33 +31,33 @@
           "mood": {
             "description": "The mood of human visitor based on initial interaction",
             "type": "string"
+          },
+          "stage": {
+            "const": "initialized",
+            "description": "The stage of the visitor in the campaign process, such as 'initialized', 'open', etc.",
+            "enum": [
+              "initialized",
+              "open",
+              "connected",
+              "activated",
+              "closed"
+            ],
+            "type": "string"
           }
         },
-        "type": "object"
-      },
-      "stage": {
-        "description": "The stage of instance procedural communication: - `initialized` from this first call of campaignInitialize\n- `open` for when the session is still open to connectivity and action\n- `connected` for when I feel that I understand their concerns\n- `activated` for when the visitor is constructing plans to be actively engaged\n- `closed` for when the session is closed post-interaction",
-        "enum": [
-          "activated",
-          "connected",
-          "closed",
-          "initialized",
-          "open"
+        "required": [
+          "distress_flags",
+          "hook",
+          "mood",
+          "stage"
         ],
-        "type": "string"
-      },
-      "variables": {
-        "additionalProperties": true,
-        "description": "The definition of unique variables, each as key/value pair in this object; ex., {\"emotions\": \"disappointment, frustration\", \"issues\": \"women's rights\"}; **can be empty**",
         "type": "object"
       }
     },
     "required": [
       "aid",
       "adaid",
-      "report",
-      "variables"
+      "report"
     ]
-  },
-  "strict": true
+  }
 }
