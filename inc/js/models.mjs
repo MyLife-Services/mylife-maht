@@ -40,10 +40,10 @@ class Campaign extends EventEmitter {
         const { platforms, ...campaign } = await this.#factory.campaign(aid) ?? {}
         this.#campaign = campaign
         this.#closed = false
-        this.#platform = await platforms[adaid]
+        this.#platform = platforms?.[adaid]
         this.#variables = {
-            ...this.#campaign.variables,
-            ...this.#platform.variables,
+            ...this.#campaign?.variables,
+            ...this.#platform?.variables,
         }
         await this.#factory.campaignInstanceCreate(this) // save imprint
         return this
@@ -95,7 +95,7 @@ class Campaign extends EventEmitter {
     get core(){
         const obj = {
             aid: this.#partitionKeyValue,
-            adaid: this.platform.id,
+            adaid: this.platform?.id,
             being: this.being,
             campaign: this.campaign,
             campaign_id: this.campaign_id,

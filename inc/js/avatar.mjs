@@ -937,7 +937,7 @@ class Avatar extends EventEmitter {
                 activeBot.promptVariables = variables // cascade-05: Bot advertisement defined variables
             const { copy, greeting: platformGreeting, id: platformId, name, site, variables: platformVariables, ...platform } = platforms?.[adaid]
                     ?? platforms?.[0] // case of array
-                    ?? Object.values(platforms)?.[0] // case of object
+                    ?? Object.values(platforms ?? {})?.[0] // case of object
                     ?? {}
             activeBot.promptVariables = platform // cascade-06: Bot platform advertisement incidental variables
             activeBot.promptVariables = platformVariables // cascade-07: Bot platform advertisement defined variables

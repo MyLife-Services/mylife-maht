@@ -19,10 +19,10 @@ const {
 	MYLIFE_SESSION_TIMEOUT_MS,
 	PORT: MYLIFE_PORT,
 } = process.env
-const mPort = parseInt(MYLIFE_PORT)!=='NaN'
+const mPort = !isNaN(parseInt(MYLIFE_PORT))
 	? parseInt(MYLIFE_PORT)
 	: 3000
-const mSessionTimeout = parseInt(MYLIFE_SESSION_TIMEOUT_MS)!=='NaN'
+const mSessionTimeout = !isNaN(parseInt(MYLIFE_SESSION_TIMEOUT_MS))
 	? parseInt(MYLIFE_SESSION_TIMEOUT_MS)
 	: 900000
 /** variables **/
