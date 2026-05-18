@@ -38,6 +38,22 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
             await mFunction_callExternalAgent(response, toolArguments, Avatar)
             break
         }
+        case 'campaignActivate': {
+            await mFunction_campaignActivate(response, toolArguments, Avatar)
+            break
+        }
+        case 'campaignClose': {
+            await mFunction_campaignClose(response, toolArguments, Avatar)
+            break
+        }
+        case 'campaignConnect': {
+            await mFunction_campaignConnect(response, toolArguments, Avatar)
+            break
+        }
+        case 'campaignInitialize': {
+            await mFunction_campaignInitialize(response, toolArguments, Avatar)
+            break
+        }
         case 'changeTitle': {
             await mFunction_changeTitle(response, toolArguments, Avatar)
             break
@@ -158,7 +174,6 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
     console.log(`mFunctionCall()::${ functionName }::complete`, response.success, response.action)
     return response
 }
-
 /* specific function call handlers */
 /**
  * Handles the 'callExternalAgent' function call from the LLM, which makes an agent-to-agent request to an external agent and prepares the response based on the success of the request. Mutates `response` and `Avatar` based on the success of the agent-to-agent request.
@@ -182,25 +197,71 @@ async function mFunction_callExternalAgent(response, toolArguments, Avatar){
     response.action = `Response from external agent:\n${ a2aResponse }`
     response.success = success
 }
-async function mFunction_campaignActivate(response, toolArguments, Factory){
-    const { aid, adaid, } = toolArguments
-    console.log('mFunction_campaignActivate()::start', aid, adaid)
-    const campaign = await Factory.dataservices.campaign(aid, adaid)
-    if(!campaign)
+/**
+ * Handles the 'campaignActivate' function call from the LLM, which creates a campaign report and prepares the response based on the success of the activation. Mutates `response` and `Avatar` based on the success of the activation operation.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the 'campaignActivate' function call
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the activation operation
+ */
+async function mFunction_campaignActivate(response, toolArguments, Avatar){
+    const { cid, report, } = toolArguments
+    const campaignInstance = Avatar.campaign(cid)
+    if(typeof campaignInstance?.campaignActivate !== 'function')
         return
-    response.action = `campaign found\n${ JSON.stringify(campaign) }`
+    await campaignInstance.campaignActivate(report)
+    response.action = `ACTIVATE report stored; if Visitor is _also_ CONNECTED then close conversation, otherwise continue\n\`cid\`; ${ cid }`
     response.success = true
-    console.log('mFunction_campaignActivate()', aid, adaid, campaign, response.action)
-    // Implementation for campaignActivate function
 }
-async function mFunction_campaignClose(response, toolArguments, Factory){
-    // Implementation for campaignClose function
+/**
+ * Handles the 'campaignClose' function call from the LLM, which closes a campaign report and prepares the response based on the success of the closure. Mutates `response` and `Avatar` based on the success of the closure operation.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the 'campaignClose' function call
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the closure operation
+ */
+async function mFunction_campaignClose(response, toolArguments, Avatar){
+    const { cid, report, } = toolArguments
+    response.action = `CLOSE report request received`
+    response.deleteThread = true
+    response.success = true  // only after successful close
+    if(!Avatar.campaign(cid))
+        return
+    await Avatar.campaignClose(cid, report)
+    response.action = `CLOSE report stored; conversation over\n\`cid\`; ${ cid }`
 }
-async function mFunction_campaignConnect(response, toolArguments, Factory){
-    // Implementation for campaignConnect function
+/**
+ * Handles the 'campaignConnect' function call from the LLM, which connects a campaign report and prepares the response based on the success of the connection. Mutates `response` and `Avatar` based on the success of the connection operation.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the 'campaignConnect' function call
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the connection operation
+ */
+async function mFunction_campaignConnect(response, toolArguments, Avatar){
+    const { cid, report, } = toolArguments
+    const campaignInstance = Avatar.campaign(cid)
+    if(typeof campaignInstance?.campaignConnect !== 'function')
+        return
+    await campaignInstance.campaignConnect(report)
+    response.action = `CONNECT report stored; if Visitor is _also_ ACTIVATED then close conversation, otherwise continue\n\`cid\`; ${ cid }`
+    response.success = true
 }
-async function mFunction_campaignInitialize(response, toolArguments, Factory){
-    // Implementation for campaignInitialize function
+/**
+ * Handles the 'campaignInitialize' function call from the LLM, which initializes a campaign and prepares the response based on the success of the initialization. Mutates `response` and `Avatar` based on the success of the campaign initialization operation.
+ * @param {object} response - The initial response object to be updated based on the function call outcome
+ * @param {object} toolArguments - The arguments provided for the 'campaignInitialize' function call
+ * @param {Avatar} Avatar - The avatar instance (`this`)
+ * @returns {Promise<void>} - Mutates `response` and `Avatar` based on the success of the campaign initialization operation
+ */
+async function mFunction_campaignInitialize(response, toolArguments, Avatar){
+    const { aid, adaid, report, } = toolArguments
+    const campaignInstance = await Avatar.campaignCreate(aid, adaid)
+    if(!campaignInstance)
+        return
+    const { id: cid, } = campaignInstance
+    await campaignInstance.campaignInitialize(report)
+    response.action = `campaign initialized\n\`cid\`; ${ cid }`
+    response.success = true
 }
 /**
  * Handles the 'changeTitle' function call from the LLM, which updates the title of a specified item and prepares the frontend instruction for the update. Mutates `response` and `Avatar`.

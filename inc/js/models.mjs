@@ -1161,6 +1161,7 @@ function mValidateGuess(memberName, input){
 /* exports */
 export {
     Action,
+    Campaign,
     Conversation,
     Entry,
     Issue,

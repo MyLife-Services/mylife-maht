@@ -10,7 +10,7 @@ import AssetAgent from './agents/system/asset-agent.mjs'
 import BotAgent from './agents/system/bot-agent.mjs'
 import CollectionsAgent from './agents/system/collections-agent.mjs'
 import ConnectorAgent from './agents/system/connector-agent.mjs'
-import { Action, Entry, Issue, Item, Memory, Stance, Value, } from './models.mjs'
+import { Action, Campaign, Entry, Issue, Item, Memory, Stance, Value, } from './models.mjs'
 import EvolutionAgent from './agents/system/evolution-agent.mjs'
 import { ExperienceAgent, ShareAgent, } from './agents/system/experience-agent.mjs'
 import LLMServices from './llm.mjs'
@@ -403,6 +403,7 @@ class Avatar extends EventEmitter {
     }
     #mode = 'standard' // interface-mode from module `mAvailableModes`
     #nickname // avatar nickname, need proxy here as g/setter is "complex"
+    #sessionId
     #setupComplete
     #ShareAgent
     #vectorstoreId // vectorstore id for avatar
@@ -920,17 +921,25 @@ class Avatar extends EventEmitter {
         response.activeBot = activeBot ?? id
         let requestGreeting = activeGreeting
         if(aid?.length){
+            const { being: campaignBeing, campaign_id: campaign_id, content: campaignContent, id: campaignId, mbr_id: campaignMemberId, name: campaignName, platforms: campaignPlatforms, title: campaignTitle, variables: campaignVariables, ...restCampaign } = await this.#factory.campaign(aid) ?? {}
+            if(typeof campaignVariables === 'object' && Object.keys(campaignVariables)?.length)
+                activeBot.promptVariables = campaignVariables // cascade-02: campaign variables
+            const { copy: campaignPlatformCopy, greeting: campaignPlatformGreeting, id: campaignPlatformId, name: campaignPlatformName, site: campaignPlatformSite, variables: campaignPlatformVariables, } = campaignPlatforms?.[adaid] ?? {}
+            if(typeof campaignPlatformVariables === 'object' && Object.keys(campaignPlatformVariables)?.length)
+                activeBot.promptVariables = campaignPlatformVariables // cascade-03: campaign platform variables
             const { id: advertId, platforms={}, variables=[], ...advertisement } = this.activeBot.ads?.[aid] ?? {}
             if(!!advertisement)
-                activeBot.promptVariables = advertisement // cascade-02
+                activeBot.promptVariables = advertisement // cascade-04: bot advertisement incidental variables
             if(variables?.length)
-                activeBot.promptVariables = variables // cascade-03
+                activeBot.promptVariables = variables // cascade-05: Bot advertisement defined variables
             const { copy, greeting: platformGreeting, id: platformId, name, site, variables: platformVariables, ...platform } = platforms?.[adaid]
                     ?? platforms?.[0] // case of array
                     ?? Object.values(platforms)?.[0] // case of object
                     ?? {}
-            activeBot.promptVariables = platform // cascade-04
-            activeBot.promptVariables = platformVariables // cascade-05: highest priority
+            activeBot.promptVariables = platform // cascade-06: Bot platform advertisement incidental variables
+            activeBot.promptVariables = platformVariables // cascade-07: Bot platform advertisement defined variables
+            activeBot.promptVariables.aid = aid
+            activeBot.promptVariables.adaid = adaid
             requestGreeting = platformGreeting ?? requestGreeting
             const { responses, routine, success, } = await this.#botAgent.greeting(true, requestGreeting)
             activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
@@ -1195,7 +1204,7 @@ class Avatar extends EventEmitter {
     async itemUpdate(item){
         let _item
 		if(item instanceof Item)
-            _item = mExtractItemDataDiff(item.item, this.#factory)
+            _item = this.#factory.extractItemDataDiff(item.item)
         return await this.#factory.updateItem(_item ?? item)
     }
     /**
@@ -1960,6 +1969,13 @@ class Avatar extends EventEmitter {
     get registrationId(){
         return this.#factory.candidateId
     }
+    get sessionId(){
+        return this.#sessionId
+    }
+    set sessionId(sid){
+        if(typeof sid === 'string' && sid.length && sid !== this.#sessionId) // KOA ctx.sessionId token
+            this.#sessionId = sid
+    }
     get setupComplete(){
         return this.#setupComplete
     }
@@ -1998,6 +2014,7 @@ class Avatar extends EventEmitter {
  * @extends Avatar
  */
 class Q extends Avatar {
+    #campaigns = []
     #connectorAgent // connector agent for MyLife
     #conversations = []
     #factory // same reference as Avatar, but privatized to system avatar
@@ -2188,6 +2205,62 @@ class Q extends Avatar {
      */
     async botProxyCreate(){
         throw new Error('System avatar cannot link to external agents.')
+    }
+    /**
+     * Pulls the Campaign Instance for the given id. **Note**: currently only pulled from cache.
+     * @param {Guid} cid - The Campaign Instance Id
+     * @returns {Campaign} - The Campaign instance for the given id
+     */
+    campaign(cid){
+        return this.#campaigns.find(c=>c.id===cid)
+    }
+    /**
+     * Requests final assessment to reports in Campaign Instance.
+     * @param {string} cid - Campaign Instance id
+     * @param {object} report - The report data to submit for final assessment
+     * @returns {Promise<void>} - The Instance has been erased
+     */
+    async campaignClose(cid, report){
+        const campaignInstance = this.campaign(cid)
+        if(!campaignInstance)
+            return
+        this.#campaigns = this.#campaigns.filter(c=>c.id!==cid) // remove from cache
+        if(typeof campaignInstance?.campaignClose === 'function')
+            await campaignInstance.campaignClose(report)
+    }
+    /**
+     * Close all campaign instances for a given session id, such as when a session ends without proper campaign closure. **Note**: each instance is removed from this.#campaigns with `campaignClose()`
+     * @param {object} session - The context Koa Session object to store guest conversation
+     * @param {object} report - The report data to submit for final assessment
+     * @returns {Promise<void>} - All instances have been prodded or postured for closure
+     */
+    async campaignServerClose(session, report){
+        const campaignInstances = this.#campaigns.filter(c=>c.sessionId===session._sessionId)
+        await Promise.all(
+            campaignInstances.map(async campaign=>{
+                await this.chat('# CLOSE', undefined, session) // trigger close from LLM perspective; can abandon this thread, although we should also delete it, I do later down the chain
+            })
+        )
+        // set 25s timeout for actual detonation in cache
+        setTimeout(()=>{
+            campaignInstances.forEach(campaign=>
+                this.campaignClose(campaign.id, report) // no need await; force close any remaining instances in cache after timeout
+            )
+        }, 1000 * 25) // 25s
+    }
+    /**
+     * Requests Campaign Instance creation.
+     * @param {string} aid - Campaign Advertisement id
+     * @param {string} adaid - Campaign Advertisement Platform id
+     * @returns {Promise<Campaign>} - The created Campaign instance
+     */
+    async campaignCreate(aid, adaid){
+        const campaignInstance = new Campaign(this.#factory, this.sessionId)
+        if(typeof campaignInstance.init === 'function'){
+            await campaignInstance.init(aid, adaid)
+            this.#campaigns.push(campaignInstance)
+        }
+        return campaignInstance
     }
     /**
      * OVERLOADED: Processes and executes incoming chat request.
@@ -2917,26 +2990,6 @@ function mCreateSystemMessage(activeBotId, message, messageClassDefinition){
         message,
         type: 'system',
     }
-}
-/**
- * Creates item data diff object for updateItem calls, comparing current item data with saved item data and returning only the fields that have changed.
- * @param {object} item - Item data already extracted from class
- * @param {Factory} factory - The factory instance, used to retrieve saved item data for comparison
- * @returns 
- */
-async function mExtractItemDataDiff(item, factory){
-    const updatedItem = {
-        id: item.id,
-    }
-    const savedItem = await factory.item(updatedItem.id)
-     for(const key of Object.keys(item)){
-        const newValue = item[key]
-        if(key==='id' || newValue===savedItem[key])
-            continue
-        updatedItem[key] = newValue
-    }
-    updatedItem._etag = savedItem._etag
-    return updatedItem
 }
 /**
  * Include help preamble to _LLM_ request, not outbound to member/guest.

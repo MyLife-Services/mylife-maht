@@ -29,7 +29,7 @@ const mSessionTimeout = !isNaN(parseInt(MYLIFE_SESSION_TIMEOUT_MS))
 /** variables **/
 const version = '0.0.42'
 const app = new Koa()
-const port = process.env.PORT ?? '3000'
+const port = mPort
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const _Maht = await SystemAvatar // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
@@ -143,7 +143,7 @@ app.use(async (ctx, next) => {
 		session(	//	session initialization
 			{
 				key: 'mylife.sid',   // cookie session id
-				maxAge: parseInt(process.env.MYLIFE_SESSION_TIMEOUT_MS) || 900000, // session lifetime in milliseconds
+				maxAge: mSessionTimeout, // session lifetime in milliseconds
 				autoCommit: true,
 				overwrite: true,
 				httpOnly: false,
@@ -170,13 +170,13 @@ app.use(async (ctx, next) => {
 		}
 	})
 	.use(async (ctx,next)=>{
-		ctx.session.locked = ctx.session.locked
-			?? true
-		ctx.session.signup = ctx.session.signup
-			?? false
-		ctx.session.avatar = ctx.session.avatar
-			?? ctx.SystemAvatar
+		ctx.session.avatar = ctx.SystemAvatar
+		ctx.session.locked ??= true
+		ctx.session.signup ??= false
+		ctx.session._lastAccess = Date.now()
+		ctx.session._sessionId ??= ctx.session.avatar.newGuid // generate New Token
 		ctx.state.avatar = ctx.session.avatar
+		ctx.state.avatar.sessionId = ctx.session._sessionId // inject token into campaigns
 		ctx.state.locked = ctx.session.locked
 		ctx.state.menu = ctx.SystemAvatar.menu
 		ctx.state.subdomain = ctx.hostname?.split('.')?.[0]
@@ -196,17 +196,39 @@ app.listen(port, () => {	//	start the server
 	console.log(chalk.greenBright('server available'))
 	console.log(chalk.yellow(`listening on port ${port}`))
 })
-/** MCP session meta erasure **/
-const sessionCheckInterval = 10 * 60 * 1000 // every 10 minutes
+/* server routines */
+/* 10-minute interval */
+const sessionCheckInterval = 10 * 10 * 60 * 1000
 setInterval(async _=>{
+	/* session cleanup */
+	const now = Date.now(),
+		sessions = Object.entries(app.context.MemoryStore.sessions)
+	let mcpTracking = 0,
+		sessionTracking = 0
+	for(const [sid, session] of sessions){
+		const { avatar, _lastAccess, _sessionId, } = session
+		if(now - (_lastAccess ?? 0) > mSessionTimeout){
+			if(avatar)
+				await avatar.campaignServerClose(session)
+			app.context.MemoryStore.destroy(sid)
+			sessionTracking++
+			console.log(`⏱️ Session expired and cleaned: ${sid}`)
+		}
+	}
+	/* MCP session meta erasure */
     for(const [sessionId, sessionMeta] of app.context.mcpSessionMeta){
 		const { sessionIdKoa, } = sessionMeta
-      const koaSess = await app.context.MemoryStore.get(`koa:sess:${ sessionIdKoa }`)
-      if(!koaSess){
-        app.context.mcpSessionMeta.delete(sessionId)
-        console.log(`⏱️ Removed meta session for ${ sessionId }`, sessionIdKoa)
-      }
+		const koaSess = await app.context.MemoryStore.get(`koa:sess:${ sessionIdKoa }`)
+		if(!koaSess){
+			app.context.mcpSessionMeta.delete(sessionId)
+			mcpTracking++
+		}
     }
+	console.log(chalk.greenBright(`⏱️ 10-minute interval server check complete: ${ now }\n`) +
+		chalk.gray(`MCP sessions `) + chalk.redBright(`removed: `) + chalk.yellowBright(`${ mcpTracking }\n`) +
+		chalk.gray(`Sessions (stale) `) + chalk.redBright(`removed: `) + chalk.yellowBright(`${ sessionTracking }\n`) +
+		chalk.greenBright(`Active `) + chalk.gray(`sessions: `) + chalk.yellowBright(`${ sessions.length }`)
+	)
 }, sessionCheckInterval)
 /** server functions **/
 function checkForLiveAlerts(){
