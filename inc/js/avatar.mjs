@@ -892,7 +892,7 @@ class Avatar extends EventEmitter {
      *   - type: Type of configuration (optional)
      * @returns {Promise<object>} - The response object containing the configuration details.
      */
-    async configure(params={}, session={}){
+    async configure(params={}){
         const { adaid, aid, bid, mbr, mid, vld, type, ...rest } = params
         const response = {
             activeBot: undefined,
@@ -900,7 +900,7 @@ class Avatar extends EventEmitter {
             missions: undefined,
             responses: [{
                 agent: 'avatar',
-                message: `I'm sorry, I experienced an error while trying to load and configure my settings. Please try again later, and if the problem persists, contact support.`,
+                message: `I'm sorry, I experienced an error while trying to load and confure my settings. Please try again later, and if the problem persists, contact support.`,
                 role: 'system',
                 type: 'greeting',
             }],
@@ -919,61 +919,21 @@ class Avatar extends EventEmitter {
         response.activeBot = activeBot ?? id
         let requestGreeting = activeGreeting
         if(aid?.length){
-            const { being: campaignBeing, campaign_id: campaign_id, content: campaignContent, id: campaignId, mbr_id: campaignMemberId, name: campaignName, platforms: campaignPlatforms, title: campaignTitle, variables: campaignVariables, ...restCampaign } = await this.#factory.campaign(aid) ?? {}
-            if(typeof campaignVariables === 'object' && Object.keys(campaignVariables)?.length)
-                activeBot.promptVariables = campaignVariables // cascade-02: campaign variables
-            const { copy: campaignPlatformCopy, greeting: campaignPlatformGreeting, id: campaignPlatformId, name: campaignPlatformName, site: campaignPlatformSite, variables: campaignPlatformVariables, } = campaignPlatforms?.[adaid] ?? {}
-            if(typeof campaignPlatformVariables === 'object' && Object.keys(campaignPlatformVariables)?.length)
-                activeBot.promptVariables = campaignPlatformVariables // cascade-03: campaign platform variables
             const { id: advertId, platforms={}, variables=[], ...advertisement } = this.activeBot.ads?.[aid] ?? {}
             if(!!advertisement)
-                activeBot.promptVariables = advertisement // cascade-04: bot advertisement incidental variables
+                activeBot.promptVariables = advertisement // cascade-02
             if(variables?.length)
-                activeBot.promptVariables = variables // cascade-05: Bot advertisement defined variables
+                activeBot.promptVariables = variables // cascade-03
             const { copy, greeting: platformGreeting, id: platformId, name, site, variables: platformVariables, ...platform } = platforms?.[adaid]
                     ?? platforms?.[0] // case of array
-                    ?? Object.values(platforms ?? {})?.[0] // case of object
+                    ?? Object.values(platforms)?.[0] // case of object
                     ?? {}
-            activeBot.promptVariables = platform // cascade-06: Bot platform advertisement incidental variables
-            activeBot.promptVariables = platformVariables // cascade-07: Bot platform advertisement defined variables
-            activeBot.promptVariables.aid = aid
-            activeBot.promptVariables.adaid = adaid
+            activeBot.promptVariables = platform // cascade-04
+            activeBot.promptVariables = platformVariables // cascade-05: highest priority
             requestGreeting = platformGreeting ?? requestGreeting
-            const { responses, routine, } = await this.#botAgent.greeting(true, requestGreeting)
-            activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
-        } else {
-            const { responses, routine, } = await this.#botAgent.greeting()
+            const { responses, routine, success, } = await this.#botAgent.greeting(true, requestGreeting)
             activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
         }
-        response.instructions = instructions
-        Object.assign(response, activeBotResponse)
-        return response
-    }
-    async configure(params={}){
-        const { aid, bid, mbr, mid, vld, type, ...rest } = params
-        const response = {
-            activeBot: undefined,
-            instructions: undefined,
-            missions: undefined,
-            responses: [{
-                agent: 'avatar',
-                message: `I'm sorry, I experienced an error while trying to load and confure my settings. Please try again later, and if the problem persists, contact support.`,
-                role: 'system',
-                type: 'greeting',
-            }],
-            routine: undefined,
-            success: false,
-            variables: { ...rest },
-            version: undefined,
-            versionUpdate: undefined,
-        }
-        const { activeBot, id, instructions, success, variables, ...activeBotResponse } = await this.setActiveBot(bid)
-        response.success = success
-        if(!response.success)
-            return response
-        response.activeBot = activeBot ?? id
-        if(aid?.length)
-            console.log('advertisement id provided', aid)
         response.instructions = instructions
         Object.assign(response, activeBotResponse)
         return response

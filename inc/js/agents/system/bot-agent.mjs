@@ -34,12 +34,14 @@ class Bot {
 	#llm
 	#llmProvider
 	#mcpTools = []
+	#preChatContext = [] // will include any messages needed to get pre-added to /chat conversation (like greeting)
+	#promptVariables = {} // { [key]: { key, value, } }
 	#retirable
 	#type
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed=true, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables={}, }={}, name, unaccessed=true, retirable, type=mDefaultBotType, ..._botData } = botData
 		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData)
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
@@ -52,15 +54,6 @@ class Bot {
 			?? providers?.[0]
 			?? factory.botLLMProvider(this.#type)
 			?? {}
-		this.#llmProvider.variables = [
-			...new Set(
-				[
-					...variables,
-					...(this.#llmProvider.variables ?? [])
-				]
-					.filter(v => typeof v === "string")
-			)
-		]
 		this.#retirable = retirable
 			?? this.#factory.botRetirable(this.#type)
 			?? true
@@ -69,6 +62,9 @@ class Bot {
 			?? this.#factory.botIcon(this.#type)
 			?? this.card?.icon
 			?? mDefaultIcon
+		/* promptVariables */
+		this.promptVariables = variables
+		/* instruction catalysts */
 		this.#instructionNodes.add('agentInstructions')
 		this.#instructionNodes.add('bot_name')
 		switch(this.#type){
@@ -193,7 +189,13 @@ class Bot {
 	 * @param {string} message - The member request (optional)
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async getConversation(message){
+	async getConversation(messages=[]){
+		if(typeof messages === 'string' && messages.length)
+			messages = [messages]
+		if(this.#preChatContext.length){
+			messages.unshift(...this.#preChatContext)
+			this.#preChatContext = []
+		}
 		if(!this.#conversation){
 			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
@@ -240,15 +242,17 @@ class Bot {
 		if(!firstAccess || this.overrideRoutineGreeting){ // first access uses `routine`
 			const message = this.greetings?.[Math.floor(Math.random() * this.greetings.length)]
 				?? `Apologies, I am having trouble accessing my greetings at the moment. Please try again later.`
-			const greetings = dynamic
-				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory, Avatar)
+			const { thread_id, llmProvider, } = this
+			llmProvider.variables ??= this.promptVariables
+			responses = dynamic
+				? await mBotGreetings(llmProvider, greetingPrompt, this.#llm, this.#factory, Avatar)
 				: [{
 					agent: this.type,
 					message,
 					role: 'assistant',
 					type: 'greeting',
 				}]
-			responses.push(...greetings)
+			this.#preChatContext.push(...responses)
 		}
 		return {
 			firstAccess,
@@ -520,6 +524,34 @@ class Bot {
 	get options(){
 		return this.#factory.botOptions(this.type)
 	}
+	get promptVariables(){
+		return this.#promptVariables
+	}
+	/**
+	 * Updates prompt variables with incoming `obj` payload
+	 * @setter
+	 * @param {object|array|string} variables - The prompt variables to set, either as an object of key-value pairs, an array of variable names or objects with name and value, or a single variable name as a string (in which case the value will be pulled from the bot instance)
+	 */
+	set promptVariables(variables){
+		if(!variables)
+			return
+		switch(true){
+			case typeof variables === 'string':
+				this.#promptVariables[variables] = this[variables] ?? null
+				break
+			case Array.isArray(variables):
+				for(const variable of variables)
+					this.promptVariables = variable
+				break
+			case typeof variables === 'object':
+				if((variables.name || variables.key) && variables.value !== undefined)
+					this.#promptVariables[variables.name ?? variables.key] = variables.value
+				else
+					for(const [key, value] of Object.entries(variables))
+						this.#promptVariables[key] = value
+				break
+		}
+	}
 	get retirable(){
 		return this.#retirable
 	}
@@ -711,10 +743,10 @@ class BotAgent {
     /**
      * Get a static or dynamic greeting from active bot.
      * @param {boolean} dynamic - Whether to use LLM for greeting
-     * @returns {string} - The greeting message from the active Bot
+	 * @returns {object} - The Response object { responses, routine, success, }
      */
-    async greeting(dynamic=false){
-        const greeting = await this.activeBot.greeting(dynamic, undefined, this.#avatar)
+    async greeting(dynamic=false, greetingPrompt='Greet me with what we did last'){
+        const greeting = await this.activeBot.greeting(dynamic, greetingPrompt, this.#avatar)
         return greeting
     }
 	/**
@@ -1213,7 +1245,6 @@ async function mBotDelete(botId, BotAgent, llm, factory){
 /**
  * Returns set of dynamically generated Greeting messages.
  * @module
- * @param {string} thread_id - The thread id
  * @param {object} llmProvider - The LLM provider object: { *id, *type, }
  * @param {string} greetingPrompt - The prompt for the greeting
  * @param {LLMServices} llm - OpenAI object
@@ -1221,11 +1252,11 @@ async function mBotDelete(botId, BotAgent, llm, factory){
  * @param {Avatar} Avatar - The Avatar instance
  * @returns {Promise<Array>} - The array of string messages to respond with
  */
-async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, Factory, Avatar){
-	let responses = await llm.getLLMResponse(thread_id, llmProvider, greetingPrompt, Factory, Avatar)
+async function mBotGreetings(llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, Factory, Avatar){
+	const responses = await llm.getLLMResponse(undefined, llmProvider, greetingPrompt, Factory, Avatar)
 		?? [mDefaultGreetings]
-	responses = llm.extractResponses(responses)
-    return responses
+	const response = llm.extractResponses(responses, undefined, 'greeting')
+    return response
 }
 /**
  * Returns MyLife-version of bot instructions.
