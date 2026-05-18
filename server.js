@@ -146,14 +146,17 @@ app.use(async (ctx, next) => {
 			await next()
 		} catch (err) {
 			const clientDisconnect = err.code==='ECONNRESET' || err.code==='ERR_STREAM_PREMATURE_CLOSE'
-			ctx.status = err.statusCode || err.status || 500
-			ctx.body = {
-				message: err.message
+			if(err.code==='LLM_IN_PROGRESS'){
+				ctx.status = 503
+				ctx.body = { error: err.message, retry: true, }
+			} else {
+				ctx.status = err.statusCode || err.status || 500
+				ctx.body = { message: err.message, }
+				if(clientDisconnect)
+					console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
+				else
+					console.error(err)
 			}
-			if(clientDisconnect)
-				console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
-			else
-				console.error(err)
 		}
 	})
 	.use(async (ctx,next)=>{
