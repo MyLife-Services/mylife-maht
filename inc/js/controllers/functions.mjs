@@ -67,6 +67,15 @@ async function collections(ctx){
 	ctx.body = await avatar.collections(type)
 }
 /**
+ * Configure the system or member avatar with startup data or settings.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - The result of the configuration action { instructions, missions, responses, success, }
+ */
+async function configure(ctx){
+	const { avatar: Avatar, } = ctx.state
+	ctx.body = await Avatar.configure(ctx.request.body, ctx.session)
+}
+/**
  * Given an itemId, evaluates aspects of contents of the data record.
  * @param {Koa} ctx - Koa Context object
  * @returns {object} - The evaluation response
