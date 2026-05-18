@@ -880,6 +880,74 @@ class Avatar extends EventEmitter {
                 }
             })
         return collections
+    }/**
+     * Configures the avatar's active bot and related settings based on provided parameters such as bot id, advertisement id, platform id, member id, etc. This function retrieves the active bot's configuration and applies any relevant advertisement or platform-specific variables to the bot's prompt variables. It returns a response object containing the active bot, instructions, missions, responses, routine, success status, variables, version, and version update information.
+     * @param {object} params - The parameters for configuring the avatar, which may include:
+     *   - adaid: Advertisement id (optional)
+     *   - aid: Advertisement id (optional)
+     *   - bid: Bot id (optional)
+     *   - mbr: Member id (optional)
+     *   - mid: Member id (optional)
+     *   - vld: Validation id (optional)
+     *   - type: Type of configuration (optional)
+     * @returns {Promise<object>} - The response object containing the configuration details.
+     */
+    async configure(params={}, session={}){
+        const { adaid, aid, bid, mbr, mid, vld, type, ...rest } = params
+        const response = {
+            activeBot: undefined,
+            instructions: undefined,
+            missions: undefined,
+            responses: [{
+                agent: 'avatar',
+                message: `I'm sorry, I experienced an error while trying to load and configure my settings. Please try again later, and if the problem persists, contact support.`,
+                role: 'system',
+                type: 'greeting',
+            }],
+            routine: undefined,
+            success: false,
+            variables: { ...rest },
+            version: undefined,
+            versionUpdate: undefined,
+        }
+        const { activeBot=this.activeBot, greeting: activeGreeting, id, instructions, success, variables={}, ...activeBotResponse } = await this.setActiveBot(bid)
+        activeBot.promptVariables = variables // cascade-00: bot variables from TEMPLATE, lowest priority
+        activeBot.promptVariables = rest // cascade-01: raw URL params, lowest priority
+        response.success = success
+        if(!response.success)
+            return response
+        response.activeBot = activeBot ?? id
+        let requestGreeting = activeGreeting
+        if(aid?.length){
+            const { being: campaignBeing, campaign_id: campaign_id, content: campaignContent, id: campaignId, mbr_id: campaignMemberId, name: campaignName, platforms: campaignPlatforms, title: campaignTitle, variables: campaignVariables, ...restCampaign } = await this.#factory.campaign(aid) ?? {}
+            if(typeof campaignVariables === 'object' && Object.keys(campaignVariables)?.length)
+                activeBot.promptVariables = campaignVariables // cascade-02: campaign variables
+            const { copy: campaignPlatformCopy, greeting: campaignPlatformGreeting, id: campaignPlatformId, name: campaignPlatformName, site: campaignPlatformSite, variables: campaignPlatformVariables, } = campaignPlatforms?.[adaid] ?? {}
+            if(typeof campaignPlatformVariables === 'object' && Object.keys(campaignPlatformVariables)?.length)
+                activeBot.promptVariables = campaignPlatformVariables // cascade-03: campaign platform variables
+            const { id: advertId, platforms={}, variables=[], ...advertisement } = this.activeBot.ads?.[aid] ?? {}
+            if(!!advertisement)
+                activeBot.promptVariables = advertisement // cascade-04: bot advertisement incidental variables
+            if(variables?.length)
+                activeBot.promptVariables = variables // cascade-05: Bot advertisement defined variables
+            const { copy, greeting: platformGreeting, id: platformId, name, site, variables: platformVariables, ...platform } = platforms?.[adaid]
+                    ?? platforms?.[0] // case of array
+                    ?? Object.values(platforms ?? {})?.[0] // case of object
+                    ?? {}
+            activeBot.promptVariables = platform // cascade-06: Bot platform advertisement incidental variables
+            activeBot.promptVariables = platformVariables // cascade-07: Bot platform advertisement defined variables
+            activeBot.promptVariables.aid = aid
+            activeBot.promptVariables.adaid = adaid
+            requestGreeting = platformGreeting ?? requestGreeting
+            const { responses, routine, } = await this.#botAgent.greeting(true, requestGreeting)
+            activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
+        } else {
+            const { responses, routine, } = await this.#botAgent.greeting()
+            activeBotResponse.responses = responses.map(response=>mPruneMessage(this.activeBotId, response.message, 'greeting', activeBotResponse.processStartTime))
+        }
+        response.instructions = instructions
+        Object.assign(response, activeBotResponse)
+        return response
     }
     /**
      * Start a new conversation.
