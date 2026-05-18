@@ -8,11 +8,10 @@
 async function activateBot(ctx){
 	const { bid, } = ctx.params
 	const { avatar: Avatar, } = ctx.state
-	const { aid, } = ctx.request.body ?? {}
 	try{
-		ctx.body =await Avatar.setActiveBot(bid, aid)
+		ctx.body = await Avatar.setActiveBot(bid)
 	} catch(err) {
-		console.log(`Error activating bot:`, err.message, bid, aid)
+		console.log(`Error activating bot:`, err.message, bid)
 		return ctx.status = 204
 	}
 }
