@@ -224,7 +224,12 @@ async function mFunction_campaignClose(response, toolArguments, Avatar){
     const { cid, report, } = toolArguments
     response.action = `CLOSE report request received`
     response.deleteThread = true
-    response.success = true  // only after successful close
+    response.success = true
+    Avatar.backupResponses = {
+        agent: 'server',
+        message: `I really appreciate the time we had together, and <b>Thank you for your time</b>. The server is concluding our connection now, but I believe in your ability to make a difference, thank you for sharing your commitment today.`,
+        type: 'system',
+    }
     if(!Avatar.campaign(cid))
         return
     await Avatar.campaignClose(cid, report)
