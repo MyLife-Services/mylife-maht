@@ -61,10 +61,24 @@ async function challenge(ctx, memberId, memberPassphrase){
 	}
 	ctx.body = !ctx.session.locked
 }
+/**
+ * Get collections of items by type.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {Promise<Object[]} - The collections of the specified type
+ */
 async function collections(ctx){
 	const { type, } = ctx.params
 	const { avatar, } = ctx.state
 	ctx.body = await avatar.collections(type)
+}
+/**
+ * Configure the system or member avatar with startup data or settings.
+ * @param {Koa} ctx - Koa Context object
+ * @returns {object} - The result of the configuration action { instructions, missions, responses, success, }
+ */
+async function configure(ctx){
+	const { avatar: Avatar, } = ctx.state
+	ctx.body = await Avatar.configure(ctx.request.body)
 }
 /**
  * Given an itemId, evaluates aspects of contents of the data record.
@@ -272,6 +286,7 @@ export {
 	alerts,
 	challenge,
 	collections,
+	configure,
 	evaluate,
 	feedback,
 	greetings,

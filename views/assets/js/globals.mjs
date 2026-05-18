@@ -117,14 +117,23 @@ class Datamanager {
         const response = await this.#fetch(url)
         return response
     }
-    async botActivate(botId, system=false){
-        const url = `${ !system ? '/members' : '' }/bots/activate/${ botId }`
+    /**
+     * 
+     * @param {Guid} bid - 
+     * @param {boolean} system - Whether to activate the bot as a system bot
+     * @param {Guid} aid - The advertisement id (uuid) to seed the bot (optional)
+     * @returns {Object} - The response object from the server
+     */
+    async botActivate(bid, system=false, aid){
+        const url = `${ !system ? '/members' : '' }/bots/activate/${ bid }`
         const options = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             }
         }
+        if(aid?.length)
+            options.body = JSON.stringify({ aid, })
         const response = await this.#fetch(url, options)
         return response
     }
@@ -278,6 +287,24 @@ class Datamanager {
     async collections(type=''){
         const url = `/members/collections/${ type }`
         const response = await this.#fetch(url)
+        return response
+    }
+    /**
+     * Request challenge be created on server.
+     * @param {object} params - Parameters object
+     * @param {boolean} system - System `true` or validated member `false` (default) page
+     * @returns {Promise<Object>} - The result of the configuration action { instructions, missions, responses, success, }
+     */
+    async configure(params, system=false){
+        const url = `${ system ? '' : '/members' }/configure`
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(params)
+        }
+        const response = await this.#fetch(url, options)
         return response
     }
     /**

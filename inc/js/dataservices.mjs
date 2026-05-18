@@ -13,6 +13,7 @@ import Datamanager from "./datamanager.mjs"
 const mAddOnlyArrayFields = new Set([
     'feedback',
 	'messages',
+	'reports',
 	'validations',
 ])
 /**
@@ -165,17 +166,16 @@ class Dataservices {
 	/**
 	 * Get a bot specified by id or type.
 	 * @public
-	 * @param {string} id - The bot id.
-	 * @param {string} type - The bot type.
-	 * @returns {object} - The bot or `undefined` if no bot found.
+	 * @param {string} id - The bot id
+	 * @param {string} type - The bot type (optional)
+	 * @param {string} containerId - The container to use (optional)
+	 * @returns {object} - The bot or `undefined` if no bot found
 	 */
-	async bot(id, type='personal-avatar'){
-		if(id){
-			return await this.getItem(id)
-		} else {
-			const bots = await this.bots(type)
-			return bots[0]
-		}
+	async bot(id, type='personal-avatar', containerId){
+		if(id?.length)
+			return await this.getItem(id, containerId)
+		const bots = await this.bots(type)
+		return bots[0]
 	}
 	/**
 	 * Gets all bots of a given type for a given member.
@@ -210,6 +210,27 @@ class Dataservices {
 			_type,
 			'system'
 		)
+	}
+	/**
+	 * Retrieves a specific campaign by its advertisement id and platform ad id.
+	 * @param {Guid} aid - Advertisement id
+	 * @returns {Object} - The campaign document object
+	 */
+	async campaign(aid){
+		const campaign = await this.getItem(aid, 'campaigns', aid)
+		return campaign
+	}
+	async campaignInstance(cid, campaign_id){
+		const campaign = await this.getItem(cid, 'campaigns', campaign_id)
+		return campaign
+	}
+	async campaignInstanceCreate(dataObj){
+		return await this.pushItem(dataObj, 'campaigns')
+	}
+	async campaignInstanceSave(dataObj){
+		const { campaign_id, id, } = dataObj
+		const savedcampaign = await this.patch(id, dataObj, 'campaigns', campaign_id)
+		return savedcampaign
 	}
     /**
      * Challenges access to a member ID via passphrase, running against a stored procedure in the database.
@@ -496,22 +517,22 @@ class Dataservices {
 	 * @async
 	 * @public
 	 * @param {string} id - The unique identifier for the item.
-	 * @param {string} container_id - The container to use, overriding default: `Members`.
+	 * @param {string} containerId - The container to use, overriding default: `Members`.
 	 * @param {string} mbr_id - The member id to use, overriding default.
 	 * @returns {Promise<Object>} The item corresponding to the provided ID.
 	 */
-	async getItem(id, container_id, mbr_id=this.mbr_id) {
-		if(!id)
+	async getItem(id, containerId, mbr_id=this.mbr_id) {
+		if(!id?.length)
 			return null
 		try{
 			return await this.datamanager.getItem(
 				id,
-				container_id,
+				containerId,
 				{ partitionKey: mbr_id, populateQuotaInfo: false, },
 			)
 		}
 		catch(error){
-			console.log('Dataservices::getItem()::error', error, id, mbr_id, container_id,)
+			console.log('Dataservices::getItem()::error', error, id, mbr_id, containerId)
 			return null
 		}
 	}
@@ -629,6 +650,14 @@ class Dataservices {
 	 */
 	async hostedMembers(validations){
 		return await this.datamanager.hostedMembers(validations)
+	}
+	/**
+	 * Retrieves partition key paths for a given container.
+	 * @param {string} containerId - The name of the container
+	 * @returns {Array<string>} An array of partition key paths for the specified container
+	 */
+	partitionKeys(containerId){
+		return this.datamanager.partitionKeys(containerId)
 	}
 	/**
 	 * Patches an item by its ID with the provided data.

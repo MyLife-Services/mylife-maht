@@ -1,0 +1,104 @@
+{
+  "description": "Generates a report for an ACTIVATE event from the intelligence; persists the concrete action plan the Visitor and bot have co-constructed and any commitment language. Called when the Visitor has moved from understanding to constructing plans for civic engagement.",
+  "name": "campaignActivate",
+  "parameters": {
+    "additionalProperties": false,
+    "type": "object",
+    "properties": {
+      "cid": {
+        "description": "The unique identifier of the campaign instance",
+        "format": "uuid",
+        "type": "string"
+      },
+      "report": {
+        "additionalProperties": false,
+        "description": "My interpretation of the ACTIVATE event, including the co-constructed action plan, the Visitor's commitment, and any updated state fields",
+        "type": "object",
+        "properties": {
+          "action_plan": {
+            "additionalProperties": false,
+            "description": "The concrete plan co-constructed with the Visitor: one issue, one action type, one proximate step. Small and real; do not over-extend.",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "description": "The specific issue this action addresses, ex., 'reproductive rights', 'local school board representation'",
+                "type": "string"
+              },
+              "action_type": {
+                "description": "The form of civic participation the Visitor is taking on",
+                "enum": [
+                  "vote",
+                  "register",
+                  "volunteer",
+                  "learn_more",
+                  "contact_representative",
+                  "attend_event",
+                  "share_with_others",
+                  "other"
+                ],
+                "type": "string"
+              },
+              "proximate_step": {
+                "description": "The small concrete next step — what the Visitor will actually do first, named in plain language",
+                "type": "string"
+              },
+              "commitment": {
+                "description": "The Visitor's commitment language verbatim where given; empty string if no explicit intent was stated",
+                "type": "string"
+              }
+            },
+            "required": ["issue", "action_type", "proximate_step", "commitment"]
+          },
+          "affect_vector": {
+            "additionalProperties": false,
+            "description": "The Visitor's transition from understanding to readiness for civic action",
+            "type": "object",
+            "properties": {
+              "label": {
+                "description": "The label/description of the affect vector, ex., 'understood -> ready to act'",
+                "type": "string"
+              },
+              "evidence": {
+                "description": "The evidence for the affect vector, such as 'the visitor named a specific action without prompting'",
+                "type": "string"
+              },
+              "intensity": {
+                "description": "The intensity of the affect vector",
+                "enum": ["low", "medium", "high"],
+                "type": "string"
+              }
+            },
+            "required": ["label", "evidence", "intensity"]
+          },
+          "distress_flags": {
+            "description": "Any noticed distress flags set by the visitor contact. Content that seems difficult for human; comma-delimited",
+            "type": "string"
+          },
+          "hook": {
+            "description": "What's the most compelling argument for the visitor so far?",
+            "type": "string"
+          },
+          "mood": {
+            "description": "What's the general mood of the visitor at this point?",
+            "type": "string"
+          },
+          "stage": {
+            "const": "activated",
+            "description": "The stage of the visitor in the campaign process",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_plan",
+          "affect_vector",
+          "distress_flags",
+          "hook",
+          "mood",
+          "stage"
+        ]
+      }
+    },
+    "required": ["cid", "report"]
+  },
+  "strict": true
+}
