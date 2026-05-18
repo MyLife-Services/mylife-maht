@@ -454,7 +454,6 @@ class Dataservices {
 			{ name: '@currentDate', value: new Date().toISOString() }
 		]
 		const query = `SELECT * FROM c WHERE c.being = @being AND @currentDate >= c.timestampRange['start'] AND @currentDate <= c.timestampRange['end']`
-
 		return await this.#Datamanager.getItems(
 			{ query: query, parameters: paramsArray },
 			'system',

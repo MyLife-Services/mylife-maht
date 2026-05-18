@@ -651,8 +651,8 @@ class Avatar extends EventEmitter {
                 message: `I'm sorry - I encountered an error while trying to retire this conversation; please try again.`,
                 type: 'system',
             },
-            responses = [],
-            success = false
+            responses = []
+        let success = false
         if(await this.#botAgent.migrateChat(botId)){
             message.agent = this.bot(botId)?.name ?? message.agent
             message.message = `I have successfully retired this conversation.`

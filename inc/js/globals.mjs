@@ -11,7 +11,7 @@ const mForbiddenCosmosFields = ['$', '_', ' ', '@', '#',]
 const mForbiddenValues = [undefined, null, NaN]
 const mGuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i	//	regex for GUID validation
 const mMCPTools = await mParseFunctions('/mcp/tools')
-const mOpenAIBotModel = process.env.OPENAI_MODEL_CORE_BOT ?? 'gpt-4o-mini'
+const mOpenAIBotModel = process.env.OPENAI_MODEL_CORE_BOT ?? 'gpt-4.1-mini'
 const mSchemas = await mLoadSchemas()
 const mUrlRegex = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)(:[0-9]{1,5})?(\/\S*)?$/
 console.log('<-----Globals module loaded----->')
