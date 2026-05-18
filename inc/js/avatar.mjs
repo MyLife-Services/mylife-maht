@@ -2014,7 +2014,7 @@ class Avatar extends EventEmitter {
  * @extends Avatar
  */
 class Q extends Avatar {
-    #campaigns = []
+    #campaigns = new Map()
     #connectorAgent // connector agent for MyLife
     #conversations = []
     #factory // same reference as Avatar, but privatized to system avatar
@@ -2212,7 +2212,7 @@ class Q extends Avatar {
      * @returns {Campaign} - The Campaign instance for the given id
      */
     campaign(cid){
-        return this.#campaigns.find(c=>c.id===cid)
+        return this.#campaigns.get(cid)
     }
     /**
      * Requests final assessment to reports in Campaign Instance.
@@ -2224,7 +2224,7 @@ class Q extends Avatar {
         const campaignInstance = this.campaign(cid)
         if(!campaignInstance)
             return
-        this.#campaigns = this.#campaigns.filter(c=>c.id!==cid) // remove from cache
+        this.#campaigns.delete(cid) // atomic removal
         if(typeof campaignInstance?.campaignClose === 'function')
             await campaignInstance.campaignClose(report)
     }
@@ -2235,7 +2235,7 @@ class Q extends Avatar {
      * @returns {Promise<void>} - All instances have been prodded or postured for closure
      */
     async campaignServerClose(session, report){
-        const campaignInstances = this.#campaigns.filter(c=>c.sessionId===session._sessionId)
+        const campaignInstances = [...this.#campaigns.values()].filter(c=>c.sessionId===session._sessionId)
         await Promise.all(
             campaignInstances.map(async campaign=>{
                 await this.chat('# CLOSE', undefined, session) // trigger close from LLM perspective; can abandon this thread, although we should also delete it, I do later down the chain
@@ -2258,7 +2258,7 @@ class Q extends Avatar {
         const campaignInstance = new Campaign(this.#factory, this.sessionId)
         if(typeof campaignInstance.init === 'function'){
             await campaignInstance.init(aid, adaid)
-            this.#campaigns.push(campaignInstance)
+            this.#campaigns.set(campaignInstance.id, campaignInstance)
         }
         return campaignInstance
     }
@@ -2951,7 +2951,7 @@ function mBuildResponse(Avatar, { item, responses=[], success=false, ...rest }){
         ? mItem(item, Avatar)
         : item
     if(!responses?.length){
-        if(!Avatar.backupResponses.length)
+        if(!Avatar.backupResponses.length && !success)
             Avatar.backupResponses = {
                 agent: 'server',
                 message: `I tried to process your message, but am having unspecified difficulty. Please try again.`,
