@@ -13,6 +13,19 @@ import serve from 'koa-static'
 import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/factory.mjs'
+/* env variables */
+const {
+	MYLIFE_HOSTING_KEY: mHostingKey,
+	MYLIFE_SESSION_KEY: mSessionKey,
+	MYLIFE_SESSION_TIMEOUT_MS,
+	PORT: MYLIFE_PORT,
+} = process.env
+const mPort = !isNaN(parseInt(MYLIFE_PORT))
+	? parseInt(MYLIFE_PORT)
+	: 3000
+const mSessionTimeout = !isNaN(parseInt(MYLIFE_SESSION_TIMEOUT_MS))
+	? parseInt(MYLIFE_SESSION_TIMEOUT_MS)
+	: 900000
 /** variables **/
 const version = '0.0.42'
 const app = new Koa()
