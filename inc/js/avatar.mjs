@@ -897,7 +897,7 @@ class Avatar extends EventEmitter {
      *   - type: Type of configuration (optional)
      * @returns {Promise<object>} - The response object containing the configuration details.
      */
-    async configure(params={}){
+    async configure(params={}, session={}){
         const { adaid, aid, bid, mbr, mid, vld, type, ...rest } = params
         const response = {
             activeBot: undefined,
