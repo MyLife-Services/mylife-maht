@@ -46,7 +46,7 @@ class Bot {
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables={}, }={}, name, unaccessed=true, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables={}, }={}, name, retirable, routine, type=mDefaultBotType, unaccessed=true, ..._botData } = botData
 		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData)
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
@@ -54,7 +54,7 @@ class Bot {
 		this.#firstAccess = unaccessed
 		this.#greetings = greetings
 		this.#type = type
-		this.#greetingRoutine = this.#type.replace('personal-', '')
+		this.#greetingRoutine = routine ?? this.#type.replace('personal-', '')
 		this.#llmProvider = providers.find(provider=>provider.provider===(llmProvider ?? defaultProvider))
 			?? providers?.[0]
 			?? factory.botLLMProvider(this.#type)
@@ -837,11 +837,12 @@ class BotAgent {
 			?? this.#factory[variable] // botAgent factory
 			?? this.#factory.core[variable] // MyLife human core entry
 			?? 'unknown'
-		if(typeof variableValue!=='string')
+		if(typeof variableValue!=='string'){
 			if(Array.isArray(variableValue))
 				 variableValue = variableValue.join(', ')
 			else
 				variableValue = JSON.stringify(variableValue)
+		}
         return variableValue
     }
     /**
@@ -889,12 +890,24 @@ class BotAgent {
 		let success=false,
 			version=0.0,
 			versionUpdate=0.0
-		const Bot = this.#findBot(botId)
+		let foundBot = this.#findBot(botId)
+		if(!foundBot && botId && this.#factory.isMyLife){
+			const botData = await this.#factory.bot(botId)
+			if(botData){
+				foundBot = new Bot(botData, this.#llm, this.#factory)
+				this.#bots.push(foundBot)
+			}
+		}
+		foundBot ??= this.#activeBot
+		const Bot = foundBot
 		success = !!Bot
 		if(!success)
-			return
+			return {
+				id: botId,
+				error: new Error('Bot not found with requested id: ' + botId, { status: 404, }),
+				success,
+			}
 		this.#activeBot = Bot
-		dynamic = dynamic && !this.#factory.isMyLife
 		if(this.#factory.isMyLife)
 			botId = null
 		else {
@@ -903,14 +916,14 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botVersion(type)
 		}
-		success = !!activeBot
+		success = !!Bot
 		if(!success)
 			return {
 				id: botId,
 				error: new Error('Bot not found with requested id: ' + botId, { status: 404, }),
 				success,
 			}
-		this.#activeBot = activeBot
+		this.#activeBot = Bot
 		const { id, type, version: versionCurrent, } = this.activeBot
 		if(this.activeBotId!==initialBotId)
 			instructions.push({
@@ -918,7 +931,7 @@ class BotAgent {
 				id,
 			})
 		version = versionCurrent
-		versionUpdate = this.#factory.botInstructionsVersion(type)
+		versionUpdate = this.#factory.botVersion(type)
 		const { firstAccess, responses, routine, version: vGreeting, } = await this.activeBot.greeting(dynamic, null, this.#avatar)
 		const response = {
 			activeItemId: this.activeBot.activeItemId ?? null,
@@ -932,6 +945,46 @@ class BotAgent {
 			versionUpdate,
 		}
 		return response
+	}
+	/**
+	 * Sets the active campaign for the BotAgent.
+	 * @async
+	 * @param {Guid} campaignId - The Campaign id
+	 * @param {Guid} platformId - The Platform id (optional)
+     * @returns {object} - Activated Response object: { activeItemId, firstAccess, id, responses, routine, success, version, versionUpdate, }
+	 */
+	async setCampaign(campaignId, platformId){
+		// 1. get campaign template, incl Bot, from campaigns
+		const campaignInfo = await this.#factory.campaign(campaignId)
+		if(!campaignInfo)
+			return { error: new Error('Campaign not found with requested id: ' + campaignId, { status: 404, }), success: false, }
+		const { being: campaignBeing, bot: campaignBotData, campaign_id, content: campaignContent, id: campaignDocumentId, mbr_id: campaignMemberId, name: campaignName, platforms: campaignPlatforms, title: campaignTitle, variables: campaignVariables, ...restCampaign } = campaignInfo
+		let campaignBot = this.#bots.find(bot=>bot.id === campaignBotData.id) // do not use bot() as do not want avatar
+		if(!campaignBot && campaignBotData?.id){
+			campaignBot = new Bot(campaignBotData, this.#llm, this.#factory) // cascade-00: create bot from campaign template bot data
+			this.#bots.push(campaignBot)
+		}
+		if(!campaignBot)
+			return
+		if(typeof restCampaign === 'object' && Object.keys(restCampaign)?.length)
+			campaignBot.promptVariables = restCampaign // cascade-01: campaign loose variables
+		if(typeof campaignVariables === 'object' && Object.keys(campaignVariables)?.length)
+			campaignBot.promptVariables = campaignVariables // cascade-02: campaign-specific variables
+		// 2. Get platform details and infuse into campainBot
+		let platform = campaignPlatforms?.[platformId]
+			?? campaignPlatforms?.[0] // case of array
+			?? Object.values(campaignPlatforms)?.[0] // case of object
+			?? {}
+		const { copy: campaignPlatformCopy, greeting: campaignPlatformGreeting, id: campaignPlatformId, name: campaignPlatformName, site: campaignPlatformSite, variables: campaignPlatformVariables, ...platformRest } = platform
+		if(typeof platformRest === 'object' && Object.keys(platformRest)?.length)
+			campaignBot.promptVariables = platformRest // cascade-03: advertisement platform `loose` variables
+		if(typeof campaignPlatformVariables === 'object' && Object.keys(campaignPlatformVariables)?.length)
+			campaignBot.promptVariables = campaignPlatformVariables // cascade-04: advertisement platform `defined` variables
+		campaignBot.promptVariables.aid = campaignId
+		campaignBot.promptVariables.adaid = platformId
+		campaignBot.promptVariables.cid = campaignBot.id
+		// 4. get greeting and respond
+		return await this.setActiveBot(campaignBot.id, true) // activate bot with dynamic greeting to cascade campaign variables
 	}
 	/**
 	 * Sets the active team for the BotAgent if `teamId` valid; subsequently sets active bot.

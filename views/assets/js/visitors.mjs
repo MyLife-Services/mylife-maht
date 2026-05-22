@@ -46,7 +46,7 @@ let challengeError,
     signupSuccess
 /* page load */
 document.addEventListener('DOMContentLoaded', async event=>{
-    let { instructions, messages, } = await mLoadStart()
+    let { configRoutine, instructions, messages, } = await mLoadStart()
     mShowPage()
     if(instructions?.length)
         mGlobals.enactInstruction(instructions)
@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
         await mAddMessages(messages, 'agent')
     if(mMissionId?.length)
         mMissionStart()
+    await mRoutine(configRoutine)
     if(mShareId?.length)
         mShareStart(mShareId)
 }, { once: true })
@@ -227,7 +228,8 @@ async function mFetchStart(){
         instructions=[],
         isSignedUp = await mGlobals.datamanager.signupStatus(),
         messages = [],
-        pageType = mInitialURLParams?.type ?? window.location.pathname.split('/').pop(),
+        pageType = mInitialURLParams?.type ?? window.location.pathname.split('/').pop()
+    let configRoutine
     mChallengeMemberId = challengeId
     mInitialURLParams.bid ??= mInitialBotId
     mMissionId = mInitialURLParams.mid ?? mMissionId
@@ -249,18 +251,21 @@ async function mFetchStart(){
             break
         }
         default: {
-            const initialResponses = (await mGlobals.datamanager.botActivate(activeBotId, true))?.responses
-                ?? await mGlobals.datamanager.greetings()
-                ?? [{
-                        agent: 'avatar',
-                        message: `Hello, I am <b>Q</b>, AI-Agent and corporate intelligence for the nonprofit member organization <b>MyLife</b>. <em>It looks like we may have encountered some error on startup, please try refreshing the page or coming back later.</em>`,
-                        type: 'error',
-                    }]
-            messages.push(...initialResponses)
+            const configureResponse = await mGlobals.datamanager.configure(mInitialURLParams, true)
+            const { responses: configResponses=[], routine, } = configureResponse ?? {}
+            configRoutine = routine
+            if(configResponses.length)
+                messages.push(...configResponses)
+            else {
+                const fallback = await mGlobals.datamanager.greetings()
+                    ?? [{ agent: 'avatar', message: `Hello, I am <b>Q</b>, AI-Agent and corporate intelligence for the nonprofit member organization <b>MyLife</b>. <em>It looks like we may have encountered some error on startup, please try refreshing the page or coming back later.</em>`, type: 'error', }]
+                messages.push(...fallback)
+            }
             break
         }
     }
     return {
+        configRoutine,
         instructions,
         messages,
     }
@@ -329,12 +334,14 @@ async function mMissionStart(){
  * @returns {Promise<void>}
  */
 async function mRoutine(routineName, awaitText='Awaiting response...'){
+    if(!routineName?.length)
+        return
     hide(mGlobals.MemberChat)
     const awaitButton = mGlobals.await(awaitText)
     mGlobals.addChatElement(awaitButton)
     const generation = ++mAwaitingResponseId
     let inProcess = false
-    console.log('mRoutine', mAwaitingResponse)
+    console.log(`${ routineName } routine begun`)
     if(mAwaitingResponse)
         inProcess = true
     mAwaitingResponse = true

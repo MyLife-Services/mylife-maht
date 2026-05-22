@@ -182,11 +182,13 @@ class LLMServices {
         switch(llmProvider?.type){
             case 'prompt':
                 prompt.id = llmProvider.id
+                console.log()
                 const promptVariables = Array.isArray(llmProvider?.variables)
                     ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
                     : llmProvider?.variables
                 if(promptVariables)
                     prompt.variables = promptVariables
+                console.log(`LLMServices::getLLMResponse()::using prompt ${ prompt.id } with variables:`, prompt.variables)
                 break
             case 'assistant':
                 throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')

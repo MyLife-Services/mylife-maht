@@ -1,0 +1,55 @@
+{
+	"cast": [
+		{
+			"icon": "Q",
+			"id": "Q",
+			"role": "Q, AI Avatar for MyLife",
+			"type": "system"
+		},
+        {
+            "icon": "avatar-thumb",
+            "id": "avatar",
+            "role": "Personal Avatar",
+            "type": "avatar"
+        }
+	],
+    "description": "Introduction to HRP and MyLife",
+    "developers": [
+        "mylife|2f5e98b7-4065-4378-8e34-1a9a41c42ab9",
+        "system-one|4e6e2f26-174b-43e4-851f-7cf9cdf056df"
+    ],
+	"events": [
+        {
+            "character": "Q",
+            "dialog": {
+                "message": "Hi! First off, thank you so much for coming to visit this site. It's brave to participate in something so new, evolving, and experimental, and I'm really proud of you sharing that bravery with us."
+            }
+        },
+		{
+			"dialog": {
+				"message": "My name is <b><-bN-></b>, the official Synthetic System Intelligence for <em>MyLife</em>. Welcome to our platform, great to see you. I can help you with any of your interests in the Organization, its technology or people to the best of my ability. Whether you want to hear more, volunteer or register for the Platform beta, I can help!"
+			}
+		},
+		{
+			"dialog": {
+				"message": "What do you think it's most important for each of us to remember at this point in history?"
+			}
+		}
+	],
+	"instructions": {},
+    "name": "routine_campaign_hrp-01-01",
+	"pause": 8,
+    "public": true,
+    "status": "active",
+    "title": "Welcome to MyLife!",
+	"typeSpeed": 8,
+    "variables": [
+        {
+          "default": "Personal Avatar",
+          "variable": "<-bN->",
+          "replacement": "name"
+        }
+    ],
+    "version": 1,
+    "$comment": "- 20260520: Create initial routine for configurable bots\n"
+}
