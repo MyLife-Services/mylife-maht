@@ -6,6 +6,135 @@ const mBeing = `story`,
     mShareGratitude = `Thank you for letting us share this narrative with you! I hope you enjoyed it as much as I did.`,
     mShareScopes = ['group', 'members', 'private', 'public'],
     mVersion = 1.00
+class Campaign extends EventEmitter {
+    #activate = false
+    #being = 'campaign-instance'
+    #campaign
+    #closed
+    #connect = false
+    #factory
+    #id
+    #name
+    #container = process.env.MYLIFE_DB_CONTAINER_NAME_CAMPAIGNS
+    #partitionKey = 'campaign_id'
+    #partitionKeyValue
+    #platform
+    #reports = []
+    #sessionId
+    #variables
+    constructor(factory, sessionId){
+        super()
+        this.#factory = factory
+        this.#id = factory.newGuid
+        this.#sessionId = sessionId
+    }
+    /* public functions */
+    /**
+     * Called by `mFunction_campaignInitialize` in `tools.mjs` to initialize the campaign instance for the campaign tool function. This is where any campaign-specific initialization logic would go, such as setting up the initial state of the campaign, creating any necessary datacore entries, etc.
+     * @param {string} aid - The campaign id (aid) to initialize
+     * @param {string} adaid - The campaign ad id (adaid) to initialize
+     * @returns {Promise<Campaign>} - The initialized campaign instance
+     */
+    async init(aid, adaid){
+        this.#name = `campaign-instance_${ aid }_${ adaid }_${ this.mbr_id }`
+        this.#partitionKeyValue = aid
+        const { platforms, ...campaign } = await this.#factory.campaign(aid) ?? {}
+        this.#campaign = campaign
+        this.#closed = false
+        this.#platform = platforms?.[adaid]
+        this.#variables = {
+            ...this.#campaign?.variables,
+            ...this.#platform?.variables,
+        }
+        await this.#factory.campaignInstanceCreate(this) // save imprint
+        return this
+    }
+    async campaignActivate(report){
+        if(this.#closed)
+            return
+        this.#reports.push(report)
+        this.#activate = true
+        await this.save()
+    }
+    async campaignClose(report){
+        if(this.#closed)
+            return
+        this.#closed = true
+        this.#reports.push(report)
+        this.save() // no await
+    }
+    async campaignConnect(report){
+        if(this.#closed)
+            return
+        this.#reports.push(report)
+        this.#connect = true
+        await this.save()
+    }
+    async campaignInitialize(report){
+        if(this.#closed)
+            return
+        if(!this.#reports.length)
+            this.#reports.push(report)
+        await this.save()
+    }
+    async save(){
+        await this.#factory.campaignInstanceSave(this)
+    }
+    /* getters/setters */
+    get being(){
+        return this.#being
+    }
+    get campaign(){
+        return this.#campaign
+    }
+    get campaign_id(){
+        return this.#campaign.campaign_id
+    }
+    get closed(){
+        return this.#closed
+    }
+    get core(){
+        const obj = {
+            aid: this.#partitionKeyValue,
+            adaid: this.platform?.id,
+            being: this.being,
+            campaign: this.campaign,
+            campaign_id: this.campaign_id,
+            cid: this.id,
+            id: this.id,
+            name: this.#name,
+            platform: this.platform,
+            reports: this.reports,
+            variables: this.variables,
+        }
+        return obj
+    }
+    get id(){
+        return this.#id
+    }
+    get mbr_id(){
+        return this.#factory.mbr_id
+    }
+    get newGuid(){
+        return this.#factory.newGuid
+    }
+    get platform(){
+        return this.#platform
+    }
+    get reports(){
+        return this.#reports
+    }
+    get sessionId(){
+        return this.#sessionId
+    }
+    set sessionId(sid){
+        if(typeof sid === 'string' && sid.length && sid !== this.#sessionId) // KOA ctx.sessionId token
+            this.#sessionId = sid
+    }
+    get variables(){
+        return this.#variables
+    }
+}
 /**
  * @class - Consent
  * @extends EventEmitter
@@ -1032,6 +1161,7 @@ function mValidateGuess(memberName, input){
 /* exports */
 export {
     Action,
+    Campaign,
     Conversation,
     Entry,
     Issue,

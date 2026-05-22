@@ -39,12 +39,14 @@ class Bot {
 	#llm
 	#llmProvider
 	#mcpTools = []
+	#preChatContext = [] // will include any messages needed to get pre-added to /chat conversation (like greeting)
+	#promptVariables = {} // { [key]: { key, value, } }
 	#retirable
 	#type
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables={}, }={}, name, retirable, routine, type=mDefaultBotType, unaccessed=true, ..._botData } = botData
 		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData)
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
@@ -52,20 +54,11 @@ class Bot {
 		this.#firstAccess = unaccessed
 		this.#greetings = greetings
 		this.#type = type
-		this.#greetingRoutine = this.#type.replace('personal-', '')
+		this.#greetingRoutine = routine ?? this.#type.replace('personal-', '')
 		this.#llmProvider = providers.find(provider=>provider.provider===(llmProvider ?? defaultProvider))
 			?? providers?.[0]
 			?? factory.botLLMProvider(this.#type)
 			?? {}
-		this.#llmProvider.variables = [
-			...new Set(
-				[
-					...variables,
-					...(this.#llmProvider.variables ?? [])
-				]
-					.filter(v => typeof v === "string")
-			)
-		]
 		this.#retirable = retirable
 			?? this.#factory.botRetirable(this.#type)
 			?? true
@@ -203,7 +196,13 @@ class Bot {
 	 * @param {string} message - The member request (optional)
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
-	async getConversation(message){
+	async getConversation(messages=[]){
+		if(typeof messages === 'string' && messages.length)
+			messages = [messages]
+		if(this.#preChatContext.length){
+			messages.unshift(...this.#preChatContext)
+			this.#preChatContext = []
+		}
 		if(!this.#conversation){
 			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
@@ -549,6 +548,34 @@ class Bot {
 	get options(){
 		return this.#factory.botOptions(this.type)
 	}
+	get promptVariables(){
+		return this.#promptVariables
+	}
+	/**
+	 * Updates prompt variables with incoming `obj` payload
+	 * @setter
+	 * @param {object|array|string} variables - The prompt variables to set, either as an object of key-value pairs, an array of variable names or objects with name and value, or a single variable name as a string (in which case the value will be pulled from the bot instance)
+	 */
+	set promptVariables(variables){
+		if(!variables)
+			return
+		switch(true){
+			case typeof variables === 'string':
+				this.#promptVariables[variables] = this[variables] ?? ''
+				break
+			case Array.isArray(variables):
+				for(const variable of variables)
+					this.promptVariables = variable
+				break
+			case typeof variables === 'object':
+				if((variables.name || variables.key) && variables.value !== undefined)
+					this.#promptVariables[variables.name ?? variables.key] = variables.value ?? ''
+				else
+					for(const [key, value] of Object.entries(variables))
+						this.#promptVariables[key] = value ?? ''
+				break
+		}
+	}
 	get retirable(){
 		return this.#retirable
 	}
@@ -740,10 +767,10 @@ class BotAgent {
     /**
      * Get a static or dynamic greeting from active bot.
      * @param {boolean} dynamic - Whether to use LLM for greeting
-     * @returns {string} - The greeting message from the active Bot
+	 * @returns {object} - The Response object { responses, routine, success, }
      */
-    async greeting(dynamic=false){
-        const greeting = await this.activeBot.greeting(dynamic, undefined, this.#avatar)
+    async greeting(dynamic=false, greetingPrompt='Greet me with what we did last'){
+        const greeting = await this.activeBot.greeting(dynamic, greetingPrompt, this.#avatar)
         return greeting
     }
 	/**
@@ -810,11 +837,12 @@ class BotAgent {
 			?? this.#factory[variable] // botAgent factory
 			?? this.#factory.core[variable] // MyLife human core entry
 			?? 'unknown'
-		if(typeof variableValue!=='string')
+		if(typeof variableValue!=='string'){
 			if(Array.isArray(variableValue))
 				 variableValue = variableValue.join(', ')
 			else
 				variableValue = JSON.stringify(variableValue)
+		}
         return variableValue
     }
     /**
@@ -852,19 +880,34 @@ class BotAgent {
 	 * Sets the active bot for the BotAgent.
 	 * @async
 	 * @param {Guid} botId - The Bot id
+	 * @param {Guid} aid - The advertisement id (optional)
 	 * @param {boolean} dynamic - Whether to use dynamic greetings, defaults to `false`
-     * @returns {object} - Activated Response object: { botId, greeting, success, version, versionUpdate, }
+     * @returns {object} - Activated Response object: { activeItemId, firstAccess, id, responses, routine, success, version, versionUpdate, }
 	 */
 	async setActiveBot(botId=this.avatar?.id, dynamic=false){
+		const initialBotId = this.#activeBot?.id,
+			instructions=[]
 		let success=false,
 			version=0.0,
 			versionUpdate=0.0
-		const Bot = this.#findBot(botId)
+		let foundBot = this.#findBot(botId)
+		if(!foundBot && botId && this.#factory.isMyLife){
+			const botData = await this.#factory.bot(botId)
+			if(botData){
+				foundBot = new Bot(botData, this.#llm, this.#factory)
+				this.#bots.push(foundBot)
+			}
+		}
+		foundBot ??= this.#activeBot
+		const Bot = foundBot
 		success = !!Bot
 		if(!success)
-			return
+			return {
+				id: botId,
+				error: new Error('Bot not found with requested id: ' + botId, { status: 404, }),
+				success,
+			}
 		this.#activeBot = Bot
-		dynamic = dynamic && !this.#factory.isMyLife
 		if(this.#factory.isMyLife)
 			botId = null
 		else {
@@ -873,17 +916,75 @@ class BotAgent {
 			version = versionCurrent
 			versionUpdate = this.#factory.botVersion(type)
 		}
-		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#avatar)
-		return {
-			id: botId,
-			activeItemId: Bot.activeItemId ?? null,
+		success = !!Bot
+		if(!success)
+			return {
+				id: botId,
+				error: new Error('Bot not found with requested id: ' + botId, { status: 404, }),
+				success,
+			}
+		this.#activeBot = Bot
+		const { id, type, version: versionCurrent, } = this.activeBot
+		if(this.activeBotId!==initialBotId)
+			instructions.push({
+				command: 'setActiveBot',
+				id,
+			})
+		version = versionCurrent
+		versionUpdate = this.#factory.botVersion(type)
+		const { firstAccess, responses, routine, version: vGreeting, } = await this.activeBot.greeting(dynamic, null, this.#avatar)
+		const response = {
+			activeItemId: this.activeBot.activeItemId ?? null,
+			id,
+			instructions,
 			firstAccess,
 			responses,
 			routine,
 			success,
-			version,
+			version: vGreeting ?? version,
 			versionUpdate,
 		}
+		return response
+	}
+	/**
+	 * Sets the active campaign for the BotAgent.
+	 * @async
+	 * @param {Guid} campaignId - The Campaign id
+	 * @param {Guid} platformId - The Platform id (optional)
+     * @returns {object} - Activated Response object: { activeItemId, firstAccess, id, responses, routine, success, version, versionUpdate, }
+	 */
+	async setCampaign(campaignId, platformId){
+		// 1. get campaign template, incl Bot, from campaigns
+		const campaignInfo = await this.#factory.campaign(campaignId)
+		if(!campaignInfo)
+			return { error: new Error('Campaign not found with requested id: ' + campaignId, { status: 404, }), success: false, }
+		const { being: campaignBeing, bot: campaignBotData, campaign_id, content: campaignContent, id: campaignDocumentId, mbr_id: campaignMemberId, name: campaignName, platforms: campaignPlatforms, title: campaignTitle, variables: campaignVariables, ...restCampaign } = campaignInfo
+		let campaignBot = this.#bots.find(bot=>bot.id === campaignBotData.id) // do not use bot() as do not want avatar
+		if(!campaignBot && campaignBotData?.id){
+			campaignBot = new Bot(campaignBotData, this.#llm, this.#factory) // cascade-00: create bot from campaign template bot data
+			this.#bots.push(campaignBot)
+		}
+		if(!campaignBot)
+			return
+		if(typeof restCampaign === 'object' && Object.keys(restCampaign)?.length)
+			campaignBot.promptVariables = restCampaign // cascade-01: campaign loose variables
+		if(typeof campaignVariables === 'object' && Object.keys(campaignVariables)?.length)
+			campaignBot.promptVariables = campaignVariables // cascade-02: campaign-specific variables
+		// 2. Get platform details and infuse into campainBot
+		let platform = campaignPlatforms?.[platformId]
+			?? campaignPlatforms?.[0] // case of array
+			?? Object.values(campaignPlatforms)?.[0] // case of object
+			?? {}
+		const { copy: campaignPlatformCopy, greeting: campaignPlatformGreeting, id: campaignPlatformId, name: campaignPlatformName, site: campaignPlatformSite, variables: campaignPlatformVariables, ...platformRest } = platform
+		if(typeof platformRest === 'object' && Object.keys(platformRest)?.length)
+			campaignBot.promptVariables = platformRest // cascade-03: advertisement platform `loose` variables
+		if(typeof campaignPlatformVariables === 'object' && Object.keys(campaignPlatformVariables)?.length)
+			campaignBot.promptVariables = campaignPlatformVariables // cascade-04: advertisement platform `defined` variables
+		campaignBot.promptVariables.aid = campaignId
+		campaignBot.promptVariables.adaid = platformId
+		campaignBot.promptVariables.cid = campaignBot.id
+		// 4. get greeting and respond
+		return await this.setActiveBot(campaignBot.id, true) // activate bot with dynamic greeting to cascade campaign variables
 	}
 	/**
 	 * Sets the active team for the BotAgent if `teamId` valid; subsequently sets active bot.
@@ -1222,7 +1323,6 @@ async function mBotDelete(botId, BotAgent, llm, factory){
 /**
  * Returns set of dynamically generated Greeting messages.
  * @module
- * @param {string} thread_id - The thread id
  * @param {object} llmProvider - The LLM provider object: { *id, *type, }
  * @param {string} greetingPrompt - The prompt for the greeting
  * @param {LLMServices} llm - OpenAI object
@@ -1230,11 +1330,11 @@ async function mBotDelete(botId, BotAgent, llm, factory){
  * @param {Avatar} Avatar - The Avatar instance
  * @returns {Promise<Array>} - The array of string messages to respond with
  */
-async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, Factory, Avatar){
-	let responses = await llm.getLLMResponse(thread_id, llmProvider, greetingPrompt, Factory, Avatar)
+async function mBotGreetings(llmProvider, greetingPrompt=`Greet me enthusiastically`, llm, Factory, Avatar){
+	const responses = await llm.getLLMResponse(undefined, llmProvider, greetingPrompt, Factory, Avatar)
 		?? [mDefaultGreetings]
-	responses = llm.extractResponses(responses)
-    return responses
+	const response = llm.extractResponses(responses, undefined, 'greeting')
+    return response
 }
 /**
  * Returns MyLife-version of bot instructions.
