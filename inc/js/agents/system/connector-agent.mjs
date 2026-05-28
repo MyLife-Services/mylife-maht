@@ -188,7 +188,7 @@ class nandaRegistry {
 	}
     /* public functions */
     async init(email, password){
-        await this.#authorize(email, password)
+        // await this.#authorize(email, password)
         await this.#accountServers() // this.#attachedServers
         await this.#refreshNandaServers() // this.#cachedServers
         return this
@@ -298,18 +298,23 @@ class nandaRegistry {
         this.#attachedServers = data
     }
     async #authorize(email=mNandaRegistryUser, password=mNandaRegistryPassword){
-        const url = `${ this.#registryUrl }/auth/token/`
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, })
-        })
-        const success = res.ok
-        if(success){
-            const { access, refresh, user, } = await res.json()
-            this.#authorized = true
-            this.#registryToken = access
-            this.#registryTokenRefresh = refresh
+        let success = false
+        try {
+            const url = `${ this.#registryUrl }/auth/token/`
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, })
+            })
+            success = res.ok
+            if(success){
+                const { access, refresh, user, } = await res.json()
+                this.#authorized = true
+                this.#registryToken = access
+                this.#registryTokenRefresh = refresh
+            }
+        } catch (error) {
+            console.error('Nanda registry authorization error:', error)
         }
         return success
     }

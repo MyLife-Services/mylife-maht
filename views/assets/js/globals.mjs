@@ -426,6 +426,16 @@ class Datamanager {
         return response
     }
     /**
+     * Persists the last active item id for the member session. Fire-and-forget safe.
+     * @param {Guid} itemId - The item id to persist as last active
+     * @returns {Promise<boolean>} - `true` if persisted successfully
+     */
+    async itemActivate(itemId){
+        const url = `/members/items/activate/${ itemId }`
+        const options = { method: 'PUT', }
+        return await this.#fetch(url, options)
+    }
+    /**
      * Deletes the item from the server.
      * @param {Guid} itemId - The collection item id
      * @returns {Object} - The item object: { item, message, success, }
@@ -444,7 +454,7 @@ class Datamanager {
      * @returns {Object} - The response object: { item, success, }
      */
     async itemUpdate(itemId, summary, emoticons){
-        const url = `/members/item/${ itemId }`
+        const url = `/members/items/${ itemId }`
         const options = {
             method: 'PUT',
             headers: {
@@ -464,7 +474,7 @@ class Datamanager {
     async itemUpdateTitle(itemId, title){
         if(!title?.length)
             throw new Error(`No title provided for title update`)
-        const url = `/members/item/${ itemId }`
+        const url = `/members/items/${ itemId }`
         const options = {
             method: 'PUT',
             headers: {
@@ -927,25 +937,18 @@ class Globals {
     }
     /**
      * Consumes instruction object and performs the requested actions.
-     * @param {object} instruction - The instruction object: { command, input, inputs, item, itemId, summary, title, }
+     * @param {object} instruction - The instruction object: { command, id, input, inputs, item, itemId, livingMemoryId, summary, title, }
      * @param {object} functions - Object with access to injected functions, populated by case
      * @returns {void}
      */
-    enactInstruction(instruction, functions){
-        const { command, input, inputs=[], item, itemId, livingMemoryId, summary, title, } = instruction
-        const {
-            addInput,
-            addMessages,
-            createItem,
-            endMemory,
-            removeItem,
-            updateItem,
-            updateItemSummary,
-            updateItemTitle,
-        } = functions
+    enactInstruction(instruction, functions={}){
+        if(Array.isArray(instruction))
+            return instruction.forEach(i=>this.enactInstruction(i, functions) ) // always void return, these are command-only instructions
+        const { command, id, input, inputs=[], item, itemId, livingMemoryId, summary, title, } = instruction
         switch(command){
             case 'createInput':
-            case 'createInputs':
+            case 'createInputs': {
+                const { addInput, addMessages, } = functions
                 if(typeof addInput!=='function' || typeof addMessages!=='function')
                     return
                 this.removeDisappearingElements()
@@ -967,11 +970,11 @@ class Globals {
                         inputObject.value = prompt
                         if(endpoint)
                             inputObject.addEventListener('click', async event=>{
-                                const { instruction: dynamicInputResponseInstruction, responses, success, } = await mDatamanager.dynamicInput(endpoint, { method, })
+                                const { instructions: dynamicInputResponseInstructions, responses, success, } = await mDatamanager.dynamicInput(endpoint, { method, })
                                 if(responses?.length && success){
                                     addMessages(responses)
-                                    if(!!dynamicInputResponseInstruction)
-                                        this.enactInstruction(dynamicInputResponseInstruction, functions)
+                                    if(dynamicInputResponseInstructions?.length)
+                                        this.enactInstruction(dynamicInputResponseInstructions, functions)
                                 }
                                 this.expunge(inputObject)
                             }, { once: true })
@@ -980,41 +983,68 @@ class Globals {
                     addInput(inputElement, interfaceLocation)
                 }
                 return
-            case 'createItem':
-                if(!item || typeof createItem!=='function')
+            }
+            case 'createItem': {
+                const { createItem, } = functions
+                if(typeof createItem!=='function')
                     return
+                console.log('Globals::creating item', item)
                 createItem(item)
                 return
+            }
             case 'endLiving': // server has already ended, call frontend cleanup
             case 'endMemory':
-            case 'endReliving':
+            case 'endReliving': {
+                const { endMemory, } = functions
                 if(!itemId?.length || typeof endMemory!=='function')
                     return
                 endMemory(itemId)
                 return
-            case 'error':
+            }
+            case 'error': {
                 return
-            case 'removeBot': // retireBot in Avatar
-            return
-            case 'removeItem':
-                if(typeof removeItem !== 'function')
+            }
+            case 'removeBot': { // retireBot in Avatar
+                const { removeBot, } = functions
+                if(!id?.length || typeof removeBot!=='function')
+                    return
+                removeBot(id)
+                return
+            }
+            case 'removeItem': {
+                const { removeItem, } = functions
+                if(!itemId?.length || typeof removeItem!=='function')
                     return
                 removeItem(itemId)
                 return
-            case 'updateItem':
+            }
+            case 'setActiveBot': {
+                const { setActiveBot, } = functions
+                if(!id?.length || typeof setActiveBot!=='function')
+                    return
+                setActiveBot(id)
+                return
+            }
+            case 'updateItem': {
+                const { updateItem, } = functions
                 if(typeof updateItem!=='function')
                     return
-                updateItem(item)
+                updateItem()
                 return
-            case 'updateItemSummary':
-                if(typeof updateItemSummary!=='function')
+            }
+            case 'updateItemSummary': {
+                const { updateItemSummary, } = functions
+                if(!itemId?.length || typeof updateItemSummary!=='function')
                     return
                 updateItemSummary(itemId, summary)
                 return
-            case 'updateItemTitle':
-                if(typeof updateItemTitle!=='function')
+            }
+            case 'updateItemTitle': {
+                const { updateItemTitle, } = functions
+                if(!itemId?.length || typeof updateItemTitle!=='function')
                     return
                 updateItemTitle(itemId, title)
+            }
             default:
                 return
         }

@@ -1,0 +1,162 @@
+# MyLife Synthetic Testing Playbook
+# Movement 08 — Journaler Item Management
+# Suite: Memory
+#
+# Purpose:
+#   Put the journal entry created in Movement 07 through a full editorial
+#   lifecycle: direct API mutations and journaler-mediated NL mutations,
+#   ending with a collections verification that all changes persisted.
+#
+#   The synthetic operator generates its own editorial choices based on the
+#   entry it created in Movement 07.
+#
+# Execution:
+#   See SYNTHETIC_OPERATOR.md for the full operating protocol.
+#   Depends on Movement 07 — context.journalerItemId and context.verifiedJournalerItem
+#   must be set.
+#
+# Environment:
+#   Load tests/playbooks/playbook.env before executing.
+
+movement:
+  number: "08"
+  name: "Journaler Item Management"
+  suite: memory
+
+env:
+  file: playbook.env
+  vars:
+    - MYLIFE_BASE_URL
+    - SYNTHETIC_MBR_ID
+    - SYNTHETIC_PASSPHRASE
+
+# SYNTHETIC OPERATOR — before running any sections, generate from your Movement 07 entry:
+#
+#   vars.titleA          — a new title for the entry (direct API update, section 2)
+#   vars.titleB          — a second, different title (NL journaler update, section 3)
+#   vars.detailToRemove  — a specific phrase or detail from the saved summary to remove
+#   vars.detailToAdd     — a new concrete detail not currently in the summary to add
+#   vars.appendPhrase    — a short phrase to append directly to the summary (section 4)
+#   vars.removalRequest  — your natural-language request to remove vars.detailToRemove
+#   vars.additionRequest — your natural-language request to add vars.detailToAdd
+
+sections:
+
+  - name: Activate entry in journaler context
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: "I'd like to revisit the entry we saved. Can you give me a quick recap?"
+        itemId: ${context.journalerItemId}
+    assert:
+      - response.success is exactly: true
+      - response.responses is a non-empty array
+    assess:
+      - does the response reference at least one specific detail from your entry?
+      - if generic (could apply to any entry): flag as CONTEXT_AWARENESS_FAILURE
+
+  - name: Direct title change via PUT
+    request:
+      method: PUT
+      path: /members/items/${context.journalerItemId}
+      body:
+        id: ${context.journalerItemId}
+        title: ${vars.titleA}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItem"
+    store:
+      - key: context.journalerCurrentTitle
+        value: ${vars.titleA}
+      - key: context.journalerCurrentSummary
+        value: response.item.summary (if present, else context.verifiedJournalerItem.summary)
+    assess:
+      - confirm the returned title matches vars.titleA
+
+  - name: Chat title change via journaler
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: 'Please rename this entry to "${vars.titleB}"'
+        itemId: ${context.journalerItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemTitle"
+      - the updateItemTitle instruction's title field is non-empty
+    store:
+      - key: context.journalerCurrentTitle
+        value: response.instructions[command=updateItemTitle].title
+    assess:
+      - does the title in the instruction match vars.titleB?
+
+  - name: Direct summary append via PUT
+    request:
+      method: PUT
+      path: /members/items/${context.journalerItemId}
+      body:
+        id: ${context.journalerItemId}
+        summary: ${context.journalerCurrentSummary + "\n\n" + vars.appendPhrase}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItem"
+    store:
+      - key: context.journalerCurrentSummary
+        value: response.item.summary (if present, else context.journalerCurrentSummary + vars.appendPhrase)
+    assess:
+      - confirm the returned summary contains vars.appendPhrase
+
+  - name: Chat — ask journaler to remove a detail
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.removalRequest}
+        itemId: ${context.journalerItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemSummary"
+      - the updateItemSummary instruction's summary field is non-empty
+    store:
+      - key: context.journalerCurrentSummary
+        value: response.instructions[command=updateItemSummary].summary
+    assess:
+      - does the new summary omit the target phrase from vars.detailToRemove?
+      - is the summary still coherent and at least 60 characters?
+
+  - name: Chat — ask journaler to add a detail
+    request:
+      method: POST
+      path: /members/
+      body:
+        message: ${vars.additionRequest}
+        itemId: ${context.journalerItemId}
+    assert:
+      - response.success is exactly: true
+      - response.instructions contains an item where command == "updateItemSummary"
+      - the updateItemSummary instruction's summary field is non-empty
+    store:
+      - key: context.journalerCurrentSummary
+        value: response.instructions[command=updateItemSummary].summary
+    assess:
+      - does the new summary contain the key word or phrase from vars.detailToAdd?
+      - is it woven naturally or just appended?
+
+  - name: Verify all mutations persisted in collection
+    request:
+      method: GET
+      path: /members/collections/entry
+    assert:
+      - response is an array
+      - response contains an item where id == context.journalerItemId
+    assess:
+      - titleCorrect: does title match context.journalerCurrentTitle?
+      - additionPresent: key word from vars.detailToAdd present?
+      - removalHonored: target phrase from vars.detailToRemove absent?
+      - appendPresent: distinctive word from vars.appendPhrase present? (informational)
+      - finalSummaryLength: N chars
+
+report:
+  output_dir: tests/playbooks/results
+  filename: "<YYYY-MM-DD-HH-MM>-08-journaler-item-management.md"

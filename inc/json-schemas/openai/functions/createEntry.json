@@ -1,0 +1,85 @@
+{
+    "description": "Generate a complete `entry` Item with content, summary and metadata elements.",
+    "name": "createEntry",
+    "parameters": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+            "content": {
+                "description": "Condensed string of any Member quotations regarding `entry`",
+                "type": "string"
+            },
+            "form": {
+                "description": "MyLife Intelligence Form creating `entry` as listed in enum",
+                "enum": [
+                    "biographer",
+                    "diary",
+                    "journal"
+                ],
+                "type": "string"
+            },
+            "keywords": {
+                "description": "Keywords most relevant to `entry`",
+                "items": {
+                    "description": "Keyword from `entry` summary",
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "mood": {
+                "description": "Record member mood for summary as ascertained from `entry` content and interactions",
+                "type": "string"
+            },
+            "phaseOfLife": {
+                "description": "Phase of life, if indicated by `entry` content",
+                "enum": [
+                    "birth",
+                    "childhood",
+                    "adolescence",
+                    "teenage",
+                    "young-adult",
+                    "adulthood",
+                    "middle-age",
+                    "senior",
+                    "end-of-life",
+                    "past-life",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "relationships": {
+                "description": "Individuals (or pets) mentioned in `entry` content",
+                "type": "array",
+                "items": {
+                    "description": "Name of individual or pet in `entry`",
+                    "type": "string"
+                }
+            },
+            "summary": {
+                "description": "A complete `entry` summary composed of all salient points from member content",
+                "type": "string"
+            },
+            "title": {
+                "description": "Generate display Title for `entry` based on content",
+                "type": "string"
+            },
+            "type": {
+                "const": "entry",
+                "description": "MyLife System Item type `entry`; always use `entry` for type",
+                "type": "string"
+            }
+        },
+        "required": [
+            "content",
+            "form",
+            "keywords",
+            "mood",
+            "phaseOfLife",
+            "relationships",
+            "summary",
+            "title",
+            "type"
+        ]
+    },
+    "strict": true
+}

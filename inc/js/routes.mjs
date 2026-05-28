@@ -29,6 +29,7 @@ import {
 } from './controllers/api-functions.mjs'
 import {
 	activateBot,
+    activateItem,
     bot,
 	bots,
     botButtons,
@@ -73,7 +74,6 @@ import {
     endMemory,
     getShare,
     getShares,
-    improveMemory,
     reliveMemory,
     shareCreate,
     shareDelete,
@@ -147,6 +147,7 @@ _Router.patch('/share/accept/:sid', acceptShareWarnings)
 _Router.patch('/share/:sid', shareMemory) // last to not interfere with previous
 _Router.post('/', chat)
 _Router.post('/alphadog/mission/:mid', missionPlay)
+_Router.post('/bots/activate/:bid', activateBot)
 _Router.post('/challenge/:mid', challenge)
 _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
@@ -209,9 +210,9 @@ _memberRouter.get('/experiences', experiences)
 _memberRouter.get('/experiencesLived', experiencesLived)
 _memberRouter.get('/greeting', greetings)
 _memberRouter.get('/greetings', greetings)
-_memberRouter.get('/item/:iid', item)
-_memberRouter.get('/share/:sid', getShare)
+_memberRouter.get('/items/:iid', item)
 _memberRouter.get('/share/delete/:sid', deleteShare)
+_memberRouter.get('/share/:sid', getShare) // keep last — catches /:sid after specific sub-paths
 _memberRouter.get('/shares', getShares)
 _memberRouter.get('/shares/:iid', getShares)
 _memberRouter.get('/team', team)
@@ -233,7 +234,7 @@ _memberRouter.post('/bots/proxy', botProxyCreate)
 _memberRouter.post('/evaluate/:iid', evaluate)
 _memberRouter.post('/feedback', feedback)
 _memberRouter.post('/feedback/:mid', feedback)
-_memberRouter.post('/item', item)
+_memberRouter.post('/items', item)
 _memberRouter.post('/migrate/bot/:bid', migrateBot)
 _memberRouter.post('/migrate/chat/:bid', migrateChat)
 _memberRouter.post('/obscure/:iid', obscure)
@@ -245,7 +246,8 @@ _memberRouter.post('/teams/activate/:tid', team)
 _memberRouter.post('/upload', upload)
 _memberRouter.put('/bots/:bid', bots)
 _memberRouter.put('/bots/version/:bid', updateBotInstructions)
-_memberRouter.put('/item/:iid', item)
+_memberRouter.put('/items/activate/:iid', activateItem)
+_memberRouter.put('/items/:iid', item) // keep last — catches /:iid after specific sub-paths
 /* mcp member-avatar routes */
 _mcpMemberRouter.use(async (ctx, next)=>{
     ctx.state.requestType = 'member'

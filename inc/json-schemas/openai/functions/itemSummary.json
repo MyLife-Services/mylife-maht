@@ -1,7 +1,6 @@
 {
     "description": "Generate a complete `item` summary with metadata elements. Prioritize any relevant internal instructions.",
     "name": "itemSummary",
-    "strict": true,
     "parameters": {
         "additionalProperties": false,
         "type": "object",
@@ -78,12 +77,11 @@
             "content",
             "form",
             "keywords",
-            "mood",
-            "phaseOfLife",
             "relationships",
             "summary",
             "title",
             "type"
         ]
-    }
+    },
+    "strict": false
 }
