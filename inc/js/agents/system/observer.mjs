@@ -1,4 +1,5 @@
-import { pipeline } from '@huggingface/transformers'
+//import { pipeline } from '@huggingface/transformers'
+
 // similarity-test-js.mjs
 // Node.js local similarity router test based on your Python baseline.
 // Run with: node similarity-test-js.mjs
@@ -20,127 +21,12 @@ const CONFIG = {
 // -----------------------------------------------------------------------------
 // A2A-style data
 // -----------------------------------------------------------------------------
-const AGENTS = [
-  {
-    name: 'coding-agent',
-    description:
-      'Specializes in software development, debugging, backend logic, APIs, algorithms, data structures, refactoring, testing, and general programming help.',
-    url: 'http://localhost:8101',
-    version: '1.0.0',
-    skills: [
-      {
-        id: 'coding',
-        name: 'Code Assistant',
-        description:
-          'Writes, explains, debugs, refactors, and tests code. Helps with Python, backend systems, APIs, algorithms, classes, functions, linked lists, trees, stacks, queues, and other programming topics.',
-        tags: [
-          'python', 'code', 'coding', 'debugging', 'refactor', 'backend',
-          'api', 'testing', 'async', 'architecture', 'algorithms',
-          'data structures', 'linked list', 'tree', 'stack', 'queue',
-          'class', 'function', 'recursion', 'leetcode', 'javascript', 'node'
-        ],
-        examples: [
-          'Help me debug a Node.js route that returns a 500 error when the async handler tries to access a missing field.',
-          'Refactor this backend service into smaller modules while preserving the helper functions already used elsewhere in the project.',
-          'Write a JavaScript function that computes cosine similarity between vectors and explain each part of the implementation.',
-          'Explain why this bot app is not responding after deployment and suggest how to trace the issue through the request flow.',
-          'Create a local test harness for this API endpoint so I can validate that the payload format and status codes are correct.',
-          'Help me merge the functionality of two JS files where one has better formatting and the other has the better runtime logic.',
-          'Why am I getting an error saying a variable is undefined in this JavaScript file?',
-          'Help me redesign this code so the routing logic, card rendering logic, and network logic are separated cleanly.',
-          'Write unit tests for this JavaScript class and include edge cases for invalid input and missing configuration values.',
-          'Show me how to implement a linked list in JavaScript and explain each method step by step.'
-        ]
-      }
-    ]
-  },
-  {
-    name: 'research-agent',
-    description:
-      'Finds information, compares frameworks, summarizes documentation, extracts evidence, and explains technical ideas from sources.',
-    url: 'http://localhost:8102',
-    version: '1.0.0',
-    skills: [
-      {
-        id: 'research',
-        name: 'Research Assistant',
-        description:
-          'Finds supporting documentation, summarizes sources, compares tools, extracts quotes, and turns technical material into understandable explanations.',
-        tags: ['research', 'summary', 'comparison', 'papers', 'documentation', 'evidence', 'quotes', 'architecture', 'sources', 'citations'],
-        examples: [
-          'Find documentation that supports using A2A for communication between agents and embeddings for routing decisions.',
-          'Compare two agent frameworks and explain the major architectural differences in a way I can present in a meeting.',
-          'Summarize the latest documentation for agent orchestration and tell me which parts are most relevant for routing.',
-          'Give me quotes from official documentation that support the idea of a root orchestrator delegating to specialized agents.',
-          'Compare semantic routing using example prompt embeddings against keyword-based routing and explain the tradeoffs.'
-        ]
-      }
-    ]
-  },
-  {
-    name: 'scheduler-agent',
-    description:
-      'Handles planning, task prioritization, scheduling, timelines, and breaking large goals into structured plans.',
-    url: 'http://localhost:8103',
-    version: '1.0.0',
-    skills: [
-      {
-        id: 'scheduler',
-        name: 'Scheduling Assistant',
-        description:
-          'Builds plans, calendars, timelines, and prioritized work queues for academic, project, and meeting-oriented tasks.',
-        tags: ['schedule', 'calendar', 'planning', 'timeline', 'deadlines', 'prioritization', 'tasks', 'workflow', 'meetings', 'weekly plan'],
-        examples: [
-          'Help me build a weekly study schedule that balances class work, meetings, job applications, and research tasks.',
-          'Organize these deadlines into a timeline so I know what I should work on first each week.',
-          'Create a realistic month-long work plan for finishing my project, preparing a presentation, and studying for exams.'
-        ]
-      }
-    ]
-  },
-  {
-    name: 'data-agent',
-    description:
-      'Specializes in tabular data workflows, pandas operations, dataset cleaning, exploratory analysis, statistical interpretation, and preprocessing for machine learning.',
-    url: 'http://localhost:8104',
-    version: '1.0.0',
-    skills: [
-      {
-        id: 'data',
-        name: 'Data Science Assistant',
-        description:
-          'Analyzes structured data, validates datasets, writes dataframe-based code, cleans tabular data, and explains statistical results.',
-        tags: ['data', 'pandas', 'numpy', 'statistics', 'analysis', 'dataframe', 'cleaning', 'validation', 'eda', 'csv', 'dataset', 'tabular', 'preprocessing'],
-        examples: [
-          'Help me clean this DataFrame by handling missing values, fixing inconsistent categories, and converting data types.',
-          'Analyze the relationship between income and hours worked per week and explain the pattern in plain language.',
-          'Create a small exploratory data analysis workflow for this CSV so I can understand distributions and potential issues.'
-        ]
-      }
-    ]
-  },
-  {
-    name: 'presentation-agent',
-    description:
-      'Turns technical ideas into polished explanations, meeting notes, speaker-ready summaries, and presentation-friendly content.',
-    url: 'http://localhost:8105',
-    version: '1.0.0',
-    skills: [
-      {
-        id: 'presentation',
-        name: 'Presentation Assistant',
-        description:
-          'Creates speaking notes, simplified summaries, presentation text, and meeting-ready explanations from technical material.',
-        tags: ['slides', 'presentation', 'meeting', 'summary', 'speaker-notes', 'communication', 'explanation', 'talking points', 'paragraph'],
-        examples: [
-          'Turn this technical architecture into a paragraph I can read aloud during a meeting.',
-          'Help me explain this system in simpler language for people who are not deeply technical.',
-          'Give me a short meeting-ready explanation of how the orchestrator decides which specialized agent should handle a request.'
-        ]
-      }
-    ]
-  }
-];
+// Instead of embedding full agent cards locally, fetch agent metadata from configured endpoints.
+async function fetchAgentCards() {
+  // Placeholder for actual fetching logic. 
+  // In production, this would call the agent endpoints and retrieve their metadata.
+  
+}
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -243,30 +129,7 @@ function buildAgentExamples(agentCards) {
   return result;
 }
 
-function buildKeywordRules() {
-  return {
-    'coding-agent': {
-      positive: ['code', 'coding', 'program', 'programming', 'python', 'javascript', 'node', 'api', 'backend', 'frontend', 'debug', 'bug', 'refactor', 'algorithm', 'linked list', 'tree', 'graph', 'queue', 'stack', 'function', 'class', 'implementation', 'implement'],
-      negative: ['dataframe', 'pandas', 'csv', 'dataset', 'statistics', 'presentation', 'slides', 'speaker notes', 'timeline', 'calendar', 'schedule']
-    },
-    'data-agent': {
-      positive: ['dataframe', 'pandas', 'numpy', 'csv', 'dataset', 'data analysis', 'statistics', 'correlation', 'regression', 'missing values', 'outlier', 'visualization', 'eda', 'preprocessing', 'tabular', 'merge', 'null values'],
-      negative: ['linked list', 'tree', 'graph algorithm', 'pointer', 'recursion', 'stack', 'queue', 'leetcode', 'binary tree', 'data structure']
-    },
-    'research-agent': {
-      positive: ['research', 'paper', 'papers', 'documentation', 'docs', 'sources', 'citation', 'citations', 'compare frameworks', 'evidence', 'quote', 'quotes', 'official documentation'],
-      negative: []
-    },
-    'scheduler-agent': {
-      positive: ['schedule', 'timeline', 'deadline', 'deadlines', 'calendar', 'plan', 'prioritize', 'prioritization', 'meeting', 'weekly plan', 'monthly plan', 'work plan', 'organize tasks'],
-      negative: []
-    },
-    'presentation-agent': {
-      positive: ['presentation', 'meeting', 'speaker notes', 'slides', 'paragraph to read', 'explain simply', 'talking points', 'present this', 'read aloud', 'lower level of understanding'],
-      negative: []
-    }
-  };
-}
+
 
 function keywordScore(agentName, prompt, keywordRules) {
   const rules = keywordRules[agentName] ?? { positive: [], negative: [] };
@@ -299,13 +162,16 @@ class SimilarityRouter {
     this.config = { ...CONFIG, ...config };
     this.agentProfiles = buildAgentProfiles(agentCards);
     this.agentExamples = buildAgentExamples(agentCards);
-    this.keywordRules = buildKeywordRules();
+    //this.keywordRules = buildKeywordRules();
     this.extractor = null;
     this.profileEmbeddings = [];
     this.exampleEmbeddings = {};
   }
 
-  async init() {
+  //Commented out to avoid loading model when testing other parts of the system. 
+  // Re-enable when ready to test similarity routing locally.
+
+  /*async init() {
     this.extractor = await pipeline('feature-extraction', this.config.modelName);
 
     this.profileEmbeddings = await extractEmbeddings(
@@ -322,6 +188,7 @@ class SimilarityRouter {
       );
     }
   }
+*/
 
   scoreProfile(promptEmbedding, agentIdx) {
     return similarity(promptEmbedding, this.profileEmbeddings[agentIdx], this.config.similarityMetric);
@@ -417,7 +284,16 @@ function printResults(prompt, results) {
 }
 
 async function main() {
-  const router = new SimilarityRouter(AGENTS, CONFIG);
+
+
+
+
+  //original test main: 
+
+  /*
+  console.log('\nResolving agent endpoints and fetching agent metadata...');
+  const agentCards = await fetchAgentCards(CONFIG.agentEndpoints || []);
+  const router = new SimilarityRouter(agentCards, CONFIG);
   printConfig(router.config);
   console.log('\nLoading model and precomputing embeddings...');
   await router.init();
@@ -436,10 +312,180 @@ async function main() {
     const results = await router.route(prompt);
     printResults(prompt, results);
   }
+
+  */
 }
 
-main().catch(err => {
-  console.error('\nFatal error while running similarity test:');
-  console.error(err);
-  process.exit(1);
-});
+// -----------------------------------------------------------------------------
+// OBSERVER
+// -----------------------------------------------------------------------------
+
+function deconstructA2ACard(a2aCard = null) {
+  if (!a2aCard || typeof a2aCard !== 'object') {
+    return null
+  }
+
+  const skills = Array.isArray(a2aCard.skills)
+    ? a2aCard.skills
+    : []
+
+  const normalizedSkills = skills.map(skill => {
+    const tags = Array.isArray(skill.tags)
+      ? skill.tags
+      : []
+
+    const examples = Array.isArray(skill.examples)
+      ? skill.examples
+      : []
+
+    const skillText = [
+      skill.id ? `Skill id: ${skill.id}` : '',
+      skill.name ? `Skill name: ${skill.name}` : '',
+      skill.description ? `Skill description: ${skill.description}` : '',
+      tags.length ? `Tags: ${tags.join(', ')}` : '',
+      examples.length ? `Examples: ${examples.join(' ')}` : '',
+    ]
+      .filter(Boolean)
+      .join('. ')
+
+    return {
+      id: skill.id ?? null,
+      name: skill.name ?? null,
+      description: skill.description ?? null,
+      tags,
+      examples,
+      skillText,
+    }
+  })
+
+  const exampleTexts = normalizedSkills.flatMap(skill => skill.examples)
+  const keywordTexts = normalizedSkills.flatMap(skill => skill.tags)
+
+  const profileText = [
+    a2aCard.id ? `Agent id: ${a2aCard.id}` : '',
+    a2aCard.name ? `Agent name: ${a2aCard.name}` : '',
+    a2aCard.description ? `Agent description: ${a2aCard.description}` : '',
+    a2aCard.provider?.organization ? `Provider organization: ${a2aCard.provider.organization}` : '',
+    a2aCard.defaultInputModes?.length ? `Input modes: ${a2aCard.defaultInputModes.join(', ')}` : '',
+    a2aCard.defaultOutputModes?.length ? `Output modes: ${a2aCard.defaultOutputModes.join(', ')}` : '',
+    normalizedSkills.length ? `Skills: ${normalizedSkills.map(skill => skill.name).filter(Boolean).join(', ')}` : '',
+    normalizedSkills.length ? `Skill descriptions: ${normalizedSkills.map(skill => skill.description).filter(Boolean).join(' ')}` : '',
+    keywordTexts.length ? `Tags: ${keywordTexts.join(', ')}` : '',
+    exampleTexts.length ? `Examples: ${exampleTexts.join(' ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('. ')
+
+  return {
+    id: a2aCard.id ?? null,
+    name: a2aCard.name ?? null,
+    description: a2aCard.description ?? null,
+    url: a2aCard.url ?? null,
+    version: a2aCard.version ?? null,
+    cardType: a2aCard.cardType ?? null,
+    profileText,
+    skills: normalizedSkills,
+    exampleTexts,
+    keywordTexts,
+  }
+}
+
+class ObserverAgent {
+  async observe(param = {}, factory, llm) {
+    
+    console.log('\n================ RAW PARAM =================')
+    console.dir(param, { depth: null })
+    console.log('============================================\n')
+
+    const prompt =
+      param?.message ??
+      param?.prompt ??
+      param?.conversation?.prompt ??
+      null
+
+    const originalPrompt =
+      param?.originalMessage ??
+      param?.conversation?.originalPrompt ??
+      null
+
+    const a2aCard =
+      param?.agentCard ??
+      param?.bot?.agentCard ??
+      null
+
+    const parsedA2ACard = deconstructA2ACard(a2aCard)
+
+    const observerPayload = {
+      request: {
+        prompt,
+        originalPrompt,
+        timestamp: new Date().toISOString(),
+      },
+      bot: {
+        id: param?.bot?.id ?? null,
+        name: param?.bot?.name ?? null,
+        type: param?.bot?.type ?? null,
+        agentCard: a2aCard,
+        parsedA2ACard,
+      },
+      conversation: {
+        id: param?.conversation?.id ?? null,
+        threadId: param?.conversation?.thread_id ?? null,
+      },
+      avatar: {
+        id: param?.avatar?.id ?? null,
+        name: param?.avatar?.name ?? null,
+      },
+    }
+
+  console.log('\n================ OBSERVER ================')
+
+  console.log('[Observer] Prompt:', prompt)
+  console.log('[Observer] Original Prompt:', originalPrompt)
+
+  console.log('[Observer] Card Present:', !!a2aCard)
+
+  console.log(
+    '[Observer] Skill Count:',
+    parsedA2ACard?.skills?.length ?? 0
+  )
+
+  console.log(
+    '[Observer] Example Count:',
+    parsedA2ACard?.exampleTexts?.length ?? 0
+  )
+
+  console.log(
+    '[Observer] Keyword Count:',
+    parsedA2ACard?.keywordTexts?.length ?? 0
+  )
+
+  console.log('[Observer] Parsed A2A Card:')
+  console.dir(parsedA2ACard, { depth: null })
+
+  console.log('==========================================\n')
+
+
+    return {
+      success: true,
+      observed: true,
+      prompt,
+      originalPrompt,
+      a2aCard,
+      parsedA2ACard,
+      payload: observerPayload,
+    }
+  }
+}
+
+// simple helper export
+async function observePrompt(payload = {}) {
+  const observer = new ObserverAgent()
+  return observer.observe(payload)
+}
+
+export {
+  ObserverAgent,
+  observePrompt,
+  deconstructA2ACard,
+}

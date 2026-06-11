@@ -1,5 +1,6 @@
 /* imports */
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
+import { ObserverAgent } from './observer.mjs'
 /* module constants */
 const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
 const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
@@ -10,6 +11,7 @@ const mDefaultIcon = 'default.png'
 const mDefaultTeam = 'memory'
 const mProxyChatTypes = ['chat', 'conversation', 'converse',]
 const mRequiredBotTypes = ['personal-avatar']
+const mObserverAgent = new ObserverAgent() 
 /* classes */
 /**
  * @class - Bot
@@ -125,6 +127,21 @@ class Bot {
 		Conversation.prompt = message
 		Conversation.originalPrompt = originalMessage
 		Conversation.exchangeStart(this.globals.newGuid)
+
+		//initialize observer
+		try {
+			await mObserverAgent.observe({
+				message,
+				originalMessage,
+				conversation: Conversation,
+				bot: this,
+				agentCard: this.agentCard,
+			})
+		} catch(error) {
+		console.error('[Observer] Failed to observe prompt:', error)
+		}
+
+		// mutate Conversation
 		if(this.type!=='proxy')
 			Conversation.interceptSuccess = await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar)
 		else
@@ -766,6 +783,10 @@ class BotAgent {
         /* respond request */
         return true
     }
+
+	async observe(param){
+		return mObserverAgent.observe(param, this.#factory, this.#llm)
+	}
     /**
      * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
      * @param {string} variable - Prompt variable name
