@@ -47,6 +47,13 @@ body.is-loading { opacity: 0; } /* added to prevent FOUC - see wrappers.js */
     margin-bottom: 1rem;
     width: 100%;
 }
+.no-recommendation {
+	color: darkmagenta;
+	display: flex;
+	font-style: italic;
+	font-weight: bold;
+	width: 100%;
+}
 /*
 	Dopetrope by HTML5 UP
 	html5up.net | @ajlkn
