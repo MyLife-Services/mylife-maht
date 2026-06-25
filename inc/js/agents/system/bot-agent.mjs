@@ -11,7 +11,7 @@ const mDefaultIcon = 'default.png'
 const mDefaultTeam = 'memory'
 const mProxyChatTypes = ['chat', 'conversation', 'converse',]
 const mRequiredBotTypes = ['personal-avatar']
-const mObserverAgent = new ObserverAgent() 
+
 /* classes */
 /**
  * @class - Bot
@@ -128,18 +128,7 @@ class Bot {
 		Conversation.originalPrompt = originalMessage
 		Conversation.exchangeStart(this.globals.newGuid)
 
-		//initialize observer
-		try {
-			await mObserverAgent.observe({
-				message,
-				originalMessage,
-				conversation: Conversation,
-				bot: this,
-				agentCard: this.agentCard,
-			})
-		} catch(error) {
-		console.error('[Observer] Failed to observe prompt:', error)
-		}
+		
 
 		// mutate Conversation
 		if(this.type!=='proxy')
@@ -555,9 +544,12 @@ class BotAgent {
 	#llm
 	#teams
 	#vectorstoreId
+	//
+	#observer
     constructor(factory, llm){
         this.#factory = factory
         this.#llm = llm
+		this.#observer = new ObserverAgent()
     }
 	/**
 	 * Initializes the BotAgent instance.
@@ -785,7 +777,7 @@ class BotAgent {
     }
 
 	async observe(param){
-		return mObserverAgent.observe(param, this.#factory, this.#llm)
+		return this.#observer.observe(param, this.#factory, this.#llm)
 	}
     /**
      * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.

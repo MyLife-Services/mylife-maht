@@ -2931,6 +2931,22 @@ async function mFunctionCall(functionName, toolArguments, Factory, Avatar, llmSe
         }
     switch(functionName){
         case 'callAvatar': {
+            //call bot agent observer with .observe()
+            /*
+
+            try {
+                await mObserverAgent.observe({
+                    message,
+                    originalMessage,
+                    conversation: Conversation,
+                    bot: this,
+                    agentCard: this.agentCard,
+                })
+            } catch(error) {
+            console.error('[Observer] Failed to observe prompt:', error)
+            }
+
+            */
             throw new Error('CallAvatar not yet implemented')
             break
         }
