@@ -151,6 +151,23 @@ class BotFactory extends EventEmitter{
 	botButtons(type){
 		return this.botTemplate(type)?.buttons ?? []
 	}
+	/*
+	 * Returns bot greetings for a given bot type, if they exist in the bot instructions.
+	 * @public
+	 * @param {string} type - The bot type
+	 * @param {object} botData - The bot data to personalize the greetings
+	 * @return {string[]} - The bot greetings
+	*/
+	botGreetings(type, botData={}){
+		const { defaults={}, greeting, greetings=[], instructions: { replacements=[], }={}, } = this.botTemplate(type) ?? {}
+		/* greetings */
+		if(greeting?.length && !greetings.includes(greeting))
+			greetings.unshift(greeting)
+		if(defaults?.greeting?.length && !greetings.includes(defaults.greeting))
+			greetings.shift(defaults.greeting)
+		const updatedGreetings = greetings.map(greeting=>mBotTextReplace(this, greeting, replacements, botData))
+		return updatedGreetings
+	}
 	/**
 	 * Returns bot icon URL for a given bot type, if it exists in the bot instructions.
 	 * @param {string} type - The bot type
@@ -163,11 +180,11 @@ class BotFactory extends EventEmitter{
 	 * Returns bot instructions fully personalized.
 	 * @public
 	 * @param {string} type - The bot type
+	 * @param {object} botData - The bot data to personalize the instructions
 	 * @returns {string} - The bot instructions
 	 */
-	botInstructions(type){
-		const { instructions, } = this.botTemplate(type) ?? {}
-		return mBuildBotInstructions(instructions)
+	botInstructions(type, botData={}){
+		return mBuildBotInstructions(this, type, botData)
 	}
 	/**
 	 * Returns bot item forms, which are the various content forms that a bot can utilize for output, such as memory, chat, entry, stance, etc. If not specified in the bot instructions, defaults to an empty array.
@@ -1305,17 +1322,76 @@ function assignClassPropertyValues(propertyDefinition){
 	}
 }
 /**
+ * Replaces placeholders in the provided text with corresponding values from the botData object or factory instance. If a replacement value is not found, it uses the default value specified in the replacements array or a fallback string.
+ * @param {object} factory - The factory instance
+ * @param {string} text - The text containing placeholders to replace
+ * @param {Object[]} replacements - An array of replacement definitions { default, description, name, replacement, }
+ * @param {object} data - The data object containing values for replacements
+ * @returns {string} - The text with all placeholders replaced
+ */
+function mBotTextReplace(factory, text, replacements=[], data){
+	replacements.forEach(replacement=>{
+		const placeholderRegExp = factory.globals.getRegExp(replacement.name, true)
+		const replacementText = data?.[replacement.replacement] // come from db bot template variables
+			?? factory?.[replacement.replacement]
+			?? factory.core?.[replacement.replacement]
+			?? replacement?.default
+			?? '`unknown-value`'
+		text = text.replace(placeholderRegExp, _=>replacementText)
+	})
+	return text
+}
+/**
  * Builds bot instructions from a template or general instructions. If a build template is provided, it will concatenate the specified sections of the instructions. If no build template is provided, it will use the general instructions.
- * @param {object} instructions - The instructions object containing buildTemplate and general instructions
+ * @param {object} factory - The factory instance
+ * @param {string} type - The type of bot instructions to build
+ * @param {object} botData - The bot data object containing values for replacements
  * @returns {string} - The concatenated instructions string
  */
-function mBuildBotInstructions(instructions){
-	const { buildTemplate=['general'], } = instructions
+function mBuildBotInstructions(factory, type, botData){
+	let { instructions={}, } = factory.botTemplate(type) ?? {}
+	const { buildTemplate=['general'], references=[], replacements=[] } = instructions
 	instructions = buildTemplate
-		.map(section=>instructions[section])
+		.map(section=>instructions?.[section])
 		.filter(Boolean)
 		.join('')
 		.trim()
+	instructions = mBotTextReplace(factory, instructions, replacements, botData)
+    /* apply references */
+    references.forEach(_reference=>{
+        const _referenceText = _reference.insert
+        const replacementText = botData?.[_reference.value]
+            ?? factory?.[_reference.value]
+            ?? factory.core?.[_reference.value]
+            ?? _reference.default
+            ?? '`unknown-value`'
+        switch(_reference.method ?? 'replace'){
+            case 'append-hard':
+                const _indexHard = instructions.indexOf(_referenceText)
+                if (_indexHard !== -1) {
+                instructions =
+                    instructions.slice(0, _indexHard + _referenceText.length)
+                    + '\n'
+                    + replacementText
+                    + instructions.slice(_indexHard + _referenceText.length)
+                }
+                break
+            case 'append-soft':
+                const _indexSoft = instructions.indexOf(_referenceText);
+                if (_indexSoft !== -1) {
+                instructions =
+                      instructions.slice(0, _indexSoft + _referenceText.length)
+                    + ' '
+                    + replacementText
+                    + instructions.slice(_indexSoft + _referenceText.length)
+                }
+                break
+            case 'replace':
+            default:
+                instructions = instructions.replace(_referenceText, replacementText)
+                break
+        }
+    })
 	return instructions
 }
 function mBytes(_object){

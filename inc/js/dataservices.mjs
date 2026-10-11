@@ -659,7 +659,9 @@ class Dataservices {
 						patchOperations.push({ op: 'add', path: path + '/-', value: element, })
 				else /* Canonical-state arrays: replace the whole field in one op */
 					patchOperations.push({ op: 'set', path, value, })
-			} else
+			} else if(value===undefined) // Remove the property if the value is `undefined`
+				patchOperations.push({ op: 'remove', path, })
+			else
 				patchOperations.push({ op: 'add', path, value, })
 		}
 		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations

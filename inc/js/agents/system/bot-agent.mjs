@@ -1247,7 +1247,8 @@ function mBotInstructions(factory, botData={}){
 	const { agentInstructions, type, } = botData
 	if(!type?.length)
 		return
-    let { defaults={}, greeting, greetings=[], limit=16000, tool_resources, version=1.0, } = factory.botTemplate(type)
+	const greetings = factory.botGreetings(type, botData)
+    let { defaults, limit=16000, tool_resources, version=1.0, } = factory.botTemplate(type)
 	let instructions = factory.botInstructions(type)
 	const allInstructions = agentInstructions
 		?.flatMap(item=>item.instructions.map(inst=>inst.instruction))
@@ -1255,56 +1256,6 @@ function mBotInstructions(factory, botData={}){
 		.trim()
 	if(allInstructions) // append custom instructions
 		instructions += '\nEXTERNAL AGENT CALL ABILITY\nIf member requests information defined in any of the purposes below, call your tool action: `callExternalAgent` with the appropriate `agentId`, `skillId`, and `request` parameters. **note**: request is formulated to get the appropriate answer to the member question. When receiving answer from external agent, include in your response to the member the fact that you queried an external source.\n' + allInstructions
-	/* greetings */
-	if(greeting?.length)
-		greetings.unshift(greeting)
-	if(defaults?.greeting?.length)
-		greetings.unshift(defaults.greeting)
-    /* apply replacements */
-    replacements.forEach(replacement=>{
-        const placeholderRegExp = factory.globals.getRegExp(replacement.name, true)
-        const replacementText = eval(`botData?.${replacement.replacement}`)
-			?? eval(`factory?.${replacement.replacement}`)
-            ?? eval(`factory.core?.${replacement.replacement}`)
-            ?? replacement?.default
-            ?? '`unknown-value`'
-        instructions = instructions.replace(placeholderRegExp, _=>replacementText)
-		greetings = greetings.map(greeting=>greeting.replace(placeholderRegExp, _=>replacementText))
-    })
-    /* apply references */
-    references.forEach(_reference=>{
-        const _referenceText = _reference.insert
-        const replacementText = eval(`factory?.${_reference.value}`)
-            ?? eval(`botData?.${_reference.value}`)
-            ?? _reference.default
-            ?? '`unknown-value`'
-        switch(_reference.method ?? 'replace'){
-            case 'append-hard':
-                const _indexHard = instructions.indexOf(_referenceText)
-                if (_indexHard !== -1) {
-                instructions =
-                    instructions.slice(0, _indexHard + _referenceText.length)
-                    + '\n'
-                    + replacementText
-                    + instructions.slice(_indexHard + _referenceText.length)
-                }
-                break
-            case 'append-soft':
-                const _indexSoft = instructions.indexOf(_referenceText);
-                if (_indexSoft !== -1) {
-                instructions =
-                      instructions.slice(0, _indexSoft + _referenceText.length)
-                    + ' '
-                    + replacementText
-                    + instructions.slice(_indexSoft + _referenceText.length)
-                }
-                break
-            case 'replace':
-            default:
-                instructions = instructions.replace(_referenceText, replacementText)
-                break
-        }
-    })
 	instructions = instructions.slice(0, limit)
 	const tools = factory.botTools(type)
 	const response = {
