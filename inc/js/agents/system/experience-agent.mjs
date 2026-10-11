@@ -35,6 +35,9 @@ class Actor {
     get botId(){
         return this.bot_id
     }
+    get botId(){
+        return this.bot_id
+    }
 }
 /**
  * @class CastMember
@@ -135,7 +138,7 @@ class Experience {
         if(prompt?.length)
             scriptDialog.prompt = prompt
         await this.#botAgent.chat(scriptDialog, false)
-        const messages = scriptDialog.getMessages()
+        const messages = scriptDialog.getMessages(true)
         return messages
     }
     end(){

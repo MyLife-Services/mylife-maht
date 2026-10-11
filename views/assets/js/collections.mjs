@@ -207,7 +207,7 @@ async function mObscureEntry(event){
     setActiveItem(itemId)
     const awaitBar = globals.await(`${ activeBot().name } is obscuring your content...`)
     globals.addChatElement(awaitBar)
-    toggleMemberInput(false)
+    toggleMemberInput(false, false)
     const popupClose = document.getElementById(`popup-close-${ itemId }`)
     if(popupClose)
         popupClose.click()
@@ -217,7 +217,7 @@ async function mObscureEntry(event){
     if(instructions?.length)
         enactInstruction(instructions, 'chat', { updateItemSummary, })
     expunge(awaitBar)
-    toggleMemberInput(true)
+    toggleMemberInput(true, false)
 }
 /**
  * Refresh designated collection from server. **note**: external calls denied option to identify collectionList parameter, ergo must always be of same type.
@@ -1133,7 +1133,7 @@ async function mEvaluate(e){
     const { id: itemId, } = this.item
     if(itemId)
         setActiveItem(itemId)
-    toggleMemberInput(false)
+    toggleMemberInput(false, false)
     const awaitBar = globals.await(`${ activeBot().name } is evaluating your summary...`)
     globals.addChatElement(awaitBar)
     const popupClose = document.getElementById(`popup-close-${ itemId }`)
@@ -1143,7 +1143,7 @@ async function mEvaluate(e){
     if(responses?.length)
         addMessages(responses, activeBot().type)
     globals.expunge(awaitBar)
-    toggleMemberInput(true)
+    toggleMemberInput(true, false)
 }
 /**
  * Initializes `mCollectionItems` with basics, including (or not) server calls to procure and populate.
@@ -1215,7 +1215,7 @@ async function mReliveStory(event){
     globals.removeDisappearingElements()
     const awaitBar = globals.await(`Reliving memory with ${ activeBot().name }...`)
     globals.addChatElement(awaitBar)
-    toggleMemberInput(false)
+    toggleMemberInput(false, false)
     unsetActiveItem()
     const { instructions, item, responses, success, } = await globals.datamanager.memoryRelive(id, memberInputContent)
     globals.expunge(awaitBar)
@@ -1266,7 +1266,7 @@ async function mReliveStory(event){
         inputSubmit.addEventListener('click', mReliveStory, { once: true })
         addInput(input)
     } else {
-        toggleMemberInput(true)
+        toggleMemberInput(true, false)
         throw new Error(`Failed to fetch memory for relive request.`)
     }
 }
@@ -1682,7 +1682,7 @@ async function mStopRelivingMemory(id, server=true){
     }
     mRelivingMemory = null
     unsetActiveItem()
-    toggleMemberInput(true)
+    toggleMemberInput(true, false)
 }
 /**
  * Processes a document summary request.

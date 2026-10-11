@@ -12,6 +12,7 @@ import Datamanager from "./datamanager.mjs"
  */
 const mAddOnlyArrayFields = new Set([
     'feedback',
+	'messages',
 	'validations',
 ])
 /**
@@ -75,11 +76,13 @@ class Dataservices {
 						(_prop[0] in _excludeProperties)
 					||	!(_charExlusions.indexOf(_prop[0].charAt()))
 				)
-				})
+			})
 			.map(_prop=>{	//	map to object
 				return { [_prop[0]]:_prop[1] }
 			})
-		this.#core = Object.assign({},...core)	//	init core
+		if(!core)
+			throw new Error('Dataservices::init()::No core data found for member', this.#partitionId)
+		this.#core = Object.assign({}, ...core)	//	init core
 		return this
 	}
 	//	getters/setters
@@ -430,7 +433,6 @@ class Dataservices {
 			{ name: '@currentDate', value: new Date().toISOString() }
 		]
 		const query = `SELECT * FROM c WHERE c.being = @being AND @currentDate >= c.timestampRange['start'] AND @currentDate <= c.timestampRange['end']`
-
 		return await this.#Datamanager.getItems(
 			{ query: query, parameters: paramsArray },
 			'system',
@@ -657,7 +659,9 @@ class Dataservices {
 						patchOperations.push({ op: 'add', path: path + '/-', value: element, })
 				else /* Canonical-state arrays: replace the whole field in one op */
 					patchOperations.push({ op: 'set', path, value, })
-			} else
+			} else if(value===undefined) // Remove the property if the value is `undefined`
+				patchOperations.push({ op: 'remove', path, })
+			else
 				patchOperations.push({ op: 'add', path, value, })
 		}
 		const patchBatches = [] // Split operations into batches of 10 per Cosmos DB limitations

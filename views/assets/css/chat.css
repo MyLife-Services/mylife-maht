@@ -279,6 +279,20 @@ img.chat-message-thumb-small {
     color: whitesmoke; /* Example hover effect: change text color to blue */
 	font-size: 1.1rem;
 }
+.chat-footer {
+	align-items:flex-start;
+	display:flex;
+	gap:1rem;
+	justify-content:space-between;
+}
+.chat-footer > div {
+	flex:1 1 auto;
+	min-width:0;
+}
+.chat-footer .no-wrap {
+	flex:0 0 auto;
+	white-space: nowrap;
+}
 .chat-message-tab {
     border-bottom-right-radius: 0.2rem;
     border-bottom-left-radius: 0.2rem;

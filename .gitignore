@@ -5,6 +5,7 @@ node_modules/
 .claude/settings.local.json
 .env*
 .vscode/
+.claude/
 .personal/
 __*/ # ignore all folders starting with an underscore
 .hintrc

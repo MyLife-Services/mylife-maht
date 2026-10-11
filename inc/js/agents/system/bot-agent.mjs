@@ -1,15 +1,22 @@
 /* imports */
+import { Conversation, Message, } from '../../models.mjs'
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
-const mBot_idOverride = process.env.OPENAI_MAHT_GPT_OVERRIDE
-const mDefaultBotTypeArray = ['personal-avatar', 'avatar']
-const mDefaultBotType = mDefaultBotTypeArray[0]
-const mDefaultGreeting = 'avatar' // greeting routine
-const mDefaultGreetings = ['Welcome to MyLife! I am here to help you!']
-const mDefaultIcon = 'default.png'
-const mDefaultTeam = 'memory'
-const mProxyChatTypes = ['chat', 'conversation', 'converse',]
-const mRequiredBotTypes = ['personal-avatar']
+const {
+	OPENAI_MAHT_GPT_OVERRIDE: mBotIdOverride,
+	OPENAI_COMPACTION_THRESHOLD,
+	OPENAI_EXCHANGE_FIDELITY,
+} = process.env
+const mCompactionThreshold = parseInt(OPENAI_COMPACTION_THRESHOLD) ?? 50,
+	mDefaultBotTypeArray = ['personal-avatar', 'avatar'],
+	mDefaultBotType = mDefaultBotTypeArray[0],
+	mDefaultGreeting = 'avatar', // greeting routine
+	mDefaultGreetings = ['Welcome to MyLife! I am here to help you!'],
+	mDefaultIcon = 'default.png',
+	mDefaultTeam = 'memory',
+	mExchangeFidelity = parseInt(OPENAI_EXCHANGE_FIDELITY) ?? 10,
+	mProxyChatTypes = ['chat', 'conversation', 'converse',],
+	mRequiredBotTypes = ['personal-avatar']
 /* classes */
 /**
  * @class - Bot
@@ -18,6 +25,7 @@ const mRequiredBotTypes = ['personal-avatar']
  */
 class Bot {
 	#agentInstructions // [] of { id, instructions: [{ skillId, instruction, }] } **note**: id=agentId; one entry per agent
+	#chatBlock=false
 	#collectionsAgent
 	#conversation
 	#documentName
@@ -66,23 +74,9 @@ class Bot {
 			?? this.#factory.botIcon(this.#type)
 			?? this.card?.icon
 			?? mDefaultIcon
-		this.#instructionNodes.add('agentInstructions')
-		this.#instructionNodes.add('bot_name')
-		switch(this.#type){
-			case 'diary':
-			case 'journal':
-			case 'journaler':
-				this.#instructionNodes.add('interests')
-				this.#instructionNodes.add('flags')
-				break
-			case 'proxy':
-				this.#instructionNodes.clear() /* instructionNodes are for internals only */
-				break
-			case 'personal-biographer':
-			default:
-				this.#instructionNodes.add('interests')
-				break
-		}
+		this.#instructionNodes.add('agentInstructions', 'bot_name', 'instructions', 'interests', 'flags', 'tools', 'tool_resources')
+		if(type==='proxy')
+			this.#instructionNodes.clear() /* instructionNodes are for internals only */
 		// @stub - this.#collectionsAgent = new CollectionsAgent(llm, factory)
 	}
 	/* public functions */
@@ -120,18 +114,37 @@ class Bot {
 	async chat(message, originalMessage, allowSave=true, avatar){
 		if(this.isMyLife && !this.isAvatar)
 			throw new Error('Only Q, MyLife Corporate Intelligence, is available for non-member conversation.')
-		const Conversation = await this.getConversation()
-		let interceptSuccess = false
-		Conversation.prompt = message
-		Conversation.originalPrompt = originalMessage
-		Conversation.exchangeStart(this.globals.newGuid)
-		if(this.type!=='proxy')
-			Conversation.interceptSuccess = await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar)
-		else
-			await mCallProxy(Conversation, allowSave, this.#factory, this.card)
-		if(!this.accessed)
-			this.accessed = true
+		this.chatBlock(true)
+		let Conversation
+		try {
+			Conversation = await this.getConversation()
+			let interceptSuccess = false
+			Conversation.prompt = message
+			Conversation.originalPrompt = originalMessage
+			Conversation.exchangeStart(this.globals.newGuid)
+			if(this.type!=='proxy')
+				Conversation.interceptSuccess = await mCallLLM(Conversation, allowSave, this.#llm, this.#factory, avatar)
+			else
+				await mCallProxy(Conversation, allowSave, this.#factory, this.card)
+			if(!this.accessed)
+				this.accessed = true
+		} catch(error) {
+			console.error('Error during chat:', error)
+		} finally {
+			this.chatBlock(false)
+		}
 		return Conversation
+	}
+	/**
+	 * Blocks chat functions during critical operations to prevent memory update conflicts. Should be used in conjunction with `try...finally` to ensure proper unblocking.
+	 * @param {boolean} state - Whether to block or unblock chat functions
+	 * @throws {Error} Throws an error if an attempt is made to update memory while a chat block is active
+	 * @returns {void}
+	 */
+	chatBlock(state){
+		if(state && this.#chatBlock)
+			throw new Error('Memory update in progress — please try again in a moment.', { code: 'LLM_IN_PROGRESS', status: 503, })
+		this.#chatBlock = state
 	}
     /**
      * Get collection items for this bot.
@@ -194,7 +207,7 @@ class Bot {
 		if(!this.#conversation){
 			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
-			this.#conversation = await mConversationStart('chat', type, id, thread_id, llmProvider, this.#llm, this.#factory, message)
+			this.#conversation = await mConversationStart('chat', type, this, thread_id, llmProvider, this.#llm, this.#factory, message)
 			if(thread_id!==this.conversation.thread_id)
 				this.setThread(this.conversation.thread_id) // saves new id to bot file
 			if(type!=='proxy' && !thread_id?.length){
@@ -230,8 +243,8 @@ class Bot {
 	 * @param {Avatar} Avatar - The Avatar instance
 	 * @returns {object} - The Response object { responses, routine, success, }
 	 */
-	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last', Avatar){
-		if(dynamic && this.type!=='proxy')
+	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last and prompt me to continue', Avatar){
+		if(dynamic && this.type==='proxy')
 			return {
 				error: 'Cannot access dynamic greeting routine',
 				responses: ['I currently have no connection with my foundational intelligence, so my greeting is generic'],
@@ -241,9 +254,16 @@ class Bot {
 			responses=[],
 			routine=this.#greetingRoutine
 		if(!firstAccess){
-			const greetings = dynamic
-				? await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory, Avatar)
-				: [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
+			let greetings
+			if(dynamic){
+				this.chatBlock(true)
+				try {
+					greetings = await mBotGreetings(this.thread_id, this.llmProvider, greetingPrompt, this.#llm, this.#factory, Avatar)
+				} finally {
+					this.chatBlock(false)
+				}
+			} else
+				greetings = [this.greetings[Math.floor(Math.random() * this.greetings.length)]]
 			responses.push(...greetings)
 		}
 		return {
@@ -263,10 +283,17 @@ class Bot {
 	}
     /**
      * Migrates Conversation from an old thread to a newly-created destination thread, observable in `this.Conversation`.
-     * @returns {void}
+     * @returns {Promise<boolean>} - Whether the migration was successful
      */
 	async migrateChat(){
-		await mMigrateChat(this, this.#llm)
+		let success = false
+		this.chatBlock(true)
+		try {
+			success = await mMigrateChat(this, this.#factory, this.#llm)
+		} finally {
+			this.chatBlock(false)
+		}
+		return success
 	}
 	/**
 	 * Grants or revokes proxy instructions to a bot. These instructions are stored in a separate field array to be incorporated in general bot instructions at the end of the instructions. 
@@ -337,8 +364,14 @@ class Bot {
 	 * @returns {Promise<void>}
 	 */
 	async setThread(thread_id){
-		if(!thread_id?.length)
-			thread_id = ( await this.#llm.conversation() ).id
+		if(!thread_id?.length){
+			this.chatBlock(true)
+			try {
+				thread_id = ( await this.#llm.conversation() ).id
+			} finally {
+				this.chatBlock(false)
+			}
+		}
 		if(!thread_id?.length)
 			throw new Error('Thread ID could not be accessed or generated.')
 		const { id, } = this
@@ -637,13 +670,13 @@ class BotAgent {
 	 * @returns {Promise<Conversation>} - The Conversation instance
 	 */
 	async conversationStart(type='chat', form='system-avatar', prompt, scriptAdvisorLlmProvider, mbr_id, useActive=true){
-		const bot = useActive && !!this.activeBot ? this.activeBot : this.avatar
-		let { id, llmProvider, } = bot
+		const Bot = useActive && !!this.activeBot ? this.activeBot : this.avatar
+		let { llmProvider, } = Bot
 		if(type==='experience')
 			llmProvider = this.#factory.actor.llmProvider
 		else if(type==='script' && scriptAdvisorLlmProvider?.id?.length)
 			llmProvider = scriptAdvisorLlmProvider
-    	const Conversation = await mConversationStart(type, form, id, undefined, llmProvider, this.#llm, this.#factory, prompt, undefined, mbr_id)
+    	const Conversation = await mConversationStart(type, form, Bot, undefined, llmProvider, this.#llm, this.#factory, prompt, undefined, mbr_id)
 		return Conversation
 	}
 	/**
@@ -725,7 +758,7 @@ class BotAgent {
 		if(!livingMemory.id?.length){
 			const { id: botId, llmProvider, type, } = biographer
 			memberInput = `## LIVE Memory Trigger\n### VARiABLES\nitemId: ${ item.id }\nsummary: "${ item.summary }"\n`
-			const Conversation = await mConversationStart('memory', type, botId, undefined, llmProvider, this.#llm, this.#factory, memberInput)
+			const Conversation = await mConversationStart('memory', type, biographer, undefined, llmProvider, this.#llm, this.#factory, memberInput)
 			Conversation.action = 'living'
 			Conversation.itemId = item.id
 			livingMemory.Conversation = Conversation
@@ -762,9 +795,7 @@ class BotAgent {
 		if(!Bot)
 			return false
         /* execute request */
-		await Bot.migrateChat() // no Conversation save
-        /* respond request */
-        return true
+		return await Bot.migrateChat() // no Conversation save
     }
     /**
      * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
@@ -840,7 +871,7 @@ class BotAgent {
 			const { id, type, version: versionCurrent, } = Bot
 			botId = id
 			version = versionCurrent
-			versionUpdate = this.#factory.botInstructionsVersion(type)
+			versionUpdate = this.#factory.botVersion(type)
 		}
 		const { firstAccess, responses, routine, success: greetingSuccess, } = await Bot.greeting(dynamic, `Greet member while thanking them for selecting you`, this.#avatar)
 		return {
@@ -911,7 +942,7 @@ class BotAgent {
 			this.#fileConversation = await this.conversationStart('file-summary', 'member-avatar', prompt, processStartTime)
 		this.#fileConversation.prompt = prompt
 		await mCallLLM(this.#fileConversation, false, this.#llm, this.#factory, Avatar)
-		const responses = this.#fileConversation.getMessages()
+		const responses = this.#fileConversation.getMessages(true)
         return responses
 	}
 	/**
@@ -952,15 +983,13 @@ class BotAgent {
 	/**
 	 * Updates bot instructions and migrates thread by default.
 	 * @param {Guid} botId - The bot id
-	 * @param {boolean} migrateThread - Whether to migrate the thread, defaults to `true`
 	 * @returns {Bot} - The updated Bot instance
 	 */
-	async updateBotInstructions(botId, migrateThread=false){
+	async updateBotInstructions(botId){
 		const Bot = this.bot(botId)
 		const { id, type, version=1.0, } = Bot
-        const newestVersion = this.#factory.botInstructionsVersion(type) // check version
-			?? 0
-        if(newestVersion!=version){
+        const newestVersion = this.#factory.botVersion(type) ?? 0
+        if(newestVersion>=version){
 			const { id, } = Bot
             const _bot = { id, type, }
             const botOptions = {
@@ -970,8 +999,6 @@ class BotAgent {
                 vectorstoreId: this.#vectorstoreId,
             }
             await Bot.update(_bot, botOptions)
-            if(migrateThread)
-                await Bot.migrateChat()
         }
         return Bot
 	}
@@ -1123,13 +1150,12 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	const { type, } = botData
 	if(!avatarId?.length || !type?.length)
 		throw new Error('avatar id and type required to create bot')
-	const { defaults: { name: defaultBotName, }, greetings, instructions, version=1.0, } = mBotInstructions(factory, botData)
+	const { defaults: { name: defaultBotName, }, greetings, instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, botData)
 	if(!instructions)
 		throw new Error('bot instructions not found for type: ' + type)
 	const model = process.env.OPENAI_MODEL_CORE_BOT
 		?? process.env.OPENAI_MODEL_CORE_AVATAR
 		?? 'gpt-4o'
-	const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstore_id)
 	const id = factory.newGuid
 	const typeShort = type.split('-').pop()
 	const name = `bot_${ type }_${ factory.mbr_id }_${ id }`
@@ -1221,7 +1247,8 @@ function mBotInstructions(factory, botData={}){
 	const { agentInstructions, type, } = botData
 	if(!type?.length)
 		return
-    let { defaults={}, greeting, greetings=[], limit=16000, version=1.0, } = factory.botTemplate(type)
+	const greetings = factory.botGreetings(type, botData)
+    let { defaults, limit=16000, tool_resources, version=1.0, } = factory.botTemplate(type)
 	let instructions = factory.botInstructions(type)
 	const allInstructions = agentInstructions
 		?.flatMap(item=>item.instructions.map(inst=>inst.instruction))
@@ -1229,56 +1256,6 @@ function mBotInstructions(factory, botData={}){
 		.trim()
 	if(allInstructions) // append custom instructions
 		instructions += '\nEXTERNAL AGENT CALL ABILITY\nIf member requests information defined in any of the purposes below, call your tool action: `callExternalAgent` with the appropriate `agentId`, `skillId`, and `request` parameters. **note**: request is formulated to get the appropriate answer to the member question. When receiving answer from external agent, include in your response to the member the fact that you queried an external source.\n' + allInstructions
-	/* greetings */
-	if(greeting?.length)
-		greetings.unshift(greeting)
-	if(defaults?.greeting?.length)
-		greetings.unshift(defaults.greeting)
-    /* apply replacements */
-    replacements.forEach(replacement=>{
-        const placeholderRegExp = factory.globals.getRegExp(replacement.name, true)
-        const replacementText = eval(`botData?.${replacement.replacement}`)
-			?? eval(`factory?.${replacement.replacement}`)
-            ?? eval(`factory.core?.${replacement.replacement}`)
-            ?? replacement?.default
-            ?? '`unknown-value`'
-        instructions = instructions.replace(placeholderRegExp, _=>replacementText)
-		greetings = greetings.map(greeting=>greeting.replace(placeholderRegExp, _=>replacementText))
-    })
-    /* apply references */
-    references.forEach(_reference=>{
-        const _referenceText = _reference.insert
-        const replacementText = eval(`factory?.${_reference.value}`)
-            ?? eval(`botData?.${_reference.value}`)
-            ?? _reference.default
-            ?? '`unknown-value`'
-        switch(_reference.method ?? 'replace'){
-            case 'append-hard':
-                const _indexHard = instructions.indexOf(_referenceText)
-                if (_indexHard !== -1) {
-                instructions =
-                    instructions.slice(0, _indexHard + _referenceText.length)
-                    + '\n'
-                    + replacementText
-                    + instructions.slice(_indexHard + _referenceText.length)
-                }
-                break
-            case 'append-soft':
-                const _indexSoft = instructions.indexOf(_referenceText);
-                if (_indexSoft !== -1) {
-                instructions =
-                      instructions.slice(0, _indexSoft + _referenceText.length)
-                    + ' '
-                    + replacementText
-                    + instructions.slice(_indexSoft + _referenceText.length)
-                }
-                break
-            case 'replace':
-            default:
-                instructions = instructions.replace(_referenceText, replacementText)
-                break
-        }
-    })
 	instructions = instructions.slice(0, limit)
 	const tools = factory.botTools(type)
 	const response = {
@@ -1286,6 +1263,7 @@ function mBotInstructions(factory, botData={}){
 		greetings,
 		instructions,
 		tools,
+		tool_resources,
 		version,
 	}
 	return response
@@ -1320,18 +1298,15 @@ async function mBotUpdate(botData, options={}, Bot, factory){
 			vectorstoreId=bot_vectorstore_id,
 			writeTools=false, // whether to allow discardtools
 		} = options
-		if(updateInstructions){
+		if(updateInstructions || updateTools){
 			const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
 			instructionReferences.type = type
-			const { greetings, instructions, version=1.0, } = mBotInstructions(factory, instructionReferences)
+			const { greetings, instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, instructionReferences)
 			allowedBotData.greetings = greetings
 			allowedBotData.instructions = instructions
 			allowedBotData.metadata = metadata
 			allowedBotData.metadata.version = version.toString()
 			allowedBotData.version = version /* omitted from llm, but appears on updateBot */
-		}
-		if(updateTools){
-			const { tools, tool_resources, } = mGetAIFunctions(type, factory.globals, vectorstoreId)
 			allowedBotData.tools = tools
 			allowedBotData.tool_resources = tool_resources
 		}
@@ -1432,12 +1407,14 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
 	Conversation.addMessage({
 		content: prompt,
 		created_at: processStartTime,
+		exchangeId: Conversation.exchangeId,
+		id: factory.newGuid,
 		originalPrompt,
 		role: 'member',
 		run_id: messageId,
 		thread_id: Conversation.thread_id,
 	})
-	Conversation.addMessages(botResponses)
+	Conversation.addMessages(responses)
 	if(allowSave)
 		Conversation.save() // no `await`
 }
@@ -1447,7 +1424,7 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @module
  * @param {string} type - Type of conversation: chat, experience, dialog, inter-system, system, etc.; defaults to `chat`
  * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
- * @param {string} botId - The bot id
+ * @param {string} Bot - The Bot instance
  * @param {string} conversation_id - The conversation id
  * @param {object} llmProvider - The properties for the llm agent: { *id, model, provider, *type, variables, version, }
  * @param {LLMServices} llm - The LLMServices instance
@@ -1457,19 +1434,19 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @param {string} mbr_id_Override - The member id to use for conversation (optional)
  * @returns {Conversation} - The conversation object
  */
-async function mConversationStart(type='chat', form='system', botId, conversation_id, llmProvider, llm, factory, prompt, messages, mbr_id_Override){
+async function mConversationStart(type='chat', form='system', Bot, conversation_id, llmProvider, llm, factory, prompt, messages, mbr_id_Override){
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
 	const metadata = {
-			bot_id: botId,
+			botId: Bot.id,
 			conversation_id: id,
 		},
 		processStartTime = Date.now(),
 		thread = (form!=='proxy')
 			? await llm.conversation(conversation_id, messages, metadata)
 			: null
-	const Conversation = new (factory.conversation)(
+	return new Conversation(
 		{
 			form,
 			id,
@@ -1479,11 +1456,10 @@ async function mConversationStart(type='chat', form='system', botId, conversatio
 			type,
 		},
 		factory,
-		botId,
+		Bot,
 		llmProvider,
 		thread,
 	)
-	return Conversation
 }
 /**
  * Deletes thread and conversation (optional) from LLM and Cosmos, respectively.
@@ -1684,118 +1660,91 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
 /**
  * Migrates LLM thread/memory to new one, altering Conversation instance when available.
  * @param {Bot} Bot - Bot instance
+ * @param {AgentFactory} factory - The Factory instance
  * @param {LLMServices} llm - The LLMServices instance
  * @param {boolean} saveConversation - Whether to save the conversation immediately, defaults to `false`
  * @returns {Promise<boolean>} - Whether or not operation was successful
  */
-async function mMigrateChat(Bot, llm, saveConversation=false){
+async function mMigrateChat(Bot, factory, llm, saveConversation=false){
     /* constants and variables */
-	const { conversation, id: botId, thread_id, type: botType, } = Bot
-	if(!thread_id?.length)
-		return false
-    let messages = await llm.messages(thread_id)
-    if(!messages?.length)
+	const chatSummary = 'The following is a summary of our historical conversation, which may be referenced for context\n'
+    const { conversation, id: botId, thread_id, type: botType, } = Bot
+    if(!thread_id?.length)
         return false
-    let chatLimit=15,
-		disclaimer=`INFORMATIONAL ONLY **DO NOT PROCESS**\n`,
-        itemCollectionTypes='item',
-        itemLimit=75,
-        type='item'
-    switch(botType){
-		case 'avatar':
-		case 'personal-avatar':
-			type = 'item'
-			itemCollectionTypes = 'item'
-			break
-        case 'biographer':
-        case 'personal-biographer':
-            type = 'memory'
-            itemCollectionTypes = `memory,story,narrative`
-            break
-        case 'diary':
-        case 'journal':
-        case 'journaler':
-            type = 'entry'
-            const itemType = botType==='journaler'
-                ? 'journal'
-                : botType
-            itemCollectionTypes = `${ itemType },entry,`
-            break
-        default:
-            break
-    }
-    const chatSummary=`## ${ botType.toUpperCase() } CHAT SUMMARY\n`,
-        chatSummaryRegex = /^## [^\n]* CHAT SUMMARY\n/,
-        itemSummary=`## ${ type.toUpperCase() } LIST\n`,
-        itemSummaryRegex = /^## [^\n]* LIST\n/
-    const items = ( await Bot.collections(type) )
-        .sort((a, b)=>a._ts-b._ts)
-        .slice(0, itemLimit)
-    const itemList = items
-        .map(item=>`- itemId: ${ item.id } :: ${ item.title }`)
-        .join('\n')
-    const itemCollectionList = items
-        .map(item=>item.id)
-        .join(',')
-        .slice(0, 512) // limit for metadata string
-    const metadata = {
-        bot_id: botId,
-    }
-    /* prune messages source material */
+	let messages = await llm.messages(thread_id)
+    if(!messages?.length || !messages.filter(m=>m.role==='assistant').length)
+        return true
+	/* normalize raw OpenAI messages — newest first */
     messages = messages
-        .slice(0, chatLimit)
-        .map(message=>{
-            const { content: contentArray, id, metadata, role, status, } = message
-            /* content may be a string (system/tool messages) or null — guard before array ops */
-            const content = Array.isArray(contentArray)
-                ? contentArray
-                    .filter(_content=>_content.type==='text')
-                    .map(_content=>_content.text?.value)
-                    ?.[0]
-                : (typeof contentArray === 'string' ? contentArray : undefined)
-            return { content, id, metadata, role, }
-        })
-        .filter(message=>message.content?.length && !itemSummaryRegex.test(message.content))
-	const summaryMessage = messages
-		.map(message => {
-			const contentWithoutTags = message.content.replace(chatSummaryRegex, '').replace(disclaimer, '')
-			return chatSummaryRegex.test(message.content)
-				? contentWithoutTags
-				: `${message.role}: ${contentWithoutTags}`
+		.map(message=>{
+			let content
+			const { content: contentArray, output, role='assistant', } = message // default on role as function calls do not have `role`, but are assistant messages
+			if(output?.length)
+				content = output // from function call responses
+			else if(Array.isArray(contentArray) && contentArray?.length){
+				content = contentArray
+					.filter(c=>c.text?.length)
+					.map(c=>c.text)
+					.join('\n')
+			} else if(typeof contentArray === 'string')
+				content = contentArray
+			else
+				content = undefined
+			return { content, role, }
 		})
-		.join('\n')
-    /* contextualize previous content */
-    const summaryMessages = []
-    /* summary of items */
-    if(items.length)
-        summaryMessages.push({
-            content: itemSummary + disclaimer + itemList,
-            metadata: {
-                collectionList: itemCollectionList,
-                collectiontypes: itemCollectionTypes,
-            },
-            role: 'assistant',
-        })
-    /* summary of messages */
-    if(summaryMessage.length)
-        summaryMessages.push({
-            content: chatSummary + disclaimer + summaryMessage,
-            metadata: {
-                collectiontypes: itemCollectionTypes,
-            },
-            role: 'assistant',
-        })
-    if(!summaryMessages.length)
-        return
-	const newConversation = await llm.conversation(undefined, summaryMessages, metadata)
-	if(!!conversation){
-	    conversation.setThread(newConversation)
-		if(saveConversation)
-			conversation.save() // no `await`
+		.filter(m=>m.content?.length)
+    if(!messages.length)
+        return false
+    /* find split point: walk newest→oldest, stop after mExchangeFidelity # user messages */
+    let userCount = 0, splitIndex = messages.length
+    for(let i = 0; i < messages.length; i++){
+        if(messages[i].role === 'user'){
+            if(++userCount === mExchangeFidelity){
+                splitIndex = i + 1
+                break
+            }
+        }
+    }
+    const recentMessages = messages.slice(0, splitIndex)
+    const oldMessages = messages.slice(splitIndex)
+    const seedMessages = []
+    /* compact old messages into a single summary block */
+    if(oldMessages.length){
+		console.log(`compacting ${ oldMessages.length } old messages into summary for migration...`)
+        const compactedText = oldMessages
+			.map(m=>`${ m.role === 'user' ? 'User' : 'Assistant' }: ${ m.content }`)
+            .reverse()
+            .join('\n')
+        if(compactedText.length)
+            seedMessages.push({
+                content: await factory.compactMessages(compactedText),
+                role: 'assistant',
+            })
+    }
+    /* append recent messages in chronological order */
+    seedMessages.push(
+        ...[...recentMessages]
+            .reverse()
+            .map(({ content, role, })=>({ content, role, }))
+    )
+    if(!seedMessages.length)
+        return false
+    /* create new conversation and migrate */
+    const metadata = {
+		botId,
+		previousThreadId: thread_id,
+		seedMessage: seedMessages?.[0]?.content.slice(0, 500),
 	}
+    const newConversation = await llm.conversation(undefined, seedMessages, metadata)
+    if(conversation){
+        conversation.setThread(newConversation)
+        if(saveConversation)
+            conversation.save() // no `await`
+    }
     Bot.setThread(newConversation.id) // autosaves `thread_id`, no `await`
-	llm.deleteConversation(thread_id)
-	console.log(`chat migrated::from ${ thread_id } to ${ newConversation.id }`, botType )
+    llm.deleteConversation(thread_id)
+    console.log(`chat migrated::from ${ thread_id } to ${ newConversation.id }`, botType)
+	return true
 }
 /* exports */
 export default BotAgent

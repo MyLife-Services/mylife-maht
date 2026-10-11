@@ -13,7 +13,9 @@
 }
 /* page layering */
 #footer,
+#navigation-container,
 #page-header {
+	background: #1d4253;
     position: relative;
     z-index: 1000; /* frame layer */
 }
@@ -49,7 +51,7 @@ body {
 }
 
 /* MyLife Menu Navigation */
-.top-nav {
+#navigation-container {
 	align-items: center;
 	color: #fff;
 	display: flex;
@@ -61,7 +63,7 @@ body {
 	position: relative;
 	width: 100%;
 }
-.top-nav .logo {
+#navigation-container .logo {
 	color: #fff;
 	font-family: "EB Garamond", serif;
 	font-size: 2.5rem;
@@ -69,19 +71,19 @@ body {
 	font-weight: 400;
 	text-decoration: none;
 }
-.top-nav a {
+#navigation-container a {
 	color: #fff;
 	font-weight: bold;
 	text-decoration: none;
 }
-.top-nav img {
+#navigation-container img {
 	height: 8vh;
 	width: auto;
 }
-.top-nav li {
+#navigation-container li {
 	display: flex;
 }
-.top-nav ul {
+#navigation-container ul {
 	align-items: baseline;
 	display: flex;
 	gap: 1.5rem;
@@ -89,7 +91,7 @@ body {
 	margin-bottom: 0;
 	margin-left: auto;
 }
-.top-nav .navigation-version img {
+#navigation-container .navigation-version img {
 	height: 1rem;
 	width: auto;
 }
@@ -116,6 +118,7 @@ a.login-btn:hover {
 	font-style: italic;
 	justify-content: flex-end;
 	margin-left: 1rem;
+	margin-right: 0.5rem;
 	text-align: right;
 }
 /* Hamburger Icon - Hidden on Desktop */
@@ -410,7 +413,6 @@ a.login-btn:hover {
 /* Page Footer */
 footer {
 	align-items: baseline;
-	background: #345e6b;
 	color: #fff;
 	display: flex;
 	justify-content: center;
@@ -887,7 +889,7 @@ pre code {
 }
 /* media queries */
 @media (max-width: 800px) {
-	.top-nav ul {
+	#navigation-container ul {
 		position: absolute;
 		top: 100%;
 		left: 0;
@@ -901,10 +903,10 @@ pre code {
 		display: none;
 		padding-bottom: 1rem;
 	}
-	.top-nav ul.show {
+	#navigation-container ul.show {
 		display: flex;
 	}
-	.top-nav li {
+	#navigation-container li {
 		margin: 1rem 0;
 	}
 	.hamburger {
