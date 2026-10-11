@@ -214,6 +214,27 @@ class Conversation extends EventEmitter {
             messages: this.messages,
         }
     }
+    get conversationCore(){
+        return {
+            bot_id: this.bot_id,
+            form: this.form,
+            id: this.#id,
+            mbr_id: this.mbr_id,
+            name: this.name,
+            thread: this.thread,
+            type: this.type,
+        }
+    }
+    get conversation(){
+        return {
+            ...this.conversationCore,
+            exchanges: [...this.#exchanges],
+            exchangeId: this.exchangeId,
+            isSaved: this.isSaved,
+            llmProvider: this.llmProvider,
+            messages: this.messages,
+        }
+    }
     get exchangeId(){
         return this.#activeExchangeId
     }
