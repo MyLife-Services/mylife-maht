@@ -1150,15 +1150,16 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	const { type, } = botData
 	if(!avatarId?.length || !type?.length)
 		throw new Error('avatar id and type required to create bot')
-	const { defaults: { name: defaultBotName, }, greetings, instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, botData)
+	const { defaults: { name: defaultBotName, }, instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, botData, botData)
 	if(!instructions)
 		throw new Error('bot instructions not found for type: ' + type)
+	const greetings = factory.botGreetings(type, botData)
+	const id = factory.newGuid
 	const model = process.env.OPENAI_MODEL_CORE_BOT
 		?? process.env.OPENAI_MODEL_CORE_AVATAR
 		?? 'gpt-4o'
-	const id = factory.newGuid
-	const typeShort = type.split('-').pop()
 	const name = `bot_${ type }_${ factory.mbr_id }_${ id }`
+	const typeShort = type.split('-').pop()
     let {
 		bot_name,
         description,
@@ -1240,16 +1241,16 @@ async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me en
  * Returns MyLife-version of bot instructions.
  * @module
  * @param {AgentFactory} factory - The Factory instance
- * @param {Object} botData - The bot proto-data
+ * @param {Object} addInstructions - The additional instructions object: { agentInstructions, type, }
+ * @param {Object} Bot - The bot instance
  * @returns {object} - The intermediary bot instructions object: { defaults, greetings, instructions, tools, version, }
  */
-function mBotInstructions(factory, botData={}){
-	const { agentInstructions, type, } = botData
+function mBotInstructions(factory, addInstructions={}, Bot={}){
+	const { agentInstructions, type, } = addInstructions
 	if(!type?.length)
 		return
-	const greetings = factory.botGreetings(type, botData)
     let { defaults, limit=16000, tool_resources, version=1.0, } = factory.botTemplate(type)
-	let instructions = factory.botInstructions(type)
+	let instructions = factory.botInstructions(type, Bot)
 	const allInstructions = agentInstructions
 		?.flatMap(item=>item.instructions.map(inst=>inst.instruction))
 		.join('\n')
@@ -1258,14 +1259,17 @@ function mBotInstructions(factory, botData={}){
 		instructions += '\nEXTERNAL AGENT CALL ABILITY\nIf member requests information defined in any of the purposes below, call your tool action: `callExternalAgent` with the appropriate `agentId`, `skillId`, and `request` parameters. **note**: request is formulated to get the appropriate answer to the member question. When receiving answer from external agent, include in your response to the member the fact that you queried an external source.\n' + allInstructions
 	instructions = instructions.slice(0, limit)
 	const tools = factory.botTools(type)
+	/* required */
 	const response = {
-		defaults,
-		greetings,
 		instructions,
 		tools,
-		tool_resources,
 		version,
 	}
+	/* conditional */
+	if(defaults)
+		response.defaults = defaults
+	if(tool_resources)
+		response.tool_resources = tool_resources
 	return response
 }
 /**
@@ -1301,20 +1305,21 @@ async function mBotUpdate(botData, options={}, Bot, factory){
 		if(updateInstructions || updateTools){
 			const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
 			instructionReferences.type = type
-			const { greetings, instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, instructionReferences)
-			allowedBotData.greetings = greetings
+			const { instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, instructionReferences, Bot)
 			allowedBotData.instructions = instructions
 			allowedBotData.metadata = metadata
 			allowedBotData.metadata.version = version.toString()
 			allowedBotData.version = version /* omitted from llm, but appears on updateBot */
 			allowedBotData.tools = tools
-			allowedBotData.tool_resources = tool_resources
+			if(tool_resources)
+				allowedBotData.tool_resources = tool_resources
 		}
 		if(updateModel)
 			allowedBotData.model = factory.globals.currentOpenAIBotModel
 		if(writeTools)
 			allowedBotData.tools = discardTools
 	}
+	allowedBotData.greetings = factory.botGreetings(type, Bot)
 	allowedBotData.id = id
 	allowedBotData.type = type
 	await factory.updateBot(allowedBotData)

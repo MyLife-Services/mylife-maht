@@ -165,7 +165,6 @@ class BotFactory extends EventEmitter{
 			greetings.unshift(greeting)
 		if(defaults?.greeting?.length && !greetings.includes(defaults.greeting))
 			greetings.shift(defaults.greeting)
-		console.log('botGreetings()', botData, replacements, greetings)
 		const updatedGreetings = greetings.map(greeting=>mBotTextReplace(this, greeting, replacements, botData))
 		return updatedGreetings
 	}
@@ -1350,7 +1349,8 @@ function mBotTextReplace(factory, text, replacements=[], data){
  * @returns {string} - The concatenated instructions string
  */
 function mBuildBotInstructions(factory, type, botData){
-	let { instructions={}, } = factory.botTemplate(type) ?? {}
+	console.log('mBuildBotInstructions', botData)
+	let { instructions={}, } = factory.botTemplate(type)
 	const { buildTemplate=['general'], references=[], replacements=[] } = instructions
 	instructions = buildTemplate
 		.map(section=>instructions?.[section])
