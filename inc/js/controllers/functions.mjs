@@ -69,7 +69,7 @@ async function collections(ctx){
 /**
  * Given an itemId, evaluates aspects of contents of the data record.
  * @param {Koa} ctx - Koa Context object
- * @returns {object} - The evaluation ersponse
+ * @returns {object} - The evaluation response
  */
 async function evaluate(ctx){
 	const { iid, } = ctx.params
