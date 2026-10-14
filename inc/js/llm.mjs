@@ -11,9 +11,9 @@ const {
     OPENAI_API_CHAT_TIMEOUT,
 } = process.env
 const mDefaultLLMProvider = 'openai',
-    mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000,
-    mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) || 890,
-    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
+    mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) ?? 256000,
+    mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) ?? 890,
+    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) ?? 55000
 /* class definition */
 /**
  * LLM Services class.
@@ -43,6 +43,30 @@ class LLMServices {
             }))
     }
     /* public methods */
+    /**
+     * One-shot chat completion without conversation/thread overhead. [API documentation](https://developers.openai.com/api/reference/typescript/resources/chat/subresources/completions/methods/create)
+     * @param {string} systemInstruction - System-level instruction for the model
+     * @param {string} userContent - User content to process
+     * @param {string} [model='gpt-3.5-turbo'] - Model to use
+     * @returns {Promise<object|undefined>} - The assistant's response first choice `message`, or `undefined` on error { annotations, content, refusal, role, }
+     */
+    async chatCompletion(systemInstruction, userContent, model='gpt-3.5-turbo'){
+        try {
+            const messages = []
+            if(systemInstruction?.length)
+                messages.push({ role: 'system', content: systemInstruction })
+            if(userContent?.length)
+                messages.push({ role: 'user', content: userContent })
+            const completion = await this.openai.chat.completions.create({
+                model,
+                messages,
+            })
+            return completion.choices?.[0]?.message
+        } catch(error) {
+            console.error('LLMServices::chatCompletion()::error', error)
+            return undefined
+        }
+    }
     /**
      * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
      * @param {string} conversation_id - conversation id
@@ -215,7 +239,7 @@ class LLMServices {
                         }
                         default: {
                             console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
-                            llmMessages.push(...messages.map(message => mMessageConvert(this.provider, message)))
+                            llmMessages.push(...messages.map(message => mMessageConvert(this.provider, message, response_id)))
                             return llmMessages
                         }
                     }
@@ -243,17 +267,15 @@ class LLMServices {
      * @returns {Promise<object>} - openai `message` object
      */
     async message(conversation_id, msg_id){
-        const message = await mMessages(this.provider, conversation_id, msg_id)
-        return message
+        return await mMessages(this.openai, conversation_id, msg_id)
     }
     /**
-     * Returns messages associated with specified conversation.
+     * Returns all messages associated with a conversation (paginated internally).
      * @param {string} conversation_id - Conversation id
-     * @returns {Promise<Object[]>} - Array of openai `message` objects
+     * @returns {Promise<Object[]>} - Array of openai `message` objects, newest first
      */
     async messages(conversation_id){
-        const { data: messages } = await mMessages(this.provider, conversation_id)
-        return messages
+        return await mMessages(this.openai, conversation_id)
     }
     /**
      * Upload files to OpenAI, currently `2024-05-13`, using vector-store, which is a new refactored mechanic.
@@ -462,24 +484,33 @@ function mConvertToolResponse(llmProvider, toolResponse, providerOptions={}){
  * @returns {object} openai `message` object
  */
 async function mMessages(openai, conversation_id, msg_id){
-    return msg_id?.length
-        ? await openai.conversations.items.retrieve(
-                conversation_id,
-                msg_id,
-            )
-        : await openai.conversations.items.list(
-                conversation_id,
-                { limit: 50, }
-            )
+    if(msg_id?.length)
+        return await openai.conversations.items.retrieve(conversation_id, msg_id)
+    const items = []
+    let after = undefined,
+        has_more = true
+    while(has_more){
+        const page = await openai.conversations.items.list(
+            conversation_id,
+            { after, limit: 100, }
+        )
+        items.push(...(page.data ?? []))
+        has_more = page.has_more ?? false
+        after = page.last_id ?? undefined
+        if(!after)
+            break
+    }
+    return items
 }
 /**
  * Format input for OpenAI.
  * @module
  * @param {string} provider - LLM provider
  * @param {string} message - message text 
+ * @param {string} response_id - response id to associate with message for traceability (optional)
  * @returns {object} - synthetic openai `message` object
  */
-function mMessageConvert(provider, message){
+function mMessageConvert(provider, message, response_id){
     let messageConverted = {}
     switch(provider){
         default:
@@ -487,6 +518,7 @@ function mMessageConvert(provider, message){
                 messageConverted.content = { text: message, type: 'input_text', }
                 messageConverted.id = crypto.randomUUID()
                 messageConverted.role = 'assistant'
+                messageConverted.response_id = response_id
                 messageConverted.status = 'completed'
                 messageConverted.type = 'message'
             } else

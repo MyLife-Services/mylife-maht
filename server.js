@@ -1,5 +1,4 @@
 /** imports **/
-import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -14,10 +13,9 @@ import chalk from 'chalk'
 /* local service imports */
 import SystemAvatar from './inc/js/factory.mjs'
 /** variables **/
-const version = '0.0.41'
+const version = '0.0.42'
 const app = new Koa()
-const port = process.env.PORT
-	?? '3000'
+const port = process.env.PORT ?? '3000'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const _Maht = await SystemAvatar // Mylife is the pre-instantiated exported version of organization with very unique properties. MyLife class can protect fields that others cannot, #factory as first refactor will request
@@ -35,27 +33,27 @@ const mimeTypesToExtensions = {
 	'application/json': ['.json'],
 	'application/javascript': ['.js'],
 	'application/xml': ['.xml'],
-    /* image formats */
-    'image/jpeg': ['.jpg', '.jpeg'],
-    'image/png': ['.png'],
-    'image/gif': ['.gif'],
-    'image/svg+xml': ['.svg'],
-    'image/webp': ['.webp'],
-    'image/tiff': ['.tiff', '.tif'],
-    'image/bmp': ['.bmp'],
-    'image/x-icon': ['.ico'],
-    /* document formats */
-    'application/pdf': ['.pdf'],
-    'application/msword': ['.doc'],
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-    'application/vnd.ms-excel': ['.xls'],
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-    'application/vnd.ms-powerpoint': ['.ppt'],
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-    'application/rtf': ['.rtf'],
-    'application/vnd.oasis.opendocument.text': ['.odt'],
-    'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
-    'application/vnd.oasis.opendocument.presentation': ['.odp'],
+  /* image formats */
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/gif': ['.gif'],
+  'image/svg+xml': ['.svg'],
+  'image/webp': ['.webp'],
+  'image/tiff': ['.tiff', '.tif'],
+  'image/bmp': ['.bmp'],
+  'image/x-icon': ['.ico'],
+  /* document formats */
+  'application/pdf': ['.pdf'],
+  'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'application/vnd.ms-excel': ['.xls'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'application/vnd.ms-powerpoint': ['.ppt'],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'application/rtf': ['.rtf'],
+  'application/vnd.oasis.opendocument.text': ['.odt'],
+  'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
+  'application/vnd.oasis.opendocument.presentation': ['.odp'],
 	/* audio formats */
 	'audio/mpeg': ['.mp3'],
 	'audio/vorbis': ['.ogg'], // Commonly .ogg can also be used for video
@@ -63,15 +61,15 @@ const mimeTypesToExtensions = {
 	'audio/webm': ['.weba'],
 	'audio/aac': ['.aac'],
 	'audio/flac': ['.flac'],
-    /* video formats */
-    'video/mp4': ['.mp4'],
-    'video/x-msvideo': ['.avi'],
-    'video/x-ms-wmv': ['.wmv'],
-    'video/mpeg': ['.mpeg', '.mpg'],
-    'video/webm': ['.webm'],
-    'video/ogg': ['.ogv'],
-    'video/x-flv': ['.flv'],
-    'video/quicktime': ['.mov'],
+  /* video formats */
+  'video/mp4': ['.mp4'],
+  'video/x-msvideo': ['.avi'],
+  'video/x-ms-wmv': ['.wmv'],
+  'video/mpeg': ['.mpeg', '.mpg'],
+  'video/webm': ['.webm'],
+  'video/ogg': ['.ogv'],
+  'video/x-flv': ['.flv'],
+  'video/quicktime': ['.mov'],
 }
 const serverRouter = await _Maht.router
 console.log(chalk.bgBlue('created-system-avatar:', chalk.bgRedBright('MAHT'), chalk.bgGreenBright(_Maht.version)))
@@ -147,14 +145,17 @@ app.use(async (ctx, next) => {
 			await next()
 		} catch (err) {
 			const clientDisconnect = err.code==='ECONNRESET' || err.code==='ERR_STREAM_PREMATURE_CLOSE'
-			ctx.status = err.statusCode || err.status || 500
-			ctx.body = {
-				message: err.message
+			if(err.code==='LLM_IN_PROGRESS'){
+				ctx.status = 503
+				ctx.body = { error: err.message, retry: true, }
+			} else {
+				ctx.status = err.statusCode || err.status || 500
+				ctx.body = { message: err.message, }
+				if(clientDisconnect)
+					console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
+				else
+					console.error(err)
 			}
-			if(clientDisconnect)
-				console.log(`⚡ client disconnected: ${ ctx.method } ${ ctx.path }`)
-			else
-				console.error(err)
 		}
 	})
 	.use(async (ctx,next)=>{
@@ -189,11 +190,11 @@ const sessionCheckInterval = 10 * 60 * 1000 // every 10 minutes
 setInterval(async _=>{
     for(const [sessionId, sessionMeta] of app.context.mcpSessionMeta){
 		const { sessionIdKoa, } = sessionMeta
-        const koaSess = await app.context.MemoryStore.get(`koa:sess:${ sessionIdKoa }`)
-        if(!koaSess){
-			app.context.mcpSessionMeta.delete(sessionId)
-			console.log(`⏱️ Removed meta session for ${ sessionId }`, sessionIdKoa)
-		}
+      const koaSess = await app.context.MemoryStore.get(`koa:sess:${ sessionIdKoa }`)
+      if(!koaSess){
+        app.context.mcpSessionMeta.delete(sessionId)
+        console.log(`⏱️ Removed meta session for ${ sessionId }`, sessionIdKoa)
+      }
     }
 }, sessionCheckInterval)
 /** server functions **/

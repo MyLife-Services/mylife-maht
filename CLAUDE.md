@@ -117,7 +117,6 @@ The platform acts as both an MCP server and client. `inc/js/controllers/mcp-func
 
 - `inc/json-schemas/` — JSON schemas for data structures, OpenAI function definitions, and MCP tool definitions. Changes here do **not** trigger nodemon.
 - `inc/yaml/` — OpenAI action schemas (YAML format for GPT Store integration).
-- `inc/js/factory-class-extenders/` — Class extension logic evaluated via `vm` at runtime to dynamically add methods to factory classes from JSON config.
 
 ### Frontend
 

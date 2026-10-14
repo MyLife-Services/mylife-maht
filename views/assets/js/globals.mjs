@@ -1,7 +1,7 @@
 /* module constants */
 const mAudioNotRecording = `<div>Click or Tap on <b>Microphone</b> to start recording</div>`
-const mAudioRecording = `<div><b>MyLife is listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
-const mDefaultHelpPlaceholderText = 'Help me, Q-bi Wan, Help me!'
+const mAudioRecording = `<div><b>I am listening!</b><br />To <span style="color: indianred;"><b>STOP</b></span>, click the <b>Microphone</b> again, or <em><u>after a pause</u></em> say <em>DONE</em> or <em>SEND</em> to send directly to <b>Q</b></div>`
+const mDefaultHelpPlaceholderText = 'Help me, I\'m confused!'
 const mHelpInitiatorContent = {
     experiences: `I'll do my best to assist with an "experiences" request. Please type in your question or issue below and click "Send" to get started.`,
     interface: `I'll do my best to assist with an "interface" request. Please type in your question or issue below and click "Send" to get started.`,
@@ -53,15 +53,16 @@ class Datamanager {
     #url
     /**
      * Creates a new Datamanager.
-     * @param {String} type - The type of user, defaults to 'guest'
+     * @param {String} type - The type of user, defaults to 'visitor'
+     * @param {String} url - The base URL, defaults to window.location.origin
      */
-    constructor(type='guest'){
-        this.#url = window.location.origin
+    constructor(type='visitor', url=window.location.origin){
+        this.#url = url
         switch(type){
             case 'member':
                 this.#url += '/member'
                 break
-            case 'guest':
+            case 'visitor':
             default:
                 break
         }
@@ -116,8 +117,8 @@ class Datamanager {
         const response = await this.#fetch(url)
         return response
     }
-    async botActivate(botId){
-        const url = `/members/bots/activate/${ botId }`
+    async botActivate(botId, system=false){
+        const url = `${ !system ? '/members' : '' }/bots/activate/${ botId }`
         const options = {
             method: 'POST',
             headers: {
@@ -564,7 +565,7 @@ class Datamanager {
         return response
     }
     /**
-     * Conducts a share of a memory with recipient guest.
+     * Conducts a share of a memory with recipient visitor.
      * @param {Guid} shareId - The share ID
      * @param {String} input - Whether or not to use dynamic greetings
      * @returns {Promise<object>} - The server response object
@@ -768,8 +769,7 @@ class Globals {
     constructor(){
         if(!mLoaded){
             /* constants */
-            mAvatarName = this.getAvatar()?.name
-                ?? 'MyLife'
+            mAvatarName = this.getAvatar()?.name ?? 'MyLife'
             mPlaceholder = `Type your message to ${ mAvatarName }...`
             /* elements */
             mChatAudioIcon = document.getElementById('audio-icon')
@@ -795,7 +795,7 @@ class Globals {
             mHelpType = document.getElementById('help-type') // pseudo-navigation: membership, interface, experiences, etc.
             mLogoutButton = document.getElementById('navigation-logout')
             mMainContent = document.getElementById('main-content')
-            mNavigation = document.getElementById('page-header')
+            mNavigation = document.getElementById('navigation-container')
             mNavigationHamburger = document.getElementById('hamburger')
             mNavigationHelp = document.getElementById('navigation-help')
             mNavigationHelpIcon = document.getElementById('navigation-help-icon')
@@ -811,7 +811,17 @@ class Globals {
             }
             if(mChatAudioIcon)
                 mSpeechInitialization(this.checkChatInput)
-            this.init()
+            /* required existence checks */
+            if(!mChatContainer || !mChatSystem || !mDatamanager || !mMainContent || !mPage)
+                console.error('Critical global elements missing:', {
+                    mChatContainer,
+                    mChatSystem,
+                    mDatamanager,
+                    mMainContent,
+                    mPage,
+                })
+            else
+                this.init()
         }
     }
     /* public functions */
@@ -1248,11 +1258,12 @@ class Globals {
     /**
      * Toggles the chat input field.
      * @param {boolean} display - Whether or not to display the chat input field, defaults to `true`
+     * @param {boolean} eraseValue - Whether or not to erase the chat input field value when toggling, defaults to `true`
      * @param {DOMTokenList} classList - Class list of the chat input field to add or remove
      * @returns {void}
      */
-    toggleChatInput(display=true, classList){
-        mToggleChatInput(display, classList)
+    toggleChatInput(display=true, eraseValue=true, classList='slide-up'){
+        mToggleChatInput(display, eraseValue, classList)
     }
     /**
      * Toggles the visibility of an element with option to force state.
@@ -1812,6 +1823,8 @@ function mSetHelpType(event){
  * @returns {void}
  */
 function mShow(element, listenerFunction){
+    if(!element)
+        return
     element.addEventListener(
         'animationend',
         animationEvent=>mAnimationEnd(animationEvent, listenerFunction),
@@ -1912,17 +1925,21 @@ function mToggleHelpSubmit(event){
 }
 /**
  * Toggles the chat input container based on `input` or other request.
+ * @requires mChatInputContainer
+ * @requires mChatInputField
  * @param {Boolean} display - Whether to display the chat input container
  * @param {DOMTokenList} classList - Class list to add or remove from the chat input container
+ * @param {Boolean} eraseValue - Whether or not to erase the chat input field value when toggling, defaults to `true`
  * @returns {void}
  */
-function mToggleChatInput(display, classList){
+function mToggleChatInput(display, eraseValue, classList){
+    if(eraseValue)
+        mChatInputField.value = null
     if(display){
-        mShow(mChatInputContainer)
         mChatInputField.focus()
         if(classList)
             mChatInputField.classList.add(classList)
-        mChatInputField.value = null
+        mShow(mChatInputContainer)
     } else {
         mHide(mChatInputContainer)
         mChatInputField.classList.remove('fade-in')

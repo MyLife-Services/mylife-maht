@@ -8,7 +8,7 @@
 async function activateBot(ctx){
 	const { bid, } = ctx.params
 	if(!ctx.Globals.isValidGuid(bid))
-		ctx.throw(400, `missing bot id`)
+		return ctx.status = 204
 	const { avatar: Avatar, } = ctx.state
 	ctx.body =await Avatar.setActiveBot(bid)
 }
@@ -225,8 +225,9 @@ async function teams(ctx){
  * @returns {Object[]} - Array of shadow objects
  */
 async function shadows(ctx){
-	const { avatar, } = ctx.state
-	const response = await avatar.shadows()
+	const { bid, } = ctx.params
+	const { avatar: Avatar, } = ctx.state
+	const response = await Avatar.shadows(bid)
 	ctx.body = response
 }
 /**

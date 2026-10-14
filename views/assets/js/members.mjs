@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async event=>{
     await mInitialize() // throws if error
     stageTransition()
     unsetActiveAction()
-})
+}, { once: true })
 /* public functions */
 /**
  * Presents the `about` page as a series of sectional responses from your avatar.
@@ -395,7 +395,7 @@ async function submit(message, role='member', hideMemberChat=true){
 	if(!message?.length)
 		return
     if(hideMemberChat)
-        toggleMemberInput(false)
+        toggleMemberInput(false, false)
     const awaitBar = globals.await(`Connecting with ${ activeBot().name }...`)
     globals.addChatElement(awaitBar)
     const { id: itemId, } = activeItem()
@@ -409,19 +409,18 @@ async function submit(message, role='member', hideMemberChat=true){
 	const response = await globals.datamanager.submitChat(request, true)
     globals.expunge(awaitBar)
     if(hideMemberChat)
-        toggleMemberInput(true)
+        toggleMemberInput()
     return response
 }
 /**
  * Toggles the member input between input and server `waiting`.
  * @public
- * @param {boolean} display - Whether to show/hide (T/F), default `true`.
- * @param {boolean} hidden - Whether to force-hide (T/F), default `false`. **Note**: used in `experience.mjs`
- * @param {boolean} connectingText - The server-connecting text, default: `Connecting with `.
+ * @param {boolean} display - Whether to show/hide (T/F), default `true`
+ * @param {boolean} eraseValue - Whether to erase the input value, default `true`
  * @returns {void}
  */
-function toggleMemberInput(display=true){
-    globals.toggleChatInput(display, 'slide-up')
+function toggleMemberInput(display=true, eraseValue=true){
+    globals.toggleChatInput(display, eraseValue)
 }
 /**
  * Toggles the visibility of an element with option to force state.
@@ -728,7 +727,7 @@ function sceneTransition(type='interface'){
     globals.ChatSubmit.addEventListener('click', submitInput)
     /* clear "extraneous" */
     hide(navigation)
-    globals.toggleChatInput(false)
+    toggleMemberInput(false, false)
     /* type specifics */
     switch(type){
         case 'chat':
