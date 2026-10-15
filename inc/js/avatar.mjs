@@ -3138,6 +3138,7 @@ async function mFunction_createAccount(response, toolArguments, Factory, Avatar)
  * @returns {Promise<void>} - Mutates `response` based on the success of the summary creation operation
  */
 async function mFunction_createSummary(type, response, data, Avatar){
+    data.type = type
     const Item = mItem(data, Avatar)
     response.success = await Item.save()
     if(response.success){
@@ -3352,6 +3353,8 @@ function mItem(item, Avatar){
         form,
         id=Avatar.newGuid,
         summary=content,
+        title='New Item',
+        type='memory',
     } = item
     item = {
         ...item,

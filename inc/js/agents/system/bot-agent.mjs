@@ -90,15 +90,6 @@ class Bot {
 		return this.activeItemId===itemId
 	}
 	/**
-	 * Saves state for the last active item for a specific bot
-	 * @param {Guid} itemId - The Item Id
-	 * @returns {Promise<boolean>} - `true` if the update succeeded
-	 */
-	async activateItem(itemId){
-		const response = await this.update({ activeItemId: itemId, })
-		return this.activeItemId===itemId
-	}
-	/**
 	 * Adds a tool to the bot's tool list if available from Globals.botTools and not already present.
 	 * @param {string} toolName - Name of function/tool to 
 	 * @returns {boolean} - Whether the tool was added/available
@@ -805,26 +796,6 @@ class BotAgent {
 			return false
         /* execute request */
 		return await Bot.migrateChat() // no Conversation save
-    }
-    /**
-     * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
-     * @param {string} variable - Prompt variable name
-     * @returns {string} - The prompt variable value
-     */
-    promptVariable(variable){
-		let variableValue = this.activeBot[variable]
-			?? this[variable]
-			?? this.#avatar[variable] // synthetic digital self
-			?? this.avatar[variable] // personal-avatar bot
-			?? this.#factory[variable] // botAgent factory
-			?? this.#factory.core[variable] // MyLife human core entry
-			?? 'unknown'
-		if(typeof variableValue!=='string')
-			if(Array.isArray(variableValue))
-				 variableValue = variableValue.join(', ')
-			else
-				variableValue = JSON.stringify(variableValue)
-        return variableValue
     }
     /**
      * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
