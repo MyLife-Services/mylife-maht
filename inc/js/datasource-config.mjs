@@ -3,6 +3,13 @@ class Config{
 	constructor(_mbr_id){
 		this.endpoint=process.env.MYLIFE_DB_ENDPOINT
 		this.rw_id=process.env.MYLIFE_DB_RW
+		this.campaigns={
+			id: process.env.MYLIFE_DB_NAME,
+			container: {
+				id: process.env.MYLIFE_DB_CONTAINER_NAME_CAMPAIGNS,
+				partitionId: 'campaign_id',
+			}
+		}
 		this.members={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {
@@ -14,21 +21,21 @@ class Config{
 		this.registration={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {
-				id: process.env.MYLIFE_REGISTRATION_DB_CONTAINER_NAME,
+				id: process.env.MYLIFE_DB_CONTAINER_NAME_REGISTRATION,
 				partitionId: _mbr_id,
 			}
 		}
 		this.shares={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {
-				id: process.env.MYLIFE_SHARES_DB_CONTAINER_NAME,
+				id: process.env.MYLIFE_DB_CONTAINER_NAME_SHARES,
 				partitionId: 'shareType',
 			}
 		}
 		this.system={
 			id: process.env.MYLIFE_DB_NAME,
 			container: {
-				id: process.env.MYLIFE_SYSTEM_DB_CONTAINER_NAME,
+				id: process.env.MYLIFE_DB_CONTAINER_NAME_SYSTEM,
 				partitionId: _mbr_id,
 			}
 		}

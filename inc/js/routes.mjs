@@ -51,6 +51,7 @@ import {
 	alerts,
 	challenge,
 	collections,
+    configure,
 	evaluate,
 	feedback,
 	greetings,
@@ -153,6 +154,7 @@ _Router.post('/alphadog/mission/:mid', missionPlay)
 _Router.post('/bots/activate', activateBot)
 _Router.post('/bots/activate/:bid', activateBot)
 _Router.post('/challenge/:mid', challenge)
+_Router.post('/configure', configure)
 _Router.post('/help', help)
 _Router.post('/share/feedback/:sid', shareFeedback)
 _Router.post('/signup', signup)

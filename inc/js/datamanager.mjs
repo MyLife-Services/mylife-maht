@@ -23,6 +23,7 @@ class Datamanager {
 		this.#partitionId = _config.members.container.partitionId
 		this.#coreId = _config.members.container?.coreId ?? this.#partitionId.split('|')[1]
 		this.#containers = {
+			campaigns: this.database.container(_config.campaigns.container.id),
 			members: this.database.container(_config.members.container.id),
 			registration: this.database.container(_config.registration.container.id),
 			shares: this.database.container(_config.shares.container.id),
@@ -35,7 +36,16 @@ class Datamanager {
 	}
 	/* initialize */
 	async init() {
-		//	assign core
+		for(const [name, container] of Object.entries(this.#containers)){ // set partition-keys for all containers
+			try{
+				const { resource, } = await container.read()
+				const paths = resource.partitionKey?.paths ?? []
+				const cleanPaths = paths.map(path=>path.replace(/^\/|\/$/g, ''))
+				container._pkPaths = cleanPaths
+			} catch(err) {
+				console.log(`Datamanager::init()::error reading container ${name}:`, err)
+			}
+		}
 		this.#core = await this.#containers['members']
 			.item(
 				this.#coreId,
@@ -127,6 +137,14 @@ class Datamanager {
 		if(!documents?.length)
 			throw new Error('No hosted members found')
 		return documents
+	}
+	/**
+	 * Retrieves partition key paths for a given container.
+	 * @param {string} containerId - The name of the container
+	 * @returns {Array<string>} An array of partition key paths for the specified container
+	 */
+	partitionKeys(containerId){
+		return this.#containers[containerId]._pkPaths
 	}
 	/**
 	 * Patches an item with the given data. The path for each patch operation is embedded in the data.

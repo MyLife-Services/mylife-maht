@@ -111,21 +111,40 @@ class LLMServices {
      * @param {String} provider - LLM provider
      * @returns {Array} - Array of extracted string responses
      */
-    extractResponses(llmResponses, provider){
+    extractResponses(llmResponses, provider, type='message'){
         if(!llmResponses?.length)
             return []
         const responses = []
         llmResponses.forEach(response=>{
-                if(typeof response==='string' && response.length)
-                    responses.push(response)
-                const { content, created_at, id, thread_id, } = response
-                if(!!content?.length)
-                    content.forEach(content=>{
-                        if(!!content?.text?.value?.length)
-                            responses.push(content.text.value)
-                    })
-
-            })
+            if(typeof response === 'string' && response.length)
+                responses.push(response)
+            else if(Array.isArray(response))
+                responses.push(...this.extractResponses(response, provider, type))
+            else {
+                const { content, created_at, id, output_text, text, thread_id, } = response
+                if(typeof content === 'string' && content.length)
+                    responses.push(content)
+                else if(Array.isArray(content))
+                    responses.push(...this.extractResponses(content, provider, type))
+                else {
+                    const _content = text
+                        ?? output_text
+                        ?? content?.text?.value
+                        ?? content?.text
+                        ?? content
+                        ?? ""
+                    if(typeof _content === 'string' && _content.length){
+                        const response = {
+                            agent: 'system',
+                            message: _content,
+                            role: 'assistant',
+                            type,
+                        }
+                        responses.push(response)
+                    }
+                }
+            }
+        })
         return responses
     }
     /**
@@ -163,11 +182,13 @@ class LLMServices {
         switch(llmProvider?.type){
             case 'prompt':
                 prompt.id = llmProvider.id
+                console.log()
                 const promptVariables = Array.isArray(llmProvider?.variables)
                     ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
                     : llmProvider?.variables
                 if(promptVariables)
                     prompt.variables = promptVariables
+                console.log(`LLMServices::getLLMResponse()::using prompt ${ prompt.id } with variables:`, prompt.variables)
                 break
             case 'assistant':
                 throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
@@ -540,13 +561,14 @@ function mMessageConvert(provider, message, response_id){
  */
 async function mResponse(openai, conversation_id, prompt, input, metadata, instructionOverride, max_output_tokens=10240){
     const request = {
-        conversation: conversation_id,
         include: ['web_search_call.action.sources', 'file_search_call.results'],
         input,
         max_output_tokens,
         metadata,
         prompt,
     }
+    if(conversation_id?.length)
+        request.conversation = conversation_id
     if(instructionOverride?.length)
         request.instructions = instructionOverride
     const response = await openai.responses.create(request)
