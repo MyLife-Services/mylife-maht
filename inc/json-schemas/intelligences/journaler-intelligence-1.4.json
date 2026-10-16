@@ -90,11 +90,9 @@
     "defaultProvider": "openai",
     "providers":[
         {
-          "id": "pmpt_69cbfdb314e48193baf5b9ce1965c8470f4d5b33fd22970d",
           "model": "gpt-4.1-mini",
           "provider": "openai",
-          "type": "prompt",
-          "version": 10
+          "type": "chat"
         }
     ],
     "variables": [
