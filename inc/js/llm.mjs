@@ -151,7 +151,7 @@ class LLMServices {
      * @documentation [Handling function calls](https://platform.openai.com/docs/guides/function-calling#handling-function-calls)
      * @param {string} conversation_id - Conversation id (from thread id)
      * @param {string} llmProvider - LLM provider object: { *id, model, provider, *type, variables, version, }
-     * @param {string} input - Member input text
+     * @param {string} input - Member input text, message strings, or system instructions array (limit 20 max)
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} Avatar - Avatar object
      * @returns {Promise<Object[]>} - Array of openai `message` objects
@@ -159,21 +159,6 @@ class LLMServices {
     async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar){
         if(llmProvider.provider!=='openai')
             throw new Error(`LLM provider ${ llmProvider.provider ?? 'unknown' } not supported.`)
-        let prompt = {}
-        switch(llmProvider?.type){
-            case 'prompt':
-                prompt.id = llmProvider.id
-                const promptVariables = Array.isArray(llmProvider?.variables)
-                    ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
-                    : llmProvider?.variables
-                if(promptVariables)
-                    prompt.variables = promptVariables
-                break
-            case 'assistant':
-                throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
-            default:
-                throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
-        }
         // clean input - requiring arrays to be flattened
         if(Array.isArray(input))
             input.forEach(item=>{
@@ -182,9 +167,23 @@ class LLMServices {
                         item[key] = JSON.stringify(item[key])
                 })
             })
-        conversation_id ??= ( await mConversation(this.openai, undefined, input) ).id
-        const response = await mResponse(this.openai, conversation_id, prompt, input)
-        const { completed_at, created_at, error, id: response_id, incomplete_details, metadata, model, output, output_text, prompt: _prompt, status, temperature, tools, top_p, usage, } = response
+        conversation_id ??= ( await this.conversation(undefined, input) ).id // note that any messages that need to be sent should set system roles should already be extant in this pipeline, but may not be, please check
+        const response = await mResponse(this.openai, llmProvider, conversation_id, input, undefined, instructions)
+        const {
+            completed_at,
+            created_at,
+            error,
+            id: response_id,
+            incomplete_details,
+            metadata,
+            output,
+            output_text,
+            status,
+            temperature,
+            tools,
+            top_p,
+            usage,
+        } = response
         const llmMessages = []
         switch(status){
             case 'completed':
@@ -530,25 +529,45 @@ function mMessageConvert(provider, message, response_id){
 /**
  * Creates an OpenAI request with member input. Appends to Conversation in OpenAI.
  * @param {OpenAI} openai - openai object
+ * @param {object} llmProvider - LLM provider object
  * @param {string} conversation_id - Conversation id (from thread id)
- * @param {object} prompt  - Prompt id in OpenAI (from assistant id)
  * @param {string|object[]} input - Member input text, be it one message or multiple (=JSON.stringify())
  * @param {object} metadata - Metadata object to send with request (optional)
- * @param {string} instructionOverride - String to override default instruction in prompt for this response generation (optional)
+ * @param {string} instructions - System instructions for this response generation
  * @param {number} max_output_tokens - Max output tokens for response (optional, default: 10240)
  * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
  */
-async function mResponse(openai, conversation_id, prompt, input, metadata, instructionOverride, max_output_tokens=10240){
+async function mResponse(openai, llmProvider, conversation_id, input, metadata, instructions, max_output_tokens=10240){
+        let prompt = {}
+        switch(llmProvider?.type){
+            case 'assistant':
+                throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
+            case 'chat': {
+                // standard MCP-style chat, with system instructions and user input
+            }
+            case 'prompt': {
+                prompt.id = llmProvider.id
+                const promptVariables = Array.isArray(llmProvider?.variables)
+                    ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
+                    : llmProvider?.variables
+                if(promptVariables)
+                    prompt.variables = promptVariables
+                console.warn('OpenAI will be deprecating `pronpt` objects on 2026-11-30; ensure that this protocol is no longer referenced by system intelligence instructions')
+                break
+            }
+            default:
+                throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
+        }
     const request = {
         conversation: conversation_id,
         include: ['web_search_call.action.sources', 'file_search_call.results'],
         input,
         max_output_tokens,
         metadata,
-        prompt,
+        model: llmProvider?.model,
     }
-    if(instructionOverride?.length)
-        request.instructions = instructionOverride
+    if(instructions?.length)
+        request.instructions = instructions
     const response = await openai.responses.create(request)
     return response
 }

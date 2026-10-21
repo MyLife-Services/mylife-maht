@@ -1339,8 +1339,8 @@ async function mBotUpdate(botData, options={}, Bot, factory){
  */
 async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
     const { llmProvider, originalPrompt, processStartTime=Date.now(), prompt, thread_id, } = Conversation
-	if(!llmProvider?.id?.length)
-		throw new Error('No `llmProvider` intelligence id found in Conversation for `mCallLLM`.')
+	if(!llmProvider?.model?.length)
+		throw new Error('No `llmProvider` model found in Conversation for `mCallLLM`.')
     if(!thread_id?.length)
         throw new Error('No Conversation found for `mCallLLM`.')
 	if(!prompt?.length)
@@ -1443,6 +1443,14 @@ async function mConversationStart(type='chat', form='system', Bot, conversation_
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
+	// deprecate prompt
+	if(llmProvider?.type==='prompt' && !llmProvider?.instructions?.length){
+		const builtInstructions = factory.botInstructions(Bot.type, Bot)
+		if(builtInstructions?.length)
+			llmProvider = { ...llmProvider, instructions: builtInstructions }
+	}
+	// on start, read in the correct bot "prompt" from personalized instructions or local variables (when system)
+	// ensure (or create) messages array with system prompt for new chat variants after deprecation of `prompts`
 	const metadata = {
 			botId: Bot.id,
 			conversation_id: id,
