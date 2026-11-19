@@ -6,12 +6,14 @@ const {
     OPENAI_API_KEY: mOpenaiKey,
     OPENAI_BASE_URL: mBasePath,
     OPENAI_MAX_INSTRUCTIONS_LENGTH,
+    OPENAI_MAX_OUTPUT_TOKENS,
     OPENAI_ORG_KEY: mOrganizationKey,
     OPENAI_API_CHAT_RESPONSE_PING_INTERVAL,
     OPENAI_API_CHAT_TIMEOUT,
 } = process.env
 const mDefaultLLMProvider = 'openai',
     mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) ?? 256000,
+    mMaxOutputTokens = parseInt(OPENAI_MAX_OUTPUT_TOKENS) ?? 10240,
     mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) ?? 890,
     mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) ?? 55000
 /* class definition */
@@ -70,12 +72,13 @@ class LLMServices {
     /**
      * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
      * @param {string} conversation_id - conversation id
+     * @param {Bot} Bot - Required for Conversation creation
      * @param {string} message - array of messages (optional)
      * @param {object} metadata - metadata object (optional)
      * @returns {Promise<Object>} - openai conversation object
      */
-    async conversation(conversation_id, messages=[], metadata){
-        const conversation = await mConversation(this.openai, conversation_id, messages, metadata)
+    async conversation(conversation_id, Bot, messages=[], metadata){
+        const conversation = await mConversation(this.openai, conversation_id, Bot, messages, metadata)
         return conversation
     }
     /**
@@ -154,12 +157,13 @@ class LLMServices {
      * @param {string} input - Member input text, message strings, or system instructions array (limit 20 max)
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} Avatar - Avatar object
+     * @param {Bot} Bot - The active and correct Bot object
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar){
+    async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar, Bot){
         if(llmProvider.provider!=='openai')
             throw new Error(`LLM provider ${ llmProvider.provider ?? 'unknown' } not supported.`)
-        // clean input - requiring arrays to be flattened
+        Bot ??= Avatar.activeBot
         if(Array.isArray(input))
             input.forEach(item=>{
                 Object.keys(item).forEach(key=>{
@@ -167,7 +171,7 @@ class LLMServices {
                         item[key] = JSON.stringify(item[key])
                 })
             })
-        conversation_id ??= ( await this.conversation(undefined, input) ).id // note that any messages that need to be sent should set system roles should already be extant in this pipeline, but may not be, please check
+        conversation_id ??= ( await this.conversation(undefined, Bot) ).id // note that any messages that need to be sent should set system roles should already be extant in this pipeline, but may not be, please check
         const response = await mResponse(this.openai, llmProvider, conversation_id, input, undefined, instructions)
         const {
             completed_at,
@@ -353,18 +357,30 @@ async function mCallDelete(openai, conversation_id, response_id, call_ids, delet
  * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
  * @param {OpenAI} openai - OpenAI object
  * @param {string} conversation_id - conversation id
+ * @param {Bot} Bot - Required for Conversation creation
  * @param {Object[]|string} messages - message(s) (optional)
  * @param {object} metadata - metadata object (optional)
  * @returns {object} - OpenAI `conversation` object
  */
-async function mConversation(openai, conversation_id, messages, metadata){
+async function mConversation(openai, conversation_id, Bot, messages=[], metadata){
     let conversation
     if(conversation_id?.length)
         conversation = conversation_id.startsWith('thread_')
-            ? await mConvertThreadToConversation(openai, conversation_id, metadata)
+            ? await mConvertThreadToConversation(openai, conversation_id, Bot, metadata)
             : await openai.conversations.retrieve(conversation_id)
-    else
+    else {
+        const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
+        metadata ??= {}
+        metadata.botId = Bot?.id
+        metadata.mbrId = Bot?.mbr_id
         conversation = await openai.conversations.create({ metadata, })
+        messages.unshift({
+            type: 'message',
+            role: 'system',
+            content: instructions,
+        }) // populate with system message on create
+        console.log('LLMServices::mConversation()::creating new conversation', metadata, conversation, instructions)
+    }
     if(conversation?.id && messages?.length){ // seed message(s)
         const items = typeof messages==='string'
             ? [{
@@ -403,10 +419,11 @@ async function mConversationDelete(openai, conversation_id){
  * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
  * @param {OpenAI} openai - openai object
  * @param {string} conversation_id - conversation id
+ * @param {Bot} Bot - Required for Conversation creation
  * @param {object} metadata - metadata object (optional)
  * @returns {object} - openai `conversation` object
  */
-async function mConvertThreadToConversation(openai, conversation_id, metadata={}){
+async function mConvertThreadToConversation(openai, conversation_id, Bot, metadata={}){
     metadata.thread_id = conversation_id
     const conversation = await openai.conversations.create({ metadata, }),
         messages = []
@@ -428,6 +445,9 @@ async function mConvertThreadToConversation(openai, conversation_id, metadata={}
             })
             return { role: m.role, content }
         })
+        const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
+        if(instructions?.length)
+            items.unshift({ type: 'message', role: 'system', content: instructions })
         const batchSizeMax = 20
         for (let i = 0; i < items.length; i += batchSizeMax){
             const batch = items.slice(i, i + batchSizeMax)

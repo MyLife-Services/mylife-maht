@@ -1349,7 +1349,7 @@ function mBotTextReplace(factory, text, replacements=[], data){
  * @returns {string} - The concatenated instructions string
  */
 function mBuildBotInstructions(factory, type, botData){
-	console.log('mBuildBotInstructions', botData)
+	console.trace('mBuildBotInstructions', type, botData.id)
 	let { instructions={}, } = factory.botTemplate(type)
 	const { buildTemplate=['general'], references=[], replacements=[] } = instructions
 	instructions = buildTemplate

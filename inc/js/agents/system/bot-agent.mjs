@@ -479,6 +479,9 @@ class Bot {
 	get icon(){
 		return this.#icon
 	}
+	get instructionsCurrent(){
+		return this.#factory.botInstructions(this.type, this)
+	}
 	get instructionNodes(){
 		return this.#instructionNodes
 	}
@@ -1443,12 +1446,6 @@ async function mConversationStart(type='chat', form='system', Bot, conversation_
 	const { mbr_id: mbr_id_innate, newGuid: id, } = factory
 	const mbr_id = mbr_id_Override
 		?? mbr_id_innate
-	// deprecate prompt
-	if(llmProvider?.type==='prompt' && !llmProvider?.instructions?.length){
-		const builtInstructions = factory.botInstructions(Bot.type, Bot)
-		if(builtInstructions?.length)
-			llmProvider = { ...llmProvider, instructions: builtInstructions }
-	}
 	// on start, read in the correct bot "prompt" from personalized instructions or local variables (when system)
 	// ensure (or create) messages array with system prompt for new chat variants after deprecation of `prompts`
 	const metadata = {
@@ -1457,7 +1454,7 @@ async function mConversationStart(type='chat', form='system', Bot, conversation_
 		},
 		processStartTime = Date.now(),
 		thread = (form!=='proxy')
-			? await llm.conversation(conversation_id, messages, metadata)
+			? await llm.conversation(conversation_id, Bot, messages, metadata)
 			: null
 	return new Conversation(
 		{
@@ -1680,7 +1677,6 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
  */
 async function mMigrateChat(Bot, factory, llm, saveConversation=false){
     /* constants and variables */
-	const chatSummary = 'The following is a summary of our historical conversation, which may be referenced for context\n'
     const { conversation, id: botId, thread_id, type: botType, } = Bot
     if(!thread_id?.length)
         return false
@@ -1689,9 +1685,10 @@ async function mMigrateChat(Bot, factory, llm, saveConversation=false){
         return true
 	/* normalize raw OpenAI messages — newest first */
     messages = messages
-		.map(message=>{
+		.filter(m=>m.role!=='system' && m.role!=='developer') // remove any historical system messages, will be updated with current instructions
+		.map(m=>{
 			let content
-			const { content: contentArray, output, role='assistant', } = message // default on role as function calls do not have `role`, but are assistant messages
+			const { content: contentArray, output, role='assistant', } = m // default on role as function calls do not have `role`, but are assistant messages
 			if(output?.length)
 				content = output // from function call responses
 			else if(Array.isArray(contentArray) && contentArray?.length){
@@ -1748,7 +1745,7 @@ async function mMigrateChat(Bot, factory, llm, saveConversation=false){
 		previousThreadId: thread_id,
 		seedMessage: seedMessages?.[0]?.content.slice(0, 500),
 	}
-    const newConversation = await llm.conversation(undefined, seedMessages, metadata)
+    const newConversation = await llm.conversation(undefined, Bot, seedMessages, metadata)
     if(conversation){
         conversation.setThread(newConversation)
         if(saveConversation)
