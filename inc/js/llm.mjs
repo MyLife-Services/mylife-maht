@@ -3,19 +3,18 @@ import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
 import { mcpCall, } from './controllers/mcp-functions.mjs'
 /* module constants */
 const {
+    OPENAI_API_CHAT_TIMEOUT,
     OPENAI_API_KEY: mOpenaiKey,
     OPENAI_BASE_URL: mBasePath,
     OPENAI_MAX_INSTRUCTIONS_LENGTH,
     OPENAI_MAX_OUTPUT_TOKENS,
     OPENAI_ORG_KEY: mOrganizationKey,
-    OPENAI_API_CHAT_RESPONSE_PING_INTERVAL,
-    OPENAI_API_CHAT_TIMEOUT,
+    OPENAI_API_VERSION: mOpenAIApiVersion = '7.62.0',
 } = process.env
 const mDefaultLLMProvider = 'openai',
-    mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) ?? 256000,
-    mMaxOutputTokens = parseInt(OPENAI_MAX_OUTPUT_TOKENS) ?? 10240,
-    mPingIntervalMs = parseInt(OPENAI_API_CHAT_RESPONSE_PING_INTERVAL) ?? 890,
-    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) ?? 55000
+    mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000, // note: `??` does not parse NaN
+    mMaxOutputTokens = parseInt(OPENAI_MAX_OUTPUT_TOKENS) || 10240,
+    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
 /* class definition */
 /**
  * LLM Services class.
@@ -39,9 +38,9 @@ class LLMServices {
         this.#llmProviders.push(
             new OpenAI({
                 apiKey,
-                basePath: mBasePath,
-                organizationId: orgKey,
-                timeoutMs: mTimeoutMs,
+                baseURL: mBasePath,
+                organization: orgKey,
+                timeout: mTimeoutMs,
             }))
     }
     /* public methods */
@@ -158,9 +157,10 @@ class LLMServices {
      * @param {AgentFactory} factory - Avatar Factory object to process request
      * @param {Avatar} Avatar - Avatar object
      * @param {Bot} Bot - The active and correct Bot object
+     * @param {string} previous_response_id - The previous response id to associate with this request (optional)
      * @returns {Promise<Object[]>} - Array of openai `message` objects
      */
-    async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar, Bot){
+    async getLLMResponse(conversation_id, llmProvider, input, factory, Avatar, Bot, previous_response_id){
         if(llmProvider.provider!=='openai')
             throw new Error(`LLM provider ${ llmProvider.provider ?? 'unknown' } not supported.`)
         Bot ??= Avatar.activeBot
@@ -171,8 +171,14 @@ class LLMServices {
                         item[key] = JSON.stringify(item[key])
                 })
             })
-        conversation_id ??= ( await this.conversation(undefined, Bot) ).id // note that any messages that need to be sent should set system roles should already be extant in this pipeline, but may not be, please check
-        const response = await mResponse(this.openai, llmProvider, conversation_id, input, undefined, instructions)
+        const options = {
+            conversation_id,
+            max_output_tokens: Bot?.maxOutputTokens ?? mMaxOutputTokens,
+            metadata: {},
+            previous_response_id,
+            promptVariable: Avatar.promptVariable.bind(Avatar),
+        }
+        const response = await mResponse(this.openai, llmProvider, Bot, input, options)
         const {
             completed_at,
             created_at,
@@ -238,7 +244,7 @@ class LLMServices {
                                 await mCallDelete(this.openai, conversation_id, response_id, deleteCalls, true)
                                 return false
                             }
-                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, Avatar)
+                            return await this.getLLMResponse(conversation_id, llmProvider, toolResponses, factory, Avatar, Bot, conversation_id?.length ? undefined : response_id) // recursive call to process tool responses
                         }
                         default: {
                             console.log(response_id, `getLLMResponse()::total_tokens: ${ usage.total_tokens }, output_tokens: ${ usage.output_tokens }`)
@@ -362,25 +368,12 @@ async function mCallDelete(openai, conversation_id, response_id, call_ids, delet
  * @param {object} metadata - metadata object (optional)
  * @returns {object} - OpenAI `conversation` object
  */
-async function mConversation(openai, conversation_id, Bot, messages=[], metadata){
+async function mConversation(openai, conversation_id, Bot, messages=[], metadata={}){
     let conversation
-    if(conversation_id?.length)
-        conversation = conversation_id.startsWith('thread_')
-            ? await mConvertThreadToConversation(openai, conversation_id, Bot, metadata)
-            : await openai.conversations.retrieve(conversation_id)
-    else {
-        const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
-        metadata ??= {}
-        metadata.botId = Bot?.id
-        metadata.mbrId = Bot?.mbr_id
-        conversation = await openai.conversations.create({ metadata, })
-        messages.unshift({
-            type: 'message',
-            role: 'system',
-            content: instructions,
-        }) // populate with system message on create
-        console.log('LLMServices::mConversation()::creating new conversation', metadata, conversation, instructions)
-    }
+    metadata.botId ??= Bot?.id
+    metadata.chatVersion ??= mOpenAIApiVersion
+    metadata.mbrId ??= Bot?.mbr_id
+    conversation = await mConversationModernize(openai, conversation_id, Bot, metadata)
     if(conversation?.id && messages?.length){ // seed message(s)
         const items = typeof messages==='string'
             ? [{
@@ -414,6 +407,64 @@ async function mConversationDelete(openai, conversation_id){
         deletedConversation = { deleted: false, error, id: conversation_id, object: 'conversation.delete_failed', }
     }
     return deletedConversation
+}
+/**
+ * Retrieves any existing items for an OpenAI conversation.
+ * @param {OpenAI} openai - OpenAI object
+ * @param {string} conversation_id - Conversation id
+ * @param {boolean} conversationExists - Whether the conversation exists (as 'conv_')
+ * @returns {Promise<Object[]>} - Array of conversation items
+ */
+async function mConversationItems(openai, conversation_id, conversationExists){
+    let items=[]
+    if(conversation_id.startsWith('thread_')){
+
+    }
+    return items
+}
+/**
+ * Ensures modernization of OpenAI conversation.
+ * @param {OpenAI} openai - openai object
+ * @param {string} conversation_id - conversation id
+ * @param {Bot} Bot - Required for Conversation creation
+ * @param {object} metadata - metadata object (optional)
+ * @returns {Promise<object>} - openai `conversation` object
+ */
+async function mConversationModernize(openai, conversation_id, Bot, metadata){
+    let conversation,
+        conversationExists =false
+    if(conversation_id?.startsWith('conv_')){
+        try {
+            conversation = await openai.conversations.retrieve(conversation_id)
+            conversationExists = true
+        } catch(error){
+            if(error?.status!==404)
+                throw error
+            console.warn('LLMServices::mConversationModernize()::conversation not found, recreating', conversation_id)
+        }
+    }
+    const versionStamp = conversation?.metadata?.chatVersion
+    if(mConversationVersionCheck(versionStamp, mOpenAIApiVersion)) // conversation already modern
+        return conversation
+    console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, metadata, conversation)
+    const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
+    metadata.chatVersion = mOpenAIApiVersion
+    if(conversation_id?.length)
+        metadata.upgradedConversationId = conversation_id
+    const items = await mConversationItems(openai, conversation_id, conversationExists)
+    items.unshift({ type: 'message', role: 'developer', content: instructions, }) // collection item ids and titles
+    items.unshift({ type: 'message', role: 'system', content: instructions, })
+    conversation = await openai.conversations.create({ items, metadata, })
+    console.log('LLMServices::mConversation()::created new conversation', metadata, conversation, instructions)
+}
+/**
+ * Checks version, and returns true if conversation is modern, false if needs modernization. Note that minor version changes are not considered necessary to adjust conversation, but major version changes are.
+ * @param {string} conversationVersion - Conversation version from conversation metadata
+ * @param {string} currentVersion - Current conversation version, defaults to `mOpenAIApiVersion`
+ * @returns {boolean} - true if conversation is modern, false if needs modernization
+ */
+function mConversationVersionCheck(conversationVersion, currentVersion=mOpenAIApiVersion){
+    return conversationVersion===currentVersion || (conversationVersion && currentVersion && conversationVersion.split('.')[0] === currentVersion.split('.')[0])
 }
 /**
  * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
@@ -461,7 +512,7 @@ async function mConvertThreadToConversation(openai, conversation_id, Bot, metada
 }
 /**
  * Converts tool response to a sanitized format for LLM response generation. This is required as tools can return a variety of content, but LLM response generation requires a consistent format.
- * @param {object} llmProvider - LLM provider object
+ * @param {object} llmProvider - LLM provider object { *model, *provider, *type, variables, version, }
  * @param {object} toolResponse - The MyLife response from the tool function call
  * @param {object} providerOptions - Additional options for specific LLM providers, such as call_id
  * @returns {object} - Sanitized tool response in expected format for LLM response generation
@@ -547,48 +598,77 @@ function mMessageConvert(provider, message, response_id){
     return messageConverted
 }
 /**
+ * Converts stored (Assistants-format) tools to Responses API format.
+ * @param {object[]} tools - Bot tools: { type: 'function', function: {...} } | { type: 'file_search' } | ...
+ * @param {object} tool_resources - { file_search: { vector_store_ids, } }
+ * @returns {object[]} - Responses API tools
+ */
+function mNormalizeTools(tools=[], tool_resources){
+    const vector_store_ids = tool_resources?.file_search?.vector_store_ids ?? []
+    return tools.flatMap(tool=>{
+        if(tool?.type==='function' && tool.function)
+            return [{ type: 'function', ...tool.function }]
+        if(tool?.type==='file_search')
+            return vector_store_ids.length ? [{ type: 'file_search', vector_store_ids }] : []
+        return tool ? [tool] : []
+    })
+}
+/**
  * Creates an OpenAI request with member input. Appends to Conversation in OpenAI.
  * @param {OpenAI} openai - openai object
  * @param {object} llmProvider - LLM provider object
- * @param {string} conversation_id - Conversation id (from thread id)
+ * @param {Bot} Bot - The requested Bot object
  * @param {string|object[]} input - Member input text, be it one message or multiple (=JSON.stringify())
- * @param {object} metadata - Metadata object to send with request (optional)
- * @param {string} instructions - System instructions for this response generation
- * @param {number} max_output_tokens - Max output tokens for response (optional, default: 10240)
+ * @param {object} options - Request options (optional) `{ conversation_id, max_output_tokens, metadata, promptVariable, }`
  * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
  */
-async function mResponse(openai, llmProvider, conversation_id, input, metadata, instructions, max_output_tokens=10240){
+async function mResponse(openai, llmProvider, Bot, input, options={}){
         let prompt = {}
+        const {
+            conversation_id,
+            max_output_tokens,
+            metadata,
+            previous_response_id,
+            promptVariable,
+        } = options
+        const request = {
+            include: ['web_search_call.action.sources', 'file_search_call.results'],
+            input,
+            max_output_tokens,
+            metadata,
+            model: llmProvider?.model,
+        }
+        if(conversation_id?.length)
+            request.conversation = conversation_id
         switch(llmProvider?.type){
             case 'assistant':
                 throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
-            case 'chat': {
-                // standard MCP-style chat, with system instructions and user input
-            }
-            case 'prompt': {
+            case 'prompt':
+/* Original prompt code, if required to revive
                 prompt.id = llmProvider.id
-                const promptVariables = Array.isArray(llmProvider?.variables)
-                    ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), Avatar.promptVariable(v)]))
+                const promptVariables = Array.isArray(llmProvider?.variables) && typeof promptVariable==='function'
+                    ? Object.fromEntries(llmProvider.variables.map(v => [v.toLowerCase(), promptVariable(v, Bot)]))
                     : llmProvider?.variables
                 if(promptVariables)
                     prompt.variables = promptVariables
+*/
                 console.warn('OpenAI will be deprecating `pronpt` objects on 2026-11-30; ensure that this protocol is no longer referenced by system intelligence instructions')
+            case 'chat': {
+                const tools = mNormalizeTools(Bot?.tools, Bot?.tool_resources)
+                if(tools.length)
+                    request.tools = tools
+                if(!conversation_id?.length){
+                    request.instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
+                    if(previous_response_id?.length)
+                        request.previous_response_id = previous_response_id
+                }
                 break
             }
             default:
                 throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
         }
-    const request = {
-        conversation: conversation_id,
-        include: ['web_search_call.action.sources', 'file_search_call.results'],
-        input,
-        max_output_tokens,
-        metadata,
-        model: llmProvider?.model,
-    }
-    if(instructions?.length)
-        request.instructions = instructions
     const response = await openai.responses.create(request)
+    console.log('mResponse()', request, response)
     return response
 }
 async function mResponseDelete(openai, response_id){

@@ -99,7 +99,8 @@
           {
             "model": "gpt-4.1-nano",
             "provider": "openai",
-            "type": "chat"
+            "type": "chat",
+            "version": "7.62.0"
           }
       ],
       "variables": [

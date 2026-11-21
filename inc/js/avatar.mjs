@@ -1320,10 +1320,11 @@ class Avatar extends EventEmitter {
     /**
      * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
      * @param {string} variable - Prompt variable name
+     * @param {Bot} Bot - The Bot instance to search first, defaults to active bot
      * @returns {string} - The prompt variable value
      */
-    promptVariable(variable){
-        return this.#botAgent.promptVariable(variable)
+    promptVariable(variable, Bot=this.activeBot){
+        return this.#botAgent.promptVariable(variable, Bot)
     }
     /**
      * Register a candidate in database.
@@ -2466,7 +2467,7 @@ class Q extends Avatar {
      */
     async obscure(mbr_id, iid){
         const botFactory = await this.avatarProxy(mbr_id)
-        const updatedSummary = await botFactory.obscure(iid)
+        const updatedSummary = await botFactory.obscure(iid, this)
         return updatedSummary
     }
     /* overload rejections */

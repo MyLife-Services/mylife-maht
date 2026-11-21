@@ -7,14 +7,14 @@ const {
 	OPENAI_COMPACTION_THRESHOLD,
 	OPENAI_EXCHANGE_FIDELITY,
 } = process.env
-const mCompactionThreshold = parseInt(OPENAI_COMPACTION_THRESHOLD) ?? 50,
+const mCompactionThreshold = parseInt(OPENAI_COMPACTION_THRESHOLD) || 50,
 	mDefaultBotTypeArray = ['personal-avatar', 'avatar'],
 	mDefaultBotType = mDefaultBotTypeArray[0],
 	mDefaultGreeting = 'avatar', // greeting routine
 	mDefaultGreetings = ['Welcome to MyLife! I am here to help you!'],
 	mDefaultIcon = 'default.png',
 	mDefaultTeam = 'memory',
-	mExchangeFidelity = parseInt(OPENAI_EXCHANGE_FIDELITY) ?? 10,
+	mExchangeFidelity = parseInt(OPENAI_EXCHANGE_FIDELITY) || 10,
 	mProxyChatTypes = ['chat', 'conversation', 'converse',],
 	mRequiredBotTypes = ['personal-avatar']
 /* classes */
@@ -53,8 +53,7 @@ class Bot {
 		this.#greetings = greetings
 		this.#type = type
 		this.#greetingRoutine = this.#type.replace('personal-', '')
-		this.#llmProvider = providers.find(provider=>provider.provider===(llmProvider ?? defaultProvider))
-			?? providers?.[0]
+		this.#llmProvider = providers.find(provider=>provider.provider===(defaultProvider ?? llmProvider))
 			?? factory.botLLMProvider(this.#type)
 			?? {}
 		this.#llmProvider.variables = [
@@ -208,15 +207,8 @@ class Bot {
 			const { id, llmProvider, type, } = this
 			let { thread_id, } = this
 			this.#conversation = await mConversationStart('chat', type, this, thread_id, llmProvider, this.#llm, this.#factory, message)
-			if(thread_id!==this.conversation.thread_id)
+			if(type!=='proxy' && thread_id!==this.conversation.thread_id)
 				this.setThread(this.conversation.thread_id) // saves new id to bot file
-			if(type!=='proxy' && !thread_id?.length){
-				thread_id = this.#conversation.thread_id
-				this.update({
-					id,
-					thread_id,
-				})
-			}
 		}
 		return this.#conversation
 	}/**
@@ -364,16 +356,8 @@ class Bot {
 	 * @returns {Promise<void>}
 	 */
 	async setThread(thread_id){
-		if(!thread_id?.length){
-			this.chatBlock(true)
-			try {
-				thread_id = ( await this.#llm.conversation() ).id
-			} finally {
-				this.chatBlock(false)
-			}
-		}
 		if(!thread_id?.length)
-			throw new Error('Thread ID could not be accessed or generated.')
+			throw new Error('`thread_id` required to `setThread()`')
 		const { id, } = this
 		this.thread_id = thread_id
 		const bot = {
@@ -509,7 +493,7 @@ class Bot {
 	get itemForms(){
 		return this.#factory.botItemForms(this.type)
 	}
-	get llmProvider(){ // @returns {object} - { *id, model, provider, *type, variables, version, }
+	get llmProvider(){ // @returns {object} - { *model, *provider, *type, variables, version, }
 		return this.#llmProvider
 	}
 	get mcpTools(){
@@ -803,10 +787,11 @@ class BotAgent {
     /**
      * Cascade search for variable through: bot => botAgent => Avatar => factory => factory.core; returns string even if complex object found.
      * @param {string} variable - Prompt variable name
+	 * @param {Bot} Bot - The Bot instance to search first, defaults to active bot
      * @returns {string} - The prompt variable value
      */
-    promptVariable(variable){
-		let variableValue = this.activeBot[variable]
+    promptVariable(variable, Bot=this.activeBot){
+		let variableValue = Bot?.[variable]
 			?? this[variable]
 			?? this.#avatar[variable] // synthetic digital self
 			?? this.avatar[variable] // personal-avatar bot
@@ -1434,7 +1419,7 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
  * @param {string} Bot - The Bot instance
  * @param {string} conversation_id - The conversation id
- * @param {object} llmProvider - The properties for the llm agent: { *id, model, provider, *type, variables, version, }
+ * @param {object} llmProvider - The properties for the llm agent: { *model, *provider, *type, variables, version, }
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object
  * @param {string} prompt - The prompt for the conversation (optional)
@@ -1451,6 +1436,7 @@ async function mConversationStart(type='chat', form='system', Bot, conversation_
 	const metadata = {
 			botId: Bot.id,
 			conversation_id: id,
+			mbrId: mbr_id,
 		},
 		processStartTime = Date.now(),
 		thread = (form!=='proxy')
