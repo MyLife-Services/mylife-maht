@@ -6,17 +6,22 @@ const {
     OPENAI_API_CHAT_TIMEOUT,
     OPENAI_API_KEY: mOpenaiKey,
     OPENAI_BASE_URL: mBasePath,
+	OPENAI_EXCHANGE_FIDELITY,
     OPENAI_MAX_INSTRUCTIONS_LENGTH,
     OPENAI_MAX_OUTPUT_TOKENS,
     OPENAI_ORG_KEY: mOrganizationKey,
     OPENAI_API_VERSION: mOpenAIApiVersion = '7.62.0',
 } = process.env
 const mDefaultLLMProvider = 'openai',
+    mExchangeFidelity = parseInt(OPENAI_EXCHANGE_FIDELITY) || 15,
+    mIgnoredItemTypes = new Set(['reasoning', 'compaction', 'file_search_call', 'web_search_call', 'image_generation_call', 'code_interpreter_call', 'mcp_call', 'mcp_list_tools', 'mcp_approval_request', 'mcp_approval_response', 'computer_call', 'computer_call_output', 'local_shell_call', 'local_shell_call_output', 'shell_call', 'shell_call_output', 'apply_patch_call', 'apply_patch_call_output', 'tool_search_call', 'tool_search_output', 'additional_tools', 'configuration_update', 'program', 'program_output', 'custom_tool_call', 'custom_tool_call_output',]),
     mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000, // note: `??` does not parse NaN
     mMaxOutputTokens = parseInt(OPENAI_MAX_OUTPUT_TOKENS) || 10240,
-    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000
+    mMaxConversationItemBatchSize = 20,
+    mTimeoutMs = parseInt(OPENAI_API_CHAT_TIMEOUT) || 55000,
+    mUnknownItemTypes = new Set()
 /* class definition */
-/**
+/** conversationModernize
  * LLM Services class.
  * @todo - rather than passing factory in run, pass avatar
  * @todo - convert run to streaming as defined in @documentation
@@ -72,12 +77,12 @@ class LLMServices {
      * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
      * @param {string} conversation_id - conversation id
      * @param {Bot} Bot - Required for Conversation creation
-     * @param {string} message - array of messages (optional)
-     * @param {object} metadata - metadata object (optional)
+     * @param {string} messages - array of messages (optional)
+     * @param {object} options - modernization options (optional) { compactionThreshold: integer, exchangeFidelty: integer, forceNew: boolean, metadata: object, }
      * @returns {Promise<Object>} - openai conversation object
      */
-    async conversation(conversation_id, Bot, messages=[], metadata){
-        const conversation = await mConversation(this.openai, conversation_id, Bot, messages, metadata)
+    async conversation(conversation_id, Bot, messages=[], options={}){
+        const conversation = await mConversation(this.openai, conversation_id, Bot, messages, options)
         return conversation
     }
     /**
@@ -365,16 +370,17 @@ async function mCallDelete(openai, conversation_id, response_id, call_ids, delet
  * @param {string} conversation_id - conversation id
  * @param {Bot} Bot - Required for Conversation creation
  * @param {Object[]|string} messages - message(s) (optional)
- * @param {object} metadata - metadata object (optional)
+ * @param {object} options - modernization options (optional) { compactionThreshold: integer, exchangeFidelty: integer, forceNew: boolean, metadata: object, }
  * @returns {object} - OpenAI `conversation` object
  */
-async function mConversation(openai, conversation_id, Bot, messages=[], metadata={}){
+async function mConversation(openai, conversation_id, Bot, messages=[], options={}){
+    const { metadata={}, } = options
     let conversation
     metadata.botId ??= Bot?.id
     metadata.chatVersion ??= mOpenAIApiVersion
     metadata.mbrId ??= Bot?.mbr_id
-    conversation = await mConversationModernize(openai, conversation_id, Bot, metadata)
-    if(conversation?.id && messages?.length){ // seed message(s)
+    conversation = await mConversationModernize(openai, conversation_id, Bot, options)
+    if(conversation?.id && messages?.length){ // additional seed message(s)
         const items = typeof messages==='string'
             ? [{
                 type: "message",
@@ -384,8 +390,10 @@ async function mConversation(openai, conversation_id, Bot, messages=[], metadata
             : Array.isArray(messages)
                 ? messages
                 : []
-        if(items.length)
-            await openai.conversations.items.create(conversation.id, { items })
+        for(let i=0; i<items.length; i+=mMaxConversationItemBatchSize){
+            const batch = items.slice(i, i + mMaxConversationItemBatchSize)
+            await openai.conversations.items.create(conversation.id, { items: batch, })
+        }
     }
     return conversation
 }
@@ -409,51 +417,122 @@ async function mConversationDelete(openai, conversation_id){
     return deletedConversation
 }
 /**
- * Retrieves any existing items for an OpenAI conversation.
- * @param {OpenAI} openai - OpenAI object
- * @param {string} conversation_id - Conversation id
- * @param {boolean} conversationExists - Whether the conversation exists (as 'conv_')
- * @returns {Promise<Object[]>} - Array of conversation items
+ * Converts an OpenAI message API return content to an input-able format.
+ * @param {object} item - the OpenAI object that defines the message or function call
+ * @returns {object|undefined} - trimmed object for input through OpenAI API. Message: `{ detail, file_id, image_url, role, text, *type, }`; Function: `{ arguments, *call_id, name, output, *type, }`
  */
-async function mConversationItems(openai, conversation_id, conversationExists){
-    let items=[]
-    if(conversation_id.startsWith('thread_')){
-
+function mConversationInputItem(item){
+    if(!item || typeof item!=='object')
+        return
+    const { arguments: _arguments, call_id, content=[], name, output, role, type, } = item
+    let inputItem
+    switch(type){
+        case 'message': {
+            // ignores: refusal, computer_screenshot, summary_text, reasoning_text
+            if(!content?.length || !role?.length)
+                return
+            const contents = content
+                .map(_item=>{
+                    const { detail='auto', file_id, image_url, text, type: _type, } = _item
+                    switch(_type){
+                        case 'input_text':
+                        case 'output_text':
+                            if(text?.length)
+                                return { type: _type, text, }
+                            break
+                        case 'input_image':
+                            if(file_id?.length)
+                                return { detail, file_id, type: _type, }
+                            if(image_url?.length)
+                                return { detail, image_url, type: _type, }
+                            break
+                        case 'text':
+                            if(text?.length)
+                                return { type: role==='assistant' ? 'output_text' : 'input_text', text, }
+                            break
+                    }
+                })
+                .filter(Boolean)
+            if(contents?.length)
+                inputItem = {
+                    content: contents,
+                    role,
+                    type,
+                }
+            break
+        }
+        case 'function_call':
+            if(call_id?.length && name?.length)
+                inputItem = {
+                    arguments: _arguments ?? '{}',
+                    call_id,
+                    name,
+                    type,
+                }
+            break
+        case 'function_call_output':
+            if(call_id?.length && output?.length)
+                inputItem = {
+                    call_id,
+                    output,
+                    type,
+                }
+            break
+        default:
+            if(!mIgnoredItemTypes.has(type) && !mUnknownItemTypes.has(type)){
+                mUnknownItemTypes.add(type)
+                console.warn('LLMServices::mConversationInputItem()::unrecognized item type, skipped', type)
+            }
+            break
     }
-    return items
+    return inputItem
 }
 /**
  * Ensures modernization of OpenAI conversation.
  * @param {OpenAI} openai - openai object
  * @param {string} conversation_id - conversation id
  * @param {Bot} Bot - Required for Conversation creation
- * @param {object} metadata - metadata object (optional)
+ * @param {object} options - modernization options (optional) { compactionThreshold: integer, exchangeFidelty: integer, forceNew: boolean, metadata: object, }
  * @returns {Promise<object>} - openai `conversation` object
  */
-async function mConversationModernize(openai, conversation_id, Bot, metadata){
-    let conversation,
-        conversationExists =false
+async function mConversationModernize(openai, conversation_id, Bot, options={}){
+    const items = []
+    const {
+        exchangeFidelity=mExchangeFidelity,
+        metadata={},
+    } = options
+    let conversation
+    let {
+        deleteSource=false,  
+        forceNew=false,  
+    } = options
     if(conversation_id?.startsWith('conv_')){
         try {
             conversation = await openai.conversations.retrieve(conversation_id)
-            conversationExists = true
         } catch(error){
             if(error?.status!==404)
                 throw error
+            metadata.previousConversationId = conversation_id
+            forceNew = true
             console.warn('LLMServices::mConversationModernize()::conversation not found, recreating', conversation_id)
         }
     }
     const versionStamp = conversation?.metadata?.chatVersion
-    if(mConversationVersionCheck(versionStamp, mOpenAIApiVersion)) // conversation already modern
+    if(!forceNew && mConversationVersionCheck(versionStamp, mOpenAIApiVersion)) // conversation already modern (enough)
         return conversation
-    console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, metadata, conversation)
+    console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, metadata, conversation, forceNew)
+    const collectionItems = Bot?.collectionItems
     const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
     metadata.chatVersion = mOpenAIApiVersion
-    if(conversation_id?.length)
-        metadata.upgradedConversationId = conversation_id
-    const items = await mConversationItems(openai, conversation_id, conversationExists)
-    items.unshift({ type: 'message', role: 'developer', content: instructions, }) // collection item ids and titles
-    items.unshift({ type: 'message', role: 'system', content: instructions, })
+    // items are messages, content needs to be array of objects OR a string
+    items.push({ type: 'message', role: 'system', content: instructions, })
+    items.push({ type: 'message', role: 'developer', content: collectionItems, }) // collection item ids and titles
+    const messages = (await mMessages(openai, conversation_id, undefined, 'asc'))
+        .filter(message=>!message || message?.role==='user' || message?.role==='assistant')
+        .map(message=>mConversationInputItem(message))
+        .filter(Boolean)
+    items.push(...messages)
+    // manage batch
     conversation = await openai.conversations.create({ items, metadata, })
     console.log('LLMServices::mConversation()::created new conversation', metadata, conversation, instructions)
 }
@@ -465,50 +544,6 @@ async function mConversationModernize(openai, conversation_id, Bot, metadata){
  */
 function mConversationVersionCheck(conversationVersion, currentVersion=mOpenAIApiVersion){
     return conversationVersion===currentVersion || (conversationVersion && currentVersion && conversationVersion.split('.')[0] === currentVersion.split('.')[0])
-}
-/**
- * Gets or creates OpenAI conversation. Originally written as thread, but now deprecating.
- * @param {OpenAI} openai - openai object
- * @param {string} conversation_id - conversation id
- * @param {Bot} Bot - Required for Conversation creation
- * @param {object} metadata - metadata object (optional)
- * @returns {object} - openai `conversation` object
- */
-async function mConvertThreadToConversation(openai, conversation_id, Bot, metadata={}){
-    metadata.thread_id = conversation_id
-    const conversation = await openai.conversations.create({ metadata, }),
-        messages = []
-    if(!conversation?.id)
-        throw new Error(`Failed to create conversation for thread ${ conversation_id }`, metadata)
-    try {
-        for await (const message of openai.beta.threads.messages.list(conversation_id, { limit: 100, order: "asc" }))
-            messages.push(message)
-        const items = messages.map((m)=>{
-            const content = m.content.flatMap((c)=>{
-                switch (c.type) {
-                    case "text":
-                        return [{ type: m.role === "user" ? "input_text" : "output_text", text: c.text.value }]
-                    case "image_url":
-                        return [{ type: "input_image", image_url: c.image_url.url, detail: c.image_url.detail }]
-                    default:
-                        return []
-                }
-            })
-            return { role: m.role, content }
-        })
-        const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
-        if(instructions?.length)
-            items.unshift({ type: 'message', role: 'system', content: instructions })
-        const batchSizeMax = 20
-        for (let i = 0; i < items.length; i += batchSizeMax){
-            const batch = items.slice(i, i + batchSizeMax)
-            await openai.conversations.items.create(conversation.id, { items: batch })
-        }
-        console.warn(`mConversation()::${ conversation_id } is deprecated, converted to ${ conversation.id }`)
-    } catch(error) {
-        console.error(`ERROR converting thread content from ${ conversation_id } to conversation ${ conversation.id }`, error.name, error.message, metadata)
-    }
-    return conversation
 }
 /**
  * Converts tool response to a sanitized format for LLM response generation. This is required as tools can return a variety of content, but LLM response generation requires a consistent format.
@@ -550,25 +585,48 @@ function mConvertToolResponse(llmProvider, toolResponse, providerOptions={}){
  * @async
  * @param {OpenAI} openai - openai object
  * @param {string} conversation_id - conversation id
- * @param {string} msg_id - message id, returns specific message (optional)
- * @returns {object} openai `message` object
+ * @param {string} msg_id - message id, returns specific message (optional) **note**: documentation is currently (20261123) wrong in OpenAI documentation where conversation_id is **not** in params
+ * @param {string} order - order of messages, 'asc' or 'desc' (optional, default 'desc')
+ * @returns {Promise<array>} - Array of openai `message` objects
  */
-async function mMessages(openai, conversation_id, msg_id){
-    if(msg_id?.length)
-        return await openai.conversations.items.retrieve(conversation_id, msg_id)
+async function mMessages(openai, conversation_id, msg_id, order='desc'){
     const items = []
-    let after = undefined,
-        has_more = true
-    while(has_more){
-        const page = await openai.conversations.items.list(
-            conversation_id,
-            { after, limit: 100, }
-        )
-        items.push(...(page.data ?? []))
-        has_more = page.has_more ?? false
-        after = page.last_id ?? undefined
-        if(!after)
-            break
+    if(msg_id?.length)
+        items.push(await openai.conversations.items.retrieve(msg_id, { conversation_id, }))
+    else if(conversation_id?.length){ // historical, deprecated threads
+        if(conversation_id.startsWith('thread_'))
+            for await (const m of openai.beta.threads.messages.list(conversation_id, { limit: 100, order, })){
+                if(!Array.isArray(m?.content) || !m.content.length)
+                    continue
+                const content = [],
+                    isUser = m.role==='user',
+                    message = { role: m.role, type: 'message', }
+                for(const c of m.content){
+                    switch(c?.type){
+                        case 'text':
+                            if(c.text?.value?.length)
+                                content.push({ type: (isUser ? 'input_' : 'output_') + 'text', text: c.text.value })
+                            break
+                        case 'image_url':
+                            if(isUser && c.image_url?.url?.length)
+                                content.push({ type: 'input_image', image_url: c.image_url.url, detail: c.image_url?.detail ?? 'auto', })
+                            break
+                        case 'image_file':
+                            if(isUser && c.image_file?.file_id?.length)
+                                content.push({ type: 'input_image', file_id: c.image_file.file_id, detail: c.image_file?.detail ?? 'auto', })
+                            break
+                        default:
+                            break
+                    }
+                }
+                if(!content.length)
+                    continue
+                message.content = content
+                items.push(message)
+            }
+        else if(conversation_id.startsWith('conv_'))
+            for await (const message of openai.conversations.items.list(conversation_id, { limit: 100, order, }))
+                items.push(message)
     }
     return items
 }

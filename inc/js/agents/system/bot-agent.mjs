@@ -3,18 +3,16 @@ import { Conversation, Message, } from '../../models.mjs'
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
 const {
+	SYSTEM_EXCHANGE_fIDELITY,
 	OPENAI_MAHT_GPT_OVERRIDE: mBotIdOverride,
-	OPENAI_COMPACTION_THRESHOLD,
-	OPENAI_EXCHANGE_FIDELITY,
 } = process.env
-const mCompactionThreshold = parseInt(OPENAI_COMPACTION_THRESHOLD) || 50,
-	mDefaultBotTypeArray = ['personal-avatar', 'avatar'],
+const mDefaultBotTypeArray = ['personal-avatar', 'avatar'],
 	mDefaultBotType = mDefaultBotTypeArray[0],
 	mDefaultGreeting = 'avatar', // greeting routine
 	mDefaultGreetings = ['Welcome to MyLife! I am here to help you!'],
 	mDefaultIcon = 'default.png',
 	mDefaultTeam = 'memory',
-	mExchangeFidelity = parseInt(OPENAI_EXCHANGE_FIDELITY) || 10,
+	mExchangeFidelity = parseInt(SYSTEM_EXCHANGE_fIDELITY) || 10,
 	mProxyChatTypes = ['chat', 'conversation', 'converse',],
 	mRequiredBotTypes = ['personal-avatar']
 /* classes */
@@ -1440,7 +1438,7 @@ async function mConversationStart(type='chat', form='system', Bot, conversation_
 		},
 		processStartTime = Date.now(),
 		thread = (form!=='proxy')
-			? await llm.conversation(conversation_id, Bot, messages, metadata)
+			? await llm.conversation(conversation_id, Bot, messages, { metadata, })
 			: null
 	return new Conversation(
 		{
@@ -1656,41 +1654,23 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
 /**
  * Migrates LLM thread/memory to new one, altering Conversation instance when available.
  * @param {Bot} Bot - Bot instance
- * @param {AgentFactory} factory - The Factory instance
+ * @param {AgentFactory} Factory - The Factory instance
  * @param {LLMServices} llm - The LLMServices instance
  * @param {boolean} saveConversation - Whether to save the conversation immediately, defaults to `false`
  * @returns {Promise<boolean>} - Whether or not operation was successful
  */
-async function mMigrateChat(Bot, factory, llm, saveConversation=false){
+async function mMigrateChat(Bot, Factory, llm, saveConversation=false){
     /* constants and variables */
-    const { conversation, id: botId, thread_id, type: botType, } = Bot
+    const { conversation, id: botId, mbr_id, thread_id, type: botType, } = Bot
     if(!thread_id?.length)
         return false
-	let messages = await llm.messages(thread_id)
-    if(!messages?.length || !messages.filter(m=>m.role==='assistant').length)
-        return true
-	/* normalize raw OpenAI messages — newest first */
-    messages = messages
-		.filter(m=>m.role!=='system' && m.role!=='developer') // remove any historical system messages, will be updated with current instructions
-		.map(m=>{
-			let content
-			const { content: contentArray, output, role='assistant', } = m // default on role as function calls do not have `role`, but are assistant messages
-			if(output?.length)
-				content = output // from function call responses
-			else if(Array.isArray(contentArray) && contentArray?.length){
-				content = contentArray
-					.filter(c=>c.text?.length)
-					.map(c=>c.text)
-					.join('\n')
-			} else if(typeof contentArray === 'string')
-				content = contentArray
-			else
-				content = undefined
-			return { content, role, }
-		})
-		.filter(m=>m.content?.length)
-    if(!messages.length)
-        return false
+    const metadata = {
+		botId,
+		mbrId: mbr_id,
+		previousConversationId: thread_id,
+	}
+	const options = { exchangeFidelity: mExchangeFidelity, forceNew: true, metadata, }
+	const newConversation = llm.conversation(thread_id, Bot, undefined, options)
     /* find split point: walk newest→oldest, stop after mExchangeFidelity # user messages */
     let userCount = 0, splitIndex = messages.length
     for(let i = 0; i < messages.length; i++){
@@ -1713,7 +1693,7 @@ async function mMigrateChat(Bot, factory, llm, saveConversation=false){
             .join('\n')
         if(compactedText.length)
             seedMessages.push({
-                content: await factory.compactMessages(compactedText),
+                content: await Factory.compactMessages(compactedText),
                 role: 'assistant',
             })
     }
@@ -1726,12 +1706,6 @@ async function mMigrateChat(Bot, factory, llm, saveConversation=false){
     if(!seedMessages.length)
         return false
     /* create new conversation and migrate */
-    const metadata = {
-		botId,
-		previousThreadId: thread_id,
-		seedMessage: seedMessages?.[0]?.content.slice(0, 500),
-	}
-    const newConversation = await llm.conversation(undefined, Bot, seedMessages, metadata)
     if(conversation){
         conversation.setThread(newConversation)
         if(saveConversation)
