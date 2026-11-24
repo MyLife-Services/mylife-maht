@@ -1729,7 +1729,7 @@ class Avatar extends EventEmitter {
     }
     /**
      * Set the experiences lived.
-     * @param {array} livedExperiences - The new experiences lived.
+     * @param {Array} livedExperiences - The new experiences lived.
      * @returns {void}
      */
     set experiencesLived(livedExperiences){

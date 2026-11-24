@@ -105,7 +105,7 @@ class BotFactory extends EventEmitter{
 	 * @param {string} type - The bot type
 	 * @param {string} mbr_id - The member id
 	 * @param {string} proxyUrl - The external agent card URL (if applicable)
-	 * @returns {object} - The bot data
+	 * @returns {Object} - The bot data
 	 */
 	async bot(id, type=mDefaultBotType, mbr_id, proxyUrl){
 		if(id?.length && !this.globals.isValidGuid(id)){
@@ -155,7 +155,7 @@ class BotFactory extends EventEmitter{
 	 * Returns bot greetings for a given bot type, if they exist in the bot instructions.
 	 * @public
 	 * @param {string} type - The bot type
-	 * @param {object} botData - The bot data to personalize the greetings
+	 * @param {Object} botData - The bot data to personalize the greetings
 	 * @return {string[]} - The bot greetings
 	*/
 	botGreetings(type, botData={}){
@@ -180,7 +180,7 @@ class BotFactory extends EventEmitter{
 	 * Returns bot instructions fully personalized.
 	 * @public
 	 * @param {string} type - The bot type
-	 * @param {object} botData - The bot data to personalize the instructions
+	 * @param {Object} botData - The bot data to personalize the instructions
 	 * @returns {string} - The bot instructions
 	 */
 	botInstructions(type, botData={}){
@@ -321,8 +321,8 @@ class BotFactory extends EventEmitter{
 	}
 	/**
 	 * Creates a bot in the database.
-	 * @param {object} botData - The bot data
-	 * @returns {object} - The created bot document
+	 * @param {Object} botData - The bot data
+	 * @returns {Object} - The created bot document
 	 */
 	async createBot(botData){
 		const bot = await this.#dataservices.createBot(botData)
@@ -331,8 +331,8 @@ class BotFactory extends EventEmitter{
     /**
      * Given an itemId, evaluates aspects of item summary. Evaluate content is a vanilla function for MyLife, so does not require intervening intelligence and relies on the factory's modular LLM.
      * @param {Guid} itemId - The item id
-	 * @param {object} llmProvider - The llm properties for the agent: { *id, model, provider, *type, variables, version, }
-     * @returns {object} - The Response object { instruction, responses, success, }
+	 * @param {Object} llmProvider - The llm properties for the agent: { *id, model, provider, *type, variables, version, }
+     * @returns {Object} - The Response object { instruction, responses, success, }
      */
 	async evaluate(itemId, llmProvider, Avatar){
 		const { id, summary, } = await this.item(itemId) ?? {}
@@ -410,7 +410,7 @@ class BotFactory extends EventEmitter{
 	 * Retrieves a share object and its associated item from the database.
 	 * @param {Guid} sid - The share id
 	 * @param {String} mbr_id - The member id
-	 * @returns {object} - The share object from database with Item in-built
+	 * @returns {Object} - The share object from database with Item in-built
 	 */
 	async getShare(sid, mbr_id=this.mbr_id, type){
 		if(!this.globals.isValidGuid(sid))
@@ -435,7 +435,7 @@ class BotFactory extends EventEmitter{
 	/**
 	 * Retrieves a collection item by Id.
 	 * @param {Guid} id - The id of the collection item to retrieve.
-	 * @returns {object} - The item.
+	 * @returns {Object} - The item.
 	 */
 	async item(id){
 		return await this.dataservices.getItem(id)
@@ -444,7 +444,7 @@ class BotFactory extends EventEmitter{
 	 * Proxy for modular mHelp() function.
 	 * @public
      * @param {string} conversation_id - The conversation id.
- 	 * @param {object} llmProvider - The Help Bot's LLM provider
+ 	 * @param {Object} llmProvider - The Help Bot's LLM provider
      * @param {string} helpRequest - The help request string.
 	 * @param {Avatar} avatar - The avatar instance.
 	 * @returns {Promise<Object>} - openai `message` objects.
@@ -516,7 +516,7 @@ class BotFactory extends EventEmitter{
 	}
 	/**
 	 * Updates bot data in the database.
-	 * @param {object} botData - The bot data to update
+	 * @param {Object} botData - The bot data to update
 	 * @returns {Promise<object>} - the bot document from the database
 	 */
 	async updateBot(botData){
@@ -531,7 +531,7 @@ class BotFactory extends EventEmitter{
 	 * Returns member's dataservice core. USE WITH CAUTION!
 	 * @todo - determine if this can be hidden from public access
 	 * @getter
-	 * @returns {object} - The Experience class definition.
+	 * @returns {Object} - The Experience class definition.
 	 */
 	get core(){
 		const core = this.globals.sanitize(this.dataservices.core)
@@ -564,7 +564,7 @@ class BotFactory extends EventEmitter{
 	}
 	/**
 	 * Returns the full tool registry, keyed by tool function name.
-	 * @returns {object}
+	 * @returns {Object}
 	 */
 	get tools(){
 		return mGlobals.botTools
@@ -578,7 +578,7 @@ class BotFactory extends EventEmitter{
 	}
 		/**
 	 * Returns the ExperieceLived class definition.
-	 * @returns {object} - The ExperienceLived class definition.
+	 * @returns {Object} - The ExperienceLived class definition.
 	 */
 	get livedExperience(){
 		return this.schemas.ExperienceLived
@@ -649,7 +649,7 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Retrieves or creates avatar properties from Member factory dataservices, or inherits the core data from Member class.
-	 * @returns {object} - Avatar properties.
+	 * @returns {Object} - Avatar properties.
 	 */
 	async avatarProperties(){
 		return ( await this.dataservices.getAvatar() )
@@ -659,22 +659,23 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Compacts messages by sending them to the LLM with a prompt to return a condensed version that maintains all important information. This is useful for reducing token usage while preserving key details in conversations.
-	 * @param {string} messages - string-flattened array of messages to compact
-	 * @returns {string} - The compacted message summary
+	 * @param {String} transcript - Message transcript to summarize
+	 * @returns {Promise<String>} - Intelligent summarization of content
 	 */
-	async compactMessages(messages){
-		const systemInstruction = `I am a summarizer of chat histories. Given a chat message history, I produce a comprehensive summary that preserves all important **member provided facts and other information**, including any GUIDs and associated titles for items. The user in this history is MyLife member ${ this.memberName }, and I am the assistant.`
-		const userContent = `## Summarize this history:\n${ messages }`
+	async compactMessages(transcript){
+		const systemInstruction = `I am a summarizer of chat histories. Given a chat message history, I produce a comprehensive summary that preserves all important **member provided facts and other information**. The user in this history is MyLife member ${ this.memberName }, and I am the assistant.\nHowever, I must exclude any GUIDs and associated titles for items, as they will be captured elsewhere.`
+		const userContent = `## Summarize this history:\n${ transcript }`
 		const model = mGetProvider(mGeneralFunctioneer?.llmProviders)?.model ?? 'gpt-4.1-nano'
-		const { annotations=[], content, } = await mLLMServices.chatCompletion(systemInstruction, userContent, model)
+		const { annotations=[], content='', } = await mLLMServices.chatCompletion(systemInstruction, userContent, model)
+		// ensure content is string
 		if(annotations?.length)
 			content += `\n## Annotations:\n${ annotations.map(a=>a.url_citation?.title + ': ' + a.url_citation?.url).join('\n') }`
 		return content
 	}
 	/**
 	 * Creates a new collection item in the member's container.
-	 * @param {object} item - The item to create.
-	 * @returns {object} - The created item.
+	 * @param {Object} item - The item to create.
+	 * @returns {Object} - The created item.
 	 */
 	async createItem(item){
 		const response = await this.dataservices.pushItem(item)
@@ -682,7 +683,7 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Creates a new `Share` in the `share` container.
-	 * @param {object} shareData - The share object data
+	 * @param {Object} shareData - The share object data
 	 * @returns {Promise<object>} - The created share object
 	 */
 	async createShare(shareData){
@@ -780,7 +781,7 @@ class AgentFactory extends BotFactory {
 	 * @todo - build out consent structure
 	 * @param {Guid} id - The id of the item to generate consent for.
 	 * @param {Guid} requesting_mbr_id - The id of the member requesting consent.
-	 * @returns {object} - The consent object, with parameters or natural language guidelines.
+	 * @returns {Object} - The consent object, with parameters or natural language guidelines.
 	 */
 	async getConsent(id, requesting_mbr_id){
 		return new (mSchemas.consent)(consent, this)
@@ -905,7 +906,7 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Updates a collection item.
-	 * @param {object} item - The item to update
+	 * @param {Object} item - The item to update
 	 * @returns {Promise<object>} - The updated item
 	 */
 	async updateItem(item){
@@ -916,7 +917,7 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Updates a share in the `shares` container
-	 * @param {object} shareData - The share data to update
+	 * @param {Object} shareData - The share data to update
 	 * @returns {Promise<object>} - The updated share object
 	 */
 	async updateShare(shareData){
@@ -946,7 +947,7 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Returns the ExperienceCastMember class definition.
-	 * @returns {object} - ExperienceCastMember class definition.
+	 * @returns {Object} - ExperienceCastMember class definition.
 	 */
 	get castMember(){
 		return this.schemas.ExperienceCastMember
@@ -959,7 +960,7 @@ class AgentFactory extends BotFactory {
 	}
 	/**
 	 * Returns the ExperienceEvent class definition.
-	 * @returns {object} - ExperienceEvent class definition.
+	 * @returns {Object} - ExperienceEvent class definition.
 	 */
 	get experienceEvent(){
 		return this.schemas.ExperienceEvent
@@ -999,7 +1000,7 @@ class MyLifeFactory extends AgentFactory {
 	 * MyLife factory is able to hydrate a BotFactory instance of a Member Avatar.
 	 * @public
 	 * @param {string} mbr_id - The member id
-	 * @returns {object} - The hydrated bot instance
+	 * @returns {Object} - The hydrated bot instance
 	 */
 	async avatarProxy(mbr_id){
 		const Bot = await new BotFactory(mbr_id)
@@ -1093,7 +1094,7 @@ class MyLifeFactory extends AgentFactory {
 	/**
 	 * 
 	 * @param {string} mbr_id - The member id
-	 * @returns {object} - The member's core data
+	 * @returns {Object} - The member's core data
 	 */
 	async datacore(mbr_id){
 		const core = ( await mDataservices.getItems('core', undefined, undefined, undefined, mbr_id) )
@@ -1114,8 +1115,8 @@ class MyLifeFactory extends AgentFactory {
 	/**
 	 * Registers a new MyLife registrant. This represents the intial contact with the MyLife system by a human candidate. The registration process is a three-step process. The first step is to 1) register the candidate; 2) validate the registration; and 3) creating a new Member account from their inputs.
 	 * @public
-	 * @param {object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
-	 * @returns {object} - The registrant's document from Cosmos
+	 * @param {Object} candidate { 'avatarName': string, 'email': string, 'humanName': string, }
+	 * @returns {Object} - The registrant's document from Cosmos
 	 */
 	async registerCandidate(candidate){
 		const { avatarName, email, humanName, type, reason, } = candidate
@@ -1323,10 +1324,10 @@ function assignClassPropertyValues(propertyDefinition){
 }
 /**
  * Replaces placeholders in the provided text with corresponding values from the botData object or factory instance. If a replacement value is not found, it uses the default value specified in the replacements array or a fallback string.
- * @param {object} factory - The factory instance
+ * @param {Object} factory - The factory instance
  * @param {string} text - The text containing placeholders to replace
  * @param {Object[]} replacements - An array of replacement definitions { default, description, name, replacement, }
- * @param {object} data - The data object containing values for replacements
+ * @param {Object} data - The data object containing values for replacements
  * @returns {string} - The text with all placeholders replaced
  */
 function mBotTextReplace(factory, text, replacements=[], data){
@@ -1343,9 +1344,9 @@ function mBotTextReplace(factory, text, replacements=[], data){
 }
 /**
  * Builds bot instructions from a template or general instructions. If a build template is provided, it will concatenate the specified sections of the instructions. If no build template is provided, it will use the general instructions.
- * @param {object} factory - The factory instance
+ * @param {Object} factory - The factory instance
  * @param {string} type - The type of bot instructions to build
- * @param {object} botData - The bot data object containing values for replacements
+ * @param {Object} botData - The bot data object containing values for replacements
  * @returns {string} - The concatenated instructions string
  */
 function mBuildBotInstructions(factory, type, botData){
@@ -1414,10 +1415,10 @@ async function mConfigureSchemaPrototypes(){ //	add required functionality as de
 /**
  * Evaluates a summary using an LLM and returns recommendations for improvement.
  * @param {string} summary - The summary to evaluate
- * @param {object} llmProvider - The LLM provider to use for evaluation
+ * @param {Object} llmProvider - The LLM provider to use for evaluation
  * @param {AgentFactory} Factory - The Factory instance to use for evaluation
  * @param {Avatar} Avatar - The Avatar instance to use for evaluation
- * @returns {object} - The evaluation result, including success status and responses
+ * @returns {Object} - The evaluation result, including success status and responses
  */
 async function mEvaluateItem(summary, llmProvider=mGetProvider(mGeneralFunctioneer?.llmProviders), Factory, Avatar){
 	let evaluation = {
@@ -1449,7 +1450,7 @@ function mExposedSchemas(factoryBlockedSchemas){
 }
 /**
  * Ingests schema and returns an array of class definitions based upon any number of recursive `$defs`
- * @param {object} _schema - Schema for class and sub-`$defs`
+ * @param {Object} _schema - Schema for class and sub-`$defs`
  * @returns {array} - Returns array of unsanitized class definitions
  */
 function mExtractClassesFromSchema(_schema){
@@ -1471,7 +1472,7 @@ function mExtractClassesFromSchema(_schema){
 /**
  * Ingests components of the JSON schema and generates text for class code.
  * @param {string} _className - Sanitized class name
- * @param {object} properties - Sanitized properties of class
+ * @param {Object} properties - Sanitized properties of class
  * @returns {string} - Returns class code in text format for rendering into node js object
  */
 function mGenerateClassCode(_className, properties){
@@ -1552,7 +1553,7 @@ function mGenerateClassFromSchema(_schema) {
 }
 /**
  * Retrieves the specified LLM provider from the list of available providers.
- * @param {object} llmProviders - llmProviders object
+ * @param {Object} llmProviders - llmProviders object
  * @param {string} providerName - specific provider name (optional); defaults to `providers.defaultProvider` ?? 'openai'
  * @returns {object|null} - The specified LLM provider
  */
@@ -1565,7 +1566,7 @@ function mGetProvider(llmProviders, providerName=llmProviders?.defaultProvider ?
  * Take help request about MyLife and consults appropriate engine for response.
  * @requires mLLMServices - equivalent of default MyLife dataservices/factory
  * @param {string} conversation_id - The provider's conversation id
- * @param {object} llmProvider - The Help Bot's LLM provider
+ * @param {Object} llmProvider - The Help Bot's LLM provider
  * @param {string} helpRequest - The help request string
  * @param {AgentFactory} Factory - The AgentFactory object; **note**: ensure prior that it is generic Q-conversation
  * @param {Avatar} Avatar - The avatar instance
@@ -1617,7 +1618,7 @@ async function mPopulateBotInstructions(){
 }
 /**
  * Ingests a text (or JSON-parsed) schema and returns an array of sanitized schema.
- * @param {object} _schema 
+ * @param {Object} _schema 
  * @returns {Array} - Array of sanitized schemas
  */
 function mSanitizeSchema(_schema){
@@ -1630,7 +1631,7 @@ function mSanitizeSchema(_schema){
 }
 /**
  * Ingests a schema, mends improper variable names and fixes `$refs`, `$defs` and `required` and returns array of classes based on `$defs`.
- * @param {object} _schema - Validated schema with properties to mutate.
+ * @param {Object} _schema - Validated schema with properties to mutate.
  * @returns {array} - Array of sanitized class definitions, one for each `$def`.
  */
 function mSanitizeSchemaClasses(_schema){
@@ -1669,8 +1670,8 @@ function mSanitizeSchemaKey(_key){
 /**
  * Ingests a class definition and sanitizes its keys.
  * @module
- * @param {object} _class - Class definition to sanitize.
- * @param {object} _mutatedKeysObject - Object to hold mutated sanitized keys.
+ * @param {Object} _class - Class definition to sanitize.
+ * @param {Object} _mutatedKeysObject - Object to hold mutated sanitized keys.
  * @returns {void} - Internally mutates parameter references.
  */
 function mSanitizeSchemaKeys(_class, _mutatedKeysObject){
@@ -1722,8 +1723,8 @@ function mSanitizeSchemaValue(_value) {
 }
 /**
  * Decouples team from modular reference.
- * @param {object} team - Team object from modular codespace
- * @returns {object} - Returns sanitized team object
+ * @param {Object} team - Team object from modular codespace
+ * @returns {Object} - Returns sanitized team object
  */
 function mTeam(team){
     const {

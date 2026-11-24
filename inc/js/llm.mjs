@@ -1,11 +1,13 @@
 import OpenAI from 'openai'
 import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
 import { mcpCall, } from './controllers/mcp-functions.mjs'
+import { parse } from 'marked'
 /* module constants */
 const {
     OPENAI_API_CHAT_TIMEOUT,
     OPENAI_API_KEY: mOpenaiKey,
     OPENAI_BASE_URL: mBasePath,
+    OPENAI_COMPACTION_THRESHOLD,
 	OPENAI_EXCHANGE_FIDELITY,
     OPENAI_MAX_INSTRUCTIONS_LENGTH,
     OPENAI_MAX_OUTPUT_TOKENS,
@@ -13,6 +15,7 @@ const {
     OPENAI_API_VERSION: mOpenAIApiVersion = '7.62.0',
 } = process.env
 const mDefaultLLMProvider = 'openai',
+    mCompactionThreshold = parseInt(OPENAI_COMPACTION_THRESHOLD) || 100,
     mExchangeFidelity = parseInt(OPENAI_EXCHANGE_FIDELITY) || 15,
     mIgnoredItemTypes = new Set(['reasoning', 'compaction', 'file_search_call', 'web_search_call', 'image_generation_call', 'code_interpreter_call', 'mcp_call', 'mcp_list_tools', 'mcp_approval_request', 'mcp_approval_response', 'computer_call', 'computer_call_output', 'local_shell_call', 'local_shell_call_output', 'shell_call', 'shell_call_output', 'apply_patch_call', 'apply_patch_call_output', 'tool_search_call', 'tool_search_output', 'additional_tools', 'configuration_update', 'program', 'program_output', 'custom_tool_call', 'custom_tool_call_output',]),
     mMaxInstructionsLength = parseInt(OPENAI_MAX_INSTRUCTIONS_LENGTH) || 256000, // note: `??` does not parse NaN
@@ -374,7 +377,8 @@ async function mCallDelete(openai, conversation_id, response_id, call_ids, delet
  * @returns {object} - OpenAI `conversation` object
  */
 async function mConversation(openai, conversation_id, Bot, messages=[], options={}){
-    const { metadata={}, } = options
+    options.metadata ??= {}
+    const { metadata, } = options
     let conversation
     metadata.botId ??= Bot?.id
     metadata.chatVersion ??= mOpenAIApiVersion
@@ -396,6 +400,67 @@ async function mConversation(openai, conversation_id, Bot, messages=[], options=
         }
     }
     return conversation
+}
+/**
+ * Compacts a conversation for recreation according to options.
+ * @param {Bot} Bot - Bot to perform message summarization
+ * @param {Object[]} messages - Array of OpenAI InputItems
+ * @param {object} options - Options for compaction { compactionThreshold=mCompactionThreshold, exchangeFidelity=mExchangeFidelity, }
+ * @returns {Promise<Object[]>} - Array of OpenAI Input Items
+ */
+async function mConversationCompaction(Bot, messages, options){
+    const items = []
+    const { compactionThreshold=mCompactionThreshold, exchangeFidelity=mExchangeFidelity, } = options
+    const { llmProvider: { provider, }} = Bot
+    /* exchange fidelity */
+    if(messages.some(m=>m?.role==='user')){ // no user interaction requires no other inclusions
+        let splitIndex = 0,
+            userTurns = 0
+        for(let i = messages.length - 1; i >= 0; i--){
+            if(messages[i].role==='user' && ++userTurns===exchangeFidelity){
+                splitIndex = i
+                break
+            }
+        }
+        const fidelityLow = messages.slice(0, splitIndex) // → compact || summarize
+            .filter(m=>m.type==='message')
+        const fidelityHigh = messages.slice(splitIndex) // → verbatim
+        /* transcription */
+        if(fidelityLow.length){
+            let transcriptIndex = 0,
+                userTurns = 0
+            for(let i = fidelityLow.length - 1; i >= 0; i--){
+                if(fidelityLow[i].role==='user' && ++userTurns===compactionThreshold){
+                    transcriptIndex = i
+                    break
+                }
+            }
+            const fidelitySummary = fidelityLow.slice(0, transcriptIndex) // → LLM summary
+            const fidelityTranscript = fidelityLow.slice(transcriptIndex) // → flat text
+            const transcript = `Transcript of historical exchanges${ fidelitySummary.length ? ' (after summarized content)' : '' }\n`
+                + mMessagesTranscript(provider, fidelityTranscript)
+            const transcriptMessage = {
+                content: transcript,
+                role: 'assistant',
+                type: 'message',
+            }
+            if(fidelitySummary.length){
+                const summary = await Bot.summarizeMessages(mMessagesTranscript(provider, fidelitySummary))
+                if(summary?.length){
+                    const summaryMessage = {
+                        content: summary,
+                        role: 'assistant',
+                        type: 'message',
+                    }
+                    items.push(summaryMessage)
+                }
+            }
+            items.push(transcriptMessage)
+        }
+        /* summary */
+        items.push(...fidelityHigh)
+    }
+    return items
 }
 /**
  * Deletes an OpenAI conversation.
@@ -492,19 +557,20 @@ function mConversationInputItem(item){
  * @param {OpenAI} openai - openai object
  * @param {string} conversation_id - conversation id
  * @param {Bot} Bot - Required for Conversation creation
- * @param {object} options - modernization options (optional) { compactionThreshold: integer, exchangeFidelty: integer, forceNew: boolean, metadata: object, }
+ * @param {object} options - modernization options (optional) { compactionThreshold: integer, deleteSource: boolean, exchangeFidelty: integer, forceNew: boolean, metadata: object, }
  * @returns {Promise<object>} - openai `conversation` object
  */
 async function mConversationModernize(openai, conversation_id, Bot, options={}){
     const items = []
     const {
-        exchangeFidelity=mExchangeFidelity,
-        metadata={},
+        compactionThreshold,
+        exchangeFidelity,
+        metadata = {},
     } = options
     let conversation
     let {
-        deleteSource=false,  
-        forceNew=false,  
+        deleteSource = false,  
+        forceNew = false,  
     } = options
     if(conversation_id?.startsWith('conv_')){
         try {
@@ -520,22 +586,28 @@ async function mConversationModernize(openai, conversation_id, Bot, options={}){
     const versionStamp = conversation?.metadata?.chatVersion
     if(!forceNew && mConversationVersionCheck(versionStamp, mOpenAIApiVersion)) // conversation already modern (enough)
         return conversation
-    console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, metadata, conversation, forceNew)
-    const collection = await Bot?.developerItemListing()
+    console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, conversation, options)
+    const collection = await Bot?.collectionItemListing()
     const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
     metadata.chatVersion = mOpenAIApiVersion
-    // items are messages, content needs to be array of objects OR a string
+    /* seedMessages */
+    // **note**: items are messages, content needs to be array of objects OR a string
     items.push({ type: 'message', role: 'system', content: instructions, })
-    if(collection)
+    if(collection?.trim()?.length)
         items.push({ type: 'message', role: 'developer', content: collection, }) // collection item ids and titles
+    /* raw messages */
     const messages = (await mMessages(openai, conversation_id, undefined, 'asc'))
         .filter(message=>message?.role!=='system' && message?.role!=='developer')
         .map(message=>mConversationInputItem(message))
         .filter(Boolean)
-    items.push(...messages)
+    const history = await mConversationCompaction(Bot, messages, { compactionThreshold, exchangeFidelity, })
+    items.push(...history)
     // manage batch
     conversation = await openai.conversations.create({ items, metadata, })
+    if(deleteSource)
+        await mConversationDelete(openai, conversation_id)
     console.log('LLMServices::mConversation()::created new conversation', metadata, conversation, instructions)
+    return conversation
 }
 /**
  * Checks version, and returns true if conversation is modern, false if needs modernization. Note that minor version changes are not considered necessary to adjust conversation, but major version changes are.
@@ -642,6 +714,7 @@ async function mMessages(openai, conversation_id, msg_id, order='desc'){
 function mMessageConvert(provider, message, response_id){
     let messageConverted = {}
     switch(provider){
+        case 'openai':
         default:
             if(typeof message==='string'){
                 messageConverted.content = { text: message, type: 'input_text', }
@@ -655,6 +728,32 @@ function mMessageConvert(provider, message, response_id){
             break
     }
     return messageConverted
+}
+/**
+ * Consumes an array of messages and returns a string transcript.
+ * @modular
+ * @stub - include multiple providers
+ * @param {String} provider - LLM Provider
+ * @param {Object[]} messages - Array of messages to generate flat transcript
+ * @returns {String} - The complete transcript based on messages
+ */
+function mMessagesTranscript(provider, messages){
+    let transcript = messages
+        .filter(m=>m?.role === 'user' || m?.role === 'assistant')
+        .map(m=>{
+            const role = m?.role
+            if(role?.length && m?.content?.length){
+                const text = m.content
+                    .filter(c=>c.text?.length)
+                    .map(c=>c.text)
+                    .join('\n')
+                if(text?.length)
+                    return `**${ role }**: ${ text }`
+            }
+        })
+        .filter(Boolean)
+        .join('\n')
+    return transcript
 }
 /**
  * Converts stored (Assistants-format) tools to Responses API format.

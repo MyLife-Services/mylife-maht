@@ -3,16 +3,18 @@ import { Conversation, Message, } from '../../models.mjs'
 import { standardizeA2ACard, } from '../../controllers/a2a-functions.mjs'
 /* module constants */
 const {
-	SYSTEM_EXCHANGE_fIDELITY,
 	OPENAI_MAHT_GPT_OVERRIDE: mBotIdOverride,
+	SYSTEM_COMPACTION_THRESHOLD,
+	SYSTEM_EXCHANGE_FIDELITY,
 } = process.env
-const mDefaultBotTypeArray = ['personal-avatar', 'avatar'],
+const mCompactionThreshold=parseInt(SYSTEM_COMPACTION_THRESHOLD) || 100,
+	mDefaultBotTypeArray = ['personal-avatar', 'avatar'],
 	mDefaultBotType = mDefaultBotTypeArray[0],
 	mDefaultGreeting = 'avatar', // greeting routine
 	mDefaultGreetings = ['Welcome to MyLife! I am here to help you!'],
 	mDefaultIcon = 'default.png',
 	mDefaultTeam = 'memory',
-	mExchangeFidelity = parseInt(SYSTEM_EXCHANGE_fIDELITY) || 10,
+	mExchangeFidelity = parseInt(SYSTEM_EXCHANGE_FIDELITY) || 10,
 	mProxyChatTypes = ['chat', 'conversation', 'converse',],
 	mRequiredBotTypes = ['personal-avatar']
 /* classes */
@@ -173,14 +175,14 @@ class Bot {
 	 * Creates a text string for a developer message that outlines the collection items available to this intelligence.
 	 * @returns {string|undefined} - Developer message string
 	 */
-	async developerItemListing(){
+	async collectionItemListing(){
 		const collection = await this.collections()
 		if(!collection?.length)
 			return
 		const collectionList = collection
 			.map(item=>(`id: ${ item.id }, title: "${ item.title }"`))
 			.join('\n')
-		const developerMessage = `I have access to the following items for ${ this.type } collections:\n${ collectionList }`
+		const developerMessage = `I have access to the following items for ${ this.type } collections (for internal intelligence use):\n${ collectionList }`
 		return developerMessage
 	}
     /**
@@ -245,7 +247,7 @@ class Bot {
 	 * @param {boolean} dynamic - Whether to use dynamic greetings (`true`) or static (`false`)
 	 * @param {string} greetingPrompt - The prompt for the dynamic greeting
 	 * @param {Avatar} Avatar - The Avatar instance
-	 * @returns {object} - The Response object { responses, routine, success, }
+	 * @returns {Object} - The Response object { responses, routine, success, }
 	 */
 	async greeting(dynamic=false, greetingPrompt='Greet me and tell me briefly what we did last and prompt me to continue', Avatar){
 		if(dynamic && this.type==='proxy')
@@ -350,8 +352,8 @@ class Bot {
 	}
 	/**
 	 * Updates a Bot instance's data.
-	 * @param {object} botData - The bot data to update
-	 * @param {object} botOptions - Options for updating
+	 * @param {Object} botData - The bot data to update
+	 * @param {Object} botOptions - Options for updating
 	 * @returns {Promise<Bot>} - The updated Bot instance
 	 */
 	async update(botData, botOptions={}){
@@ -377,6 +379,14 @@ class Bot {
 			thread_id,
 		}
 		await this.#factory.updateBot(bot)
+	}
+	/**
+	 * Takes an array of messages and summarizes the content.
+	 * @param {String} transcript - Message transcript to summarize
+	 * @returns {Promise<string>} - Intelligent summarization of content
+	 */
+	async summarizeMessages(transcript){
+		return await this.#factory.compactMessages(transcript)
 	}
 	/* getters/setters */
 	get accessed(){
@@ -505,7 +515,7 @@ class Bot {
 	get itemForms(){
 		return this.#factory.botItemForms(this.type)
 	}
-	get llmProvider(){ // @returns {object} - { *model, *provider, *type, variables, version, }
+	get llmProvider(){ // @returns {Object} - { *model, *provider, *type, variables, version, }
 		return this.#llmProvider
 	}
 	get mcpTools(){
@@ -663,7 +673,7 @@ class BotAgent {
 	 * @param {string} type - The type of conversation, defaults to `chat`
 	 * @param {string} form - The form of conversation, defaults to `system-avatar`
 	 * @param {string} prompt - The prompt for the conversation (optional)
-	 * @param {object} scriptAdvisorLlmProvider - The script advisor llm provider (optional)
+	 * @param {Object} scriptAdvisorLlmProvider - The script advisor llm provider (optional)
 	 * @param {string} mbr_id - The member id to use for conversation (optional)
 	 * @param {Boolean} useActive - Whether to use the active bot or the avatar bot, defaults to `true`
 	 * @returns {Promise<Conversation>} - The Conversation instance
@@ -853,7 +863,7 @@ class BotAgent {
 	 * @async
 	 * @param {Guid} botId - The Bot id
 	 * @param {boolean} dynamic - Whether to use dynamic greetings, defaults to `false`
-     * @returns {object} - Activated Response object: { botId, greeting, success, version, versionUpdate, }
+     * @returns {Object} - Activated Response object: { botId, greeting, success, version, versionUpdate, }
 	 */
 	async setActiveBot(botId=this.avatar?.id, dynamic=false){
 		let success=false,
@@ -948,7 +958,7 @@ class BotAgent {
 	/**
 	 * Retrieves a team by id, defaults to active team id.
 	 * @param {Guid|string|null} teamId - The team id to retrieve, defaults to active team id
-	 * @returns {object} - The team object
+	 * @returns {Object} - The team object
 	 */
 	team(teamId){
 		teamId = teamId
@@ -959,8 +969,8 @@ class BotAgent {
 	}
 	/**
 	 * Updates a bot instance.
-	 * @param {object} botData - The bot data to update
-	 * @param {object} botOptions - Options for updating the bot
+	 * @param {Object} botData - The bot data to update
+	 * @param {Object} botOptions - Options for updating the bot
 	 * @returns {Promise<Bot>} - The updated Bot instance
 	 */
 	async updateBot(botData, botOptions){
@@ -1014,7 +1024,7 @@ class BotAgent {
 	/**
 	 * Gets the active team.
 	 * @getter
-	 * @returns {object} - The active team object
+	 * @returns {Object} - The active team object
 	 */
 	get activeTeam(){
 		return this.#activeTeam
@@ -1064,7 +1074,7 @@ class BotAgent {
 	/**
 	 * Returns system globals object.
 	 * @getter
-	 * @returns {object} - System globals object
+	 * @returns {Object} - System globals object
 	 */
 	get globals(){
 		return this.#factory.globals
@@ -1224,7 +1234,7 @@ async function mBotDelete(botId, BotAgent, llm, factory){
  * Returns set of dynamically generated Greeting messages.
  * @module
  * @param {string} thread_id - The thread id
- * @param {object} llmProvider - The LLM provider object: { *id, *type, }
+ * @param {Object} llmProvider - The LLM provider object: { *id, *type, }
  * @param {string} greetingPrompt - The prompt for the greeting
  * @param {LLMServices} llm - OpenAI object
  * @param {AgentFactory} Factory - Agent Factory object
@@ -1243,7 +1253,7 @@ async function mBotGreetings(thread_id, llmProvider, greetingPrompt=`Greet me en
  * @param {AgentFactory} factory - The Factory instance
  * @param {Object} addInstructions - The additional instructions object: { agentInstructions, type, }
  * @param {Object} Bot - The bot instance
- * @returns {object} - The intermediary bot instructions object: { defaults, greetings, instructions, tools, version, }
+ * @returns {Object} - The intermediary bot instructions object: { defaults, greetings, instructions, tools, version, }
  */
 function mBotInstructions(factory, addInstructions={}, Bot={}){
 	const { agentInstructions, type, } = addInstructions
@@ -1275,8 +1285,8 @@ function mBotInstructions(factory, addInstructions={}, Bot={}){
 /**
  * Updates bot in Cosmos, and if necessary, in LLM. Returns unsanitized bot data document.
  * @module
- * @param {object} botData - Bot data update object
- * @param {object} options - Options object: { instructions: boolean, model: boolean, tools: boolean, vectorstoreId: string, }
+ * @param {Object} botData - Bot data update object
+ * @param {Object} options - Options object: { instructions: boolean, model: boolean, tools: boolean, vectorstoreId: string, }
  * @param {Bot} Bot - The Bot instance
  * @param {AgentFactory} factory - Factory instance
  * @returns {Promise<Object>} - Allowed (and written) bot data object (dynamic construction): { id, type, ...anyNonRequired }
@@ -1334,7 +1344,7 @@ async function mBotUpdate(botData, options={}, Bot, factory){
  * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object required for function execution
- * @param {object} Avatar - Avatar object
+ * @param {Object} Avatar - Avatar object
  * @returns {Promise<void>} - Alters Conversation instance by nature
  */
 async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
@@ -1370,7 +1380,7 @@ async function mCallLLM(Conversation, allowSave=true, llm, factory, Avatar){
  * @param {Conversation} Conversation - The Conversation instance to mutate
  * @param {boolean} allowSave - Whether to save the conversation, defaults to `true`
  * @param {AgentFactory} factory - The Factory instance
- * @param {object} card - The card data
+ * @param {Object} card - The card data
  */
 async function mCallProxy(Conversation, allowSave=true, factory, card){
 	const { skills, url, } = card
@@ -1431,7 +1441,7 @@ async function mCallProxy(Conversation, allowSave=true, factory, card){
  * @param {string} form - Form of conversation: system-avatar, member-avatar, etc.; defaults to `system-avatar`
  * @param {string} Bot - The Bot instance
  * @param {string} conversation_id - The conversation id
- * @param {object} llmProvider - The properties for the llm agent: { *model, *provider, *type, variables, version, }
+ * @param {Object} llmProvider - The properties for the llm agent: { *model, *provider, *type, variables, version, }
  * @param {LLMServices} llm - The LLMServices instance
  * @param {AgentFactory} factory - Agent Factory object
  * @param {string} prompt - The prompt for the conversation (optional)
@@ -1489,9 +1499,9 @@ async function mDeleteChat(Conversation, localDelete=false, llm, factory){
  * @module
  * @todo - Move to llmServices and improve
  * @param {string} type - Type of bot
- * @param {object} globals - Global functions for bot
+ * @param {Object} globals - Global functions for bot
  * @param {string} vectorstoreId - Vectorstore id
- * @returns {object} - OpenAI-ready object for functions { tools, tool_resources, }
+ * @returns {Object} - OpenAI-ready object for functions { tools, tool_resources, }
  */
 function mGetAIFunctions(type, globals, vectorstoreId){
 	let includeSearch=false,
@@ -1595,7 +1605,7 @@ function mGetAIFunctions(type, globals, vectorstoreId){
  * @param {Globals} globals - Globals object.
  * @param {string} toolName - Name of tool.
  * @param {string} vectorstoreId - Vectorstore id.
- * @returns {object} - { tools, tool_resources, }.
+ * @returns {Object} - { tools, tool_resources, }.
  */
 function mGetGPTResources(globals, toolName, vectorstoreId){
 	switch(toolName){
@@ -1670,8 +1680,8 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
  * @param {Bot} Bot - Bot instance
  * @param {AgentFactory} Factory - The Factory instance
  * @param {LLMServices} llm - The LLMServices instance
- * @param {boolean} saveConversation - Whether to save the conversation immediately, defaults to `false`
- * @returns {Promise<boolean>} - Whether or not operation was successful
+ * @param {Boolean} saveConversation - Whether to save the conversation immediately, defaults to `false`
+ * @returns {Promise<Boolean>} - Whether or not operation was successful
  */
 async function mMigrateChat(Bot, Factory, llm, saveConversation=false){
     /* constants and variables */
@@ -1683,42 +1693,8 @@ async function mMigrateChat(Bot, Factory, llm, saveConversation=false){
 		mbrId: mbr_id,
 		previousConversationId: thread_id,
 	}
-	const options = { exchangeFidelity: mExchangeFidelity, forceNew: true, metadata, }
-	const newConversation = llm.conversation(thread_id, Bot, undefined, options)
-    /* find split point: walk newest→oldest, stop after mExchangeFidelity # user messages */
-    let userCount = 0, splitIndex = messages.length
-    for(let i = 0; i < messages.length; i++){
-        if(messages[i].role === 'user'){
-            if(++userCount === mExchangeFidelity){
-                splitIndex = i + 1
-                break
-            }
-        }
-    }
-    const recentMessages = messages.slice(0, splitIndex)
-    const oldMessages = messages.slice(splitIndex)
-    const seedMessages = []
-    /* compact old messages into a single summary block */
-    if(oldMessages.length){
-		console.log(`compacting ${ oldMessages.length } old messages into summary for migration...`)
-        const compactedText = oldMessages
-			.map(m=>`${ m.role === 'user' ? 'User' : 'Assistant' }: ${ m.content }`)
-            .reverse()
-            .join('\n')
-        if(compactedText.length)
-            seedMessages.push({
-                content: await Factory.compactMessages(compactedText),
-                role: 'assistant',
-            })
-    }
-    /* append recent messages in chronological order */
-    seedMessages.push(
-        ...[...recentMessages]
-            .reverse()
-            .map(({ content, role, })=>({ content, role, }))
-    )
-    if(!seedMessages.length)
-        return false
+	const options = { compactionThreshold: mCompactionThreshold, deleteSource: true, exchangeFidelity: mExchangeFidelity, forceNew: true, metadata, }
+	const newConversation = await llm.conversation(thread_id, Bot, undefined, options)
     /* create new conversation and migrate */
     if(conversation){
         conversation.setThread(newConversation)
@@ -1726,7 +1702,6 @@ async function mMigrateChat(Bot, Factory, llm, saveConversation=false){
             conversation.save() // no `await`
     }
     Bot.setThread(newConversation.id) // autosaves `thread_id`, no `await`
-    llm.deleteConversation(thread_id)
     console.log(`chat migrated::from ${ thread_id } to ${ newConversation.id }`, botType)
 	return true
 }
