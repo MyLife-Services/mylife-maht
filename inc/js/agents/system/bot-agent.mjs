@@ -166,8 +166,22 @@ class Bot {
 			default: // defaults to AssistantType
 				break
 		}
-		const collections = ( await this.#factory.collections(type) )
+		const collections = await this.#factory.collections(type)
 		return collections
+	}
+	/**
+	 * Creates a text string for a developer message that outlines the collection items available to this intelligence.
+	 * @returns {string|undefined} - Developer message string
+	 */
+	async developerItemListing(){
+		const collection = await this.collections()
+		if(!collection?.length)
+			return
+		const collectionList = collection
+			.map(item=>(`id: ${ item.id }, title: "${ item.title }"`))
+			.join('\n')
+		const developerMessage = `I have access to the following items for ${ this.type } collections:\n${ collectionList }`
+		return developerMessage
 	}
     /**
      * Submits message content and id feedback to bot.

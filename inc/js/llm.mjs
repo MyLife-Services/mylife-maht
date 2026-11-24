@@ -521,14 +521,15 @@ async function mConversationModernize(openai, conversation_id, Bot, options={}){
     if(!forceNew && mConversationVersionCheck(versionStamp, mOpenAIApiVersion)) // conversation already modern (enough)
         return conversation
     console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, metadata, conversation, forceNew)
-    const collectionItems = Bot?.collectionItems
+    const collection = await Bot?.developerItemListing()
     const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
     metadata.chatVersion = mOpenAIApiVersion
     // items are messages, content needs to be array of objects OR a string
     items.push({ type: 'message', role: 'system', content: instructions, })
-    items.push({ type: 'message', role: 'developer', content: collectionItems, }) // collection item ids and titles
+    if(collection)
+        items.push({ type: 'message', role: 'developer', content: collection, }) // collection item ids and titles
     const messages = (await mMessages(openai, conversation_id, undefined, 'asc'))
-        .filter(message=>!message || message?.role==='user' || message?.role==='assistant')
+        .filter(message=>message?.role!=='system' && message?.role!=='developer')
         .map(message=>mConversationInputItem(message))
         .filter(Boolean)
     items.push(...messages)

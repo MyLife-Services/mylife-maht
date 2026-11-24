@@ -14,7 +14,6 @@
       "value": "journaler"
     }
   ],
-  "collectionItemBeing": "entry",
   "greeting": "Hello, <-mN->, I'm your personal journal, and I'm here to help you safely and securely work through your personal thoughts and experiences. Let's get started!",
   "greetings": [
     "Hi, <-mN->! I'm here to help you safely and securely work through your personal thoughts, is there anything particular on your mind today?",
