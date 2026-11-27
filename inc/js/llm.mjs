@@ -10,6 +10,7 @@ const {
 	OPENAI_EXCHANGE_FIDELITY,
     OPENAI_MAX_INSTRUCTIONS_LENGTH,
     OPENAI_MAX_OUTPUT_TOKENS,
+    OPENAI_MODEL_CORE_BOT: mBaseModel='gpt-4.1-mini',
     OPENAI_ORG_KEY: mOrganizationKey,
     OPENAI_API_VERSION: mOpenAIApiVersion = '7.62.0',
 } = process.env
@@ -55,25 +56,24 @@ class LLMServices {
      * One-shot chat completion without conversation/thread overhead. [API documentation](https://developers.openai.com/api/reference/typescript/resources/chat/subresources/completions/methods/create)
      * @param {string} systemInstruction - System-level instruction for the model
      * @param {string} userContent - User content to process
-     * @param {string} [model='gpt-3.5-turbo'] - Model to use
+     * @param {string} model - Model to use, default `mBaseModel`
      * @returns {Promise<object|undefined>} - The assistant's response first choice `message`, or `undefined` on error { annotations, content, refusal, role, }
      */
-    async chatCompletion(systemInstruction, userContent, model='gpt-3.5-turbo'){
+    async chatCompletion(systemInstruction, userContent, model=mBaseModel){
+        let response={}
         try {
             const messages = []
             if(systemInstruction?.length)
                 messages.push({ role: 'system', content: systemInstruction })
             if(userContent?.length)
                 messages.push({ role: 'user', content: userContent })
-            const completion = await this.openai.chat.completions.create({
-                model,
-                messages,
-            })
-            return completion.choices?.[0]?.message
+            const llmProvider = { model, type: 'completion', }
+            const completion = await mResponse(this.openai, llmProvider, undefined, messages)
+            response = completion.choices?.[0]?.message ?? {}
         } catch(error) {
             console.error('LLMServices::chatCompletion()::error', error)
-            return undefined
         }
+        return response
     }
     /**
      * Gets or creates (if no conversation_id) a new OpenAI conversation, previously thread().
@@ -791,25 +791,13 @@ function mNormalizeTools(tools=[], tool_resources){
  * @param {object} options - Request options (optional) `{ conversation_id, max_output_tokens, metadata, promptVariable, }`
  * @returns {object} - [openai `response` object](https://platform.openai.com/docs/api-reference/responses/object?lang=javascript)
  */
-async function mResponse(openai, llmProvider, Bot, input, options={}){
-        let prompt = {}
-        const {
-            conversation_id,
-            max_output_tokens,
-            metadata,
-            previous_response_id,
-            promptVariable,
-        } = options
-        const request = {
-            include: ['web_search_call.action.sources', 'file_search_call.results'],
-            input,
-            max_output_tokens,
-            metadata,
-            model: llmProvider?.model,
-        }
-        if(conversation_id?.length)
-            request.conversation = conversation_id
-        switch(llmProvider?.type){
+async function mResponse(openai, llmProvider={}, Bot, input, options={}){
+        let response={}
+        const { // @stub - provider should bear more rendering
+            model=mBaseModel,
+            type='chat',
+        } = llmProvider
+        switch(type){
             case 'assistant':
                 throw new Error('LLMServices::getLLMResponse()::error - assistant type LLM provision is deprecated.')
             case 'prompt':
@@ -823,7 +811,23 @@ async function mResponse(openai, llmProvider, Bot, input, options={}){
 */
                 console.warn('OpenAI will be deprecating `pronpt` objects on 2026-11-30; ensure that this protocol is no longer referenced by system intelligence instructions')
             case 'chat': {
+                const {
+                    conversation_id,
+                    max_output_tokens,
+                    metadata,
+                    previous_response_id,
+                    promptVariable,
+                } = options
+                const request = {
+                    include: ['web_search_call.action.sources', 'file_search_call.results'],
+                    input,
+                    max_output_tokens,
+                    metadata,
+                    model,
+                }
                 const tools = mNormalizeTools(Bot?.tools, Bot?.tool_resources)
+                if(conversation_id?.length)
+                    request.conversation = conversation_id
                 if(tools.length)
                     request.tools = tools
                 if(!conversation_id?.length){
@@ -831,13 +835,18 @@ async function mResponse(openai, llmProvider, Bot, input, options={}){
                     if(previous_response_id?.length)
                         request.previous_response_id = previous_response_id
                 }
+                response = await openai.responses.create(request)
                 break
             }
+            case 'completion': // chat completion
+                response = await openai.chat.completions.create({
+                    messages: input,
+                    model,
+                })
+                break
             default:
-                throw new Error(`LLM provider type ${ llmProvider?.type } not recognized by system.`)
+                throw new Error(`LLM provider type ${ type } not recognized by system.`)
         }
-    const response = await openai.responses.create(request)
-    console.log('mResponse()', request, response)
     return response
 }
 async function mResponseDelete(openai, response_id){

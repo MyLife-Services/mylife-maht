@@ -683,8 +683,6 @@ class BotAgent {
 		let { llmProvider, } = Bot
 		if(type==='experience')
 			llmProvider = this.#factory.actor.llmProvider
-		else if(type==='script' && scriptAdvisorLlmProvider?.id?.length)
-			llmProvider = scriptAdvisorLlmProvider
     	const Conversation = await mConversationStart(type, form, Bot, undefined, llmProvider, this.#llm, this.#factory, prompt, undefined, mbr_id)
 		return Conversation
 	}

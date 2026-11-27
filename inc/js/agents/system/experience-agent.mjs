@@ -99,12 +99,11 @@ class Experience {
     #navigation
     #running=false
     #scenes
-    #scriptAdvisorLlmProvider
     #scriptDialog
     #scriptVariables
     #variables
     constructor(obj, botAgent, llm, Factory, avatarExperienceVariables){
-        const { being, cast, dates, events, id, mbr_id, name, public: publicExperience, scenes, scriptAdvisorBotId, status, variables: scriptVariables, ..._obj } = obj
+        const { being, cast, dates, events, id, mbr_id, name, public: publicExperience, scenes, status, variables: scriptVariables, ..._obj } = obj
         if(!publicExperience)
             throw new Error('Experience is not public')
         if(status!=='active')
@@ -122,8 +121,6 @@ class Experience {
         this.#factory = Factory
         this.#llm = llm
         this.#id = id
-        this.#scriptAdvisorLlmProvider = scriptAdvisorBotId
-            ?? mDefaultScriptAdvisorLLMProvider.id
         this.#scriptVariables = scriptVariables
         this.#cast = mCast(cast, this.#botAgent, this.#factory)
         this.#location = mLocation(this)
@@ -202,9 +199,6 @@ class Experience {
     }
     get script(){
         return this.scenes
-    }
-    get scriptAdvisorLlmProvider(){
-        return this.#scriptAdvisorLlmProvider
     }
     get scriptDialog(){
         return this.#scriptDialog
@@ -515,41 +509,34 @@ class ShareAgent {
         if(Share.voice?.length)
             prompt += `- voice: ${ Share.voice }\n`
         prompt += `- summary: ${ Share.summary }`
-        const messages = await this.#llm.getLLMResponse(undefined, mDefaultScriptAdvisorLLMProvider, prompt, this.#factory, this.#avatar)
-        if(messages?.[0]){
-            const { content, thread_id, } = messages[0]
-            const message = content
-                .filter(_content=>_content.type==='text')
-                ?.[0]
-                ?.text
-                ?.value
-            if(message?.length){
-                let scenes = JSON.parse(message)?.scenes
-                    ?? []
-                if(scenes.length===1){ // array incorrectly sent as one scene
-                    scenes = scenes[0]
-                        .split(/(?=(scene\s*\d+:?\n?))/i)
-                        .filter(item =>item.trim()!=='')
-                    let lastScene = scenes[scenes.length - 1].trim()
-                    if(lastScene.includes('conclusion')){
-                        const conclusionIndex = lastScene.toLowerCase().indexOf('conclusion')
-                        if(conclusionIndex>0){
-                            const lastNewlineBeforeConclusion = lastScene.lastIndexOf('\n', conclusionIndex)
-                            if (lastNewlineBeforeConclusion > 0) {
-                                const mainScene = lastScene.substring(0, lastNewlineBeforeConclusion)
-                                const conclusionScene = lastScene.substring(lastNewlineBeforeConclusion + 1)
-                                scenes[scenes.length - 1] = mainScene
-                                scenes.push(conclusionScene)
-                            }
+        const botType = 'general-script-advisor'
+        const instructions = this.#factory.botInstructions(botType)
+        const { model, } = this.#factory.botLLMProvider(botType) ?? {}
+        const { content, } = await this.#llm.chatCompletion(instructions, prompt, model) ?? {}
+        if(content?.length){
+            let scenes = JSON.parse(content)?.scenes ?? []
+            if(scenes.length===1){ // array incorrectly sent as one scene
+                scenes = scenes[0]
+                    .split(/(?=(scene\s*\d+:?\n?))/i)
+                    .filter(item =>item.trim()!=='')
+                let lastScene = scenes[scenes.length - 1].trim()
+                if(lastScene.includes('conclusion')){
+                    const conclusionIndex = lastScene.toLowerCase().indexOf('conclusion')
+                    if(conclusionIndex>0){
+                        const lastNewlineBeforeConclusion = lastScene.lastIndexOf('\n', conclusionIndex)
+                        if (lastNewlineBeforeConclusion > 0) {
+                            const mainScene = lastScene.substring(0, lastNewlineBeforeConclusion)
+                            const conclusionScene = lastScene.substring(lastNewlineBeforeConclusion + 1)
+                            scenes[scenes.length - 1] = mainScene
+                            scenes.push(conclusionScene)
                         }
                     }
-                } else if(scenes.length<=0)
-                    scenes.push('Error in LLM response while trying to cancel a thread; please reload page')
-                shareData.scenes = scenes
-            }
-            if(thread_id?.length)
-                this.#llm.deleteConversation(thread_id) // no await
-        }
+                }
+            } else if(scenes.length<=0)
+                scenes.push('Error in LLM response while trying to cancel a thread; please reload page')
+            shareData.scenes = scenes
+        } else
+            throw new Error('Share unsuccessful')
         /* set Conversation */
         shareData.Conversation = await this.#avatar.conversationStart('share', 'share-agent', Share.mbr_id)
         Share.init(shareData)
@@ -788,8 +775,7 @@ async function mEventDialog(Event, Experience, iteration=0){
 async function mEventInput(memberInput, Event, Experience, iteration=0){
     const { character, id: eid, input, type='script' } = Event
     const { characterId: _id, id } = character
-    const cid = id
-        ?? _id
+    const cid = id ?? _id
     const { dialog, events, scriptAdvisor, scriptDialog, } = Experience
     const hasMemberInput = memberInput && (
             ( typeof memberInput==='object' && Object.keys(memberInput)?.length )
