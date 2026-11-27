@@ -295,7 +295,7 @@ class Bot {
 		let success = false
 		this.chatBlock(true)
 		try {
-			success = await mMigrateChat(this, this.#factory, this.#llm)
+			success = await mMigrateChat(this, this.#llm)
 		} finally {
 			this.chatBlock(false)
 		}
@@ -1678,12 +1678,11 @@ async function mInitBots(vectorstore_id, Avatar, factory, llm, teams=[]){
 /**
  * Migrates LLM thread/memory to new one, altering Conversation instance when available.
  * @param {Bot} Bot - Bot instance
- * @param {AgentFactory} Factory - The Factory instance
  * @param {LLMServices} llm - The LLMServices instance
  * @param {Boolean} saveConversation - Whether to save the conversation immediately, defaults to `false`
  * @returns {Promise<Boolean>} - Whether or not operation was successful
  */
-async function mMigrateChat(Bot, Factory, llm, saveConversation=false){
+async function mMigrateChat(Bot, llm, saveConversation=false){
     /* constants and variables */
     const { conversation, id: botId, mbr_id, thread_id, type: botType, } = Bot
     if(!thread_id?.length)

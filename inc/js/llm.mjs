@@ -1,7 +1,6 @@
 import OpenAI from 'openai'
 import { a2aExternalRequest, } from './controllers/a2a-functions.mjs'
 import { mcpCall, } from './controllers/mcp-functions.mjs'
-import { parse } from 'marked'
 /* module constants */
 const {
     OPENAI_API_CHAT_TIMEOUT,
@@ -381,7 +380,6 @@ async function mConversation(openai, conversation_id, Bot, messages=[], options=
     const { metadata, } = options
     let conversation
     metadata.botId ??= Bot?.id
-    metadata.chatVersion ??= mOpenAIApiVersion
     metadata.mbrId ??= Bot?.mbr_id
     conversation = await mConversationModernize(openai, conversation_id, Bot, options)
     if(conversation?.id && messages?.length){ // additional seed message(s)
@@ -471,7 +469,11 @@ async function mConversationCompaction(Bot, messages, options){
 async function mConversationDelete(openai, conversation_id){
     let deletedConversation
     try {
-        deletedConversation = await openai.conversations.delete(conversation_id)
+        if(!conversation_id?.length)
+            throw new Error('No conversation_id provided')
+        deletedConversation = conversation_id.startsWith('thread_')
+            ? await openai.beta.threads.delete(conversation_id)
+            : await openai.conversations.delete(conversation_id)
     } catch (error) {
         if(error.name==='PermissionDeniedError')
             console.error(`Permission denied to delete conversation: ${ conversation_id }`)
@@ -569,7 +571,7 @@ async function mConversationModernize(openai, conversation_id, Bot, options={}){
     } = options
     let conversation
     let {
-        deleteSource = false,  
+        deleteSource = true,
         forceNew = false,  
     } = options
     if(conversation_id?.startsWith('conv_')){
@@ -580,6 +582,7 @@ async function mConversationModernize(openai, conversation_id, Bot, options={}){
                 throw error
             metadata.previousConversationId = conversation_id
             forceNew = true
+            deleteSource = false
             console.warn('LLMServices::mConversationModernize()::conversation not found, recreating', conversation_id)
         }
     }
@@ -587,12 +590,17 @@ async function mConversationModernize(openai, conversation_id, Bot, options={}){
     if(!forceNew && mConversationVersionCheck(versionStamp, mOpenAIApiVersion)) // conversation already modern (enough)
         return conversation
     console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, conversation, options)
-    const collection = await Bot?.collectionItemListing()
     const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
+    if(!instructions?.length)
+        throw new Error(`Intelligence (id: ${ Bot.id }, name: ${ Bot.name }, type: ${ Bot.type}) has no processing instructions or context`)
+    const collection = await Bot?.collectionItemListing()
     metadata.chatVersion = mOpenAIApiVersion
     /* seedMessages */
     // **note**: items are messages, content needs to be array of objects OR a string
+if(instructions?.length){
+    metadata.chatVersion = mOpenAIApiVersion
     items.push({ type: 'message', role: 'system', content: instructions, })
+}
     if(collection?.trim()?.length)
         items.push({ type: 'message', role: 'developer', content: collection, }) // collection item ids and titles
     /* raw messages */
@@ -602,9 +610,12 @@ async function mConversationModernize(openai, conversation_id, Bot, options={}){
         .filter(Boolean)
     const history = await mConversationCompaction(Bot, messages, { compactionThreshold, exchangeFidelity, })
     items.push(...history)
-    // manage batch
-    conversation = await openai.conversations.create({ items, metadata, })
-    if(deleteSource)
+    conversation = await openai.conversations.create({ items: items.slice(0, mMaxConversationItemBatchSize), metadata, })
+    for(let i=mMaxConversationItemBatchSize; i<items.length; i+=mMaxConversationItemBatchSize){
+        const batch = items.slice(i, i + mMaxConversationItemBatchSize)
+        await openai.conversations.items.create(conversation.id, { items: batch, })
+    }
+    if(deleteSource && conversation_id?.length)
         await mConversationDelete(openai, conversation_id)
     console.log('LLMServices::mConversation()::created new conversation', metadata, conversation, instructions)
     return conversation

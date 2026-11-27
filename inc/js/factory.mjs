@@ -666,10 +666,14 @@ class AgentFactory extends BotFactory {
 		const systemInstruction = `I am a summarizer of chat histories. Given a chat message history, I produce a comprehensive summary that preserves all important **member provided facts and other information**. The user in this history is MyLife member ${ this.memberName }, and I am the assistant.\nHowever, I must exclude any GUIDs and associated titles for items, as they will be captured elsewhere.`
 		const userContent = `## Summarize this history:\n${ transcript }`
 		const model = mGetProvider(mGeneralFunctioneer?.llmProviders)?.model ?? 'gpt-4.1-nano'
-		const { annotations=[], content='', } = await mLLMServices.chatCompletion(systemInstruction, userContent, model)
-		// ensure content is string
+		let { annotations=[], content, } = await mLLMServices.chatCompletion(systemInstruction, userContent, model) ?? {}
+		if(typeof content!=='string')
+			content = ''
+		annotations = annotations // flatten annotations
+			.map(a=>a.url_citation?.title + ': ' + a.url_citation?.url)
+			.join('\n')
 		if(annotations?.length)
-			content += `\n## Annotations:\n${ annotations.map(a=>a.url_citation?.title + ': ' + a.url_citation?.url).join('\n') }`
+			content += `\n## Annotations:\n${ annotations }`
 		return content
 	}
 	/**
