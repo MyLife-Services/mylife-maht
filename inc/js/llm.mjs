@@ -589,7 +589,6 @@ async function mConversationModernize(openai, conversation_id, Bot, options={}){
     const versionStamp = conversation?.metadata?.chatVersion
     if(!forceNew && mConversationVersionCheck(versionStamp, mOpenAIApiVersion)) // conversation already modern (enough)
         return conversation
-    console.log('LLMServices::mConversation()::modernizing conversation', conversation_id, conversation, options)
     const instructions = Bot?.instructionsCurrent?.slice(0, mMaxInstructionsLength)
     if(!instructions?.length)
         throw new Error(`Intelligence (id: ${ Bot.id }, name: ${ Bot.name }, type: ${ Bot.type}) has no processing instructions or context`)
@@ -617,7 +616,6 @@ if(instructions?.length){
     }
     if(deleteSource && conversation_id?.length)
         await mConversationDelete(openai, conversation_id)
-    console.log('LLMServices::mConversation()::created new conversation', metadata, conversation, instructions)
     return conversation
 }
 /**
@@ -767,22 +765,6 @@ function mMessagesTranscript(provider, messages){
     return transcript
 }
 /**
- * Converts stored (Assistants-format) tools to Responses API format.
- * @param {object[]} tools - Bot tools: { type: 'function', function: {...} } | { type: 'file_search' } | ...
- * @param {object} tool_resources - { file_search: { vector_store_ids, } }
- * @returns {object[]} - Responses API tools
- */
-function mNormalizeTools(tools=[], tool_resources){
-    const vector_store_ids = tool_resources?.file_search?.vector_store_ids ?? []
-    return tools.flatMap(tool=>{
-        if(tool?.type==='function' && tool.function)
-            return [{ type: 'function', ...tool.function }]
-        if(tool?.type==='file_search')
-            return vector_store_ids.length ? [{ type: 'file_search', vector_store_ids }] : []
-        return tool ? [tool] : []
-    })
-}
-/**
  * Creates an OpenAI request with member input. Appends to Conversation in OpenAI.
  * @param {OpenAI} openai - openai object
  * @param {object} llmProvider - LLM provider object
@@ -825,7 +807,7 @@ async function mResponse(openai, llmProvider={}, Bot, input, options={}){
                     metadata,
                     model,
                 }
-                const tools = mNormalizeTools(Bot?.tools, Bot?.tool_resources)
+                const tools = Bot.tools
                 if(conversation_id?.length)
                     request.conversation = conversation_id
                 if(tools.length)

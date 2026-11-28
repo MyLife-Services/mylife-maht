@@ -93,21 +93,6 @@ class Globals extends EventEmitter {
 			+ sysId
 		return mbr_id
 	}
-	/**
-	 * Get a GPT File Search Tool structure.
-	 * @param {string} vectorstoreId - the vector store id to search.
-	 * @returns {object} - { file_search: { vector_store_ids: [vectorstoreId] } } - the GPT File Search Tool structure.
-	 */
-	getGPTFileSearchToolStructure(vectorstoreId){
-		return {
-			tools: [{ type: 'file_search' }],
-			tool_resources: {
-				file_search: {
-					vector_store_ids: vectorstoreId ? [vectorstoreId] : []
-				}
-			},
-		}
-	}
 	getRegExp(text, isGlobal=false) {
 		if (typeof text !== 'string' || !text.length)
 			throw new Error('Expected a string')

@@ -247,17 +247,42 @@ class BotFactory extends EventEmitter{
 	/**
 	 * Returns bot toolset, either as a direct array or a completed JSON version of tool specifics from JSON-SCHEMA files.
 	 * @public
-	 * @param {string} type - The bot type
-	 * @param {boolean} expanded - Whether to return full tool instructions or not; defaults to `true`
-	 * @return {object[]} - The bot tools, either as an array of tool names or an array of tool instruction objects depending on `expanded` parameter
+	 * @param {String} type - The bot type
+	 * @param {String[]} overrides - any local or data-specific tool additions (optional)
+	 * @param {Object} options - specific options related to blocking (optional)
+	 * @param {Boolean} expanded - Whether to return full tool instructions or not; defaults to `true`
+	 * @return {Object[]} - The bot tools, either as an array of tool names or an array of tool instruction objects depending on `expanded` parameter
 	 */
-	botTools(type, expanded=true){
-		const toolSet = mBotInstructions[type]?.tools ?? []
+	botTools(type, overrides=[], options={}, expanded=true){
+		const { allowed_domains=['humanremembranceproject.org'], blocked=[], vectorstore_id='', } = options
+		const toolList = (mBotInstructions[type]?.tools ?? []) // stored in templates as name only
+			.filter(tool=>!blocked.includes(tool)) // remove blocked elements
+		for (const override of overrides)
+			if(!toolList.includes(override))
+				toolList.push(override)
+		console.log('Factory::botTools', toolList, options, mBotInstructions[type]?.tools)
 		if(!expanded)
-			return toolSet
-		const tools = toolSet
-			.map(toolName=>this.tools[toolName])
-			.filter(Boolean)
+			return toolList
+		const tools = toolList
+			.map(toolName=>{
+				switch(toolName){
+					case 'code_interpreter':
+						return // not allowed currently
+					case 'file_search':
+						return vectorstore_id?.length
+							? { type: 'file_search', vector_store_ids: [vectorstore_id], }
+							: undefined
+					case 'web_search':
+						const tool = { type: 'web_search', }
+						if(allowed_domains?.length)
+							tool.filters = { allowed_domains, }
+						return tool
+					default:
+						const toolDefinition = this.tools[toolName]
+						return { type: 'function', ...toolDefinition}
+				}
+			})
+			.filter(Boolean) // catch any missing entities
 		return tools
 	}
 	/**

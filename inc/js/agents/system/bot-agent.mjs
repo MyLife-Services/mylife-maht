@@ -8,7 +8,7 @@ const {
 	SYSTEM_EXCHANGE_FIDELITY,
 } = process.env
 const mCompactionThreshold=parseInt(SYSTEM_COMPACTION_THRESHOLD) || 100,
-	mDefaultBotTypeArray = ['personal-avatar', 'avatar'],
+	mDefaultBotTypeArray = [ 'avatar', 'personal-avatar', 'system-avatar'],
 	mDefaultBotType = mDefaultBotTypeArray[0],
 	mDefaultGreeting = 'avatar', // greeting routine
 	mDefaultGreetings = ['Welcome to MyLife! I am here to help you!'],
@@ -35,16 +35,18 @@ class Bot {
 	#greetingRoutine
 	#greetings
 	#icon
-	#instructionNodes = new Set()
+	#instructionNodes=new Set()
 	#llm
 	#llmProvider
-	#mcpTools = []
+	#mcpTools=[]
 	#retirable
+	#toolOptions
+	#toolsOverride=[]
 	#type
 	constructor(botData, llm, factory){
 		this.#factory = factory
 		this.#llm = llm
-		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed, retirable, type=mDefaultBotType, ..._botData } = botData
+		const { agentInstructions=[], feedback=[], greeting=mDefaultGreeting, greetings=mDefaultGreetings, icon, llmProvider, llmProviders: { defaultProvider='openai', providers=[], variables=[], }={}, name, unaccessed, retirable, toolOptions, tools, type=mDefaultBotType, ..._botData } = botData
 		const { buttons, options, ...__botData } = _botData // remove additional unwriteable nodes from botData)
 		this.#agentInstructions = agentInstructions
 		this.#documentName = name
@@ -73,9 +75,13 @@ class Bot {
 			?? this.#factory.botIcon(this.#type)
 			?? this.card?.icon
 			?? mDefaultIcon
-		this.#instructionNodes.add('agentInstructions', 'bot_name', 'instructions', 'interests', 'flags', 'tools', 'tool_resources')
+		this.#instructionNodes.add('agentInstructions', 'bot_name', 'instructions', 'interests', 'flags', 'tools')
 		if(type==='proxy')
 			this.#instructionNodes.clear() /* instructionNodes are for internals only */
+		if(toolOptions)
+			this.#toolOptions = toolOptions
+		if(tools)
+			this.#toolsOverride.push(...tools)
 		// @stub - this.#collectionsAgent = new CollectionsAgent(llm, factory)
 	}
 	/* public functions */
@@ -98,7 +104,8 @@ class Bot {
 			return true
 		const tool = this.globals.botTool(toolName)
 		if(!!tool)
-			this.tools.push(tool)
+			this.#toolsOverride.push(tool)
+		// @stub - save to dataset
 		return !!tool
 	}
 	/**
@@ -176,6 +183,8 @@ class Bot {
 	 * @returns {string|undefined} - Developer message string
 	 */
 	async collectionItemListing(){
+		if(this.isMyLife || this.isAvatar) // Not an accessible route for system or avatar entities at this point
+			return
 		const collection = await this.collections()
 		if(!collection?.length)
 			return
@@ -486,6 +495,8 @@ class Bot {
 		return this.#icon
 	}
 	get instructionsCurrent(){
+		if(this.isMyLife && typeof this.instructions==='string' && this.instructions.trim().length)
+			return this.instructions // system bots carry their own instructions; template is fallback
 		return this.#factory.botInstructions(this.type, this)
 	}
 	get instructionNodes(){
@@ -560,6 +571,12 @@ class Bot {
 	}
 	get retirable(){
 		return this.#retirable
+	}
+	get toolOptions(){
+		return this.#toolOptions
+	}
+	get tools(){
+		return this.#factory.botTools(this.type, this.#toolsOverride, this.#toolOptions)
 	}
 	get type(){
 		return this.#type
@@ -1158,7 +1175,7 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 	const { type, } = botData
 	if(!avatarId?.length || !type?.length)
 		throw new Error('avatar id and type required to create bot')
-	const { defaults: { name: defaultBotName, }, instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, botData, botData)
+	const { defaults: { name: defaultBotName, }, instructions, tools, version=1.0, } = mBotInstructions(factory, botData, botData)
 	if(!instructions)
 		throw new Error('bot instructions not found for type: ' + type)
 	const greetings = factory.botGreetings(type, botData)
@@ -1193,7 +1210,6 @@ async function mBotCreate(avatarId, vectorstore_id, botData, llm, factory){
 		provider: 'openai',
 		purpose: description,
 		tools,
-		tool_resources,
 		type,
 		unaccessed: true, // removed after first chat
 		vectorstore_id,
@@ -1257,7 +1273,7 @@ function mBotInstructions(factory, addInstructions={}, Bot={}){
 	const { agentInstructions, type, } = addInstructions
 	if(!type?.length)
 		return
-    let { defaults, limit=16000, tool_resources, version=1.0, } = factory.botTemplate(type)
+    let { defaults, limit=16000, version=1.0, } = factory.botTemplate(type)
 	let instructions = factory.botInstructions(type, Bot)
 	const allInstructions = agentInstructions
 		?.flatMap(item=>item.instructions.map(inst=>inst.instruction))
@@ -1276,8 +1292,6 @@ function mBotInstructions(factory, addInstructions={}, Bot={}){
 	/* conditional */
 	if(defaults)
 		response.defaults = defaults
-	if(tool_resources)
-		response.tool_resources = tool_resources
 	return response
 }
 /**
@@ -1298,7 +1312,6 @@ async function mBotUpdate(botData, options={}, Bot, factory){
 		mbr_id, // no modifications allowed
 		name, // no modifications allowed
 		tools: discardTools,
-		tool_resources: discardResources,
 		type: discardType,
 		...allowedBotData
 	} = botData
@@ -1313,14 +1326,12 @@ async function mBotUpdate(botData, options={}, Bot, factory){
 		if(updateInstructions || updateTools){
 			const instructionReferences = { ...Bot.instructionNodeValues, ...allowedBotData }
 			instructionReferences.type = type
-			const { instructions, tools, tool_resources, version=1.0, } = mBotInstructions(factory, instructionReferences, Bot)
+			const { instructions, tools, version=1.0, } = mBotInstructions(factory, instructionReferences, Bot)
 			allowedBotData.instructions = instructions
 			allowedBotData.metadata = metadata
 			allowedBotData.metadata.version = version.toString()
 			allowedBotData.version = version /* omitted from llm, but appears on updateBot */
 			allowedBotData.tools = tools
-			if(tool_resources)
-				allowedBotData.tool_resources = tool_resources
 		}
 		if(updateModel)
 			allowedBotData.model = factory.globals.currentOpenAIBotModel
@@ -1491,128 +1502,6 @@ async function mDeleteChat(Conversation, localDelete=false, llm, factory){
 	if(localDelete)
 	    factory.deleteItem(id) // no await
     return true
-}
-/**
- * Retrieves any functions that need to be attached to the specific bot-type.
- * @module
- * @todo - Move to llmServices and improve
- * @param {string} type - Type of bot
- * @param {Object} globals - Global functions for bot
- * @param {string} vectorstoreId - Vectorstore id
- * @returns {Object} - OpenAI-ready object for functions { tools, tool_resources, }
- */
-function mGetAIFunctions(type, globals, vectorstoreId){
-	let includeSearch=false,
-		tool_resources,
-		tools = []
-	switch(type){
-		case 'activism':
-			tools.push(
-				globals.botTool('callAvatar'),
-				globals.botTool('changeTitle'),
-				globals.botTool('createAction'),
-				globals.botTool('getAction'),
-				globals.botTool('getGeography'),
-				globals.botTool('getPoliticalLeaning'),
-				globals.botTool('getStance'),
-				globals.botTool('getValue'),
-				globals.botTool('updateAction'),
-			)
-			includeSearch = true
-			break
-		case 'assistant':
-		case 'avatar':
-		case 'personal-assistant':
-		case 'personal-avatar':
-			tools.push(
-				globals.botTool('callExternalAgent'),
-				globals.botTool('changeTitle'),
-				globals.botTool('getSummary'),
-			)
-			includeSearch = true
-			break
-		case 'biographer':
-		case 'personal-biographer':
-			tools.push(
-				globals.botTool('callAvatar'),
-				globals.botTool('changeTitle'),
-				globals.botTool('endReliving'),
-				globals.botTool('getSummary'),
-				globals.botTool('itemSummary'),
-				globals.botTool('updateSummary'),
-			)
-			includeSearch = true
-			break
-		case 'custom':
-			includeSearch = true
-			break
-		case 'diary':
-		case 'journaler':
-			tools.push(
-				globals.botTool('callAvatar'),
-				globals.botTool('changeTitle'),
-				globals.botTool('getSummary'),
-				globals.botTool('itemSummary'),
-				globals.botTool('updateSummary'),
-			)
-			includeSearch = true
-			break
-		case 'political-stance':
-			tools.push(
-				globals.botTool('callAvatar'),
-				globals.botTool('changeTitle'),
-				globals.botTool('createStance'),
-				globals.botTool('getGeography'),
-				globals.botTool('getPoliticalLeaning'),
-				globals.botTool('getStance'),
-				globals.botTool('setGeography'),
-				globals.botTool('setPoliticalLeaning'),
-				globals.botTool('updateStance'),
-			)
-			includeSearch = true
-			break
-		case 'political-values':
-			tools.push(
-				globals.botTool('callAvatar'),
-				globals.botTool('changeTitle'),
-				globals.botTool('createValue'),
-				globals.botTool('getGeography'),
-				globals.botTool('getPoliticalLeaning'),
-				globals.botTool('getStance'),
-				globals.botTool('getValue'),
-				globals.botTool('setValuesBackground'),
-				globals.botTool('updateValue'),
-			)
-			includeSearch = true
-			break
-		default:
-			break
-	}
-	if(includeSearch){
-		const { tool_resources: gptResources, tools: gptTools, } = mGetGPTResources(globals, 'file_search', vectorstoreId)
-		tools.push(...gptTools)
-		tool_resources = gptResources
-	}
-	return {
-		tools,
-		tool_resources,
-	}
-}
-/**
- * Retrieves any tools and tool-resources that need to be attached to the specific bot-type.
- * @param {Globals} globals - Globals object.
- * @param {string} toolName - Name of tool.
- * @param {string} vectorstoreId - Vectorstore id.
- * @returns {Object} - { tools, tool_resources, }.
- */
-function mGetGPTResources(globals, toolName, vectorstoreId){
-	switch(toolName){
-		case 'file_search':
-			const { tools, tool_resources, } = globals.getGPTFileSearchToolStructure(vectorstoreId)
-			return { tools, tool_resources, }
-		default:
-			throw new Error('tool name not recognized')
-	}
 }
 /**
  * Initializes the provided BotAgent instance.
